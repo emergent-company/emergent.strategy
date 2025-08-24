@@ -1,0 +1,13 @@
+{
+  "servers": {
+    "db": {
+      "command": "node",
+      "args": [
+        ".vscode/mcp.js"
+      ],
+      "env": {
+        "MCP_BASE_URL": "http://localhost:${PORT}"
+      }
+    }
+  }
+}

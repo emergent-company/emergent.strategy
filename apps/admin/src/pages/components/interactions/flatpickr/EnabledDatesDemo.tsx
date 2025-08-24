@@ -1,0 +1,29 @@
+import flatpickr from "flatpickr";
+import "flatpickr/dist/flatpickr.css";
+import React, { useEffect, useRef } from "react";
+
+type Instance = flatpickr.Instance;
+
+export const EnabledDatesDemo = () => {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const pickerRef = useRef<Instance>(null);
+
+    useEffect(() => {
+        const input = inputRef.current;
+        if (!input) return;
+
+        pickerRef.current = flatpickr(input, {
+            defaultDate: new Date(),
+            inline: true,
+            enable: [
+                new Date(Date.now() - 24 * 60 * 60 * 1000),
+                new Date(),
+                new Date(Date.now() + 24 * 60 * 60 * 1000),
+            ],
+        });
+
+        return () => pickerRef.current?.destroy();
+    }, []);
+
+    return <input className="input max-w-56" aria-label="Choose Date" ref={inputRef} />;
+};

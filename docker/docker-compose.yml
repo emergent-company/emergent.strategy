@@ -1,0 +1,20 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: spec_pg
+    environment:
+      POSTGRES_USER: spec
+      POSTGRES_PASSWORD: spec
+      POSTGRES_DB: spec
+    ports:
+      - "5432:5432"
+    volumes:
+      - spec_pg_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spec -d spec"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  spec_pg_data:

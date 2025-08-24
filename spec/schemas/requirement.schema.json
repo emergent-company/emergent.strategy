@@ -1,0 +1,58 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://example.com/schemas/requirement.schema.json",
+    "title": "Requirement",
+    "type": "object",
+    "properties": {
+        "type": {
+            "const": "Requirement"
+        },
+        "title": {
+            "type": "string"
+        },
+        "category": {
+            "type": "string",
+            "enum": [
+                "FR",
+                "NFR",
+                "Constraint",
+                "Compliance",
+                "BusinessRule"
+            ]
+        },
+        "status": {
+            "type": "string",
+            "enum": [
+                "proposed",
+                "accepted",
+                "deprecated",
+                "rejected"
+            ]
+        },
+        "rationale": {
+            "type": "string"
+        },
+        "fit_criterion": {
+            "type": "string"
+        },
+        "evidence": {
+            "type": "array",
+            "items": {
+                "$ref": "./evidence.schema.json"
+            }
+        },
+        "architecture_domain": {
+            "type": "string"
+        },
+        "adm_phase": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "type",
+        "title",
+        "category",
+        "status"
+    ],
+    "additionalProperties": true
+}

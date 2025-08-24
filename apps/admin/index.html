@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" class="group/html">
+    <head>
+        <meta charset="UTF-8" />
+        <link href="/images/favicon-light.png" media="(prefers-color-scheme: light)" rel="icon" />
+        <link href="/images/favicon-dark.png" media="(prefers-color-scheme: dark)" rel="icon" />
+        <meta name="author" content="Denish Navadiya" />
+        <meta name="keywords" content="HTML, CSS, daisyui, tailwindcss, admin, client, dashboard, ui kit, component" />
+        <meta
+            name="description"
+            content="Modern admin and client dashboards built with DaisyUI. Clean, responsive, and fully customizable" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+        <meta property="og:title" content="Nexus Dashboard" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://nexus.daisyui.com/" />
+        <meta property="og:image" content="https://nexus.daisyui.com/images/og-image.jpg" />
+
+        <script>
+            try {
+                const localStorageItem = localStorage.getItem("__NEXUS_CONFIG_v3.0__");
+                if (localStorageItem) {
+                    const theme = JSON.parse(localStorageItem).theme;
+                    if (theme !== "system") {
+                        document.documentElement.setAttribute("data-theme", theme);
+                    }
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        </script>
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/src/main"></script>
+    </body>
+</html>

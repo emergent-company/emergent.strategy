@@ -1,0 +1,63 @@
+/*
+// Choices.js
+*/
+
+.choices {
+    &.is-disabled {
+        .choices__inner {
+            @apply !bg-base-200 !border-base-200;
+        }
+    }
+    .choices__inner {
+        @apply bg-base-100 !border-base-300;
+    }
+
+    .choices__input {
+        @apply !bg-transparent;
+    }
+
+    .choices__list.choices__list--multiple {
+        .choices__item {
+            @apply bg-primary text-primary-content border-0;
+
+            .choices__button {
+                @apply border-primary-content/50 pe-1.5;
+                border-left: 1px solid inherit;
+            }
+        }
+    }
+
+    .choices__list.choices__list--dropdown {
+        @apply bg-base-100 !border-base-300;
+
+        .choices__input {
+            @apply !bg-base-100 border-base-300;
+        }
+
+        .choices__item {
+            &:not(.choices__item--disabled).is-highlighted {
+                @apply bg-base-200;
+            }
+        }
+
+        .choices__group {
+            .choices__heading {
+                @apply border-base-300;
+            }
+        }
+
+        .choices__item--choice {
+            b {
+                @apply font-medium;
+            }
+        }
+    }
+
+    &.is-open::after {
+        @apply -scale-y-100;
+    }
+
+    &::after {
+        @apply !border-t-base-content/60 !border-transparent transition-all;
+    }
+}

@@ -1,0 +1,275 @@
+{
+    "name": "Meeting Transcript → Spec Objects (Stub)",
+    "nodes": [
+        {
+            "parameters": {
+                "path": "ingest/meeting",
+                "methods": [
+                    "POST"
+                ]
+            },
+            "id": "Webhook1",
+            "name": "Webhook - Meeting Ingest",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                260,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{$json[\"transcriptUrl\"]}}",
+                            "operation": "notEmpty"
+                        }
+                    ]
+                }
+            },
+            "id": "If1",
+            "name": "IF has URL?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                520,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "={{$json[\"transcriptUrl\"]}}",
+                "responseFormat": "string"
+            },
+            "id": "HttpDownload",
+            "name": "HTTP - Download Transcript",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                740,
+                180
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "// Normalize to transcriptText\nconst items = [];\nfor (const item of $input.all()) {\n  const body = item.json.data || item.json.body || item.json;\n  const transcriptText = item.json.transcriptText || (typeof body === 'string' ? body : body.text);\n  items.push({ json: { transcriptText, metadata: item.json.metadata || {} } });\n}\nreturn items;"
+            },
+            "id": "FnSetTranscript",
+            "name": "Function - Set Transcript",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 2,
+            "position": [
+                980,
+                250
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "// Simple chunking by paragraphs and max length\nfunction chunkText(text, maxLen = 1600) {\n  const paras = text.split(/\n\n+/);\n  const chunks = [];\n  let buf = '';\n  for (const p of paras) {\n    if ((buf + '\\n\\n' + p).length > maxLen && buf.length > 0) {\n      chunks.push(buf.trim());\n      buf = p;\n    } else {\n      buf = buf ? (buf + '\\n\\n' + p) : p;\n    }\n  }\n  if (buf) chunks.push(buf.trim());\n  return chunks;\n}\nconst out = [];\nfor (const item of $input.all()) {\n  const text = item.json.transcriptText || '';\n  const raw = chunkText(text, 1600);\n  const chunks = raw.map((t, i) => ({ chunk_id: `m_${Date.now()}_${i+1}`, text: t }));\n  out.push({ json: { chunks, metadata: item.json.metadata || {} } });\n}\nreturn out;"
+            },
+            "id": "FnChunk",
+            "name": "Function - Chunk Transcript",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 2,
+            "position": [
+                1180,
+                250
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "// Build Google Gemini generateContent payload\nconst system = `You are an information extraction service. Extract objects per schemas and output a single JSON object with keys: meeting, decisions, requirements, action_items, questions, risks. Include evidence with chunk_id for each item.`;\nconst chunks = $json.chunks;\nconst schemasHint = `Required fields: Meeting{title,uri,participants[],summary}, Decision{title,status,context,options[],chosen_option,consequences}, Requirement{title,category,status,fit_criterion}, ActionItem{title,owner,status}, Question{title,status}, Risk{title,likelihood,impact,mitigation}.`;\nconst user = JSON.stringify({ schemas: schemasHint, chunks });\nconst payload = {\n  systemInstruction: { role: 'system', parts: [{ text: system }] },\n  contents: [ { role: 'user', parts: [{ text: user }] } ],\n  generationConfig: { temperature: 0.1, responseMimeType: 'application/json' }\n};\nreturn [{ json: { geminiPayload: payload } }];"
+            },
+            "id": "FnBuildGemini",
+            "name": "Function - Build Gemini Payload",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 2,
+            "position": [
+                1380,
+                250
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=REPLACE_WITH_GOOGLE_API_KEY",
+                "jsonParameters": true,
+                "options": {
+                    "bodyContentType": "json",
+                    "headers": {
+                        "Content-Type": "application/json"
+                    }
+                },
+                "bodyParametersJson": "={{$json.geminiPayload}}",
+                "responseFormat": "json"
+            },
+            "id": "HttpGemini",
+            "name": "HTTP - Gemini",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1600,
+                250
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "// Parse Google Gemini JSON response\nconst res = $json;\ntry {\n  const content = res.candidates?.[0]?.content?.parts?.[0]?.text || '{}';\n  const data = JSON.parse(content);\n  return [{ json: data }];\n} catch (e) {\n  throw new Error('Failed to parse LLM JSON: ' + e.message);\n}"
+            },
+            "id": "FnParseLLM",
+            "name": "Function - Parse LLM JSON",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 2,
+            "position": [
+                1800,
+                250
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://localhost:8080/api/ingest/meeting",
+                "jsonParameters": true,
+                "options": {
+                    "bodyContentType": "json"
+                },
+                "bodyParametersJson": "={{$json}}",
+                "responseFormat": "json"
+            },
+            "id": "HttpUpsert",
+            "name": "HTTP - Upsert Objects (placeholder)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                2000,
+                250
+            ]
+        },
+        {
+            "parameters": {
+                "responseBody": "={{ { status: 'accepted', objects: Object.keys($json) } }}",
+                "responseCode": 202
+            },
+            "id": "Respond",
+            "name": "Respond to Webhook",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                2220,
+                250
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook - Meeting Ingest": {
+            "main": [
+                [
+                    {
+                        "node": "IF has URL?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF has URL?": {
+            "main": [
+                [
+                    {
+                        "node": "HTTP - Download Transcript",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Function - Set Transcript",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "HTTP - Download Transcript": {
+            "main": [
+                [
+                    {
+                        "node": "Function - Set Transcript",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Function - Set Transcript": {
+            "main": [
+                [
+                    {
+                        "node": "Function - Chunk Transcript",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Function - Chunk Transcript": {
+            "main": [
+                [
+                    {
+                        "node": "Function - Build Gemini Payload",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Function - Build Gemini Payload": {
+            "main": [
+                [
+                    {
+                        "node": "HTTP - Gemini",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "HTTP - Gemini": {
+            "main": [
+                [
+                    {
+                        "node": "Function - Parse LLM JSON",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Function - Parse LLM JSON": {
+            "main": [
+                [
+                    {
+                        "node": "HTTP - Upsert Objects (placeholder)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "HTTP - Upsert Objects (placeholder)": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": false,
+    "settings": {},
+    "staticData": {}
+}

@@ -1,0 +1,15 @@
+#components-layout {
+    @apply bg-base-100;
+}
+
+#components-layout-container {
+    @apply flex !px-0 xl:container;
+}
+
+#components-layout-main {
+    @apply border-base-300/80 min-w-0 grow border-dashed xl:border-e;
+}
+
+#components-layout-content {
+    @apply mx-4 my-8 min-h-[calc(100vh-8rem)] md:mx-8 lg:my-12 xl:mx-12 2xl:mx-20;
+}

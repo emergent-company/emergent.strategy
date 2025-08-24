@@ -1,0 +1,74 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://example.com/schemas/meeting.schema.json",
+    "title": "Meeting",
+    "type": "object",
+    "properties": {
+        "type": {
+            "const": "Meeting"
+        },
+        "title": {
+            "type": "string"
+        },
+        "provider": {
+            "type": "string"
+        },
+        "uri": {
+            "type": "string"
+        },
+        "started_at": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "ended_at": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "participants": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email"
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "additionalProperties": true
+            }
+        },
+        "agenda": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "summary": {
+            "type": "string"
+        },
+        "evidence": {
+            "type": "array",
+            "items": {
+                "$ref": "./evidence.schema.json"
+            }
+        },
+        "architecture_domain": {
+            "type": "string"
+        },
+        "adm_phase": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "type",
+        "title",
+        "uri"
+    ],
+    "additionalProperties": true
+}
