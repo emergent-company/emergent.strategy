@@ -12,7 +12,16 @@ const cw = (Component: LazyExoticComponent<() => JSX.Element>) => {
 };
 
 // Keep only the Documents page in admin for now
-const dashboardRoutes: IRoutesProps[] = [];
+const dashboardRoutes: IRoutesProps[] = [
+    {
+        path: "/admin/chat",
+        element: cw(lazy(() => import("@/pages/admin/chat/home"))),
+    },
+    {
+        path: "/admin/chat/c/:id?",
+        element: cw(lazy(() => import("@/pages/admin/chat/conversation"))),
+    },
+];
 
 const appRoutes: IRoutesProps[] = [
     {

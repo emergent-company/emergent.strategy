@@ -9,6 +9,12 @@
 				"$tsc"
 			],
 			"group": "build"
+		},
+		{
+			"label": "Typecheck admin",
+			"type": "shell",
+			"command": "npm --prefix apps/admin run build",
+			"group": "build"
 		}
 	]
 }

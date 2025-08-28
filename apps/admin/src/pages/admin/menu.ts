@@ -9,4 +9,10 @@ export const adminMenuItems: ISidebarMenuItem[] = [
         label: "Documents",
         url: "/apps/documents",
     },
+    {
+        id: "admin-chat",
+        icon: "lucide--message-square",
+        label: "Chat",
+        url: "/admin/chat",
+    },
 ];

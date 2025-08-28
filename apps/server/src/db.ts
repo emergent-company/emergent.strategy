@@ -109,4 +109,29 @@ export async function ensureSchema() {
     CREATE TRIGGER trg_chunks_tsv BEFORE INSERT OR UPDATE ON kb.chunks
     FOR EACH ROW EXECUTE FUNCTION kb.update_tsv();
   `);
+
+  // Chat persistence tables
+  await pool.query(`
+  CREATE TABLE IF NOT EXISTS kb.chat_conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    owner_user_id UUID NOT NULL,
+    is_private BOOLEAN NOT NULL DEFAULT false
+  );`);
+
+  await pool.query(`
+  CREATE TABLE IF NOT EXISTS kb.chat_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID NOT NULL REFERENCES kb.chat_conversations(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('user','assistant','system')),
+    content TEXT NOT NULL,
+    citations JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );`);
+
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_messages_conv ON kb.chat_messages(conversation_id, created_at);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_conversations_updated ON kb.chat_conversations(updated_at DESC);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_conversations_privacy ON kb.chat_conversations(is_private, owner_user_id);`);
 }

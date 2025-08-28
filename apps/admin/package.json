@@ -1,13 +1,11 @@
 {
-    "name": "nexus-react",
-    "description": "Launch powerful modern dashboards with customizable apps, components, blocks and integrations designed to accelerate workflows and boost efficiency.",
-    "version": "3.0.0",
+    "name": "spec-server-admin",
+    "description": "Admin UI Interface for Spec Server",
+    "version": "0.1",
     "private": true,
     "type": "module",
-    "homepage": "https://nexus.daisyui.com/",
     "author": {
-        "name": "Denish Navadiya",
-        "url": "https://withden.dev/"
+        "name": "Maciej Kucharz"
     },
     "scripts": {
         "dev": "vite",
