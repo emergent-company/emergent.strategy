@@ -22,8 +22,8 @@ const SidebarPage = () => {
                 title="Sidebar"
                 description="Custom sidebar layouts with icons, project menus, docs view, and background styling options"
             />
-            <div className="bg-base-200/40 rounded-box mt-6 flex items-center gap-3 px-5 py-4 lg:mt-12">
-                <span className="iconify lucide--info text-base-content/70 size-4.5"></span>
+            <div className="flex items-center gap-3 bg-base-200/40 mt-6 lg:mt-12 px-5 py-4 rounded-box">
+                <span className="size-4.5 text-base-content/70 iconify lucide--info"></span>
                 <p>
                     <span className="me-1">Play with layouts using</span>
                     <Link to="/admin/tools/layout-builder" target="_blank" className="text-primary">
@@ -31,69 +31,69 @@ const SidebarPage = () => {
                     </Link>
                 </p>
             </div>
-            <p className="text-base-content/60 mt-6 font-medium">Demos</p>
-            <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2 xl:gap-8">
-                <div className="card bg-base-100 card-border overflow-hidden">
+            <p className="mt-6 font-medium text-base-content/60">Demos</p>
+            <div className="gap-6 xl:gap-8 grid grid-cols-1 lg:grid-cols-2 mt-6">
+                <div className="bg-base-100 card-border overflow-hidden card">
                     <div className="bg-base-200/30 px-5 py-3 font-medium">Ecommerce</div>
-                    <div className="flex items-center justify-center p-6 md:p-8">
-                        <div className="border-base-200 rounded-box h-full min-h-[85vh] w-64 border shadow-xs">
+                    <div className="flex justify-center items-center p-6 md:p-8">
+                        <div className="shadow-xs border border-base-200 rounded-box w-64 h-full min-h-[85vh]">
                             <EcommerceSidebarDemo />
                         </div>
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border overflow-hidden">
+                <div className="bg-base-100 card-border overflow-hidden card">
                     <div className="bg-base-200/30 px-5 py-3 font-medium">Payment</div>
-                    <div className="flex items-center justify-center p-6 md:p-8">
-                        <div className="border-base-200 rounded-box h-full min-h-[85vh] w-64 border shadow-xs">
+                    <div className="flex justify-center items-center p-6 md:p-8">
+                        <div className="shadow-xs border border-base-200 rounded-box w-64 h-full min-h-[85vh]">
                             <PaymentSidebarDemo />
                         </div>
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border overflow-hidden">
+                <div className="bg-base-100 card-border overflow-hidden card">
                     <div className="bg-base-200/30 px-5 py-3 font-medium">Project</div>
-                    <div className="flex items-center justify-center p-6 md:p-8">
-                        <div className="border-base-200 rounded-box h-full min-h-[85vh] w-64 border shadow-xs">
+                    <div className="flex justify-center items-center p-6 md:p-8">
+                        <div className="shadow-xs border border-base-200 rounded-box w-64 h-full min-h-[85vh]">
                             <ProjectSidebarDemo />
                         </div>
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border overflow-hidden">
+                <div className="bg-base-100 card-border overflow-hidden card">
                     <div className="bg-base-200/30 px-5 py-3 font-medium">Chat</div>
-                    <div className="flex items-center justify-center p-6 md:p-8">
-                        <div className="border-base-200 rounded-box h-full min-h-[85vh] w-64 border shadow-xs">
+                    <div className="flex justify-center items-center p-6 md:p-8">
+                        <div className="shadow-xs border border-base-200 rounded-box w-64 h-full min-h-[85vh]">
                             <ChatSidebarDemo />
                         </div>
                     </div>
                 </div>
 
-                <div className="card bg-base-100 card-border overflow-hidden">
+                <div className="bg-base-100 card-border overflow-hidden card">
                     <div className="bg-base-200/30 px-5 py-3 font-medium">Huge Icons</div>
-                    <div className="flex items-center justify-center p-6 md:p-8">
-                        <div className="border-base-200 rounded-box h-full min-h-[85vh] w-64 border shadow-xs">
+                    <div className="flex justify-center items-center p-6 md:p-8">
+                        <div className="shadow-xs border border-base-200 rounded-box w-64 h-full min-h-[85vh]">
                             <HugeIconsSidebarDemo />
                         </div>
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border overflow-hidden">
+                <div className="bg-base-100 card-border overflow-hidden card">
                     <div className="bg-base-200/30 px-5 py-3 font-medium">Remix Icons</div>
-                    <div className="flex items-center justify-center p-6 md:p-8">
-                        <div className="border-base-200 rounded-box h-full min-h-[85vh] w-64 border shadow-xs">
+                    <div className="flex justify-center items-center p-6 md:p-8">
+                        <div className="shadow-xs border border-base-200 rounded-box w-64 h-full min-h-[85vh]">
                             <RemixIconsSidebarDemo />
                         </div>
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border overflow-hidden">
+                <div className="bg-base-100 card-border overflow-hidden card">
                     <div className="bg-base-200/30 px-5 py-3 font-medium">Documentation</div>
-                    <div className="flex items-center justify-center p-6 md:p-8">
-                        <div className="border-base-200 rounded-box h-full min-h-[85vh] w-64 border shadow-xs">
+                    <div className="flex justify-center items-center p-6 md:p-8">
+                        <div className="shadow-xs border border-base-200 rounded-box w-64 h-full min-h-[85vh]">
                             <DocumentationSidebarDemo />
                         </div>
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border overflow-hidden">
+                <div className="bg-base-100 card-border overflow-hidden card">
                     <div className="bg-base-200/30 px-5 py-3 font-medium">Custom Background</div>
-                    <div className="flex items-center justify-center p-6 md:p-8">
-                        <div className="rounded-box h-full min-h-[85vh] w-64 overflow-hidden">
+                    <div className="flex justify-center items-center p-6 md:p-8">
+                        <div className="rounded-box w-64 h-full min-h-[85vh] overflow-hidden">
                             <CustomBackgroundSidebarDemo />
                         </div>
                     </div>

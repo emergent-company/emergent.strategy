@@ -7,12 +7,12 @@ export const adminMenuItems: ISidebarMenuItem[] = [
         id: "apps-documents",
         icon: "lucide--file-text",
         label: "Documents",
-    url: "/admin/apps/documents",
+        url: "/admin/apps/documents",
     },
     {
         id: "admin-chat",
         icon: "lucide--message-square",
         label: "Chat",
-    url: "/admin/apps/chat",
+        url: "/admin/apps/chat",
     },
 ];

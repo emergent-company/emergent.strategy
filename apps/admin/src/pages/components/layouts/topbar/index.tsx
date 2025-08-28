@@ -21,8 +21,8 @@ const TopbarPage = () => {
                 description="Topbar demos show basic layouts, greetings, navigation menus, and editor integration options"
             />
 
-            <div className="bg-base-200/40 rounded-box mt-6 flex items-center gap-3 px-5 py-4 lg:mt-12">
-                <span className="iconify lucide--info text-base-content/70 size-4.5"></span>
+            <div className="flex items-center gap-3 bg-base-200/40 mt-6 lg:mt-12 px-5 py-4 rounded-box">
+                <span className="size-4.5 text-base-content/70 iconify lucide--info"></span>
                 <p>
                     <span className="me-1">Play with layouts using</span>
                     <Link to="/admin/tools/layout-builder" target="_blank" className="text-primary">
@@ -31,42 +31,42 @@ const TopbarPage = () => {
                 </p>
             </div>
 
-            <p className="text-base-content/60 mt-6 font-medium">Demos</p>
+            <p className="mt-6 font-medium text-base-content/60">Demos</p>
 
-            <div className="mt-6 space-y-6 pb-20">
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Classic</div>
+            <div className="space-y-6 mt-6 pb-20">
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Classic</div>
                     <div className="h-15">
                         <ClassicTopbarDemo />
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Greeting</div>
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Greeting</div>
                     <div className="h-15">
                         <GreetingTopbarDemo />
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Nav Menu 1</div>
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Nav Menu 1</div>
                     <div className="h-15">
                         <NavMenu1TopbarDemo />
                     </div>
                 </div>
 
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Nav Menu 2</div>
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Nav Menu 2</div>
                     <div className="h-15">
                         <NavMenu2TopbarDemo />
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Editor</div>
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Editor</div>
                     <div className="h-15">
                         <EditorTopbarDemo />
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Custom Background</div>
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Custom Background</div>
                     <div className="h-15">
                         <CustomBackgroundTopbarDemo />
                     </div>

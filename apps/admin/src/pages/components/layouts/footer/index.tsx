@@ -24,8 +24,8 @@ const FooterPage = () => {
                 description="Footer demos showcase minimal, social, branding, legal, status, support, and customizable layouts."
             />
 
-            <div className="bg-base-200/40 rounded-box mt-6 flex items-center gap-3 px-5 py-4 lg:mt-12">
-                <span className="iconify lucide--info text-base-content/70 size-4.5"></span>
+            <div className="flex items-center gap-3 bg-base-200/40 mt-6 lg:mt-12 px-5 py-4 rounded-box">
+                <span className="size-4.5 text-base-content/70 iconify lucide--info"></span>
                 <p>
                     <span className="me-1">Play with layouts using</span>
                     <Link to="/admin/tools/layout-builder" target="_blank" className="text-primary">
@@ -34,61 +34,61 @@ const FooterPage = () => {
                 </p>
             </div>
 
-            <p className="text-base-content/60 mt-6 font-medium">Demos</p>
+            <p className="mt-6 font-medium text-base-content/60">Demos</p>
 
-            <div className="mt-6 space-y-8">
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Minimal</div>
+            <div className="space-y-8 mt-6">
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Minimal</div>
                     <div className="py-2">
                         <MinimalFooterDemo />
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Social</div>
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Social</div>
                     <div className="py-2">
                         <SocialFooterDemo />
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Branding</div>
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Branding</div>
                     <div className="py-2">
                         <BrandingFooterDemo />
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Legal</div>
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Legal</div>
                     <div className="py-2">
                         <LegalFooterDemo />
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Status</div>
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Status</div>
                     <div className="py-2">
                         <StatusFooterDemo />
                     </div>
                 </div>
 
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Support</div>
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Support</div>
                     <div className="py-2">
                         <SupportFooterDemo />
                     </div>
                 </div>
 
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Options 1</div>
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Options 1</div>
                     <div className="py-2">
                         <Options1FooterDemo />
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Options 2</div>
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Options 2</div>
                     <div className="py-2">
                         <Options2FooterDemo />
                     </div>
                 </div>
-                <div className="card bg-base-100 card-border">
-                    <div className="bg-base-200/30 rounded-t-box px-5 py-3 font-medium">Custom Background</div>
+                <div className="bg-base-100 card-border card">
+                    <div className="bg-base-200/30 px-5 py-3 rounded-t-box font-medium">Custom Background</div>
                     <CustomBackgroundFooterDemo />
                 </div>
             </div>

@@ -42,24 +42,24 @@ export const Topbar = () => {
                 data-scrolling={scrolling}
                 data-at-top={scrollPosition < 30}
                 className="group fixed inset-x-0 z-[60] flex justify-center transition-[top] duration-500 data-[scrolling=down]:-top-full sm:container [&:not([data-scrolling=down])]:top-0 [&:not([data-scrolling=down])]:sm:top-4">
-                <div className="group-data-[at-top=false]:bg-base-100 group-data-[at-top=false]:dark:bg-base-200 flex w-full items-center justify-between px-3 py-3 transition-all duration-500 group-data-[at-top=false]:w-[800px] group-data-[at-top=false]:shadow sm:rounded-full sm:px-6 lg:py-1.5">
+                <div className="flex justify-between items-center group-data-[at-top=false]:bg-base-100 group-data-[at-top=false]:dark:bg-base-200 group-data-[at-top=false]:shadow px-3 sm:px-6 py-3 lg:py-1.5 sm:rounded-full w-full group-data-[at-top=false]:w-[800px] transition-all duration-500">
                     <div className="flex items-center gap-2">
-                        <div className="flex-none lg:hidden">
+                        <div className="lg:hidden flex-none">
                             <div className="drawer">
                                 <input id="landing-menu-drawer" type="checkbox" className="drawer-toggle" />
                                 <div className="drawer-content">
                                     <label
                                         htmlFor="landing-menu-drawer"
                                         className="btn drawer-button btn-ghost btn-square btn-sm">
-                                        <span className="iconify lucide--menu size-4.5" />
+                                        <span className="size-4.5 iconify lucide--menu" />
                                     </label>
                                 </div>
-                                <div className="drawer-side z-[50]">
+                                <div className="z-[50] drawer-side">
                                     <label
                                         htmlFor="landing-menu-drawer"
                                         aria-label="close sidebar"
                                         className="drawer-overlay"></label>
-                                    <ul className="menu bg-base-100 text-base-content min-h-full w-80 p-4">
+                                    <ul className="bg-base-100 p-4 w-80 min-h-full text-base-content menu">
                                         <li>
                                             <Link to="/admin">Dashboard</Link>
                                         </li>
@@ -75,7 +75,7 @@ export const Topbar = () => {
                             <Logo />
                         </Link>
                     </div>
-                    <ul className="menu menu-horizontal hidden gap-2 px-0 lg:inline-flex">
+                    <ul className="hidden lg:inline-flex gap-2 px-0 menu menu-horizontal">
                         <li>
                             <Link to="/admin">Dashboard</Link>
                         </li>
@@ -84,14 +84,14 @@ export const Topbar = () => {
                         </li>
                     </ul>
                     <div className="inline-flex items-center gap-3">
-                        <ThemeToggle className="btn btn-square btn-ghost btn-sm border-transparent" />
+                        <ThemeToggle className="border-transparent btn btn-square btn-ghost btn-sm" />
                         <Link
                             to="https://daisyui.com/store/244268?aff=Db6q2"
                             target="_blank"
-                            className="btn from-primary to-secondary group/purchase text-primary-content btn-sm max-sm:btn-square relative gap-2 border-0 bg-linear-to-r text-sm">
-                            <span className="iconify lucide--shopping-cart size-4" />
+                            className="group/purchase relative gap-2 bg-linear-to-r from-primary to-secondary border-0 text-primary-content text-sm btn btn-sm max-sm:btn-square">
+                            <span className="size-4 iconify lucide--shopping-cart" />
                             <span className="max-sm:hidden">Buy Now</span>
-                            <div className="from-primary to-secondary absolute inset-x-0 top-1 -z-1 h-8 bg-linear-to-r opacity-40 blur-md transition-all duration-500 group-hover/purchase:opacity-60 group-hover/purchase:blur-lg"></div>
+                            <div className="top-1 -z-1 absolute inset-x-0 bg-linear-to-r from-primary to-secondary opacity-40 group-hover/purchase:opacity-60 blur-md group-hover/purchase:blur-lg h-8 transition-all duration-500"></div>
                         </Link>
                     </div>
                 </div>
