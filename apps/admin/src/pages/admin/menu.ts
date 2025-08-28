@@ -10,6 +10,12 @@ export const adminMenuItems: ISidebarMenuItem[] = [
         url: "/admin/apps/documents",
     },
     {
+        id: "apps-chunks",
+        icon: "lucide--square-stack",
+        label: "Chunks",
+        url: "/admin/apps/chunks",
+    },
+    {
         id: "admin-chat",
         icon: "lucide--message-square",
         label: "Chat",

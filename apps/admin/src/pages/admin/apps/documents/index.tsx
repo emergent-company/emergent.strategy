@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageTitle } from "@/components/PageTitle";
 import { LoadingEffect } from "@/components/LoadingEffect";
+import { TableEmptyState } from "@/components/TableEmptyState";
 
 type DocumentRow = {
     id: string;
@@ -73,6 +74,7 @@ export default function DocumentsPage() {
                                         <th>Mime</th>
                                         <th>Chunks</th>
                                         <th>Created</th>
+                                        <th></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -91,17 +93,24 @@ export default function DocumentsPage() {
                                                 </td>
                                                 <td>{d.mime_type || "text/plain"}</td>
                                                 <td>
-                                                    <div className="badge-outline badge">{d.chunks}</div>
+                                                    <a
+                                                        href={`/admin/apps/chunks?docId=${d.id}`}
+                                                        className="badge-outline hover:underline no-underline badge"
+                                                        title="View chunks for this document"
+                                                    >
+                                                        {d.chunks}
+                                                    </a>
                                                 </td>
                                                 <td>{new Date(d.created_at).toLocaleString()}</td>
+                                                <td className="text-right">
+                                                    <a className="btn btn-sm" href={`/admin/apps/chunks?docId=${d.id}`}>
+                                                        View chunks
+                                                    </a>
+                                                </td>
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr>
-                                            <td colSpan={5} className="opacity-70 py-8 text-center">
-                                                No documents yet.
-                                            </td>
-                                        </tr>
+                                        <TableEmptyState colSpan={6} />
                                     )}
                                 </tbody>
                             </table>

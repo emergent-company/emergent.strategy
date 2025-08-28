@@ -128,6 +128,107 @@ async function main() {
         }
     });
 
+    // List chunks with optional filters and pagination
+    app.get('/chunks', async (req: Request, res: Response) => {
+        try {
+            const docIdRaw = (req.query.docId as string | undefined) || undefined;
+            const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+            const docId = docIdRaw && uuidRe.test(docIdRaw) ? docIdRaw : null;
+            const qRaw = String((req.query.q as string) || '').trim();
+            const q = qRaw.length > 0 ? qRaw : null;
+            const page = Math.max(1, Number(req.query.page || 1) || 1);
+            const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize || 25) || 25));
+            const offset = (page - 1) * pageSize;
+
+            const sortParam = String((req.query.sort as string) || 'created_at:desc');
+            const [sortField, sortDirRaw] = sortParam.split(':');
+            const direction = sortDirRaw?.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+            // Allow only whitelisted columns for sorting
+            // Order by the column names available in the final SELECT (from CTE),
+            // not using the base table alias to avoid missing FROM-clause errors.
+            let orderBy = `created_at ${direction}, chunk_index ASC`;
+            if (sortField === 'chunk_index') orderBy = `chunk_index ${direction}, created_at DESC`;
+
+            const params: any[] = [docId, q, offset, pageSize];
+
+            const sql = `
+                WITH filtered AS (
+                    SELECT c.id, c.document_id, c.chunk_index, c.text, c.created_at,
+                           d.filename, d.source_url
+                    FROM kb.chunks c
+                    JOIN kb.documents d ON d.id = c.document_id
+                    WHERE ($1::uuid IS NULL OR c.document_id = $1::uuid)
+                      AND ($2::text IS NULL OR c.tsv @@ websearch_to_tsquery('simple', $2))
+                ), counted AS (
+                    SELECT *, COUNT(*) OVER() AS total FROM filtered
+                )
+                SELECT * FROM counted
+                ORDER BY ${orderBy}
+                OFFSET $3 LIMIT $4
+            `;
+
+            const rowsQ = await query<{
+                id: string;
+                document_id: string;
+                chunk_index: number;
+                text: string;
+                created_at: string;
+                filename: string | null;
+                source_url: string | null;
+                total: string;
+            }>(sql, params);
+
+            const total = rowsQ.rows.length > 0 ? Number(rowsQ.rows[0].total) : 0;
+            const items = rowsQ.rows.map((r) => ({
+                id: r.id,
+                document_id: r.document_id,
+                document_title: r.filename || r.source_url || r.document_id,
+                source_url: r.source_url,
+                chunk_index: r.chunk_index,
+                created_at: r.created_at,
+                text: r.text,
+            }));
+            res.json({ items, page, pageSize, total });
+        } catch (e: any) {
+            res.status(500).json({ error: e.message || 'failed to list chunks' });
+        }
+    });
+
+    // Get a single chunk by id
+    app.get('/chunks/:id', async (req: Request, res: Response) => {
+        try {
+            const id = String(req.params.id);
+            const { rows } = await query<{
+                id: string;
+                document_id: string;
+                chunk_index: number;
+                text: string;
+                created_at: string;
+                filename: string | null;
+                source_url: string | null;
+            }>(
+                `SELECT c.id, c.document_id, c.chunk_index, c.text, c.created_at, d.filename, d.source_url
+                 FROM kb.chunks c
+                 JOIN kb.documents d ON d.id = c.document_id
+                 WHERE c.id = $1`,
+                [id]
+            );
+            if (rows.length === 0) return res.status(404).json({ error: 'not found' });
+            const r = rows[0];
+            res.json({
+                id: r.id,
+                document_id: r.document_id,
+                document_title: r.filename || r.source_url || r.document_id,
+                source_url: r.source_url,
+                chunk_index: r.chunk_index,
+                created_at: r.created_at,
+                text: r.text,
+            });
+        } catch (e: any) {
+            res.status(500).json({ error: e.message || 'failed to get chunk' });
+        }
+    });
+
     // SSE chat streaming endpoint
     app.post('/chat/stream', async (req: Request, res: Response) => {
         try {

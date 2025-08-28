@@ -32,6 +32,11 @@ const dashboardRoutes: IRoutesProps[] = [
         path: "/admin/apps/documents",
         element: cw(lazy(() => import("@/pages/admin/apps/documents/index"))),
     },
+    // Chunks
+    {
+        path: "/admin/apps/chunks",
+        element: cw(lazy(() => import("@/pages/admin/apps/chunks/index"))),
+    },
     // My Profile
     {
         path: "/admin/profile",

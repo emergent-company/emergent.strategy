@@ -40,6 +40,12 @@ Rationale: All authenticated features live under `/admin`. Feature verticals tha
 - Documents
   - Library: `/admin/apps/documents`
   - Document detail (future): `/admin/apps/documents/:docId`
+  - View document chunks shortcut (redirect): `/admin/apps/documents/:docId/chunks` → `/admin/apps/chunks?docId=:docId`
+
+- Chunk Browser (NEW)
+  - Chunks table: `/admin/apps/chunks`
+  - Optional filters via query params: `?docId=<document_id>&q=<search>&page=1&pageSize=50&sort=created_at:desc`
+  - Purpose: Inspect indexed chunks; filter by document; preview individual chunk content.
 
 ### Admin Utilities (optional pattern for future)
 - Layout Builder: `/admin/tools/layout-builder`
@@ -68,6 +74,69 @@ Related:
 - Optional segments should be explicit with `?` when defined in the router.
 - Use query params for filtering/sorting/pagination: `?q=...&sort=...&page=...`.
 - Avoid dynamic class names in routes; keep paths static strings for Tailwind.
+
+## Tables (UI Consistency)
+
+All tables across the Admin app must share a consistent look-and-feel based on the reference in `components/interactions/datatables`.
+
+Requirements
+- Structure: wrap in a responsive container `<div class="overflow-x-auto">` and use `<table class="table">`.
+- States: provide a clear loading skeleton on first load and a "No results." empty row (`<td colSpan={columnCount}>No results.</td>`).
+- Alignment: keep header and cell alignment consistent per column across pages.
+- Truncation: prefer `truncate` with constrained max widths for long text cells; allow links to the full resource when applicable.
+- Pagination/sorting/search: when advanced interactions are needed, follow the TanStack Table patterns used in `components/interactions/datatables/*` demos; otherwise, simple static tables are acceptable.
+- Styling: only use DaisyUI/Tailwind classes; avoid custom CSS unless necessary.
+
+Notes
+- For advanced tables (sorting, column visibility, selection), mirror the component patterns in the datatables demos (e.g., `RenderCell`, `useReactTable`).
+- For simple resource lists (e.g., Documents, Chunks), using static thead/tbody markup with the shared styles is fine.
+
+## Chunk Browser (Feature Spec)
+
+Goal: Provide a searchable, filterable table of content chunks, similar to the Documents table, with a preview modal to inspect a chunk quickly.
+
+Routes
+- Main: `/admin/apps/chunks`
+- From a specific document: `/admin/apps/documents/:docId/chunks` should redirect to `/admin/apps/chunks?docId=:docId`.
+
+Table (similar look/feel to Documents)
+- Columns: `Chunk ID`, `Document` (title, link), `Section` (section_path), `Ordinal`, `Tokens`, `Quality`, `Created`
+- Default sort: `created_at desc` then `ordinal asc`
+- Pagination: server-backed; `page`, `pageSize`
+- Row actions: `Preview`, `Open Document`
+
+Filters
+- Document filter: searchable select of Documents (by title); sets `docId` query param
+- Query: full-text query against chunk text; sets `q` query param
+- Optional: token range sliders (min/max), language select
+
+Preview Modal
+- Opens over the table; shows:
+  - Chunk text (monospace, soft-wrapped), with optional highlight of `q` terms
+  - Metadata: `chunk_id`, `document_id` + title, `ordinal`, `tokens`, `section_path`, `quality_score`, `language`
+  - Actions: `Copy`, `Open document`, `Close`
+
+Navigation
+- Documents table should offer a `View chunks` action per document row that links to `/admin/apps/chunks?docId=:docId`.
+- Additionally, clicking the numeric "Chunks" count in the Documents table should navigate to `/admin/apps/chunks?docId=:docId` (same behavior as the "View chunks" action).
+
+API (draft)
+- GET `/chunks`: list with filters `docId`, `q`, `page`, `pageSize`, `sort`
+- GET `/chunks/:id`: fetch one for preview
+- Response shape (list): `{ items: ChunkRow[], page: number, pageSize: number, total: number }`
+- `ChunkRow` minimal fields: `{ id, document_id, document_title, section_path, ordinal, token_count, quality_score, created_at }`
+
+Notes
+- Respect multi-tenancy and authorization; only chunks for accessible documents should return.
+- Keep the UI consistent with the Documents table components and styles.
+
+### Optional Enhancements (polish)
+- Sorting controls in the UI mapped to `sort` query param (allow `created_at` or `chunk_index` with `:asc|:desc`). Persist in URL and update without full reload.
+- Highlight query terms from `q` inside the snippet and preview modal. Use a safe client-side highlighter that preserves spacing and avoids XSS.
+- Reset pagination to `page=1` whenever filters (`docId`, `q`, `pageSize`, `sort`) change.
+- Page size selector with common options (10, 25, 50, 100) mapped to `pageSize` param; default 25.
+- Better empty/loading states: show a skeleton on first load and a friendly empty state when no results are found.
+- Deep link preservation: all filters should serialize to the URL so the page is shareable and restorable on refresh.
 
 ## React Router Implementation Notes
 - Define all admin app routes under the Admin layout.
