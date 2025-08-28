@@ -14,6 +14,7 @@ This repository describes a system that ingests all “facts” about a potentia
 - 09-evaluation-and-quality.md — QA, metrics, and acceptance
 - 10-roadmap.md — Phased delivery plan
 - 11-open-questions.md — Assumptions and decisions needed
+- 13-routing-and-urls.md — URL namespaces, conventions, and redirects
 - glossary.md — Common terms
 
 ## Scope assumptions

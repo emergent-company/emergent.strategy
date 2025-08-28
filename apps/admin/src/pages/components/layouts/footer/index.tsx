@@ -28,7 +28,7 @@ const FooterPage = () => {
                 <span className="iconify lucide--info text-base-content/70 size-4.5"></span>
                 <p>
                     <span className="me-1">Play with layouts using</span>
-                    <Link to="/layout-builder" target="_blank" className="text-primary">
+                    <Link to="/admin/tools/layout-builder" target="_blank" className="text-primary">
                         Layout Builder
                     </Link>
                 </p>

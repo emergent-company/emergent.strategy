@@ -37,11 +37,11 @@ export const Hero = () => {
                     </div>
 
                     <div className="mt-6 inline-flex items-center gap-2.5 transition-all delay-300 duration-1000 sm:gap-5 xl:mt-10 starting:opacity-0 starting:blur-sm">
-                        <Link to="/dashboards/ecommerce" target="_blank" className="btn btn-primary btn-lg gap-2.5">
+            <Link to="/admin" className="btn btn-primary btn-lg gap-2.5">
                             <span className="iconify lucide--monitor-dot size-5 sm:size-5.5" />
                             <div className="text-start">
                                 <p className="text-sm/none">Dashboard</p>
-                                <p className="text-primary-content/70 mt-px text-[11px]/none">Preview</p>
+                <p className="text-primary-content/70 mt-px text-[11px]/none">Open</p>
                             </div>
                         </Link>
                         <Link
@@ -73,7 +73,7 @@ export const Hero = () => {
                                 modules={[Navigation, Pagination, Autoplay]}>
                                 <SwiperSlide>
                                     <div className="mx-2 cursor-pointer">
-                                        <Link className="relative" to="/dashboards/ecommerce">
+                                        <Link className="relative" to="/admin">
                                             <img
                                                 src="/images/landing/dashboard-ecommerce-light.jpg"
                                                 className="h-full w-full rounded-lg dark:hidden"
@@ -95,7 +95,7 @@ export const Hero = () => {
 
                                 <SwiperSlide>
                                     <div className="mx-2 cursor-pointer">
-                                        <Link className="relative" to="/dashboards/crm">
+                                        <Link className="relative" to="/admin">
                                             <img
                                                 src="/images/landing/dashboard-crm-light.jpg"
                                                 className="h-full w-full rounded-lg dark:hidden"
@@ -117,7 +117,7 @@ export const Hero = () => {
 
                                 <SwiperSlide>
                                     <div className="mx-2 cursor-pointer">
-                                        <Link className="relative" to="/dashboards/gen-ai">
+                                        <Link className="relative" to="/admin">
                                             <img
                                                 src="/images/landing/dashboard-gen-ai-light.jpg"
                                                 className="h-full w-full rounded-lg dark:hidden"

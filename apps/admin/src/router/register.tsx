@@ -11,24 +11,36 @@ const cw = (Component: LazyExoticComponent<() => JSX.Element>) => {
     return <Component />;
 };
 
-// Keep only the Documents page in admin for now
+// Admin App routes (canonical)
 const dashboardRoutes: IRoutesProps[] = [
+    // Admin default: /admin -> first sidebar link (Documents)
     {
-        path: "/admin/chat",
+        path: "/admin",
+        element: <Navigate to="/admin/apps/documents" replace />,
+    },
+    // Chat
+    {
+        path: "/admin/apps/chat",
         element: cw(lazy(() => import("@/pages/admin/chat/home"))),
     },
     {
-        path: "/admin/chat/c/:id?",
+        path: "/admin/apps/chat/c/:id?",
         element: cw(lazy(() => import("@/pages/admin/chat/conversation"))),
+    },
+    // Documents
+    {
+        path: "/admin/apps/documents",
+        element: cw(lazy(() => import("@/pages/admin/apps/documents/index"))),
+    },
+    // Admin tools
+    {
+        path: "/admin/tools/layout-builder",
+        element: cw(lazy(() => import("@/pages/layout-builder"))),
     },
 ];
 
-const appRoutes: IRoutesProps[] = [
-    {
-        path: "/apps/documents",
-        element: cw(lazy(() => import("@/pages/admin/apps/documents/index"))),
-    },
-];
+// No legacy routes in spec; reserved for future app-specific routes
+const appRoutes: IRoutesProps[] = [];
 
 const componentRoutes: IRoutesProps[] = Object.entries(import.meta.glob("@/pages/components/**/*.tsx")).map(
     ([path, loader]) => {
@@ -66,10 +78,8 @@ const authRoutes: IRoutesProps[] = [
 const pagesRoutes: IRoutesProps[] = [];
 
 const otherRoutes: IRoutesProps[] = [
-    {
-        path: "/layout-builder",
-        element: cw(lazy(() => import("@/pages/layout-builder"))),
-    },
+    // Legacy redirect
+    // no legacy path for layout builder in spec
     {
         path: "/",
         element: cw(lazy(() => import("@/pages/landing"))),

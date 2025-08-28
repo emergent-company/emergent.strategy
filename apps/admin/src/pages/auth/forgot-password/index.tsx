@@ -11,7 +11,7 @@ const ForgotPasswordPage = () => {
 
             <div className="flex flex-col items-stretch p-8 lg:p-16">
                 <div className="flex items-center justify-between">
-                    <Link to="/dashboards/ecommerce">
+                    <Link to="/admin">
                         <Logo />
                     </Link>
                     <ThemeToggle className="btn btn-circle btn-outline border-base-300" />

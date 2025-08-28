@@ -61,7 +61,7 @@ export const Topbar = () => {
                                         className="drawer-overlay"></label>
                                     <ul className="menu bg-base-100 text-base-content min-h-full w-80 p-4">
                                         <li>
-                                            <Link to="/dashboards/ecommerce">Dashboard</Link>
+                                            <Link to="/admin">Dashboard</Link>
                                         </li>
                                         <li>
                                             <Link to="/components">Components</Link>
@@ -71,13 +71,13 @@ export const Topbar = () => {
                             </div>
                         </div>
 
-                        <Link to="/dashboards/ecommerce">
+                        <Link to="/admin">
                             <Logo />
                         </Link>
                     </div>
                     <ul className="menu menu-horizontal hidden gap-2 px-0 lg:inline-flex">
                         <li>
-                            <Link to="/dashboards/ecommerce">Dashboard</Link>
+                            <Link to="/admin">Dashboard</Link>
                         </li>
                         <li>
                             <Link to="/components">Components</Link>

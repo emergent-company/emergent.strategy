@@ -11,7 +11,7 @@ export const Topbar = () => {
             <div className="flex h-full items-center justify-between px-0">
                 <div className="flex items-center gap-5">
                     <Link
-                        to="/dashboards/ecommerce"
+                        to="/admin"
                         className="text-base-content/70 hover:text-base-content transition-all">
                         Dashboard
                     </Link>

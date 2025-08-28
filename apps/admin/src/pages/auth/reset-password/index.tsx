@@ -13,7 +13,7 @@ const ResetPasswordPage = () => {
             <MetaData title="Reset Password" />
             <div className="flex flex-col items-stretch p-6 md:p-8 lg:p-16">
                 <div className="flex items-center justify-between">
-                    <Link to="/dashboards/ecommerce">
+                    <Link to="/admin">
                         <Logo />
                     </Link>
                     <ThemeToggle className="btn btn-circle btn-outline border-base-300" />
@@ -81,7 +81,7 @@ const ResetPasswordPage = () => {
                         </label>
                     </div>
 
-                    <Link to="/dashboards/ecommerce" className="btn btn-primary btn-wide mt-4 max-w-full gap-3 md:mt-6">
+                    <Link to="/admin" className="btn btn-primary btn-wide mt-4 max-w-full gap-3 md:mt-6">
                         <span className="iconify lucide--check size-4" />
                         Change Password
                     </Link>

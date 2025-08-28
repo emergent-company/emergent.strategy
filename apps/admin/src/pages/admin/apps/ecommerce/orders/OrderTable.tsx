@@ -31,7 +31,7 @@ export const OrderTable = () => {
                             </select>
                         </div>
                     </div>
-                    <Link to="/dashboards/ecommerce" className="btn btn-sm btn-primary">
+                    <Link to="/admin" className="btn btn-sm btn-primary">
                         <span className="iconify lucide--monitor-dot size-4" />
                         <span className="hidden sm:inline">Dashboard</span>
                     </Link>

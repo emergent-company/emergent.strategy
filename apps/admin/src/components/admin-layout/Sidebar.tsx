@@ -77,7 +77,7 @@ export const Sidebar = ({ menuItems }: { menuItems: ISidebarMenuItem[] }) => {
 
             <div id="layout-sidebar" className="flex flex-col sidebar-menu" data-theme={calculatedSidebarTheme}>
                 <div className="flex justify-between items-center gap-3 ps-5 pe-4 h-16 min-h-16">
-                    <Link to="/apps/documents">
+                    <Link to="/admin">
                         <Logo />
                     </Link>
                     <label
