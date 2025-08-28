@@ -134,4 +134,22 @@ export async function ensureSchema() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_messages_conv ON kb.chat_messages(conversation_id, created_at);`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_conversations_updated ON kb.chat_conversations(updated_at DESC);`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_conversations_privacy ON kb.chat_conversations(is_private, owner_user_id);`);
+
+  // Settings storage (global scope for now)
+  await pool.query(`
+  CREATE TABLE IF NOT EXISTS kb.settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    key TEXT NOT NULL UNIQUE,
+    value JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );`);
+
+  await pool.query(`
+    DROP TRIGGER IF EXISTS trg_settings_touch ON kb.settings;
+  `);
+  await pool.query(`
+    CREATE TRIGGER trg_settings_touch BEFORE UPDATE ON kb.settings
+    FOR EACH ROW EXECUTE FUNCTION kb.touch_updated_at();
+  `);
 }

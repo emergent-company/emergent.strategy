@@ -32,6 +32,20 @@ const dashboardRoutes: IRoutesProps[] = [
         path: "/admin/apps/documents",
         element: cw(lazy(() => import("@/pages/admin/apps/documents/index"))),
     },
+    // My Profile
+    {
+        path: "/admin/profile",
+        element: cw(lazy(() => import("@/pages/admin/profile"))),
+    },
+    // Settings
+    {
+        path: "/admin/settings",
+        element: <Navigate to="/admin/settings/ai/prompts" replace />,
+    },
+    {
+        path: "/admin/settings/ai/prompts",
+        element: cw(lazy(() => import("@/pages/admin/pages/settings/ai-prompts"))),
+    },
     // Admin tools
     {
         path: "/admin/tools/layout-builder",

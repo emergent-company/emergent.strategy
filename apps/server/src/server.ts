@@ -21,6 +21,43 @@ async function main() {
         res.json({ ok: true, model: 'text-embedding-004', db: 'postgres' });
     });
 
+    // Simple settings API (global scope)
+    app.get('/settings', async (_req: Request, res: Response) => {
+        try {
+            const { rows } = await query<{ key: string; value: any }>(`SELECT key, value FROM kb.settings ORDER BY key ASC`);
+            res.json({ settings: Object.fromEntries(rows.map((r) => [r.key, r.value])) });
+        } catch (e: any) {
+            res.status(500).json({ error: e.message || 'failed to load settings' });
+        }
+    });
+
+    app.get('/settings/:key', async (req: Request, res: Response) => {
+        try {
+            const key = String(req.params.key);
+            const { rows } = await query<{ value: any }>(`SELECT value FROM kb.settings WHERE key = $1`, [key]);
+            if (rows.length === 0) return res.status(404).json({ error: 'not found' });
+            res.json({ key, value: rows[0].value });
+        } catch (e: any) {
+            res.status(500).json({ error: e.message || 'failed to load setting' });
+        }
+    });
+
+    app.put('/settings/:key', async (req: Request, res: Response) => {
+        try {
+            const key = String(req.params.key);
+            const value = req.body?.value ?? {};
+            await query(
+                `INSERT INTO kb.settings (key, value)
+                 VALUES ($1, $2::jsonb)
+                 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+                [key, JSON.stringify(value)]
+            );
+            res.json({ ok: true });
+        } catch (e: any) {
+            res.status(500).json({ error: e.message || 'failed to save setting' });
+        }
+    });
+
     app.post('/ingest/url', async (req: Request, res: Response) => {
         try {
             const { url } = req.body as { url?: string };
@@ -199,19 +236,38 @@ async function main() {
             const modelName = process.env.GENAI_MODEL || 'gemini-1.5-flash';
             const model = new ChatGoogleGenerativeAI({ model: modelName, apiKey });
 
-            const prompt = ChatPromptTemplate.fromMessages([
-                [
-                    'system',
-                    [
-                        'You are a helpful assistant. Answer the user question using only the provided CONTEXT.',
-                        'Cite sources inline using bracketed numbers like [1], [2], matching the provided context order.',
-                        "If the answer can't be derived from the CONTEXT, say you don't know rather than hallucinating.",
-                    ].join(' '),
-                ],
-                [
-                    'human',
+            // Load prompt templates from settings with safe defaults
+            const defaults = {
+                systemPrompt:
+                    'You are a helpful assistant. Answer the user question using only the provided CONTEXT. Cite sources inline using bracketed numbers like [1], [2], matching the provided context order. If the answer can\'t be derived from the CONTEXT, say you don\'t know rather than hallucinating.',
+                userTemplate:
                     'Question:\n{question}\n\nCONTEXT (citations in order):\n{context}\n\nProvide a concise, well-structured answer.',
-                ],
+            } as const;
+
+            async function getPromptSetting(key: string): Promise<string> {
+                try {
+                    const { rows } = await query<{ value: any }>(`SELECT value FROM kb.settings WHERE key = $1`, [key]);
+                    const v = rows[0]?.value;
+                    const str = typeof v === 'string' ? v : v?.text || v?.template || '';
+                    return String(str || (defaults as any)[key] || '');
+                } catch {
+                    return (defaults as any)[key] || '';
+                }
+            }
+
+            const [systemPrompt, userTemplate] = await Promise.all([
+                getPromptSetting('chat.systemPrompt'),
+                getPromptSetting('chat.userTemplate'),
+            ]);
+
+            // Basic placeholder validation; fall back to defaults if missing
+            const safeUserTemplate = /\{question\}/.test(userTemplate) && /\{context\}/.test(userTemplate)
+                ? userTemplate
+                : defaults.userTemplate;
+
+            const prompt = ChatPromptTemplate.fromMessages([
+                ['system', systemPrompt],
+                ['human', safeUserTemplate],
             ]);
 
             const context = citations

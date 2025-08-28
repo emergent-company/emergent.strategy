@@ -15,4 +15,11 @@ export const adminMenuItems: ISidebarMenuItem[] = [
         label: "Chat",
         url: "/admin/apps/chat",
     },
+    { id: "settings-label", isTitle: true, label: "Settings" },
+    {
+        id: "admin-settings-ai-prompts",
+        icon: "lucide--book-text",
+        label: "AI Prompts",
+        url: "/admin/settings/ai/prompts",
+    },
 ];
