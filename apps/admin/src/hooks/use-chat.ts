@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/contexts/auth";
 import type { ChatChunk, ChatRequest, Conversation, Message, Role } from "@/types/chat";
 
 const LS_KEY = "nexus.chat.conversations";
@@ -103,6 +104,7 @@ export type UseChatOptions = {
 };
 
 export function useChat(opts: UseChatOptions = {}) {
+    const { getAccessToken } = useAuth();
     const [conversations, setConversations] = useState<Conversation[]>(() => loadConversations());
     const [activeId, setActiveId] = useState<string | null>(conversations[0]?.id ?? null);
     const [streaming, setStreaming] = useState(false);
@@ -120,6 +122,11 @@ export function useChat(opts: UseChatOptions = {}) {
         return env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:3001`;
     }, []);
 
+    const authHeaders = useCallback((): Record<string, string> => {
+        const t = getAccessToken();
+        return t ? { Authorization: `Bearer ${t}` } : {};
+    }, [getAccessToken]);
+
     const activeConversation = useMemo(() => conversations.find((c) => c.id === activeId) || null, [conversations, activeId]);
 
     const setConversationsPersisted = useCallback((updater: (prev: Conversation[]) => Conversation[]) => {
@@ -133,7 +140,7 @@ export function useChat(opts: UseChatOptions = {}) {
     // Optional: Fetch server-side grouped conversation metadata and merge by id
     const refreshConversationsFromServer = useCallback(async () => {
         try {
-            const res = await fetch(`${apiBase}/chat/conversations`);
+            const res = await fetch(`${apiBase}/chat/conversations`, { headers: authHeaders() });
             if (!res.ok) return;
             const data = (await res.json()) as { shared: Array<any>; private: Array<any> };
             let serverList: Conversation[] = [...data.shared, ...data.private].map((c) => ({
@@ -177,7 +184,7 @@ export function useChat(opts: UseChatOptions = {}) {
         } catch {
             // ignore refresh failures; local cache will be used
         }
-    }, [apiBase, setConversationsPersisted]);
+    }, [apiBase, setConversationsPersisted, authHeaders]);
 
     // Kick a background refresh once per mount
     useEffect(() => {
@@ -191,10 +198,13 @@ export function useChat(opts: UseChatOptions = {}) {
     useEffect(() => {
         const id = activeId;
         if (!id) return;
+        // Skip hydration for temporary ids or non-UUID ids to avoid server errors
+        const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+        if (/^c_/.test(id) || !uuidRe.test(id)) return;
         let aborted = false;
         (async () => {
             try {
-                const res = await fetch(`${apiBase}/chat/${id}`);
+                const res = await fetch(`${apiBase}/chat/${id}`, { headers: authHeaders() });
                 if (!res.ok) return;
                 const data = (await res.json()) as { conversation: Conversation };
                 if (aborted) return;
@@ -219,7 +229,7 @@ export function useChat(opts: UseChatOptions = {}) {
         return () => {
             aborted = true;
         };
-    }, [activeId, apiBase, setConversationsPersisted]);
+    }, [activeId, apiBase, setConversationsPersisted, authHeaders]);
 
     const upsertConversation = useCallback((conv: Conversation) => {
         setConversationsPersisted((prev) => {
@@ -339,7 +349,7 @@ export function useChat(opts: UseChatOptions = {}) {
             // Use fetch with ReadableStream SSE proxy endpoint
             const res = await fetch(`${apiBase}/chat/stream`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...authHeaders() },
                 body: JSON.stringify({ message, conversationId: conv?.id && !/^c_/.test(conv.id) ? conv.id : undefined, history, topK, documentIds, stream: true, isPrivate: (conv?.isPrivate ?? input.isPrivate) as boolean } satisfies ChatRequest),
                 signal: controller.signal,
             });
@@ -434,7 +444,7 @@ export function useChat(opts: UseChatOptions = {}) {
                             const id = serverConvId || currentConvId;
                             if (id && !/^c_/.test(id)) {
                                 try {
-                                    const res = await fetch(`${apiBase}/chat/${id}`);
+                                    const res = await fetch(`${apiBase}/chat/${id}`, { headers: authHeaders() });
                                     if (res.ok) {
                                         const data = (await res.json()) as { conversation: Conversation };
                                         setConversationsPersisted((prev) => {
@@ -491,24 +501,24 @@ export function useChat(opts: UseChatOptions = {}) {
         try {
             await fetch(`${apiBase}/chat/${conversationId}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
                 body: JSON.stringify({ title }),
             });
         } catch {
             if (prevSnapshot) setConversations(prevSnapshot);
         }
-    }, [apiBase, setConversationsPersisted]);
+    }, [apiBase, setConversationsPersisted, authHeaders]);
 
     const deleteConversation = useCallback(async (conversationId: string) => {
         const prevSnapshot = conversations;
         setConversationsPersisted((prev) => prev.filter((c) => c.id !== conversationId));
         setActiveId((prevId) => (prevId === conversationId ? null : prevId));
         try {
-            await fetch(`${apiBase}/chat/${conversationId}`, { method: 'DELETE' });
+            await fetch(`${apiBase}/chat/${conversationId}`, { method: 'DELETE', headers: authHeaders() });
         } catch {
             setConversations(prevSnapshot);
         }
-    }, [apiBase, conversations, setConversationsPersisted]);
+    }, [apiBase, conversations, setConversationsPersisted, authHeaders]);
 
     return {
         conversations,

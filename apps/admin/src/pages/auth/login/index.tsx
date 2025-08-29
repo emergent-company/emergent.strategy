@@ -4,9 +4,11 @@ import { Link } from "react-router";
 import { Logo } from "@/components/Logo";
 import { MetaData } from "@/components/MetaData";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useAuth } from "@/contexts/auth";
 
 const LoginPage = () => {
     const [showPassword, setShowPassword] = useState(false);
+    const { login } = useAuth();
 
     return (
         <>
@@ -74,12 +76,12 @@ const LoginPage = () => {
                         </label>
                     </div>
 
-                    <Link to="/admin" className="gap-3 mt-4 md:mt-6 max-w-full btn btn-primary btn-wide">
+                    <button onClick={() => login()} className="gap-3 mt-4 md:mt-6 max-w-full btn btn-primary btn-wide">
                         <span className="size-4 iconify lucide--log-in" />
-                        Login
-                    </Link>
+                        Continue with SSO
+                    </button>
 
-                    <button className="gap-3 mt-4 border-base-300 max-w-full btn btn-ghost btn-wide">
+                    <button onClick={() => login()} className="gap-3 mt-4 border-base-300 max-w-full btn btn-ghost btn-wide">
                         <img src="/images/brand-logo/google-mini.svg" className="size-6" alt="" />
                         Login with Google
                     </button>

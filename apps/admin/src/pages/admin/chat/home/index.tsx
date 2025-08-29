@@ -20,7 +20,7 @@ export default function ChatHomePage() {
     const go = (text: string) => {
         const p = text.trim();
         if (!p) return;
-        nav(`/admin/chat/c/new?q=${encodeURIComponent(p)}`);
+        nav(`/admin/apps/chat/c/new?q=${encodeURIComponent(p)}`);
     };
 
     const conv = activeConversation;
@@ -46,7 +46,7 @@ export default function ChatHomePage() {
                             const isPrivate = opts?.isPrivate ? "&private=1" : "";
                             const text = q.trim();
                             if (!text) return;
-                            nav(`/admin/chat/c/new?q=${encodeURIComponent(text)}${isPrivate}`);
+                            nav(`/admin/apps/chat/c/new?q=${encodeURIComponent(text)}${isPrivate}`);
                         }}
                     />
                 </div>
@@ -62,7 +62,7 @@ export default function ChatHomePage() {
                                 aria-label="New chat"
                                 onClick={() => {
                                     setActive(null);
-                                    nav(`/admin/chat/c/new`);
+                                    nav(`/admin/apps/chat/c/new`);
                                 }}
                             >
                                 <span className="iconify lucide--plus" />
@@ -83,7 +83,7 @@ export default function ChatHomePage() {
                                         className="block flex-1 w-full min-w-0 max-w-full text-left"
                                         onClick={() => {
                                             setActive(c.id);
-                                            nav(`/admin/chat/c/${c.id}`);
+                                            nav(`/admin/apps/chat/c/${c.id}`);
                                         }}
                                         aria-label={`Open conversation ${c.title}`}
                                     >
@@ -116,7 +116,7 @@ export default function ChatHomePage() {
                                         className="block flex-1 w-full min-w-0 max-w-full text-left"
                                         onClick={() => {
                                             setActive(c.id);
-                                            nav(`/admin/chat/c/${c.id}`);
+                                            nav(`/admin/apps/chat/c/${c.id}`);
                                         }}
                                         aria-label={`Open conversation ${c.title}`}
                                     >

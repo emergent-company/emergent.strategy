@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/contexts/auth";
 import { PageTitle } from "@/components/PageTitle";
 import { LoadingEffect } from "@/components/LoadingEffect";
 import { TableEmptyState } from "@/components/TableEmptyState";
@@ -14,9 +15,15 @@ type DocumentRow = {
 };
 
 export default function DocumentsPage() {
+    const { getAccessToken } = useAuth();
     const [data, setData] = useState<DocumentRow[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+    const [uploading, setUploading] = useState<boolean>(false);
+    const [dragOver, setDragOver] = useState<boolean>(false);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     const apiBase = useMemo(() => {
         const env = (import.meta as any).env || {};
@@ -29,12 +36,14 @@ export default function DocumentsPage() {
         async function load() {
             setLoading(true);
             try {
-                const res = await fetch(`${apiBase}/documents`);
+                const t = getAccessToken();
+                const res = await fetch(`${apiBase}/documents`, { headers: t ? { Authorization: `Bearer ${t}` } : {} });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const json = await res.json();
-                if (!cancelled) setData(json.documents as DocumentRow[]);
-            } catch (e: any) {
-                if (!cancelled) setError(e.message || "Failed to load");
+                const json = (await res.json()) as { documents: DocumentRow[] };
+                if (!cancelled) setData(json.documents);
+            } catch (e: unknown) {
+                const msg = e instanceof Error ? e.message : "Failed to load";
+                if (!cancelled) setError(msg);
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -43,11 +52,173 @@ export default function DocumentsPage() {
         return () => {
             cancelled = true;
         };
-    }, [apiBase]);
+    }, [apiBase, getAccessToken]);
+
+    const acceptedMimeTypes = useMemo(
+        () => [
+            "application/pdf",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+            "text/plain",
+            "text/markdown",
+            "text/html",
+        ],
+        []
+    );
+
+    const acceptedExtensions = useMemo(() => [".pdf", ".docx", ".pptx", ".xlsx", ".txt", ".md", ".html", ".htm"], []);
+
+    function isAccepted(file: File): boolean {
+        const byMime = file.type ? acceptedMimeTypes.includes(file.type) : true; // Some browsers may not set type reliably (e.g., .md)
+        const name = file.name.toLowerCase();
+        const byExt = acceptedExtensions.some((ext) => name.endsWith(ext));
+        return byMime || byExt;
+    }
+
+    async function handleUpload(file: File): Promise<void> {
+        setUploadError(null);
+        setUploadSuccess(null);
+        if (!isAccepted(file)) {
+            setUploadError("Unsupported file type. Allowed: pdf, docx, pptx, xlsx, md, html, txt.");
+            return;
+        }
+        const max = 10 * 1024 * 1024; // 10MB
+        if (file.size > max) {
+            setUploadError("File is larger than 10MB limit.");
+            return;
+        }
+        setUploading(true);
+        try {
+            const fd = new FormData();
+            fd.append("file", file);
+            const t = getAccessToken();
+            const res = await fetch(`${apiBase}/ingest/upload`, { method: "POST", body: fd, headers: t ? { Authorization: `Bearer ${t}` } : {} });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || `Upload failed (HTTP ${res.status})`);
+            }
+            setUploadSuccess("Upload successful. Refreshing list...");
+            // Reload documents
+            try {
+                const t2 = getAccessToken();
+                const listRes = await fetch(`${apiBase}/documents`, { headers: t2 ? { Authorization: `Bearer ${t2}` } : {} });
+                if (!listRes.ok) throw new Error(`HTTP ${listRes.status}`);
+                const json = (await listRes.json()) as { documents: DocumentRow[] };
+                setData(json.documents);
+            } catch (e: unknown) {
+                const msg = e instanceof Error ? e.message : "Failed to refresh list";
+                setError(msg);
+            }
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : "Upload failed";
+            setUploadError(msg);
+        } finally {
+            setUploading(false);
+        }
+    }
+
+    function onFileInputChange(e: React.ChangeEvent<HTMLInputElement>): void {
+        const f = e.target.files?.[0];
+        if (f) void handleUpload(f);
+        // reset input so selecting the same file again re-triggers change
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+
+    function onDrop(e: React.DragEvent<HTMLDivElement>): void {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOver(false);
+        const f = e.dataTransfer.files?.[0];
+        if (f) void handleUpload(f);
+    }
+
+    function onDragOver(e: React.DragEvent<HTMLDivElement>): void {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOver(true);
+    }
+
+    function onDragLeave(e: React.DragEvent<HTMLDivElement>): void {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOver(false);
+    }
+
+    function openChooser(): void {
+        fileInputRef.current?.click();
+    }
 
     return (
         <div className="mx-auto p-4 container">
             <PageTitle title="Documents" items={[{ label: "Apps" }, { label: "Documents", active: true }]} />
+
+            {/* Upload controls */}
+            <div
+                className={
+                    "mt-4 border-2 border-dashed rounded-box p-6 transition-colors " +
+                    (dragOver ? "border-primary bg-primary/5" : "border-base-300 bg-base-200/50")
+                }
+                onDragOver={onDragOver}
+                onDragEnter={onDragOver}
+                onDragLeave={onDragLeave}
+                onDrop={onDrop}
+                role="button"
+                aria-label="Upload document. Click to choose a file or drag and drop."
+                tabIndex={0}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openChooser();
+                    }
+                }}
+            >
+                <div className="flex justify-between items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        <span className="size-6 iconify lucide--upload-cloud" aria-hidden="true" />
+                        <div>
+                            <div className="font-medium">Click to upload or drag & drop</div>
+                            <div className="opacity-70 text-sm">
+                                Accepted: pdf, docx, pptx, xlsx, md, html, txt. Max 10MB.
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button className="btn btn-primary" onClick={openChooser} disabled={uploading}>
+                            {uploading ? (
+                                <>
+                                    <span className="loading loading-spinner loading-sm" />
+                                    Uploading...
+                                </>
+                            ) : (
+                                "Upload document"
+                            )}
+                        </button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            className="hidden"
+                            accept={[
+                                ...acceptedMimeTypes,
+                                ...acceptedExtensions,
+                            ].join(",")}
+                            onChange={onFileInputChange}
+                        />
+                    </div>
+                </div>
+                {uploadError && (
+                    <div role="alert" className="mt-4 alert alert-error">
+                        <span className="size-5 iconify lucide--alert-circle" />
+                        <span>{uploadError}</span>
+                    </div>
+                )}
+                {uploadSuccess && (
+                    <div role="alert" className="mt-4 alert alert-success">
+                        <span className="size-5 iconify lucide--check-circle" />
+                        <span>{uploadSuccess}</span>
+                    </div>
+                )}
+            </div>
 
             <div className="mt-4 card">
                 <div className="card-body">

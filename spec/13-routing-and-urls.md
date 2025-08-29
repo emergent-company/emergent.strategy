@@ -41,6 +41,7 @@ Rationale: All authenticated features live under `/admin`. Feature verticals tha
   - Library: `/admin/apps/documents`
   - Document detail (future): `/admin/apps/documents/:docId`
   - View document chunks shortcut (redirect): `/admin/apps/documents/:docId/chunks` → `/admin/apps/chunks?docId=:docId`
+  - Upload UX: The Documents page includes an upload button and a drag-and-drop drop zone. Uploads hit `POST /ingest/upload` with `multipart/form-data` (`file` field). On success, refresh the list in-place.
 
 - Chunk Browser (NEW)
   - Chunks table: `/admin/apps/chunks`

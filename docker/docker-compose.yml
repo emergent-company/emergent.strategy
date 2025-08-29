@@ -16,5 +16,42 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # Zitadel Identity Provider (dev)
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:latest
+    container_name: spec_zitadel
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./zitadel.env
+    command: ["start-from-init", "--masterkeyFromEnv"]
+    ports:
+      - "8080:8080" # Zitadel HTTP (API)
+      - "3000:3000" # Zitadel Login v2 (Next.js)
+    healthcheck:
+      test: ["CMD", "/app/zitadel", "ready"]
+      interval: 10s
+      timeout: 60s
+      retries: 5
+      start_period: 10s
+    user: "0"
+    volumes:
+      - .:/current-dir:delegated
+
+  login:
+    image: ghcr.io/zitadel/zitadel-login:latest
+    restart: unless-stopped
+    environment:
+      - ZITADEL_API_URL=http://localhost:8080
+      - NEXT_PUBLIC_BASE_PATH=/ui/v2/login
+      - ZITADEL_SERVICE_USER_TOKEN_FILE=/current-dir/login-client.pat
+    volumes:
+      - .:/current-dir:ro
+    network_mode: service:zitadel
+    depends_on:
+      zitadel:
+        condition: service_healthy
 volumes:
   spec_pg_data:

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/contexts/auth";
 import { useSearchParams } from "react-router";
 import { PageTitle } from "@/components/PageTitle";
 import { LoadingEffect } from "@/components/LoadingEffect";
@@ -28,6 +29,7 @@ interface DocumentRow {
 }
 
 export default function ChunksPage() {
+    const { getAccessToken } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const [data, setData] = useState<ChunksResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -71,7 +73,8 @@ export default function ChunksPage() {
         let cancelled = false;
         (async () => {
             try {
-                const res = await fetch(`${apiBase}/documents`);
+                const t = getAccessToken();
+                const res = await fetch(`${apiBase}/documents`, { headers: t ? { Authorization: `Bearer ${t}` } : {} });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const json = (await res.json()) as { documents: DocumentRow[] };
                 if (!cancelled) setDocs(json.documents || []);
@@ -82,7 +85,7 @@ export default function ChunksPage() {
         return () => {
             cancelled = true;
         };
-    }, [apiBase]);
+    }, [apiBase, getAccessToken]);
 
     useEffect(() => {
         let cancelled = false;
@@ -96,7 +99,8 @@ export default function ChunksPage() {
                 qs.set("page", String(page));
                 qs.set("pageSize", String(pageSize));
                 if (sort) qs.set("sort", sort);
-                const res = await fetch(`${apiBase}/chunks?${qs.toString()}`);
+                const t = getAccessToken();
+                const res = await fetch(`${apiBase}/chunks?${qs.toString()}`, { headers: t ? { Authorization: `Bearer ${t}` } : {} });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const json = (await res.json()) as ChunksResponse;
                 if (!cancelled) setData(json);
@@ -110,7 +114,7 @@ export default function ChunksPage() {
         return () => {
             cancelled = true;
         };
-    }, [apiBase, page, pageSize, q, docId, sort]);
+    }, [apiBase, page, pageSize, q, docId, sort, getAccessToken]);
 
     function updateParam(key: string, value: string) {
         const next = new URLSearchParams(searchParams);

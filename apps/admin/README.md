@@ -79,3 +79,30 @@ bun run preview
 
 Note: It is compatible with all 3 major package managers (NPM, Yarn & Bun)
 We recommended using bun for faster deps installation
+
+## Local Auth (Zitadel) quickstart
+
+Use the shared dev Zitadel stack for OAuth/OIDC during development.
+
+1) Start Zitadel (from repo root):
+
+```bash
+docker compose -f docker/docker-compose.yml up -d db zitadel login
+open http://localhost:8080/.well-known/openid-configuration
+open http://localhost:3000/ui/v2/login
+```
+
+2) Configure Admin app issuer
+
+- Copy `apps/admin/.env.example` to `apps/admin/.env` and set the issuer to:
+	- `http://localhost:8080`
+
+3) Run Admin app
+
+```bash
+npm run dev
+```
+
+Notes
+- Dev admin account: admin@example.com / admin (password in `docker/zitadel.env`, default `admin12345`). Change before exposing beyond local.
+- Troubleshooting and full guide: see `RUNBOOK.md` → "Local Auth (Zitadel)" and `docker/README-zitadel.md`.

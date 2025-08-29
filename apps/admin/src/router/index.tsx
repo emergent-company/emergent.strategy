@@ -6,6 +6,14 @@ import AuthLayout from "@/pages/auth/layout";
 import ComponentLayout from "@/pages/components/layout";
 
 import { registerRoutes } from "./register";
+import { useAuth } from "@/contexts/auth";
+import { Navigate } from "react-router";
+
+function GuardedAdmin({ children }: { children: React.ReactNode }) {
+    const { isAuthenticated } = useAuth();
+    if (!isAuthenticated) return <Navigate to="/auth/login" replace />;
+    return <>{children}</>;
+}
 
 export const Router = (props: RouteProps) => {
     return (
@@ -16,9 +24,11 @@ export const Router = (props: RouteProps) => {
                         key={"admin-" + index}
                         path={route.path}
                         element={
-                            <AdminLayout {...props}>
-                                <Suspense>{route.element}</Suspense>
-                            </AdminLayout>
+                            <GuardedAdmin>
+                                <AdminLayout {...props}>
+                                    <Suspense>{route.element}</Suspense>
+                                </AdminLayout>
+                            </GuardedAdmin>
                         }
                     />
                 ))}

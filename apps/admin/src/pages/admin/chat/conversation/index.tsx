@@ -29,13 +29,15 @@ export default function ChatConversationPage() {
         const q = query.get("q");
         const priv = query.get("private") === "1";
         const routeId = params.id;
+        const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
         if (routeId && routeId !== "new") {
             const found = conversations.find((c) => c.id === routeId) || null;
             if (found) setActive(found.id);
         }
         if (q) {
             setInput(q);
-            void send({ message: q, conversationId: routeId && routeId !== "new" ? routeId : undefined, isPrivate: priv });
+            const convId = routeId && routeId !== "new" && uuidRe.test(routeId) ? routeId : undefined;
+            void send({ message: q, conversationId: convId, isPrivate: priv });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -216,7 +218,7 @@ export default function ChatConversationPage() {
                                 onClick={() => {
                                     setActive(null);
                                     setInput("");
-                                    nav(`/admin/chat/c/new`);
+                                    nav(`/admin/apps/chat/c/new`);
                                 }}
                             >
                                 <span className="iconify lucide--plus" />
@@ -235,7 +237,7 @@ export default function ChatConversationPage() {
                                         className="block flex-1 w-full min-w-0 max-w-full text-left"
                                         onClick={() => {
                                             setActive(c.id);
-                                            nav(`/admin/chat/c/${c.id}`);
+                                            nav(`/admin/apps/chat/c/${c.id}`);
                                         }}
                                         aria-label={`Open conversation ${c.title}`}
                                     >
@@ -249,7 +251,7 @@ export default function ChatConversationPage() {
                                             if (confirmDelete) {
                                                 deleteConversation(c.id);
                                                 if (c.id === conv?.id) {
-                                                    nav(`/admin/chat/c/new`);
+                                                    nav(`/admin/apps/chat/c/new`);
                                                 }
                                             }
                                         }}
@@ -267,7 +269,7 @@ export default function ChatConversationPage() {
                                         className="block flex-1 w-full min-w-0 max-w-full text-left"
                                         onClick={() => {
                                             setActive(c.id);
-                                            nav(`/admin/chat/c/${c.id}`);
+                                            nav(`/admin/apps/chat/c/${c.id}`);
                                         }}
                                         aria-label={`Open conversation ${c.title}`}
                                     >
@@ -281,7 +283,7 @@ export default function ChatConversationPage() {
                                             if (confirmDelete) {
                                                 deleteConversation(c.id);
                                                 if (c.id === conv?.id) {
-                                                    nav(`/admin/chat/c/new`);
+                                                    nav(`/admin/apps/chat/c/new`);
                                                 }
                                             }
                                         }}

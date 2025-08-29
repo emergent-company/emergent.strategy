@@ -1,5 +1,6 @@
 import 'dotenv/config';
-import express, { type Request, type Response } from 'express';
+import crypto from 'node:crypto';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import { ensureSchema, query } from './db.js';
@@ -7,6 +8,106 @@ import { makeEmbeddings } from './embeddings.js';
 import { ingestText, ingestUrl } from './ingest.js';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
+
+// --- OIDC / JWT verification (Zitadel) ---
+type AuthConfig = {
+    issuer: string;
+    audience?: string;
+};
+
+const authCfg: AuthConfig = {
+    issuer: process.env.ZITADEL_ISSUER_URL || 'http://localhost:8080',
+    audience: process.env.ZITADEL_AUDIENCE || undefined,
+};
+
+let jwksFunc: ReturnType<typeof createRemoteJWKSet> | null = null;
+let jwksInitPromise: Promise<ReturnType<typeof createRemoteJWKSet>> | null = null;
+async function getJWKS(): Promise<ReturnType<typeof createRemoteJWKSet>> {
+    if (jwksFunc) return jwksFunc;
+    if (!jwksInitPromise) {
+        jwksInitPromise = (async () => {
+            // Discover provider metadata to resolve the correct JWKS URI
+            const discoveryUrl = new URL('/.well-known/openid-configuration', authCfg.issuer);
+            try {
+                const res = await fetch(discoveryUrl);
+                if (res.ok) {
+                    const json = (await res.json()) as { jwks_uri?: string };
+                    const jwksUrl = new URL(json.jwks_uri || '/oauth/v2/keys', authCfg.issuer);
+                    jwksFunc = createRemoteJWKSet(jwksUrl);
+                    return jwksFunc;
+                }
+            } catch {
+                // fallthrough to static fallback
+            }
+            // Fallbacks: Zitadel exposes keys at /oauth/v2/keys; try that, else common /.well-known/jwks.json
+            try {
+                jwksFunc = createRemoteJWKSet(new URL('/oauth/v2/keys', authCfg.issuer));
+                return jwksFunc;
+            } catch {
+                jwksFunc = createRemoteJWKSet(new URL('/.well-known/jwks.json', authCfg.issuer));
+                return jwksFunc;
+            }
+        })();
+    }
+    return jwksInitPromise;
+}
+
+export type UserClaims = JWTPayload & { sub: string; email?: string; name?: string; azp?: string };
+
+const AUTH_LOG = (process.env.AUTH_DEBUG || '').toLowerCase() === 'true';
+
+async function verifyBearerToken(authz: string | undefined): Promise<UserClaims | null> {
+    if (!authz) return null;
+    const m = /^Bearer\s+(.+)$/i.exec(authz.trim());
+    if (!m) return null;
+    const token = m[1];
+    try {
+        const key = await getJWKS();
+        const { payload, protectedHeader } = await jwtVerify(token, key, {
+            issuer: authCfg.issuer,
+            audience: authCfg.audience,
+        });
+        if (!payload.sub) return null;
+        return payload as UserClaims;
+    } catch (e: any) {
+        if (AUTH_LOG) console.error('verifyBearerToken failed', e?.message || e);
+        return null;
+    }
+}
+
+function requireAuth() {
+    return async (req: Request, res: Response, next: NextFunction) => {
+        const claims = await verifyBearerToken(req.headers.authorization);
+        if (!claims) return res.status(401).json({ error: 'unauthorized' });
+        (res.locals as any).user = claims;
+        return next();
+    };
+}
+
+// --- Identity mapping helpers ---
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+
+function uuidV5FromString(name: string): string {
+    // Deterministically generate a UUID v5-like value using SHA-1 of the name
+    const hash = crypto.createHash('sha1').update(name).digest(); // 20 bytes
+    const bytes = Buffer.from(hash.subarray(0, 16));
+    // Set version to 5 (0101)
+    bytes[6] = (bytes[6] & 0x0f) | 0x50;
+    // Set variant to RFC 4122 (10xx)
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = bytes.toString('hex');
+    return `${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}`;
+}
+
+function getCurrentUserId(claims: UserClaims | undefined): string {
+    const fallback = '00000000-0000-0000-0000-000000000001';
+    if (!claims || !claims.sub) return process.env.MOCK_USER_ID || fallback;
+    // If sub already looks like a UUID, use it as-is; otherwise map to a stable UUID
+    if (UUID_RE.test(claims.sub)) return claims.sub;
+    const issuer = (claims as any).iss || authCfg.issuer || 'local';
+    return uuidV5FromString(`${issuer}|${claims.sub}`);
+}
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -22,7 +123,7 @@ async function main() {
     });
 
     // Simple settings API (global scope)
-    app.get('/settings', async (_req: Request, res: Response) => {
+    app.get('/settings', requireAuth(), async (_req: Request, res: Response) => {
         try {
             const { rows } = await query<{ key: string; value: any }>(`SELECT key, value FROM kb.settings ORDER BY key ASC`);
             res.json({ settings: Object.fromEntries(rows.map((r) => [r.key, r.value])) });
@@ -31,7 +132,7 @@ async function main() {
         }
     });
 
-    app.get('/settings/:key', async (req: Request, res: Response) => {
+    app.get('/settings/:key', requireAuth(), async (req: Request, res: Response) => {
         try {
             const key = String(req.params.key);
             const { rows } = await query<{ value: any }>(`SELECT value FROM kb.settings WHERE key = $1`, [key]);
@@ -42,7 +143,7 @@ async function main() {
         }
     });
 
-    app.put('/settings/:key', async (req: Request, res: Response) => {
+    app.put('/settings/:key', requireAuth(), async (req: Request, res: Response) => {
         try {
             const key = String(req.params.key);
             const value = req.body?.value ?? {};
@@ -58,7 +159,7 @@ async function main() {
         }
     });
 
-    app.post('/ingest/url', async (req: Request, res: Response) => {
+    app.post('/ingest/url', requireAuth(), async (req: Request, res: Response) => {
         try {
             const { url } = req.body as { url?: string };
             if (!url) return res.status(400).json({ error: 'url is required' });
@@ -69,7 +170,7 @@ async function main() {
         }
     });
 
-    app.post('/ingest/upload', upload.single('file'), async (req: Request, res: Response) => {
+    app.post('/ingest/upload', requireAuth(), upload.single('file'), async (req: Request, res: Response) => {
         try {
             const file = req.file;
             if (!file) return res.status(400).json({ error: 'file is required' });
@@ -81,7 +182,7 @@ async function main() {
         }
     });
 
-    app.get('/search', async (req: Request, res: Response) => {
+    app.get('/search', requireAuth(), async (req: Request, res: Response) => {
         try {
             const q = String((req.query.q as string) || '').trim();
             const limit = Math.min(Math.max(Number(req.query.limit || 10), 1), 50);
@@ -101,7 +202,7 @@ async function main() {
     });
 
     // List all uploaded/ingested documents
-    app.get('/documents', async (_req: Request, res: Response) => {
+    app.get('/documents', requireAuth(), async (_req: Request, res: Response) => {
         try {
             const { rows } = await query<{
                 id: string;
@@ -129,7 +230,7 @@ async function main() {
     });
 
     // List chunks with optional filters and pagination
-    app.get('/chunks', async (req: Request, res: Response) => {
+    app.get('/chunks', requireAuth(), async (req: Request, res: Response) => {
         try {
             const docIdRaw = (req.query.docId as string | undefined) || undefined;
             const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
@@ -195,7 +296,7 @@ async function main() {
     });
 
     // Get a single chunk by id
-    app.get('/chunks/:id', async (req: Request, res: Response) => {
+    app.get('/chunks/:id', requireAuth(), async (req: Request, res: Response) => {
         try {
             const id = String(req.params.id);
             const { rows } = await query<{
@@ -230,7 +331,7 @@ async function main() {
     });
 
     // SSE chat streaming endpoint
-    app.post('/chat/stream', async (req: Request, res: Response) => {
+    app.post('/chat/stream', requireAuth(), async (req: Request, res: Response) => {
         try {
             const body = req.body as {
                 message?: string;
@@ -245,7 +346,7 @@ async function main() {
             const topK = Math.min(Math.max(Number(body.topK || 5), 1), 20);
             const filterIds = Array.isArray(body.documentIds) && body.documentIds.length > 0 ? body.documentIds : null;
             // NOTE: In lieu of auth, use a fixed mock user id for ownership. Replace with real auth in production.
-            const currentUserId = process.env.MOCK_USER_ID || '00000000-0000-0000-0000-000000000001';
+            const currentUserId = getCurrentUserId((res.locals as any).user as UserClaims | undefined);
 
             // Create or verify conversation access BEFORE starting SSE
             let convId = body.conversationId?.trim() || '';
@@ -420,9 +521,9 @@ async function main() {
     });
 
     // List conversations grouped by shared/private for current user
-    app.get('/chat/conversations', async (req: Request, res: Response) => {
+    app.get('/chat/conversations', requireAuth(), async (req: Request, res: Response) => {
         try {
-            const currentUserId = process.env.MOCK_USER_ID || '00000000-0000-0000-0000-000000000001';
+            const currentUserId = getCurrentUserId((res.locals as any).user as UserClaims | undefined);
             const sharedQ = await query<{ id: string; title: string; created_at: string; updated_at: string; owner_user_id: string; is_private: boolean }>(
                 `SELECT id, title, created_at, updated_at, owner_user_id, is_private
                  FROM kb.chat_conversations
@@ -443,10 +544,12 @@ async function main() {
     });
 
     // Get a single conversation metadata + messages (access-controlled)
-    app.get('/chat/:id', async (req: Request, res: Response) => {
+    app.get('/chat/:id', requireAuth(), async (req: Request, res: Response) => {
         try {
             const id = String(req.params.id);
-            const currentUserId = process.env.MOCK_USER_ID || '00000000-0000-0000-0000-000000000001';
+            const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+            if (!uuidRe.test(id)) return res.status(400).json({ error: 'invalid id' });
+            const currentUserId = getCurrentUserId((res.locals as any).user as UserClaims | undefined);
             const convQ = await query<{ id: string; title: string; created_at: string; updated_at: string; owner_user_id: string; is_private: boolean }>(
                 `SELECT id, title, created_at, updated_at, owner_user_id, is_private
                  FROM kb.chat_conversations WHERE id = $1`,
@@ -477,12 +580,14 @@ async function main() {
     });
 
     // Rename conversation (owner-only)
-    app.patch('/chat/:id', async (req: Request, res: Response) => {
+    app.patch('/chat/:id', requireAuth(), async (req: Request, res: Response) => {
         try {
             const id = String(req.params.id);
+            const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+            if (!uuidRe.test(id)) return res.status(400).json({ error: 'invalid id' });
             const { title } = req.body as { title?: string };
             if (!title || !title.trim()) return res.status(400).json({ error: 'title is required' });
-            const currentUserId = process.env.MOCK_USER_ID || '00000000-0000-0000-0000-000000000001';
+            const currentUserId = getCurrentUserId((res.locals as any).user as UserClaims | undefined);
             const convQ = await query<{ id: string; owner_user_id: string }>(
                 `SELECT id, owner_user_id FROM kb.chat_conversations WHERE id = $1`,
                 [id]
@@ -498,10 +603,12 @@ async function main() {
     });
 
     // Delete conversation (owner-only for private; shared can be deleted only by owner too for now)
-    app.delete('/chat/:id', async (req: Request, res: Response) => {
+    app.delete('/chat/:id', requireAuth(), async (req: Request, res: Response) => {
         try {
             const id = String(req.params.id);
-            const currentUserId = process.env.MOCK_USER_ID || '00000000-0000-0000-0000-000000000001';
+            const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+            if (!uuidRe.test(id)) return res.status(400).json({ error: 'invalid id' });
+            const currentUserId = (res.locals as any).user?.sub || process.env.MOCK_USER_ID || '00000000-0000-0000-0000-000000000001';
             const convQ = await query<{ id: string; owner_user_id: string }>(
                 `SELECT id, owner_user_id FROM kb.chat_conversations WHERE id = $1`,
                 [id]

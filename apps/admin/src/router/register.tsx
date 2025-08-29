@@ -1,5 +1,5 @@
 import { JSX, LazyExoticComponent, lazy } from "react";
-import { Navigate, RouteProps } from "react-router";
+import { Navigate, RouteProps, useParams } from "react-router";
 
 export type IRoutesProps = {
     path: RouteProps["path"];
@@ -19,6 +19,15 @@ const dashboardRoutes: IRoutesProps[] = [
         element: <Navigate to="/admin/apps/documents" replace />,
     },
     // Chat
+    // Legacy redirect for old chat URLs
+    {
+        path: "/admin/chat",
+        element: <Navigate to="/admin/apps/chat" replace />,
+    },
+    {
+        path: "/admin/chat/c/:id?",
+        element: <LegacyChatConversationRedirect />,
+    },
     {
         path: "/admin/apps/chat",
         element: cw(lazy(() => import("@/pages/admin/chat/home"))),
@@ -58,6 +67,12 @@ const dashboardRoutes: IRoutesProps[] = [
     },
 ];
 
+function LegacyChatConversationRedirect() {
+    const { id } = useParams();
+    const target = id ? `/admin/apps/chat/c/${id}` : "/admin/apps/chat/c/new";
+    return <Navigate to={target} replace />;
+}
+
 // No legacy routes in spec; reserved for future app-specific routes
 const appRoutes: IRoutesProps[] = [];
 
@@ -79,6 +94,10 @@ const authRoutes: IRoutesProps[] = [
     {
         path: "/auth/login",
         element: cw(lazy(() => import("@/pages/auth/login"))),
+    },
+    {
+        path: "/auth/callback",
+        element: cw(lazy(() => import("@/pages/auth/callback"))),
     },
     {
         path: "/auth/register",

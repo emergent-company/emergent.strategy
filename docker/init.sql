@@ -39,26 +39,13 @@ CREATE INDEX IF NOT EXISTS idx_chunks_tsv ON kb.chunks USING GIN (tsv);
 
 CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON kb.chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
--- Trigger to keep tsvector updated (idempotent function create)
-DO $ do $ BEGIN IF NOT EXISTS (
-    SELECT
-        1
-    FROM
-        pg_proc p
-        JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE
-        n.nspname = 'kb'
-        AND p.proname = 'update_tsv'
-        AND p.pronargs = 0
-) THEN CREATE FUNCTION kb.update_tsv() RETURNS trigger LANGUAGE plpgsql AS $ func $ BEGIN NEW.tsv := to_tsvector('simple', NEW.text);
+-- Trigger function to keep tsvector updated (idempotent)
+CREATE
+OR REPLACE FUNCTION kb.update_tsv() RETURNS trigger LANGUAGE plpgsql AS $ $ BEGIN NEW.tsv := to_tsvector('simple', NEW.text);
 
 RETURN NEW;
 
-END $ func $;
-
-END IF;
-
-END $ do $;
+END $ $;
 
 DROP TRIGGER IF EXISTS trg_chunks_tsv ON kb.chunks;
 
@@ -72,3 +59,34 @@ UPDATE
 CREATE UNIQUE INDEX IF NOT EXISTS idx_chunks_doc_chunkindex ON kb.chunks(document_id, chunk_index);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_content_hash ON kb.documents(content_hash);
+
+-- Pre-create Zitadel role for local dev (idempotent)
+DO $ $ BEGIN IF NOT EXISTS (
+    SELECT
+        1
+    FROM
+        pg_roles
+    WHERE
+        rolname = 'zitadel'
+) THEN CREATE ROLE zitadel LOGIN PASSWORD 'zitadel';
+
+END IF;
+
+END $ $;
+
+-- Create database if missing (cannot run CREATE DATABASE inside a transaction/DO)
+SELECT
+    'CREATE DATABASE zitadel OWNER zitadel'
+WHERE
+    NOT EXISTS (
+        SELECT
+            1
+        FROM
+            pg_database
+        WHERE
+            datname = 'zitadel'
+    );
+
+\ gexec GRANT CONNECT,
+CREATE,
+TEMP ON DATABASE zitadel TO zitadel;
