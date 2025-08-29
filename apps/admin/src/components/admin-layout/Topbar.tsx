@@ -1,6 +1,5 @@
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-import { TopbarLanguageMenu } from "./TopbarLanguageMenu";
 import { TopbarNotificationButton } from "./TopbarNotificationButton";
 import { TopbarProfileMenu } from "./TopbarProfileMenu";
 import { TopbarSearchButton } from "./TopbarSearchButton";
@@ -28,7 +27,6 @@ export const Topbar = () => {
                 <TopbarSearchButton />
             </div>
             <div className="inline-flex items-center gap-0.5">
-                <TopbarLanguageMenu />
                 <ThemeToggle className="btn btn-sm btn-circle btn-ghost" />
                 <label htmlFor="layout-rightbar-drawer" className="btn btn-circle btn-ghost btn-sm drawer-button">
                     <span className="iconify lucide--settings-2 size-4.5" />
