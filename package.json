@@ -15,7 +15,8 @@
     "build": "npm run build:server && npm run build:admin",
     "db:init": "tsx scripts/init-db.ts",
     "test:smoke": "tsx scripts/smoke-test.ts",
-    "mcp:db": "node .vscode/mcp.js"
+    "mcp:db": "node .vscode/mcp.js",
+    "check:stories": "node scripts/check-stories.mjs"
   },
   "dependencies": {
     "@langchain/google-genai": "^0.2.1",
