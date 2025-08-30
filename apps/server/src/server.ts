@@ -115,13 +115,97 @@ async function main() {
     await ensureSchema();
 
     const app = express();
-    app.use(cors());
+    // CORS: allow credentials and reflect requesting origin, include custom headers
+    const corsOptions: cors.CorsOptions = {
+        origin: true,
+        credentials: true,
+        methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Org-ID', 'X-Project-ID'],
+    };
+    app.use(cors(corsOptions));
+    // Handle preflight for all routes
+    app.options('*', cors(corsOptions));
     app.use(express.json({ limit: '2mb' }));
 
     app.get('/health', (_req: Request, res: Response) => {
         res.json({ ok: true, model: 'text-embedding-004', db: 'postgres' });
     });
 
+    // --- Organizations ---
+    app.get('/orgs', requireAuth(), async (_req: Request, res: Response) => {
+        try {
+            const currentUserId = getCurrentUserId((res.locals as any).user as UserClaims | undefined);
+            const { rows } = await query<{ id: string; name: string; slug: string | null }>(
+                `SELECT id, name, slug FROM kb.organizations WHERE owner_user_id = $1 ORDER BY created_at DESC`,
+                [currentUserId]
+            );
+            res.json({ orgs: rows });
+        } catch (e: any) {
+            res.status(500).json({ error: e.message || 'failed to list orgs' });
+        }
+    });
+
+    app.post('/orgs', requireAuth(), async (req: Request, res: Response) => {
+        try {
+            const name = String((req.body as any)?.name || '').trim();
+            if (!name) return res.status(400).json({ error: 'name is required' });
+            const currentUserId = getCurrentUserId((res.locals as any).user as UserClaims | undefined);
+            const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 60);
+            const ins = await query<{ id: string; name: string; slug: string | null }>(
+                `INSERT INTO kb.organizations (name, slug, owner_user_id) VALUES ($1, $2, $3)
+                 ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, updated_at = now()
+                 RETURNING id, name, slug`,
+                [name, slug || null, currentUserId]
+            );
+            res.status(201).json(ins.rows[0]);
+        } catch (e: any) {
+            res.status(500).json({ error: e.message || 'failed to create org' });
+        }
+    });
+
+    // --- Projects ---
+    app.get('/orgs/:orgId/projects', requireAuth(), async (req: Request, res: Response) => {
+        try {
+            const orgId = String(req.params.orgId);
+            const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+            if (!uuidRe.test(orgId)) return res.status(400).json({ error: 'invalid org id' });
+            // Basic ownership check
+            const orgQ = await query<{ id: string; owner_user_id: string }>(`SELECT id, owner_user_id FROM kb.organizations WHERE id = $1`, [orgId]);
+            if (orgQ.rowCount === 0) return res.status(404).json({ error: 'org not found' });
+            const currentUserId = getCurrentUserId((res.locals as any).user as UserClaims | undefined);
+            if (orgQ.rows[0].owner_user_id !== currentUserId) return res.status(403).json({ error: 'forbidden' });
+            const { rows } = await query<{ id: string; name: string; status: string; created_at: string }>(
+                `SELECT id, name, status, created_at FROM kb.projects WHERE org_id = $1 ORDER BY created_at DESC`,
+                [orgId]
+            );
+            res.json(rows.map((r) => ({ id: r.id, name: r.name, status: r.status, createdAt: r.created_at })));
+        } catch (e: any) {
+            res.status(500).json({ error: e.message || 'failed to list projects' });
+        }
+    });
+
+    app.post('/projects', requireAuth(), async (req: Request, res: Response) => {
+        try {
+            const body = req.body as { name?: string; orgId?: string };
+            const name = String(body.name || '').trim();
+            const orgId = String(body.orgId || '');
+            const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+            if (!name) return res.status(400).json({ error: 'name is required' });
+            if (!uuidRe.test(orgId)) return res.status(400).json({ error: 'invalid org id' });
+            const orgQ = await query<{ id: string; owner_user_id: string }>(`SELECT id, owner_user_id FROM kb.organizations WHERE id = $1`, [orgId]);
+            if (orgQ.rowCount === 0) return res.status(404).json({ error: 'org not found' });
+            const currentUserId = getCurrentUserId((res.locals as any).user as UserClaims | undefined);
+            if (orgQ.rows[0].owner_user_id !== currentUserId) return res.status(403).json({ error: 'forbidden' });
+            const ins = await query<{ id: string; name: string; status: string; created_at: string }>(
+                `INSERT INTO kb.projects (org_id, name) VALUES ($1, $2) RETURNING id, name, status, created_at`,
+                [orgId, name]
+            );
+            const r = ins.rows[0];
+            res.status(201).json({ id: r.id, name: r.name, status: r.status, createdAt: r.created_at });
+        } catch (e: any) {
+            res.status(500).json({ error: e.message || 'failed to create project' });
+        }
+    });
     // Simple settings API (global scope)
     app.get('/settings', requireAuth(), async (_req: Request, res: Response) => {
         try {
@@ -163,7 +247,9 @@ async function main() {
         try {
             const { url } = req.body as { url?: string };
             if (!url) return res.status(400).json({ error: 'url is required' });
-            const result = await ingestUrl(url);
+            const orgId = (req.headers['x-org-id'] as string | undefined) || null;
+            const projectId = (req.headers['x-project-id'] as string | undefined) || null;
+            const result = await ingestUrl(url, { orgId, projectId });
             res.json({ status: 'ok', ...result });
         } catch (e: any) {
             res.status(500).json({ error: e.message || 'ingest failed' });
@@ -175,7 +261,9 @@ async function main() {
             const file = req.file;
             if (!file) return res.status(400).json({ error: 'file is required' });
             const text = file.buffer.toString('utf-8');
-            const result = await ingestText({ text, filename: file.originalname, mime_type: file.mimetype });
+            const orgId = (req.headers['x-org-id'] as string | undefined) || null;
+            const projectId = (req.headers['x-project-id'] as string | undefined) || null;
+            const result = await ingestText({ text, filename: file.originalname, mime_type: file.mimetype }, { orgId, projectId });
             res.json({ status: 'ok', ...result });
         } catch (e: any) {
             res.status(500).json({ error: e.message || 'upload failed' });
@@ -187,13 +275,18 @@ async function main() {
             const q = String((req.query.q as string) || '').trim();
             const limit = Math.min(Math.max(Number(req.query.limit || 10), 1), 50);
             if (!q) return res.status(400).json({ error: 'q is required' });
+            const orgId = (req.headers['x-org-id'] as string | undefined) || null;
+            const projectId = (req.headers['x-project-id'] as string | undefined) || null;
             const { rows } = await query<{ id: string; document_id: string; chunk_index: number; text: string }>(
-                `SELECT id, document_id, chunk_index, text
-         FROM kb.chunks
-         WHERE tsv @@ websearch_to_tsquery('simple', $1)
-         ORDER BY ts_rank(tsv, websearch_to_tsquery('simple', $1)) DESC
-         LIMIT $2`,
-                [q, limit]
+                `SELECT c.id, c.document_id, c.chunk_index, c.text
+                 FROM kb.chunks c
+                 JOIN kb.documents d ON d.id = c.document_id
+                 WHERE c.tsv @@ websearch_to_tsquery('simple', $1)
+                     AND (d.org_id IS NOT DISTINCT FROM $2)
+                     AND (d.project_id IS NOT DISTINCT FROM $3)
+                 ORDER BY ts_rank(c.tsv, websearch_to_tsquery('simple', $1)) DESC
+                 LIMIT $4`,
+                [q, orgId, projectId, limit]
             );
             res.json({ results: rows });
         } catch (e: any) {
@@ -202,8 +295,10 @@ async function main() {
     });
 
     // List all uploaded/ingested documents
-    app.get('/documents', requireAuth(), async (_req: Request, res: Response) => {
+    app.get('/documents', requireAuth(), async (req: Request, res: Response) => {
         try {
+            const orgId = (req.headers['x-org-id'] as string | undefined) || null;
+            const projectId = (req.headers['x-project-id'] as string | undefined) || null;
             const { rows } = await query<{
                 id: string;
                 source_url: string | null;
@@ -220,9 +315,11 @@ async function main() {
                         d.created_at,
                         d.updated_at,
                         COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id), 0) AS chunks
-                 FROM kb.documents d
+                                 FROM kb.documents d
+                                 WHERE (d.org_id IS NOT DISTINCT FROM $1)
+                                     AND (d.project_id IS NOT DISTINCT FROM $2)
                  ORDER BY d.created_at DESC`
-            );
+                , [orgId, projectId]);
             res.json({ documents: rows });
         } catch (e: any) {
             res.status(500).json({ error: e.message || 'failed to list documents' });
@@ -237,6 +334,8 @@ async function main() {
             const docId = docIdRaw && uuidRe.test(docIdRaw) ? docIdRaw : null;
             const qRaw = String((req.query.q as string) || '').trim();
             const q = qRaw.length > 0 ? qRaw : null;
+            const orgId = (req.headers['x-org-id'] as string | undefined) || null;
+            const projectId = (req.headers['x-project-id'] as string | undefined) || null;
             const page = Math.max(1, Number(req.query.page || 1) || 1);
             const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize || 25) || 25));
             const offset = (page - 1) * pageSize;
@@ -254,12 +353,14 @@ async function main() {
 
             const sql = `
                 WITH filtered AS (
-                    SELECT c.id, c.document_id, c.chunk_index, c.text, c.created_at,
-                           d.filename, d.source_url
+            SELECT c.id, c.document_id, c.chunk_index, c.text, c.created_at,
+               d.filename, d.source_url
                     FROM kb.chunks c
                     JOIN kb.documents d ON d.id = c.document_id
                     WHERE ($1::uuid IS NULL OR c.document_id = $1::uuid)
-                      AND ($2::text IS NULL OR c.tsv @@ websearch_to_tsquery('simple', $2))
+              AND ($2::text IS NULL OR c.tsv @@ websearch_to_tsquery('simple', $2))
+              AND (d.org_id IS NOT DISTINCT FROM $5)
+              AND (d.project_id IS NOT DISTINCT FROM $6)
                 ), counted AS (
                     SELECT *, COUNT(*) OVER() AS total FROM filtered
                 )
@@ -277,7 +378,7 @@ async function main() {
                 filename: string | null;
                 source_url: string | null;
                 total: string;
-            }>(sql, params);
+            }>(sql, params.concat([orgId, projectId]));
 
             const total = rowsQ.rows.length > 0 ? Number(rowsQ.rows[0].total) : 0;
             const items = rowsQ.rows.map((r) => ({
@@ -377,11 +478,13 @@ async function main() {
                 const dd = `${d.getDate()}`.padStart(2, '0');
                 const snippet = message.split(/\s+/).slice(0, 8).join(' ');
                 const title = `${yyyy}-${mm}-${dd} — ${snippet || 'New Conversation'}`;
+                const orgId = (req.headers['x-org-id'] as string | undefined) || null;
+                const projectId = (req.headers['x-project-id'] as string | undefined) || null;
                 const ins = await query<{ id: string }>(
-                    `INSERT INTO kb.chat_conversations (title, owner_user_id, is_private)
-                     VALUES ($1, $2, $3)
+                    `INSERT INTO kb.chat_conversations (title, owner_user_id, is_private, org_id, project_id)
+                     VALUES ($1, $2, $3, $4, $5)
                      RETURNING id`,
-                    [title, currentUserId, !!body.isPrivate]
+                    [title, currentUserId, !!body.isPrivate, orgId, projectId]
                 );
                 convId = ins.rows[0].id;
             }
@@ -403,16 +506,20 @@ async function main() {
             const queryVec = await embed.embedQuery(message);
             const vecLiteral = `[` + queryVec.join(',') + `]`;
 
-            // Retrieve topK chunks
+            // Retrieve topK chunks scoped by org/project
+            const orgId = (req.headers['x-org-id'] as string | undefined) || null;
+            const projectId = (req.headers['x-project-id'] as string | undefined) || null;
             const { rows } = await query<{ chunk_id: string; document_id: string; chunk_index: number; text: string; distance: number; filename: string | null; source_url: string | null }>(
                 `SELECT c.id as chunk_id, c.document_id, c.chunk_index, c.text, (c.embedding <=> $1::vector) as distance,
-                        d.filename, d.source_url
-                 FROM kb.chunks c
-                 JOIN kb.documents d ON d.id = c.document_id
-                 WHERE ($2::uuid[] IS NULL OR c.document_id = ANY($2::uuid[]))
-                 ORDER BY c.embedding <=> $1::vector
-                 LIMIT $3`,
-                [vecLiteral, filterIds, topK]
+                                                d.filename, d.source_url
+                                 FROM kb.chunks c
+                                 JOIN kb.documents d ON d.id = c.document_id
+                                 WHERE ($2::uuid[] IS NULL OR c.document_id = ANY($2::uuid[]))
+                                     AND (d.org_id IS NOT DISTINCT FROM $3)
+                                     AND (d.project_id IS NOT DISTINCT FROM $4)
+                                 ORDER BY c.embedding <=> $1::vector
+                                 LIMIT $5`,
+                [vecLiteral, filterIds, orgId, projectId, topK]
             );
 
             const citations = rows.map((r) => ({
@@ -524,18 +631,20 @@ async function main() {
     app.get('/chat/conversations', requireAuth(), async (req: Request, res: Response) => {
         try {
             const currentUserId = getCurrentUserId((res.locals as any).user as UserClaims | undefined);
+            const orgId = (req.headers['x-org-id'] as string | undefined) || null;
+            const projectId = (req.headers['x-project-id'] as string | undefined) || null;
             const sharedQ = await query<{ id: string; title: string; created_at: string; updated_at: string; owner_user_id: string; is_private: boolean }>(
                 `SELECT id, title, created_at, updated_at, owner_user_id, is_private
                  FROM kb.chat_conversations
-                 WHERE is_private = false
+                 WHERE is_private = false AND (org_id IS NOT DISTINCT FROM $1) AND (project_id IS NOT DISTINCT FROM $2)
                  ORDER BY updated_at DESC`
-            );
+                , [orgId, projectId]);
             const privateQ = await query<{ id: string; title: string; created_at: string; updated_at: string; owner_user_id: string; is_private: boolean }>(
                 `SELECT id, title, created_at, updated_at, owner_user_id, is_private
                  FROM kb.chat_conversations
-                 WHERE is_private = true AND owner_user_id = $1
+                 WHERE is_private = true AND owner_user_id = $1 AND (org_id IS NOT DISTINCT FROM $2) AND (project_id IS NOT DISTINCT FROM $3)
                  ORDER BY updated_at DESC`,
-                [currentUserId]
+                [currentUserId, orgId, projectId]
             );
             res.json({ shared: sharedQ.rows, private: privateQ.rows });
         } catch (e: any) {
@@ -550,10 +659,12 @@ async function main() {
             const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
             if (!uuidRe.test(id)) return res.status(400).json({ error: 'invalid id' });
             const currentUserId = getCurrentUserId((res.locals as any).user as UserClaims | undefined);
+            const orgId = (req.headers['x-org-id'] as string | undefined) || null;
+            const projectId = (req.headers['x-project-id'] as string | undefined) || null;
             const convQ = await query<{ id: string; title: string; created_at: string; updated_at: string; owner_user_id: string; is_private: boolean }>(
                 `SELECT id, title, created_at, updated_at, owner_user_id, is_private
-                 FROM kb.chat_conversations WHERE id = $1`,
-                [id]
+                 FROM kb.chat_conversations WHERE id = $1 AND (org_id IS NOT DISTINCT FROM $2) AND (project_id IS NOT DISTINCT FROM $3)`,
+                [id, orgId, projectId]
             );
             if (convQ.rowCount === 0) return res.status(404).json({ error: 'not found' });
             const conv = convQ.rows[0];
@@ -588,9 +699,11 @@ async function main() {
             const { title } = req.body as { title?: string };
             if (!title || !title.trim()) return res.status(400).json({ error: 'title is required' });
             const currentUserId = getCurrentUserId((res.locals as any).user as UserClaims | undefined);
+            const orgId = (req.headers['x-org-id'] as string | undefined) || null;
+            const projectId = (req.headers['x-project-id'] as string | undefined) || null;
             const convQ = await query<{ id: string; owner_user_id: string }>(
-                `SELECT id, owner_user_id FROM kb.chat_conversations WHERE id = $1`,
-                [id]
+                `SELECT id, owner_user_id FROM kb.chat_conversations WHERE id = $1 AND (org_id IS NOT DISTINCT FROM $2) AND (project_id IS NOT DISTINCT FROM $3)`,
+                [id, orgId, projectId]
             );
             if (convQ.rowCount === 0) return res.status(404).json({ error: 'not found' });
             const conv = convQ.rows[0];
@@ -608,10 +721,12 @@ async function main() {
             const id = String(req.params.id);
             const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
             if (!uuidRe.test(id)) return res.status(400).json({ error: 'invalid id' });
-            const currentUserId = (res.locals as any).user?.sub || process.env.MOCK_USER_ID || '00000000-0000-0000-0000-000000000001';
+            const currentUserId = getCurrentUserId((res.locals as any).user as UserClaims | undefined);
+            const orgId = (req.headers['x-org-id'] as string | undefined) || null;
+            const projectId = (req.headers['x-project-id'] as string | undefined) || null;
             const convQ = await query<{ id: string; owner_user_id: string }>(
-                `SELECT id, owner_user_id FROM kb.chat_conversations WHERE id = $1`,
-                [id]
+                `SELECT id, owner_user_id FROM kb.chat_conversations WHERE id = $1 AND (org_id IS NOT DISTINCT FROM $2) AND (project_id IS NOT DISTINCT FROM $3)`,
+                [id, orgId, projectId]
             );
             if (convQ.rowCount === 0) return res.status(404).json({ error: 'not found' });
             const conv = convQ.rows[0];

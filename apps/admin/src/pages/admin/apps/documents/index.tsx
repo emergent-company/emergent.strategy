@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/auth";
+import { useApi } from "@/hooks/use-api";
 import { PageTitle } from "@/components/PageTitle";
 import { LoadingEffect } from "@/components/LoadingEffect";
 import { TableEmptyState } from "@/components/TableEmptyState";
@@ -16,6 +17,7 @@ type DocumentRow = {
 
 export default function DocumentsPage() {
     const { getAccessToken } = useAuth();
+    const { buildHeaders, apiBase, fetchJson, fetchForm } = useApi();
     const [data, setData] = useState<DocumentRow[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -25,11 +27,7 @@ export default function DocumentsPage() {
     const [dragOver, setDragOver] = useState<boolean>(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    const apiBase = useMemo(() => {
-        const env = (import.meta as any).env || {};
-        // Prefer explicit override; else default to common dev port 3001
-        return env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:3001`;
-    }, []);
+    const apiBaseMemo = useMemo(() => apiBase, [apiBase]);
 
     useEffect(() => {
         let cancelled = false;
@@ -37,9 +35,10 @@ export default function DocumentsPage() {
             setLoading(true);
             try {
                 const t = getAccessToken();
-                const res = await fetch(`${apiBase}/documents`, { headers: t ? { Authorization: `Bearer ${t}` } : {} });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const json = (await res.json()) as { documents: DocumentRow[] };
+                const json = await fetchJson<{ documents: DocumentRow[] }>(`${apiBase}/documents`, {
+                    headers: t ? { ...buildHeaders({ json: false }) } : {},
+                    json: false,
+                });
                 if (!cancelled) setData(json.documents);
             } catch (e: unknown) {
                 const msg = e instanceof Error ? e.message : "Failed to load";
@@ -52,7 +51,7 @@ export default function DocumentsPage() {
         return () => {
             cancelled = true;
         };
-    }, [apiBase, getAccessToken]);
+    }, [apiBase, apiBaseMemo, getAccessToken, buildHeaders, fetchJson]);
 
     const acceptedMimeTypes = useMemo(
         () => [
@@ -93,18 +92,15 @@ export default function DocumentsPage() {
             const fd = new FormData();
             fd.append("file", file);
             const t = getAccessToken();
-            const res = await fetch(`${apiBase}/ingest/upload`, { method: "POST", body: fd, headers: t ? { Authorization: `Bearer ${t}` } : {} });
-            if (!res.ok) {
-                const text = await res.text();
-                throw new Error(text || `Upload failed (HTTP ${res.status})`);
-            }
+            await fetchForm<void>(`${apiBase}/ingest/upload`, fd, { method: "POST", headers: t ? buildHeaders({ json: false }) : {} });
             setUploadSuccess("Upload successful. Refreshing list...");
             // Reload documents
             try {
                 const t2 = getAccessToken();
-                const listRes = await fetch(`${apiBase}/documents`, { headers: t2 ? { Authorization: `Bearer ${t2}` } : {} });
-                if (!listRes.ok) throw new Error(`HTTP ${listRes.status}`);
-                const json = (await listRes.json()) as { documents: DocumentRow[] };
+                const json = await fetchJson<{ documents: DocumentRow[] }>(`${apiBase}/documents`, {
+                    headers: t2 ? { ...buildHeaders({ json: false }) } : {},
+                    json: false,
+                });
                 setData(json.documents);
             } catch (e: unknown) {
                 const msg = e instanceof Error ? e.message : "Failed to refresh list";

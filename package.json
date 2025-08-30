@@ -1,44 +1,45 @@
 {
-    "name": "spec-server",
-    "version": "0.1.0",
-    "private": true,
-    "type": "module",
-    "scripts": {
-        "dev:server": "tsx watch apps/server/src/server.ts",
-        "dev:admin": "npm --prefix apps/admin run dev",
-        "dev:all": "concurrently -n server,admin -c blue,magenta \"npm run dev:server\" \"npm run dev:admin\"",
-        "dev": "npm run dev:all",
-        "start": "node apps/server/dist/server.js",
-        "build:server": "tsc -p apps/server/tsconfig.json",
-        "build:admin": "npm --prefix apps/admin run build",
-        "build": "npm run build:server && npm run build:admin",
-        "db:init": "tsx scripts/init-db.ts",
-        "test:smoke": "tsx scripts/smoke-test.ts",
-        "mcp:db": "node .vscode/mcp.js"
-    },
-    "dependencies": {
-        "@langchain/google-genai": "^0.2.1",
-        "@modelcontextprotocol/sdk": "^1.1.7",
-        "cors": "^2.8.5",
-        "dotenv": "^16.4.5",
-        "express": "^4.19.2",
-        "jose": "^5.9.6",
-        "html-to-text": "^9.0.5",
-        "langchain": "^0.3.3",
-        "multer": "^1.4.5-lts.1",
-        "node-fetch": "^3.3.2",
-        "pg": "^8.12.0",
-        "zod": "^3.23.8"
-    },
-    "devDependencies": {
-        "concurrently": "^9.1.2",
-        "@types/cors": "^2.8.19",
-        "@types/express": "^4.17.21",
-        "@types/html-to-text": "^9.0.4",
-        "@types/multer": "^1.4.11",
-        "@types/node": "^22.17.2",
-        "@types/pg": "^8.15.5",
-        "tsx": "^4.19.0",
-        "typescript": "^5.5.4"
-    }
+  "name": "spec-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:server": "tsx watch apps/server/src/server.ts",
+    "dev:admin": "npm --prefix apps/admin run dev",
+    "dev:storybook": "npm --prefix apps/admin run storybook",
+    "dev:all": "concurrently -n server,admin,storybook -c blue,magenta,cyan \"npm run dev:server\" \"npm run dev:admin\" \"npm run dev:storybook\"",
+    "dev": "npm run dev:all",
+    "start": "node apps/server/dist/server.js",
+    "build:server": "tsc -p apps/server/tsconfig.json",
+    "build:admin": "npm --prefix apps/admin run build",
+    "build": "npm run build:server && npm run build:admin",
+    "db:init": "tsx scripts/init-db.ts",
+    "test:smoke": "tsx scripts/smoke-test.ts",
+    "mcp:db": "node .vscode/mcp.js"
+  },
+  "dependencies": {
+    "@langchain/google-genai": "^0.2.1",
+    "@modelcontextprotocol/sdk": "^1.1.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jose": "^5.9.6",
+    "html-to-text": "^9.0.5",
+    "langchain": "^0.3.3",
+    "multer": "^1.4.5-lts.1",
+    "node-fetch": "^3.3.2",
+    "pg": "^8.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.21",
+    "@types/html-to-text": "^9.0.4",
+    "@types/multer": "^1.4.11",
+    "@types/node": "^22.17.2",
+    "@types/pg": "^8.15.5",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4"
+  }
 }

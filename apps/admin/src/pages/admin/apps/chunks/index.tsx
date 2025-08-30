@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/auth";
+import { useApi } from "@/hooks/use-api";
 import { useSearchParams } from "react-router";
 import { PageTitle } from "@/components/PageTitle";
 import { LoadingEffect } from "@/components/LoadingEffect";
@@ -30,6 +31,7 @@ interface DocumentRow {
 
 export default function ChunksPage() {
     const { getAccessToken } = useAuth();
+    const { buildHeaders, apiBase, fetchJson } = useApi();
     const [searchParams, setSearchParams] = useSearchParams();
     const [data, setData] = useState<ChunksResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -37,10 +39,7 @@ export default function ChunksPage() {
     const [preview, setPreview] = useState<ChunkRow | null>(null);
     const [docs, setDocs] = useState<DocumentRow[]>([]);
 
-    const apiBase = useMemo(() => {
-        const env = (import.meta as any).env || {};
-        return env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:3001`;
-    }, []);
+    const apiBaseMemo = useMemo(() => apiBase, [apiBase]);
 
     const page = Math.max(1, Number(searchParams.get("page") || 1));
     const pageSize = Math.min(100, Math.max(1, Number(searchParams.get("pageSize") || 25)));
@@ -74,9 +73,10 @@ export default function ChunksPage() {
         (async () => {
             try {
                 const t = getAccessToken();
-                const res = await fetch(`${apiBase}/documents`, { headers: t ? { Authorization: `Bearer ${t}` } : {} });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const json = (await res.json()) as { documents: DocumentRow[] };
+                const json = await fetchJson<{ documents: DocumentRow[] }>(`${apiBase}/documents`, {
+                    headers: t ? { ...buildHeaders({ json: false }) } : {},
+                    json: false,
+                });
                 if (!cancelled) setDocs(json.documents || []);
             } catch {
                 // ignore optional
@@ -85,7 +85,7 @@ export default function ChunksPage() {
         return () => {
             cancelled = true;
         };
-    }, [apiBase, getAccessToken]);
+    }, [apiBase, apiBaseMemo, getAccessToken, buildHeaders, fetchJson]);
 
     useEffect(() => {
         let cancelled = false;
@@ -100,9 +100,10 @@ export default function ChunksPage() {
                 qs.set("pageSize", String(pageSize));
                 if (sort) qs.set("sort", sort);
                 const t = getAccessToken();
-                const res = await fetch(`${apiBase}/chunks?${qs.toString()}`, { headers: t ? { Authorization: `Bearer ${t}` } : {} });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const json = (await res.json()) as ChunksResponse;
+                const json = await fetchJson<ChunksResponse>(`${apiBase}/chunks?${qs.toString()}`, {
+                    headers: t ? { ...buildHeaders({ json: false }) } : {},
+                    json: false,
+                });
                 if (!cancelled) setData(json);
             } catch (e: any) {
                 if (!cancelled) setError(e.message || "Failed to load");
@@ -114,7 +115,7 @@ export default function ChunksPage() {
         return () => {
             cancelled = true;
         };
-    }, [apiBase, page, pageSize, q, docId, sort, getAccessToken]);
+    }, [apiBase, apiBaseMemo, page, pageSize, q, docId, sort, getAccessToken, buildHeaders, fetchJson]);
 
     function updateParam(key: string, value: string) {
         const next = new URLSearchParams(searchParams);

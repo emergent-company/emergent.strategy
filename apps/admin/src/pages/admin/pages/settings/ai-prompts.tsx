@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "@/contexts/auth";
+import { useApi } from "@/hooks/use-api";
 import { Link } from "react-router";
 
-const API_BASE = (import.meta as any).env?.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:3001`;
-
 function useSettingString(key: string, initial: string) {
-    const { getAccessToken } = useAuth();
+    const { apiBase, fetchJson } = useApi();
     const [value, setValue] = useState<string>(initial);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -14,34 +12,24 @@ function useSettingString(key: string, initial: string) {
         let cancelled = false;
         (async () => {
             try {
-                const t = getAccessToken();
-                const res = await fetch(`${API_BASE}/settings/${encodeURIComponent(key)}`, { headers: t ? { Authorization: `Bearer ${t}` } : {} });
-                if (res.ok) {
-                    const data = (await res.json()) as { key: string; value: any };
-                    const v = data?.value;
-                    const text = typeof v === 'string' ? v : v?.text || v?.template || '';
-                    if (!cancelled) setValue(text || initial);
-                }
-            } catch (e) {
+                const data = await fetchJson<{ key: string; value: unknown }>(`${apiBase}/settings/${encodeURIComponent(key)}`);
+                const v = data?.value as unknown;
+                const text = typeof v === 'string' ? v : (v as any)?.text || (v as any)?.template || '';
+                if (!cancelled) setValue(text || initial);
+            } catch {
                 // ignore
             } finally {
                 if (!cancelled) setLoading(false);
             }
         })();
         return () => { cancelled = true; };
-    }, [key, initial, getAccessToken]);
+    }, [key, initial, apiBase, fetchJson]);
 
     const save = async (next: string) => {
         setLoading(true);
         setError(null);
         try {
-            const t = getAccessToken();
-            const res = await fetch(`${API_BASE}/settings/${encodeURIComponent(key)}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) },
-                body: JSON.stringify({ value: next }),
-            });
-            if (!res.ok) throw new Error(`Save failed: ${res.status}`);
+            await fetchJson<void, { value: string }>(`${apiBase}/settings/${encodeURIComponent(key)}`, { method: 'PUT', body: { value: next } });
             setValue(next);
         } catch (e: any) {
             setError(e?.message || 'failed');

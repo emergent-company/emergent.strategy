@@ -6,6 +6,14 @@
   - Tickets and dev tools (Jira/Linear/GitHub Issues/PRs/Discussions).
   - Meetings and chat (Zoom/Meet/Teams/Slack). Support audio/video transcription via external service.
   - Web pages and wikis (Confluence/Notion/GitHub Wiki).
+- Multi-tenancy & projects
+  - Users can create separate Organizations (multi-tenant).
+  - The creator of an Organization automatically becomes its Owner (role).
+  - Each Organization can contain multiple Projects.
+  - Users from across the whole system can be invited to Projects (cross-org invitations allowed by email or user id).
+  - Users can switch Organization easily in the UI.
+  - Users can switch Project easily in the UI.
+  - Every piece of imported data must be assigned to a specific Project and is only available within that Project.
 - Processing
   - Text extraction for common file types (pdf, docx, pptx, xlsx, md, html, txt).
   - Language detection and normalization (UTF-8, basic cleaning, PII redaction options).
@@ -30,7 +38,7 @@
 - Performance: P95 query under 1s for 100k chunks; ingestion latency < 2 min from drop to searchable (for small docs).
 - Scalability: handle >5M chunks with horizontal scaling.
 - Reliability: 99.9% available MCP; idempotent ingestion.
-- Security: SSO, row-level security per tenant, encryption at rest and in transit, audit logging.
+- Security: SSO, row-level security per tenant/org/project, encryption at rest and in transit, audit logging.
 - Observability: metrics, traces, structured logs, lineage dashboards.
 - Extensibility: new sources/processors via LangChain components and code-first pipelines.
 
@@ -40,6 +48,22 @@
 - Dev DB: Postgres with pgvector and FTS, running locally via Docker Compose with bootstrap SQL to enable extensions and create base tables.
  - Dev Auth: Zitadel (https://zitadel.com/) (OIDC/OAuth2) runs locally via Docker Compose alongside Postgres for development. Provide minimal bootstrap (org/project/app) and expose issuer URL and credentials via `.env`.
  - Self-hosted reference (staging/prod): Follow Zitadel self-hosting deployment overview: https://zitadel.com/docs/self-hosting/deploy/overview
+ - Dev UI Catalog: Storybook (v8+, Vite builder) for React + TypeScript to document and test UI components used across the project. Must load the same `src/styles/app.css` (Tailwind CSS 4 + daisyUI 5) so visuals match the app. Provide a global decorator that wraps stories with the Nexus `ConfigProvider` to enable theme switching (light/dark) and other global UI config.
+
+Acceptance Criteria (Storybook UI Catalog)
+- A dev command starts Storybook locally (e.g., `npm run storybook` from `apps/admin`).
+- All shared UI components used in the Admin UI under `apps/admin/src/components/**` have at least one typed CSF story file (`*.stories.tsx`). Core layout primitives (Sidebar, Topbar, Logo, ThemeToggle, form inputs, tables, alerts, toasts, loaders, empty states) are included.
+- Stories render with Tailwind/daisyUI styles and look consistent with the running app (styles are imported via the same app entry CSS).
+- A theme control (light/dark) is available in the toolbar and toggles daisyUI themes via `ConfigProvider`/`useConfig`.
+- Stories include basic states: default, loading/skeleton, empty, error, and an interactive example where relevant. Controls are enabled for key props; no `any` types.
+- Lint/typecheck pass for stories as part of the existing build/typecheck tasks (no custom exceptions needed).
+
+### Definition of Done: UI Refactors and Storybook Coverage
+- Policy: When a UI component in `apps/admin/src/components/**` is created, renamed, or refactored, the same PR must add or update a typed CSF story (`*.stories.tsx`) for that component. No refactor should land without Storybook coverage.
+- Gradual rollout: We will incrementally reach 100% Storybook coverage. If a refactor touches a component that currently lacks a story, the PR must add a minimal story (default state) at minimum. Prefer adding key states (loading/empty/error) where applicable.
+- Location and naming: Place stories adjacent to components using the `ComponentName.stories.tsx` convention. Use strict typing for props; avoid `any`.
+- Consistency: Stories must render with the same app styles (`src/styles/app.css`) and rely on the global decorators (router, ConfigProvider, AuthProvider) defined in Storybook preview so visuals and behavior match the app.
+- Exceptions: Pure re-export/index files or trivial wrapper components may be skipped temporarily only if the underlying building blocks already have coverage. If skipped, add a brief rationale in the PR description and open a follow-up task to track completion.
 
 ## Frontend (Admin UI)
 - Purpose: Browse and search documents, chunks, spec objects, evidence, and relationships; basic curation actions.
@@ -50,6 +74,86 @@
 - Auth: Zitadel (https://zitadel.com/) (OIDC/OAuth2) is the auth backend. Reuse backend auth (Bearer/Session); store tokens in httpOnly cookies; CSRF protection for state-changing routes. Providers: Google, GitHub, and username/password (all via Zitadel).
  - Auth Frontend integration: Follow Zitadel’s React example for SPA login: https://zitadel.com/docs/examples/login/react
 - Node version: >= 20.19 (per template engines field).
+
+### Org & Project Switching (Admin UI)
+- Provide clear controls to switch the active Organization and Project.
+- The active Organization/Project context scopes all API requests and views.
+- Persist the last selection locally (e.g., Local Storage) and restore on reload.
+- Prevent access to data outside the active Organization/Project.
+
+Acceptance Criteria (Org/Project Switching)
+- A user with memberships in multiple Organizations can switch Orgs from a topbar control.
+- Within an Organization, the user can switch among Projects they are a member of.
+- After switching, lists and searches return only data from the active Project.
+- Upload/ingest flows require a Project context; attempts without one are blocked with a helpful error.
+
+#### Avatar Menu — Organizations Switcher
+- Placement: inside the Topbar profile avatar dropdown, under a section titled "Organizations".
+- Content: list all Organizations the user belongs to (from `GET /orgs`).
+  - Each item uses a Lucide icon via Iconify: `<span class="iconify lucide--building-2"></span>` followed by the org name.
+  - The active Organization displays a trailing check icon `<span class="iconify lucide--check"></span>` and/or `aria-current="true"`.
+- Add organization: include a footer link "Add organization" that opens a modal to create a new organization.
+- Loading/empty states: show `skeleton` rows while loading; empty state text with the "Add organization" link when none exist.
+- Keyboard/accessibility: avatar trigger has `tabindex="0" role="button"`; list is arrow-key navigable and screen-reader friendly.
+
+Acceptance Criteria (Avatar Organizations Switcher)
+- Opening the avatar menu shows an "Organizations" section listing all orgs with the active one check-marked.
+- Selecting an organization switches the active Org context immediately, persists it locally, and updates subsequent API calls.
+- The "Add organization" link opens a modal; successful creation switches context to the new org and closes the modal.
+- Errors during switching or creation are surfaced with a `toast` + `alert-error` or inline `alert` in the modal.
+
+Add Organization (minimal flow)
+- Trigger: "Add organization" in the avatar menu opens a daisyUI `modal` titled "Create Organization".
+- Form: a single required `input` for Organization name (max length 100) and a `btn btn-primary` submit.
+- Submit: `POST /orgs` with `{ name }`.
+- Success: server creates the Organization and a Membership with role `Owner` for the creator; the UI switches the active Org to the new one.
+- Failure: show `alert alert-error` in the modal; keep the modal open for correction.
+
+#### Sidebar Project Switcher (Layout Builder – "Project")
+- Use the Layout Builder Sidebar variant named "Project" as the canonical Project switcher (parity with the demo).
+- Placement:
+  - In the Sidebar, near the top (below the logo/title block), visible on all admin pages that use the Admin layout.
+  - On small screens, it collapses with the Sidebar and remains accessible via the Sidebar toggle.
+- Behavior/UI (daisyUI):
+  - Render as a compact list/dropdown of Projects with the active item highlighted.
+  - Use daisyUI `menu`/`list` styles consistent with the Layout Builder "Project" sidebar demo.
+  - Include the current project name and optional icon (Iconify Lucide, e.g., `lucide--folder` or `lucide--folder-open`).
+  - Optional search/filter input at the top of the list for long project lists.
+  - Optional quick actions (small links/buttons) to “Create project” and “Manage projects”, shown conditionally by permission.
+- Interaction:
+  - Clicking a project switches the active Project context immediately and updates views.
+  - Focus/keyboard navigation works within the list; active state is clearly indicated.
+  - If the Sidebar Project switcher is present, it is the primary place to change projects (the Topbar may still host the Org switcher).
+- Accessibility:
+  - List is keyboard navigable; screen readers announce the active project and the list role.
+  - Provide `aria-current="true"` or equivalent for the active project item.
+
+Acceptance Criteria (Sidebar Project Switcher)
+- The Sidebar renders a Project switcher matching the Layout Builder "Project" variant style and behavior.
+- Selecting a Project updates the app context and all subsequent API requests include `X-Org-ID`/`X-Project-ID` for the selection.
+- The active Project is visually highlighted; the selection persists across reloads.
+- On mobile/collapsed Sidebar, the switcher remains reachable and functional.
+
+UI Notes (Nexus + daisyUI)
+- Avatar menu (Organizations): place an "Organizations" section inside the avatar dropdown using `dropdown` + `menu` classes; active item shows a check icon.
+- Sidebar (Projects): use the Layout Builder "Project" variant with `menu` styling; optionally include a small search `input` at the top.
+- Use `dropdown-end` to right-align the avatar menu; highlight active items consistently.
+- Show `skeleton` placeholders during loading; provide accessible labels and `aria-current` on active items.
+- Use `toast` + `alert-error` for switch/creation errors and `alert-success` for confirmations.
+
+Data Contract (used by Admin UI for switching)
+- Fetch orgs: `GET /orgs`
+  - Response: `{ orgs: Array<{ id: string, name: string, slug?: string }> }`
+- Fetch projects: `GET /orgs/:orgId/projects`
+  - Response: `{ projects: Array<{ id: string, name: string, slug?: string, organization_id: string }> }`
+- Create org: `POST /orgs` body `{ name: string }`
+  - Response: `{ id: string, name: string }` (creator receives a Membership with role `Owner`)
+- Create project: `POST /projects` body `{ organization_id: string, name: string }`
+  - Response: `{ id: string, organization_id: string, name: string }`
+- Invite to org: `POST /orgs/:orgId/invite` body `{ email: string, role?: "Admin"|"Member"|"Viewer" }`
+- Invite to project: `POST /projects/:projectId/invite` body `{ email: string, role?: "Admin"|"Contributor"|"Viewer" }`
+- Headers to set on subsequent data calls: `X-Org-ID: <orgId>`, `X-Project-ID: <projectId>`.
+- Error codes: `400` when context missing/invalid; `403` when user lacks membership; `404` when resource not found.
 
 ### Auth UI (Nexus Template)
 - Use the Nexus Admin Dashboard Template’s Auth layout and components for all authentication pages.
@@ -130,3 +234,25 @@ Optional Enhancements (polish)
 ## Out of Scope (v1)
 - Automated contract extraction for all domains (beyond simple NER/relations).
 - End-user UI beyond basic admin and health dashboards.
+
+---
+
+## Backend Invites & RLS Enforcement
+
+### Invites and Roles
+- Users can invite members to an Organization via email and assign a role: `owner`, `admin`, `member`, or `viewer`.
+- Invitation lifecycle: create invite → email with token link → accept → account association → role granted.
+- Resend and revoke invites supported; expired/invalid tokens rejected with a helpful message.
+- Role matrix:
+  - owner: full control over org and projects (manage roles, billing, deletion).
+  - admin: manage projects and members (except owners), settings.
+  - member: CRUD on project resources within granted projects.
+  - viewer: read-only access to allowed resources.
+- Auditing: record invite creation, acceptance, revocation with actor and timestamps.
+
+### Row-Level Security (RLS)
+- All data access is restricted by Organization and Project using database RLS policies.
+- Required headers on every API request: `Authorization`, and where applicable `X-Org-ID`, `X-Project-ID`.
+- Backend validates the active user’s membership and role for the given org/project before executing queries.
+- Database RLS ensures cross-tenant isolation even if an application bug occurs; access checks at both API and DB layers.
+- Logs capture policy denials for observability.

@@ -1,8 +1,18 @@
 # Data Model
 
 ## Core Entities
+- Organization
+  - id, name, slug, created_at, updated_at, deleted_at
+  - owners[] (derived from Memberships where role=Owner)
+- Project
+  - id, organization_id, name, slug, created_at, updated_at, deleted_at
+  - settings (jsonb), labels[]
+- Membership (Org level)
+  - id, organization_id, user_id, role (Owner|Admin|Member|Viewer), created_at, updated_at
+- ProjectMembership
+  - id, project_id, user_id, role (Admin|Contributor|Viewer), created_at, updated_at
 - Document
-  - id, tenant_id, source (jira, github, drive, upload, etc.)
+  - id, tenant_id, organization_id, project_id, source (jira, github, drive, upload, etc.)
   - uri/origin, title, mime_type, checksum, size_bytes
   - created_at, captured_at, updated_at, deleted_at
   - authors[], access_scope, labels[]
@@ -31,6 +41,9 @@
 
 ## Multi-tenancy
 - tenant_id on all rows; row-level security and scoped indices.
+- organization_id and project_id on all content rows (Document, Chunk, Entity, Relation, Provenance, Spec Objects, Evidence, Relationships).
+- Enforce RLS policies to scope queries to the active tenant + organization + project.
+- Imported data must reference a valid project_id and remain isolated to that project.
 
 ## Specification Objects (Higher Level)
 

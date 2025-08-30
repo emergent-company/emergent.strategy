@@ -13,6 +13,25 @@ Components
 7. Keyword index update.
 8. Publish ingestion completion event; MCP cache warm.
 
+## Multi-tenancy & Context Propagation
+- Auth token carries user id and memberships; server resolves active tenant/org/project context from headers (e.g., `X-Org-ID`, `X-Project-ID`) or session.
+- All write/read paths require an active project context; requests without it return 400 with guidance.
+- RLS in Postgres enforces tenant/org/project scoping; indices include `(tenant_id, organization_id, project_id)` where applicable.
+- Invitations: owners/admins can invite existing users by email to orgs/projects; acceptance establishes Membership/ProjectMembership.
+
+### Invites Flow
+- Create invite: API creates a signed, expiring token bound to org/project, role, and invitee email.
+- Notify: email service sends acceptance link to invitee; link opens `/auth/callback?invite=...` which exchanges token, verifies email, and binds to user account.
+- Accept: upon success, backend creates membership rows (organization_memberships, project_memberships) with the requested role; idempotent if already accepted.
+- Revoke/resend: admin endpoints to revoke an outstanding token or resend the email; audit every action.
+
+### RLS Enforcement
+- DB tables include `organization_id` and optionally `project_id` foreign keys; enable RLS and define policies like:
+  - USING: user is a member of the row’s organization (and project where applicable) with sufficient role.
+  - WITH CHECK: inserts/updates allowed only within caller’s permitted org/project set.
+- API layer derives `current_setting('app.user_id')`, `app.org_id`, `app.project_id` via `SET LOCAL` at the start of a request to let RLS evaluate without passing IDs in every query.
+- All queries run inside a transaction with these settings; logs include org/project for traceability.
+
 ## Admin UI: Documents
 - The admin SPA (Vite/React) supports manual document upload via button and drag-and-drop to `POST /ingest/upload` (multipart/form-data, `file` field, 10MB limit), then queries `GET /documents` to list document metadata from Postgres.
 - The server computes `chunks` via a subquery count on `kb.chunks`.

@@ -1,0 +1,179 @@
+import { useState } from "react";
+
+import { useConfig } from "@/contexts/config";
+import { useProjects } from "@/hooks/use-projects";
+
+export const SidebarProjectDropdown = () => {
+    const { config, setActiveProject } = useConfig();
+    const { projects, loading, error, createProject } = useProjects();
+
+    return (
+        <>
+            <div className="px-5">
+                <div className="dropdown-bottom w-full dropdown dropdown-end">
+                    <div
+                        tabIndex={0}
+                        className="flex items-center gap-2 hover:bg-base-200 mt-1 p-1 pe-2 border border-base-300 rounded-box cursor-pointer"
+                    >
+                        <div className="flex justify-center items-center bg-primary/20 rounded-box size-8">
+                            <div className="bg-primary size-5 mask mask-hexagon-2"></div>
+                        </div>
+                        <div className="grow">
+                            <p
+                                className="font-medium text-sm/none truncate"
+                                title={config.activeProjectName || "Select project"}
+                            >
+                                {config.activeProjectName || "Select project"}
+                            </p>
+                            <p className="mt-1 text-xs/none text-base-content/60">
+                                {config.activeProjectId ? "Active" : "No project selected"}
+                            </p>
+                        </div>
+                        <span className="text-base-content/50 iconify lucide--chevrons-up-down"></span>
+                    </div>
+                    <div
+                        tabIndex={0}
+                        className="bg-base-100 shadow-md hover:shadow-lg mt-1 rounded-box w-60 transition-all dropdown-content"
+                    >
+                        <ul className="space-y-1 p-2 w-full max-h-72 overflow-auto menu">
+                            {loading && (
+                                <li className="disabled">
+                                    <div className="flex items-center gap-2">
+                                        <span className="rounded w-4 h-4 skeleton" />
+                                        <span className="w-28 h-3 skeleton" />
+                                    </div>
+                                </li>
+                            )}
+                            {!loading && projects && projects.length === 0 && (
+                                <li className="disabled">
+                                    <div className="opacity-70">No projects</div>
+                                </li>
+                            )}
+                            {!loading &&
+                                projects?.map((p) => (
+                                    <li key={p.id}>
+                                        <button
+                                            className="flex justify-between items-center"
+                                            onClick={() => setActiveProject(p.id, p.name)}
+                                            aria-current={p.id === config.activeProjectId ? "true" : undefined}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex justify-center items-center bg-secondary/20 rounded-box size-8">
+                                                    <div className="bg-secondary size-5 mask mask-star-2"></div>
+                                                </div>
+                                                <div className="text-left">
+                                                    <p className="font-medium text-sm/none truncate" title={p.name}>
+                                                        {p.name}
+                                                    </p>
+                                                    {p.status && (
+                                                        <p className="opacity-60 mt-0.5 text-xs/none truncate" title={p.status}>
+                                                            {p.status}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            {p.id === config.activeProjectId && (
+                                                <span className="size-4 iconify lucide--check" aria-hidden="true" />
+                                            )}
+                                        </button>
+                                    </li>
+                                ))}
+                        </ul>
+                        <div className="px-2 pt-0 pb-2">
+                            <label htmlFor="modal-create-project" className="link link-primary">
+                                Add project
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <CreateProjectModal
+                onCreated={(proj) => setActiveProject(proj.id, proj.name)}
+                errorMsg={error}
+                onCreate={createProject}
+            />
+        </>
+    );
+};
+
+type CreateProjectModalProps = {
+    onCreate: (name: string) => Promise<{ id: string; name: string }>;
+    onCreated: (proj: { id: string; name: string }) => void;
+    errorMsg?: string;
+};
+
+const CreateProjectModal = ({ onCreate, onCreated, errorMsg }: CreateProjectModalProps) => {
+    const [name, setName] = useState<string>("");
+    const [creating, setCreating] = useState<boolean>(false);
+    const [localError, setLocalError] = useState<string | undefined>(undefined);
+    const [toastMsg, setToastMsg] = useState<string | undefined>(undefined);
+
+    const submit = async () => {
+        if (!name.trim()) return;
+        try {
+            setCreating(true);
+            setLocalError(undefined);
+            const created = await onCreate(name.trim());
+            onCreated(created);
+            setName("");
+            (document.getElementById("modal-create-project") as HTMLInputElement | null)?.click?.();
+            setToastMsg(`Project “${created.name}” created`);
+            window.setTimeout(() => setToastMsg(undefined), 2500);
+        } catch (e) {
+            setLocalError((e as Error).message || "Failed to create project");
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    return (
+        <>
+            <input type="checkbox" id="modal-create-project" className="modal-toggle" />
+            <div className="modal" role="dialog" aria-modal="true">
+                <div className="modal-box">
+                    <h3 className="font-bold text-lg">Create Project</h3>
+                    {(errorMsg || localError) && (
+                        <div className="mt-2 alert alert-error">
+                            <span className="size-4 iconify lucide--alert-triangle" />
+                            <span>{localError || errorMsg}</span>
+                        </div>
+                    )}
+                    <div className="mt-4 form-control">
+                        <label className="label">
+                            <span className="label-text">Project name</span>
+                        </label>
+                        <input
+                            className="input"
+                            placeholder="Design System"
+                            value={name}
+                            maxLength={100}
+                            onChange={(e) => setName(e.target.value)}
+                        />
+                    </div>
+                    <div className="modal-action">
+                        <label htmlFor="modal-create-project" className="btn btn-ghost">
+                            Cancel
+                        </label>
+                        <button className="btn btn-primary" onClick={submit} disabled={creating || !name.trim()}>
+                            {creating && <span className="me-2 loading loading-spinner loading-sm" />}Create
+                        </button>
+                    </div>
+                </div>
+                <label className="modal-backdrop" htmlFor="modal-create-project">
+                    Close
+                </label>
+            </div>
+            {toastMsg && (
+                <div className="toast-top toast toast-end">
+                    <div className="alert alert-success">
+                        <span className="size-4 iconify lucide--check-circle-2" />
+                        <span>{toastMsg}</span>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
+
+export default SidebarProjectDropdown;

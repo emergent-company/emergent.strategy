@@ -12,6 +12,10 @@ export type IConfig = {
     sidebarTheme: "light" | "dark";
     fontFamily: "default" | "dm-sans" | "inclusive" | "ar-one" | "wix";
     fullscreen: boolean;
+    activeOrgId?: string;
+    activeOrgName?: string;
+    activeProjectId?: string;
+    activeProjectName?: string;
 };
 
 const defaultConfig: IConfig = {
@@ -33,8 +37,14 @@ const useHook = () => {
         [setConfig],
     );
 
-    const changeTheme = (theme: IConfig["theme"]) => {
+    const changeTheme = useCallback((theme: IConfig["theme"]) => {
         updateConfig({ theme });
+    }, [updateConfig]);
+    const setActiveOrg = (id: string | undefined, name?: string) => {
+        updateConfig({ activeOrgId: id, activeOrgName: name, activeProjectId: undefined, activeProjectName: undefined });
+    };
+    const setActiveProject = (id: string | undefined, name?: string) => {
+        updateConfig({ activeProjectId: id, activeProjectName: name });
     };
 
     const changeSidebarTheme = (sidebarTheme: IConfig["sidebarTheme"]) => {
@@ -86,7 +96,9 @@ const useHook = () => {
         return () => {
             fullscreenMedia.removeEventListener("change", fullscreenListener);
         };
-    }, [config, updateConfig]);
+        // subscribe once on mount; updateConfig is stable via useCallback
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         if (!htmlRef) return;
@@ -128,13 +140,16 @@ const useHook = () => {
         changeTheme,
         changeDirection,
         toggleFullscreen,
+        setActiveOrg,
+        setActiveProject,
     };
 };
 
 const ConfigContext = createContext({} as ReturnType<typeof useHook>);
 
 export const ConfigProvider = ({ children }: { children: ReactNode }) => {
-    return <ConfigContext value={useHook()}>{children}</ConfigContext>;
+    const value = useHook();
+    return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;
 };
 
 export const useConfig = () => {

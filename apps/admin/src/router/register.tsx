@@ -76,7 +76,14 @@ function LegacyChatConversationRedirect() {
 // No legacy routes in spec; reserved for future app-specific routes
 const appRoutes: IRoutesProps[] = [];
 
-const componentRoutes: IRoutesProps[] = Object.entries(import.meta.glob("@/pages/components/**/*.tsx")).map(
+// Components pages: exclude helper files like layout.tsx and menu.tsx to avoid overlapping static imports
+const componentRoutes: IRoutesProps[] = Object.entries(
+    import.meta.glob([
+        "@/pages/components/**/*.tsx",
+        "!@/pages/components/**/layout.tsx",
+        "!@/pages/components/**/menu.tsx",
+    ])
+).map(
     ([path, loader]) => {
         const routePath = path
             .replace(/^.*\/pages/, "")

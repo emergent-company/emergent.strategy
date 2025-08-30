@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/auth";
+import { useConfig } from "@/contexts/config";
+import { useApi } from "@/hooks/use-api";
 import type { ChatChunk, ChatRequest, Conversation, Message, Role } from "@/types/chat";
 
-const LS_KEY = "nexus.chat.conversations";
+function storageKey(orgId?: string | null, projectId?: string | null): string {
+    const o = orgId || 'default';
+    const p = projectId || 'default';
+    return `nexus.chat.conversations.${o}.${p}`;
+}
 
 function uid(prefix = "id"): string {
     return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
@@ -12,9 +18,9 @@ function nowIso() {
     return new Date().toISOString();
 }
 
-function loadConversations(): Conversation[] {
+function loadConversations(key: string): Conversation[] {
     try {
-        const raw = localStorage.getItem(LS_KEY);
+        const raw = localStorage.getItem(key);
         if (!raw) return [];
         const parsed = JSON.parse(raw) as Conversation[];
         return Array.isArray(parsed) ? parsed : [];
@@ -23,9 +29,9 @@ function loadConversations(): Conversation[] {
     }
 }
 
-function saveConversations(convos: Conversation[]) {
+function saveConversations(key: string, convos: Conversation[]) {
     try {
-        localStorage.setItem(LS_KEY, JSON.stringify(convos));
+        localStorage.setItem(key, JSON.stringify(convos));
     } catch {
         // ignore quota and serialization errors
     }
@@ -105,7 +111,9 @@ export type UseChatOptions = {
 
 export function useChat(opts: UseChatOptions = {}) {
     const { getAccessToken } = useAuth();
-    const [conversations, setConversations] = useState<Conversation[]>(() => loadConversations());
+    const { config: { activeOrgId, activeProjectId } } = useConfig();
+    const lsKey = useMemo(() => storageKey(activeOrgId, activeProjectId), [activeOrgId, activeProjectId]);
+    const [conversations, setConversations] = useState<Conversation[]>(() => loadConversations(lsKey));
     const [activeId, setActiveId] = useState<string | null>(conversations[0]?.id ?? null);
     const [streaming, setStreaming] = useState(false);
     const controllerRef = useRef<AbortController | null>(null);
@@ -117,25 +125,25 @@ export function useChat(opts: UseChatOptions = {}) {
     useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
     useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
 
-    const apiBase = useMemo(() => {
-        const env = (import.meta as any).env || {};
-        return env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:3001`;
-    }, []);
-
-    const authHeaders = useCallback((): Record<string, string> => {
-        const t = getAccessToken();
-        return t ? { Authorization: `Bearer ${t}` } : {};
-    }, [getAccessToken]);
+    const { apiBase, buildHeaders } = useApi();
+    const authHeaders = useCallback((): Record<string, string> => buildHeaders({ json: false }), [buildHeaders]);
 
     const activeConversation = useMemo(() => conversations.find((c) => c.id === activeId) || null, [conversations, activeId]);
 
     const setConversationsPersisted = useCallback((updater: (prev: Conversation[]) => Conversation[]) => {
         setConversations((prev) => {
             const next = dedupeConversations(updater(prev));
-            saveConversations(next);
+            saveConversations(lsKey, next);
             return next;
         });
-    }, []);
+    }, [lsKey]);
+
+    // When org/project changes, reload scoped conversations
+    useEffect(() => {
+        const list = loadConversations(lsKey);
+        setConversations(list);
+        setActiveId(list[0]?.id ?? null);
+    }, [lsKey]);
 
     // Optional: Fetch server-side grouped conversation metadata and merge by id
     const refreshConversationsFromServer = useCallback(async () => {

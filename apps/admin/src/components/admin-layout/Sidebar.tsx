@@ -10,6 +10,7 @@ import { useConfig } from "@/contexts/config";
 
 import { ISidebarMenuItem, SidebarMenuItem } from "./SidebarMenuItem";
 import { getActivatedItemParentKeys } from "./helpers";
+import { SidebarProjectDropdown } from "./SidebarProjectDropdown";
 
 export const Sidebar = ({ menuItems }: { menuItems: ISidebarMenuItem[] }) => {
     const { pathname } = useLocation();
@@ -88,6 +89,9 @@ export const Sidebar = ({ menuItems }: { menuItems: ISidebarMenuItem[] }) => {
                         <span className="lucide--panel-left-dashed absolute opacity-0 group-has-[[id=layout-sidebar-hover-trigger]:checked]/html:opacity-100 size-4.5 transition-all duration-300 iconify" />
                     </label>
                 </div>
+                {/* Project switcher (Sidebar "Project" variant) */}
+                <SidebarProjectDropdown />
+
                 <div className="relative min-h-0 grow">
                     <SimpleBar ref={scrollRef} className="size-full">
                         <div className="space-y-0.5 mb-3 px-2.5">
