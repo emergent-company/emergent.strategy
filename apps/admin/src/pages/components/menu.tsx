@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { Icon } from "@/components/ui/Icon";
 
 import { ISidebarMenuItem } from "@/components/admin-layout/SidebarMenuItem";
 
@@ -25,10 +26,10 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 url: "/components/foundations/text",
                 preview: (
                     <div className="space-y-1">
-                        <div className="bg-base-content/15 h-1 w-5 rounded-xs"></div>
-                        <div className="bg-base-content/20 h-2 w-10 rounded-xs"></div>
-                        <div className="bg-base-content/30 h-2.5 w-15 rounded-xs"></div>
-                        <div className="bg-base-content/30 h-3 w-20 rounded-xs"></div>
+                        <div className="bg-base-content/15 rounded-xs w-5 h-1"></div>
+                        <div className="bg-base-content/20 rounded-xs w-10 h-2"></div>
+                        <div className="bg-base-content/30 rounded-xs w-15 h-2.5"></div>
+                        <div className="bg-base-content/30 rounded-xs w-20 h-3"></div>
                     </div>
                 ),
             },
@@ -37,9 +38,9 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Display",
                 url: "/components/foundations/display",
                 preview: (
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="gap-2 grid grid-cols-3">
                         {Array.from({ length: 9 }).map((_, i) => (
-                            <div key={i} className="bg-base-content/20 size-6 rounded-xs"></div>
+                            <div key={i} className="bg-base-content/20 rounded-xs size-6"></div>
                         ))}
                     </div>
                 ),
@@ -49,11 +50,11 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Effects",
                 url: "/components/foundations/effects",
                 preview: (
-                    <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-base-content/15 size-8 rounded-xs"></div>
-                        <div className="bg-base-content/15 size-8 rounded-xs blur-sm"></div>
-                        <div className="bg-primary size-8 rounded-xs brightness-125"></div>
-                        <div className="bg-secondary size-8 rounded-xs contrast-125"></div>
+                    <div className="gap-2 grid grid-cols-2">
+                        <div className="bg-base-content/15 rounded-xs size-8"></div>
+                        <div className="bg-base-content/15 blur-sm rounded-xs size-8"></div>
+                        <div className="bg-primary brightness-125 rounded-xs size-8"></div>
+                        <div className="bg-secondary rounded-xs size-8 contrast-125"></div>
                     </div>
                 ),
             },
@@ -62,11 +63,11 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Shadows",
                 url: "/components/foundations/shadows",
                 preview: (
-                    <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-base-content/20 size-8 rounded-xs shadow-xs"></div>
-                        <div className="bg-base-content/20 size-8 rounded-xs shadow-sm"></div>
-                        <div className="bg-base-content/20 size-8 rounded-xs shadow-lg"></div>
-                        <div className="bg-base-content/20 size-8 rounded-xs shadow-xl"></div>
+                    <div className="gap-2 grid grid-cols-2">
+                        <div className="bg-base-content/20 shadow-xs rounded-xs size-8"></div>
+                        <div className="bg-base-content/20 shadow-sm rounded-xs size-8"></div>
+                        <div className="bg-base-content/20 shadow-lg rounded-xs size-8"></div>
+                        <div className="bg-base-content/20 shadow-xl rounded-xs size-8"></div>
                     </div>
                 ),
             },
@@ -82,15 +83,15 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Dashboard Stats",
                 url: "/components/blocks/stats",
                 preview: (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="gap-2 grid grid-cols-2">
                         {Array.from({ length: 4 }).map((_, i) => (
                             <div
                                 key={i}
-                                className="bg-base-content/10 flex items-start justify-between gap-1 rounded-xs px-2 py-2">
-                                <div className="bg-base-content/15 size-3 rounded-xs"></div>
+                                className="flex justify-between items-start gap-1 bg-base-content/10 px-2 py-2 rounded-xs">
+                                <div className="bg-base-content/15 rounded-xs size-3"></div>
                                 <div className="space-y-0.5">
-                                    <div className="bg-base-content/30 h-1.5 w-6 rounded-xs"></div>
-                                    <div className="bg-base-content/25 h-1.5 w-3 rounded-xs"></div>
+                                    <div className="bg-base-content/30 rounded-xs w-6 h-1.5"></div>
+                                    <div className="bg-base-content/25 rounded-xs w-3 h-1.5"></div>
                                 </div>
                                 <div className="bg-base-content/20 size-1"></div>
                             </div>
@@ -103,16 +104,16 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Prompt Bar",
                 url: "/components/blocks/prompt-bar",
                 preview: (
-                    <div className="border-base-300 w-3/5 rounded-xs border">
-                        <div className="h-12 p-1">
-                            <p className="text-base-content/50 text-xs">Type your request</p>
+                    <div className="border border-base-300 rounded-xs w-3/5">
+                        <div className="p-1 h-12">
+                            <p className="text-xs text-base-content/50">Type your request</p>
                         </div>
-                        <div className="bg-base-content/10 flex items-center gap-1 px-2 py-1.5">
-                            <div className="bg-base-content/20 h-2 w-3 rounded-xs"></div>
-                            <div className="bg-base-content/20 h-2 w-4 rounded-xs"></div>
-                            <div className="bg-base-content/20 ms-auto h-1.5 w-5 rounded-xs"></div>
-                            <div className="bg-base-content/25 ms-auto size-2 rounded-xs"></div>
-                            <div className="bg-base-content/30 size-2 rounded-xs"></div>
+                        <div className="flex items-center gap-1 bg-base-content/10 px-2 py-1.5">
+                            <div className="bg-base-content/20 rounded-xs w-3 h-2"></div>
+                            <div className="bg-base-content/20 rounded-xs w-4 h-2"></div>
+                            <div className="bg-base-content/20 ms-auto rounded-xs w-5 h-1.5"></div>
+                            <div className="bg-base-content/25 ms-auto rounded-xs size-2"></div>
+                            <div className="bg-base-content/30 rounded-xs size-2"></div>
                         </div>
                     </div>
                 ),
@@ -129,23 +130,23 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Skeleton",
                 url: "/components/layouts/skeleton",
                 preview: (
-                    <div className="w-3/4 space-y-2.5 sm:w-3/5">
-                        <div className="grid grid-cols-4 gap-2">
+                    <div className="space-y-2.5 w-3/4 sm:w-3/5">
+                        <div className="gap-2 grid grid-cols-4">
                             {Array.from({ length: 4 }).map((_, i) => (
                                 <div
                                     key={i}
-                                    className="border-base-content/30 h-4 rounded-xs border border-dashed"></div>
+                                    className="border border-base-content/30 border-dashed rounded-xs h-4"></div>
                             ))}
                         </div>
-                        <div className="grid grid-cols-5 gap-2">
-                            <div className="border-base-content/30 bg-base-content/10 col-span-3 h-10 rounded-xs border border-dashed"></div>
-                            <div className="border-base-content/30 col-span-2 h-10 rounded-xs border border-dashed"></div>
+                        <div className="gap-2 grid grid-cols-5">
+                            <div className="col-span-3 bg-base-content/10 border border-base-content/30 border-dashed rounded-xs h-10"></div>
+                            <div className="col-span-2 border border-base-content/30 border-dashed rounded-xs h-10"></div>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="gap-2 grid grid-cols-3">
                             {Array.from({ length: 3 }).map((_, i) => (
                                 <div
                                     key={i}
-                                    className="border-base-content/30 h-6 rounded-xs border border-dashed"></div>
+                                    className="border border-base-content/30 border-dashed rounded-xs h-6"></div>
                             ))}
                         </div>
                     </div>
@@ -156,14 +157,14 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Sidebar",
                 url: "/components/layouts/sidebar",
                 preview: (
-                    <div className="border-base-300 flex h-24 w-3/4 rounded-xs border sm:w-3/5">
-                        <div className="bg-base-content/20 w-8 rounded-s-xs"></div>
-                        <div className="flex grow flex-col">
-                            <div className="border-base-300 h-4 border-b border-dashed"></div>
-                            <div className="text-base-content/50 flex grow items-center justify-center text-xs">
+                    <div className="flex border border-base-300 rounded-xs w-3/4 sm:w-3/5 h-24">
+                        <div className="bg-base-content/20 rounded-s-xs w-8"></div>
+                        <div className="flex flex-col grow">
+                            <div className="border-b border-base-300 border-dashed h-4"></div>
+                            <div className="flex justify-center items-center text-xs text-base-content/50 grow">
                                 Content
                             </div>
-                            <div className="border-base-300 h-2 border-t border-dashed"></div>
+                            <div className="border-t border-base-300 border-dashed h-2"></div>
                         </div>
                     </div>
                 ),
@@ -173,14 +174,14 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Topbar",
                 url: "/components/layouts/topbar",
                 preview: (
-                    <div className="border-base-300 flex h-24 w-3/4 rounded-xs border sm:w-3/5">
-                        <div className="border-base-300 w-8 border-e border-dashed"></div>
-                        <div className="flex grow flex-col">
+                    <div className="flex border border-base-300 rounded-xs w-3/4 sm:w-3/5 h-24">
+                        <div className="border-e border-base-300 border-dashed w-8"></div>
+                        <div className="flex flex-col grow">
                             <div className="bg-base-content/20 h-4"></div>
-                            <div className="text-base-content/50 flex grow items-center justify-center text-xs">
+                            <div className="flex justify-center items-center text-xs text-base-content/50 grow">
                                 Content
                             </div>
-                            <div className="border-base-300 h-2 border-t border-dashed"></div>
+                            <div className="border-t border-base-300 border-dashed h-2"></div>
                         </div>
                     </div>
                 ),
@@ -190,11 +191,11 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Footer",
                 url: "/components/layouts/footer",
                 preview: (
-                    <div className="border-base-300 flex h-24 w-3/4 rounded-xs border sm:w-3/5">
-                        <div className="border-base-300 w-8 border-e border-dashed"></div>
-                        <div className="flex grow flex-col">
-                            <div className="border-base-300 h-4 border-b border-dashed"></div>
-                            <div className="text-base-content/50 flex grow items-center justify-center text-xs">
+                    <div className="flex border border-base-300 rounded-xs w-3/4 sm:w-3/5 h-24">
+                        <div className="border-e border-base-300 border-dashed w-8"></div>
+                        <div className="flex flex-col grow">
+                            <div className="border-b border-base-300 border-dashed h-4"></div>
+                            <div className="flex justify-center items-center text-xs text-base-content/50 grow">
                                 Content
                             </div>
                             <div className="bg-base-content/20 h-2"></div>
@@ -207,24 +208,24 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Profile Menu",
                 url: "/components/layouts/profile-menu",
                 preview: (
-                    <div className="w-1/2 space-y-1.5 sm:w-1/3">
-                        <div className="flex items-center justify-end">
-                            <div className="bg-base-content/20 size-5 rounded-full"></div>
+                    <div className="space-y-1.5 w-1/2 sm:w-1/3">
+                        <div className="flex justify-end items-center">
+                            <div className="bg-base-content/20 rounded-full size-5"></div>
                         </div>
-                        <div className="border-base-300 w-full space-y-1 rounded-xs border p-2">
+                        <div className="space-y-1 p-2 border border-base-300 rounded-xs w-full">
                             <div className="flex items-center gap-1.5">
-                                <div className="bg-base-content/25 size-5 rounded-full"></div>
+                                <div className="bg-base-content/25 rounded-full size-5"></div>
                                 <div className="space-y-0.5">
-                                    <div className="bg-base-content/25 h-2 w-8 rounded-xs"></div>
-                                    <div className="bg-base-content/15 h-1.5 w-4 rounded-xs"></div>
+                                    <div className="bg-base-content/25 rounded-xs w-8 h-2"></div>
+                                    <div className="bg-base-content/15 rounded-xs w-4 h-1.5"></div>
                                 </div>
                             </div>
 
-                            <div className="border-base-300 mt-2 rounded-xs border p-0.5">
-                                <div className="bg-base-content/20 h-1.5 w-6 rounded-xs"></div>
+                            <div className="mt-2 p-0.5 border border-base-300 rounded-xs">
+                                <div className="bg-base-content/20 rounded-xs w-6 h-1.5"></div>
                             </div>
-                            <div className="border-base-300 rounded-xs border p-0.5">
-                                <div className="bg-base-content/20 h-1.5 w-8 rounded-xs"></div>
+                            <div className="p-0.5 border border-base-300 rounded-xs">
+                                <div className="bg-base-content/20 rounded-xs w-8 h-1.5"></div>
                             </div>
                         </div>
                     </div>
@@ -235,19 +236,19 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Search",
                 url: "/components/layouts/search",
                 preview: (
-                    <div className="w-1/2 space-y-1 sm:w-1/3">
-                        <div className="border-base-300 text-base-content/50 rounded-xs border px-1 py-0.5 text-xs">
+                    <div className="space-y-1 w-1/2 sm:w-1/3">
+                        <div className="px-1 py-0.5 border border-base-300 rounded-xs text-xs text-base-content/50">
                             Search...
                         </div>
-                        <div className="border-base-300 w-full space-y-1 rounded-xs border p-1.5">
-                            <div className="border-base-300 rounded-xs border border-dashed p-1">
-                                <div className="bg-base-content/20 skeleton h-1 w-6 rounded-xs"></div>
+                        <div className="space-y-1 p-1.5 border border-base-300 rounded-xs w-full">
+                            <div className="p-1 border border-base-300 border-dashed rounded-xs">
+                                <div className="bg-base-content/20 rounded-xs w-6 h-1 skeleton"></div>
                             </div>
-                            <div className="border-base-300 rounded-xs border border-dashed p-1">
-                                <div className="bg-base-content/20 skeleton h-1 w-8 rounded-xs"></div>
+                            <div className="p-1 border border-base-300 border-dashed rounded-xs">
+                                <div className="bg-base-content/20 rounded-xs w-8 h-1 skeleton"></div>
                             </div>
-                            <div className="border-base-300 rounded-xs border border-dashed p-1">
-                                <div className="bg-base-content/20 skeleton h-1 w-4 rounded-xs"></div>
+                            <div className="p-1 border border-base-300 border-dashed rounded-xs">
+                                <div className="bg-base-content/20 rounded-xs w-4 h-1 skeleton"></div>
                             </div>
                         </div>
                     </div>
@@ -258,19 +259,19 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Notification",
                 url: "/components/layouts/notification",
                 preview: (
-                    <div className="w-1/2 space-y-1 sm:w-1/3">
-                        <div className="flex items-center justify-end">
-                            <div className="bg-base-content/20 size-5 rounded-full"></div>
+                    <div className="space-y-1 w-1/2 sm:w-1/3">
+                        <div className="flex justify-end items-center">
+                            <div className="bg-base-content/20 rounded-full size-5"></div>
                         </div>
-                        <div className="border-base-300 w-full space-y-1 rounded-xs border p-1.5">
-                            <div className="border-base-300 rounded-xs border p-1">
-                                <div className="bg-base-content/25 h-1 w-5 rounded-xs"></div>
+                        <div className="space-y-1 p-1.5 border border-base-300 rounded-xs w-full">
+                            <div className="p-1 border border-base-300 rounded-xs">
+                                <div className="bg-base-content/25 rounded-xs w-5 h-1"></div>
                             </div>
-                            <div className="border-base-300 rounded-xs border p-1">
-                                <div className="bg-base-content/25 h-1 w-6 rounded-xs"></div>
+                            <div className="p-1 border border-base-300 rounded-xs">
+                                <div className="bg-base-content/25 rounded-xs w-6 h-1"></div>
                             </div>
-                            <div className="border-base-300 rounded-xs border p-1">
-                                <div className="bg-base-content/20 h-1 w-8 rounded-xs"></div>
+                            <div className="p-1 border border-base-300 rounded-xs">
+                                <div className="bg-base-content/20 rounded-xs w-8 h-1"></div>
                             </div>
                         </div>
                     </div>
@@ -281,18 +282,18 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Page Title",
                 url: "/components/layouts/page-title",
                 preview: (
-                    <div className="flex w-3/4 items-center gap-2 sm:w-3/5">
+                    <div className="flex items-center gap-2 w-3/4 sm:w-3/5">
                         <div className="space-y-1">
-                            <div className="bg-base-content/30 h-3 w-10 rounded-xs"></div>
-                            <div className="bg-base-content/25 h-1.5 w-5 rounded-xs"></div>
+                            <div className="bg-base-content/30 rounded-xs w-10 h-3"></div>
+                            <div className="bg-base-content/25 rounded-xs w-5 h-1.5"></div>
                         </div>
-                        <div className="ms-auto flex flex-col items-end gap-1">
+                        <div className="flex flex-col items-end gap-1 ms-auto">
                             <div className="flex gap-1">
-                                <div className="border-base-300 size-4 rounded-xs border max-sm:hidden"></div>
-                                <div className="bg-base-content/25 size-4 rounded-xs"></div>
-                                <div className="bg-base-content/30 h-4 w-8 rounded-xs"></div>
+                                <div className="max-sm:hidden border border-base-300 rounded-xs size-4"></div>
+                                <div className="bg-base-content/25 rounded-xs size-4"></div>
+                                <div className="bg-base-content/30 rounded-xs w-8 h-4"></div>
                             </div>
-                            <div className="bg-base-content/15 h-0.5 w-12"></div>
+                            <div className="bg-base-content/15 w-12 h-0.5"></div>
                         </div>
                     </div>
                 ),
@@ -315,25 +316,25 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 url: "/components/interactions/carousel",
                 preview: (
                     <div className="space-y-2.5">
-                        <div className="flex items-center justify-between gap-1.5">
-                            <div className="to-base-content/15 h-10 w-8 rounded-xs bg-linear-to-r from-transparent to-[80%]"></div>
-                            <div className="bg-base-content/25 h-10 w-12 rounded-xs"></div>
-                            <div className="bg-base-content/25 h-10 w-12 rounded-xs max-sm:hidden"></div>
-                            <div className="to-base-content/15 h-10 w-8 rounded-xs bg-linear-to-l from-transparent to-[80%]"></div>
+                        <div className="flex justify-between items-center gap-1.5">
+                            <div className="bg-linear-to-r from-transparent to-[80%] to-base-content/15 rounded-xs w-8 h-10"></div>
+                            <div className="bg-base-content/25 rounded-xs w-12 h-10"></div>
+                            <div className="max-sm:hidden bg-base-content/25 rounded-xs w-12 h-10"></div>
+                            <div className="bg-linear-to-l from-transparent to-[80%] to-base-content/15 rounded-xs w-8 h-10"></div>
                         </div>
                         <div className="flex justify-between gap-2">
-                            <div className="bg-base-content/10 text-base-content/80 flex items-center justify-center rounded-full p-1">
-                                <span className="iconify lucide--chevron-left size-3"></span>
+                            <div className="flex justify-center items-center bg-base-content/10 p-1 rounded-full text-base-content/80">
+                                <Icon icon="lucide--chevron-left" className="size-3" />
                             </div>
                             <div className="flex items-center gap-[3px]">
-                                <div className="bg-base-content/15 size-1.5 rounded-full"></div>
-                                <div className="bg-base-content/15 size-1.5 rounded-full"></div>
-                                <div className="bg-base-content/30 size-1.5 rounded-full"></div>
-                                <div className="bg-base-content/15 size-1.5 rounded-full"></div>
-                                <div className="bg-base-content/15 size-1.5 rounded-full"></div>
+                                <div className="bg-base-content/15 rounded-full size-1.5"></div>
+                                <div className="bg-base-content/15 rounded-full size-1.5"></div>
+                                <div className="bg-base-content/30 rounded-full size-1.5"></div>
+                                <div className="bg-base-content/15 rounded-full size-1.5"></div>
+                                <div className="bg-base-content/15 rounded-full size-1.5"></div>
                             </div>
-                            <div className="bg-base-content/10 text-base-content/80 flex items-center justify-center rounded-full p-1">
-                                <span className="iconify lucide--chevron-right size-3"></span>
+                            <div className="flex justify-center items-center bg-base-content/10 p-1 rounded-full text-base-content/80">
+                                <Icon icon="lucide--chevron-right" className="size-3" />
                             </div>
                         </div>
                     </div>
@@ -344,10 +345,10 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Clipboard",
                 url: "/components/interactions/clipboard",
                 preview: (
-                    <div className="border-base-300 text-base-content/70 bg-base-content/3 w-3/4 space-y-1.5 rounded-xs border p-2 text-xs sm:w-3/5">
+                    <div className="space-y-1.5 bg-base-content/3 p-2 border border-base-300 rounded-xs w-3/4 sm:w-3/5 text-xs text-base-content/70">
                         <p>Write and copy instantly</p>
-                        <div className="mt-3 flex items-center justify-end gap-1.5">
-                            <span className="iconify lucide--copy size-3.5"></span>
+                        <div className="flex justify-end items-center gap-1.5 mt-3">
+                            <Icon icon="lucide--copy" className="size-3.5" />
                         </div>
                     </div>
                 ),
@@ -359,39 +360,39 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 preview: (
                     <div className="w-3/4 sm:w-1/2">
                         <div className="flex items-center gap-1">
-                            <div className="bg-base-content/25 h-2 w-8 rounded-xs"></div>
-                            <div className="bg-base-content/20 ms-auto size-2 rounded-xs"></div>
-                            <div className="bg-base-content/20 size-2 rounded-xs"></div>
+                            <div className="bg-base-content/25 rounded-xs w-8 h-2"></div>
+                            <div className="bg-base-content/20 ms-auto rounded-xs size-2"></div>
+                            <div className="bg-base-content/20 rounded-xs size-2"></div>
                         </div>
-                        <div className="border-base-300 divide-base-200 mt-1.5 divide-y rounded-xs border">
-                            <div className="grid grid-cols-3 gap-1 p-1">
-                                <div className="bg-base-content/25 h-1.5 w-4 rounded-xs"></div>
-                                <div className="bg-base-content/25 h-1.5 w-6 rounded-xs"></div>
-                                <div className="bg-base-content/25 h-1.5 w-6 rounded-xs"></div>
+                        <div className="mt-1.5 border border-base-300 rounded-xs divide-y divide-base-200">
+                            <div className="gap-1 grid grid-cols-3 p-1">
+                                <div className="bg-base-content/25 rounded-xs w-4 h-1.5"></div>
+                                <div className="bg-base-content/25 rounded-xs w-6 h-1.5"></div>
+                                <div className="bg-base-content/25 rounded-xs w-6 h-1.5"></div>
                             </div>
-                            <div className="grid grid-cols-3 gap-1 p-1">
-                                <div className="bg-base-content/15 h-1.5 w-4 rounded-xs"></div>
-                                <div className="bg-base-content/15 h-1.5 w-6 rounded-xs"></div>
-                                <div className="bg-base-content/15 h-1.5 w-8 rounded-xs"></div>
+                            <div className="gap-1 grid grid-cols-3 p-1">
+                                <div className="bg-base-content/15 rounded-xs w-4 h-1.5"></div>
+                                <div className="bg-base-content/15 rounded-xs w-6 h-1.5"></div>
+                                <div className="bg-base-content/15 rounded-xs w-8 h-1.5"></div>
                             </div>
-                            <div className="grid grid-cols-3 gap-1 p-1">
-                                <div className="bg-base-content/15 h-1.5 w-4 rounded-xs"></div>
-                                <div className="bg-base-content/15 h-1.5 w-7 rounded-xs"></div>
-                                <div className="bg-base-content/15 h-1.5 w-3 rounded-xs"></div>
+                            <div className="gap-1 grid grid-cols-3 p-1">
+                                <div className="bg-base-content/15 rounded-xs w-4 h-1.5"></div>
+                                <div className="bg-base-content/15 rounded-xs w-7 h-1.5"></div>
+                                <div className="bg-base-content/15 rounded-xs w-3 h-1.5"></div>
                             </div>
-                            <div className="grid grid-cols-3 gap-1 p-1">
-                                <div className="bg-base-content/15 h-1.5 w-4 rounded-xs"></div>
-                                <div className="bg-base-content/15 h-1.5 w-5 rounded-xs"></div>
-                                <div className="bg-base-content/15 h-1.5 w-8 rounded-xs"></div>
+                            <div className="gap-1 grid grid-cols-3 p-1">
+                                <div className="bg-base-content/15 rounded-xs w-4 h-1.5"></div>
+                                <div className="bg-base-content/15 rounded-xs w-5 h-1.5"></div>
+                                <div className="bg-base-content/15 rounded-xs w-8 h-1.5"></div>
                             </div>
                         </div>
-                        <div className="mt-1.5 flex items-center gap-0.5">
-                            <div className="bg-base-content/15 h-1.5 w-5 rounded-xs"></div>
-                            <div className="bg-base-content/25 ms-auto size-1.5 rounded-xs"></div>
-                            <div className="bg-base-content/15 size-1.5 rounded-xs"></div>
-                            <div className="bg-base-content/15 size-1.5 rounded-xs"></div>
-                            <div className="bg-base-content/15 size-1.5 rounded-xs"></div>
-                            <div className="bg-base-content/25 size-1.5 rounded-xs"></div>
+                        <div className="flex items-center gap-0.5 mt-1.5">
+                            <div className="bg-base-content/15 rounded-xs w-5 h-1.5"></div>
+                            <div className="bg-base-content/25 ms-auto rounded-xs size-1.5"></div>
+                            <div className="bg-base-content/15 rounded-xs size-1.5"></div>
+                            <div className="bg-base-content/15 rounded-xs size-1.5"></div>
+                            <div className="bg-base-content/15 rounded-xs size-1.5"></div>
+                            <div className="bg-base-content/25 rounded-xs size-1.5"></div>
                         </div>
                     </div>
                 ),
@@ -401,20 +402,20 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "FAB",
                 url: "/components/interactions/fab",
                 preview: (
-                    <div className="flex flex-col items-end justify-end space-y-1.5">
+                    <div className="flex flex-col justify-end items-end space-y-1.5">
                         <div className="flex items-end gap-1">
-                            <div className="bg-base-content/25 size-2 rounded-full"></div>
-                            <div className="bg-base-content/15 h-2 w-12 rounded-xs"></div>
+                            <div className="bg-base-content/25 rounded-full size-2"></div>
+                            <div className="bg-base-content/15 rounded-xs w-12 h-2"></div>
                         </div>
                         <div className="flex items-end gap-1">
-                            <div className="bg-base-content/25 size-2 rounded-full"></div>
-                            <div className="bg-base-content/15 h-2 w-16 rounded-xs"></div>
+                            <div className="bg-base-content/25 rounded-full size-2"></div>
+                            <div className="bg-base-content/15 rounded-xs w-16 h-2"></div>
                         </div>
                         <div className="flex items-end gap-1">
-                            <div className="bg-base-content/25 size-2 rounded-full"></div>
-                            <div className="bg-base-content/15 h-2 w-10 rounded-xs"></div>
+                            <div className="bg-base-content/25 rounded-full size-2"></div>
+                            <div className="bg-base-content/15 rounded-xs w-10 h-2"></div>
                         </div>
-                        <div className="bg-base-content/25 size-6 rounded-full shadow-lg"></div>
+                        <div className="bg-base-content/25 shadow-lg rounded-full size-6"></div>
                     </div>
                 ),
             },
@@ -423,18 +424,18 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "File Upload",
                 url: "/components/interactions/file-upload",
                 preview: (
-                    <div className="border-base-300 w-3/4 rounded-xs border border-dashed sm:w-3/5">
-                        <div className="text-base-content/70 flex flex-col items-center justify-center gap-1 pt-5 pb-3 text-xs">
-                            <span className="iconify lucide--upload"></span>
+                    <div className="border border-base-300 border-dashed rounded-xs w-3/4 sm:w-3/5">
+                        <div className="flex flex-col justify-center items-center gap-1 pt-5 pb-3 text-xs text-base-content/70">
+                            <Icon icon="lucide--upload" />
                             Add Files
                         </div>
-                        <div className="bg-base-content/10 m-1.5 flex items-center gap-1.5 rounded-xs p-1.5">
-                            <div className="bg-base-content/25 size-3 rounded-full"></div>
+                        <div className="flex items-center gap-1.5 bg-base-content/10 m-1.5 p-1.5 rounded-xs">
+                            <div className="bg-base-content/25 rounded-full size-3"></div>
                             <div className="space-y-0.5">
-                                <div className="bg-base-content/30 h-1.5 w-8 rounded-xs"></div>
-                                <div className="bg-base-content/20 h-1 w-4 rounded-xs"></div>
+                                <div className="bg-base-content/30 rounded-xs w-8 h-1.5"></div>
+                                <div className="bg-base-content/20 rounded-xs w-4 h-1"></div>
                             </div>
-                            <span className="iconify lucide--x text-base-content/50 ms-auto size-2.5"></span>
+                            <Icon icon="lucide--x" className="ms-auto size-2.5 text-base-content/50" />
                         </div>
                     </div>
                 ),
@@ -445,24 +446,24 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 url: "/components/interactions/flatpickr",
                 preview: (
                     <div>
-                        <div className="border-base-300 text-base-content/70 rounded-xs border px-1.5 py-0.5 text-[9px]">
+                        <div className="px-1.5 py-0.5 border border-base-300 rounded-xs text-[9px] text-base-content/70">
                             DD/MM/YY
                         </div>
-                        <div className="border-base-300 mt-1.5 rounded-xs border p-1.5">
-                            <div className="flex items-center justify-between">
-                                <div className="bg-base-content/20 size-2 rounded-xs"></div>
-                                <div className="bg-base-content/25 h-2 w-8 rounded-xs"></div>
-                                <div className="bg-base-content/20 size-2 rounded-xs"></div>
+                        <div className="mt-1.5 p-1.5 border border-base-300 rounded-xs">
+                            <div className="flex justify-between items-center">
+                                <div className="bg-base-content/20 rounded-xs size-2"></div>
+                                <div className="bg-base-content/25 rounded-xs w-8 h-2"></div>
+                                <div className="bg-base-content/20 rounded-xs size-2"></div>
                             </div>
-                            <div className="mt-2 grid grid-cols-7 gap-1">
+                            <div className="gap-1 grid grid-cols-7 mt-2">
                                 <div></div>
                                 <div></div>
                                 {Array.from({ length: 14 }).map((_, i) => (
-                                    <div key={i} className="bg-base-content/15 size-2 rounded-xs"></div>
+                                    <div key={i} className="bg-base-content/15 rounded-xs size-2"></div>
                                 ))}
-                                <div className="bg-base-content/60 size-2 rounded-xs"></div>
+                                <div className="bg-base-content/60 rounded-xs size-2"></div>
                                 {Array.from({ length: 15 }).map((_, i) => (
-                                    <div key={i} className="bg-base-content/15 size-2 rounded-xs"></div>
+                                    <div key={i} className="bg-base-content/15 rounded-xs size-2"></div>
                                 ))}
                             </div>
                         </div>
@@ -475,15 +476,15 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 url: "/components/interactions/form-validations",
                 preview: (
                     <div className="w-3/4 sm:w-1/2">
-                        <div className="flex items-center justify-between gap-1">
-                            <div className="bg-base-content/15 h-1.5 w-6 rounded-xs"></div>
-                            <div className="bg-base-content/15 h-1.5 w-6 rounded-xs"></div>
+                        <div className="flex justify-between items-center gap-1">
+                            <div className="bg-base-content/15 rounded-xs w-6 h-1.5"></div>
+                            <div className="bg-base-content/15 rounded-xs w-6 h-1.5"></div>
                         </div>
-                        <div className="border-base-300 text-base-content/70 mt-1 flex items-center justify-between gap-1 rounded-xs border px-1.5 py-0.5 text-xs">
-                            <div className="bg-base-content/10 h-1.5 w-6 rounded-xs"></div>
-                            <span className="iconify lucide--circle-alert text-base-content/50 size-3"></span>
+                        <div className="flex justify-between items-center gap-1 mt-1 px-1.5 py-0.5 border border-base-300 rounded-xs text-xs text-base-content/70">
+                            <div className="bg-base-content/10 rounded-xs w-6 h-1.5"></div>
+                            <Icon icon="lucide--circle-alert" className="size-3 text-base-content/50" />
                         </div>
-                        <div className="bg-base-content/15 mt-1 h-1.5 w-12 rounded-xs"></div>
+                        <div className="bg-base-content/15 mt-1 rounded-xs w-12 h-1.5"></div>
                     </div>
                 ),
             },
@@ -492,13 +493,13 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Input Spinner",
                 url: "/components/interactions/input-spinner",
                 preview: (
-                    <div className="text-base-content/70 flex items-center gap-2.5">
-                        <div className="bg-base-content/20 flex items-center justify-center rounded-full p-1.5">
-                            <span className="iconify lucide--minus size-4"></span>
+                    <div className="flex items-center gap-2.5 text-base-content/70">
+                        <div className="flex justify-center items-center bg-base-content/20 p-1.5 rounded-full">
+                            <Icon icon="lucide--minus" className="size-4" />
                         </div>
-                        <div className="border-base-300 w-18 rounded-xs border px-2 py-1 text-sm">45</div>
-                        <div className="bg-base-content/20 flex items-center justify-center rounded-full p-1.5">
-                            <span className="iconify lucide--plus size-4"></span>
+                        <div className="px-2 py-1 border border-base-300 rounded-xs w-18 text-sm">45</div>
+                        <div className="flex justify-center items-center bg-base-content/20 p-1.5 rounded-full">
+                            <Icon icon="lucide--plus" className="size-4" />
                         </div>
                     </div>
                 ),
@@ -508,35 +509,35 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Password Meter",
                 url: "/components/interactions/password-meter",
                 preview: (
-                    <div className="w-3/4 space-y-1.5 sm:w-3/5">
-                        <div className="border-base-300 flex items-center gap-0.5 rounded-xs border px-2 py-1.5">
-                            <div className="bg-base-content/25 size-1.5 rounded-full"></div>
-                            <div className="bg-base-content/25 size-1.5 rounded-full"></div>
-                            <div className="bg-base-content/25 size-1.5 rounded-full"></div>
-                            <div className="bg-base-content/25 size-1.5 rounded-full"></div>
-                            <div className="bg-base-content/25 size-1.5 rounded-full"></div>
-                            <div className="bg-base-content/25 size-1.5 rounded-full"></div>
-                            <span className="iconify lucide--eye-off text-base-content/50 ms-auto size-3.5"></span>
+                    <div className="space-y-1.5 w-3/4 sm:w-3/5">
+                        <div className="flex items-center gap-0.5 px-2 py-1.5 border border-base-300 rounded-xs">
+                            <div className="bg-base-content/25 rounded-full size-1.5"></div>
+                            <div className="bg-base-content/25 rounded-full size-1.5"></div>
+                            <div className="bg-base-content/25 rounded-full size-1.5"></div>
+                            <div className="bg-base-content/25 rounded-full size-1.5"></div>
+                            <div className="bg-base-content/25 rounded-full size-1.5"></div>
+                            <div className="bg-base-content/25 rounded-full size-1.5"></div>
+                            <Icon icon="lucide--eye-off" className="ms-auto size-3.5 text-base-content/50" />
                         </div>
                         <div className="flex items-center gap-1">
-                            <div className="bg-base-content/25 h-1.5 grow rounded-full"></div>
-                            <div className="bg-base-content/25 h-1.5 grow rounded-full"></div>
-                            <div className="bg-base-content/25 h-1.5 grow rounded-full"></div>
-                            <div className="bg-base-content/10 h-1.5 grow rounded-full"></div>
-                            <div className="bg-base-content/10 h-1.5 grow rounded-full"></div>
+                            <div className="bg-base-content/25 rounded-full h-1.5 grow"></div>
+                            <div className="bg-base-content/25 rounded-full h-1.5 grow"></div>
+                            <div className="bg-base-content/25 rounded-full h-1.5 grow"></div>
+                            <div className="bg-base-content/10 rounded-full h-1.5 grow"></div>
+                            <div className="bg-base-content/10 rounded-full h-1.5 grow"></div>
                         </div>
-                        <div className="mt-2.5 space-y-0.5">
-                            <div className="text-base-content/60 flex items-center gap-1.5">
-                                <span className="iconify lucide--check size-2.5"></span>
-                                <div className="bg-base-content/25 h-1.5 w-12 rounded-xs"></div>
+                        <div className="space-y-0.5 mt-2.5">
+                            <div className="flex items-center gap-1.5 text-base-content/60">
+                                <Icon icon="lucide--check" className="size-2.5" />
+                                <div className="bg-base-content/25 rounded-xs w-12 h-1.5"></div>
                             </div>
-                            <div className="text-base-content/60 flex items-center gap-1.5">
-                                <span className="iconify lucide--check size-2.5"></span>
-                                <div className="bg-base-content/25 h-1.5 w-16 rounded-xs"></div>
+                            <div className="flex items-center gap-1.5 text-base-content/60">
+                                <Icon icon="lucide--check" className="size-2.5" />
+                                <div className="bg-base-content/25 rounded-xs w-16 h-1.5"></div>
                             </div>
-                            <div className="text-base-content/40 flex items-center gap-1.5">
-                                <span className="iconify lucide--check size-2.5"></span>
-                                <div className="bg-base-content/10 h-1.5 w-10 rounded-xs"></div>
+                            <div className="flex items-center gap-1.5 text-base-content/40">
+                                <Icon icon="lucide--check" className="size-2.5" />
+                                <div className="bg-base-content/10 rounded-xs w-10 h-1.5"></div>
                             </div>
                         </div>
                     </div>
@@ -547,17 +548,17 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Select",
                 url: "/components/interactions/select",
                 preview: (
-                    <div className="border-base-300 w-3/4 rounded-xs border sm:w-1/2">
-                        <div className="text-base-content/70 border-base-300 flex items-center gap-2 border-b p-1.5 text-[10px]">
-                            <div className="bg-base-content/15 rounded-full px-1.5 py-0.5">Design</div>
+                    <div className="border border-base-300 rounded-xs w-3/4 sm:w-1/2">
+                        <div className="flex items-center gap-2 p-1.5 border-b border-base-300 text-[10px] text-base-content/70">
+                            <div className="bg-base-content/15 px-1.5 py-0.5 rounded-full">Design</div>
                             <p className="grow">Select</p>
-                            <span className="iconify lucide--chevron-down size-3"></span>
+                            <Icon icon="lucide--chevron-down" className="size-3" />
                         </div>
                         <div className="space-y-1.5 p-1.5">
-                            <div className="bg-base-content/20 h-2 w-8 rounded-xs"></div>
-                            <div className="bg-base-content/30 h-2 w-12 rounded-xs"></div>
-                            <div className="bg-base-content/20 h-2 w-10 rounded-xs"></div>
-                            <div className="bg-base-content/20 h-2 w-14 rounded-xs"></div>
+                            <div className="bg-base-content/20 rounded-xs w-8 h-2"></div>
+                            <div className="bg-base-content/30 rounded-xs w-12 h-2"></div>
+                            <div className="bg-base-content/20 rounded-xs w-10 h-2"></div>
+                            <div className="bg-base-content/20 rounded-xs w-14 h-2"></div>
                         </div>
                     </div>
                 ),
@@ -567,20 +568,20 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Sortable",
                 url: "/components/interactions/sortable",
                 preview: (
-                    <div className="text-base-content/60 space-y-2.5">
-                        <div className="bg-base-content/15 flex h-4 w-20 items-center justify-end rounded-xs">
-                            <span className="iconify lucide--grip-vertical size-3"></span>
+                    <div className="space-y-2.5 text-base-content/60">
+                        <div className="flex justify-end items-center bg-base-content/15 rounded-xs w-20 h-4">
+                            <Icon icon="lucide--grip-vertical" className="size-3" />
                         </div>
-                        <div className="border-base-content/20 bg-base-content/5 relative h-4 rounded-xs border border-dashed">
-                            <div className="bg-base-content/35 absolute inset-0 start-2.5 -top-1.5 flex h-4 w-20 items-center justify-end rounded-xs">
-                                <span className="iconify lucide--grip-vertical size-3"></span>
+                        <div className="relative bg-base-content/5 border border-base-content/20 border-dashed rounded-xs h-4">
+                            <div className="-top-1.5 absolute inset-0 flex justify-end items-center bg-base-content/35 rounded-xs w-20 h-4 start-2.5">
+                                <Icon icon="lucide--grip-vertical" className="size-3" />
                             </div>
                         </div>
-                        <div className="bg-base-content/15 flex h-4 w-20 items-center justify-end rounded-xs">
-                            <span className="iconify lucide--grip-vertical size-3"></span>
+                        <div className="flex justify-end items-center bg-base-content/15 rounded-xs w-20 h-4">
+                            <Icon icon="lucide--grip-vertical" className="size-3" />
                         </div>
-                        <div className="bg-base-content/15 flex h-4 w-20 items-center justify-end rounded-xs">
-                            <span className="iconify lucide--grip-vertical size-3"></span>
+                        <div className="flex justify-end items-center bg-base-content/15 rounded-xs w-20 h-4">
+                            <Icon icon="lucide--grip-vertical" className="size-3" />
                         </div>
                     </div>
                 ),
@@ -590,18 +591,18 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Text Editor",
                 url: "/components/interactions/text-editor",
                 preview: (
-                    <div className="border-base-300 w-3/4 rounded-xs border sm:w-3/5">
-                        <div className="bg-base-content/10 flex items-center gap-1 p-1">
-                            <div className="bg-base-content/25 size-2 rounded-xs"></div>
-                            <div className="bg-base-content/35 size-2 rounded-xs"></div>
-                            <div className="bg-base-content/25 size-2 rounded-xs"></div>
-                            <div className="bg-base-content/25 mx-0.5 h-2 w-px" />
-                            <div className="bg-base-content/25 size-2 rounded-xs"></div>
-                            <div className="bg-base-content/15 size-2 rounded-xs"></div>
-                            <div className="bg-base-content/25 ms-auto size-2 rounded-xs"></div>
-                            <div className="bg-base-content/25 size-2 rounded-xs"></div>
+                    <div className="border border-base-300 rounded-xs w-3/4 sm:w-3/5">
+                        <div className="flex items-center gap-1 bg-base-content/10 p-1">
+                            <div className="bg-base-content/25 rounded-xs size-2"></div>
+                            <div className="bg-base-content/35 rounded-xs size-2"></div>
+                            <div className="bg-base-content/25 rounded-xs size-2"></div>
+                            <div className="bg-base-content/25 mx-0.5 w-px h-2" />
+                            <div className="bg-base-content/25 rounded-xs size-2"></div>
+                            <div className="bg-base-content/15 rounded-xs size-2"></div>
+                            <div className="bg-base-content/25 ms-auto rounded-xs size-2"></div>
+                            <div className="bg-base-content/25 rounded-xs size-2"></div>
                         </div>
-                        <div className="text-base-content/70 bg-base-content/3 h-16 p-2 text-sm">
+                        <div className="bg-base-content/3 p-2 h-16 text-sm text-base-content/70">
                             <p className="font-medium">Hello World</p>
                             <p className="text-xs italic">Write anything</p>
                         </div>
@@ -613,19 +614,19 @@ export const componentsMenuItems: IComponentMenuItem[] = [
                 label: "Wizard",
                 url: "/components/interactions/wizard",
                 preview: (
-                    <div className="w-3/4 space-y-2 sm:w-3/5">
+                    <div className="space-y-2 w-3/4 sm:w-3/5">
                         <div className="flex items-center gap-1.5">
-                            <div className="bg-base-content/30 size-2 rounded-full"></div>
-                            <div className="bg-base-content/20 h-1.5 w-5 rounded-xs"></div>
-                            <div className="bg-base-content/30 size-2 rounded-full"></div>
-                            <div className="bg-base-content/20 h-1.5 w-5 rounded-xs"></div>
-                            <div className="bg-base-content/30 size-2 rounded-full"></div>
-                            <div className="bg-base-content/20 h-1.5 w-5 rounded-xs"></div>
+                            <div className="bg-base-content/30 rounded-full size-2"></div>
+                            <div className="bg-base-content/20 rounded-xs w-5 h-1.5"></div>
+                            <div className="bg-base-content/30 rounded-full size-2"></div>
+                            <div className="bg-base-content/20 rounded-xs w-5 h-1.5"></div>
+                            <div className="bg-base-content/30 rounded-full size-2"></div>
+                            <div className="bg-base-content/20 rounded-xs w-5 h-1.5"></div>
                         </div>
-                        <div className="bg-base-content/5 h-12 w-full rounded-xs"></div>
-                        <div className="flex items-center justify-between gap-1.5">
-                            <div className="bg-base-content/25 h-3 w-6 rounded-xs"></div>
-                            <div className="bg-base-content/30 h-3 w-6 rounded-xs"></div>
+                        <div className="bg-base-content/5 rounded-xs w-full h-12"></div>
+                        <div className="flex justify-between items-center gap-1.5">
+                            <div className="bg-base-content/25 rounded-xs w-6 h-3"></div>
+                            <div className="bg-base-content/30 rounded-xs w-6 h-3"></div>
                         </div>
                     </div>
                 ),

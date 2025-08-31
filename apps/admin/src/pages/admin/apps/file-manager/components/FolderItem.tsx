@@ -1,4 +1,5 @@
 import { FolderItemDropdown } from "./FolderItemDropdown";
+import { Icon } from "@/components/ui/Icon";
 
 export type IFolderItem = {
     icon: string;
@@ -9,18 +10,18 @@ export type IFolderItem = {
 
 export const FolderItem = ({ icon, iconClass, name, filesCount }: IFolderItem) => {
     return (
-        <div className="card card-border bg-base-100">
-            <div className="card-body p-3">
+        <div className="bg-base-100 card-border card">
+            <div className="p-3 card-body">
                 <div className="flex items-center gap-2">
                     <div className={`rounded-box flex items-center p-1.5 ${iconClass}`}>
-                        <span className={`iconify ${icon} size-5`}></span>
+                        <Icon icon={icon} className="size-5" aria-hidden />
                     </div>
-                    <span className="text-sm font-medium">{name}</span>
+                    <span className="font-medium text-sm">{name}</span>
                     <div className="ms-auto">
                         <FolderItemDropdown />
                     </div>
                 </div>
-                <div className="text-base-content/70 mt-2 flex items-center text-xs">{filesCount} Files</div>
+                <div className="flex items-center mt-2 text-xs text-base-content/70">{filesCount} Files</div>
             </div>
         </div>
     );

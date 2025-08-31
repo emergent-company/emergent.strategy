@@ -1,41 +1,42 @@
 import { Link } from "react-router";
+import { Icon } from "@/components/ui/Icon";
 
 export const Showcase = () => {
     return (
         <div id="features">
-            <div className="relative container py-8 md:py-12 xl:py-16 2xl:py-24">
-                <div className="relative z-10 grid gap-12 lg:grid-cols-7 lg:gap-24">
-                    <div className="flex flex-col max-sm:items-center max-sm:text-center lg:col-span-3">
-                        <div className="rounded-box inline-flex w-fit items-center border border-teal-500/5 bg-teal-500/5 p-2.5">
-                            <span className="iconify lucide--box size-5 text-teal-600" />
+            <div className="relative py-8 md:py-12 2xl:py-24 xl:py-16 container">
+                <div className="z-10 relative gap-12 lg:gap-24 grid lg:grid-cols-7">
+                    <div className="flex flex-col max-sm:items-center lg:col-span-3 max-sm:text-center">
+                        <div className="inline-flex items-center bg-teal-500/5 p-2.5 border border-teal-500/5 rounded-box w-fit">
+                            <Icon icon="lucide--box" className="size-5 text-teal-600" ariaLabel="Toolkit" />
                         </div>
-                        <p className="mt-3 text-2xl font-semibold sm:text-3xl">UI Toolkit</p>
-                        <p className="text-base-content/70 mt-4 max-sm:text-sm">
+                        <p className="mt-3 font-semibold text-2xl sm:text-3xl">UI Toolkit</p>
+                        <p className="mt-4 max-sm:text-sm text-base-content/70">
                             Explore essential components like sidebars, footers, buttons, forms, tables, menus, modals,
                             notification menus, and more for your admin dashboard.
                         </p>
                         <div className="mt-6">
-                            <Link to="/components" className="btn btn-outline btn-sm btn-neutral">
+                            <Link to="/components" className="btn-outline btn btn-sm btn-neutral">
                                 View Components
-                                <span className="iconify lucide--chevron-right" />
+                                <Icon icon="lucide--chevron-right" aria-hidden />
                             </Link>
                         </div>
                     </div>
                     <div className="relative lg:col-span-4">
-                        <div className="absolute -start-50 -top-50 z-[-1] size-[450px] bg-[url(/images/landing/showcase-bg-gradient.png)] bg-cover bg-center bg-no-repeat opacity-20 sm:size-[600px] dark:hidden"></div>
-                        <div className="absolute -end-12 -bottom-12 z-[-1] size-[350px] bg-[url(/images/landing/showcase-bg-element.png)] bg-cover bg-center bg-no-repeat opacity-60 max-lg:hidden sm:size-[120px] dark:opacity-60"></div>
-                        <div className="from-base-100/60 to-base-100 rounded-box bg-linear-to-tl to-[20%] p-4 text-center backdrop-blur-[4px] md:p-6 lg:p-8 xl:p-10">
+                        <div className="dark:hidden -top-50 z-[-1] absolute bg-[url(/images/landing/showcase-bg-gradient.png)] bg-cover bg-no-repeat bg-center opacity-20 size-[450px] sm:size-[600px] -start-50"></div>
+                        <div className="max-lg:hidden -bottom-12 z-[-1] absolute bg-[url(/images/landing/showcase-bg-element.png)] bg-cover bg-no-repeat bg-center opacity-60 dark:opacity-60 size-[350px] sm:size-[120px] -end-12"></div>
+                        <div className="bg-linear-to-tl from-base-100/60 to-[20%] to-base-100 backdrop-blur-[4px] p-4 md:p-6 lg:p-8 xl:p-10 rounded-box text-center">
                             <div className="flex flex-wrap justify-center gap-6">
                                 <button className="btn btn-secondary btn-sm">
-                                    <span className="iconify lucide--search size-3.5" />
+                                    <Icon icon="lucide--search" className="size-3.5" ariaLabel="Search" />
                                     Search
                                 </button>
                                 <button className="btn btn-ghost btn-sm">
-                                    <span className="iconify lucide--upload size-3.5" />
+                                    <Icon icon="lucide--upload" className="size-3.5" ariaLabel="Upload" />
                                     Upload
                                 </button>
                                 <button className="btn btn-primary btn-circle btn-sm" aria-label="Buy Now">
-                                    <span className="iconify lucide--shopping-cart size-4" />
+                                    <Icon icon="lucide--shopping-cart" className="size-4" aria-hidden />
                                 </button>
                                 <div className="dropdown">
                                     <div tabIndex={0} role="button" className="btn btn-sm">
@@ -43,7 +44,7 @@ export const Showcase = () => {
                                     </div>
                                     <ul
                                         tabIndex={0}
-                                        className="dropdown-content menu bg-base-100 rounded-box z-1 w-40 p-2 shadow-sm">
+                                        className="z-1 bg-base-100 shadow-sm p-2 rounded-box w-40 dropdown-content menu">
                                         <li>
                                             <a>Item 1</a>
                                         </li>
@@ -53,8 +54,8 @@ export const Showcase = () => {
                                     </ul>
                                 </div>
                             </div>
-                            <div className="mt-10 flex flex-wrap justify-center gap-6">
-                                <div role="tablist" className="tabs tabs-border tabs-sm">
+                            <div className="flex flex-wrap justify-center gap-6 mt-10">
+                                <div role="tablist" className="tabs-border tabs tabs-sm">
                                     <input
                                         role="tab"
                                         className="tab"
@@ -78,34 +79,34 @@ export const Showcase = () => {
                                         name="demo-tabs-radio"
                                     />
                                 </div>
-                                <span className="loading loading-ring text-primary"></span>
-                                <span className="loading loading-bars text-primary"></span>
-                                <span className="loading loading-infinity text-primary"></span>
+                                <span className="loading-ring text-primary loading"></span>
+                                <span className="text-primary loading loading-bars"></span>
+                                <span className="text-primary loading loading-infinity"></span>
                             </div>
-                            <div className="mt-10 flex flex-wrap items-center justify-center gap-6">
+                            <div className="flex flex-wrap justify-center items-center gap-6 mt-10">
                                 <div className="avatar">
-                                    <div className="bg-base-200 w-10 rounded-full">
+                                    <div className="bg-base-200 rounded-full w-10">
                                         <img alt="Avatar" src="/images/avatars/1.png" />
                                     </div>
                                 </div>
                                 <div className="avatar-group -space-x-5">
                                     <div className="avatar">
-                                        <div className="bg-base-200 w-10 rounded-full">
+                                        <div className="bg-base-200 rounded-full w-10">
                                             <img alt="Avatar" src="/images/avatars/4.png" />
                                         </div>
                                     </div>
                                     <div className="avatar">
-                                        <div className="bg-base-200 w-10 rounded-full">
+                                        <div className="bg-base-200 rounded-full w-10">
                                             <img alt="Avatar" src="/images/avatars/5.png" />
                                         </div>
                                     </div>
                                     <div className="avatar">
-                                        <div className="bg-base-200 w-10 rounded-full">
+                                        <div className="bg-base-200 rounded-full w-10">
                                             <img alt="Avatar" src="/images/avatars/7.png" />
                                         </div>
                                     </div>
                                     <div className="avatar avatar-placeholder">
-                                        <div className="bg-base-300 w-10 rounded-full">+99</div>
+                                        <div className="bg-base-300 rounded-full w-10">+99</div>
                                     </div>
                                 </div>
 
@@ -115,12 +116,12 @@ export const Showcase = () => {
                                     <button className="btn join-item btn-square btn-sm">3</button>
                                     <button className="btn join-item btn-square btn-sm">4</button>
                                 </div>
-                                <div className="alert alert-info w-fit gap-2 px-2 py-1.5" role="alert">
-                                    <span className="iconify lucide--info size-5"></span>
+                                <div className="gap-2 px-2 py-1.5 w-fit alert alert-info" role="alert">
+                                    <Icon icon="lucide--info" className="size-5" aria-hidden />
                                     <span>New update available.</span>
                                 </div>
                             </div>
-                            <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+                            <div className="flex flex-wrap justify-center items-center gap-4 mt-10">
                                 <div className="inline-flex gap-2">
                                     <input
                                         type="radio"
@@ -165,50 +166,50 @@ export const Showcase = () => {
                                         id="showcase_checkbox_disabled"
                                         disabled
                                     />
-                                    <label className="label text-base-content/40" htmlFor="showcase_checkbox_disabled">
+                                    <label className="text-base-content/40 label" htmlFor="showcase_checkbox_disabled">
                                         Disabled
                                     </label>
                                 </div>
                             </div>
 
-                            <div className="mt-10 grid gap-6 md:grid-cols-2">
+                            <div className="gap-6 grid md:grid-cols-2 mt-10">
                                 <div className="col-span-1">
-                                    <div className="rating gap-1">
+                                    <div className="gap-1 rating">
                                         <input
-                                            className="mask mask-heart bg-red-400"
+                                            className="bg-red-400 mask mask-heart"
                                             aria-label="1 star"
                                             type="radio"
                                             name="rating-3"
                                         />
                                         <input
-                                            className="mask mask-heart bg-orange-400"
+                                            className="bg-orange-400 mask mask-heart"
                                             aria-label="2 star"
                                             type="radio"
                                             name="rating-3"
                                         />
                                         <input
-                                            className="mask mask-heart bg-yellow-400"
+                                            className="bg-yellow-400 mask mask-heart"
                                             aria-label="3 star"
                                             type="radio"
                                             name="rating-3"
                                         />
                                         <input
-                                            className="mask mask-heart bg-lime-400"
+                                            className="bg-lime-400 mask mask-heart"
                                             aria-label="4 star"
                                             type="radio"
                                             defaultChecked
                                             name="rating-3"
                                         />
                                         <input
-                                            className="mask mask-heart bg-green-400"
+                                            className="bg-green-400 mask mask-heart"
                                             aria-label="5 star"
                                             type="radio"
                                             name="rating-3"
                                         />
                                     </div>
                                     <div>
-                                        <fieldset className="fieldset mt-4">
-                                            <legend className="fieldset-legend text-start">Title</legend>
+                                        <fieldset className="mt-4 fieldset">
+                                            <legend className="text-start fieldset-legend">Title</legend>
                                             <input
                                                 className="input"
                                                 placeholder="My awesome page"
@@ -218,7 +219,7 @@ export const Showcase = () => {
                                             <p className="fieldset-label">* Required</p>
                                         </fieldset>
                                     </div>
-                                    <div className="form-control mt-4">
+                                    <div className="mt-4 form-control">
                                         <textarea className="textarea" placeholder="Bio" />
                                     </div>
                                     <div className="mt-5">
@@ -235,7 +236,7 @@ export const Showcase = () => {
                                             aria-label="showcase progress"
                                             max={100}
                                             id="showcase_progress"
-                                            className="progress progress-success h-1 w-full"
+                                            className="w-full h-1 progress progress-success"
                                         />
                                         <label className="hidden" htmlFor="showcase_progress">
                                             Progress
@@ -243,29 +244,29 @@ export const Showcase = () => {
                                     </div>
                                 </div>
                                 <div className="col-span-1">
-                                    <div className="card bg-base-100 card-border">
-                                        <div className="card-body text-start">
+                                    <div className="bg-base-100 card-border card">
+                                        <div className="text-start card-body">
                                             <div className="flex items-center gap-3">
                                                 <div className="avatar">
-                                                    <div className="bg-base-200 mask mask-squircle w-8">
+                                                    <div className="bg-base-200 w-8 mask mask-squircle">
                                                         <img src="/images/avatars/1.png" alt="Avatar" />
                                                     </div>
                                                 </div>
                                                 <div className="text-start">
                                                     <p className="leading-none">James Ford</p>
-                                                    <p className="text-base-content/60 text-xs">Designer & Developer</p>
+                                                    <p className="text-xs text-base-content/60">Designer & Developer</p>
                                                 </div>
                                             </div>
                                             <img
                                                 src="/images/landing/showcase-card-image.png"
-                                                className="rounded-box mt-3"
+                                                className="mt-3 rounded-box"
                                                 alt="card"
                                             />
-                                            <p className="text-base-content/80 mt-0.5 text-center text-xs italic">
+                                            <p className="mt-0.5 text-xs text-base-content/80 text-center italic">
                                                 Image caption
                                             </p>
                                             <p className="mt-2">More Text goes here....</p>
-                                            <div className="card-actions mt-3 justify-end">
+                                            <div className="justify-end mt-3 card-actions">
                                                 <button className="btn btn-sm btn-ghost">Cancel</button>
                                                 <button className="btn btn-primary btn-sm">Action</button>
                                             </div>

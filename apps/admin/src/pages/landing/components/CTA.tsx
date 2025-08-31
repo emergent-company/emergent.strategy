@@ -1,55 +1,56 @@
 import { Link } from "react-router";
+import { Icon } from "@/components/ui/Icon";
 
 export const CTA = () => {
     return (
-        <div className="container sm:px-16">
-            <div className="relative overflow-hidden py-8 sm:rounded-[60px] md:py-12 xl:py-16 2xl:pt-24 2xl:pb-48">
-                <div className="absolute start-16 -bottom-40 h-64 w-72 bg-blue-400 blur-[180px] max-sm:hidden"></div>
-                <div className="absolute start-1/2 -bottom-40 h-64 w-72 -translate-x-1/2 bg-cyan-400 blur-[180px] max-sm:hidden"></div>
-                <div className="absolute end-16 -bottom-40 h-64 w-72 bg-purple-400 blur-[180px] max-sm:hidden"></div>
-                <div className="grainy absolute inset-0 z-0 opacity-20 max-sm:hidden"></div>
+        <div className="sm:px-16 container">
+            <div className="relative py-8 md:py-12 xl:py-16 2xl:pt-24 2xl:pb-48 sm:rounded-[60px] overflow-hidden">
+                <div className="max-sm:hidden -bottom-40 absolute bg-blue-400 blur-[180px] w-72 h-64 start-16"></div>
+                <div className="max-sm:hidden -bottom-40 absolute bg-cyan-400 blur-[180px] w-72 h-64 -translate-x-1/2 start-1/2"></div>
+                <div className="max-sm:hidden -bottom-40 absolute bg-purple-400 blur-[180px] w-72 h-64 end-16"></div>
+                <div className="max-sm:hidden z-0 absolute inset-0 opacity-20 grainy"></div>
                 <div className="absolute inset-x-0 top-0 h-160 bg-linear-to-b from-(--root-bg) to-transparent max-sm:hidden"></div>
 
                 <div className="relative">
                     <div className="text-center">
-                        <div className="from-primary to-secondary text-primary-content inline-flex items-center rounded-full bg-linear-to-tr p-2.5">
-                            <span className="iconify lucide--rocket size-5" />
+                        <div className="inline-flex items-center bg-linear-to-tr from-primary to-secondary p-2.5 rounded-full text-primary-content">
+                            <Icon icon="lucide--rocket" className="size-5" ariaLabel="Rocket" />
                         </div>
-                        <p className="mt-4 text-xl font-bold sm:text-2xl lg:text-4xl">Launch, Manage, and Succeed</p>
-                        <p className="mt-3 inline-block max-w-2xl max-sm:text-sm">
+                        <p className="mt-4 font-bold text-xl sm:text-2xl lg:text-4xl">Launch, Manage, and Succeed</p>
+                        <p className="inline-block mt-3 max-w-2xl max-sm:text-sm">
                             Pay once, use forever. No subscriptions, only powerful tools and endless possibilities to
                             build with confidence.
                         </p>
                     </div>
 
-                    <div className="mt-6 flex justify-center xl:mt-8">
-                        <ul className="max-w-md space-y-3 text-center">
+                    <div className="flex justify-center mt-6 xl:mt-8">
+                        <ul className="space-y-3 max-w-md text-center">
                             <li className="flex items-center gap-2 max-sm:text-sm">
-                                <span className="iconify lucide--badge-check size-6 text-green-500"></span>
+                                <Icon icon="lucide--badge-check" className="size-6 text-green-500" ariaLabel="Check" />
                                 Built with Tailwind CSS 4 & DaisyUI 5
                             </li>
                             <li className="flex items-center gap-2 max-sm:text-sm">
-                                <span className="iconify lucide--badge-check size-6 text-green-500"></span>
+                                <Icon icon="lucide--badge-check" className="size-6 text-green-500" ariaLabel="Check" />
                                 Lifetime access with free updates
                             </li>
                             <li className="flex items-center gap-2 max-sm:text-sm">
-                                <span className="iconify lucide--badge-check size-6 text-green-500"></span>
+                                <Icon icon="lucide--badge-check" className="size-6 text-green-500" ariaLabel="Check" />
                                 Fully responsive & optimized for all devices
                             </li>
                         </ul>
                     </div>
-                    <div className="mt-6 flex items-center justify-center gap-3 sm:gap-5 xl:mt-8">
+                    <div className="flex justify-center items-center gap-3 sm:gap-5 mt-6 xl:mt-8">
                         <Link
                             to="https://daisyui.com/store/244268"
                             target="_blank"
-                            className="btn from-primary to-secondary group text-primary-content relative gap-3 border-0 bg-linear-to-r text-base">
-                            <span className="iconify lucide--shopping-cart size-4 sm:size-5" />
+                            className="group relative gap-3 bg-linear-to-r from-primary to-secondary border-0 text-primary-content text-base btn">
+                            <Icon icon="lucide--shopping-cart" className="size-4 sm:size-5" ariaLabel="Buy" />
                             Buy Now
-                            <div className="from-primary to-secondary absolute inset-x-1 top-2 -z-1 h-10 bg-linear-to-r opacity-40 blur-md transition-all duration-500 group-hover:inset-x-0 group-hover:opacity-80 group-hover:blur-lg dark:opacity-20 group-hover:dark:!opacity-40"></div>
+                            <div className="top-2 -z-1 absolute inset-x-1 group-hover:inset-x-0 bg-linear-to-r from-primary to-secondary opacity-40 dark:opacity-20 group-hover:dark:!opacity-40 group-hover:opacity-80 blur-md group-hover:blur-lg h-10 transition-all duration-500"></div>
                         </Link>
                         <a href="#faqs" className="btn btn-ghost">
                             Need help?
-                            <span className="iconify lucide--arrow-down size-3.5" />
+                            <Icon icon="lucide--arrow-down" className="size-3.5" ariaLabel="Scroll to FAQs" />
                         </a>
                     </div>
                 </div>

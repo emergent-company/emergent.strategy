@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { Icon } from "@/components/ui/Icon";
 
 export type ISellerTableRow = {
     id: number;
@@ -28,17 +29,17 @@ export const SellerTableRow = ({
     mobileNumber,
 }: ISellerTableRow) => {
     return (
-        <tr className="hover:bg-base-200/40 cursor-pointer *:text-nowrap">
+        <tr className="hover:bg-base-200/40 *:text-nowrap cursor-pointer">
             <th>
                 <input aria-label="Single check" className="checkbox checkbox-sm" type="checkbox" />
             </th>
             <td className="font-medium">{id}</td>
             <td>
                 <div className="flex items-center space-x-3 truncate">
-                    <img alt="Seller Image" className="mask mask-squircle bg-base-200 size-10" src={image} />
+                    <img alt="Seller Image" className="bg-base-200 size-10 mask mask-squircle" src={image} />
                     <div>
                         <p className="font-medium">{name}</p>
-                        <p className="text-base-content/60 text-xs capitalize">{gender}</p>
+                        <p className="text-xs text-base-content/60 capitalize">{gender}</p>
                     </div>
                 </div>
             </td>
@@ -46,12 +47,12 @@ export const SellerTableRow = ({
             <td>{email}</td>
             <td>{mobileNumber}</td>
             <td>{sales}</td>
-            <td className="text-sm font-medium">${earning}</td>
+            <td className="font-medium text-sm">${earning}</td>
             <td>
                 {verified ? (
-                    <span className="iconify lucide--badge-check text-success size-4.5" />
+                    <Icon icon="lucide--badge-check" className="size-4.5 text-success" aria-hidden />
                 ) : (
-                    <span className="iconify lucide--badge-x text-error size-4.5" />
+                    <Icon icon="lucide--badge-x" className="size-4.5 text-error" aria-hidden />
                 )}
             </td>
             <td className="text-sm">{date}</td>
@@ -61,16 +62,16 @@ export const SellerTableRow = ({
                         aria-label="Edit seller link"
                         className="btn btn-square btn-ghost btn-sm"
                         to={`/apps/ecommerce/sellers/${id}`}>
-                        <span className="iconify lucide--pencil text-base-content/80 size-4" />
+                        <Icon icon="lucide--pencil" className="size-4 text-base-content/80" aria-hidden />
                     </Link>
                     <button aria-label="Dummy show seller" className="btn btn-square btn-ghost btn-sm">
-                        <span className="iconify lucide--eye text-base-content/80 size-4" />
+                        <Icon icon="lucide--eye" className="size-4 text-base-content/80" aria-hidden />
                     </button>
                     <button
                         aria-label="Dummy delete seller"
-                        className="btn btn-square btn-error btn-outline btn-sm border-transparent"
+                        className="border-transparent btn-outline btn btn-square btn-error btn-sm"
                         onClick={() => document.querySelector<HTMLDialogElement>("#apps-seller-delete")?.showModal()}>
-                        <span className="iconify lucide--trash size-4" />
+                        <Icon icon="lucide--trash" className="size-4" aria-hidden />
                     </button>
                 </div>
             </td>

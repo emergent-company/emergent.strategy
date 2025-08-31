@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { ComponentPageTitle } from "@/components/ComponentPageTitle";
 import { MetaData } from "@/components/MetaData";
+import { Icon } from "@/components/ui/Icon";
 
 import { ClassicTopbarDemo } from "./ClassicTopbarDemo";
 import { CustomBackgroundTopbarDemo } from "./CustomBackgroundTopbarDemo";
@@ -22,7 +23,7 @@ const TopbarPage = () => {
             />
 
             <div className="flex items-center gap-3 bg-base-200/40 mt-6 lg:mt-12 px-5 py-4 rounded-box">
-                <span className="size-4.5 text-base-content/70 iconify lucide--info"></span>
+                <Icon icon="lucide--info" className="size-4.5 text-base-content/70" ariaLabel="Info" />
                 <p>
                     <span className="me-1">Play with layouts using</span>
                     <Link to="/admin/tools/layout-builder" target="_blank" className="text-primary">

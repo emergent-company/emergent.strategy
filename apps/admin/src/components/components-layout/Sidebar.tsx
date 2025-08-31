@@ -5,6 +5,7 @@ import SimpleBar from "simplebar-react";
 import "simplebar-react/dist/simplebar.min.css";
 
 import { Logo } from "@/components/Logo";
+import { Icon } from "@/components/ui/Icon";
 
 import { ISidebarMenuItem, SidebarMenuItem } from "../admin-layout/SidebarMenuItem";
 import { getActivatedItemParentKeys } from "../admin-layout/helpers";
@@ -59,11 +60,11 @@ export const Sidebar = ({ menuItems }: { menuItems: ISidebarMenuItem[] }) => {
                     <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary opacity-0 group-hover:opacity-100 rounded-box transition-opacity duration-300"></div>
 
                     <div className="relative flex items-center gap-3 px-3 h-10">
-                        <i className="size-4.5 text-primary group-hover:text-white transition-all duration-300 iconify lucide--monitor-dot"></i>
+                        <Icon icon="lucide--monitor-dot" className="size-4.5 text-primary group-hover:text-white transition-all duration-300" />
                         <p className="bg-clip-text bg-gradient-to-r from-primary to-secondary font-medium text-transparent group-hover:text-white transition-all duration-300">
                             Dashboard
                         </p>
-                        <i className="lucide--chevron-right ms-auto size-4.5 text-secondary group-hover:text-white transition-all duration-300 iconify"></i>
+                        <Icon icon="lucide--chevron-right" className="ms-auto size-4.5 text-secondary group-hover:text-white transition-all duration-300" />
                     </div>
                 </Link>
                 <hr className="mt-2 border-base-300 border-dashed" />
@@ -71,12 +72,12 @@ export const Sidebar = ({ menuItems }: { menuItems: ISidebarMenuItem[] }) => {
                     to="https://nexus.daisyui.com/docs/"
                     target="_blank"
                     className="flex items-center gap-3 bg-base-200/60 hover:bg-base-200 m-2.5 mb-2 px-3.5 py-2 rounded-box transition-all cursor-pointer">
-                    <span className="size-5 iconify lucide--book-open-text"></span>
+                    <Icon icon="lucide--book-open-text" className="size-5" />
                     <div className="-space-y-0.5 grow">
                         <p className="font-medium text-sm">Documentation</p>
                         <p className="text-xs text-base-content/60">Installations</p>
                     </div>
-                    <span className="size-4 text-base-content/60 iconify lucide--external-link" />
+                    <Icon icon="lucide--external-link" className="size-4 text-base-content/60" />
                 </Link>
             </div>
         </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useApi } from "@/hooks/use-api";
 import { Link } from "react-router";
+import { Icon } from "@/components/ui/Icon";
 
 function useSettingString(key: string, initial: string) {
     const { apiBase, fetchJson } = useApi();
@@ -65,7 +66,7 @@ export default function AiPromptsSettingsPage() {
             <div className="bg-base-100 mt-6 card-border card">
                 <div className="gap-6 sm:gap-8 card-body">
                     <div className="flex items-center gap-2">
-                        <span className="size-5 iconify lucide--shield" />
+                        <Icon icon="lucide--shield" className="size-5" aria-hidden />
                         <h2 className="font-medium text-lg">System Prompt</h2>
                     </div>
                     <textarea
@@ -86,7 +87,7 @@ export default function AiPromptsSettingsPage() {
             <div className="bg-base-100 mt-6 card-border card">
                 <div className="gap-6 sm:gap-8 card-body">
                     <div className="flex items-center gap-2">
-                        <span className="size-5 iconify lucide--user" />
+                        <Icon icon="lucide--user" className="size-5" aria-hidden />
                         <h2 className="font-medium text-lg">User Template</h2>
                     </div>
                     <p className="mt-1 text-xs text-base-content/70">Required placeholders: {'{question}'} and {'{context}'}</p>

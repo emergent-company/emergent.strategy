@@ -1,25 +1,26 @@
 // @ts-ignore
 import SimpleBar from "simplebar-react";
 import "simplebar-react/dist/simplebar.min.css";
+import { Icon } from "@/components/ui/Icon";
 
 import { ContentItem } from "./ContentItem";
 
 export const GeneratedContents = () => {
     return (
-        <div className="bg-base-100 card card-border">
-            <div className="border-base-200 flex items-center justify-between border-b py-2.5 ps-5 pe-2.5">
+        <div className="bg-base-100 card-border card">
+            <div className="flex justify-between items-center py-2.5 ps-5 pe-2.5 border-b border-base-200">
                 <div className="inline-flex items-center gap-3">
-                    <span className="iconify lucide--file-clock size-4.5" />
+                    <Icon icon="lucide--file-clock" className="size-4.5" />
                     <span>History</span>
                 </div>
                 <button className="btn btn-ghost btn-sm">Clear history</button>
             </div>
-            <div className="card-body p-0">
+            <div className="p-0 card-body">
                 <SimpleBar className="h-[calc(100vh_-_220px)]">
                     <div className="space-y-3 p-6 pt-3">
                         <div className="text-center">
-                            <div className="bg-base-200 inline-flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 text-xs opacity-70 transition-all hover:opacity-100">
-                                <span className="iconify lucide--arrow-up size-3" />
+                            <div className="inline-flex items-center gap-1 bg-base-200 opacity-70 hover:opacity-100 px-3 py-1 rounded-full text-xs transition-all cursor-pointer">
+                                <Icon icon="lucide--arrow-up" className="size-3" />
                                 Older
                             </div>
                         </div>
@@ -53,7 +54,7 @@ export const GeneratedContents = () => {
                             timeSince="Now"
                         />
                         <ContentItem content="Follow-Up on all conversations" timeSince="now" />
-                        <div className="bg-primary/5 text-primary border-primary/10 rounded-box inline border px-4 py-2">
+                        <div className="inline bg-primary/5 px-4 py-2 border border-primary/10 rounded-box text-primary">
                             <span className="loading loading-dots loading-sm"></span>
                         </div>
                     </div>

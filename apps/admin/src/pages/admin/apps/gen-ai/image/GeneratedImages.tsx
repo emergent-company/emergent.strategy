@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Icon } from "@/components/ui/Icon";
 
 import { generatedImages1, generatedImages2, imageTypes } from "./helpers";
 
@@ -6,32 +7,32 @@ export const GeneratedImages = () => {
     const [selectedType, setSelectedType] = useState(imageTypes[0]);
 
     return (
-        <div className="card card-border bg-base-100">
-            <div className="flex items-center justify-between p-5 pb-0">
+        <div className="bg-base-100 card-border card">
+            <div className="flex justify-between items-center p-5 pb-0">
                 <div>
                     <div className="flex items-center gap-2">
-                        <div className="bg-primary text-primary-content rounded-box inline-flex items-center p-1.5">
-                            <span className="iconify lucide--book-image size-4" />
+                        <div className="inline-flex items-center bg-primary p-1.5 rounded-box text-primary-content">
+                            <Icon icon="lucide--book-image" className="size-4" aria-hidden />
                         </div>
                         <p className="font-medium">Images</p>
                     </div>
-                    <p className="text-base-content/80 text-sm">
+                    <p className="text-sm text-base-content/80">
                         <span className="text-error">Note:</span> cloud sync is disabled.
-                        <span className="link link-primary link-hover ms-1">Start sync?</span>
+                        <span className="ms-1 link link-primary link-hover">Start sync?</span>
                     </p>
                 </div>
                 <div className="text-center">
-                    <p className="text-base-content/80 text-sm">Available Tokens</p>
-                    <p className="text-lg font-medium">
-                        961<span className="text-base-content/60 ms-1 text-sm">/1000</span>
+                    <p className="text-sm text-base-content/80">Available Tokens</p>
+                    <p className="font-medium text-lg">
+                        961<span className="ms-1 text-sm text-base-content/60">/1000</span>
                     </p>
                 </div>
-                <div className="bg-base-200 rounded-box hidden items-center gap-3 py-2 ps-3 pe-2 2xl:inline-flex">
+                <div className="hidden 2xl:inline-flex items-center gap-3 bg-base-200 py-2 ps-3 pe-2 rounded-box">
                     <p className="text-sm">Trial period has ended</p>
                     <button className="btn btn-sm btn-warning">Upgrade</button>
                 </div>
             </div>
-            <hr className="border-base-300 mt-5 w-full border-dashed" />
+            <hr className="mt-5 border-base-300 border-dashed w-full" />
             <div className="card-body">
                 <div className="flex flex-wrap gap-2.5">
                     {imageTypes.map((imageType, index) => (
@@ -43,79 +44,78 @@ export const GeneratedImages = () => {
                         </div>
                     ))}
                 </div>
-                <div className="mt-5 flex items-center justify-between gap-2">
+                <div className="flex justify-between items-center gap-2 mt-5">
                     <p className="font-medium">Watercolor Painting</p>
-                    <div className="hidden items-center gap-5 md:flex">
-                        <div className="text-base-content/60 hover:text-base-content inline-flex cursor-pointer items-center gap-2 transition-all">
-                            <span className="iconify lucide--image-down size-3.5" />
+                    <div className="hidden md:flex items-center gap-5">
+                        <div className="inline-flex items-center gap-2 text-base-content/60 hover:text-base-content transition-all cursor-pointer">
+                            <Icon icon="lucide--image-down" className="size-3.5" aria-hidden />
                             <p className="text-sm">Download All</p>
                         </div>
-                        <div className="text-base-content/60 hover:text-base-content inline-flex cursor-pointer items-center gap-2 transition-all">
-                            <span className="iconify lucide--book-image size-3.5" />
+                        <div className="inline-flex items-center gap-2 text-base-content/60 hover:text-base-content transition-all cursor-pointer">
+                            <Icon icon="lucide--book-image" className="size-3.5" aria-hidden />
                             <p className="text-sm">8</p>
                         </div>
 
-                        <div className="text-base-content/60 hover:text-base-content inline-flex cursor-pointer items-center gap-2 transition-all">
-                            <span className="iconify lucide--cpu size-3.5" />
+                        <div className="inline-flex items-center gap-2 text-base-content/60 hover:text-base-content transition-all cursor-pointer">
+                            <Icon icon="lucide--cpu" className="size-3.5" aria-hidden />
                             <p className="text-sm">Stable diffusion</p>
                         </div>
                     </div>
                 </div>
-                <div className="mt-2 grid grid-cols-3 gap-5 md:grid-cols-5 lg:grid-cols-3 xl:grid-cols-5">
+                <div className="gap-5 grid grid-cols-3 md:grid-cols-5 lg:grid-cols-3 xl:grid-cols-5 mt-2">
                     {generatedImages1.map((generated, index) => (
                         <div key={index} className="group relative">
                             <img src={generated} alt={generated} className="rounded-box" />
-                            <div className="rounded-box absolute start-1/2 bottom-0 flex -translate-x-1/2 scale-75 items-center justify-around gap-2 bg-black/60 px-2 py-1.5 text-white opacity-0 backdrop-blur-sm transition-all group-hover:bottom-4 group-hover:scale-100 group-hover:opacity-100">
-                                <div className="rounded-box cursor-pointer p-1 hover:bg-white/20">
-                                    <span className="iconify lucide--arrow-down-to-line block size-3.5" />
+                            <div className="bottom-0 group-hover:bottom-4 absolute flex justify-around items-center gap-2 bg-black/60 opacity-0 group-hover:opacity-100 backdrop-blur-sm px-2 py-1.5 rounded-box text-white scale-75 group-hover:scale-100 transition-all -translate-x-1/2 start-1/2">
+                                <div className="hover:bg-white/20 p-1 rounded-box cursor-pointer" aria-label="Download image">
+                                    <Icon icon="lucide--arrow-down-to-line" className="block size-3.5" aria-hidden />
                                 </div>
-                                <div className="rounded-box cursor-pointer p-1 hover:bg-white/20">
-                                    <span className="iconify lucide--palette block size-3.5" />
+                                <div className="hover:bg-white/20 p-1 rounded-box cursor-pointer" aria-label="Change palette">
+                                    <Icon icon="lucide--palette" className="block size-3.5" aria-hidden />
                                 </div>
-                                <div className="rounded-box cursor-pointer p-1 hover:bg-white/20">
-                                    <span className="iconify lucide--image-plus block size-3.5" />
+                                <div className="hover:bg-white/20 p-1 rounded-box cursor-pointer" aria-label="Add to collection">
+                                    <Icon icon="lucide--image-plus" className="block size-3.5" aria-hidden />
                                 </div>
-                                <div className="rounded-box cursor-pointer p-1 hover:bg-white/20">
-                                    <span className="iconify lucide--maximize block size-3.5" />
+                                <div className="hover:bg-white/20 p-1 rounded-box cursor-pointer" aria-label="Maximize preview">
+                                    <Icon icon="lucide--maximize" className="block size-3.5" aria-hidden />
                                 </div>
                             </div>
                         </div>
                     ))}
                 </div>
-                <div className="mt-5 flex items-center justify-between gap-2">
+                <div className="flex justify-between items-center gap-2 mt-5">
                     <p className="font-medium">3D Elements</p>
-                    <div className="hidden items-center gap-5 md:flex">
-                        <div className="text-base-content/60 hover:text-base-content inline-flex cursor-pointer items-center gap-2 transition-all">
-                            <span className="iconify lucide--image-down size-3.5" />
+                    <div className="hidden md:flex items-center gap-5">
+                        <div className="inline-flex items-center gap-2 text-base-content/60 hover:text-base-content transition-all cursor-pointer">
+                            <Icon icon="lucide--image-down" className="size-3.5" aria-hidden />
                             <p className="text-sm">Download All</p>
                         </div>
-                        <div className="text-base-content/60 hover:text-base-content inline-flex cursor-pointer items-center gap-2 transition-all">
-                            <span className="iconify lucide--book-image size-3.5" />
+                        <div className="inline-flex items-center gap-2 text-base-content/60 hover:text-base-content transition-all cursor-pointer">
+                            <Icon icon="lucide--book-image" className="size-3.5" aria-hidden />
                             <p className="text-sm">10+</p>
                         </div>
-
-                        <div className="text-base-content/60 hover:text-base-content inline-flex cursor-pointer items-center gap-2 transition-all">
-                            <span className="iconify lucide--cpu size-3.5" />
+                        <div className="inline-flex items-center gap-2 text-base-content/60 hover:text-base-content transition-all cursor-pointer">
+                            <Icon icon="lucide--cpu" className="size-3.5" aria-hidden />
                             <p className="text-sm">Deep AI</p>
                         </div>
                     </div>
                 </div>
-                <div className="mt-2 grid grid-cols-3 gap-5 md:grid-cols-5">
+                <div className="gap-5 grid grid-cols-3 md:grid-cols-5 mt-2">
                     {generatedImages2.map((generated, index) => (
                         <div key={index} className="group relative">
                             <img src={generated} alt={generated} className="rounded-box" />
-                            <div className="rounded-box absolute start-1/2 bottom-0 flex -translate-x-1/2 scale-75 items-center justify-around gap-2 bg-black/60 px-2 py-1.5 text-white opacity-0 backdrop-blur-sm transition-all group-hover:bottom-4 group-hover:scale-100 group-hover:opacity-100">
-                                <div className="rounded-box cursor-pointer p-1 hover:bg-white/20">
-                                    <span className="iconify lucide--arrow-down-to-line block size-3.5" />
+                            <div className="bottom-0 group-hover:bottom-4 absolute flex justify-around items-center gap-2 bg-black/60 opacity-0 group-hover:opacity-100 backdrop-blur-sm px-2 py-1.5 rounded-box text-white scale-75 group-hover:scale-100 transition-all -translate-x-1/2 start-1/2">
+                                <div className="hover:bg-white/20 p-1 rounded-box cursor-pointer" aria-label="Download image">
+                                    <Icon icon="lucide--arrow-down-to-line" className="block size-3.5" aria-hidden />
                                 </div>
-                                <div className="rounded-box cursor-pointer p-1 hover:bg-white/20">
-                                    <span className="iconify lucide--palette block size-3.5" />
+                                <div className="hover:bg-white/20 p-1 rounded-box cursor-pointer" aria-label="Change palette">
+                                    <Icon icon="lucide--palette" className="block size-3.5" aria-hidden />
                                 </div>
-                                <div className="rounded-box cursor-pointer p-1 hover:bg-white/20">
-                                    <span className="iconify lucide--image-plus block size-3.5" />
+                                <div className="hover:bg-white/20 p-1 rounded-box cursor-pointer" aria-label="Add to collection">
+                                    <Icon icon="lucide--image-plus" className="block size-3.5" aria-hidden />
                                 </div>
-                                <div className="rounded-box cursor-pointer p-1 hover:bg-white/20">
-                                    <span className="iconify lucide--maximize block size-3.5" />
+                                <div className="hover:bg-white/20 p-1 rounded-box cursor-pointer" aria-label="Maximize preview">
+                                    <Icon icon="lucide--maximize" className="block size-3.5" aria-hidden />
                                 </div>
                             </div>
                         </div>
@@ -123,7 +123,7 @@ export const GeneratedImages = () => {
                 </div>
                 <div className="mt-5 text-center">
                     <button className="btn btn-sm">
-                        <span className="iconify lucide--arrow-down size-3.5" />
+                        <Icon icon="lucide--arrow-down" className="size-3.5" aria-hidden />
                         Load more
                     </button>
                 </div>

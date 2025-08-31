@@ -5,6 +5,7 @@ import { Logo } from "@/components/Logo";
 import { MetaData } from "@/components/MetaData";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/auth";
+import { Icon } from "@/components/ui/Icon";
 
 const LoginPage = () => {
     const [showPassword, setShowPassword] = useState(false);
@@ -28,7 +29,7 @@ const LoginPage = () => {
                     <fieldset className="fieldset">
                         <legend className="fieldset-legend">Email Address</legend>
                         <label className="focus:outline-0 w-full input">
-                            <span className="size-5 text-base-content/80 iconify lucide--mail"></span>
+                            <Icon icon="lucide--mail" className="size-5 text-base-content/80" ariaLabel="Email" />
                             <input className="focus:outline-0 grow" placeholder="Email Address" type="email" />
                         </label>
                     </fieldset>
@@ -36,7 +37,7 @@ const LoginPage = () => {
                     <fieldset className="fieldset">
                         <legend className="fieldset-legend">Password</legend>
                         <label className="focus:outline-0 w-full input">
-                            <span className="size-5 text-base-content/80 iconify lucide--key-round"></span>
+                            <Icon icon="lucide--key-round" className="size-5 text-base-content/80" ariaLabel="Password" />
                             <input
                                 className="focus:outline-0 grow"
                                 placeholder="Password"
@@ -47,9 +48,9 @@ const LoginPage = () => {
                                 onClick={() => setShowPassword(!showPassword)}
                                 aria-label="Password">
                                 {showPassword ? (
-                                    <span className="size-4 iconify lucide--eye-off" />
+                                    <Icon icon="lucide--eye-off" className="size-4" ariaLabel="Hide password" />
                                 ) : (
-                                    <span className="size-4 iconify lucide--eye" />
+                                    <Icon icon="lucide--eye" className="size-4" ariaLabel="Show password" />
                                 )}
                             </button>
                         </label>
@@ -77,7 +78,7 @@ const LoginPage = () => {
                     </div>
 
                     <button onClick={() => login()} className="gap-3 mt-4 md:mt-6 max-w-full btn btn-primary btn-wide">
-                        <span className="size-4 iconify lucide--log-in" />
+                        <Icon icon="lucide--log-in" className="size-4" ariaLabel="Login" />
                         Continue with SSO
                     </button>
 

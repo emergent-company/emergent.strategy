@@ -1,4 +1,5 @@
 import React, { Suspense, useMemo, useState } from "react";
+import { Icon } from "@/components/ui/Icon";
 import { Link } from "react-router";
 
 import { PageTitle } from "@/components/PageTitle";
@@ -12,8 +13,8 @@ const fallbackTopbar = topbars[0].comp;
 const fallbackFooter = footers[0].comp;
 const SidebarLoader = () => {
     return (
-        <div className="h-full w-full p-3">
-            <div className="skeleton bg-base-200/20 h-full w-full" />
+        <div className="p-3 w-full h-full">
+            <div className="bg-base-200/20 w-full h-full skeleton" />
         </div>
     );
 };
@@ -55,7 +56,7 @@ const LayoutBuilderPage = () => {
                     className="hidden"
                     aria-label="Dense layout sidebar"
                 />
-                <div id="layout-sidebar-hover" className="bg-base-300 h-screen w-1"></div>
+                <div id="layout-sidebar-hover" className="bg-base-300 w-1 h-screen"></div>
                 <div id="layout-sidebar" data-theme={calculatedSidebarTheme} className={"overflow-hidden"}>
                     <Suspense fallback={<SidebarLoader />}>
                         <Sidebar />
@@ -63,16 +64,16 @@ const LayoutBuilderPage = () => {
                 </div>
                 <label htmlFor="layout-sidebar-toggle-trigger" id="layout-sidebar-backdrop"></label>
 
-                <div className="flex h-screen min-w-0 grow flex-col overflow-auto">
+                <div className="flex flex-col min-w-0 h-screen overflow-auto grow">
                     <div id="layout-topbar">
                         <Topbar />
                     </div>
                     <div id="layout-content">
                         <PageTitle title="Layout Builder" items={[{ label: "Layout Builder", active: true }]} />
-                        <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
-                            <div className="bg-base-100 card card-border h-fit">
-                                <div className="bg-base-200/30 rounded-box mx-3 mt-3 flex items-center gap-2 px-4 py-2 font-medium">
-                                    <span className="iconify lucide--layout-panel-left size-4"></span>
+                        <div className="gap-6 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-5 xl:grid-cols-4 mt-6">
+                            <div className="bg-base-100 card-border h-fit card">
+                                <div className="flex items-center gap-2 bg-base-200/30 mx-3 mt-3 px-4 py-2 rounded-box font-medium">
+                                    <Icon icon="lucide--layout-panel-left" className="size-4" />
                                     Sidebar
                                 </div>
                                 <div className="space-y-0.5 p-3">
@@ -83,7 +84,7 @@ const LayoutBuilderPage = () => {
                                             className={`hover:bg-base-200 rounded-box flex cursor-pointer items-center gap-2 px-2.5 py-1 ${selectedSidebar === sidebar.title ? "bg-base-200" : ""}`}>
                                             <div className="w-5">
                                                 {selectedSidebar == sidebar.title && (
-                                                    <span className="iconify lucide--check block"></span>
+                                                    <Icon icon="lucide--check" className="block" />
                                                 )}
                                             </div>
                                             <div>{sidebar.title}</div>
@@ -91,9 +92,9 @@ const LayoutBuilderPage = () => {
                                     ))}
                                 </div>
                             </div>
-                            <div className="card card-border bg-base-100 h-fit">
-                                <div className="bg-base-200/30 rounded-box mx-3 mt-3 flex items-center gap-2 px-4 py-2 font-medium">
-                                    <span className="iconify lucide--layout-panel-top size-4"></span>
+                            <div className="bg-base-100 card-border h-fit card">
+                                <div className="flex items-center gap-2 bg-base-200/30 mx-3 mt-3 px-4 py-2 rounded-box font-medium">
+                                    <Icon icon="lucide--layout-panel-top" className="size-4" />
                                     Topbar
                                 </div>
                                 <div className="space-y-0.5 p-3">
@@ -104,7 +105,7 @@ const LayoutBuilderPage = () => {
                                             className={`hover:bg-base-200 rounded-box flex cursor-pointer items-center gap-2 px-2.5 py-1 ${selectedTopbar === topbar.title ? "bg-base-200" : ""}`}>
                                             <div className="w-5">
                                                 {selectedTopbar == topbar.title && (
-                                                    <span className="iconify lucide--check block"></span>
+                                                    <Icon icon="lucide--check" className="block" />
                                                 )}
                                             </div>
                                             <div>{topbar.title}</div>
@@ -112,9 +113,9 @@ const LayoutBuilderPage = () => {
                                     ))}
                                 </div>
                             </div>
-                            <div className="card card-border bg-base-100 h-fit">
-                                <div className="bg-base-200/30 rounded-box mx-3 mt-3 flex items-center gap-2 px-4 py-2 font-medium">
-                                    <span className="iconify lucide--layout-panel-top size-4 rotate-180"></span>
+                            <div className="bg-base-100 card-border h-fit card">
+                                <div className="flex items-center gap-2 bg-base-200/30 mx-3 mt-3 px-4 py-2 rounded-box font-medium">
+                                    <Icon icon="lucide--layout-panel-top" className="size-4 rotate-180" />
                                     Footer
                                 </div>
                                 <div className="space-y-0.5 p-3">
@@ -125,7 +126,7 @@ const LayoutBuilderPage = () => {
                                             className={`hover:bg-base-200 rounded-box flex cursor-pointer items-center gap-2 px-2.5 py-1 ${selectedFooter === footer.title ? "bg-base-200" : ""}`}>
                                             <div className="w-5">
                                                 {selectedFooter == footer.title && (
-                                                    <span className="iconify lucide--check block"></span>
+                                                    <Icon icon="lucide--check" className="block" />
                                                 )}
                                             </div>
                                             <div>{footer.title}</div>
@@ -134,19 +135,19 @@ const LayoutBuilderPage = () => {
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-base-100 rounded-box border-base-200 mt-8 max-w-md border p-5 xl:mt-12 2xl:mt-16">
-                            <p className="text-info font-medium">Note:</p>
-                            <p className="text-base-content/80 mt-1 text-sm">
+                        <div className="bg-base-100 mt-8 2xl:mt-16 xl:mt-12 p-5 border border-base-200 rounded-box max-w-md">
+                            <p className="font-medium text-info">Note:</p>
+                            <p className="mt-1 text-sm text-base-content/80">
                                 All layout components, including the{" "}
-                                <Link className="link link-hover text-primary" to="/components/layouts/sidebar">
+                                <Link className="text-primary link link-hover" to="/components/layouts/sidebar">
                                     sidebar
                                 </Link>
                                 ,{" "}
-                                <Link className="link link-hover text-primary" to="/components/layouts/topbar">
+                                <Link className="text-primary link link-hover" to="/components/layouts/topbar">
                                     topbar
                                 </Link>{" "}
                                 and{" "}
-                                <Link className="link link-hover text-primary" to="/components/layouts/footer">
+                                <Link className="text-primary link link-hover" to="/components/layouts/footer">
                                     footer
                                 </Link>{" "}
                                 are available in the components section for easy access and customization.
@@ -158,11 +159,11 @@ const LayoutBuilderPage = () => {
                     </div>
                 </div>
             </div>
-            <div className="fixed end-16 bottom-16 z-100">
+            <div className="bottom-16 z-100 fixed end-16">
                 <label
                     htmlFor="layout-rightbar-drawer"
-                    className="btn btn-circle btn-lg btn-primary shadow-primary/20 drawer-button shadow-lg hover:shadow-xl">
-                    <span className="iconify lucide--palette size-6" />
+                    className="shadow-lg shadow-primary/20 hover:shadow-xl btn btn-circle btn-lg btn-primary drawer-button">
+                    <Icon icon="lucide--palette" className="size-6" />
                 </label>
                 <Rightbar />
             </div>

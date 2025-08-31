@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useOrganizations } from "@/hooks/use-organizations";
 import { useConfig } from "@/contexts/config";
+import { Icon } from "@/components/ui/Icon";
 
 export const TopbarProfileMenu: React.FC = () => {
     const { orgs, loading, error, createOrg } = useOrganizations();
@@ -51,19 +52,19 @@ export const TopbarProfileMenu: React.FC = () => {
                 <ul className="p-2 w-full menu">
                     <li>
                         <Link to="#">
-                            <span className="size-4 iconify lucide--user" />
+                            <Icon icon="lucide--user" className="size-4" />
                             <span>My Profile</span>
                         </Link>
                     </li>
                     <li>
                         <Link to="#">
-                            <span className="size-4 iconify lucide--settings" />
+                            <Icon icon="lucide--settings" className="size-4" />
                             <span>Settings</span>
                         </Link>
                     </li>
                     <li>
                         <Link to="#">
-                            <span className="size-4 iconify lucide--help-circle" />
+                            <Icon icon="lucide--help-circle" className="size-4" />
                             <span>Help</span>
                         </Link>
                     </li>
@@ -88,12 +89,12 @@ export const TopbarProfileMenu: React.FC = () => {
                             <li key={o.id}>
                                 <button className="flex justify-between items-center" onClick={() => onSelectOrg(o.id, o.name)} aria-current={o.id === activeOrgId ? "true" : undefined}>
                                     <div className="flex items-center gap-2">
-                                        <span className="size-4 iconify lucide--building-2" />
+                                        <Icon icon="lucide--building-2" className="size-4" />
                                         <span className="truncate" title={o.name}>
                                             {o.name}
                                         </span>
                                     </div>
-                                    {o.id === activeOrgId && <span className="size-4 iconify lucide--check" aria-hidden="true" />}
+                                    {o.id === activeOrgId && <Icon icon="lucide--check" className="size-4" aria-hidden />}
                                 </button>
                             </li>
                         ))}
@@ -105,13 +106,13 @@ export const TopbarProfileMenu: React.FC = () => {
                 <ul className="p-2 w-full menu">
                     <li>
                         <div>
-                            <span className="lucide--arrow-left-right size-4 iconify" />
+                            <Icon icon="lucide--arrow-left-right" className="size-4" />
                             <span>Switch Account</span>
                         </div>
                     </li>
                     <li>
                         <Link className="hover:bg-error/10 text-error" to="#">
-                            <span className="size-4 iconify lucide--log-out" />
+                            <Icon icon="lucide--log-out" className="size-4" />
                             <span>Logout</span>
                         </Link>
                     </li>
@@ -125,7 +126,7 @@ export const TopbarProfileMenu: React.FC = () => {
                     <h3 className="font-bold text-lg">Create Organization</h3>
                     {(error || createError) && (
                         <div className="mt-2 alert alert-error">
-                            <span className="size-4 iconify lucide--alert-triangle" />
+                            <Icon icon="lucide--alert-triangle" className="size-4" />
                             <span>{createError || error}</span>
                         </div>
                     )}
@@ -153,7 +154,7 @@ export const TopbarProfileMenu: React.FC = () => {
             {toastMsg && (
                 <div className="toast-top toast toast-end">
                     <div className="alert alert-success">
-                        <span className="size-4 iconify lucide--check-circle-2" />
+                        <Icon icon="lucide--check-circle-2" className="size-4" />
                         <span>{toastMsg}</span>
                     </div>
                 </div>

@@ -1,50 +1,52 @@
+import { Icon } from "@/components/ui/Icon";
+
 export const StorageActivity = () => {
     return (
-        <ul className="timeline timeline-vertical timeline-snap-icon timeline-hr-sm -ms-[100%] ps-10">
+        <ul className="-ms-[100%] ps-10 timeline-snap-icon timeline timeline-vertical timeline-hr-sm">
             <li>
                 <div className="timeline-middle">
-                    <div className="bg-primary/10 text-primary flex items-center rounded-full p-2">
-                        <span className="iconify lucide--pencil size-4" />
+                    <div className="flex items-center bg-primary/10 p-2 rounded-full text-primary">
+                        <Icon icon="lucide--pencil" className="size-4" />
                     </div>
                 </div>
-                <div className="timeline-end my-2.5 w-full px-4">
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Olivia Duncan</span>
-                        <span className="text-base-content/60 text-xs">Just Now</span>
+                <div className="my-2.5 px-4 w-full timeline-end">
+                    <div className="flex justify-between items-center">
+                        <span className="font-medium text-sm">Olivia Duncan</span>
+                        <span className="text-xs text-base-content/60">Just Now</span>
                     </div>
-                    <p className="text-base-content/70 mt-0.5 text-xs">Edited package.json in e-commerce</p>
+                    <p className="mt-0.5 text-xs text-base-content/70">Edited package.json in e-commerce</p>
                 </div>
                 <hr />
             </li>
             <li>
                 <hr />
                 <div className="timeline-middle">
-                    <div className="bg-primary/10 text-primary flex items-center rounded-full p-2">
-                        <span className="iconify lucide--arrow-up-from-line size-4" />
+                    <div className="flex items-center bg-primary/10 p-2 rounded-full text-primary">
+                        <Icon icon="lucide--arrow-up-from-line" className="size-4" />
                     </div>
                 </div>
-                <div className="timeline-end my-2.5 w-full px-4">
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Tillie Frank</span>
-                        <span className="text-base-content/60 text-xs">22 hours</span>
+                <div className="my-2.5 px-4 w-full timeline-end">
+                    <div className="flex justify-between items-center">
+                        <span className="font-medium text-sm">Tillie Frank</span>
+                        <span className="text-xs text-base-content/60">22 hours</span>
                     </div>
-                    <p className="text-base-content/70 mt-0.5 text-xs">Uploaded app.tsx file in react directory</p>
+                    <p className="mt-0.5 text-xs text-base-content/70">Uploaded app.tsx file in react directory</p>
                 </div>
                 <hr />
             </li>
             <li>
                 <hr />
                 <div className="timeline-middle">
-                    <div className="bg-error/10 text-error flex items-center rounded-full p-2">
-                        <span className="iconify lucide--trash size-4" />
+                    <div className="flex items-center bg-error/10 p-2 rounded-full text-error">
+                        <Icon icon="lucide--trash" className="size-4" />
                     </div>
                 </div>
-                <div className="timeline-end my-2.5 w-full px-4">
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Zaid Pope</span>
-                        <span className="text-base-content/60 text-xs">3 days</span>
+                <div className="my-2.5 px-4 w-full timeline-end">
+                    <div className="flex justify-between items-center">
+                        <span className="font-medium text-sm">Zaid Pope</span>
+                        <span className="text-xs text-base-content/60">3 days</span>
                     </div>
-                    <p className="text-base-content/70 mt-0.5 text-xs">
+                    <p className="mt-0.5 text-xs text-base-content/70">
                         Removed style.css &amp; images folder from root
                     </p>
                 </div>
@@ -53,43 +55,43 @@ export const StorageActivity = () => {
             <li>
                 <hr />
                 <div className="timeline-middle">
-                    <div className="bg-primary/10 text-primary flex items-center rounded-full p-2">
-                        <span className="iconify lucide--folder-input size-4" />
+                    <div className="flex items-center bg-primary/10 p-2 rounded-full text-primary">
+                        <Icon icon="lucide--folder-input" className="size-4" />
                     </div>
                 </div>
-                <div className="timeline-end my-2.5 w-full px-4">
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Grover Russo</span>
-                        <span className="text-base-content/60 text-xs">Week ago</span>
+                <div className="my-2.5 px-4 w-full timeline-end">
+                    <div className="flex justify-between items-center">
+                        <span className="font-medium text-sm">Grover Russo</span>
+                        <span className="text-xs text-base-content/60">Week ago</span>
                     </div>
-                    <p className="text-base-content/70 mt-0.5 text-xs">Moved folders to inner directory</p>
-                </div>
-                <hr />
-            </li>
-            <li>
-                <hr />
-                <div className="timeline-middle">
-                    <div className="bg-success/10 text-success flex items-center rounded-full p-2">
-                        <span className="iconify lucide--folder-plus size-4" />
-                    </div>
-                </div>
-                <div className="timeline-end my-2.5 w-full px-4">
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Qasim Cotton</span>
-                        <span className="text-base-content/60 text-xs">This month</span>
-                    </div>
-                    <p className="text-base-content/70 mt-0.5 text-xs">Created the root project</p>
+                    <p className="mt-0.5 text-xs text-base-content/70">Moved folders to inner directory</p>
                 </div>
                 <hr />
             </li>
             <li>
                 <hr />
                 <div className="timeline-middle">
-                    <div className="bg-base-200 flex items-center rounded-full p-2">
-                        <span className="iconify lucide--more-horizontal size-4" />
+                    <div className="flex items-center bg-success/10 p-2 rounded-full text-success">
+                        <Icon icon="lucide--folder-plus" className="size-4" />
                     </div>
                 </div>
-                <div className="timeline-end mx-5 my-2">
+                <div className="my-2.5 px-4 w-full timeline-end">
+                    <div className="flex justify-between items-center">
+                        <span className="font-medium text-sm">Qasim Cotton</span>
+                        <span className="text-xs text-base-content/60">This month</span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-base-content/70">Created the root project</p>
+                </div>
+                <hr />
+            </li>
+            <li>
+                <hr />
+                <div className="timeline-middle">
+                    <div className="flex items-center bg-base-200 p-2 rounded-full">
+                        <Icon icon="lucide--more-horizontal" className="size-4" />
+                    </div>
+                </div>
+                <div className="mx-5 my-2 timeline-end">
                     <button className="btn btn-sm btn-soft btn-primary">View Full Activity</button>
                 </div>
             </li>

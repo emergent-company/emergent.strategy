@@ -1,11 +1,13 @@
+import { Icon } from "@/components/ui/Icon";
+
 export const BrandingFooterDemo = () => {
     return (
-        <div className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3">
-            <span className="text-base-content/80 text-sm">
+        <div className="flex flex-wrap justify-between items-center gap-3 px-4 py-3 w-full">
+            <span className="text-sm text-base-content/80">
                 © {new Date().getFullYear()} Nexus. All rights reserved
             </span>
-            <span className="text-base-content/80 flex items-center gap-1 text-sm">
-                Built with <span className="iconify lucide--heart text-red-600"></span> daisyUI
+            <span className="flex items-center gap-1 text-sm text-base-content/80">
+                Built with <Icon icon="lucide--heart" className="text-red-600" /> daisyUI
             </span>
         </div>
     );

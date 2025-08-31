@@ -1,3 +1,4 @@
+import { Icon } from "@/components/ui/Icon";
 import "swiper/css";
 import { Autoplay, Navigation, Pagination } from "swiper/modules";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -23,16 +24,16 @@ const testimonials = [
 
 export const Testimonial = () => {
     return (
-        <section id="testimonial" className="relative container py-8 md:py-12 xl:py-16 2xl:py-24">
-            <div className="absolute inset-0 bg-[url('/images/landing/testimonial-background.svg')] bg-cover bg-center bg-no-repeat opacity-8 dark:opacity-6"></div>
+        <section id="testimonial" className="relative py-8 md:py-12 2xl:py-24 xl:py-16 container">
+            <div className="absolute inset-0 bg-[url('/images/landing/testimonial-background.svg')] bg-cover bg-no-repeat bg-center opacity-8 dark:opacity-6"></div>
 
             <div className="relative">
                 <div className="text-center">
-                    <div className="rounded-box inline-flex items-center border border-orange-500/10 bg-orange-500/5 p-2">
-                        <span className="iconify lucide--sparkles size-5 text-orange-600" />
+                    <div className="inline-flex items-center bg-orange-500/5 p-2 border border-orange-500/10 rounded-box">
+                        <Icon icon="lucide--sparkles" className="size-5 text-orange-600" aria-hidden />
                     </div>
-                    <h2 className="mt-4 text-2xl font-semibold sm:text-3xl">Voices That Matter</h2>
-                    <p className="text-base-content/70 mt-3 inline-block max-w-lg max-sm:text-sm">
+                    <h2 className="mt-4 font-semibold text-2xl sm:text-3xl">Voices That Matter</h2>
+                    <p className="inline-block mt-3 max-w-lg max-sm:text-sm text-base-content/70">
                         Hear directly from users who’ve successfully transformed their workflow with our dashboard
                         solution.
                     </p>
@@ -60,16 +61,16 @@ export const Testimonial = () => {
                         {testimonials.map((testimonial) => (
                             <SwiperSlide
                                 key={testimonial.id}
-                                className="flex w-full flex-col items-center justify-center">
+                                className="flex flex-col justify-center items-center w-full">
                                 <div className="text-center">
                                     <div className="avatar">
-                                        <div className="mask mask-squircle bg-base-200 w-24">
+                                        <div className="bg-base-200 w-24 mask mask-squircle">
                                             <img src={testimonial.image} alt="testimonial" />
                                         </div>
                                     </div>
-                                    <p className="mt-6 text-xl font-medium">{testimonial.name}</p>
-                                    <p className="text-base-content/80 text-sm">{testimonial.role}</p>
-                                    <div className="mt-6 flex items-center justify-center">
+                                    <p className="mt-6 font-medium text-xl">{testimonial.name}</p>
+                                    <p className="text-sm text-base-content/80">{testimonial.role}</p>
+                                    <div className="flex justify-center items-center mt-6">
                                         <svg
                                             xmlns="http://www.w3.org/2000/svg"
                                             width="24"
@@ -121,21 +122,21 @@ export const Testimonial = () => {
                                                 d="m12 17.275l-4.15 2.5q-.275.175-.575.15t-.525-.2t-.35-.437t-.05-.588l1.1-4.725L3.775 10.8q-.25-.225-.312-.513t.037-.562t.3-.45t.55-.225l4.85-.425l1.875-4.45q.125-.3.388-.45t.537-.15t.537.15t.388.45l1.875 4.45l4.85.425q.35.05.55.225t.3.45t.038.563t-.313.512l-3.675 3.175l1.1 4.725q.075.325-.05.588t-.35.437t-.525.2t-.575-.15z"></path>
                                         </svg>
                                     </div>
-                                    <p className="mt-6 inline-block max-w-[600px]">{testimonial.comment}</p>
+                                    <p className="inline-block mt-6 max-w-[600px]">{testimonial.comment}</p>
                                 </div>
                             </SwiperSlide>
                         ))}
                     </Swiper>
-                    <div className="absolute top-1/2 right-5 left-5 z-1 flex -translate-y-1/2 transform justify-between">
+                    <div className="top-1/2 right-5 left-5 z-1 absolute flex justify-between -translate-y-1/2 transform">
                         <button
-                            className="btn btn-circle testimonial-swiper-button-prev cursor-pointer"
+                            className="cursor-pointer btn btn-circle testimonial-swiper-button-prev"
                             aria-label="prev">
-                            <span className="iconify lucide--chevron-left size-4" />
+                            <Icon icon="lucide--chevron-left" className="size-4" aria-hidden />
                         </button>
                         <button
-                            className="btn btn-circle testimonial-swiper-button-next cursor-pointer"
+                            className="cursor-pointer btn btn-circle testimonial-swiper-button-next"
                             aria-label="next">
-                            <span className="iconify lucide--chevron-right size-4" />
+                            <Icon icon="lucide--chevron-right" className="size-4" aria-hidden />
                         </button>
                     </div>
                 </div>

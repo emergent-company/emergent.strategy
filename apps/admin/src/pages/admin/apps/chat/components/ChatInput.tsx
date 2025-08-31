@@ -1,4 +1,5 @@
 import { FormEvent } from "react";
+import { Icon } from "@/components/ui/Icon";
 
 export type IChatInput = {
     onSendMessage(message: string): void;
@@ -14,9 +15,9 @@ export const ChatInput = ({ onSendMessage }: IChatInput) => {
     };
 
     return (
-        <form className="bg-base-200 flex items-center gap-3 p-4" onSubmit={onSubmit}>
+        <form className="flex items-center gap-3 bg-base-200 p-4" onSubmit={onSubmit}>
             <button className="btn btn-ghost btn-sm btn-circle" aria-label="Attachment" type="button">
-                <span className="iconify lucide--paperclip size-4.5" />
+                <Icon icon="lucide--paperclip" className="size-4.5" />
             </button>
             <input
                 className="input validator grow"
@@ -27,7 +28,7 @@ export const ChatInput = ({ onSendMessage }: IChatInput) => {
                 placeholder="Type a message..."
             />
             <button className="btn btn-primary btn-circle btn-sm" type="submit" aria-label="Send message">
-                <span className="iconify lucide--send-horizonal size-4.5" />
+                <Icon icon="lucide--send-horizonal" className="size-4.5" />
             </button>
         </form>
     );

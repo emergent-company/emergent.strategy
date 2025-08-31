@@ -1,4 +1,5 @@
 import { useConfig } from "@/contexts/config";
+import { Icon } from "@/components/ui/Icon";
 
 export const RightbarSidebarThemeSelector: React.FC = () => {
     const { changeSidebarTheme } = useConfig();
@@ -15,14 +16,14 @@ export const RightbarSidebarThemeSelector: React.FC = () => {
                     className="inline-flex justify-center items-center gap-2 hover:bg-base-200 group-data-[sidebar-theme=light]/html:bg-base-200 p-2 border border-base-300 rounded-box cursor-pointer"
                     onClick={() => changeSidebarTheme("light")}
                 >
-                    <span className="size-4.5 iconify lucide--sun" />
+                    <Icon icon="lucide--sun" className="size-4.5" ariaLabel="Light sidebar theme" />
                     Light
                 </div>
                 <div
                     className="inline-flex justify-center items-center gap-2 hover:bg-base-200 group-data-[sidebar-theme=dark]/html:bg-base-200 p-2 border border-base-300 rounded-box cursor-pointer"
                     onClick={() => changeSidebarTheme("dark")}
                 >
-                    <span className="size-4.5 iconify lucide--moon" />
+                    <Icon icon="lucide--moon" className="size-4.5" ariaLabel="Dark sidebar theme" />
                     Dark
                 </div>
             </div>

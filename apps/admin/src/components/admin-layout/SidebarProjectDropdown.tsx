@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Icon } from "@/components/ui/Icon";
 
 import { useConfig } from "@/contexts/config";
 import { useProjects } from "@/hooks/use-projects";
@@ -29,7 +30,7 @@ export const SidebarProjectDropdown = () => {
                                 {config.activeProjectId ? "Active" : "No project selected"}
                             </p>
                         </div>
-                        <span className="text-base-content/50 iconify lucide--chevrons-up-down"></span>
+                        <Icon icon="lucide--chevrons-up-down" className="text-base-content/50" />
                     </div>
                     <div
                         tabIndex={0}
@@ -72,9 +73,7 @@ export const SidebarProjectDropdown = () => {
                                                     )}
                                                 </div>
                                             </div>
-                                            {p.id === config.activeProjectId && (
-                                                <span className="size-4 iconify lucide--check" aria-hidden="true" />
-                                            )}
+                                            {p.id === config.activeProjectId && <Icon icon="lucide--check" className="size-4" />}
                                         </button>
                                     </li>
                                 ))}
@@ -135,7 +134,7 @@ const CreateProjectModal = ({ onCreate, onCreated, errorMsg }: CreateProjectModa
                     <h3 className="font-bold text-lg">Create Project</h3>
                     {(errorMsg || localError) && (
                         <div className="mt-2 alert alert-error">
-                            <span className="size-4 iconify lucide--alert-triangle" />
+                            <Icon icon="lucide--alert-triangle" className="size-4" />
                             <span>{localError || errorMsg}</span>
                         </div>
                     )}
@@ -167,7 +166,7 @@ const CreateProjectModal = ({ onCreate, onCreated, errorMsg }: CreateProjectModa
             {toastMsg && (
                 <div className="toast-top toast toast-end">
                     <div className="alert alert-success">
-                        <span className="size-4 iconify lucide--check-circle-2" />
+                        <Icon icon="lucide--check-circle-2" className="size-4" />
                         <span>{toastMsg}</span>
                     </div>
                 </div>

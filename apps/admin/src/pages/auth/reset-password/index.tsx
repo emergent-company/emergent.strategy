@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { Logo } from "@/components/Logo";
 import { MetaData } from "@/components/MetaData";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Icon } from "@/components/ui/Icon";
 
 const ResetPasswordPage = () => {
     const [showPassword, setShowPassword] = useState(false);
@@ -26,7 +27,7 @@ const ResetPasswordPage = () => {
                     <fieldset className="fieldset">
                         <legend className="fieldset-legend">Password</legend>
                         <label className="focus:outline-0 w-full input">
-                            <span className="size-5 text-base-content/80 iconify lucide--key-round"></span>
+                            <Icon icon="lucide--key-round" className="size-5 text-base-content/80" />
                             <input
                                 className="focus:outline-0 grow"
                                 placeholder="Password"
@@ -37,9 +38,9 @@ const ResetPasswordPage = () => {
                                 onClick={() => setShowPassword(!showPassword)}
                                 aria-label="Password">
                                 {showPassword ? (
-                                    <span className="size-4 iconify lucide--eye-off" />
+                                    <Icon icon="lucide--eye-off" className="size-4" />
                                 ) : (
-                                    <span className="size-4 iconify lucide--eye" />
+                                    <Icon icon="lucide--eye" className="size-4" />
                                 )}
                             </button>
                         </label>
@@ -47,7 +48,7 @@ const ResetPasswordPage = () => {
                     <fieldset className="fieldset">
                         <legend className="fieldset-legend">Confirm Password</legend>
                         <label className="focus:outline-0 w-full input">
-                            <span className="size-5 text-base-content/80 iconify lucide--key-round"></span>
+                            <Icon icon="lucide--key-round" className="size-5 text-base-content/80" />
                             <input
                                 className="focus:outline-0 grow"
                                 placeholder="Confirm Password"
@@ -58,9 +59,9 @@ const ResetPasswordPage = () => {
                                 onClick={() => setShowPassword(!showPassword)}
                                 aria-label="Password">
                                 {showPassword ? (
-                                    <span className="size-4 iconify lucide--eye-off" />
+                                    <Icon icon="lucide--eye-off" className="size-4" />
                                 ) : (
-                                    <span className="size-4 iconify lucide--eye" />
+                                    <Icon icon="lucide--eye" className="size-4" />
                                 )}
                             </button>
                         </label>
@@ -82,7 +83,7 @@ const ResetPasswordPage = () => {
                     </div>
 
                     <Link to="/admin" className="gap-3 mt-4 md:mt-6 max-w-full btn btn-primary btn-wide">
-                        <span className="size-4 iconify lucide--check" />
+                        <Icon icon="lucide--check" className="size-4" />
                         Change Password
                     </Link>
 

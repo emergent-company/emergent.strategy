@@ -1,3 +1,4 @@
+import { Icon } from "@/components/ui/Icon";
 import { FileTableRow, IFileTableRow } from "./FileTableRow";
 
 const files: IFileTableRow[] = [
@@ -16,8 +17,8 @@ const files: IFileTableRow[] = [
         date: "25 Dec 2024",
         owner: "Company",
         sharedWith: (
-            <span className="text-error flex items-center gap-2">
-                <span className="iconify lucide--shield size-4" />
+            <span className="flex items-center gap-2 text-error">
+                <Icon icon="lucide--shield" className="size-4" />
                 Private
             </span>
         ),
@@ -37,8 +38,8 @@ const files: IFileTableRow[] = [
         date: "19 Dec 2024",
         owner: "Me",
         sharedWith: (
-            <span className="text-success flex items-center gap-2">
-                <span className="iconify lucide--globe size-4" />
+            <span className="flex items-center gap-2 text-success">
+                <Icon icon="lucide--globe" className="size-4" />
                 Public
             </span>
         ),
@@ -58,8 +59,8 @@ const files: IFileTableRow[] = [
         date: "12 Nov 2024",
         owner: "Withden",
         sharedWith: (
-            <span className="text-error flex items-center gap-2">
-                <span className="iconify lucide--shield size-4" />
+            <span className="flex items-center gap-2 text-error">
+                <Icon icon="lucide--shield" className="size-4" />
                 Private
             </span>
         ),
@@ -68,68 +69,68 @@ const files: IFileTableRow[] = [
 
 export const FileTable = () => {
     return (
-        <div className="card card-border bg-base-100">
-            <div className="card-body p-0">
-                <div className="flex items-center justify-between gap-3 px-5 pt-5">
+        <div className="bg-base-100 card-border card">
+            <div className="p-0 card-body">
+                <div className="flex justify-between items-center gap-3 px-5 pt-5">
                     <div className="inline-flex items-center gap-3">
-                        <div className="dropdown dropdown-bottom dropdown-start">
+                        <div className="dropdown-bottom dropdown dropdown-start">
                             <div
                                 tabIndex={0}
                                 role="button"
-                                className="btn btn-ghost btn-square border-base-300 btn-sm"
+                                className="border-base-300 btn btn-ghost btn-square btn-sm"
                                 aria-label="Add">
-                                <span className="iconify lucide--plus size-4" />
+                                <Icon icon="lucide--plus" className="size-4" />
                             </div>
-                            <div tabIndex={0} className="dropdown-content bg-base-100 rounded-box mt-2 w-52 shadow">
-                                <ul className="menu w-full p-1.5">
+                            <div tabIndex={0} className="bg-base-100 shadow mt-2 rounded-box w-52 dropdown-content">
+                                <ul className="p-1.5 w-full menu">
                                     <li>
                                         <div>
-                                            <span className="iconify lucide--folder size-4" />
+                                            <Icon icon="lucide--folder" className="size-4" />
                                             New Folder
                                         </div>
                                     </li>
                                 </ul>
                                 <hr className="border-base-300" />
-                                <ul className="menu w-full p-1.5">
+                                <ul className="p-1.5 w-full menu">
                                     <li>
                                         <div>
-                                            <span className="iconify lucide--folder-up size-4" />
+                                            <Icon icon="lucide--folder-up" className="size-4" />
                                             Upload Folder
                                         </div>
                                     </li>
                                     <li>
                                         <div>
-                                            <span className="iconify lucide--file-up size-4" />
+                                            <Icon icon="lucide--file-up" className="size-4" />
                                             Upload File
                                         </div>
                                     </li>
                                 </ul>
                                 <hr className="border-base-300" />
-                                <ul className="menu w-full p-1.5">
+                                <ul className="p-1.5 w-full menu">
                                     <li>
                                         <div>
-                                            <span className="iconify lucide--file-text size-4" />
+                                            <Icon icon="lucide--file-text" className="size-4" />
                                             Create Document
                                         </div>
                                     </li>
                                     <li>
                                         <div>
-                                            <span className="iconify lucide--file-spreadsheet size-4" />
+                                            <Icon icon="lucide--file-spreadsheet" className="size-4" />
                                             Create Sheet
                                         </div>
                                     </li>
                                 </ul>
                             </div>
                         </div>
-                        <button className="btn-outline border-base-300 btn btn-sm hidden sm:flex">
-                            <span className="iconify lucide--folder-git-2 size-4" />
+                        <button className="hidden sm:flex border-base-300 btn-outline btn btn-sm">
+                            <Icon icon="lucide--folder-git-2" className="size-4" />
                             <span>Organize</span>
                         </button>
                     </div>
 
                     <div className="inline-flex items-center gap-3">
                         <label className="input input-sm">
-                            <span className="iconify lucide--search text-base-content/80 size-4" />
+                            <Icon icon="lucide--search" className="size-4 text-base-content/80" />
                             <input
                                 type="search"
                                 className="grow"
@@ -138,7 +139,7 @@ export const FileTable = () => {
                             />
                         </label>
                         <div className="hidden sm:block">
-                            <select className="select select-sm w-32" defaultValue="" aria-label="File type">
+                            <select className="w-32 select-sm select" defaultValue="" aria-label="File type">
                                 <option value="" disabled>
                                     File type
                                 </option>
@@ -151,16 +152,16 @@ export const FileTable = () => {
                         </div>
                         <div className="inline-flex items-center gap-1">
                             <button className="btn btn-sm btn-ghost btn-square" aria-label="Grid">
-                                <span className="iconify lucide--grid-2x2 size-4" />
+                                <Icon icon="lucide--grid-2x2" className="size-4" />
                             </button>
                             <button className="btn btn-sm btn-soft btn-square" aria-label="List">
-                                <span className="iconify lucide--list size-4" />
+                                <Icon icon="lucide--list" className="size-4" />
                             </button>
                         </div>
                     </div>
                 </div>
                 <div className="overflow-auto">
-                    <table className="rounded-box mt-2 table">
+                    <table className="table mt-2 rounded-box">
                         <thead>
                             <tr>
                                 <th>

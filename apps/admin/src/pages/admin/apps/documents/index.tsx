@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Icon } from "@/components/ui/Icon";
 import { useAuth } from "@/contexts/auth";
 import { useApi } from "@/hooks/use-api";
 import { PageTitle } from "@/components/PageTitle";
@@ -171,7 +172,7 @@ export default function DocumentsPage() {
             >
                 <div className="flex justify-between items-center gap-4">
                     <div className="flex items-center gap-3">
-                        <span className="size-6 iconify lucide--upload-cloud" aria-hidden="true" />
+                        <Icon icon="lucide--upload-cloud" className="size-6" aria-hidden />
                         <div>
                             <div className="font-medium">Click to upload or drag & drop</div>
                             <div className="opacity-70 text-sm">
@@ -204,13 +205,13 @@ export default function DocumentsPage() {
                 </div>
                 {uploadError && (
                     <div role="alert" className="mt-4 alert alert-error">
-                        <span className="size-5 iconify lucide--alert-circle" />
+                        <Icon icon="lucide--alert-circle" className="size-5" aria-hidden />
                         <span>{uploadError}</span>
                     </div>
                 )}
                 {uploadSuccess && (
                     <div role="alert" className="mt-4 alert alert-success">
-                        <span className="size-5 iconify lucide--check-circle" />
+                        <Icon icon="lucide--check-circle" className="size-5" aria-hidden />
                         <span>{uploadSuccess}</span>
                     </div>
                 )}
@@ -227,7 +228,7 @@ export default function DocumentsPage() {
                     )}
                     {error && (
                         <div role="alert" className="alert alert-error">
-                            <span className="size-5 iconify lucide--alert-circle" />
+                            <Icon icon="lucide--alert-circle" className="size-5" aria-hidden />
                             <span>{error}</span>
                         </div>
                     )}

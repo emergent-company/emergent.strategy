@@ -1,106 +1,107 @@
 import { MetaData } from "@/components/MetaData";
+import { Icon } from "@/components/ui/Icon";
 
 const AiHomePage = () => {
     return (
         <>
             <MetaData title="Gen AI Home" />
 
-            <div className="flex flex-col items-center justify-center md:mt-16 lg:mt-24 xl:mt-32">
+            <div className="flex flex-col justify-center items-center md:mt-16 lg:mt-24 xl:mt-32">
                 <div className="w-full sm:max-w-4xl">
-                    <div className="from-base-content to-primary inline-block bg-gradient-to-tr from-40% bg-clip-text text-2xl font-semibold tracking-tight text-transparent sm:text-4xl">
+                    <div className="inline-block bg-clip-text bg-gradient-to-tr from-40% from-base-content to-primary font-semibold text-transparent text-2xl sm:text-4xl tracking-tight">
                         <p>Hi there, Denish</p>
                         <p className="mt-1">How can I assist you today?</p>
                     </div>
-                    <div className="mt-6 grid gap-6 md:grid-cols-3">
-                        <div className="card group bg-base-100 card-border cursor-pointer transition-all">
+                    <div className="gap-6 grid md:grid-cols-3 mt-6">
+                        <div className="group bg-base-100 card-border transition-all cursor-pointer card">
                             <div className="card-body">
-                                <div className="bg-primary text-primary-content rounded-box w-fit p-2">
-                                    <span className="iconify lucide--sparkles block size-4"></span>
+                                <div className="bg-primary p-2 rounded-box w-fit text-primary-content">
+                                    <Icon icon="lucide--sparkles" className="block size-4" ariaLabel="Sparkles" />
                                 </div>
                                 <p className="mt-3 font-medium">Blog Post Ideas</p>
-                                <p className="text-base-content/80 mt-1 line-clamp-2 text-sm text-ellipsis">
+                                <p className="mt-1 text-sm text-base-content/80 text-ellipsis line-clamp-2">
                                     Generate compelling blog topics that captivate your audience and enhance SEO.
                                 </p>
-                                <div className="text-base-content/60 group-hover:text-base-content mt-3 flex items-center gap-1.5 transition-all">
+                                <div className="flex items-center gap-1.5 mt-3 text-base-content/60 group-hover:text-base-content transition-all">
                                     <span className="text-sm">Explore Ideas</span>
-                                    <span className="iconify lucide--chevron-right size-3.5"></span>
+                                    <Icon icon="lucide--chevron-right" className="size-3.5" ariaLabel="Go" />
                                 </div>
                             </div>
                         </div>
 
-                        <div className="card group bg-base-100 card-border cursor-pointer transition-all">
+                        <div className="group bg-base-100 card-border transition-all cursor-pointer card">
                             <div className="card-body">
-                                <div className="bg-secondary text-secondary-content rounded-box w-fit p-2">
-                                    <span className="iconify lucide--mail block size-4"></span>
+                                <div className="bg-secondary p-2 rounded-box w-fit text-secondary-content">
+                                    <Icon icon="lucide--mail" className="block size-4" ariaLabel="Email" />
                                 </div>
                                 <p className="mt-3 font-medium">Email Campaigns</p>
-                                <p className="text-base-content/80 mt-1 line-clamp-2 text-sm text-ellipsis">
+                                <p className="mt-1 text-sm text-base-content/80 text-ellipsis line-clamp-2">
                                     Create high-converting email copy that boosts engagement and builds lasting
                                     connections.
                                 </p>
-                                <div className="text-base-content/60 group-hover:text-base-content mt-3 flex items-center gap-1.5 transition-all">
+                                <div className="flex items-center gap-1.5 mt-3 text-base-content/60 group-hover:text-base-content transition-all">
                                     <span className="text-sm">Start Campaign</span>
-                                    <span className="iconify lucide--chevron-right size-3.5"></span>
+                                    <Icon icon="lucide--chevron-right" className="size-3.5" ariaLabel="Go" />
                                 </div>
                             </div>
                         </div>
 
-                        <div className="card group bg-base-100 card-border cursor-pointer transition-all">
+                        <div className="group bg-base-100 card-border transition-all cursor-pointer card">
                             <div className="card-body">
-                                <div className="bg-success text-success-content rounded-box w-fit p-2">
-                                    <span className="iconify lucide--text block size-4"></span>
+                                <div className="bg-success p-2 rounded-box w-fit text-success-content">
+                                    <Icon icon="lucide--text" className="block size-4" ariaLabel="Text" />
                                 </div>
                                 <p className="mt-3 font-medium">Social Media Captions</p>
-                                <p className="text-base-content/80 mt-1 line-clamp-2 text-sm text-ellipsis">
+                                <p className="mt-1 text-sm text-base-content/80 text-ellipsis line-clamp-2">
                                     Generate catchy captions designed to maximize engagement across social platforms.
                                 </p>
-                                <div className="text-base-content/60 group-hover:text-base-content mt-3 flex items-center gap-1.5 transition-all">
+                                <div className="flex items-center gap-1.5 mt-3 text-base-content/60 group-hover:text-base-content transition-all">
                                     <span className="text-sm">Generate Captions</span>
-                                    <span className="iconify lucide--chevron-right size-3.5"></span>
+                                    <Icon icon="lucide--chevron-right" className="size-3.5" ariaLabel="Go" />
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div className="card bg-base-100 card-border mt-6">
-                        <div className="card-body p-3">
+                    <div className="bg-base-100 mt-6 card-border card">
+                        <div className="p-3 card-body">
                             <textarea
-                                className="textarea m-0 h-24 w-full resize-none border-0 p-1 text-base focus:outline-none"
+                                className="m-0 p-1 border-0 focus:outline-none w-full h-24 text-base resize-none textarea"
                                 placeholder="Let us know what you need..."
                             />
-                            <div className="mt-2 flex items-end justify-between">
+                            <div className="flex justify-between items-end mt-2">
                                 <div className="inline-flex items-center gap-0.5">
                                     <button className="btn btn-sm btn-circle btn-ghost">
-                                        <span className="iconify lucide--mic text-base-content/80 size-4.5"></span>
+                                        <Icon icon="lucide--mic" className="size-4.5 text-base-content/80" ariaLabel="Record" />
                                     </button>
                                     <button className="btn btn-sm btn-circle btn-ghost">
-                                        <span className="iconify lucide--image-plus text-base-content/80 size-4.5"></span>
+                                        <Icon icon="lucide--image-plus" className="size-4.5 text-base-content/80" ariaLabel="Add image" />
                                     </button>
                                     <button className="btn btn-sm btn-circle btn-ghost">
-                                        <span className="iconify lucide--paperclip text-base-content/80 size-4.5"></span>
+                                        <Icon icon="lucide--paperclip" className="size-4.5 text-base-content/80" ariaLabel="Attach" />
                                     </button>
                                 </div>
-                                <div className="text-base-content/60 flex items-center text-xs font-medium max-sm:hidden">
-                                    Usage Limit: <span className="text-error ms-1">Active</span>
+                                <div className="max-sm:hidden flex items-center font-medium text-xs text-base-content/60">
+                                    Usage Limit: <span className="ms-1 text-error">Active</span>
                                     <div className="tooltip">
-                                        <div className="tooltip-content bg-base-100 text-base-content p-3 text-start font-normal shadow">
+                                        <div className="bg-base-100 shadow p-3 font-normal text-base-content text-start tooltip-content">
                                             <p className="font-semibold">Usage Summary:</p>
                                             <p className="mt-2">Today: 47 tokens</p>
                                             <p className="mt-0.5">Total: 158 tokens</p>
                                         </div>
-                                        <span className="iconify lucide--help-circle ms-1 block size-3"></span>
+                                        <Icon icon="lucide--help-circle" className="block ms-1 size-3" ariaLabel="Help" />
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <button className="btn btn-sm btn-outline border-base-300 max-sm:btn-circle rounded-full">
-                                        <span className="iconify lucide--globe text-base-content/80 size-4"></span>
+                                    <button className="border-base-300 rounded-full btn-outline btn btn-sm max-sm:btn-circle">
+                                        <Icon icon="lucide--globe" className="size-4 text-base-content/80" ariaLabel="Public" />
                                         <p className="max-sm:hidden">Search</p>
                                     </button>
-                                    <button className="btn btn-sm btn-outline border-base-300 max-sm:btn-circle rounded-full">
-                                        <span className="iconify lucide--brain-cog text-base-content/80 size-4"></span>
+                                    <button className="border-base-300 rounded-full btn-outline btn btn-sm max-sm:btn-circle">
+                                        <Icon icon="lucide--brain-cog" className="size-4 text-base-content/80" ariaLabel="AI" />
                                         <p className="max-sm:hidden">Brainstorm</p>
                                     </button>
                                     <button className="btn btn-primary btn-circle btn-sm">
-                                        <span className="iconify lucide--arrow-right size-4"></span>
+                                        <Icon icon="lucide--arrow-right" className="size-4" ariaLabel="Next" />
                                     </button>
                                 </div>
                             </div>

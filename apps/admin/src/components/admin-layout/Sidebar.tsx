@@ -6,6 +6,7 @@ import SimpleBar from "simplebar-react";
 import "simplebar-react/dist/simplebar.min.css";
 
 import { Logo } from "@/components/Logo";
+import { Icon } from "@/components/ui/Icon";
 import { useConfig } from "@/contexts/config";
 
 import { ISidebarMenuItem, SidebarMenuItem } from "./SidebarMenuItem";
@@ -85,8 +86,8 @@ export const Sidebar = ({ menuItems }: { menuItems: ISidebarMenuItem[] }) => {
                         htmlFor="layout-sidebar-hover-trigger"
                         title="Toggle sidebar hover"
                         className="max-lg:hidden relative text-base-content/50 btn btn-circle btn-ghost btn-sm">
-                        <span className="lucide--panel-left-close absolute opacity-100 group-has-[[id=layout-sidebar-hover-trigger]:checked]/html:opacity-0 size-4.5 transition-all duration-300 iconify" />
-                        <span className="lucide--panel-left-dashed absolute opacity-0 group-has-[[id=layout-sidebar-hover-trigger]:checked]/html:opacity-100 size-4.5 transition-all duration-300 iconify" />
+                        <Icon icon="lucide--panel-left-close" className="absolute opacity-100 group-has-[[id=layout-sidebar-hover-trigger]:checked]/html:opacity-0 size-4.5 transition-all duration-300" />
+                        <Icon icon="lucide--panel-left-dashed" className="absolute opacity-0 group-has-[[id=layout-sidebar-hover-trigger]:checked]/html:opacity-100 size-4.5 transition-all duration-300" />
                     </label>
                 </div>
                 {/* Project switcher (Sidebar "Project" variant) */}

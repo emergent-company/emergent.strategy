@@ -1,4 +1,5 @@
 import React from "react";
+import { Icon } from "@/components/ui/Icon";
 
 export const DrawerSearchDemo = () => {
     return (
@@ -6,20 +7,20 @@ export const DrawerSearchDemo = () => {
             <div className="drawer drawer-end">
                 <input id="search-demo-7" type="checkbox" className="drawer-toggle" />
                 <div className="drawer-content">
-                    <label htmlFor="search-demo-7" className="btn btn-circle btn-soft">
-                        <span className="iconify lucide--search size-5" />
+                    <label htmlFor="search-demo-7" className="btn btn-circle btn-soft" aria-label="Open search drawer">
+                        <Icon icon="lucide--search" className="size-5" />
                     </label>
                 </div>
                 <div className="drawer-side">
                     <label htmlFor="search-demo-7" aria-label="close sidebar" className="drawer-overlay"></label>
-                    <div className="h-full w-xs p-2 sm:w-sm">
-                        <div className="bg-base-100 rounded-box flex h-full flex-col overflow-auto">
-                            <div className="mt-4 flex items-center justify-between gap-3 px-4">
+                    <div className="p-2 w-xs sm:w-sm h-full">
+                        <div className="flex flex-col bg-base-100 rounded-box h-full overflow-auto">
+                            <div className="flex justify-between items-center gap-3 mt-4 px-4">
                                 <label
                                     htmlFor="search-demo-7"
                                     className="btn btn-xs btn-circle btn-ghost"
                                     aria-label="Go back">
-                                    <span className="iconify lucide--chevron-left size-4" />
+                                    <Icon icon="lucide--chevron-left" className="size-4" />
                                 </label>
                                 <input
                                     type="search"
@@ -31,25 +32,25 @@ export const DrawerSearchDemo = () => {
                                     htmlFor="search-demo-7"
                                     className="btn btn-xs btn-circle btn-ghost"
                                     aria-label="Clear search">
-                                    <span className="iconify lucide--x size-4" />
+                                    <Icon icon="lucide--x" className="size-4" />
                                 </label>
                             </div>
 
                             <div className="mt-4 px-5">
-                                <p className="text-base-content/70 text-sm font-medium">Filters applied</p>
-                                <div className="mt-2 flex items-center gap-2">
+                                <p className="font-medium text-sm text-base-content/70">Filters applied</p>
+                                <div className="flex items-center gap-2 mt-2">
                                     <div className="badge badge-sm">
                                         Electronics
-                                        <span className="iconify lucide--x size-3" />
+                                        <span className="size-3 iconify lucide--x" />
                                     </div>
                                     <div className="badge badge-sm">
                                         In Stock
-                                        <span className="iconify lucide--x size-3" />
+                                        <span className="size-3 iconify lucide--x" />
                                     </div>
                                 </div>
                             </div>
 
-                            <ul className="menu mt-2 w-full p-0 px-2">
+                            <ul className="mt-2 p-0 px-2 w-full menu">
                                 <li className="menu-title">Products</li>
                                 <li>
                                     <div>
@@ -60,7 +61,7 @@ export const DrawerSearchDemo = () => {
                                         />
                                         <div>
                                             <p className="text-sm/none">Running Shoes</p>
-                                            <p className="mt-1.5 text-xs/none opacity-60">#Footwear</p>
+                                            <p className="opacity-60 mt-1.5 text-xs/none">#Footwear</p>
                                         </div>
                                     </div>
                                 </li>
@@ -73,7 +74,7 @@ export const DrawerSearchDemo = () => {
                                         />
                                         <div>
                                             <p className="text-sm/none">Organic Body Oil</p>
-                                            <p className="mt-1.5 text-xs/none opacity-60">#Skincare</p>
+                                            <p className="opacity-60 mt-1.5 text-xs/none">#Skincare</p>
                                         </div>
                                     </div>
                                 </li>
@@ -86,7 +87,7 @@ export const DrawerSearchDemo = () => {
                                         />
                                         <div>
                                             <p className="text-sm/none">Mini Air Purifier</p>
-                                            <p className="mt-1.5 text-xs/none opacity-60">#HomeTech</p>
+                                            <p className="opacity-60 mt-1.5 text-xs/none">#HomeTech</p>
                                         </div>
                                     </div>
                                 </li>
@@ -99,95 +100,95 @@ export const DrawerSearchDemo = () => {
                                         />
                                         <div>
                                             <p className="text-sm/none">Women's Sneakers</p>
-                                            <p className="mt-1.5 text-xs/none opacity-60">#Footwear</p>
+                                            <p className="opacity-60 mt-1.5 text-xs/none">#Footwear</p>
                                         </div>
                                     </div>
                                 </li>
                             </ul>
 
-                            <ul className="menu mt-2 w-full p-0 px-2">
+                            <ul className="mt-2 p-0 px-2 w-full menu">
                                 <li className="menu-title">Orders</li>
                                 <li>
                                     <div>
-                                        <span className="iconify lucide--receipt size-4 opacity-80"></span>
+                                        <Icon icon="lucide--receipt" className="opacity-80 size-4" />
                                         <p>Order #104562</p>
                                         <div className="badge badge-soft badge-primary badge-sm">Shipped</div>
                                     </div>
                                 </li>
                                 <li>
                                     <div>
-                                        <span className="iconify lucide--receipt size-4 opacity-80"></span>
+                                        <Icon icon="lucide--receipt" className="opacity-80 size-4" />
                                         <p>Order #104563</p>
                                         <div className="badge badge-soft badge-warning badge-sm">Pending</div>
                                     </div>
                                 </li>
                                 <li>
                                     <div>
-                                        <span className="iconify lucide--receipt size-4 opacity-80"></span>
+                                        <Icon icon="lucide--receipt" className="opacity-80 size-4" />
                                         <p>Order #104564</p>
                                         <div className="badge badge-soft badge-success badge-sm">Delivered</div>
                                     </div>
                                 </li>
                                 <li>
                                     <div>
-                                        <span className="iconify lucide--receipt size-4 opacity-80"></span>
+                                        <Icon icon="lucide--receipt" className="opacity-80 size-4" />
                                         <p>Order #104565</p>
                                         <div className="badge badge-soft badge-error badge-sm">Cancelled</div>
                                     </div>
                                 </li>
                             </ul>
 
-                            <ul className="menu mt-2 w-full p-0 px-2">
+                            <ul className="mt-2 p-0 px-2 w-full menu">
                                 <li className="menu-title">Quick Actions</li>
 
                                 <li>
                                     <div>
-                                        <span className="iconify lucide--plus-circle size-4" />
-                                        <p className="grow text-sm">Add New Product</p>
-                                        <div className="kbd kbd-sm text-base-content">N</div>
+                                        <Icon icon="lucide--plus-circle" className="size-4" />
+                                        <p className="text-sm grow">Add New Product</p>
+                                        <div className="text-base-content kbd kbd-sm">N</div>
                                     </div>
                                 </li>
 
                                 <li>
                                     <div>
-                                        <span className="iconify lucide--archive size-4" />
-                                        <p className="grow text-sm">Update Stock</p>
-                                        <div className="kbd kbd-sm text-base-content">U</div>
+                                        <Icon icon="lucide--archive" className="size-4" />
+                                        <p className="text-sm grow">Update Stock</p>
+                                        <div className="text-base-content kbd kbd-sm">U</div>
                                     </div>
                                 </li>
 
                                 <li>
                                     <div>
-                                        <span className="iconify lucide--truck size-4" />
-                                        <p className="grow text-sm">Mark Order as Shipped</p>
-                                        <div className="kbd kbd-sm text-base-content">S</div>
+                                        <Icon icon="lucide--truck" className="size-4" />
+                                        <p className="text-sm grow">Mark Order as Shipped</p>
+                                        <div className="text-base-content kbd kbd-sm">S</div>
                                     </div>
                                 </li>
 
                                 <li>
                                     <div>
-                                        <span className="iconify lucide--x-circle size-4" />
-                                        <p className="grow text-sm">Cancel Order</p>
-                                        <div className="kbd kbd-sm text-base-content">C</div>
+                                        <Icon icon="lucide--x-circle" className="size-4" />
+                                        <p className="text-sm grow">Cancel Order</p>
+                                        <div className="text-base-content kbd kbd-sm">C</div>
                                     </div>
                                 </li>
                             </ul>
 
-                            <div className="border-base-300 mt-auto flex items-center gap-4 border-t px-5 py-3">
+                            <div className="flex items-center gap-4 mt-auto px-5 py-3 border-t border-base-300">
                                 <div className="flex items-center gap-0.5">
-                                    <div className="border-base-300 bg-base-200 flex size-5 items-center justify-center rounded-sm border shadow-xs">
-                                        <span className="iconify lucide--arrow-up size-3.5"></span>
+                                    <div className="flex justify-center items-center bg-base-200 shadow-xs border border-base-300 rounded-sm size-5">
+                                        <Icon icon="lucide--arrow-up" className="size-3.5" />
                                     </div>
-                                    <div className="border-base-300 bg-base-200 flex size-5 items-center justify-center rounded-sm border shadow-xs">
-                                        <span className="iconify lucide--arrow-down size-3.5"></span>
+                                    <div className="flex justify-center items-center bg-base-200 shadow-xs border border-base-300 rounded-sm size-5">
+                                        <Icon icon="lucide--arrow-down" className="size-3.5" />
                                     </div>
-                                    <p className="text-base-content/80 ms-1 text-sm">Navigate</p>
+                                    <p className="ms-1 text-sm text-base-content/80">Navigate</p>
                                 </div>
                                 <div className="flex items-center gap-0.5">
-                                    <div className="border-base-300 bg-base-200 flex size-5 items-center justify-center rounded-sm border shadow-xs">
-                                        <span className="iconify lucide--corner-down-left size-3.5"></span>
+                                    <div className="flex justify-center items-center bg-base-200 shadow-xs border border-base-300 rounded-sm size-5">
+                                        <Icon icon="lucide--corner-down-left" className="size-3.5" />
                                     </div>
-                                    <p className="text-base-content/80 ms-1 text-sm">Select</p>
+                                    <p className="ms-1 text-sm text-base-content/80">Select</p>
                                 </div>
                             </div>
                         </div>

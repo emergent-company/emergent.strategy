@@ -1,36 +1,38 @@
+import { Icon } from "@/components/ui/Icon";
+
 export const FolderItemDropdown = () => {
     return (
-        <div className="dropdown dropdown-bottom dropdown-center">
+        <div className="dropdown-bottom dropdown dropdown-center">
             <div tabIndex={0} role="button" className="btn btn-ghost btn-circle btn-sm" aria-label="Menu">
-                <span className="iconify lucide--more-vertical size-4" />
+                <Icon icon="lucide--more-vertical" className="size-4" />
             </div>
-            <div tabIndex={0} className="dropdown-content bg-base-100 rounded-box mt-2 w-52 shadow">
-                <ul className="menu w-full p-1.5">
+            <div tabIndex={0} className="bg-base-100 shadow mt-2 rounded-box w-52 dropdown-content">
+                <ul className="p-1.5 w-full menu">
                     <li>
                         <div>
-                            <span className="iconify lucide--arrow-down-to-line size-4" />
+                            <Icon icon="lucide--arrow-down-to-line" className="size-4" />
                             Download
                         </div>
                     </li>
 
                     <li>
                         <div>
-                            <span className="iconify lucide--pen-line size-4" />
+                            <Icon icon="lucide--pen-line" className="size-4" />
                             Rename
                         </div>
                     </li>
                     <li>
                         <div>
-                            <span className="iconify lucide--user-round-plus size-4" />
+                            <Icon icon="lucide--user-round-plus" className="size-4" />
                             Share
                         </div>
                     </li>
                 </ul>
                 <hr className="border-base-300" />
-                <ul className="menu w-full p-1.5">
+                <ul className="p-1.5 w-full menu">
                     <li>
-                        <div className="text-error hover:bg-error/10">
-                            <span className="iconify lucide--trash size-4" />
+                        <div className="hover:bg-error/10 text-error">
+                            <Icon icon="lucide--trash" className="size-4" />
                             Move to bin
                         </div>
                     </li>

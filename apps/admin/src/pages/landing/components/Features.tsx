@@ -1,3 +1,4 @@
+import { Icon } from "@/components/ui/Icon";
 const features = [
     {
         icon: "lucide--layers",
@@ -59,20 +60,20 @@ const features = [
 
 export const Features = () => {
     return (
-        <div className="container py-8 md:py-12 xl:py-16 2xl:py-24">
+        <div className="py-8 md:py-12 2xl:py-24 xl:py-16 container">
             <div className="text-center">
-                <div className="rounded-box inline-flex items-center border border-indigo-500/10 bg-indigo-500/5 p-2">
-                    <span className="iconify lucide--wand-2 size-5 text-indigo-600" />
+                <div className="inline-flex items-center bg-indigo-500/5 p-2 border border-indigo-500/10 rounded-box">
+                    <Icon icon="lucide--wand-2" className="size-5 text-indigo-600" ariaLabel="Magic" />
                 </div>
-                <p id="fade-in" className="custom-fade-in mt-4 text-2xl font-semibold sm:text-3xl">
+                <p id="fade-in" className="mt-4 font-semibold text-2xl sm:text-3xl custom-fade-in">
                     Designed for Impact
                 </p>
-                <p className="text-base-content/70 mt-3 inline-block max-w-lg max-sm:text-sm">
+                <p className="inline-block mt-3 max-w-lg max-sm:text-sm text-base-content/70">
                     From layouts to interactions, every detail is built to deliver clarity, speed, and a seamless user
                     experience.
                 </p>
             </div>
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:mt-16 xl:grid-cols-4 2xl:mt-24 2xl:gap-6">
+            <div className="gap-4 2xl:gap-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 mt-8 2xl:mt-24 xl:mt-16">
                 {features.map((feature, index) => {
                     return (
                         <div
@@ -81,10 +82,10 @@ export const Features = () => {
                             <div className="card-body">
                                 <div>
                                     <div className={`inline-flex items-center p-2 ${feature.iconClass} rounded`}>
-                                        <span className={`iconify ${feature.icon} size-6`} />
+                                        <Icon icon={feature.icon} className="size-6" aria-hidden />
                                     </div>
-                                    <p className="mt-3 text-lg font-medium">{feature.title}</p>
-                                    <p className="text-base-content/80 mt-0.5 line-clamp-2 text-sm overflow-ellipsis">
+                                    <p className="mt-3 font-medium text-lg">{feature.title}</p>
+                                    <p className="mt-0.5 overflow-ellipsis text-sm text-base-content/80 line-clamp-2">
                                         {feature.description}
                                     </p>
                                 </div>

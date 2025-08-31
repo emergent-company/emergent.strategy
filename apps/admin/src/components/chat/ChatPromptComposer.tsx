@@ -1,5 +1,6 @@
 import { useState, type ChangeEvent } from "react";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { Icon } from "@/components/ui/Icon";
 import { ChatPromptActions } from "@/components/chat/ChatPromptActions";
 
 export interface ChatPromptComposerProps {
@@ -56,13 +57,13 @@ export const ChatPromptComposer = ({
                                 <p className="mt-0.5">Total: 158 tokens</p>
                             </div>
                         }>
-                        <span className="block ms-1 size-3 iconify lucide--help-circle" />
+                        <Icon icon="lucide--help-circle" className="block ms-1 size-3" ariaLabel="Usage help" />
                     </Tooltip>
                 </div>
                 <div className="flex justify-between items-center gap-2">
                     <ChatPromptActions />
                     <button className="btn btn-primary btn-circle btn-sm" aria-label="Send" onClick={handleSend}>
-                        <span className="lucide--arrow-right size-4 iconify" />
+                        <Icon icon="lucide--arrow-right" className="size-4" ariaLabel="Send" />
                     </button>
                 </div>
             </div>

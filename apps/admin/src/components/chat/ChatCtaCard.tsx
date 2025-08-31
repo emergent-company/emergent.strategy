@@ -1,4 +1,5 @@
 import type { MouseEventHandler } from "react";
+import { Icon } from "@/components/ui/Icon";
 
 export interface ChatCtaCardProps {
     icon: string; // iconify class e.g., 'lucide--sparkles'
@@ -16,13 +17,13 @@ export const ChatCtaCard = ({ icon, title, desc, onPick }: ChatCtaCardProps) => 
         >
             <div className="card-body">
                 <div className="bg-primary p-2 rounded-box w-fit text-primary-content">
-                    <span className={`iconify ${icon} block size-4`} />
+                    <Icon icon={icon} className="block size-4" ariaLabel={`${title} icon`} />
                 </div>
                 <p className="mt-3 font-medium">{title}</p>
                 <p className="mt-1 text-sm text-base-content/80 text-ellipsis line-clamp-2">{desc}</p>
                 <div className="flex items-center gap-1.5 mt-3 text-base-content/60 group-hover:text-base-content transition-all">
                     <span className="text-sm">Use this</span>
-                    <span className="lucide--chevron-right size-3.5 iconify" />
+                    <Icon icon="lucide--chevron-right" className="size-3.5" ariaLabel="Chevron right" />
                 </div>
             </div>
         </button>

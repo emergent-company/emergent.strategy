@@ -1,4 +1,5 @@
 import { ComponentProps } from "react";
+import { Icon } from "@/components/ui/Icon";
 
 import { useConfig } from "@/contexts/config";
 
@@ -15,14 +16,17 @@ export const ThemeToggle = ({ iconClass, className, ...props }: IThemeToggleDrop
             className={`relative overflow-hidden ${className ?? ""}`}
             onClick={() => toggleTheme()}
             aria-label="Toggle Theme">
-            <span
-                className={`iconify lucide--sun absolute size-4.5 -translate-y-4 opacity-0 transition-all duration-300 group-data-[theme=light]/html:translate-y-0 group-data-[theme=light]/html:opacity-100 ${iconClass ?? ""}`}
+            <Icon
+                icon="lucide--sun"
+                className={`absolute size-4.5 -translate-y-4 opacity-0 transition-all duration-300 group-data-[theme=light]/html:translate-y-0 group-data-[theme=light]/html:opacity-100 ${iconClass ?? ""}`}
             />
-            <span
-                className={`iconify lucide--moon absolute size-4.5 translate-y-4 opacity-0 transition-all duration-300 group-data-[theme=dark]/html:translate-y-0 group-data-[theme=dark]/html:opacity-100 ${iconClass ?? ""}`}
+            <Icon
+                icon="lucide--moon"
+                className={`absolute size-4.5 translate-y-4 opacity-0 transition-all duration-300 group-data-[theme=dark]/html:translate-y-0 group-data-[theme=dark]/html:opacity-100 ${iconClass ?? ""}`}
             />
-            <span
-                className={`iconify lucide--palette absolute size-4.5 opacity-100 group-data-[theme=dark]/html:opacity-0 group-data-[theme=light]/html:opacity-0 ${iconClass ?? ""}`}
+            <Icon
+                icon="lucide--palette"
+                className={`absolute size-4.5 opacity-100 group-data-[theme=dark]/html:opacity-0 group-data-[theme=light]/html:opacity-0 ${iconClass ?? ""}`}
             />
         </button>
     );

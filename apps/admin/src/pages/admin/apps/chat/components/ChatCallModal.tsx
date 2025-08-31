@@ -1,4 +1,5 @@
 import { IChatItem } from "./ChatItem";
+import { Icon } from "@/components/ui/Icon";
 
 type IChatCallModal = {
     chat: IChatItem;
@@ -12,46 +13,46 @@ export const ChatCallModal = ({ chat }: IChatCallModal) => {
                     <div className="text-center">
                         <img
                             src={chat.image}
-                            className="bg-base-200 mask mask-squircle inline size-16 p-0.5"
+                            className="inline bg-base-200 p-0.5 size-16 mask mask-squircle"
                             alt="avatar"
                         />
                         <p className="mt-1 font-medium">{chat.name}</p>
-                        <p className="text-base-content/60 text-sm">02 : 55</p>
+                        <p className="text-sm text-base-content/60">02 : 55</p>
                     </div>
-                    <div className="mt-8 grid grid-cols-4 gap-3 text-center">
-                        <div className="hover:bg-base-200 rounded-box cursor-pointer py-3 transition-all max-sm:text-sm">
-                            <span className="iconify lucide--mic-off size-6"></span>
+                    <div className="gap-3 grid grid-cols-4 mt-8 text-center">
+                        <div className="hover:bg-base-200 py-3 rounded-box max-sm:text-sm transition-all cursor-pointer">
+                            <Icon icon="lucide--mic-off" className="size-6" ariaLabel="Mute" />
                             <p>Mute</p>
                         </div>
-                        <div className="hover:bg-base-200 rounded-box cursor-pointer py-3 transition-all max-sm:text-sm">
-                            <span className="iconify lucide--pause size-6"></span>
+                        <div className="hover:bg-base-200 py-3 rounded-box max-sm:text-sm transition-all cursor-pointer">
+                            <Icon icon="lucide--pause" className="size-6" ariaLabel="Hold" />
                             <p>Hold</p>
                         </div>
-                        <div className="hover:bg-base-200 rounded-box cursor-pointer py-3 transition-all max-sm:text-sm">
-                            <span className="iconify lucide--disc size-6"></span>
+                        <div className="hover:bg-base-200 py-3 rounded-box max-sm:text-sm transition-all cursor-pointer">
+                            <Icon icon="lucide--disc" className="size-6" ariaLabel="Record" />
                             <p>Record</p>
                         </div>
-                        <div className="hover:bg-base-200 rounded-box cursor-pointer py-3 transition-all max-sm:text-sm">
-                            <span className="iconify lucide--book-user size-6"></span>
+                        <div className="hover:bg-base-200 py-3 rounded-box max-sm:text-sm transition-all cursor-pointer">
+                            <Icon icon="lucide--book-user" className="size-6" ariaLabel="Contact" />
                             <p>Contact</p>
                         </div>
                     </div>
-                    <div className="mt-8 grid grid-cols-3 text-center">
+                    <div className="grid grid-cols-3 mt-8 text-center">
                         <div>
                             <button className="btn btn-circle btn-ghost btn-lg" aria-label="Add User">
-                                <span className="iconify lucide--user-round-plus size-6"></span>
+                                <Icon icon="lucide--user-round-plus" className="size-6" ariaLabel="Add user" />
                             </button>
                         </div>
                         <form method="dialog">
                             <div className="mt-8">
                                 <button className="btn btn-circle btn-error btn-lg" aria-label="End call">
-                                    <span className="iconify lucide--phone size-6 rotate-[135deg]"></span>
+                                    <Icon icon="lucide--phone" className="size-6 rotate-[135deg]" ariaLabel="End call" />
                                 </button>
                             </div>
                         </form>
                         <div>
                             <button className="btn btn-circle btn-ghost btn-lg" aria-label="More option">
-                                <span className="iconify lucide--more-horizontal size-6"></span>
+                                <Icon icon="lucide--more-horizontal" className="size-6" ariaLabel="More options" />
                             </button>
                         </div>
                     </div>

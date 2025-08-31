@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { MemoryRouter } from "react-router";
 
 import { Sidebar } from "./Sidebar";
 import type { ISidebarMenuItem } from "../admin-layout/SidebarMenuItem";
@@ -9,11 +8,9 @@ const meta: Meta<typeof Sidebar> = {
     component: Sidebar,
     decorators: [
         (Story) => (
-            <MemoryRouter>
-                <div className="h-[480px]">
-                    <Story />
-                </div>
-            </MemoryRouter>
+            <div className="h-[480px]">
+                <Story />
+            </div>
         ),
     ],
 };

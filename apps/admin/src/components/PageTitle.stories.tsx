@@ -1,16 +1,27 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { MemoryRouter } from "react-router";
+import { useEffect } from "react";
+import { useNavigate } from "react-router";
 import { PageTitle, type IBreadcrumbItem } from "./PageTitle";
 
 const meta = {
     title: "Core/PageTitle",
     component: PageTitle,
     decorators: [
-        (Story: React.ComponentType) => (
-            <MemoryRouter initialEntries={["/admin"]}>
-                <Story />
-            </MemoryRouter>
-        ),
+        (Story: React.ComponentType) => {
+            const NavigateHome = () => {
+                const navigate = useNavigate();
+                useEffect(() => {
+                    navigate("/admin", { replace: true });
+                }, [navigate]);
+                return null;
+            };
+            return (
+                <>
+                    <NavigateHome />
+                    <Story />
+                </>
+            );
+        },
     ],
     args: {
         title: "Dashboard",

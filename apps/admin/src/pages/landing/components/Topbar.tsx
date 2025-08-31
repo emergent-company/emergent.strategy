@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
+import { Icon } from "@/components/ui/Icon";
 
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -51,7 +52,9 @@ export const Topbar = () => {
                                     <label
                                         htmlFor="landing-menu-drawer"
                                         className="btn drawer-button btn-ghost btn-square btn-sm">
-                                        <span className="size-4.5 iconify lucide--menu" />
+                                        <span className="size-4.5">
+                                            <Icon icon="lucide--menu" className="size-4.5" aria-hidden />
+                                        </span>
                                     </label>
                                 </div>
                                 <div className="z-[50] drawer-side">
@@ -89,7 +92,7 @@ export const Topbar = () => {
                             to="https://daisyui.com/store/244268?aff=Db6q2"
                             target="_blank"
                             className="group/purchase relative gap-2 bg-linear-to-r from-primary to-secondary border-0 text-primary-content text-sm btn btn-sm max-sm:btn-square">
-                            <span className="size-4 iconify lucide--shopping-cart" />
+                            <Icon icon="lucide--shopping-cart" className="size-4" aria-hidden />
                             <span className="max-sm:hidden">Buy Now</span>
                             <div className="top-1 -z-1 absolute inset-x-0 bg-linear-to-r from-primary to-secondary opacity-40 group-hover/purchase:opacity-60 blur-md group-hover/purchase:blur-lg h-8 transition-all duration-500"></div>
                         </Link>

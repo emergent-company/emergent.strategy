@@ -1,3 +1,5 @@
+import { Icon } from "@/components/ui/Icon";
+
 export type IHelpTopic = {
     title: string;
     description: string;
@@ -5,13 +7,16 @@ export type IHelpTopic = {
 
 export const HelpTopic = ({ title, description }: IHelpTopic) => {
     return (
-        <div className="card card-border bg-base-100 hover:bg-primary hover:text-primary-content group hover:border-primary cursor-pointer transition-all">
+        <div className="group bg-base-100 hover:bg-primary card-border hover:border-primary hover:text-primary-content transition-all cursor-pointer card">
             <div className="card-body">
                 <div className="flex justify-between">
                     <p className="font-medium">{title}</p>
-                    <span className="iconify lucide--arrow-right text-primary-content -translate-x-2 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100"></span>
+                    <Icon
+                        icon="lucide--arrow-right"
+                        className="opacity-0 group-hover:opacity-100 text-primary-content transition-all -translate-x-2 group-hover:translate-x-0"
+                    />
                 </div>
-                <p className="mt-1 line-clamp-2 text-sm overflow-ellipsis">{description}</p>
+                <p className="mt-1 overflow-ellipsis text-sm line-clamp-2">{description}</p>
             </div>
         </div>
     );

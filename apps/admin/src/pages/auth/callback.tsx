@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/auth';
 import { parseCallbackParams } from '@/auth/oidc';
+import { Icon } from '@/components/ui/Icon';
 
 export default function AuthCallbackPage() {
     const nav = useNavigate();
@@ -39,7 +40,7 @@ export default function AuthCallbackPage() {
                         </>
                     ) : (
                         <div role="alert" className="alert alert-error">
-                            <span className="iconify lucide--alert-triangle" />
+                            <Icon icon="lucide--alert-triangle" ariaLabel="Error" />
                             <span>{error}</span>
                         </div>
                     )}

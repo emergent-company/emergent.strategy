@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { Icon } from "@/components/ui/Icon";
 
 export const TopbarSearchButton = () => {
     const dialogRef = useRef<HTMLDialogElement>(null);
@@ -12,210 +13,210 @@ export const TopbarSearchButton = () => {
     return (
         <>
             <button
-                className="btn btn-outline btn-sm btn-ghost border-base-300 text-base-content/70 hidden h-9 w-48 justify-start gap-2 !text-sm md:flex"
+                className="hidden md:flex justify-start gap-2 border-base-300 btn-outline w-48 h-9 !text-sm text-base-content/70 btn btn-sm btn-ghost"
                 onClick={showModal}>
-                <span className="iconify lucide--search size-4" />
+                <Icon icon="lucide--search" className="size-4" />
                 <span>Search</span>
             </button>
             <button
-                className="btn btn-outline btn-sm btn-square btn-ghost border-base-300 text-base-content/70 flex size-9 md:hidden"
+                className="md:hidden flex border-base-300 btn-outline size-9 text-base-content/70 btn btn-sm btn-square btn-ghost"
                 aria-label="Search"
                 onClick={showModal}>
-                <span className="iconify lucide--search size-4" />
+                <Icon icon="lucide--search" className="size-4" />
             </button>
-            <dialog ref={dialogRef} className="modal p-0">
-                <div className="modal-box bg-transparent p-0 shadow-none">
+            <dialog ref={dialogRef} className="p-0 modal">
+                <div className="bg-transparent shadow-none p-0 modal-box">
                     <div className="bg-base-100 rounded-box">
-                        <div className="input w-full border-0 !outline-none">
-                            <span className="iconify lucide--search text-base-content/60 size-4.5" />
+                        <div className="border-0 !outline-none w-full input">
+                            <Icon icon="lucide--search" className="size-4.5 text-base-content/60" />
                             <input type="search" className="grow" placeholder="Search" aria-label="Search" />
                             <form method="dialog">
                                 <button className="btn btn-xs btn-circle btn-ghost" aria-label="Close">
-                                    <span className="iconify lucide--x text-base-content/80 size-4" />
+                                    <Icon icon="lucide--x" className="size-4 text-base-content/80" />
                                 </button>
                             </form>
                         </div>
-                        <div className="border-base-300 flex items-center gap-3 border-t px-2 py-2">
+                        <div className="flex items-center gap-3 px-2 py-2 border-t border-base-300">
                             <div className="flex items-center gap-0.5">
-                                <div className="border-base-300 bg-base-200 flex size-5 items-center justify-center rounded-sm border shadow-xs">
-                                    <span className="iconify lucide--arrow-up size-3.5"></span>
+                                <div className="flex justify-center items-center bg-base-200 shadow-xs border border-base-300 rounded-sm size-5">
+                                    <Icon icon="lucide--arrow-up" className="size-3.5" />
                                 </div>
-                                <div className="border-base-300 bg-base-200 flex size-5 items-center justify-center rounded-sm border shadow-xs">
-                                    <span className="iconify lucide--arrow-down size-3.5"></span>
+                                <div className="flex justify-center items-center bg-base-200 shadow-xs border border-base-300 rounded-sm size-5">
+                                    <Icon icon="lucide--arrow-down" className="size-3.5" />
                                 </div>
-                                <p className="text-base-content/80 ms-1 text-sm">Navigate</p>
+                                <p className="ms-1 text-sm text-base-content/80">Navigate</p>
                             </div>
-                            <div className="flex items-center gap-0.5 max-sm:hidden">
-                                <div className="border-base-300 bg-base-200 flex size-5 items-center justify-center rounded-sm border shadow-xs">
-                                    <span className="iconify lucide--undo-2 size-3.5"></span>
+                            <div className="max-sm:hidden flex items-center gap-0.5">
+                                <div className="flex justify-center items-center bg-base-200 shadow-xs border border-base-300 rounded-sm size-5">
+                                    <Icon icon="lucide--undo-2" className="size-3.5" />
                                 </div>
-                                <p className="text-base-content/80 ms-1 text-sm">Return</p>
+                                <p className="ms-1 text-sm text-base-content/80">Return</p>
                             </div>
                             <div className="flex items-center gap-0.5">
-                                <div className="border-base-300 bg-base-200 flex size-5 items-center justify-center rounded-sm border shadow-xs">
-                                    <span className="iconify lucide--corner-down-left size-3.5"></span>
+                                <div className="flex justify-center items-center bg-base-200 shadow-xs border border-base-300 rounded-sm size-5">
+                                    <Icon icon="lucide--corner-down-left" className="size-3.5" />
                                 </div>
-                                <p className="text-base-content/80 ms-1 text-sm">Open</p>
+                                <p className="ms-1 text-sm text-base-content/80">Open</p>
                             </div>
-                            <div className="ms-auto flex items-center gap-0.5">
-                                <div className="border-base-300 bg-base-200 flex h-5 items-center justify-center rounded-sm border px-1 text-sm/none shadow-xs">
+                            <div className="flex items-center gap-0.5 ms-auto">
+                                <div className="flex justify-center items-center bg-base-200 shadow-xs px-1 border border-base-300 rounded-sm h-5 text-sm/none">
                                     esc
                                 </div>
-                                <p className="text-base-content/80 ms-1 text-sm">Close</p>
+                                <p className="ms-1 text-sm text-base-content/80">Close</p>
                             </div>
                         </div>
                     </div>
-                    <div className="bg-base-100 rounded-box mt-4">
+                    <div className="bg-base-100 mt-4 rounded-box">
                         <div className="px-5 py-3">
-                            <p className="text-base-content/80 text-sm font-medium">I'm looking for...</p>
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                                <div className="border-base-300 hover:bg-base-200 rounded-box cursor-pointer border px-2.5 py-1 text-sm/none">
+                            <p className="font-medium text-sm text-base-content/80">I'm looking for...</p>
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                <div className="hover:bg-base-200 px-2.5 py-1 border border-base-300 rounded-box text-sm/none cursor-pointer">
                                     Writer
                                 </div>
-                                <div className="border-base-300 hover:bg-base-200 rounded-box cursor-pointer border px-2.5 py-1 text-sm/none">
+                                <div className="hover:bg-base-200 px-2.5 py-1 border border-base-300 rounded-box text-sm/none cursor-pointer">
                                     Editor
                                 </div>
-                                <div className="border-base-300 hover:bg-base-200 rounded-box cursor-pointer border px-2.5 py-1 text-sm/none">
+                                <div className="hover:bg-base-200 px-2.5 py-1 border border-base-300 rounded-box text-sm/none cursor-pointer">
                                     Explainer
                                 </div>
-                                <div className="border-base-300 hover:bg-base-200 rounded-box flex cursor-pointer items-center gap-1 border border-dashed px-2.5 py-1 text-sm/none">
-                                    <span className="iconify lucide--plus size-3.5"></span>
+                                <div className="flex items-center gap-1 hover:bg-base-200 px-2.5 py-1 border border-base-300 border-dashed rounded-box text-sm/none cursor-pointer">
+                                    <Icon icon="lucide--plus" className="size-3.5" />
                                     Action
                                 </div>
                             </div>
                         </div>
-                        <hr className="border-base-300 h-px border-dashed" />
+                        <hr className="border-base-300 border-dashed h-px" />
 
-                        <ul className="menu w-full pt-1">
+                        <ul className="pt-1 w-full menu">
                             <li className="menu-title">Talk to assistant</li>
                             <li>
                                 <div className="group">
-                                    <div className="from-primary to-primary/80 mask mask-squircle text-primary-content flex size-5 items-center justify-center bg-linear-to-b leading-none font-medium">
+                                    <div className="flex justify-center items-center bg-linear-to-b from-primary to-primary/80 size-5 font-medium text-primary-content leading-none mask mask-squircle">
                                         R
                                     </div>
-                                    <p className="grow text-sm">Research Buddy</p>
-                                    <div className="flex translate-x-2 items-center gap-2.5 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100">
-                                        <span className="iconify lucide--star text-orange-500"></span>
+                                    <p className="text-sm grow">Research Buddy</p>
+                                    <div className="flex items-center gap-2.5 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">
+                                        <Icon icon="lucide--star" className="text-orange-500" />
                                         <div className="flex items-center gap-0.5">
-                                            <div className="border-base-300 flex size-5 items-center justify-center rounded-sm border shadow-xs">
-                                                <span className="iconify lucide--corner-down-left size-3.5"></span>
+                                            <div className="flex justify-center items-center shadow-xs border border-base-300 rounded-sm size-5">
+                                                <Icon icon="lucide--corner-down-left" className="size-3.5" />
                                             </div>
-                                            <p className="ms-1 text-sm opacity-80">Select</p>
+                                            <p className="opacity-80 ms-1 text-sm">Select</p>
                                         </div>
-                                        <span className="iconify lucide--ellipsis-vertical opacity-80"></span>
+                                        <Icon icon="lucide--ellipsis-vertical" className="opacity-80" />
                                     </div>
                                 </div>
                             </li>
 
                             <li>
                                 <div className="group">
-                                    <div className="from-secondary to-secondary/80 mask mask-squircle text-secondary-content flex size-5 items-center justify-center bg-linear-to-b leading-none font-medium">
+                                    <div className="flex justify-center items-center bg-linear-to-b from-secondary to-secondary/80 size-5 font-medium text-secondary-content leading-none mask mask-squircle">
                                         T
                                     </div>
-                                    <p className="grow text-sm">Task Planner</p>
-                                    <div className="flex translate-x-2 items-center gap-2.5 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100">
-                                        <span className="iconify lucide--star text-orange-500"></span>
+                                    <p className="text-sm grow">Task Planner</p>
+                                    <div className="flex items-center gap-2.5 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">
+                                        <Icon icon="lucide--star" className="text-orange-500" />
                                         <div className="flex items-center gap-0.5">
-                                            <div className="border-base-300 flex size-5 items-center justify-center rounded-sm border shadow-xs">
-                                                <span className="iconify lucide--corner-down-left size-3.5"></span>
+                                            <div className="flex justify-center items-center shadow-xs border border-base-300 rounded-sm size-5">
+                                                <Icon icon="lucide--corner-down-left" className="size-3.5" />
                                             </div>
-                                            <p className="ms-1 text-sm opacity-80">Select</p>
+                                            <p className="opacity-80 ms-1 text-sm">Select</p>
                                         </div>
-                                        <span className="iconify lucide--ellipsis-vertical opacity-80"></span>
+                                        <Icon icon="lucide--ellipsis-vertical" className="opacity-80" />
                                     </div>
                                 </div>
                             </li>
                             <li>
                                 <div className="group">
-                                    <div className="from-success to-success/80 mask mask-squircle text-success-content flex size-5 items-center justify-center bg-linear-to-b leading-none font-medium">
+                                    <div className="flex justify-center items-center bg-linear-to-b from-success to-success/80 size-5 font-medium text-success-content leading-none mask mask-squircle">
                                         S
                                     </div>
-                                    <p className="grow text-sm">Sparking Ideas</p>
-                                    <div className="flex translate-x-2 items-center gap-2.5 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100">
-                                        <span className="iconify lucide--star text-orange-500"></span>
+                                    <p className="text-sm grow">Sparking Ideas</p>
+                                    <div className="flex items-center gap-2.5 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">
+                                        <Icon icon="lucide--star" className="text-orange-500" />
                                         <div className="flex items-center gap-0.5">
-                                            <div className="border-base-300 flex size-5 items-center justify-center rounded-sm border shadow-xs">
-                                                <span className="iconify lucide--corner-down-left size-3.5"></span>
+                                            <div className="flex justify-center items-center shadow-xs border border-base-300 rounded-sm size-5">
+                                                <Icon icon="lucide--corner-down-left" className="size-3.5" />
                                             </div>
-                                            <p className="ms-1 text-sm opacity-80">Select</p>
+                                            <p className="opacity-80 ms-1 text-sm">Select</p>
                                         </div>
-                                        <span className="iconify lucide--ellipsis-vertical opacity-80"></span>
+                                        <Icon icon="lucide--ellipsis-vertical" className="opacity-80" />
                                     </div>
                                 </div>
                             </li>
                             <li>
                                 <div className="group">
-                                    <div className="from-warning to-warning/80 mask mask-squircle text-warning-content flex size-5 items-center justify-center bg-linear-to-b leading-none font-medium">
+                                    <div className="flex justify-center items-center bg-linear-to-b from-warning to-warning/80 size-5 font-medium text-warning-content leading-none mask mask-squircle">
                                         D
                                     </div>
-                                    <p className="grow text-sm">Docs Assistant</p>
-                                    <div className="flex translate-x-2 items-center gap-2.5 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100">
-                                        <span className="iconify lucide--star text-orange-500"></span>
+                                    <p className="text-sm grow">Docs Assistant</p>
+                                    <div className="flex items-center gap-2.5 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">
+                                        <Icon icon="lucide--star" className="text-orange-500" />
                                         <div className="flex items-center gap-0.5">
-                                            <div className="border-base-300 flex size-5 items-center justify-center rounded-sm border shadow-xs">
-                                                <span className="iconify lucide--corner-down-left size-3.5"></span>
+                                            <div className="flex justify-center items-center shadow-xs border border-base-300 rounded-sm size-5">
+                                                <Icon icon="lucide--corner-down-left" className="size-3.5" />
                                             </div>
-                                            <p className="ms-1 text-sm opacity-80">Select</p>
+                                            <p className="opacity-80 ms-1 text-sm">Select</p>
                                         </div>
-                                        <span className="iconify lucide--ellipsis-vertical opacity-80"></span>
+                                        <Icon icon="lucide--ellipsis-vertical" className="opacity-80" />
                                     </div>
                                 </div>
                             </li>
                         </ul>
 
-                        <hr className="border-base-300 h-px border-dashed" />
+                        <hr className="border-base-300 border-dashed h-px" />
 
-                        <ul className="menu w-full pt-1">
-                            <li className="menu-title flex flex-row items-center justify-between gap-2">
+                        <ul className="pt-1 w-full menu">
+                            <li className="flex flex-row justify-between items-center gap-2 menu-title">
                                 <span>Tasks Manager</span>
                                 <span>Progress</span>
                             </li>
                             <li>
                                 <div>
-                                    <span className="iconify lucide--notebook size-4" />
-                                    <p className="grow text-sm">Creating an essay</p>
+                                    <Icon icon="lucide--notebook" className="size-4" />
+                                    <p className="text-sm grow">Creating an essay</p>
                                     <progress
-                                        className="progress progress-primary h-1 w-30"
+                                        className="w-30 h-1 progress progress-primary"
                                         value="60"
                                         max="100"></progress>
                                 </div>
                             </li>
                             <li>
                                 <div>
-                                    <span className="iconify lucide--message-circle size-4" />
-                                    <p className="grow text-sm">Summarizing chat</p>
+                                    <Icon icon="lucide--message-circle" className="size-4" />
+                                    <p className="text-sm grow">Summarizing chat</p>
                                     <progress
-                                        className="progress progress-secondary h-1 w-30"
+                                        className="w-30 h-1 progress progress-secondary"
                                         value="80"
                                         max="100"></progress>
                                 </div>
                             </li>
                             <li>
                                 <div>
-                                    <span className="iconify lucide--code size-4" />
-                                    <p className="grow text-sm">Fixing syntax</p>
+                                    <Icon icon="lucide--code" className="size-4" />
+                                    <p className="text-sm grow">Fixing syntax</p>
                                     <progress
-                                        className="progress progress-accent h-1 w-30"
+                                        className="w-30 h-1 progress progress-accent"
                                         value="35"
                                         max="100"></progress>
                                 </div>
                             </li>
                             <li>
                                 <div>
-                                    <span className="iconify lucide--book-open size-4" />
-                                    <p className="grow text-sm">Reading docs</p>
+                                    <Icon icon="lucide--book-open" className="size-4" />
+                                    <p className="text-sm grow">Reading docs</p>
                                     <progress
-                                        className="progress progress-info h-1 w-30"
+                                        className="w-30 h-1 progress progress-info"
                                         value="90"
                                         max="100"></progress>
                                 </div>
                             </li>
                             <li>
                                 <div>
-                                    <span className="iconify lucide--lightbulb size-4" />
-                                    <p className="grow text-sm">Generating ideas</p>
+                                    <Icon icon="lucide--lightbulb" className="size-4" />
+                                    <p className="text-sm grow">Generating ideas</p>
                                     <progress
-                                        className="progress progress-warning h-1 w-30"
+                                        className="w-30 h-1 progress progress-warning"
                                         value="50"
                                         max="100"></progress>
                                 </div>

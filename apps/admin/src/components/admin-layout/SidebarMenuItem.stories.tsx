@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { MemoryRouter } from "react-router";
 
 import { SidebarMenuItem, type ISidebarMenuItem } from "./SidebarMenuItem";
 
@@ -8,11 +7,9 @@ const meta: Meta<typeof SidebarMenuItem> = {
     component: SidebarMenuItem,
     decorators: [
         (Story) => (
-            <MemoryRouter>
-                <div className="bg-base-100 p-2 w-72">
-                    <Story />
-                </div>
-            </MemoryRouter>
+            <div className="bg-base-100 p-2 w-72">
+                <Story />
+            </div>
         ),
     ],
 };

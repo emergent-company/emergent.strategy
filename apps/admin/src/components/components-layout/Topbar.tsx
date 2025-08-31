@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Icon } from "@/components/ui/Icon";
 
 export const Topbar = () => {
     return (
@@ -25,7 +26,7 @@ export const Topbar = () => {
                         to="https://daisyui.com/store/244268?aff=Db6q2"
                         target="_blank"
                         className="group/purchase relative gap-2 bg-linear-to-r from-primary to-secondary border-0 text-primary-content text-sm btn btn-sm max-sm:btn-square">
-                        <span className="size-4 iconify lucide--shopping-cart" />
+                        <Icon icon="lucide--shopping-cart" className="size-4" />
                         <span className="max-sm:hidden">Buy Now</span>
                         <div className="top-1 -z-1 absolute inset-x-0 bg-linear-to-r from-primary to-secondary opacity-40 group-hover/purchase:opacity-60 blur-md group-hover/purchase:blur-lg h-8 transition-all duration-500"></div>
                     </Link>
