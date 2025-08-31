@@ -33,5 +33,17 @@ export default tseslint.config({ ignores: ["dist"] }, {
         "@typescript-eslint/ban-ts-comment": "off",
         "prefer-const": "off",
         "react-refresh/only-export-components": "off",
+        // Forbid runtime imports from reference projects
+        "no-restricted-imports": [
+            "error",
+            {
+                "patterns": [
+                    {
+                        "group": ["reference/*", "@/reference/*", "../../reference/*", "../reference/*", "/reference/*"],
+                        "message": "Do not import from reference/ at runtime. Copy code into src/ instead."
+                    }
+                ]
+            }
+        ],
     },
 }, ...storybookConfigs);

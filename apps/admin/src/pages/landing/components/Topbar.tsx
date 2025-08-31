@@ -66,9 +66,6 @@ export const Topbar = () => {
                                         <li>
                                             <Link to="/admin">Dashboard</Link>
                                         </li>
-                                        <li>
-                                            <Link to="/components">Components</Link>
-                                        </li>
                                     </ul>
                                 </div>
                             </div>
@@ -81,9 +78,6 @@ export const Topbar = () => {
                     <ul className="hidden lg:inline-flex gap-2 px-0 menu menu-horizontal">
                         <li>
                             <Link to="/admin">Dashboard</Link>
-                        </li>
-                        <li>
-                            <Link to="/components">Components</Link>
                         </li>
                     </ul>
                     <div className="inline-flex items-center gap-3">

@@ -16,8 +16,8 @@ export const Showcase = () => {
                             notification menus, and more for your admin dashboard.
                         </p>
                         <div className="mt-6">
-                            <Link to="/components" className="btn-outline btn btn-sm btn-neutral">
-                                View Components
+                            <Link to="/admin" className="btn-outline btn btn-sm btn-neutral">
+                                Go to Dashboard
                                 <Icon icon="lucide--chevron-right" aria-hidden />
                             </Link>
                         </div>

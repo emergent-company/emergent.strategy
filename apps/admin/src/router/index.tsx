@@ -3,7 +3,6 @@ import { Route, RouteProps, Routes } from "react-router";
 
 import AdminLayout from "@/pages/admin/layout";
 import AuthLayout from "@/pages/auth/layout";
-import ComponentLayout from "@/pages/components/layout";
 
 import { registerRoutes } from "./register";
 import { useAuth } from "@/contexts/auth";
@@ -33,19 +32,7 @@ export const Router = (props: RouteProps) => {
                     />
                 ))}
             </Route>
-            <Route>
-                {registerRoutes.components.map((route, index) => (
-                    <Route
-                        key={"component-" + index}
-                        path={route.path}
-                        element={
-                            <ComponentLayout {...props}>
-                                <Suspense>{route.element}</Suspense>
-                            </ComponentLayout>
-                        }
-                    />
-                ))}
-            </Route>
+            {/* Components gallery routes removed (replaced by Storybook) */}
             <Route>
                 {registerRoutes.auth.map((route, index) => (
                     <Route

@@ -15,6 +15,7 @@ This repository describes a system that ingests all “facts” about a potentia
 - 10-roadmap.md — Phased delivery plan
 - 11-open-questions.md — Assumptions and decisions needed
 - 13-routing-and-urls.md — URL namespaces, conventions, and redirects
+- 14-reference-projects.md — Guidelines for keeping external templates as read-only references
 - glossary.md — Common terms
 
 ## Scope assumptions

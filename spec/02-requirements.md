@@ -75,6 +75,25 @@ Acceptance Criteria (Storybook UI Catalog)
  - Auth Frontend integration: Follow Zitadel’s React example for SPA login: https://zitadel.com/docs/examples/login/react
 - Node version: >= 20.19 (per template engines field).
 
+### Public Landing (Marketing)
+- Purpose: A simple, public-facing landing page that introduces the product and links into the Admin app.
+- Routes: `/` (default), alias `/landing`.
+- Tech/Styling: React + TypeScript, Tailwind CSS 4 + daisyUI 5; icons via Iconify (Lucide). No custom CSS unless absolutely necessary.
+- Content (minimal):
+  - Logo and short product value proposition.
+  - Feature highlights (3–6 items) using daisyUI components (e.g., cards/hero).
+  - Primary CTA button “Open Dashboard” that routes to `/admin` (if unauthenticated, downstream routing flow can move to `/auth/login`).
+  - Secondary links (optional): GitHub repo, docs, contact.
+- Accessibility/SEO:
+  - Meta tags live in `apps/admin/index.html` (title/description/OG). Landing should set sensible headings and alt text.
+  - Keyboard accessible and responsive layout.
+
+Acceptance Criteria (Landing)
+- Visiting `/` or `/landing` renders the Landing page without authentication.
+- The page uses only Tailwind/daisyUI classes; visuals align with the Admin design language.
+- The primary CTA button navigates to `/admin`.
+- No runtime imports from `reference/**`.
+
 ### Org & Project Switching (Admin UI)
 - Provide clear controls to switch the active Organization and Project.
 - The active Organization/Project context scopes all API requests and views.

@@ -25,7 +25,7 @@ Rationale: All authenticated features live under `/admin`. Feature verticals tha
 ## Current and Proposed Routes
 
 ### Public
-- Landing: `/` (unchanged)
+- Landing: `/` (default) and `/landing` (alias)
 
 ### Auth
 - Login: `/auth/login`
@@ -159,6 +159,8 @@ This section mirrors the desired structure and can be implemented incrementally:
   - `/admin/settings/ai/prompts`
 
 - Other
+  - `/` (Landing)
+  - `/landing` (Landing alias)
   - `/admin/profile` (My Profile; topbar link)
 
 ## Open Questions

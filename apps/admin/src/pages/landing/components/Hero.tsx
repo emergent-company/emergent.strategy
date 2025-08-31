@@ -12,8 +12,8 @@ export const Hero = () => {
                 <div className="flex flex-col items-center">
                     <Link
                         className="flex items-center gap-1.5 bg-white/40 hover:bg-white/60 dark:bg-white/5 dark:hover:bg-white/10 py-0.5 ps-1 pe-2 border border-white/60 dark:border-white/5 rounded-full text-sm transition-all"
-                        to="/components"
-                        target="_blank">
+                        to="/admin"
+                        target="_self">
                         <div className="flex justify-center items-center bg-primary/10 dark:bg-white/5 px-1.5 py-0 border border-primary/10 dark:border-white/5 rounded-full font-medium text-primary dark:text-white text-xs">
                             v3
                         </div>{" "}
@@ -45,10 +45,10 @@ export const Hero = () => {
                             </div>
                         </Link>
                         <Link
-                            to="/components"
+                            to="/admin"
                             className="gap-3 dark:hover:bg-white dark:border-white !border-transparent dark:hover:text-black dark:text-white text-base btn btn-ghost btn-neutral btn-lg">
                             <span className="lucide--blocks size-5 sm:size-5.5 iconify" />
-                            Components
+                            Explore
                         </Link>
                     </div>
                     <div className="group relative mt-8 md:mt-16 xl:mt-20 max-w-full md:max-w-xl lg:max-w-3xl xl:max-w-5xl 2xl:max-w-6xl">
@@ -138,7 +138,7 @@ export const Hero = () => {
                                 </SwiperSlide>
                                 <SwiperSlide>
                                     <div className="mx-2 cursor-pointer">
-                                        <Link className="relative" to="/components" target="_blank">
+                                        <Link className="relative" to="/admin">
                                             <img
                                                 src="/images/landing/components-home-light.jpg"
                                                 className="dark:hidden rounded-lg w-full h-full"
@@ -151,7 +151,7 @@ export const Hero = () => {
                                             />
                                             <div className="absolute inset-0 flex justify-center items-end bg-linear-to-b from-[50%] from-transparent via-[80%] via-black/20 to-black/80 opacity-0 group-hover:opacity-100 rounded-lg transition-all duration-300">
                                                 <div className="gap-2.5 bg-white mb-8 px-4 py-2 rounded-box font-medium text-black/80 text-sm">
-                                                    Components
+                                                    Explore
                                                 </div>
                                             </div>
                                         </Link>

@@ -1,0 +1,4 @@
+[submodule "reference/nexus"]
+	path = reference/nexus
+	url = git@github.com:eyedea-io/Nexus-React-3.0.0.git
+	branch = master
