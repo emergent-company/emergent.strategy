@@ -1,0 +1,89 @@
+name: Admin E2E
+
+on:
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: Admin E2E (Playwright)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Install admin deps
+        working-directory: apps/admin
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        working-directory: apps/admin
+        run: npx playwright install --with-deps
+
+      - name: Run E2E
+        working-directory: apps/admin
+        env:
+          # Override base URL if you run against preview; default dev server auto-starts
+          # E2E_BASE_URL: http://localhost:4173
+          CI: 'true'
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/admin/playwright-report
+
+  e2e-real-login:
+    name: Admin E2E (real login)
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Install admin deps
+        working-directory: apps/admin
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        working-directory: apps/admin
+        run: npx playwright install --with-deps
+
+      - name: Run E2E with real login
+        working-directory: apps/admin
+        env:
+          E2E_REAL_LOGIN: '1'
+          E2E_OIDC_EMAIL: ${{ secrets.E2E_OIDC_EMAIL }}
+          E2E_OIDC_PASSWORD: ${{ secrets.E2E_OIDC_PASSWORD }}
+          CI: 'true'
+        run: npm run e2e:real
+
+      - name: Upload Playwright report (real)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-real
+          path: apps/admin/playwright-report

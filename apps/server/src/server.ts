@@ -220,7 +220,8 @@ async function main() {
         try {
             const key = String(req.params.key);
             const { rows } = await query<{ value: any }>(`SELECT value FROM kb.settings WHERE key = $1`, [key]);
-            if (rows.length === 0) return res.status(404).json({ error: 'not found' });
+            // If not found, return 200 with null to avoid noisy 404s for unset keys
+            if (rows.length === 0) return res.json({ key, value: null });
             res.json({ key, value: rows[0].value });
         } catch (e: any) {
             res.status(500).json({ error: e.message || 'failed to load setting' });

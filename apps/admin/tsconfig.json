@@ -32,16 +32,23 @@
         "src",
         ".storybook"
     ],
-        "exclude": [
-            "src/pages/components/**",
-            "src/pages/layout-builder/**",
-            "src/pages/admin/apps/ecommerce/**",
-            "src/pages/admin/apps/file-manager/**",
-            "src/pages/admin/apps/gen-ai/**",
-            "src/pages/admin/pages/starter/**",
-            "src/pages/admin/pages/get-help/**",
-            "src/pages/admin/agentic/storage/**"
-        ],
+    "exclude": [
+        "src/**/*.test.ts",
+        "src/**/*.test.tsx",
+        "src/**/*.spec.ts",
+        "src/**/*.spec.tsx",
+        "src/**/*.stories.ts",
+        "src/**/*.stories.tsx",
+        "tests/**",
+        "src/pages/components/**",
+        "src/pages/layout-builder/**",
+        "src/pages/admin/apps/ecommerce/**",
+        "src/pages/admin/apps/file-manager/**",
+        "src/pages/admin/apps/gen-ai/**",
+        "src/pages/admin/pages/starter/**",
+        "src/pages/admin/pages/get-help/**",
+        "src/pages/admin/agentic/storage/**"
+    ],
     "references": [
         {
             "path": "./tsconfig.node.json"

@@ -16,9 +16,9 @@
     "db:init": "tsx scripts/init-db.ts",
     "test:smoke": "tsx scripts/smoke-test.ts",
     "mcp:db": "node .vscode/mcp.js",
-  "check:stories": "node scripts/check-stories.mjs",
-  "ref:init": "git submodule update --init --recursive",
-  "ref:pull": "git -C reference/nexus pull origin master"
+    "check:stories": "node scripts/check-stories.mjs",
+    "ref:init": "git submodule update --init --recursive",
+    "ref:pull": "git -C reference/nexus pull origin master"
   },
   "dependencies": {
     "@langchain/google-genai": "^0.2.1",

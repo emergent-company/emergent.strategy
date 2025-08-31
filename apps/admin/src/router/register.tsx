@@ -1,5 +1,5 @@
 import { JSX, LazyExoticComponent, lazy } from "react";
-import { Navigate, RouteProps, useParams } from "react-router";
+import { Navigate, RouteProps } from "react-router";
 
 export type IRoutesProps = {
     path: RouteProps["path"];
@@ -13,21 +13,13 @@ const cw = (Component: LazyExoticComponent<() => JSX.Element>) => <Component />;
 const dashboardRoutes: IRoutesProps[] = [
     { path: "/admin", element: <Navigate to="/admin/apps/documents" replace /> },
     { path: "/admin/chat", element: <Navigate to="/admin/apps/chat" replace /> },
-    { path: "/admin/chat/c/:id?", element: <LegacyChatConversationRedirect /> },
     { path: "/admin/apps/chat", element: cw(lazy(() => import("@/pages/admin/chat/home"))) },
-    { path: "/admin/apps/chat/c/:id?", element: cw(lazy(() => import("@/pages/admin/chat/conversation"))) },
     { path: "/admin/apps/documents", element: cw(lazy(() => import("@/pages/admin/apps/documents/index"))) },
     { path: "/admin/apps/chunks", element: cw(lazy(() => import("@/pages/admin/apps/chunks/index"))) },
     { path: "/admin/profile", element: cw(lazy(() => import("@/pages/admin/profile"))) },
     { path: "/admin/settings", element: <Navigate to="/admin/settings/ai/prompts" replace /> },
     { path: "/admin/settings/ai/prompts", element: cw(lazy(() => import("@/pages/admin/pages/settings/ai-prompts"))) },
 ];
-
-function LegacyChatConversationRedirect() {
-    const { id } = useParams();
-    const target = id ? `/admin/apps/chat/c/${id}` : "/admin/apps/chat/c/new";
-    return <Navigate to={target} replace />;
-}
 
 const appRoutes: IRoutesProps[] = [];
 
