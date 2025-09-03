@@ -30,7 +30,7 @@ const LoginPage = () => {
                         <legend className="fieldset-legend">Email Address</legend>
                         <label className="focus:outline-0 w-full input">
                             <Icon icon="lucide--mail" className="size-5 text-base-content/80" ariaLabel="Email" />
-                            <input className="focus:outline-0 grow" placeholder="Email Address" type="email" />
+                            <input name="email" id="email" className="focus:outline-0 grow" placeholder="Email Address" type="email" />
                         </label>
                     </fieldset>
 
@@ -39,6 +39,8 @@ const LoginPage = () => {
                         <label className="focus:outline-0 w-full input">
                             <Icon icon="lucide--key-round" className="size-5 text-base-content/80" ariaLabel="Password" />
                             <input
+                                id="password"
+                                name="password"
                                 className="focus:outline-0 grow"
                                 placeholder="Password"
                                 type={showPassword ? "text" : "password"}
@@ -77,7 +79,7 @@ const LoginPage = () => {
                         </label>
                     </div>
 
-                    <button onClick={() => login()} className="gap-3 mt-4 md:mt-6 max-w-full btn btn-primary btn-wide">
+                    <button name="signin" onClick={() => login()} className="gap-3 mt-4 md:mt-6 max-w-full btn btn-primary btn-wide">
                         <Icon icon="lucide--log-in" className="size-4" ariaLabel="Login" />
                         Continue with SSO
                     </button>

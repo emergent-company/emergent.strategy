@@ -58,11 +58,16 @@ Optional Steps (Architecture / Backend)
 - Observability: add metrics for upload latency, failures, and ingestion lag; expose in a dashboard.
 
 ## Hybrid Retrieval
-- Candidate generation: vector kNN + keyword BM25.
-- Fusion: RRF or weighted blending, then graph-aware rerank using:
+- Default retrieval mode: hybrid.
+- Candidate generation: vector kNN (pgvector) + keyword FTS (tsvector/BM25 equivalent via ts_rank).
+- Fusion: Reciprocal Rank Fusion (RRF, k≈60) or weighted blending of normalized scores; then optional graph-aware rerank using:
   - Provenance authority (source type, recency, author reputation).
   - Graph proximity to query entities.
 - Output: top-N passages with citations, expandable via graph neighbors.
+
+API Notes
+- `/search` defaults to hybrid; `mode=vector|lexical|hybrid` may be provided for debugging and evaluation.
+- Chat retrieval uses the same fusion pipeline to build the context window.
 
 ## Deployment
 - Containerized services; infra as code.

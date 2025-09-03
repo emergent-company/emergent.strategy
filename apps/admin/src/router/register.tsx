@@ -14,6 +14,7 @@ const dashboardRoutes: IRoutesProps[] = [
     { path: "/admin", element: <Navigate to="/admin/apps/documents" replace /> },
     { path: "/admin/chat", element: <Navigate to="/admin/apps/chat" replace /> },
     { path: "/admin/apps/chat", element: cw(lazy(() => import("@/pages/admin/chat/home"))) },
+    { path: "/admin/apps/chat/c/:id?", element: cw(lazy(() => import("@/pages/admin/chat/conversation"))) },
     { path: "/admin/apps/documents", element: cw(lazy(() => import("@/pages/admin/apps/documents/index"))) },
     { path: "/admin/apps/chunks", element: cw(lazy(() => import("@/pages/admin/apps/chunks/index"))) },
     { path: "/admin/profile", element: cw(lazy(() => import("@/pages/admin/profile"))) },

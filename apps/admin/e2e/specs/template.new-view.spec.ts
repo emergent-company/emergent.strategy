@@ -7,7 +7,7 @@ import { test } from '../fixtures/consoleGate';
  * - Prefer a stable selector (role/name, data-testid) to identify the view rendered
  */
 
-test.describe('New view route visit', () => {
+test.describe.skip('New view route visit (template - skipped)', () => {
     const PATH = '/admin/path-to-new-view'; // TODO: replace
     const STABLE_SELECTOR = 'h1:has-text("Replace With View Title")'; // TODO: replace with a robust locator
 

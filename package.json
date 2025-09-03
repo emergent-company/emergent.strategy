@@ -18,7 +18,11 @@
     "mcp:db": "node .vscode/mcp.js",
     "check:stories": "node scripts/check-stories.mjs",
     "ref:init": "git submodule update --init --recursive",
-    "ref:pull": "git -C reference/nexus pull origin master"
+    "ref:pull": "git -C reference/nexus pull origin master",
+    "e2e:real": ". ./.env && E2E_REAL_LOGIN=1 npm --prefix apps/admin run e2e",
+    "e2e:ui:real": ". ./.env && E2E_REAL_LOGIN=1 npm --prefix apps/admin run e2e:ui",
+    "e2e:setup:real": ". ./.env && E2E_REAL_LOGIN=1 npm --prefix apps/admin run e2e:setup",
+    "e2e:auth:real": ". ./.env && E2E_REAL_LOGIN=1 npm --prefix apps/admin run e2e:auth"
   },
   "dependencies": {
     "@langchain/google-genai": "^0.2.1",

@@ -26,7 +26,7 @@
   - Full Text Search via Postgres built-in FTS.
   - Object store for originals and derived artifacts.
 - Retrieval and reasoning
-  - Hybrid search (keyword + vector + graph reranking) with filters.
+  - Hybrid search (vector + keyword) with optional graph-aware reranking. Default retrieval uses fused vector kNN and FTS candidates (e.g., RRF or weighted blending), supports org/project filters, and returns citations.
   - Citations and snippet highlighting with chunk IDs.
   - Session-based context packing for AI agents (retrieval-augmented prompts).
 - MCP server
@@ -46,6 +46,12 @@
 - LLM Provider: Google Gemini.
 - Embeddings Model: `text-embedding-004` (Gemini 1.5 embeddings).
 - Dev DB: Postgres with pgvector and FTS, running locally via Docker Compose with bootstrap SQL to enable extensions and create base tables.
+Acceptance Criteria (Hybrid Retrieval)
+- A search request can run in hybrid mode by default, combining pgvector and FTS results via fusion (RRF or weighted blend).
+- Server exposes a debug switch to force `vector` or `lexical` only (e.g., `GET /search?mode=vector|lexical|hybrid`).
+- When one modality has no candidates, the other still returns useful results.
+- Results include citations with chunk ids and provenance metadata.
+
  - Dev Auth: Zitadel (https://zitadel.com/) (OIDC/OAuth2) runs locally via Docker Compose alongside Postgres for development. Provide minimal bootstrap (org/project/app) and expose issuer URL and credentials via `.env`.
  - Self-hosted reference (staging/prod): Follow Zitadel self-hosting deployment overview: https://zitadel.com/docs/self-hosting/deploy/overview
  - Dev UI Catalog: Storybook (v8+, Vite builder) for React + TypeScript to document and test UI components used across the project. Must load the same `src/styles/app.css` (Tailwind CSS 4 + daisyUI 5) so visuals match the app. Provide a global decorator that wraps stories with the Nexus `ConfigProvider` to enable theme switching (light/dark) and other global UI config.

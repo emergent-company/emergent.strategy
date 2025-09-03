@@ -5,6 +5,7 @@ import multer from 'multer';
 import { ensureSchema } from './db.js';
 import { ingestText, ingestUrl } from './ingest.js';
 import { query } from './db.js';
+import { makeEmbeddings } from './embeddings.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -46,16 +47,84 @@ async function main() {
         try {
             const q = String((req.query.q as string) || '').trim();
             const limit = Math.min(Math.max(Number(req.query.limit || 10), 1), 50);
+            const mode = String((req.query.mode as string) || 'hybrid').toLowerCase();
             if (!q) return res.status(400).json({ error: 'q is required' });
+            // Lexical only path
+            if (mode === 'lexical') {
+                const { rows } = await query<{ id: string; document_id: string; chunk_index: number; text: string }>(
+                    `SELECT id, document_id, chunk_index, text
+                                         FROM kb.chunks
+                                         WHERE tsv @@ websearch_to_tsquery('simple', $1)
+                                         ORDER BY ts_rank(tsv, websearch_to_tsquery('simple', $1)) DESC
+                                         LIMIT $2`,
+                    [q, limit]
+                );
+                return res.json({ mode: 'lexical', results: rows });
+            }
+
+            // For vector/hybrid modes, compute embedding if possible
+            const apiKey = process.env.GOOGLE_API_KEY;
+            if (!apiKey && mode !== 'lexical') {
+                // Fallback gracefully to lexical
+                const { rows } = await query<{ id: string; document_id: string; chunk_index: number; text: string }>(
+                    `SELECT id, document_id, chunk_index, text
+                                         FROM kb.chunks
+                                         WHERE tsv @@ websearch_to_tsquery('simple', $1)
+                                         ORDER BY ts_rank(tsv, websearch_to_tsquery('simple', $1)) DESC
+                                         LIMIT $2`,
+                    [q, limit]
+                );
+                return res.json({ mode: 'lexical', results: rows, warning: 'Embeddings unavailable; fell back to lexical.' });
+            }
+
+            const embed = makeEmbeddings();
+            const qvec = await embed.embedQuery(q);
+            const vecLiteral = '[' + qvec.join(',') + ']';
+
+            if (mode === 'vector') {
+                const { rows } = await query<{ id: string; document_id: string; chunk_index: number; text: string }>(
+                    `SELECT id, document_id, chunk_index, text
+                                         FROM kb.chunks
+                                         ORDER BY embedding <=> $1::vector
+                                         LIMIT $2`,
+                    [vecLiteral, limit]
+                );
+                return res.json({ mode: 'vector', results: rows });
+            }
+
+            // Hybrid: fuse vector and lexical with RRF
             const { rows } = await query<{ id: string; document_id: string; chunk_index: number; text: string }>(
-                `SELECT id, document_id, chunk_index, text
-                 FROM kb.chunks
-                 WHERE tsv @@ websearch_to_tsquery('simple', $1)
-                 ORDER BY ts_rank(tsv, websearch_to_tsquery('simple', $1)) DESC
-                 LIMIT $2`,
-                [q, limit]
+                `WITH params AS (
+                                     SELECT $1::vector AS qvec, websearch_to_tsquery('simple', $2) AS qts, $3::int AS topk
+                                 ), vec AS (
+                                     SELECT c.id, c.document_id, c.chunk_index, c.text,
+                                                    1.0 / (ROW_NUMBER() OVER (ORDER BY c.embedding <=> (SELECT qvec FROM params)) + 60) AS rrf
+                                     FROM kb.chunks c
+                                     ORDER BY c.embedding <=> (SELECT qvec FROM params)
+                                     LIMIT (SELECT topk FROM params)
+                                 ), lex AS (
+                                     SELECT c.id, c.document_id, c.chunk_index, c.text,
+                                                    1.0 / (ROW_NUMBER() OVER (ORDER BY ts_rank(c.tsv, (SELECT qts FROM params)) DESC) + 60) AS rrf
+                                     FROM kb.chunks c
+                                     WHERE c.tsv @@ (SELECT qts FROM params)
+                                     ORDER BY ts_rank(c.tsv, (SELECT qts FROM params)) DESC
+                                     LIMIT (SELECT topk FROM params)
+                                 ), fused AS (
+                                     SELECT id, document_id, chunk_index, text, SUM(rrf) AS score
+                                     FROM (
+                                         SELECT * FROM vec
+                                         UNION ALL
+                                         SELECT * FROM lex
+                                     ) u
+                                     GROUP BY id, document_id, chunk_index, text
+                                 )
+                                 SELECT id, document_id, chunk_index, text
+                                 FROM fused
+                                 ORDER BY score DESC
+                                 LIMIT (SELECT topk FROM params)`,
+                [vecLiteral, q, limit]
             );
-            res.json({ results: rows });
+            res.json({ mode: 'hybrid', results: rows });
         } catch (e: any) {
             res.status(500).json({ error: e.message || 'search failed' });
         }

@@ -275,21 +275,100 @@ async function main() {
         try {
             const q = String((req.query.q as string) || '').trim();
             const limit = Math.min(Math.max(Number(req.query.limit || 10), 1), 50);
+            const mode = String((req.query.mode as string) || 'hybrid').toLowerCase();
             if (!q) return res.status(400).json({ error: 'q is required' });
             const orgId = (req.headers['x-org-id'] as string | undefined) || null;
             const projectId = (req.headers['x-project-id'] as string | undefined) || null;
+            // Lexical-only mode
+            if (mode === 'lexical') {
+                const { rows } = await query<{ id: string; document_id: string; chunk_index: number; text: string }>(
+                    `SELECT c.id, c.document_id, c.chunk_index, c.text
+                                         FROM kb.chunks c
+                                         JOIN kb.documents d ON d.id = c.document_id
+                                         WHERE c.tsv @@ websearch_to_tsquery('simple', $1)
+                                             AND (d.org_id IS NOT DISTINCT FROM $2)
+                                             AND (d.project_id IS NOT DISTINCT FROM $3)
+                                         ORDER BY ts_rank(c.tsv, websearch_to_tsquery('simple', $1)) DESC
+                                         LIMIT $4`,
+                    [q, orgId, projectId, limit]
+                );
+                return res.json({ mode: 'lexical', results: rows });
+            }
+
+            // Vector/hybrid requires embedding; fallback if unavailable
+            const apiKey = process.env.GOOGLE_API_KEY;
+            if (!apiKey && mode !== 'lexical') {
+                const { rows } = await query<{ id: string; document_id: string; chunk_index: number; text: string }>(
+                    `SELECT c.id, c.document_id, c.chunk_index, c.text
+                                         FROM kb.chunks c
+                                         JOIN kb.documents d ON d.id = c.document_id
+                                         WHERE c.tsv @@ websearch_to_tsquery('simple', $1)
+                                             AND (d.org_id IS NOT DISTINCT FROM $2)
+                                             AND (d.project_id IS NOT DISTINCT FROM $3)
+                                         ORDER BY ts_rank(c.tsv, websearch_to_tsquery('simple', $1)) DESC
+                                         LIMIT $4`,
+                    [q, orgId, projectId, limit]
+                );
+                return res.json({ mode: 'lexical', results: rows, warning: 'Embeddings unavailable; fell back to lexical.' });
+            }
+
+            const embed = makeEmbeddings();
+            const qvec = await embed.embedQuery(q);
+            const vecLiteral = '[' + qvec.join(',') + ']';
+
+            if (mode === 'vector') {
+                const { rows } = await query<{ id: string; document_id: string; chunk_index: number; text: string }>(
+                    `SELECT c.id, c.document_id, c.chunk_index, c.text
+                                         FROM kb.chunks c
+                                         JOIN kb.documents d ON d.id = c.document_id
+                                         WHERE (d.org_id IS NOT DISTINCT FROM $2)
+                                             AND (d.project_id IS NOT DISTINCT FROM $3)
+                                         ORDER BY c.embedding <=> $1::vector
+                                         LIMIT $4`,
+                    [vecLiteral, orgId, projectId, limit]
+                );
+                return res.json({ mode: 'vector', results: rows });
+            }
+
+            // Hybrid fusion via RRF with org/project scoping
             const { rows } = await query<{ id: string; document_id: string; chunk_index: number; text: string }>(
-                `SELECT c.id, c.document_id, c.chunk_index, c.text
-                 FROM kb.chunks c
-                 JOIN kb.documents d ON d.id = c.document_id
-                 WHERE c.tsv @@ websearch_to_tsquery('simple', $1)
-                     AND (d.org_id IS NOT DISTINCT FROM $2)
-                     AND (d.project_id IS NOT DISTINCT FROM $3)
-                 ORDER BY ts_rank(c.tsv, websearch_to_tsquery('simple', $1)) DESC
-                 LIMIT $4`,
-                [q, orgId, projectId, limit]
+                `WITH params AS (
+                                     SELECT $1::vector AS qvec, websearch_to_tsquery('simple', $2) AS qts, $3::int AS topk
+                                 ), vec AS (
+                                     SELECT c.id, c.document_id, c.chunk_index, c.text,
+                                                    1.0 / (ROW_NUMBER() OVER (ORDER BY c.embedding <=> (SELECT qvec FROM params)) + 60) AS rrf
+                                     FROM kb.chunks c
+                                     JOIN kb.documents d ON d.id = c.document_id
+                                     WHERE (d.org_id IS NOT DISTINCT FROM $4)
+                                         AND (d.project_id IS NOT DISTINCT FROM $5)
+                                     ORDER BY c.embedding <=> (SELECT qvec FROM params)
+                                     LIMIT (SELECT topk FROM params)
+                                 ), lex AS (
+                                     SELECT c.id, c.document_id, c.chunk_index, c.text,
+                                                    1.0 / (ROW_NUMBER() OVER (ORDER BY ts_rank(c.tsv, (SELECT qts FROM params)) DESC) + 60) AS rrf
+                                     FROM kb.chunks c
+                                     JOIN kb.documents d ON d.id = c.document_id
+                                     WHERE c.tsv @@ (SELECT qts FROM params)
+                                         AND (d.org_id IS NOT DISTINCT FROM $4)
+                                         AND (d.project_id IS NOT DISTINCT FROM $5)
+                                     ORDER BY ts_rank(c.tsv, (SELECT qts FROM params)) DESC
+                                     LIMIT (SELECT topk FROM params)
+                                 ), fused AS (
+                                     SELECT id, document_id, chunk_index, text, SUM(rrf) AS score
+                                     FROM (
+                                         SELECT * FROM vec
+                                         UNION ALL
+                                         SELECT * FROM lex
+                                     ) u
+                                     GROUP BY id, document_id, chunk_index, text
+                                 )
+                                 SELECT id, document_id, chunk_index, text
+                                 FROM fused
+                                 ORDER BY score DESC
+                                 LIMIT (SELECT topk FROM params)`,
+                [vecLiteral, q, limit, orgId, projectId]
             );
-            res.json({ results: rows });
+            res.json({ mode: 'hybrid', results: rows });
         } catch (e: any) {
             res.status(500).json({ error: e.message || 'search failed' });
         }
@@ -507,20 +586,63 @@ async function main() {
             const queryVec = await embed.embedQuery(message);
             const vecLiteral = `[` + queryVec.join(',') + `]`;
 
-            // Retrieve topK chunks scoped by org/project
+            // Retrieve topK chunks using hybrid fusion (vector + FTS) scoped by org/project and optional doc filters
             const orgId = (req.headers['x-org-id'] as string | undefined) || null;
             const projectId = (req.headers['x-project-id'] as string | undefined) || null;
-            const { rows } = await query<{ chunk_id: string; document_id: string; chunk_index: number; text: string; distance: number; filename: string | null; source_url: string | null }>(
-                `SELECT c.id as chunk_id, c.document_id, c.chunk_index, c.text, (c.embedding <=> $1::vector) as distance,
-                                                d.filename, d.source_url
-                                 FROM kb.chunks c
+            const { rows } = await query<{
+                chunk_id: string;
+                document_id: string;
+                chunk_index: number;
+                text: string;
+                distance: number | null;
+                filename: string | null;
+                source_url: string | null;
+            }>(
+                `WITH params AS (
+                                     SELECT $1::vector AS qvec,
+                                                    websearch_to_tsquery('simple', $6) AS qts,
+                                                    $5::int AS topk
+                                 ), vec AS (
+                                     SELECT c.id,
+                                                    1.0 / (ROW_NUMBER() OVER (ORDER BY c.embedding <=> (SELECT qvec FROM params)) + 60) AS rrf,
+                                                    (c.embedding <=> (SELECT qvec FROM params)) AS distance
+                                     FROM kb.chunks c
+                                     JOIN kb.documents d ON d.id = c.document_id
+                                     WHERE ($2::uuid[] IS NULL OR c.document_id = ANY($2::uuid[]))
+                                         AND (d.org_id IS NOT DISTINCT FROM $3)
+                                         AND (d.project_id IS NOT DISTINCT FROM $4)
+                                     ORDER BY c.embedding <=> (SELECT qvec FROM params)
+                                     LIMIT (SELECT topk FROM params)
+                                 ), lex AS (
+                                     SELECT c.id,
+                                                    1.0 / (ROW_NUMBER() OVER (ORDER BY ts_rank(c.tsv, (SELECT qts FROM params)) DESC) + 60) AS rrf,
+                                                    NULL::float AS distance
+                                     FROM kb.chunks c
+                                     JOIN kb.documents d ON d.id = c.document_id
+                                     WHERE c.tsv @@ (SELECT qts FROM params)
+                                         AND ($2::uuid[] IS NULL OR c.document_id = ANY($2::uuid[]))
+                                         AND (d.org_id IS NOT DISTINCT FROM $3)
+                                         AND (d.project_id IS NOT DISTINCT FROM $4)
+                                     ORDER BY ts_rank(c.tsv, (SELECT qts FROM params)) DESC
+                                     LIMIT (SELECT topk FROM params)
+                                 ), fused AS (
+                                     SELECT id, SUM(rrf) AS score, MIN(distance) AS distance
+                                     FROM (
+                                         SELECT * FROM vec
+                                         UNION ALL
+                                         SELECT * FROM lex
+                                     ) u
+                                     GROUP BY id
+                                 )
+                                 SELECT c.id AS chunk_id, c.document_id, c.chunk_index, c.text,
+                                                d.filename, d.source_url,
+                                                f.distance
+                                 FROM fused f
+                                 JOIN kb.chunks c ON c.id = f.id
                                  JOIN kb.documents d ON d.id = c.document_id
-                                 WHERE ($2::uuid[] IS NULL OR c.document_id = ANY($2::uuid[]))
-                                     AND (d.org_id IS NOT DISTINCT FROM $3)
-                                     AND (d.project_id IS NOT DISTINCT FROM $4)
-                                 ORDER BY c.embedding <=> $1::vector
-                                 LIMIT $5`,
-                [vecLiteral, filterIds, orgId, projectId, topK]
+                                 ORDER BY f.score DESC
+                                 LIMIT (SELECT topk FROM params)`,
+                [vecLiteral, filterIds, orgId, projectId, topK, message]
             );
 
             const citations = rows.map((r) => ({
@@ -530,7 +652,7 @@ async function main() {
                 text: r.text,
                 sourceUrl: r.source_url,
                 filename: r.filename,
-                similarity: r.distance,
+                similarity: r.distance ?? undefined,
             }));
 
             // Send citations meta first, include server conversation id so clients can sync ids

@@ -274,7 +274,26 @@ export function useChat(opts: UseChatOptions = {}) {
         const m: Message = { id: uid("m"), role, content, createdAt: nowIso() };
         setConversationsPersisted((prev) => {
             const idx = prev.findIndex((c) => c.id === conversationId);
-            if (idx < 0) return prev;
+            const timestamp = nowIso();
+            if (idx < 0) {
+                // Create a new conversation on-the-fly if it doesn't exist yet (avoids race with upsert + append)
+                const d = new Date();
+                const yyyy = d.getFullYear();
+                const mm = `${d.getMonth() + 1}`.padStart(2, "0");
+                const dd = `${d.getDate()}`.padStart(2, "0");
+                const words = content.trim().split(/\s+/).slice(0, 8).join(" ");
+                const snippet = words.length > 48 ? words.slice(0, 48) : words;
+                const title = role === "user" ? `${yyyy}-${mm}-${dd} — ${snippet || "New Conversation"}` : "New Conversation";
+                const conv: Conversation = {
+                    id: conversationId,
+                    title,
+                    createdAt: timestamp,
+                    updatedAt: timestamp,
+                    messages: [m],
+                    isPrivate: false,
+                };
+                return [conv, ...prev];
+            }
             const wasEmpty = prev[idx].messages.length === 0;
             // Auto-name on first user message: YYYY-MM-DD — snippet
             let newTitle = prev[idx].title;
@@ -287,7 +306,7 @@ export function useChat(opts: UseChatOptions = {}) {
                 const snippet = words.length > 48 ? words.slice(0, 48) : words;
                 newTitle = `${yyyy}-${mm}-${dd} — ${snippet || "New Conversation"}`;
             }
-            const conv: Conversation = { ...prev[idx], title: newTitle, updatedAt: nowIso(), messages: [...prev[idx].messages, m] };
+            const conv: Conversation = { ...prev[idx], title: newTitle, updatedAt: timestamp, messages: [...prev[idx].messages, m] };
             return [...prev.slice(0, idx), conv, ...prev.slice(idx + 1)];
         });
         return m;

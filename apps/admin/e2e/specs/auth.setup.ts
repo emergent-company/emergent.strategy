@@ -37,53 +37,50 @@ async function clickAnyButton(page: import('@playwright/test').Page, texts: stri
 setup('authenticate and save storage state', async ({ page, context, baseURL }) => {
     await fs.mkdir(authDir, { recursive: true });
 
-    const token = process.env.E2E_AUTH_TOKEN;
+    // Use provided token or fall back to a harmless fake JWT-like token for local testing
+    const token = process.env.E2E_AUTH_TOKEN || 'e30.e30.e30';
     const email = process.env.E2E_OIDC_EMAIL as string | undefined;
     const password = process.env.E2E_OIDC_PASSWORD as string | undefined;
     const doReal = process.env.E2E_REAL_LOGIN === '1' || (!!email && !!password);
 
-    if (token && !doReal) {
-        // Store token in localStorage under the same key as the app uses
-        await page.goto(baseURL || '/');
-        await page.addInitScript((tokenValue: string) => {
+    if (doReal) {
+        // Perform full real login flow using IdP
+        await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
+        // await page.getByRole('button', { name: /continue with sso/i }).click();
+        await page.waitForLoadState('domcontentloaded');
+        // Fill email
+        await waitAnyVisible(page, ['input[name="email"]']);
+        const emailField = page.locator('input[name="email"], #email').first();
+        await emailField.fill(email!);
+        // await clickAnyButton(page, ['next', 'continue', 'sign in', 'log in']);
+        // Fill password
+        await waitAnyVisible(page, ['input[type="password"]', 'input[name="password"]', '#password']);
+        const passField = page.locator('input[type="password"], input[name="password"], #password').first();
+        await passField.fill(password!);
+
+        await clickAnyButton(page, ['button[name="signin"]']);
+
+        // // Optional consent
+        // await page.waitForLoadState('domcontentloaded');
+        // const consentClicked = await clickAnyButton(page, ['accept', 'allow', 'authorize', 'continue']);
+        // if (consentClicked) await page.waitForLoadState('domcontentloaded');
+
+        await waitAnyVisible(page, ['#main']);
+        // Back to app
+        // await page.waitForURL(/\/auth\/callback|\/admin/i, { timeout: 60_000 });
+        // await page.waitForURL(/\/admin(\/|$)/, { timeout: 60_000 });
+    } else {
+        // Inject token into localStorage synchronously and persist as storage state
+        await page.goto(baseURL || '/', { waitUntil: 'domcontentloaded' });
+        await page.evaluate((tokenValue: string) => {
             const STORAGE_KEY = '__nexus_auth_v1__';
             const now = Date.now();
             const expiresAt = now + 60 * 60 * 1000; // 1h
             const state = { accessToken: tokenValue, idToken: tokenValue, expiresAt };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         }, token);
-        // Navigate to an authenticated page to ensure state is loaded
-        await page.goto('/admin/apps/documents');
-        await page.waitForLoadState('domcontentloaded');
-    } else if (doReal) {
-        // Perform full real login flow using IdP
-        await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
-        await page.getByRole('button', { name: /continue with sso/i }).click();
-        await page.waitForLoadState('domcontentloaded');
-        // Fill email
-        await waitAnyVisible(page, ['input[type="email"]', 'input[name="loginName"]', '#loginName', 'input[name="email"]']);
-        const emailField = page.locator('input[type="email"], input[name="loginName"], #loginName, input[name="email"]').first();
-        await emailField.fill(email!);
-        await clickAnyButton(page, ['next', 'continue', 'sign in', 'log in']);
-        // Fill password
-        await waitAnyVisible(page, ['input[type="password"]', 'input[name="password"]', '#password']);
-        const passField = page.locator('input[type="password"], input[name="password"], #password').first();
-        await passField.fill(password!);
-        await clickAnyButton(page, ['sign in', 'log in', 'continue', 'submit']);
-        // Optional consent
-        await page.waitForLoadState('domcontentloaded');
-        const consentClicked = await clickAnyButton(page, ['accept', 'allow', 'authorize', 'continue']);
-        if (consentClicked) await page.waitForLoadState('domcontentloaded');
-        // Back to app
-        await page.waitForURL(/\/auth\/callback|\/admin/i, { timeout: 60_000 });
-        await page.waitForURL(/\/admin(\/|$)/, { timeout: 60_000 });
-    } else {
-        // Fallback: click the "Continue with SSO" button on the login page
-        await page.goto('/auth/login');
-        const ssoButton = page.getByRole('button', { name: /continue with sso/i });
-        await ssoButton.click();
-        // Expect redirect to external IdP; in real env we’d complete the flow.
-        // If the IdP is not reachable in test, this branch will likely fail.
+        // Note: saving storage state captures localStorage for this origin.
+        // Subsequent projects that use this storage state will start with the token.
     }
 
     await context.storageState({ path: storageFile });

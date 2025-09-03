@@ -6,11 +6,19 @@ import { test } from '../fixtures/auth';
 test('authenticated user can load documents page without redirect', async ({ page, authToken }) => {
     await page.goto('/admin/apps/documents');
     await page.waitForLoadState('domcontentloaded');
-    // Basic sanity: root or main visible
-    await expect(page.locator('#root, main')).toBeVisible();
 
-    // If token is needed for API calls, it is available here
-    // The actual API endpoint is app-specific; we simply assert we have a token when configured
+    // Assert we are on the correct route (no redirect)
+    await expect(page).toHaveURL(/\/admin\/apps\/documents/);
+
+    // Page title "Documents" should be visible (from PageTitle component)
+    await expect(page.locator('p.font-medium.text-lg', { hasText: 'Documents' })).toBeVisible();
+
+    // Sidebar should contain a link to Documents
+    const sidebarDocsLink = page.locator('#layout-sidebar').getByRole('link', { name: /^Documents$/i });
+    await expect(sidebarDocsLink).toBeVisible();
+    await expect(sidebarDocsLink).toHaveAttribute('href', '/admin/apps/documents');
+
+    // If token is configured, ensure the fixture exposed it
     if (process.env.E2E_AUTH_TOKEN) {
         expect(authToken).toBeTruthy();
     }

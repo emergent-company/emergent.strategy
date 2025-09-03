@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -8,6 +8,11 @@ const baseURL = process.env.E2E_BASE_URL || 'http://localhost:5173';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ADMIN_DIR = resolve(__dirname, '..');
+
+// Load env from repo root first, then admin/.env, then default .env resolution
+dotenv.config({ path: resolve(ADMIN_DIR, '..', '..', '.env') });
+dotenv.config({ path: resolve(ADMIN_DIR, '.env') });
+dotenv.config();
 
 export default defineConfig({
     testDir: './specs',

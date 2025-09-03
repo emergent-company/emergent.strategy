@@ -9,7 +9,7 @@ Add a typical AI chat experience to the Admin app that uses Retrieval-Augmented 
 
 ## Goals
 - Provide an in-app “AI Chat” page within the Admin section.
-- Query our own database via semantic retrieval (pgvector) and optionally lexical (tsvector) as fallback.
+- Use hybrid retrieval by default: combine semantic (pgvector) and lexical (Postgres FTS/tsvector) results via fusion (e.g., RRF or weighted blend). If one side has zero candidates, gracefully fall back to the other.
 - Stream assistant responses to the UI with live tokens and show source citations.
 - Support conversation history (client-side initially; optional server persistence).
 - Use daisyUI 5 + Tailwind utilities only (no custom CSS unless necessary).
@@ -195,7 +195,7 @@ export interface ChatChunk {
 1. User enters a prompt and hits Send.
 2. Frontend immediately appends a user message, then shows a streaming assistant bubble with `loading-dots`.
 3. Frontend POSTs to `/chat/stream` with `ChatRequest`.
-4. Server embeds the query, runs vector search on `kb.chunks` (optionally merges with tsvector search), fetches topK chunks, and calls the LLM with retrieved context.
+4. Server embeds the query, runs hybrid retrieval on `kb.chunks` (vector kNN + FTS), fuses the candidate lists (RRF/weighted), fetches topK merged chunks, and calls the LLM with retrieved context.
 5. Server streams tokens to the client (SSE). Citations are included once available (can be sent upfront after retrieval or at end).
 6. Frontend renders tokens incrementally; user may click Stop to abort.
 7. Upon finalization, the assistant message is marked complete and citations are attached.
@@ -216,7 +216,7 @@ Add to `src/server.ts`.
 Server steps:
 - Validate input (non-empty message)
 - Compute query embedding via `makeEmbeddings()`
-- Vector search (pgvector) and build citations
+- Hybrid search: run both vector (pgvector) and lexical (FTS) candidate queries, fuse with Reciprocal Rank Fusion (RRF) or a weighted blend, and build citations
 - Call the selected LLM with a prompt: system + retrieved snippets + user message + short history
 - Stream tokens to client
 
@@ -227,19 +227,47 @@ Creation vs continuation:
   - `isPrivate` from request body (default false)
   - initial `title` following naming rules
 
-Vector search (example SQL):
+Hybrid search (example SQL using RRF):
 ```sql
--- $1: vector literal as text, $2: topK, $3?: array of filtered doc ids
-SELECT c.id AS chunk_id,
-       c.document_id,
-       c.chunk_index,
-       c.text,
-       (c.embedding <=> $1::vector) AS distance
-FROM kb.chunks c
-WHERE ($3::uuid[] IS NULL OR c.document_id = ANY($3::uuid[]))
-ORDER BY c.embedding <=> $1::vector
-LIMIT $2;
+-- $1: vector literal as text, $2: topK, $3: search query text, $4?: array of filtered doc ids
+WITH params AS (
+  SELECT $1::vector AS qvec,
+         websearch_to_tsquery('simple', $3) AS qts,
+         $2::int AS topk
+), vec AS (
+  SELECT c.id, c.document_id, c.chunk_index, c.text,
+         1.0 / (ROW_NUMBER() OVER (ORDER BY c.embedding <=> (SELECT qvec FROM params)) + 60) AS rrf
+  FROM kb.chunks c
+  WHERE ($4::uuid[] IS NULL OR c.document_id = ANY($4::uuid[]))
+  ORDER BY c.embedding <=> (SELECT qvec FROM params)
+  LIMIT (SELECT topk FROM params)
+), lex AS (
+  SELECT c.id, c.document_id, c.chunk_index, c.text,
+         1.0 / (ROW_NUMBER() OVER (ORDER BY ts_rank(c.tsv, (SELECT qts FROM params)) DESC) + 60) AS rrf
+  FROM kb.chunks c
+  WHERE c.tsv @@ (SELECT qts FROM params)
+    AND ($4::uuid[] IS NULL OR c.document_id = ANY($4::uuid[]))
+  ORDER BY ts_rank(c.tsv, (SELECT qts FROM params)) DESC
+  LIMIT (SELECT topk FROM params)
+), fused AS (
+  SELECT id, document_id, chunk_index, text, SUM(rrf) AS score
+  FROM (
+    SELECT * FROM vec
+    UNION ALL
+    SELECT * FROM lex
+  ) u
+  GROUP BY id, document_id, chunk_index, text
+)
+SELECT id AS chunk_id, document_id, chunk_index, text, score
+FROM fused
+ORDER BY score DESC
+LIMIT (SELECT topk FROM params);
 ```
+
+Notes
+- RRF constant (60 above) can be tuned; 50–100 are common.
+- If either branch returns zero rows, the other naturally dominates.
+- Org/Project scoping and additional filters can be applied in both vec and lex CTEs.
 
 ### Optional: POST /chat (non-streaming)
 - Request: `ChatRequest` with `stream: false`
@@ -255,7 +283,7 @@ LIMIT $2;
 
 ## Backend — Existing Endpoints Reuse
 - `GET /documents`: list available docs for filter dropdown.
-- `GET /search`: lexical search (can be offered as a fallback or “quick search”).
+- `GET /search`: default behavior should be hybrid (vector + FTS). Optional `mode` query param may switch to `vector` or `lexical` for debugging.
 
 ## Persistence (Server)
 All conversations are stored in the database with ownership and privacy.
