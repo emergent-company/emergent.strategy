@@ -21,8 +21,8 @@ This composes a local Zitadel + PostgreSQL for development.
 
 ## SPA/OIDC values (example)
 - Issuer: http://localhost:8080
-- Redirect URI: http://localhost:5173/auth/callback
-- Post-logout redirect: http://localhost:5173/
+- Redirect URI: http://localhost:5175/auth/callback
+- Post-logout redirect: http://localhost:5175/
 - Client type: Public (PKCE), allow Google/GitHub IdPs when configured in Zitadel UI.
 
 ## Env vars (in `docker/zitadel.env`)

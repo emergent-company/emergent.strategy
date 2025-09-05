@@ -95,7 +95,7 @@ Allowed warnings: if needed, define a small allowlist (regex) for known benign t
 	- mocks/ (JSON fixtures for intercepted endpoints)
 
 ### Config highlights
-- baseURL: `process.env.E2E_BASE_URL || 'http://localhost:5173'`
+- baseURL: `process.env.E2E_BASE_URL || 'http://localhost:5175'`
 - webServer (local runs): start `npm run dev` in apps/admin and wait for port
 - retries: 2 in CI, 0 locally
 - reporter: html locally, dot + junit in CI

@@ -2,11 +2,13 @@ import React, { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useOrganizations } from "@/hooks/use-organizations";
 import { useConfig } from "@/contexts/config";
+import { useAuth } from "@/contexts/auth";
 import { Icon } from "@/components/ui/Icon";
 
 export const TopbarProfileMenu: React.FC = () => {
     const { orgs, loading, error, createOrg } = useOrganizations();
     const { config, setActiveOrg } = useConfig();
+    const { logout } = useAuth();
     const [orgName, setOrgName] = useState<string>("");
     const [creating, setCreating] = useState<boolean>(false);
     const [createError, setCreateError] = useState<string | undefined>(undefined);
@@ -111,10 +113,15 @@ export const TopbarProfileMenu: React.FC = () => {
                         </div>
                     </li>
                     <li>
-                        <Link className="hover:bg-error/10 text-error" to="#">
+                        <button
+                            type="button"
+                            onClick={logout}
+                            className="flex items-center hover:bg-error/10 text-error"
+                            aria-label="Logout"
+                        >
                             <Icon icon="lucide--log-out" className="size-4" />
                             <span>Logout</span>
-                        </Link>
+                        </button>
                     </li>
                 </ul>
             </div>

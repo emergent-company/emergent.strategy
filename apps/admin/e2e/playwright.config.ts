@@ -3,16 +3,27 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-const baseURL = process.env.E2E_BASE_URL || 'http://localhost:5173';
+// Default dev server port changed to 5175 (configurable via ADMIN_APP_PORT > VITE_PORT > PORT)
+const DEV_PORT = Number(process.env.ADMIN_APP_PORT || process.env.VITE_PORT || process.env.PORT || 5175);
+const baseURL = process.env.E2E_BASE_URL || `http://localhost:${DEV_PORT}`;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ADMIN_DIR = resolve(__dirname, '..');
 
-// Load env from repo root first, then admin/.env, then default .env resolution
+// Environment variable loading strategy (earlier calls load first, later calls DO NOT override existing vars)
+// 1. Repo root .env (shared defaults)
 dotenv.config({ path: resolve(ADMIN_DIR, '..', '..', '.env') });
+// 2. App-level .env (project specific)
 dotenv.config({ path: resolve(ADMIN_DIR, '.env') });
+// 3. App-level .env.local (developer machine overrides)
+dotenv.config({ path: resolve(ADMIN_DIR, '.env.local') });
+// 4. Optional dedicated E2E env file (put secret test creds here). Name chosen to be explicit.
+dotenv.config({ path: resolve(ADMIN_DIR, '.env.e2e') });
+// 5. Final generic lookup (.env in CWD, etc.)
 dotenv.config();
+
+// Note: dotenv won't overwrite already-set env vars. To ensure a later file wins, unset the var before running tests.
 
 export default defineConfig({
     testDir: './specs',
@@ -32,8 +43,10 @@ export default defineConfig({
         ? {
             command: 'npm run dev',
             cwd: ADMIN_DIR,
-            port: 5173,
-            reuseExistingServer: !process.env.CI,
+            port: DEV_PORT,
+            // If another project already runs on this port, Playwright would reuse it and tests could hit the wrong app.
+            // Set E2E_FORCE_START=1 to always start a fresh server and avoid cross-repo leakage.
+            reuseExistingServer: !process.env.CI && !process.env.E2E_FORCE_START,
             timeout: 180_000,
         }
         : undefined,

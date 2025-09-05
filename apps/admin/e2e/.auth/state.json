@@ -1,4 +1,14 @@
 {
   "cookies": [],
-  "origins": []
+  "origins": [
+    {
+      "origin": "http://localhost:5175",
+      "localStorage": [
+        {
+          "name": "__nexus_auth_v1__",
+          "value": "{\"accessToken\":\"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJtYWNpZWpAa3VjaGFyei5uZXQiLCJlbWFpbCI6Im1hY2llakBrdWNoYXJ6Lm5ldCIsIm5hbWUiOiJtYWNpZWoiLCJpYXQiOjE3NTcwNTU0MjUsImV4cCI6MTc1NzA1OTAyNX0.\",\"expiresAt\":1757059025495,\"user\":{\"sub\":\"maciej@kucharz.net\",\"email\":\"maciej@kucharz.net\",\"name\":\"maciej\"}}"
+        }
+      ]
+    }
+  ]
 }

@@ -11,10 +11,16 @@ type AuthState = {
 type AuthContextType = {
     isAuthenticated: boolean;
     user?: AuthState['user'];
-    login: () => Promise<void>;
+    /**
+     * Login entrypoint. Behavior depends on auth mode:
+     * - OIDC mode (default): ignores params and triggers external redirect.
+     * - Credentials mode (VITE_AUTH_MODE=credentials): requires email & password and performs local credential login.
+     */
+    login: (email?: string, password?: string) => Promise<void>;
     logout: () => void;
     getAccessToken: () => string | undefined;
     handleCallback: (code: string) => Promise<void>;
+    authMode: 'oidc' | 'credentials';
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,11 +62,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return {};
         }
     });
+    const env: any = (import.meta as any).env || {};
+    const authMode: 'oidc' | 'credentials' = env.VITE_AUTH_MODE === 'credentials' ? 'credentials' : 'oidc';
     const cfg = useMemo(() => getConfigFromEnv(), []);
 
-    const login = useCallback(async () => {
-        await startAuth(cfg);
-    }, [cfg]);
+    const login = useCallback(async (email?: string, password?: string) => {
+        if (authMode === 'oidc') {
+            await startAuth(cfg);
+            return;
+        }
+        // Credentials mode (local / custom). We DO NOT send password anywhere here;
+        // real implementation should call your backend. For now we mint a local dev token.
+        if (!email || !password) throw new Error('Email & password required for credentials auth mode');
+        // Example dev-only pseudo JWT (alg none). Replace with real backend call.
+        const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' })).replace(/=+$/, '');
+        const nowSec = Math.floor(Date.now() / 1000);
+        const payloadObj = { sub: email, email, name: email.split('@')[0], iat: nowSec, exp: nowSec + 3600 };
+        const payload = btoa(JSON.stringify(payloadObj)).replace(/=+$/, '');
+        const devToken = `${header}.${payload}.`;
+        const next: AuthState = {
+            accessToken: devToken,
+            // No idToken emitted in credentials mode (simplified dev token model)
+            expiresAt: Date.now() + 60 * 60 * 1000,
+            user: { sub: email, email, name: payloadObj.name },
+        };
+        setState(next);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+    }, [authMode, cfg]);
 
     const logout = useCallback(() => {
         setState({});
@@ -137,7 +165,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         getAccessToken,
         handleCallback,
-    }), [getAccessToken, login, logout, state.user, handleCallback]);
+        authMode,
+    }), [getAccessToken, login, logout, state.user, handleCallback, authMode]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

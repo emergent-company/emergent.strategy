@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Link } from "react-router";
+import React, { useState, useCallback, useEffect } from "react";
+import { Link, useNavigate } from "react-router";
 
 import { Logo } from "@/components/Logo";
 import { MetaData } from "@/components/MetaData";
@@ -9,7 +9,45 @@ import { Icon } from "@/components/ui/Icon";
 
 const LoginPage = () => {
     const [showPassword, setShowPassword] = useState(false);
-    const { login } = useAuth();
+    const { login, authMode, isAuthenticated } = useAuth();
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const isCredentials = authMode === 'credentials';
+    const nav = useNavigate();
+
+    // If already authenticated, bounce to admin
+    useEffect(() => {
+        if (isAuthenticated) {
+            nav('/admin', { replace: true });
+        }
+    }, [isAuthenticated, nav]);
+
+    const handleSubmit = useCallback(async () => {
+        setError(null);
+        if (isCredentials) {
+            if (!email || !password) return; // should already be disabled
+            try {
+                setSubmitting(true);
+                await login(email, password);
+                // After credentials login we stay on this page, so navigate manually
+                nav('/admin', { replace: true });
+            } catch (e: any) {
+                setError(e?.message || 'Login failed');
+            } finally {
+                setSubmitting(false);
+            }
+        } else {
+            try {
+                setSubmitting(true);
+                await login(); // triggers redirect
+            } catch (e: any) {
+                setError(e?.message || 'Redirect failed');
+                setSubmitting(false);
+            }
+        }
+    }, [isCredentials, email, password, login, nav]);
 
     return (
         <>
@@ -25,12 +63,29 @@ const LoginPage = () => {
                 <h3 className="mt-2 text-sm text-base-content/70 text-center">
                     Seamless Access, Secure Connection: Your Gateway to a Personalized Experience.
                 </h3>
-                <div className="mt-6 md:mt-10">
+                <form
+                    className="mt-6 md:mt-10"
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!submitting) {
+                            void handleSubmit();
+                        }
+                    }}
+                >
                     <fieldset className="fieldset">
                         <legend className="fieldset-legend">Email Address</legend>
                         <label className="focus:outline-0 w-full input">
                             <Icon icon="lucide--mail" className="size-5 text-base-content/80" ariaLabel="Email" />
-                            <input name="email" id="email" className="focus:outline-0 grow" placeholder="Email Address" type="email" />
+                            <input
+                                name="email"
+                                id="email"
+                                className="focus:outline-0 grow"
+                                placeholder="Email Address"
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                autoComplete="email"
+                            />
                         </label>
                     </fieldset>
 
@@ -44,6 +99,9 @@ const LoginPage = () => {
                                 className="focus:outline-0 grow"
                                 placeholder="Password"
                                 type={showPassword ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                autoComplete={isCredentials ? 'current-password' : 'off'}
                             />
                             <button
                                 className="btn btn-xs btn-ghost btn-circle"
@@ -79,15 +137,34 @@ const LoginPage = () => {
                         </label>
                     </div>
 
-                    <button name="signin" onClick={() => login()} className="gap-3 mt-4 md:mt-6 max-w-full btn btn-primary btn-wide">
+                    {!isCredentials && (
+                        <p className="mt-2 text-xs text-base-content/60">Password field is ignored in SSO mode.</p>
+                    )}
+
+                    {error && (
+                        <div role="alert" className="mt-4 alert alert-error">
+                            <Icon icon="lucide--alert-triangle" ariaLabel="Error" />
+                            <span className="text-sm">{error}</span>
+                        </div>
+                    )}
+
+                    <button
+                        name="signin"
+                        onClick={(e) => { e.preventDefault(); void handleSubmit(); }}
+                        className="gap-3 mt-4 md:mt-6 max-w-full btn btn-primary btn-wide"
+                        disabled={submitting || (isCredentials && (!email || !password))}
+                    >
+                        {submitting && <span className="loading loading-spinner loading-sm" />}
                         <Icon icon="lucide--log-in" className="size-4" ariaLabel="Login" />
-                        Continue with SSO
+                        {isCredentials ? (submitting ? 'Signing In...' : 'Sign In') : (submitting ? 'Redirecting...' : 'Continue with SSO')}
                     </button>
 
-                    <button onClick={() => login()} className="gap-3 mt-4 border-base-300 max-w-full btn btn-ghost btn-wide">
-                        <img src="/images/brand-logo/google-mini.svg" className="size-6" alt="" />
-                        Login with Google
-                    </button>
+                    {!isCredentials && (
+                        <button onClick={(e) => { e.preventDefault(); void handleSubmit(); }} className="gap-3 mt-4 border-base-300 max-w-full btn btn-ghost btn-wide" disabled={submitting}>
+                            <img src="/images/brand-logo/google-mini.svg" className="size-6" alt="" />
+                            Login with Google
+                        </button>
+                    )}
 
                     <p className="mt-4 md:mt-6 text-sm text-base-content/80 text-center">
                         Haven&apos;t account
@@ -95,7 +172,7 @@ const LoginPage = () => {
                             Create One
                         </Link>
                     </p>
-                </div>
+                </form>
             </div>
         </>
     );
