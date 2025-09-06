@@ -6,7 +6,7 @@
       "localStorage": [
         {
           "name": "__nexus_auth_v1__",
-          "value": "{\"accessToken\":\"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJtYWNpZWpAa3VjaGFyei5uZXQiLCJlbWFpbCI6Im1hY2llakBrdWNoYXJ6Lm5ldCIsIm5hbWUiOiJtYWNpZWoiLCJpYXQiOjE3NTcwNTU0MjUsImV4cCI6MTc1NzA1OTAyNX0.\",\"expiresAt\":1757059025495,\"user\":{\"sub\":\"maciej@kucharz.net\",\"email\":\"maciej@kucharz.net\",\"name\":\"maciej\"}}"
+          "value": "{\"accessToken\":\"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJtYWNpZWpAa3VjaGFyei5uZXQiLCJlbWFpbCI6Im1hY2llakBrdWNoYXJ6Lm5ldCIsIm5hbWUiOiJtYWNpZWoiLCJpYXQiOjE3NTcxNzQ3MDEsImV4cCI6MTc1NzE3ODMwMX0.\",\"expiresAt\":1757178301932,\"user\":{\"sub\":\"maciej@kucharz.net\",\"email\":\"maciej@kucharz.net\",\"name\":\"maciej\"}}"
         }
       ]
     }

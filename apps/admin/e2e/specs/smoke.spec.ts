@@ -2,17 +2,7 @@ import { expect } from '@playwright/test';
 import { test } from '../fixtures/consoleGate';
 import { navigate } from '../utils/navigation';
 import { expectNoRuntimeErrors } from '../utils/assertions';
-
-const ROUTES: string[] = [
-    '/',
-    '/landing',
-    '/auth/login',
-    '/admin/apps/documents',
-    '/admin/apps/chunks',
-    '/admin/apps/chat',
-    '/admin/profile',
-    '/admin/settings/ai/prompts',
-];
+import { ROUTES } from '../routes';
 
 const VISIBLE_SELECTORS = ['[role="main"]', 'main', '#root', 'nav', 'form', 'html', 'body'];
 

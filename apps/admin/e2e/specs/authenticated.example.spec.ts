@@ -1,15 +1,13 @@
-import { expect } from '@playwright/test';
-import { test } from '../fixtures/auth';
+import { test, expect } from '../fixtures/app';
+import { navigate } from '../utils/navigation';
+import { expectNoRuntimeErrors } from '../utils/assertions';
 
 // Authenticated route smoke example – demonstrates use of storageState + fixtures.
 // Uses accessible locators (roles / names) per project Playwright guidelines.
 
 test.describe('Documents Page (authenticated)', () => {
-    test('loads without redirect and exposes nav + token', async ({ page, authToken }) => {
-        await test.step('Navigate to documents route', async () => {
-            await page.goto('/admin/apps/documents');
-            await page.waitForLoadState('domcontentloaded');
-        });
+    test('loads without redirect and exposes nav + token', async ({ page, authToken, consoleErrors, pageErrors }) => {
+        await test.step('Navigate to documents route', async () => { await navigate(page, '/admin/apps/documents'); });
 
         await test.step('Verify URL did not redirect away from documents', async () => {
             await expect(page).toHaveURL(/\/admin\/apps\/documents/);
@@ -35,6 +33,10 @@ test.describe('Documents Page (authenticated)', () => {
             if (process.env.E2E_AUTH_TOKEN) {
                 expect(authToken, 'authToken fixture should surface token when env set').toBeTruthy();
             }
+        });
+
+        await test.step('No runtime console/page errors', async () => {
+            expectNoRuntimeErrors('documents page', consoleErrors, pageErrors);
         });
     });
 });

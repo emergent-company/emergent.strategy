@@ -1,5 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/consoleGate';
+import { navigate } from '../utils/navigation';
+import { expectNoRuntimeErrors } from '../utils/assertions';
 
 /**
  * Template: copy this spec and replace PATH and SELECTOR to add a route-visit test
@@ -12,16 +14,8 @@ test.describe.skip('New view route visit (template - skipped)', () => {
     const STABLE_SELECTOR = 'h1:has-text("Replace With View Title")'; // TODO: replace with a robust locator
 
     test('renders without console/page errors', async ({ page, consoleErrors, pageErrors }) => {
-        await page.goto(PATH);
-
-        // wait for a meaningful element of the view
+        await navigate(page, PATH);
         await expect(page.locator(STABLE_SELECTOR)).toBeVisible();
-
-        // gate: no console or page errors
-        expect(
-            consoleErrors,
-            `console errors on ${PATH}:\n${consoleErrors.join('\n')}`,
-        ).toHaveLength(0);
-        expect(pageErrors, `page errors on ${PATH}:\n${pageErrors.join('\n')}`).toHaveLength(0);
+        expectNoRuntimeErrors(PATH, consoleErrors, pageErrors);
     });
 });
