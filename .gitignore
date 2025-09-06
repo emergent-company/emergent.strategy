@@ -2,3 +2,29 @@ node_modules/
 dist/
 .env
 .DS_Store
+
+# Playwright / E2E artifacts
+playwright-report/
+**/playwright-report/
+test-results/
+**/test-results/
+/.cache/ms-playwright/
+**/.cache/ms-playwright/
+
+# Coverage outputs
+coverage/
+**/coverage/
+lcov.info
+
+# Vitest / Jest snapshots (optional keep if needed)
+*.snap
+
+# Misc build caches
+.vite/
+**/.vite/
+
+# OS / IDE extras
+.idea/
+*.log
+*.tsbuildinfo
+
