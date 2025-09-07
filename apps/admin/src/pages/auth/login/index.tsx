@@ -5,14 +5,16 @@ import { Logo } from "@/components/Logo";
 import { MetaData } from "@/components/MetaData";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/auth";
+import { passkeyAvailable } from "@/auth/passkey";
 import { Icon } from "@/components/ui/Icon";
 
 const LoginPage = () => {
     const [showPassword, setShowPassword] = useState(false);
-    const { login, authMode, isAuthenticated } = useAuth();
+    const { login, authMode, isAuthenticated, loginWithPasskey, registerPasskey } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [passkeySubmitting, setPasskeySubmitting] = useState<'login' | 'register' | null>(null);
     const [error, setError] = useState<string | null>(null);
     const isCredentials = authMode === 'credentials';
     const nav = useNavigate();
@@ -164,6 +166,30 @@ const LoginPage = () => {
                             <img src="/images/brand-logo/google-mini.svg" className="size-6" alt="" />
                             Login with Google
                         </button>
+                    )}
+
+                    {passkeyAvailable && (
+                        <div className="flex flex-col gap-3 mt-6">
+                            <button
+                                className="gap-2 btn btn-secondary btn-wide"
+                                disabled={!!passkeySubmitting}
+                                onClick={(e) => { e.preventDefault(); setError(null); setPasskeySubmitting('login'); loginWithPasskey(email || undefined).then(() => nav('/admin', { replace: true })).catch(err => setError(err.message || 'Passkey login failed')).finally(() => setPasskeySubmitting(null)); }}
+                            >
+                                {passkeySubmitting === 'login' && <span className="loading loading-spinner loading-sm" />}
+                                <Icon icon="lucide--fingerprint" className="size-4" ariaLabel="Passkey" />
+                                {passkeySubmitting === 'login' ? 'Authenticating...' : 'Sign in with Passkey'}
+                            </button>
+                            <button
+                                className="gap-2 btn-outline btn btn-wide"
+                                disabled={!!passkeySubmitting || !email}
+                                onClick={(e) => { e.preventDefault(); setError(null); setPasskeySubmitting('register'); registerPasskey(email).then(() => nav('/admin', { replace: true })).catch(err => setError(err.message || 'Passkey registration failed')).finally(() => setPasskeySubmitting(null)); }}
+                            >
+                                {passkeySubmitting === 'register' && <span className="loading loading-spinner loading-sm" />}
+                                <Icon icon="lucide--plus" className="size-4" ariaLabel="Create Passkey" />
+                                {passkeySubmitting === 'register' ? 'Creating Passkey...' : 'Create Passkey'}
+                            </button>
+                            {!email && <p className="text-xs text-base-content/60">Enter email first to create a Passkey.</p>}
+                        </div>
                     )}
 
                     <p className="mt-4 md:mt-6 text-sm text-base-content/80 text-center">

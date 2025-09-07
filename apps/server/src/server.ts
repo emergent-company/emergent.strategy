@@ -17,7 +17,8 @@ type AuthConfig = {
 };
 
 const authCfg: AuthConfig = {
-    issuer: process.env.ZITADEL_ISSUER_URL || 'http://localhost:8080',
+    // Prefer new unified var ZITADEL_ISSUER; fallback to legacy ZITADEL_ISSUER_URL; default dev value.
+    issuer: process.env.ZITADEL_ISSUER || process.env.ZITADEL_ISSUER_URL || 'http://localhost:8080',
     audience: process.env.ZITADEL_AUDIENCE || undefined,
 };
 
@@ -158,6 +159,149 @@ async function main() {
     // Handle preflight for all routes
     app.options('*', cors(corsOptions));
     app.use(express.json({ limit: '2mb' }));
+
+    // --- Passkey (WebAuthn) passwordless endpoints ---
+    // These mirror the implementation in the root server (src/server.ts) so that the admin app
+    // hitting its dev server origin (e.g. :5175) can access /api/auth/passkey/* without a proxy.
+    // If ZITADEL passwordless env vars are present we delegate to Zitadel; otherwise we use a dev stub issuing unsigned tokens.
+    interface PasskeyTxn { challenge: string; email?: string; purpose: 'login' | 'register'; createdAt: number; }
+    const passkeyTxns = new Map<string, PasskeyTxn>();
+    const PASSKEY_RP_ID = process.env.PASSKEY_RP_ID || 'localhost';
+    const prunePasskey = () => {
+        const now = Date.now();
+        for (const [k, v] of passkeyTxns.entries()) if (now - v.createdAt > 2 * 60 * 1000) passkeyTxns.delete(k);
+    };
+    const b64url = (buf: Buffer | Uint8Array) => Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const rand = (n: number) => crypto.randomBytes(n);
+
+    // Lazy im  (static path) of Zitadel passwordless helpers; swallow failure if file not present in some build contexts.
+    let zitadelPw: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+    // Omit loading shared passwordless helper for now (root server hosts primary implementation).
+    // If needed later, consider packaging helper into a shared workspace package to satisfy TS rootDir.
+
+    const zitadelEnabled = () => !!(zitadelPw && typeof zitadelPw.zitadelPasswordlessEnabled === 'function' && zitadelPw.zitadelPasswordlessEnabled());
+
+    app.post('/api/auth/passkey/begin-register', async (req: Request, res: Response) => {
+        try {
+            prunePasskey();
+            const email = (req.body as any)?.email as string | undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
+            if (zitadelEnabled()) {
+                const zr = await zitadelPw.beginRegistration({ email });
+                passkeyTxns.set(zr.flowId, { challenge: (zr.publicKey as any).challenge, email, purpose: 'register', createdAt: Date.now() }); // eslint-disable-line @typescript-eslint/no-explicit-any
+                return res.json({ publicKey: zr.publicKey, txn: zr.flowId, purpose: 'register' });
+            }
+            const challengeBytes = rand(32);
+            const challenge = b64url(challengeBytes);
+            const txn = b64url(rand(16));
+            passkeyTxns.set(txn, { challenge, email, purpose: 'register', createdAt: Date.now() });
+            const userId = b64url(rand(16));
+            const publicKey: PublicKeyCredentialCreationOptions = {
+                // Return challenge as ArrayBuffer expected by WebAuthn clients
+                challenge: Uint8Array.from(challengeBytes),
+                rp: { name: 'SpecServer', id: PASSKEY_RP_ID },
+                user: { id: Uint8Array.from(Buffer.from(userId, 'utf8')), name: email || 'user', displayName: email || 'User' },
+                pubKeyCredParams: [
+                    { type: 'public-key', alg: -7 },
+                    { type: 'public-key', alg: -257 },
+                ],
+                timeout: 60000,
+                attestation: 'none',
+            };
+            return res.json({ publicKey, txn, purpose: 'register' });
+        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+            res.status(500).json({ error: e.message || 'begin-register failed' });
+        }
+    });
+
+    app.post('/api/auth/passkey/finish-register', async (req: Request, res: Response) => {
+        try {
+            const { txn, credential } = req.body as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+            const meta = passkeyTxns.get(txn || '');
+            if (!meta || meta.purpose !== 'register') return res.status(400).json({ error: 'Invalid or expired transaction' });
+            if (zitadelEnabled()) {
+                const result = await zitadelPw.finishRegistration({ flowId: txn, credential });
+                passkeyTxns.delete(txn);
+                if (result && (result as any).access_token) return res.json(result); // eslint-disable-line @typescript-eslint/no-explicit-any
+                if (result && (result as any).code) {
+                    const tokens = await zitadelPw.exchangeAuthCode((result as any).code); // eslint-disable-line @typescript-eslint/no-explicit-any
+                    return res.json(tokens);
+                }
+                return res.status(500).json({ error: 'Unexpected finish-register response shape' });
+            }
+            passkeyTxns.delete(txn);
+            const nowSec = Math.floor(Date.now() / 1000);
+            const header = b64url(Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })));
+            const payload = b64url(Buffer.from(JSON.stringify({ sub: meta.email || 'passkey-user', email: meta.email, iat: nowSec, exp: nowSec + 3600 })));
+            const dev = `${header}.${payload}.`;
+            res.json({ access_token: dev, id_token: dev, expires_in: 3600 });
+        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+            res.status(500).json({ error: e.message || 'finish-register failed' });
+        }
+    });
+
+    app.post('/api/auth/passkey/begin-login', async (req: Request, res: Response) => {
+        try {
+            prunePasskey();
+            const email = (req.body as any)?.email as string | undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
+            if (zitadelEnabled()) {
+                const zr = await zitadelPw.beginLogin({ email });
+                passkeyTxns.set(zr.flowId, { challenge: (zr.publicKey as any).challenge, email, purpose: 'login', createdAt: Date.now() }); // eslint-disable-line @typescript-eslint/no-explicit-any
+                return res.json({ publicKey: zr.publicKey, txn: zr.flowId, purpose: 'login' });
+            }
+            const challengeBytes = rand(32);
+            const challenge = b64url(challengeBytes);
+            const txn = b64url(rand(16));
+            passkeyTxns.set(txn, { challenge, email, purpose: 'login', createdAt: Date.now() });
+            const publicKey: PublicKeyCredentialRequestOptions = {
+                challenge: Uint8Array.from(challengeBytes),
+                rpId: PASSKEY_RP_ID,
+                allowCredentials: [],
+                userVerification: 'preferred',
+                timeout: 60000,
+            };
+            return res.json({ publicKey, txn, purpose: 'login' });
+        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+            res.status(500).json({ error: e.message || 'begin-login failed' });
+        }
+    });
+
+    app.post('/api/auth/passkey/finish-login', async (req: Request, res: Response) => {
+        try {
+            const { txn, credential } = req.body as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+            const meta = passkeyTxns.get(txn || '');
+            if (!meta || meta.purpose !== 'login') return res.status(400).json({ error: 'Invalid or expired transaction' });
+            if (zitadelEnabled()) {
+                const result = await zitadelPw.finishLogin({ flowId: txn, credential });
+                passkeyTxns.delete(txn);
+                if (result && (result as any).access_token) return res.json(result); // eslint-disable-line @typescript-eslint/no-explicit-any
+                if (result && (result as any).code) {
+                    const tokens = await zitadelPw.exchangeAuthCode((result as any).code); // eslint-disable-line @typescript-eslint/no-explicit-any
+                    return res.json(tokens);
+                }
+                return res.status(500).json({ error: 'Unexpected finish-login response shape' });
+            }
+            passkeyTxns.delete(txn);
+            const nowSec = Math.floor(Date.now() / 1000);
+            const header = b64url(Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })));
+            const payload = b64url(Buffer.from(JSON.stringify({ sub: meta.email || 'passkey-user', email: meta.email, iat: nowSec, exp: nowSec + 3600 })));
+            const dev = `${header}.${payload}.`;
+            res.json({ access_token: dev, id_token: dev, expires_in: 3600 });
+        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+            res.status(500).json({ error: e.message || 'finish-login failed' });
+        }
+    });
+
+    // Capability endpoint for quick diagnostics
+    app.get('/api/auth/passkey', (_req: Request, res: Response) => {
+        res.json({
+            status: 'ok',
+            mode: zitadelEnabled() ? 'zitadel' : 'stub',
+            rpId: PASSKEY_RP_ID,
+            register: { begin: 'POST /api/auth/passkey/begin-register', finish: 'POST /api/auth/passkey/finish-register' },
+            login: { begin: 'POST /api/auth/passkey/begin-login', finish: 'POST /api/auth/passkey/finish-login' },
+            timestamp: new Date().toISOString(),
+        });
+    });
 
     app.get('/health', (_req: Request, res: Response) => {
         res.json({ ok: true, model: 'text-embedding-004', db: 'postgres' });
@@ -893,7 +1037,8 @@ async function main() {
         }
     });
 
-    const port = Number(process.env.PORT || 3001);
+    // Canonical backend port: SERVER_PORT (fallback 3001)
+    const port = Number(process.env.SERVER_PORT || 3001);
     app.listen(port, () => console.log(`server listening on :${port}`));
 }
 

@@ -3,8 +3,8 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-// Default dev server port changed to 5175 (configurable via ADMIN_APP_PORT > VITE_PORT > PORT)
-const DEV_PORT = Number(process.env.ADMIN_APP_PORT || process.env.VITE_PORT || process.env.PORT || 5175);
+// Canonical admin port: ADMIN_PORT (fallback 5175)
+const DEV_PORT = Number(process.env.ADMIN_PORT || 5175);
 const baseURL = process.env.E2E_BASE_URL || `http://localhost:${DEV_PORT}`;
 
 const __filename = fileURLToPath(import.meta.url);

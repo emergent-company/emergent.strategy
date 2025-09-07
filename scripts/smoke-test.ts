@@ -3,7 +3,7 @@ import fetch, { FormData, fileFrom } from 'node-fetch';
 import { fileURLToPath } from 'url';
 import path from 'path';
 
-const base = `http://localhost:${process.env.PORT || 3002}`;
+const base = `http://localhost:${process.env.SERVER_PORT || 3002}`;
 
 async function run() {
     const h = await fetch(`${base}/health`).then(r => r.json());

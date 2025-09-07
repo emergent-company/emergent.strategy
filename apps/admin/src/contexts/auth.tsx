@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { exchangeCodeForTokens, startAuth, type OidcConfig, type TokenResponse } from '@/auth/oidc';
+import { loginPasskeyFlow, registerPasskeyFlow, type TokenShape } from '@/auth/passkey';
 
 type AuthState = {
     accessToken?: string;
@@ -17,6 +18,8 @@ type AuthContextType = {
      * - Credentials mode (VITE_AUTH_MODE=credentials): requires email & password and performs local credential login.
      */
     login: (email?: string, password?: string) => Promise<void>;
+    loginWithPasskey: (emailHint?: string) => Promise<void>;
+    registerPasskey: (email?: string) => Promise<void>;
     logout: () => void;
     getAccessToken: () => string | undefined;
     handleCallback: (code: string) => Promise<void>;
@@ -105,10 +108,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, [cfg.postLogoutRedirectUri]);
 
-    const handleCallback = useCallback(async (code: string) => {
-        const t: TokenResponse = await exchangeCodeForTokens(cfg, code);
+    const applyTokenResponse = useCallback((t: TokenResponse | TokenShape) => {
         const now = Date.now();
-        const expiresAt = now + Math.max(0, (t.expires_in || 0) * 1000) - 10_000; // small skew
+        const expiresAt = now + Math.max(0, (t.expires_in || 0) * 1000) - 10_000;
         const claims = parseJwtPayload(t.id_token || t.access_token || '') || {};
         const next: AuthState = {
             accessToken: t.access_token,
@@ -121,12 +123,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             },
         };
         setState(next);
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        } catch {
-            // ignore storage errors
-        }
-    }, [cfg]);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+    }, []);
+
+    const handleCallback = useCallback(async (code: string) => {
+        const t: TokenResponse = await exchangeCodeForTokens(cfg, code);
+        applyTokenResponse(t);
+    }, [cfg, applyTokenResponse]);
 
     const getAccessToken = useCallback(() => {
         // Prefer access_token if present and not expired
@@ -158,15 +161,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, [state]);
 
+    const loginWithPasskey = useCallback(async (emailHint?: string) => {
+        const t = await loginPasskeyFlow(emailHint);
+        applyTokenResponse(t);
+    }, [applyTokenResponse]);
+
+    const registerPasskey = useCallback(async (email?: string) => {
+        const t = await registerPasskeyFlow(email);
+        applyTokenResponse(t);
+    }, [applyTokenResponse]);
+
     const value = useMemo<AuthContextType>(() => ({
         isAuthenticated: !!getAccessToken(),
         user: state.user,
         login,
+        loginWithPasskey,
+        registerPasskey,
         logout,
         getAccessToken,
         handleCallback,
         authMode,
-    }), [getAccessToken, login, logout, state.user, handleCallback, authMode]);
+    }), [getAccessToken, login, loginWithPasskey, registerPasskey, logout, state.user, handleCallback, authMode]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

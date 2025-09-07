@@ -5,10 +5,7 @@ import type { Page } from '@playwright/test';
  * Falls back to localhost:5175 (Vite default) if no env overrides are present.
  */
 export function getOrigin(): string {
-    return (
-        process.env.E2E_BASE_URL ||
-        `http://localhost:${process.env.ADMIN_APP_PORT || process.env.VITE_PORT || process.env.PORT || 5175}`
-    );
+    return process.env.E2E_BASE_URL || `http://localhost:${process.env.ADMIN_PORT || 5175}`;
 }
 
 /**
