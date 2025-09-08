@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/auth';
 import { parseCallbackParams } from '@/auth/oidc';
@@ -8,8 +8,13 @@ export default function AuthCallbackPage() {
     const nav = useNavigate();
     const { handleCallback } = useAuth();
     const [error, setError] = useState<string | null>(null);
+    const [attempted, setAttempted] = useState(false);
+    // Prevent double execution in React 18 StrictMode dev (effects run twice)
+    const ranRef = useRef(false);
 
     useEffect(() => {
+        if (ranRef.current) return; // suppress second StrictMode invocation
+        ranRef.current = true;
         const { code, error } = parseCallbackParams();
         if (error) {
             setError(error);
@@ -24,8 +29,10 @@ export default function AuthCallbackPage() {
                 await handleCallback(code);
                 nav('/admin', { replace: true });
             } catch (e: any) {
-                setError(e?.message || 'Login failed');
+                const msg = e?.message === 'login_failed' ? 'We could not complete sign-in. Please retry.' : (e?.message || 'Login failed');
+                setError(msg);
             }
+            setAttempted(true);
         })();
     }, [handleCallback, nav]);
 
@@ -39,9 +46,16 @@ export default function AuthCallbackPage() {
                             <div className="mt-4">Signing you in…</div>
                         </>
                     ) : (
-                        <div role="alert" className="alert alert-error">
-                            <Icon icon="lucide--alert-triangle" ariaLabel="Error" />
-                            <span>{error}</span>
+                        <div className="flex flex-col gap-4 w-full">
+                            <div role="alert" className="alert alert-error">
+                                <Icon icon="lucide--alert-triangle" ariaLabel="Error" />
+                                <span>{error}</span>
+                            </div>
+                            {attempted && (
+                                <button type="button" className="btn btn-primary" onClick={() => nav('/auth/login', { replace: true })}>
+                                    Retry
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>

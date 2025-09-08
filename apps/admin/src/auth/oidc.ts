@@ -46,32 +46,47 @@ function randString(len = 64): string {
         .join('');
 }
 
+let discoveryCache: Record<string, Promise<DiscoveryDoc>> = {};
 export async function discover(issuer: string): Promise<DiscoveryDoc> {
-    const url = new URL('/.well-known/openid-configuration', issuer);
-    const res = await fetch(url.toString());
-    if (!res.ok) throw new Error(`OIDC discovery failed: ${res.status}`);
-    const json = (await res.json()) as DiscoveryDoc;
-    if (!json.authorization_endpoint || !json.token_endpoint) throw new Error('Invalid discovery document');
-    return json;
+    if (!discoveryCache[issuer]) {
+        discoveryCache[issuer] = (async () => {
+            const url = new URL('/.well-known/openid-configuration', issuer);
+            const res = await fetch(url.toString(), { cache: 'no-cache' });
+            if (!res.ok) throw new Error(`OIDC discovery failed: ${res.status}`);
+            const json = (await res.json()) as DiscoveryDoc;
+            if (!json.authorization_endpoint || !json.token_endpoint) throw new Error('Invalid discovery document');
+            return json;
+        })();
+    }
+    return discoveryCache[issuer];
 }
 
-export async function startAuth(config: OidcConfig) {
-    const disc = await discover(config.issuer);
-    const codeVerifier = randString(64);
-    const challenge = base64url(await sha256(codeVerifier));
-    sessionStorage.setItem(CODE_VERIFIER_KEY, codeVerifier);
+let authInFlight = false;
 
-    const params = new URLSearchParams({
-        response_type: 'code',
-        client_id: config.clientId,
-        redirect_uri: config.redirectUri,
-        scope: config.scopes,
-        code_challenge: challenge,
-        code_challenge_method: 'S256',
-    });
-    if (config.audience) params.set('audience', config.audience);
-    const authUrl = `${disc.authorization_endpoint}?${params.toString()}`;
-    window.location.assign(authUrl);
+export async function startAuth(config: OidcConfig) {
+    if (authInFlight) return; // suppress duplicate clicks / renders
+    authInFlight = true;
+    try {
+        const disc = await discover(config.issuer);
+        const codeVerifier = randString(64);
+        const challenge = base64url(await sha256(codeVerifier));
+        sessionStorage.setItem(CODE_VERIFIER_KEY, codeVerifier);
+
+        const params = new URLSearchParams({
+            response_type: 'code',
+            client_id: config.clientId,
+            redirect_uri: config.redirectUri,
+            scope: config.scopes,
+            code_challenge: challenge,
+            code_challenge_method: 'S256',
+        });
+        if (config.audience) params.set('audience', config.audience);
+        const authUrl = `${disc.authorization_endpoint}?${params.toString()}`;
+        window.location.assign(authUrl);
+    } finally {
+        // Do not reset flag; navigation replaces document. If navigation canceled, allow retry after slight delay.
+        setTimeout(() => { authInFlight = false; }, 2000);
+    }
 }
 
 export async function exchangeCodeForTokens(config: OidcConfig, code: string): Promise<TokenResponse> {
@@ -92,7 +107,17 @@ export async function exchangeCodeForTokens(config: OidcConfig, code: string): P
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: body.toString(),
     });
-    if (!res.ok) throw new Error(`Token exchange failed: ${res.status}`);
+    if (!res.ok) {
+        // Log detailed error for diagnostics but surface generic message to user
+        let detail: unknown = null;
+        try {
+            detail = await res.json();
+        } catch {
+            // ignore body parse errors
+        }
+        console.warn('OIDC token exchange failed', { status: res.status, detail });
+        throw new Error('login_failed');
+    }
     return (await res.json()) as TokenResponse;
 }
 

@@ -6,6 +6,10 @@ Minimal ingestion server aligned with the spec:
 
 See `SETUP.md` for end-to-end local setup (DB, Zitadel auth, API server, Admin SPA) and `RUNBOOK.md` for operational details.
 
+## Authentication
+
+The system now uses only standard OIDC flows via Zitadel's hosted UI. Previous experimental Passkey / WebAuthn endpoints and helpers were removed (2025-09) to reduce surface area. The deprecated spec document (`spec/15-passkey-auth.md`) is retained only as a short tombstone note. No passwordless-specific environment variables are required anymore.
+
 ## Reference projects
 
 We keep UI/UX reference code as Git submodules under `reference/` (read-only, no runtime imports).
@@ -18,3 +22,7 @@ We keep UI/UX reference code as Git submodules under `reference/` (read-only, no
 	- git -C reference/nexus pull origin master
 
 Never import from `reference/` at runtime. Copy patterns into `apps/admin/src/**` with strict TS and our lint/style.
+
+## Changelog
+
+See `CHANGELOG.md` for notable removals and additions.

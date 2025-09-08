@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { exchangeCodeForTokens, startAuth, type OidcConfig, type TokenResponse } from '@/auth/oidc';
-import { loginPasskeyFlow, registerPasskeyFlow, type TokenShape } from '@/auth/passkey';
 
 type AuthState = {
     accessToken?: string;
@@ -12,18 +11,11 @@ type AuthState = {
 type AuthContextType = {
     isAuthenticated: boolean;
     user?: AuthState['user'];
-    /**
-     * Login entrypoint. Behavior depends on auth mode:
-     * - OIDC mode (default): ignores params and triggers external redirect.
-     * - Credentials mode (VITE_AUTH_MODE=credentials): requires email & password and performs local credential login.
-     */
-    login: (email?: string, password?: string) => Promise<void>;
-    loginWithPasskey: (emailHint?: string) => Promise<void>;
-    registerPasskey: (email?: string) => Promise<void>;
+    beginLogin: () => Promise<void>; // triggers OIDC redirect
     logout: () => void;
     getAccessToken: () => string | undefined;
     handleCallback: (code: string) => Promise<void>;
-    authMode: 'oidc' | 'credentials';
+    ensureAuthenticated: () => void; // auto-redirect helper
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -66,49 +58,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     });
     const env: any = (import.meta as any).env || {};
-    const authMode: 'oidc' | 'credentials' = env.VITE_AUTH_MODE === 'credentials' ? 'credentials' : 'oidc';
     const cfg = useMemo(() => getConfigFromEnv(), []);
 
-    const login = useCallback(async (email?: string, password?: string) => {
-        if (authMode === 'oidc') {
-            await startAuth(cfg);
-            return;
-        }
-        // Credentials mode (local / custom). We DO NOT send password anywhere here;
-        // real implementation should call your backend. For now we mint a local dev token.
-        if (!email || !password) throw new Error('Email & password required for credentials auth mode');
-        // Example dev-only pseudo JWT (alg none). Replace with real backend call.
-        const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' })).replace(/=+$/, '');
-        const nowSec = Math.floor(Date.now() / 1000);
-        const payloadObj = { sub: email, email, name: email.split('@')[0], iat: nowSec, exp: nowSec + 3600 };
-        const payload = btoa(JSON.stringify(payloadObj)).replace(/=+$/, '');
-        const devToken = `${header}.${payload}.`;
-        const next: AuthState = {
-            accessToken: devToken,
-            // No idToken emitted in credentials mode (simplified dev token model)
-            expiresAt: Date.now() + 60 * 60 * 1000,
-            user: { sub: email, email, name: payloadObj.name },
-        };
-        setState(next);
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-    }, [authMode, cfg]);
-
-    const logout = useCallback(() => {
-        setState({});
-        try {
-            localStorage.removeItem(STORAGE_KEY);
-        } catch {
-            // ignore storage errors
-        }
-        try {
-            // Optional: use end_session endpoint via redirect; keeping a local clear is fine for dev
-            window.location.assign(cfg.postLogoutRedirectUri || '/');
-        } catch {
-            // ignore
-        }
-    }, [cfg.postLogoutRedirectUri]);
-
-    const applyTokenResponse = useCallback((t: TokenResponse | TokenShape) => {
+    // Token application callback must be declared before login usage
+    const applyTokenResponse = useCallback((t: TokenResponse) => {
         const now = Date.now();
         const expiresAt = now + Math.max(0, (t.expires_in || 0) * 1000) - 10_000;
         const claims = parseJwtPayload(t.id_token || t.access_token || '') || {};
@@ -125,6 +78,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setState(next);
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
     }, []);
+
+    const authStartRef = React.useRef(false);
+    const beginLogin = useCallback(async () => {
+        if (authStartRef.current) return;
+        authStartRef.current = true;
+        await startAuth(cfg);
+    }, [cfg]);
+
+    const logout = useCallback(() => {
+        setState({});
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch {
+            // ignore storage errors
+        }
+        try {
+            // Optional: use end_session endpoint via redirect; keeping a local clear is fine for dev
+            window.location.assign(cfg.postLogoutRedirectUri || '/');
+        } catch {
+            // ignore
+        }
+    }, [cfg.postLogoutRedirectUri]);
+
 
     const handleCallback = useCallback(async (code: string) => {
         const t: TokenResponse = await exchangeCodeForTokens(cfg, code);
@@ -161,27 +137,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, [state]);
 
-    const loginWithPasskey = useCallback(async (emailHint?: string) => {
-        const t = await loginPasskeyFlow(emailHint);
-        applyTokenResponse(t);
-    }, [applyTokenResponse]);
 
-    const registerPasskey = useCallback(async (email?: string) => {
-        const t = await registerPasskeyFlow(email);
-        applyTokenResponse(t);
-    }, [applyTokenResponse]);
+    const ensureAuthenticated = useCallback(() => {
+        if (!getAccessToken()) void beginLogin();
+    }, [getAccessToken, beginLogin]);
 
     const value = useMemo<AuthContextType>(() => ({
         isAuthenticated: !!getAccessToken(),
         user: state.user,
-        login,
-        loginWithPasskey,
-        registerPasskey,
+        beginLogin,
         logout,
         getAccessToken,
         handleCallback,
-        authMode,
-    }), [getAccessToken, login, loginWithPasskey, registerPasskey, logout, state.user, handleCallback, authMode]);
+        ensureAuthenticated,
+    }), [getAccessToken, beginLogin, logout, state.user, handleCallback, ensureAuthenticated]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

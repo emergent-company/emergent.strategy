@@ -7,7 +7,7 @@
     "dev:server": "tsx watch apps/server/src/server.ts",
     "dev:admin": "npm --prefix apps/admin run dev",
     "dev:storybook": "npm --prefix apps/admin run storybook",
-    "dev:all": "concurrently -n server,admin,storybook -c blue,magenta,cyan \"npm run dev:server\" \"npm run dev:admin\" \"npm run dev:storybook\"",
+    "dev:all": "concurrently -n server,admin -c blue,magenta \"npm run dev:server\" \"npm run dev:admin\" ",
     "dev": "npm run dev:all",
     "start": "node apps/server/dist/server.js",
     "build:server": "tsc -p apps/server/tsconfig.json",
