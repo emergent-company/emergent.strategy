@@ -1,11 +1,54 @@
 # Admin AI Chat (RAG) — Feature Specification
 
-Last updated: 2025-08-22
+Last updated: 2025-09-08
 Owner: Admin App (React + Vite + TypeScript + Tailwind CSS + daisyUI)
 Status: Draft
 
 ## Summary
 Add a typical AI chat experience to the Admin app that uses Retrieval-Augmented Generation (RAG) over our existing knowledge base (kb.documents/kb.chunks) with pgvector embeddings (text-embedding-004). The chat UI is implemented with daisyUI components and streams assistant responses while showing citations to retrieved chunks.
+
+## Nexus UI Integration (Design System Reuse)
+This feature MUST exclusively reuse and compose existing Nexus React template UI primitives, patterns, and utility conventions rather than introducing bespoke one-off styling or structural divergences.
+
+Principles:
+- No new global CSS beyond what is already in the Nexus `src/styles/` tree; styling is achieved with Tailwind + daisyUI utility classes already sanctioned in the template.
+- Prefer existing shared layout wrappers, typography utilities, spacing rhythm, and interactive patterns (cards grid, sidebar layout, settings modal, icon usage with Iconify `lucide--*`).
+- Any new UI element that is a visual variant of an existing Nexus component (e.g., card, list item, toolbar section, modal, badge) MUST be implemented as a composition of existing components / utility classes — not a fork.
+- If a gap is discovered (component does not exist), document it in an "Extension Needed" subsection (initial implementation may still use utilities) and propose upstream generalization before solidifying a chat‑specific variant.
+
+Mapping of AI Chat UI Areas → Nexus / Existing Patterns:
+- Chat Home feature cards → Reuse existing marketing/feature card pattern from landing or `AiHomePage` (card + icon badge layout, same padding + shadow scale).
+- Sidebar shell → Existing admin sidebar/drawer pattern (persistent on desktop, drawer behavior on small screens) with `menu` or `list` identical spacing + typography as other navigation lists.
+- Conversation list items → Follow existing menu/list two-line item pattern (timestamp style = subdued `text-xs text-base-content/60`; snippet = `text-sm`).
+- New Chat button (icon) → Reuse small ghost icon button style used in other toolbars (e.g., Topbar action icons) with `btn btn-ghost btn-xs` + icon span.
+- Composer container → Structure and spacing identical to existing bottom action/composer blocks (card-border variant if used elsewhere) ensuring consistent vertical padding and border radius.
+- Text input / textarea → Existing form control sizing tokens (e.g., `textarea-md`)—no custom heights.
+- Message bubbles → Align with existing chat/message or badge/bubble shapes (rounded radius consistent with design tokens) using daisyUI `chat-bubble-*` classes only.
+- Streaming indicator → Reuse loading indicator style (`loading loading-dots loading-sm`) already present in other async UI states.
+- Citations accordion → Reuse `collapse` component styling without custom overrides; badges & links reuse standard `badge-*` and `link-*` tokens.
+- Settings / Advanced controls → Existing `modal` pattern (header, body, action row) consistent with other modals in Nexus.
+- Toasts / Errors → Reuse global toast + alert pattern (placement + semantic color usage).
+- Privacy checkbox → Standard checkbox (no custom control) with inline label typography consistent with other forms.
+- Keyboard shortcut hint styles (if shown) → Reuse existing subtle text helper style (`text-xs text-base-content/60`).
+- Icons → Use Iconify with `iconify lucide--{name}` classes (no SVG inlining unless already patternized elsewhere).
+
+Extension Needed (Documented, Not Immediate Divergence):
+- If future enhancements require: inline message-level actions toolbar (copy/regenerate) as a shared component, consider abstracting to `MessageActions` reusable component rather than embedding ad-hoc buttons across pages.
+
+Acceptance Alignment Additions:
+- A PR introducing custom CSS for chat MUST justify why composition of existing utilities/components is insufficient and reference this section.
+- Visual regression: Chat feature pages should visually blend with existing Nexus Admin pages when Tailwind devtools are hidden (no novel spacing scales, radii, shadows, or font usage).
+
+Non-Goals (Design System):
+- Introducing a separate chat design language.
+- Adding global theme tokens solely for chat before broader design review.
+
+Review Checklist (Design System Focus):
+- [ ] Uses only approved daisyUI/Tailwind classes already present across the app.
+- [ ] No new standalone CSS selectors added for chat.
+- [ ] Sidebar + cards spacing matches existing baseline (compare with `AiHomePage`).
+- [ ] Icon sizes align with existing 16/18/20px patterns.
+- [ ] Color usage sticks to semantic tokens (`primary`, `base-*`, `info`, etc.).
 
 ## Goals
 - Provide an in-app “AI Chat” page within the Admin section.
@@ -394,6 +437,85 @@ CREATE INDEX IF NOT EXISTS idx_chat_conversations_privacy ON kb.chat_conversatio
  - The "Ask a question" composer textarea spans the full available width.
  - New chat CTAs are exactly the same as on the Chat Home page (shared component and classes).
  - For a brand-new conversation, a “Private” checkbox is available; when checked prior to the first send, the conversation is created as private and owned by the current user. Access control: private conversations are viewable only by their owner.
+
+### Additional Acceptance Criteria — New Conversation Lifecycle & Selection
+These clarify the expected UX (source of several regressions) and are mandatory for completion:
+
+1. Route Initiation
+  - Navigating to `/admin/chat/c/new` MUST (a) create a new empty local conversation unless an empty active one already exists, then (b) immediately navigate (`replace` semantics) to `/admin/chat/c/{tempId}` where `tempId` starts with `c_`.
+  - The `/new` route itself should never remain visible after the effect completes (no lingering at `/new`).
+
+2. Temp ID Semantics
+  - A temporary id MUST match the regex `^c_[a-z0-9]+` and is strictly client-side until the server returns a canonical UUID (RFC4122 v4/5 style) via the streaming `meta` event.
+  - Only one temp conversation may remain empty at a time; creating another while one is still empty should reuse the existing one instead of spawning duplicates.
+
+3. UUID Normalization
+  - Upon receiving the first streaming `meta` event containing `conversationId` (UUID), the client MUST atomically:
+    1. Merge (not duplicate) message history from the temp conversation into the UUID conversation object.
+    2. Update active conversation reference to the UUID.
+    3. `replace` the URL path segment with the UUID (no full reload, no extra history entry).
+  - The list item in the sidebar MUST stay highlighted throughout (no flicker to a previous conversation).
+
+4. Active Highlight & Fallback
+  - Highlight logic MUST treat either the explicit active conversation id OR (if still resolving) the current route id as authoritative so that immediately after redirect to `/c/{tempId}` the sidebar item is highlighted even before any asynchronous hydration finishes.
+  - There MUST NOT be a frame where no item is highlighted after the first user message is sent.
+
+5. Empty State Transition
+  - The “empty CTA” panel MUST disappear as soon as the first user message is appended locally (i.e. before any assistant tokens arrive). The presence of a placeholder assistant message or streaming dots counts as a non-empty conversation state.
+  - Returning to the CTA panel for that conversation after the first user message has been sent is prohibited.
+
+6. Auto‑Send with Query Param
+  - When a `q` query parameter is present on `/c/new` (e.g. `/c/new?q=Hello`), the flow MUST:
+    1. Create/reuse the empty conversation.
+    2. Redirect to `/c/{tempId}?q=...`.
+    3. Wait until the tempId is known, then send the first message attaching to that temp conversation id (never creating a *second* temp conversation).
+  - The user MUST immediately see their message bubble and streaming indicator (no lingering CTA screen).
+
+7. Delete Button Visibility Rules
+  - Show delete action only when the current user is the owner (`ownerUserId === user.sub`) OR the conversation is still a temp / unresolved owner (temp id or empty) OR it is explicitly marked private before ownership hydration.
+  - Never show delete for a non-owned shared, persisted conversation (prevents 403 errors). Attempting delete on hidden cases should be impossible via the UI.
+
+8. No Orphan Temps
+  - After UUID normalization, the original temp conversation entry MUST be removed (or merged) so that the sidebar never shows both the temp id and its UUID counterpart simultaneously.
+
+9. Navigation History Hygiene
+  - Creating a new chat and its subsequent UUID normalization should add at most one new history entry (the temp route). The normalization uses `replace` so Back does not revisit the temp id nor `/new`.
+
+10. Resilience / Race Handling
+  - If the `meta` event with UUID arrives before the UI finishes rendering the first message, the merge MUST still succeed and the final state MUST satisfy all above criteria (no lost messages, highlight intact, no reversion to CTA panel).
+  - If network fails mid‑stream, the temp conversation remains with user + partial assistant message; subsequent retry can reuse it (no forced creation of another temp id when pressing send again while empty assistant content exists).
+
+11. Performance / Perceived Responsiveness
+  - Time from clicking “New Chat” to seeing an empty composer within the conversation view MUST be under 100ms on a standard dev machine (subjective acceptance: “feels instant”).
+
+12. Accessibility Continuity
+  - During temp → UUID swap, focus MUST remain in (or be restored to) the composer if the user had focus there; no unexpected focus loss.
+
+13. Telemetry (Optional, if instrumentation present)
+  - Emit an event `chat.conversation.normalize` with fields `{ tempId, conversationId, elapsedMs }` when UUID normalization completes.
+
+14. Testability Guidance
+  - Provide an integration test scenario (Playwright) that: starts at `/c/new?q=Test+Prompt`, verifies redirect to `/c/c_...`, ensures first user bubble renders, then awaits URL replace to UUID, asserting the same message content persists.
+
+15. Regression Protection (Documentation Only)
+  - A future change MUST NOT reintroduce reliance on `activeConversation` hydration alone for highlight; route id fallback must remain in place.
+
+### Derived Edge Cases (Documented)
+| Case | Expected Handling |
+|------|-------------------|
+| Rapid double click on New Chat | Reuse existing empty temp conversation (no duplicates) |
+| Navigate to /c/{uuid} then quickly to /c/new | Should not overwrite active uuid; new temp becomes active only after route effect runs |
+| User sends prompt, meta UUID delayed >3s | Stay on temp route; highlight stable; streaming proceeds; normalization occurs when UUID arrives |
+| User deletes temp conversation mid-stream | Abort stream; remove temp; UI returns to CTA using a fresh `/c/new` flow |
+| Server returns error before meta event | Assistant placeholder updated with error; temp conversation retained (not normalized) |
+
+### Non-Functional Requirements (Supplemental for Lifecycle)
+1. Idempotency: Re-sending the initial prompt after a network error uses the same (still empty or partial) conversation id rather than creating a new temp.
+2. Consistency: After page reload on `/c/{uuid}`, hydration MUST fetch full conversation and not recreate a temp.
+3. Storage Hygiene: Local persistence layer MUST prune temp conversations older than a configurable window (default 20–30s) that have zero messages.
+
+### Open Implementation Notes (Informational)
+The current implementation uses a client-generated temp id with prefix `c_` and merges upon SSE `meta` event. The spec codifies this approach and defines UX guarantees (highlight, absence of flicker, CTA dismissal). Any alternative (e.g., pre-reserving UUID server-side) MUST preserve the observable behaviors defined above.
 
 ## daisyUI Components Index (used)
 - `chat`, `chat-bubble`, `chat-start`, `chat-end`

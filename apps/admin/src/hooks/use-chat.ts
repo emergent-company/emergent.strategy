@@ -538,12 +538,19 @@ export function useChat(opts: UseChatOptions = {}) {
 
     const deleteConversation = useCallback(async (conversationId: string) => {
         const prevSnapshot = conversations;
+        const prevActive = activeIdRef.current;
         setConversationsPersisted((prev) => prev.filter((c) => c.id !== conversationId));
         setActiveId((prevId) => (prevId === conversationId ? null : prevId));
         try {
-            await fetch(`${apiBase}/chat/${conversationId}`, { method: 'DELETE', headers: authHeaders() });
+            const res = await fetch(`${apiBase}/chat/${conversationId}`, { method: 'DELETE', headers: authHeaders() });
+            if (!res.ok) {
+                // Roll back on authorization/server failure
+                setConversations(prevSnapshot);
+                setActiveId(prevActive || null);
+            }
         } catch {
             setConversations(prevSnapshot);
+            setActiveId(prevActive || null);
         }
     }, [apiBase, conversations, setConversationsPersisted, authHeaders]);
 

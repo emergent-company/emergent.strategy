@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useChat } from "@/hooks/use-chat";
+import { useAuth } from "@/contexts/auth";
 import type { Conversation } from "@/types/chat";
 import { PageTitle } from "@/components/PageTitle";
 import NewChatCtas from "@/components/NewChatCtas";
@@ -14,6 +15,7 @@ const suggestions = [
 export default function ChatHomePage() {
     const nav = useNavigate();
     const { conversations, sharedConversations, privateConversations, activeConversation, setActive, deleteConversation } = useChat();
+    const { user } = useAuth();
     const [prompt, setPrompt] = useState("");
     const disabled = !prompt.trim();
 
@@ -61,7 +63,6 @@ export default function ChatHomePage() {
                                 className="btn btn-ghost btn-xs"
                                 aria-label="New chat"
                                 onClick={() => {
-                                    setActive(null);
                                     nav(`/admin/apps/chat/c/new`);
                                 }}
                             >
@@ -80,27 +81,30 @@ export default function ChatHomePage() {
                             <li key={c.id} className={`w-full overflow-hidden ${c.id === conv?.id ? "menu-active" : ""}`}>
                                 <div className="flex items-center gap-2 w-full min-w-0 max-w-full overflow-hidden">
                                     <button
-                                        className="block flex-1 w-full min-w-0 max-w-full text-left"
+                                        className={`block flex-1 w-full min-w-0 max-w-full text-left rounded-lg px-2 py-1 transition-colors ${c.id === conv?.id ? 'bg-primary/20 ring-1 ring-primary/40' : 'hover:bg-base-300/60'}`}
                                         onClick={() => {
                                             setActive(c.id);
                                             nav(`/admin/apps/chat/c/${c.id}`);
                                         }}
                                         aria-label={`Open conversation ${c.title}`}
+                                        aria-current={c.id === conv?.id ? 'true' : undefined}
                                     >
                                         <ConversationListItem conv={c} />
                                     </button>
-                                    <button
-                                        className="btn btn-ghost btn-xs shrink-0"
-                                        aria-label="Delete conversation"
-                                        onClick={() => {
-                                            const confirmDelete = window.confirm("Delete this conversation?");
-                                            if (confirmDelete) {
-                                                deleteConversation(c.id);
-                                            }
-                                        }}
-                                    >
-                                        <span className="iconify lucide--trash" />
-                                    </button>
+                                    {(((c.ownerUserId && user?.sub === c.ownerUserId)) || (!c.ownerUserId && (c.isPrivate || /^c_/.test(c.id) || (c.messages?.length || 0) === 0))) && (
+                                        <button
+                                            className="btn btn-ghost btn-xs shrink-0"
+                                            aria-label="Delete conversation"
+                                            onClick={() => {
+                                                const confirmDelete = window.confirm("Delete this conversation?");
+                                                if (confirmDelete) {
+                                                    deleteConversation(c.id);
+                                                }
+                                            }}
+                                        >
+                                            <span className="iconify lucide--trash" />
+                                        </button>
+                                    )}
                                 </div>
                             </li>
                         ))}
@@ -113,27 +117,30 @@ export default function ChatHomePage() {
                             <li key={c.id} className={`w-full overflow-hidden ${c.id === conv?.id ? "menu-active" : ""}`}>
                                 <div className="flex items-center gap-2 w-full min-w-0 max-w-full overflow-hidden">
                                     <button
-                                        className="block flex-1 w-full min-w-0 max-w-full text-left"
+                                        className={`block flex-1 w-full min-w-0 max-w-full text-left rounded-lg px-2 py-1 transition-colors ${c.id === conv?.id ? 'bg-primary/20 ring-1 ring-primary/40' : 'hover:bg-base-300/60'}`}
                                         onClick={() => {
                                             setActive(c.id);
                                             nav(`/admin/apps/chat/c/${c.id}`);
                                         }}
                                         aria-label={`Open conversation ${c.title}`}
+                                        aria-current={c.id === conv?.id ? 'true' : undefined}
                                     >
                                         <ConversationListItem conv={c} />
                                     </button>
-                                    <button
-                                        className="btn btn-ghost btn-xs shrink-0"
-                                        aria-label="Delete conversation"
-                                        onClick={() => {
-                                            const confirmDelete = window.confirm("Delete this conversation?");
-                                            if (confirmDelete) {
-                                                deleteConversation(c.id);
-                                            }
-                                        }}
-                                    >
-                                        <span className="iconify lucide--trash" />
-                                    </button>
+                                    {(((c.ownerUserId && user?.sub === c.ownerUserId)) || (!c.ownerUserId && (c.isPrivate || /^c_/.test(c.id) || (c.messages?.length || 0) === 0))) && (
+                                        <button
+                                            className="btn btn-ghost btn-xs shrink-0"
+                                            aria-label="Delete conversation"
+                                            onClick={() => {
+                                                const confirmDelete = window.confirm("Delete this conversation?");
+                                                if (confirmDelete) {
+                                                    deleteConversation(c.id);
+                                                }
+                                            }}
+                                        >
+                                            <span className="iconify lucide--trash" />
+                                        </button>
+                                    )}
                                 </div>
                             </li>
                         ))}

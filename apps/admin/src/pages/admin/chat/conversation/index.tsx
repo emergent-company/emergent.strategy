@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import { PageTitle } from "@/components/PageTitle";
 import NewChatCtas from "@/components/NewChatCtas";
 import { useChat } from "@/hooks/use-chat";
+import { useAuth } from "@/contexts/auth";
 import type { Conversation, Message } from "@/types/chat";
 
 function ConversationListItem({ conv }: { conv: Conversation }) {
@@ -23,7 +24,7 @@ function Citations({ msg }: { msg: Message }) {
     const cites = msg.citations || [];
     if (!cites.length) return null;
     return (
-        <div className="mt-2">
+        <div className="w-full">
             <div className="collapse collapse-arrow bg-base-200">
                 <input type="checkbox" />
                 <div className="collapse-title font-medium text-sm">Sources ({cites.length})</div>
@@ -55,6 +56,8 @@ export default function ChatConversationPage() {
     const q = sp.get("q") || "";
     const isPrivate = sp.get("private") === "1";
     const autoSentRef = useRef(false);
+    // Track the temp conversation id created while on /new to avoid race with auto-send
+    const initialNewConvIdRef = useRef<string | null>(null);
 
     const {
         conversations,
@@ -67,39 +70,66 @@ export default function ChatConversationPage() {
         send,
         streaming,
     } = useChat();
+    const { user } = useAuth();
 
     // Ensure an active conversation is selected/created based on the route param
     useEffect(() => {
-        if (!id || id === "new") {
-            // If we already have an active conversation, do nothing
-            if (activeConversation) return;
-            // If query param q is present, let the auto-send flow create/use the phantom conversation to avoid races
-            if ((q || "").trim().length > 0) return;
-            // Prefer reusing an existing temp conversation if present
+        if (id === "new") {
+            // Explicit request for a new conversation: create one unless we already have an empty active conversation
+            const isEmptyActive = !!activeConversation && (activeConversation.messages?.length || 0) === 0;
+            let target = activeConversation;
+            if (!isEmptyActive) {
+                target = createConversation(undefined, { isPrivate });
+            }
+            if (target?.id) {
+                initialNewConvIdRef.current = target.id;
+            }
+            // Immediately navigate to the temp id (or reused empty id) so subsequent effects treat it like a normal conversation
+            if (target?.id && target.id !== id) {
+                nav(`/admin/apps/chat/c/${target.id}`, { replace: true });
+            }
+            return; // do not fall through to generic handling
+        }
+        if (!id) {
+            // No id provided (route mismatch) -> pick first or create
             if (conversations.length > 0) {
                 setActive(conversations[0].id);
                 return;
             }
             createConversation();
-        } else {
-            // switch to the requested conversation if exists; otherwise set active so hydration can run
-            setActive(id);
+            return;
         }
+        // Normal: set active to specific id
+        setActive(id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id, q, conversations.length, activeConversation?.id]);
+    }, [id, q, conversations.length, activeConversation?.id, isPrivate]);
+
+    // When a temporary conversation ("new" or c_* id) receives its persisted UUID, update the route in place
+    useEffect(() => {
+        const activeId = activeConversation?.id;
+        if (!activeId) return;
+        const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+        const isUuid = uuidRe.test(activeId);
+        // Route param may be 'new' or a temp c_ id; replace URL when canonical id available
+        if (isUuid && id && (id === 'new' || id.startsWith('c_')) && id !== activeId) {
+            nav(`/admin/apps/chat/c/${activeId}`, { replace: true });
+        }
+    }, [id, activeConversation?.id, nav]);
 
     // Auto-send initial prompt when provided via query param `q`
     useEffect(() => {
         const text = (q || "").trim();
         if (!text || autoSentRef.current) return;
-        const convId = activeConversation?.id;
-        // For brand-new conversations, respect privacy flag before first send
+        const convId = activeConversation?.id || initialNewConvIdRef.current || undefined;
+        if (!convId) return; // wait until we know the conversation id to attach first message
         void send({ message: text, conversationId: convId, isPrivate });
         autoSentRef.current = true;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [q, activeConversation?.id]);
 
-    const conv = activeConversation;
+    // Fallback: if activeConversation not yet resolved, try matching by route id (after /new redirect)
+    const conv = activeConversation || (id && id !== 'new' ? conversations.find(c => c.id === id) || null : activeConversation);
+    const currentId = conv?.id || (id && id !== 'new' ? id : null);
     const allShared = sharedConversations;
     const allPrivate = privateConversations;
 
@@ -142,7 +172,11 @@ export default function ChatConversationPage() {
                                                 <span className="loading loading-dots loading-sm" />
                                             ) : null)}
                                         </div>
-                                        {m.role === "assistant" ? <Citations msg={m} /> : null}
+                                        {m.role === "assistant" ? (
+                                            <div className="mt-2 p-0 w-full chat-footer">
+                                                <Citations msg={m} />
+                                            </div>
+                                        ) : null}
                                     </div>
                                 ))}
                             </div>
@@ -198,30 +232,33 @@ export default function ChatConversationPage() {
                             <span>Shared</span>
                         </li>
                         {allShared.map((c) => (
-                            <li key={c.id} className={`w-full overflow-hidden ${c.id === conv?.id ? "menu-active" : ""}`}>
+                            <li key={c.id} className={`w-full overflow-hidden ${c.id === currentId ? "menu-active" : ""}`}>
                                 <div className="flex items-center gap-2 w-full min-w-0 max-w-full overflow-hidden">
                                     <button
-                                        className="block flex-1 w-full min-w-0 max-w-full text-left"
+                                        className={`block flex-1 w-full min-w-0 max-w-full text-left rounded-lg px-2 py-1 transition-colors ${c.id === currentId ? 'bg-primary/20 ring-1 ring-primary/40' : 'hover:bg-base-300/60'}`}
                                         onClick={() => {
                                             setActive(c.id);
                                             nav(`/admin/apps/chat/c/${c.id}`);
                                         }}
                                         aria-label={`Open conversation ${c.title}`}
+                                        aria-current={c.id === currentId ? 'true' : undefined}
                                     >
                                         <ConversationListItem conv={c} />
                                     </button>
-                                    <button
-                                        className="btn btn-ghost btn-xs shrink-0"
-                                        aria-label="Delete conversation"
-                                        onClick={() => {
-                                            const confirmDelete = window.confirm("Delete this conversation?");
-                                            if (confirmDelete) {
-                                                deleteConversation(c.id);
-                                            }
-                                        }}
-                                    >
-                                        <span className="iconify lucide--trash" />
-                                    </button>
+                                    {(((c.ownerUserId && user?.sub === c.ownerUserId)) || (!c.ownerUserId && (c.isPrivate || /^c_/.test(c.id) || (c.messages?.length || 0) === 0))) && (
+                                        <button
+                                            className="btn btn-ghost btn-xs shrink-0"
+                                            aria-label="Delete conversation"
+                                            onClick={() => {
+                                                const confirmDelete = window.confirm("Delete this conversation?");
+                                                if (confirmDelete) {
+                                                    deleteConversation(c.id);
+                                                }
+                                            }}
+                                        >
+                                            <span className="iconify lucide--trash" />
+                                        </button>
+                                    )}
                                 </div>
                             </li>
                         ))}
@@ -231,30 +268,33 @@ export default function ChatConversationPage() {
                             </li>
                         )}
                         {allPrivate.map((c) => (
-                            <li key={c.id} className={`w-full overflow-hidden ${c.id === conv?.id ? "menu-active" : ""}`}>
+                            <li key={c.id} className={`w-full overflow-hidden ${c.id === currentId ? "menu-active" : ""}`}>
                                 <div className="flex items-center gap-2 w-full min-w-0 max-w-full overflow-hidden">
                                     <button
-                                        className="block flex-1 w-full min-w-0 max-w-full text-left"
+                                        className={`block flex-1 w-full min-w-0 max-w-full text-left rounded-lg px-2 py-1 transition-colors ${c.id === currentId ? 'bg-primary/20 ring-1 ring-primary/40' : 'hover:bg-base-300/60'}`}
                                         onClick={() => {
                                             setActive(c.id);
                                             nav(`/admin/apps/chat/c/${c.id}`);
                                         }}
                                         aria-label={`Open conversation ${c.title}`}
+                                        aria-current={c.id === currentId ? 'true' : undefined}
                                     >
                                         <ConversationListItem conv={c} />
                                     </button>
-                                    <button
-                                        className="btn btn-ghost btn-xs shrink-0"
-                                        aria-label="Delete conversation"
-                                        onClick={() => {
-                                            const confirmDelete = window.confirm("Delete this conversation?");
-                                            if (confirmDelete) {
-                                                deleteConversation(c.id);
-                                            }
-                                        }}
-                                    >
-                                        <span className="iconify lucide--trash" />
-                                    </button>
+                                    {(((c.ownerUserId && user?.sub === c.ownerUserId)) || (!c.ownerUserId && (c.isPrivate || /^c_/.test(c.id) || (c.messages?.length || 0) === 0))) && (
+                                        <button
+                                            className="btn btn-ghost btn-xs shrink-0"
+                                            aria-label="Delete conversation"
+                                            onClick={() => {
+                                                const confirmDelete = window.confirm("Delete this conversation?");
+                                                if (confirmDelete) {
+                                                    deleteConversation(c.id);
+                                                }
+                                            }}
+                                        >
+                                            <span className="iconify lucide--trash" />
+                                        </button>
+                                    )}
                                 </div>
                             </li>
                         ))}
