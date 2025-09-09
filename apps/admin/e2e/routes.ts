@@ -5,7 +5,7 @@ export const ROUTES: string[] = [
     '/auth/login',
     '/admin/apps/documents',
     '/admin/apps/chunks',
-    '/admin/apps/chat',
+    '/admin/chat',
     '/admin/profile',
     '/admin/settings/ai/prompts',
 ];

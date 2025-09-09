@@ -1,12 +1,43 @@
 {
-  "cookies": [],
+  "cookies": [
+    {
+      "name": "zitadel.login.csrf",
+      "value": "MTc1NzQwOTA0MHxJbWszYzFjMFlVVkZUVzgyWm1OVlVWa3ZRa2RKZW1OcWJESnJTVzlwVVhnMU1FaGpVVVJYVjJwdGNqUTlJZ289fBa8GBHHggOMMf0jLIQ2aTmXj3rahyLrWSmxEK2_Jtww",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1757452240.514246,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "mode",
+      "value": "auto-light",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1788945040,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "zitadel.useragent",
+      "value": "MTc1NzQwOTA0MnxPSklUZkdrVjdSVW5ONFlnTzJpbTlQR2xwdXhXb2pyS3lIN3pUbC1hNGdPRnNQYTJfRUlQOWpXbWhDcHFjeVhuVlNDSUN5aUw5bU90d3JfNVMzNWxETlVnNE9rdDh3PT18IS5mzmmeQmstI03KrIGVgr4zMFXTMOkMzrfxajGmT2A=",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1788945042.142088,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
   "origins": [
     {
       "origin": "http://localhost:5175",
       "localStorage": [
         {
           "name": "__nexus_auth_v1__",
-          "value": "{\"accessToken\":\"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJtYWNpZWpAa3VjaGFyei5uZXQiLCJlbWFpbCI6Im1hY2llakBrdWNoYXJ6Lm5ldCIsIm5hbWUiOiJtYWNpZWoiLCJpYXQiOjE3NTcxNzQ3MDEsImV4cCI6MTc1NzE3ODMwMX0.\",\"expiresAt\":1757178301932,\"user\":{\"sub\":\"maciej@kucharz.net\",\"email\":\"maciej@kucharz.net\",\"name\":\"maciej\"}}"
+          "value": "{\"accessToken\":\"2jPtxa8RAzG3LKTu70-MdBziKqQHGLC1Ra4HVhcLx1-h_1Or_lTP3UOiCvx92goyxQeSsapUIfk6Y-GXoUxay8VPzqrSXN0j2IiZB-kS\",\"idToken\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6IjMzNzA3NTYzMjM4OTIyNjQ5OSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwODAiLCJzdWIiOiIzMzU1MTcxNDkwOTczNjE0MTEiLCJhdWQiOlsiMzM1NTE2Mzg0ODk1MjM4MTQ3IiwiMzM1NTE2MjAyMTI0MTgxNTA3Il0sImV4cCI6MTc1NzQ1MjI0MiwiaWF0IjoxNzU3NDA5MDQyLCJhdXRoX3RpbWUiOjE3NTc0MDkwNDEsImFtciI6WyJwd2QiXSwiYXpwIjoiMzM1NTE2Mzg0ODk1MjM4MTQ3IiwiY2xpZW50X2lkIjoiMzM1NTE2Mzg0ODk1MjM4MTQ3IiwiYXRfaGFzaCI6InRGN1dITE5tZVBGaE0tblNhT2l4Q1EiLCJzaWQiOiJWMV8zMzcwNzYxNTAyODUxMDcyMDMifQ.r9LdWspHloz3oZuKBUP2BjRuQsw_G1EwZpET_gWP3BcbbJ3Dd-hoic8GrEqg-Tdas3B7bEE_8YT2AVF5YADEYePdtd6UwACPAoMsMQZyUK9o1HCudWDvpLfAnOG-u8CY_tQ1gYlbYGOxc1klOVTHWKgMNODUcONpxlOCd50i_IJdaIC3a-9FWjfXqbz5_fu50jpafqTEPwhA_6bGMztXzvCqjte3r97vxYDQtEMHAaqmFOyMZtu5IWEjbR_ZDldw7_sZMIDYQll1-q5yQ4wnOP1jUDZbSx_s4Y1KCLiuICx_7zBqH698ham-lVhehqmk6apXfZRTTZOvjcb9izmW7A\",\"expiresAt\":1757452231626,\"user\":{\"sub\":\"335517149097361411\"}}"
         }
       ]
     }

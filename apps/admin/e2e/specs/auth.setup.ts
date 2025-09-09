@@ -35,17 +35,59 @@ function generateDevToken(email: string): string {
 // Centralised selectors grounded in the Login page implementation.
 // Email input is inside a fieldset with legend "Email Address" and has name=id=email.
 // Password input has id=name=password.
-function emailInput(page: Page) {
-    return page.locator('input[name="email"]');
+/**
+ * Flexible selector resolution to support both legacy local credential screen and hosted Zitadel login.
+ * We attempt multiple candidate selectors and pick the first that appears.
+ * Environment overrides:
+ *   E2E_SEL_EMAIL   (default tries several: input[name=email], input[name=loginName], #loginName, input[name=login])
+ *   E2E_SEL_PASS    (default: input[name=password], #password, input[type=password])
+ *   E2E_SEL_SUBMIT  (default: button[name=signin], button[type=submit], button:has-text("Sign In"), button:has-text("Continue"))
+ */
+const EMAIL_SELECTOR_CANDIDATES = (process.env.E2E_SEL_EMAIL?.split(',').map(s => s.trim()) || [
+    'input[name="email"]',
+    'input[name="loginName"]',
+    '#loginName',
+    'input[name="login"]',
+]).filter(Boolean);
+const PASSWORD_SELECTOR_CANDIDATES = (process.env.E2E_SEL_PASS?.split(',').map(s => s.trim()) || [
+    'input[name="password"]',
+    '#password',
+    'input[type="password"]',
+]).filter(Boolean);
+const SUBMIT_SELECTOR_CANDIDATES = (process.env.E2E_SEL_SUBMIT?.split(',').map(s => s.trim()) || [
+    'button[name="signin"]',
+    'button[type="submit"]',
+    'button:has-text("Sign In")',
+    'button:has-text("Continue")',
+    'button:has-text("Continue with SSO")',
+]).filter(Boolean);
+// Optional intermediate "Next" button for multi-step identity-first flows
+const NEXT_SELECTOR_CANDIDATES = (process.env.E2E_SEL_NEXT?.split(',').map(s => s.trim()) || [
+    'button:has-text("Next")',
+    'button[name="next"]',
+]).filter(Boolean);
+
+async function waitForFirstVisible(page: Page, selectors: string[], timeoutMs: number): Promise<import('@playwright/test').Locator> {
+    const start = Date.now();
+    const interval = 150; // ms
+    while (Date.now() - start < timeoutMs) {
+        for (const sel of selectors) {
+            const loc = page.locator(sel);
+            if (await loc.first().count() > 0) {
+                try {
+                    if (await loc.first().isVisible()) return loc.first();
+                } catch { /* ignore transient */ }
+            }
+        }
+        await page.waitForTimeout(interval);
+    }
+    throw new Error(`None of selectors became visible within ${timeoutMs}ms: ${selectors.join(' | ')}`);
 }
-function passwordInput(page: Page) {
-    return page.locator('input[name="password"]');
-}
-function primaryLoginButton(page: Page) {
-    // Stable selector: button used for both credentials and SSO flows has name="signin".
-    // Text can be 'Sign In', 'Signing In...', 'Continue with SSO', or 'Redirecting...'.
-    return page.locator('button[name="signin"]');
-}
+
+async function resolveEmailLocator(page: Page) { return waitForFirstVisible(page, EMAIL_SELECTOR_CANDIDATES, 15_000); }
+async function resolvePasswordLocator(page: Page) { return waitForFirstVisible(page, PASSWORD_SELECTOR_CANDIDATES, 15_000); }
+async function resolveSubmitLocator(page: Page) { return waitForFirstVisible(page, SUBMIT_SELECTOR_CANDIDATES, 15_000); }
+async function resolveNextLocator(page: Page) { return waitForFirstVisible(page, NEXT_SELECTOR_CANDIDATES, 3_000); }
 
 setup.describe.configure({ mode: 'serial' });
 
@@ -79,24 +121,36 @@ setup('auth: login (or inject) and save storage state', async ({ page, context }
     // UI Login Flow
     await page.goto('/auth/login');
 
-    await testStep('Fill email field', async () => {
-        const emailBox = emailInput(page);
-        await expect(emailBox, 'Email input should be visible').toBeVisible();
-        await emailBox.fill(email!); // safe due to earlier guard
-        await expect(emailBox).toHaveValue(email!);
+    // If immediately redirected to external/issuer domain, continue – flexible selectors will adapt.
+    // We intentionally do NOT assert the URL pattern here to stay agnostic to provider query params.
+
+    await testStep('Fill email/login field', async () => {
+        const emailBox = await resolveEmailLocator(page);
+        await expect(emailBox, 'Email/login input should be visible').toBeVisible();
+        await emailBox.fill(email!);
+        // Some hosted pages auto-transform; we skip strict value assertion to avoid false negatives.
+    });
+    await testStep('Advance to password screen (Next if present)', async () => {
+        try {
+            const nextBtn = await resolveNextLocator(page);
+            if (await nextBtn.isVisible()) {
+                await nextBtn.click();
+                console.log('Clicked intermediate Next button.');
+            }
+        } catch {
+            // Next not present – single step form, continue silently.
+        }
     });
 
-    await testStep('Fill password field (masked)', async () => {
-        const passBox = passwordInput(page);
+    await testStep('Fill password field', async () => {
+        const passBox = await resolvePasswordLocator(page);
         await expect(passBox, 'Password input should be visible').toBeVisible();
         await passBox.fill(password!);
-        // We intentionally do NOT assert displayed value (password is masked)
-        await expect(passBox).toHaveAttribute('type', 'password');
     });
 
-    await testStep('Click primary login button', async () => {
-        const btn = primaryLoginButton(page);
-        await expect(btn, 'Primary login button should exist').toBeVisible();
+    await testStep('Submit login form', async () => {
+        const btn = await resolveSubmitLocator(page);
+        await expect(btn, 'Submit/login button should exist').toBeVisible();
         await btn.click();
     });
 

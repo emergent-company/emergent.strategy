@@ -1,19 +1,24 @@
 import { test, expect } from '../fixtures/app';
 import { navigate } from '../utils/navigation';
 import { expectNoRuntimeErrors } from '../utils/assertions';
-import { ensureDevAuth, stubChatBackend } from '../utils/chat';
+import { stubChatBackend } from '../utils/chat';
+
+/**
+ * NOTE: Auth is now established via the dedicated auth.setup.ts (OIDC/Zitadel UI login or token injection).
+ * This spec assumes storageState already contains a valid session. Do NOT inject dev auth here; that path
+ * hides real regressions in hosted login redirects.
+ */
 
 test.describe('Chat - new conversation flow', () => {
 
-    test('navigates to /admin/apps/chat/c/new without 404', async ({ page, consoleErrors, pageErrors }) => {
-        await test.step('Auth + network stubs', async () => {
-            await ensureDevAuth(page);
+    test('navigates to /admin/chat/c/new without 404', async ({ page, consoleErrors, pageErrors }) => {
+        await test.step('Network stubs (chat)', async () => {
             await stubChatBackend(page);
         });
 
         await test.step('Navigate to new conversation route', async () => {
-            await navigate(page, '/admin/apps/chat/c/new');
-            await expect(page).toHaveURL(/\/admin\/apps\/chat\/c\/new/);
+            await navigate(page, '/admin/chat/c/new');
+            await expect(page).toHaveURL(/\/admin\/chat\/c\/new/);
         });
 
         await test.step('Expect chat UI heading and composer present', async () => {
@@ -40,13 +45,12 @@ test.describe('Chat - new conversation flow', () => {
     test('sends first message via CTA composer + SSE stream', async ({ page, consoleErrors, pageErrors }) => {
         const prompt = 'E2E manual send ping';
 
-        await test.step('Auth + network stubs', async () => {
-            await ensureDevAuth(page);
+        await test.step('Network stubs (chat)', async () => {
             await stubChatBackend(page);
         });
 
         await test.step('Open new chat route', async () => {
-            await navigate(page, '/admin/apps/chat/c/new');
+            await navigate(page, '/admin/chat/c/new');
         });
 
         await test.step('Fill composer and send', async () => {
