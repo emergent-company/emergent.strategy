@@ -1,0 +1,547 @@
+openapi: 3.1.0
+info:
+  title: Spec Server API
+  version: 0.2.0
+  description: |
+    Unified API specification covering authentication probes, organizations, projects, settings,
+    ingestion, search, documents, chunks, and chat (RAG) endpoints.
+
+    Security: All endpoints (except /health, password grant probe & login) require Bearer auth (Zitadel JWT).
+servers:
+  - url: /
+security:
+  - bearerAuth: []
+tags:
+  - name: Health
+    description: Basic liveness & readiness probes.
+  - name: Auth
+    description: Authentication related endpoints (password grant probe/login – dev only).
+  - name: Orgs
+    description: Organization management.
+  - name: Projects
+    description: Project management under organizations.
+  - name: Settings
+    description: Application configuration key/value store.
+  - name: Ingestion
+    description: Content ingestion endpoints (URL & file upload).
+  - name: Search
+    description: Hybrid / lexical / vector search over chunked knowledge base.
+  - name: Documents
+    description: Document listing endpoints.
+  - name: Chunks
+    description: Chunk listing & retrieval endpoints.
+  - name: Chat
+    description: RAG Chat (conversations, streaming, messages).
+x-tagGroups:
+  - name: Health & Auth
+    tags:
+      - Health
+      - Auth
+  - name: Organizations & Projects
+    tags:
+      - Orgs
+      - Projects
+  - name: Configuration
+    tags:
+      - Settings
+  - name: Content & Ingestion
+    tags:
+      - Ingestion
+      - Documents
+      - Chunks
+  - name: Search
+    tags:
+      - Search
+  - name: Chat
+    tags:
+      - Chat
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object, additionalProperties: true }
+          required: [code, message]
+      required: [error]
+    Citation:
+      type: object
+      properties:
+        documentId: { type: string, format: uuid }
+        chunkId: { type: string, format: uuid }
+        chunkIndex: { type: integer }
+        text: { type: string }
+        sourceUrl: { type: string, nullable: true }
+        filename: { type: string, nullable: true }
+        similarity: { type: number, nullable: true }
+      required: [documentId, chunkId, chunkIndex, text]
+    Message:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string, enum: [user, assistant, system] }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+        citations:
+          type: array
+          items: { $ref: "#/components/schemas/Citation" }
+      required: [id, role, content, createdAt]
+    Conversation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        ownerUserId: { type: string, format: uuid, nullable: true }
+        isPrivate: { type: boolean, nullable: true }
+        messages:
+          type: array
+          items: { $ref: "#/components/schemas/Message" }
+      required: [id, title, createdAt, updatedAt, messages]
+    ChatRequest:
+      type: object
+      properties:
+        message: { type: string }
+        conversationId: { type: string, format: uuid }
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              role: { type: string, enum: [user, assistant, system] }
+              content: { type: string }
+            required: [role, content]
+        topK: { type: integer, minimum: 1, maximum: 20, default: 5 }
+        documentIds:
+          type: array
+          items: { type: string, format: uuid }
+        stream: { type: boolean, default: true }
+        isPrivate: { type: boolean }
+      required: [message]
+    ChatChunk:
+      type: object
+      description: |
+        Streaming event wrapper for SSE frames sent by /chat/stream.
+        Each SSE line follows the pattern: `data: {json}` followed by a blank line.
+      properties:
+        type: { type: string, enum: [meta, token, done, error] }
+        conversationId: { type: string, format: uuid }
+        citations:
+          type: array
+          items: { $ref: "#/components/schemas/Citation" }
+        token: { type: string }
+        error: { type: string }
+      required: [type]
+    ConversationGroups:
+      type: object
+      properties:
+        shared:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string }
+              created_at: { type: string, format: date-time }
+              updated_at: { type: string, format: date-time }
+              owner_user_id: { type: string, format: uuid }
+              is_private: { type: boolean }
+
+        private:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string }
+              created_at: { type: string, format: date-time }
+              updated_at: { type: string, format: date-time }
+              owner_user_id: { type: string, format: uuid }
+              is_private: { type: boolean }
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health probe
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  model: { type: string }
+                  db: { type: string }
+  /api/auth/password:
+    get:
+      tags:
+        - Auth
+      summary: Password grant availability probe
+      security: []
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled: { type: boolean }
+                  clientIdPresent: { type: boolean }
+  /api/auth/password/login:
+    post:
+      tags:
+        - Auth
+      summary: Obtain tokens via resource owner password grant (dev only)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+              required: [email, password]
+      responses:
+        "200": { description: Token response }
+        "401":
+          {
+            description: Unauthorized,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/ErrorEnvelope" } },
+              },
+          }
+        "403":
+          {
+            description: Disabled,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/ErrorEnvelope" } },
+              },
+          }
+  /orgs:
+    get:
+      tags:
+        - Orgs
+      summary: List organizations owned by current user
+      responses:
+        "200": { description: OK }
+    post:
+      tags:
+        - Orgs
+      summary: Create or upsert organization (by slug)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+              required: [name]
+      responses:
+        "201": { description: Created }
+  /orgs/{orgId}/projects:
+    get:
+      tags:
+        - Projects
+      summary: List projects for an organization
+      parameters:
+        - in: path
+          name: orgId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: OK }
+  /projects:
+    post:
+      tags:
+        - Projects
+      summary: Create project in organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                orgId: { type: string, format: uuid }
+              required: [name, orgId]
+      responses:
+        "201": { description: Created }
+  /settings:
+    get:
+      tags:
+        - Settings
+      summary: List all settings
+      responses:
+        "200": { description: OK }
+  /settings/{key}:
+    get:
+      tags:
+        - Settings
+      summary: Get a single setting
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+    put:
+      tags:
+        - Settings
+      summary: Upsert a setting
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value: { description: Arbitrary JSON value }
+      responses:
+        "200": { description: OK }
+  /ingest/url:
+    post:
+      tags:
+        - Ingestion
+      summary: Ingest a remote URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url: { type: string, format: uri }
+              required: [url]
+      responses:
+        "200": { description: OK }
+  /ingest/upload:
+    post:
+      tags:
+        - Ingestion
+      summary: Upload a file for ingestion (multipart/form-data)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200": { description: OK }
+  /search:
+    get:
+      tags:
+        - Search
+      summary: Hybrid / lexical / vector search over chunks
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+        - in: query
+          name: mode
+          schema:
+            { type: string, enum: [hybrid, lexical, vector], default: hybrid }
+      responses:
+        "200": { description: OK }
+  /documents:
+    get:
+      tags:
+        - Documents
+      summary: List documents
+      responses:
+        "200": { description: OK }
+  /chunks:
+    get:
+      tags:
+        - Chunks
+      summary: List chunks with pagination and filters
+      parameters:
+        - in: query
+          name: docId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - in: query
+          name: sort
+          schema:
+            {
+              type: string,
+              description: "Fields: created_at:desc (default) or chunk_index:asc",
+            }
+      responses:
+        "200": { description: OK }
+  /chunks/{id}:
+    get:
+      tags:
+        - Chunks
+      summary: Get a single chunk
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: OK }
+  /chat/stream:
+    post:
+      tags:
+        - Chat
+      summary: Stream an assistant response (SSE)
+      description: |
+        Server-Sent Events response with a sequence of ChatChunk objects encoded as `data: {json}` lines.
+        Event order: meta (with conversationId & citations) → token* → done | error.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChatRequest" }
+      responses:
+        "200":
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  data: {"type":"meta","conversationId":"3b9d...","citations":[]}
+
+                  data: {"type":"token","token":"Hello"}
+
+                  data: {"type":"done"}
+        "400":
+          {
+            description: Bad Request,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/ErrorEnvelope" } },
+              },
+          }
+  /chat/conversations:
+    get:
+      tags:
+        - Chat
+      summary: List conversations grouped by privacy
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConversationGroups" }
+  /chat/{id}:
+    get:
+      tags:
+        - Chat
+      summary: Get a conversation with messages
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversation: { $ref: "#/components/schemas/Conversation" }
+        "400":
+          {
+            description: Bad Request,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/ErrorEnvelope" } },
+              },
+          }
+        "404":
+          {
+            description: Not Found,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/ErrorEnvelope" } },
+              },
+          }
+    patch:
+      tags:
+        - Chat
+      summary: Rename a conversation (owner only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+              required: [title]
+      responses:
+        "200": { description: OK }
+        "400": { description: Bad Request }
+        "403": { description: Forbidden }
+        "404": { description: Not Found }
+    delete:
+      tags:
+        - Chat
+      summary: Delete a conversation (owner only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: OK }
+        "400": { description: Bad Request }
+        "403": { description: Forbidden }
+        "404": { description: Not Found }

@@ -2,17 +2,25 @@
   "name": "spec-server",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/admin",
+    "apps/server-nest"
+  ],
   "type": "module",
   "scripts": {
     "dev:server": "tsx watch apps/server/src/server.ts",
+    "dev:server-nest": "npm --prefix apps/server-nest run start:dev",
     "dev:admin": "npm --prefix apps/admin run dev",
     "dev:storybook": "npm --prefix apps/admin run storybook",
     "dev:all": "concurrently -n server,admin -c blue,magenta \"npm run dev:server\" \"npm run dev:admin\" ",
     "dev": "npm run dev:all",
     "start": "node apps/server/dist/server.js",
     "build:server": "tsc -p apps/server/tsconfig.json",
+    "build:server-nest": "npm --prefix apps/server-nest run build",
     "build:admin": "npm --prefix apps/admin run build",
-    "build": "npm run build:server && npm run build:admin",
+    "build": "npm run build:server && npm run build:server-nest && npm run build:admin",
+    "spec:gen:nest": "npm --prefix apps/server-nest run gen:openapi",
+    "spec:diff": "node scripts/diff-openapi.js",
     "db:init": "tsx scripts/init-db.ts",
     "test:smoke": "tsx scripts/smoke-test.ts",
     "mcp:db": "node .vscode/mcp.js",
@@ -36,7 +44,15 @@
     "multer": "^1.4.5-lts.1",
     "node-fetch": "^3.3.2",
     "pg": "^8.12.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "@nestjs/common": "^10.3.0",
+    "@nestjs/core": "^10.3.0",
+    "@nestjs/platform-express": "^10.3.0",
+    "@nestjs/swagger": "^7.4.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

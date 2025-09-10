@@ -1,0 +1,272 @@
+openapi: 3.0.0
+paths:
+  /health:
+    get:
+      operationId: HealthController_get
+      parameters: []
+      responses:
+        '200':
+          description: Health probe
+          content:
+            application/json:
+              schema:
+                example:
+                  ok: true
+                  model: gemini-pro
+                  db: up
+      tags:
+        - Health
+  /auth/me:
+    get:
+      operationId: AuthController_me
+      parameters: []
+      responses:
+        '200':
+          description: Return current authenticated user (mock)
+          content:
+            application/json:
+              schema:
+                example:
+                  id: user_123
+                  email: demo@example.com
+      tags:
+        - Auth
+  /settings:
+    get:
+      operationId: SettingsController_list
+      parameters: []
+      responses:
+        '200':
+          description: List settings (placeholder)
+          content:
+            application/json:
+              schema:
+                example:
+                  - key: theme
+                    value: dark
+      tags: &ref_0
+        - Settings
+  /settings/{key}:
+    get:
+      operationId: SettingsController_getOne
+      parameters:
+        - name: key
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Get a single setting (placeholder)
+          content:
+            application/json:
+              schema:
+                example:
+                  key: theme
+                  value: dark
+      tags: *ref_0
+  /orgs:
+    get:
+      operationId: OrgsController_list
+      parameters: []
+      responses:
+        '200':
+          description: List organizations
+          content:
+            application/json:
+              schema:
+                example:
+                  - id: org_1
+                    name: Example Org
+      tags:
+        - Orgs
+  /projects:
+    get:
+      operationId: ProjectsController_list
+      parameters: []
+      responses:
+        '200':
+          description: List projects
+          content:
+            application/json:
+              schema:
+                example:
+                  - id: proj_1
+                    name: Demo Project
+                    orgId: org_1
+      tags:
+        - Projects
+  /search:
+    get:
+      operationId: SearchController_search
+      parameters:
+        - name: q
+          required: true
+          in: query
+          description: Query string
+          schema:
+            example: vector index design
+            type: string
+        - name: limit
+          required: false
+          in: query
+          description: Result limit (1..50)
+          schema:
+            minimum: 1
+            maximum: 50
+            default: 10
+            type: number
+        - name: mode
+          required: false
+          in: query
+          schema:
+            default: hybrid
+            enum:
+              - hybrid
+              - lexical
+              - vector
+            type: string
+      responses:
+        '200':
+          description: Hybrid / lexical / vector search over chunks
+          content:
+            application/json:
+              schema:
+                example:
+                  results:
+                    - id: mock-1
+                      snippet: Result snippet for "foo" (#1, mode=hybrid)
+                      score: 1
+      tags:
+        - Search
+  /documents:
+    get:
+      operationId: DocumentsController_list
+      parameters: []
+      responses:
+        '200':
+          description: List ingested documents
+          content:
+            application/json:
+              schema:
+                example:
+                  - id: doc_1
+                    name: Spec.md
+      tags:
+        - Documents
+  /chunks:
+    get:
+      operationId: ChunksController_list
+      parameters: []
+      responses:
+        '200':
+          description: List chunks
+          content:
+            application/json:
+              schema:
+                example:
+                  - id: chunk_1
+                    documentId: doc_1
+                    size: 512
+      tags:
+        - Chunks
+  /ingest/upload:
+    post:
+      operationId: IngestionController_upload
+      parameters: []
+      responses:
+        '200':
+          description: Upload a file for ingestion
+          content:
+            application/json:
+              schema:
+                example:
+                  id: job_1
+                  status: queued
+      tags: &ref_1
+        - Ingestion
+  /ingest/url:
+    post:
+      operationId: IngestionController_ingestUrl
+      parameters: []
+      responses:
+        '200':
+          description: Ingest a remote URL
+          content:
+            application/json:
+              schema:
+                example:
+                  id: job_2
+                  status: queued
+      tags: *ref_1
+  /chat/conversations:
+    get:
+      operationId: ChatController_listConversations
+      parameters: []
+      responses:
+        '200':
+          description: List chat conversations
+          content:
+            application/json:
+              schema:
+                example:
+                  - id: c1
+                    updatedAt: '2025-01-01T00:00:00Z'
+      tags: &ref_2
+        - Chat
+  /chat/{id}:
+    get:
+      operationId: ChatController_getConversation
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Get a conversation
+          content:
+            application/json:
+              schema:
+                example:
+                  id: c1
+                  messages: []
+      tags: *ref_2
+info:
+  title: Spec Server API
+  description: Generated OpenAPI spec (NestJS)
+  version: 0.2.0
+  contact: {}
+tags: []
+servers: []
+components:
+  securitySchemes:
+    bearer:
+      scheme: bearer
+      bearerFormat: JWT
+      type: http
+  schemas: {}
+x-tagGroups:
+  - name: Health & Auth
+    tags:
+      - Health
+      - Auth
+  - name: Organizations & Projects
+    tags:
+      - Orgs
+      - Projects
+  - name: Configuration
+    tags:
+      - Settings
+  - name: Content & Ingestion
+    tags:
+      - Ingestion
+      - Documents
+      - Chunks
+  - name: Search
+    tags:
+      - Search
+  - name: Chat
+    tags:
+      - Chat

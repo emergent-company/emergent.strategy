@@ -248,8 +248,265 @@ Conversation naming rules:
 - When creating a new chat from scratch, set `title` to `YYYY-MM-DD — {first message snippet}` where the snippet is trimmed to ~8 words or ~48 characters.
 - If the first message is empty, fallback to `YYYY-MM-DD — New Conversation`.
 
+## Chat API Contract
+
+This section defines the authoritative API contract for the Chat feature. It formalizes objects, endpoints, headers, event sequencing, and error semantics. Any implementation MUST adhere to these contracts; deviations require updating this spec first.
+
+### Common HTTP Details
+- Base URL: (Admin Server) `https://{host}` — relative paths shown below.
+- Auth: Bearer token in `Authorization: Bearer <JWT>` header (Zitadel). 401 if missing/invalid.
+- Org / Project Scoping (optional, nullable):
+  - `X-Org-ID: <uuid>`
+  - `X-Project-ID: <uuid>`
+- Content-Type for JSON requests: `application/json`.
+- All JSON responses (non-SSE) on success return 2xx. Errors return a JSON error envelope.
+- Time fields are ISO 8601 strings (UTC) — e.g. `2025-09-09T12:34:56.123Z`.
+
+### Error Envelope
+```
+{
+  "error": {
+    "code": "string",          // machine code, kebab-case
+    "message": "Human message", // safe for display
+    "details": { ... }           // optional object with extra info
+  }
+}
+```
+
+| HTTP | code (error.code)            | Meaning |
+|------|------------------------------|---------|
+| 400  | `bad-request`               | Validation / malformed input |
+| 401  | `unauthorized`              | Missing/invalid auth |
+| 403  | `forbidden`                 | Access denied (private conversation not owned) |
+| 404  | `not-found`                 | Resource missing |
+| 409  | `conflict`                  | State conflict (rare) |
+| 422  | `validation-failed`         | Detailed field issues |
+| 429  | `rate-limited`              | Rate limit exceeded (future) |
+| 500  | `internal`                  | Unhandled server error |
+| 503  | `upstream-unavailable`      | LLM or embedding provider unavailable |
+
+### Core Data Shapes (JSON)
+```
+Role := "user" | "assistant" | "system"
+
+Citation {
+  documentId: string;         // UUID
+  chunkId: string;            // UUID
+  chunkIndex: number;
+  text: string;               // chunk text (may be truncated in future)
+  sourceUrl?: string | null;
+  filename?: string | null;
+  similarity?: number;        // cosine distance (<=>) lower = closer
+}
+
+Message {
+  id: string;                 // UUID
+  role: Role;
+  content: string;
+  createdAt: string;          // ISO timestamp
+  citations?: Citation[];     // Only assistant messages may include
+}
+
+Conversation {
+  id: string;                 // UUID
+  title: string;
+  createdAt: string;          // ISO
+  updatedAt: string;          // ISO
+  messages: Message[];        // Chronological ASC
+  ownerUserId?: string;       // UUID of creator
+  isPrivate?: boolean;        // default false
+}
+
+ChatRequest {
+  message: string;            // required, non-empty
+  conversationId?: string;    // existing UUID; omitted or invalid => create new
+  history?: Array<{ role: Role; content: string }>;
+  topK?: number;              // default 5 (1..20 enforced)
+  documentIds?: string[];     // optional filter (UUIDs)
+  stream?: boolean;           // default true (non-stream path optional)
+  isPrivate?: boolean;        // only honored when creating new conversation
+}
+
+// SSE Event Wrapper
+ChatChunk {
+  type: "meta" | "token" | "done" | "error";
+  // meta
+  conversationId?: string;    // on meta for new conv
+  citations?: Citation[];     // on meta (always for new conv; optional for continuation)
+  // token
+  token?: string;             // incremental token fragment
+  // error
+  error?: string;             // error message (stream terminates after)
+}
+```
+
+### Event Sequencing Guarantees (SSE)
+1. For a brand-new conversation the first event MUST be `meta` with `conversationId` + `citations`.
+2. Zero or more `token` events follow (each contains partial text to append).
+3. Zero or one additional `meta` events MAY appear later **only** for supplemental citations (continuations) — (current implementation: citations delivered in initial `meta`).
+4. Stream ends with exactly one terminal event: `done` OR `error`.
+5. No tokens are emitted after `done`/`error`.
+
+### Headers of Interest
+| Header | Direction | Purpose |
+|--------|-----------|---------|
+| Authorization | Request | Bearer token |
+| X-Org-ID | Request | Optional org scoping UUID |
+| X-Project-ID | Request | Optional project scoping UUID |
+| Content-Type | Request/Response | `application/json` (except SSE) |
+| Cache-Control | Response (SSE) | `no-cache` |
+
+### Endpoint: POST /chat/stream  (SSE)
+Streams an assistant response (Retrieval + LLM) while creating or continuing a conversation.
+
+Request:
+```
+POST /chat/stream
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "message": "What decisions were made yesterday?",
+  "conversationId": "a9b1..." | undefined,
+  "topK": 5,
+  "documentIds": ["..."],
+  "isPrivate": true,
+  "history": [ { "role": "user", "content": "..." }, ... ]
+}
+```
+
+Responses:
+- 200 + `text/event-stream` (success) — stream of `data: {ChatChunk}` lines separated by blank line.
+- 4xx/5xx JSON error envelope if validation/auth fails before stream begins.
+
+Example SSE (new conversation):
+```
+data: {"type":"meta","conversationId":"3b9d...","citations":[{...}]}
+
+data: {"type":"token","token":"The "}
+
+data: {"type":"token","token":"decision was..."}
+
+data: {"type":"done"}
+
+```
+
+Error in-stream example:
+```
+data: {"type":"meta","conversationId":"3b9d...","citations":[]}
+
+data: {"type":"error","error":"embedding provider unavailable"}
+
+```
+
+Client Handling Rules:
+- On first `meta`, if local id is temp (`^c_`), normalize to server `conversationId`.
+- Concatenate `token` fragments (ordered arrival) to assemble assistant message.
+- On `error`, finalize assistant message with error content and stop.
+- On network abort (client `AbortController`), no additional events expected.
+
+### Endpoint: POST /chat  (Non-stream / Optional)
+Synchronous one-shot response (fallback). MAY be omitted in initial milestone; spec includes for completeness.
+
+Request Body: `ChatRequest` with `stream: false` OR absent.
+
+Success (200):
+```
+{
+  "message": Message,           // assistant message
+  "conversation": Conversation  // (optional) updated conversation snapshot
+}
+```
+
+### Endpoint: GET /chat/conversations
+Returns grouped conversation metadata (no messages) for sidebar population.
+
+Success (200):
+```
+{
+  "shared": [ { "id": "...", "title": "...", "created_at": "...", "updated_at": "...", "owner_user_id": "...", "is_private": false } ],
+  "private": [ { ... is_private: true } ]
+}
+```
+
+Notes:
+- Sorted by `updated_at DESC` per group.
+- Shared excludes private conversations of other users.
+
+### Endpoint: GET /chat/:id
+Fetch full conversation with messages (access-controlled).
+
+Success (200):
+```
+{
+  "conversation": Conversation
+}
+```
+
+Errors:
+- 400 `bad-request` (invalid UUID format)
+- 403 `forbidden` (private not owned)
+- 404 `not-found`
+
+### Endpoint: PATCH /chat/:id
+Rename conversation (owner only).
+
+Request:
+```
+{
+  "title": "2025-09-09 — New Title"
+}
+```
+
+Success (200): `{ "ok": true }`
+
+Errors: 400, 403, 404.
+
+### Endpoint: DELETE /chat/:id
+Delete a conversation (owner only).
+
+Success (200): `{ "ok": true }`
+
+Errors: 400, 403, 404.
+
+### Rate Limiting (Future / Placeholder)
+Server MAY emit `429` with `Retry-After` header (seconds). Clients SHOULD surface a toast advising to retry later. Retries MUST NOT be automatic for identical prompts within a 30s window.
+
+### Idempotency & Retries
+- Client should not auto-resend on 5xx; show error and allow manual retry.
+- Re-sending initial prompt for the same temp conversation before server meta arrives MUST reuse the same temp id (client guard). Server will treat duplicated create as a continuation if `conversationId` was already persisted.
+
+### Security Notes
+- Private conversations enforce ownership by `owner_user_id` (UUID derived from auth subject mapping rules).
+- Citations text is raw chunk content; implement any redaction upstream if needed in future.
+- Server must sanitize user `message` before constructing LLM prompt (strip control characters) — implicit requirement.
+
+### Telemetry (Optional Fields)
+Implementations MAY log (not return) structured telemetry per exchange:
+```
+{
+  "event": "chat.exchange",
+  "conversationId": "uuid",
+  "userId": "uuid",
+  "promptChars": 1234,
+  "tokensOut": 456,
+  "topK": 5,
+  "retrieval": { "candidates": 5, "vectorMs": 12, "lexicalMs": 8 },
+  "latencyMs": 910
+}
+```
+
+---
+
 ## Backend — New Endpoints
 Add to `src/server.ts`.
+
+### NestJS Migration Note
+This specification’s endpoint shapes and streaming contract remain authoritative during and after the migration to NestJS (see `spec/03-architecture.md` Framework Migration section). When the server refactor lands:
+- Express route implementations move to NestJS Controllers (e.g., `ChatController` with `@Sse('chat/stream')`).
+- DTO classes (or Zod schemas) will encode the same `ChatRequest`, `ChatChunk`, `Conversation*` shapes to auto‑generate the OpenAPI spec; field names MUST NOT change without updating this spec first.
+- Error envelope is enforced via a global Nest exception filter; no per‑endpoint changes required here.
+- Clients should not need modifications; only the spec source of truth changes from manual YAML to generated decorators.
 
 ### POST /chat/stream (SSE)
 - Content-Type: `text/event-stream`
@@ -500,6 +757,29 @@ These clarify the expected UX (source of several regressions) and are mandatory 
 15. Regression Protection (Documentation Only)
   - A future change MUST NOT reintroduce reliance on `activeConversation` hydration alone for highlight; route id fallback must remain in place.
 
+16. Initial Chat Screen & Creation Timing (Clarification Added)
+  - Clicking the global “New Chat” button (or navigating to `/c/new`) presents an initial chat screen composed of the CTA cards + empty composer + (optional) privacy checkbox. At this point NO server conversation record exists yet; only an ephemeral temp client conversation (id `c_*`) is held locally.
+  - The server conversation MUST NOT be created until the user submits the very first message. This first send triggers the `/chat/stream` call which returns the canonical UUID via the `meta` SSE event.
+  - While this initial temp conversation is empty (zero messages):
+    1. The “New Chat” button MUST be disabled (use daisyUI disabled state e.g. `btn-disabled` or `btn btn-ghost btn-xs btn-disabled`) to signal that another new chat cannot be started yet.
+    2. Attempting to invoke creation again SHOULD perform no action (idempotent) — the existing empty temp conversation is reused silently.
+    3. (Clarification) Clicking the disabled button must have no side effects; no second temp id may be generated.
+  - After the first user message is locally appended (optimistic), the empty-state CTA panel MUST disappear immediately (rule already covered in 5) and the “New Chat” button becomes enabled again (allowing the user to start another conversation later).
+  - Navigation to an existing (already persisted) conversation while an empty temp conversation is open IS permitted (standard UX) and will simply abandon the empty temp (it may be pruned later) — HOWEVER if product policy later decides to block that, this spec would need amendment; current clarification: only the duplicate new-chat creation is blocked, not switching to an existing conversation.
+  - Rationale: prevents clutter of multiple empty temp conversations and provides a clearer funnel to producing the first meaningful message before allocating server resources.
+
+17. Disabled State Visual Consistency
+  - The disabled "New Chat" control must retain its position and sizing to avoid layout shift; only opacity / pointer events change per daisyUI defaults.
+  - Provide an accessible hint via `aria-disabled="true"` and (optionally) a tooltip, e.g. title="Finish this empty chat or send a message first".
+
+18. Server Creation Event Ordering (Restated with Clarification)
+  - SSE `meta` event containing `conversationId` MUST always be the first event emitted for a brand-new conversation (before any `token`) so the client can normalize the temp id as early as possible after the first send.
+  - If retrieval fails before LLM streaming (e.g. no citations, upstream embedding error), server still emits a `meta` with the UUID (so the empty server conversation with one user message exists) followed by either `error` or immediate `done`.
+
+19. Empty Temp Abandonment Policy
+  - An empty temp conversation abandoned by navigating away (no messages ever added) MAY be pruned from local storage after 20–30s (existing pruning logic) and will never be created server-side. This keeps local storage clean.
+  - Telemetry (optional): emit `chat.temp.abandoned` with `{ tempId, ageMs }` when pruned.
+
 ### Derived Edge Cases (Documented)
 | Case | Expected Handling |
 |------|-------------------|
@@ -513,6 +793,54 @@ These clarify the expected UX (source of several regressions) and are mandatory 
 1. Idempotency: Re-sending the initial prompt after a network error uses the same (still empty or partial) conversation id rather than creating a new temp.
 2. Consistency: After page reload on `/c/{uuid}`, hydration MUST fetch full conversation and not recreate a temp.
 3. Storage Hygiene: Local persistence layer MUST prune temp conversations older than a configurable window (default 20–30s) that have zero messages.
+
+## API Documentation (OpenAPI + Stoplight Integration)
+
+Interactive, shareable documentation for the entire API surface (auth probes, orgs, projects, settings, ingestion, search, documents, chunks, chat) is published via a unified OpenAPI 3.1 spec rendered with Stoplight Elements.
+
+Scope (current): All implemented endpoints. The earlier chat-only spec remains temporarily (`chat.openapi.yaml`) but will be deprecated once external consumers migrate.
+
+Deliverables (Unified):
+1. Unified OpenAPI spec file: `apps/server/openapi/openapi.yaml` (authoritative, version >= 0.2.0).
+2. Raw unified spec route: `GET /openapi/openapi.yaml` (YAML, `Content-Type: application/yaml`).
+3. Unified docs UI: `GET /docs` (Stoplight Elements pointing at unified spec with tags grouping by functionality).
+4. README section updated (`apps/server/README.md`) with unified workflow.
+
+Authoring Guidelines (Unified):
+- Schemas MUST mirror runtime data models; modify code + spec in same PR.
+- Security: global HTTP bearer (`bearerAuth`) omitted only for explicitly public endpoints (`/health`, password grant probe & login).
+- SSE Modeling: `/chat/stream` success 200 documented as `text/event-stream` with example chunk sequence; each frame is a line `data: {json}` plus blank line (OpenAPI limitation prevents discrete schema enforcement per frame).
+- Component schemas include: `Citation`, `Message`, `Conversation`, `ChatRequest`, `ChatChunk`, `ErrorEnvelope`, `ConversationGroups`.
+- Constraints: `topK` (1..20), `message` non-empty, `ChatChunk.type` enum enforced.
+- Provide examples for new streaming patterns or error envelopes when adding endpoints.
+
+Change Control:
+- Any endpoint or schema alteration MUST update `openapi.yaml` and this narrative spec.
+- Planned CI: spectral lint for unified spec (future enhancement).
+
+Versioning:
+- Unified spec `info.version` starts at `0.2.0`. Use semantic bumps: patch (docs-only), minor (additions/backward-compatible), major (breaking change).
+
+Testing Checklist (Unified):
+- [ ] `curl -s localhost:3001/openapi/openapi.yaml | head -n 5` shows `openapi: 3.1.0` & `version: 0.2.0+`.
+- [ ] Browser loads `/docs` listing all endpoint groups.
+- [ ] Chat schemas (`ChatRequest`, `ChatChunk`) align with TS interfaces (no drift).
+- [ ] SSE order text matches Event Sequencing Guarantees.
+
+Regeneration Workflow:
+1. Update TypeScript runtime types / handlers.
+2. Edit `openapi/openapi.yaml` (and `chat.openapi.yaml` if still present).
+3. (Optional) Lint: `npx @redocly/cli lint apps/server/openapi/openapi.yaml`.
+4. Commit code + spec together.
+
+Future Enhancements:
+- Remove legacy chat-only spec after external migration.
+- Add dark mode styling override for Stoplight.
+- Autogenerate portions from JSDoc (exploration).
+
+Rationale:
+One unified spec reduces drift, enables SDK generation, automated testing, and cohesive onboarding.
+
 
 ### Open Implementation Notes (Informational)
 The current implementation uses a client-generated temp id with prefix `c_` and merges upon SSE `meta` event. The spec codifies this approach and defines UX guarantees (highlight, absence of flicker, CTA dismissal). Any alternative (e.g., pre-reserving UUID server-side) MUST preserve the observable behaviors defined above.

@@ -33,3 +33,20 @@ npm run dev:server
 Notes
 - Dev admin: admin@example.com / admin (password set in `docker/zitadel.env`). Change for anything beyond local.
 - See `RUNBOOK.md` → "Local Auth (Zitadel)" and `docker/README-zitadel.md` for full docs and troubleshooting.
+
+## API Documentation (Unified)
+
+Unified OpenAPI spec: `openapi/openapi.yaml` (covers auth probe, orgs, projects, settings, ingestion, search, documents, chunks, chat).
+
+Routes (dev server):
+- Raw YAML: `GET /openapi/openapi.yaml`
+- Interactive docs: `GET /docs`
+
+Update workflow:
+1. Modify endpoints or data shapes.
+2. Edit `openapi/openapi.yaml` in the same PR.
+3. (Optional) Lint:
+	- `npx @redocly/cli lint apps/server/openapi/openapi.yaml`
+4. Commit spec + code changes atomically.
+
+SSE `/chat/stream` documented as `text/event-stream`; each frame is a line beginning with `data: ` containing a serialized `ChatChunk` JSON object followed by a blank line.

@@ -3,6 +3,8 @@ import crypto from 'node:crypto';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import cors from 'cors';
 import multer from 'multer';
+import fs from 'node:fs';
+import path from 'node:path';
 import { ensureSchema, query } from './db.js';
 import { makeEmbeddings } from './embeddings.js';
 import { ingestText, ingestUrl } from './ingest.js';
@@ -164,6 +166,28 @@ async function main() {
 
     app.get('/health', (_req: Request, res: Response) => {
         res.json({ ok: true, model: 'text-embedding-004', db: 'postgres' });
+    });
+
+
+    // --- OpenAPI (Unified) Documentation Routes ---
+    app.get('/openapi/openapi.yaml', (_req: Request, res: Response) => {
+        try {
+            const here = path.dirname(new URL(import.meta.url).pathname);
+            const specPath = path.join(here, '../openapi/openapi.yaml');
+            const data = fs.readFileSync(specPath, 'utf8');
+            res.type('application/yaml').send(data);
+        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+            res.status(500).json({ error: e?.message || 'failed to load unified openapi spec' });
+        }
+    });
+    app.get('/docs', (_req: Request, res: Response) => {
+        res.type('text/html').send(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><title>API Docs</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css" />
+</head><body style="margin:0;padding:0;font-family:system-ui,sans-serif;">
+<elements-api id="api-docs" apiDescriptionUrl="/openapi/openapi.yaml" layout="sidebar" router="hash" hideTryIt="false" />
+<script src="https://unpkg.com/@stoplight/elements/web-components.min.js"></script>
+</body></html>`);
     });
 
     // --- Zitadel Password (ROPC) Grant Login ---
