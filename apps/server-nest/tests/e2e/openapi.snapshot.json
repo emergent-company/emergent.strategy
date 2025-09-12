@@ -1,0 +1,2452 @@
+{
+    "components": {
+        "schemas": {
+            "ChunkDto": {
+                "properties": {
+                    "documentId": {
+                        "example": "doc_1",
+                        "type": "string"
+                    },
+                    "documentTitle": {
+                        "description": "Best-effort document title derived from filename or source URL",
+                        "example": "User Guide.pdf",
+                        "type": "string"
+                    },
+                    "hasEmbedding": {
+                        "description": "Whether an embedding vector exists for this chunk",
+                        "example": true,
+                        "type": "boolean"
+                    },
+                    "id": {
+                        "example": "chunk_1",
+                        "type": "string"
+                    },
+                    "index": {
+                        "description": "Zero-based index of chunk inside the document",
+                        "example": 0,
+                        "type": "number"
+                    },
+                    "size": {
+                        "description": "Size in characters",
+                        "example": 512,
+                        "type": "number"
+                    },
+                    "text": {
+                        "description": "Plaintext content of the chunk (may be truncated client-side)",
+                        "example": "This is the chunk text...",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "documentId",
+                    "documentTitle",
+                    "index",
+                    "size",
+                    "hasEmbedding",
+                    "text"
+                ],
+                "type": "object"
+            },
+            "CreateOrgDto": {
+                "properties": {},
+                "type": "object"
+            },
+            "CreateProjectDto": {
+                "properties": {
+                    "name": {
+                        "description": "Project name (unique per organization, case-insensitive)",
+                        "example": "My Project",
+                        "type": "string"
+                    },
+                    "orgId": {
+                        "description": "Organization UUID (optional – if omitted, default org will be used or created)",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "type": "object"
+            },
+            "DocumentDto": {
+                "properties": {
+                    "chunks": {
+                        "description": "Number of chunks associated with this document",
+                        "example": 12,
+                        "type": "number"
+                    },
+                    "createdAt": {
+                        "example": "2025-01-01T00:00:00.000Z",
+                        "type": "string"
+                    },
+                    "id": {
+                        "example": "doc_1",
+                        "type": "string"
+                    },
+                    "mimeType": {
+                        "example": "text/markdown",
+                        "nullable": true,
+                        "type": "object"
+                    },
+                    "name": {
+                        "example": "Spec.md",
+                        "type": "string"
+                    },
+                    "orgId": {
+                        "example": "11111111-2222-3333-4444-555555555555",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "projectId": {
+                        "example": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "sourceUrl": {
+                        "example": "https://example.com/file.pdf",
+                        "nullable": true,
+                        "type": "object"
+                    },
+                    "updatedAt": {
+                        "example": "2025-01-01T00:05:00.000Z",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "createdAt",
+                    "updatedAt",
+                    "chunks"
+                ],
+                "type": "object"
+            },
+            "IngestionUploadDto": {
+                "properties": {
+                    "filename": {
+                        "description": "Original filename (optional, will fallback to uploaded file name)",
+                        "example": "spec.md",
+                        "type": "string"
+                    },
+                    "mimeType": {
+                        "description": "Optional MIME type",
+                        "example": "text/markdown",
+                        "type": "string"
+                    },
+                    "orgId": {
+                        "description": "Optional organisation UUID to associate the document with",
+                        "example": "11111111-2222-3333-4444-555555555555",
+                        "type": "string"
+                    },
+                    "projectId": {
+                        "description": "Project UUID that this document belongs to (required)",
+                        "example": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "projectId"
+                ],
+                "type": "object"
+            },
+            "IngestionUrlDto": {
+                "properties": {
+                    "orgId": {
+                        "description": "Optional organisation UUID to associate the document with",
+                        "example": "11111111-2222-3333-4444-555555555555",
+                        "type": "string"
+                    },
+                    "projectId": {
+                        "description": "Project UUID that this document belongs to (required)",
+                        "example": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                        "type": "string"
+                    },
+                    "url": {
+                        "description": "Remote URL to ingest",
+                        "example": "https://example.com/spec.md",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "url",
+                    "projectId"
+                ],
+                "type": "object"
+            },
+            "OrgDto": {
+                "properties": {
+                    "id": {
+                        "example": "org_1",
+                        "type": "string"
+                    },
+                    "name": {
+                        "example": "Example Org",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "ProjectDto": {
+                "properties": {
+                    "id": {
+                        "example": "proj_1",
+                        "type": "string"
+                    },
+                    "name": {
+                        "example": "Demo Project",
+                        "type": "string"
+                    },
+                    "orgId": {
+                        "example": "org_1",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "orgId"
+                ],
+                "type": "object"
+            },
+            "SearchResponseDto": {
+                "properties": {
+                    "mode": {
+                        "enum": [
+                            "hybrid",
+                            "lexical",
+                            "vector"
+                        ],
+                        "type": "string"
+                    },
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/SearchResultDto"
+                        },
+                        "type": "array"
+                    },
+                    "warning": {
+                        "example": "Embeddings unavailable; fell back to lexical.",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "mode",
+                    "results"
+                ],
+                "type": "object"
+            },
+            "SearchResultDto": {
+                "properties": {
+                    "id": {
+                        "example": "mock-1",
+                        "type": "string"
+                    },
+                    "score": {
+                        "example": 0.98,
+                        "type": "number"
+                    },
+                    "snippet": {
+                        "example": "Result snippet for \"foo\" (#1, mode=hybrid)",
+                        "type": "string"
+                    },
+                    "source": {
+                        "example": "source.doc#L10",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "snippet",
+                    "score"
+                ],
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "bearer": {
+                "bearerFormat": "JWT",
+                "scheme": "bearer",
+                "type": "http"
+            }
+        }
+    },
+    "info": {
+        "contact": {},
+        "description": "Generated OpenAPI spec (code-first). All protected operations include x-required-scopes and 403 examples with missing_scopes.",
+        "title": "Spec Server API",
+        "version": "0.2.0"
+    },
+    "openapi": "3.0.0",
+    "paths": {
+        "/auth/me": {
+            "get": {
+                "operationId": "AuthController_me",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "email": "demo@example.com",
+                                        "sub": "mock-user-id"
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Return current authenticated user (mock)"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "Invalid request"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Unauthorized"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Missing or invalid bearer token"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions",
+                                            "missing_scopes": [
+                                                "read:me"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Insufficient scope"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "x-required-scopes": [
+                    "read:me"
+                ]
+            }
+        },
+        "/chat/conversations": {
+            "get": {
+                "operationId": "ChatController_listConversations",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": [
+                                        {
+                                            "id": "11111111-1111-4111-8111-111111111111",
+                                            "is_private": false,
+                                            "title": "2025-01-01 — Hello world"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "List chat conversations"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "Invalid request"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions",
+                                            "missing_scopes": [
+                                                "chat:read"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "x-required-scopes": [
+                    "chat:read"
+                ]
+            },
+            "post": {
+                "operationId": "ChatController_createConversation",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "id": "11111111-1111-4111-8111-111111111111",
+                                        "title": "2025-01-01 — New Conversation"
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Create a new conversation (201)"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "message required"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "x-required-scopes": [
+                    "chat:write"
+                ]
+            }
+        },
+        "/chat/{id}": {
+            "delete": {
+                "operationId": "ChatController_delete",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "id": "c1",
+                                        "ok": true
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Delete conversation"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "not-found",
+                                            "message": "Conversation not found"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Conversation not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "x-required-scopes": [
+                    "chat:write"
+                ]
+            },
+            "get": {
+                "operationId": "ChatController_getConversation",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Get a conversation with messages"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "Invalid request"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions",
+                                            "missing_scopes": [
+                                                "chat:read"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "not-found",
+                                            "message": "Conversation not found"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Conversation not found"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "x-required-scopes": [
+                    "chat:read"
+                ]
+            },
+            "patch": {
+                "operationId": "ChatController_rename",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "id": "c1",
+                                        "ok": true,
+                                        "title": "New Title"
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Rename conversation"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "title required"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "not-found",
+                                            "message": "Conversation not found"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Conversation not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "x-required-scopes": [
+                    "chat:write"
+                ]
+            }
+        },
+        "/chat/{id}/stream": {
+            "get": {
+                "operationId": "ChatController_streamGet",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "text/event-stream": {
+                                "schema": {
+                                    "example": "data: {\"message\":\"token-0\"}\n\n",
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "Chat streaming endpoint (SSE)"
+                    },
+                    "400": {
+                        "content": {
+                            "text/event-stream": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "x-project-id header required"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Missing project header"
+                    },
+                    "404": {
+                        "content": {
+                            "text/event-stream": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "not-found",
+                                            "message": "Conversation not found"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Conversation not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "x-required-scopes": [
+                    "chat:read"
+                ]
+            }
+        },
+        "/chunks": {
+            "get": {
+                "operationId": "ChunksController_list",
+                "parameters": [
+                    {
+                        "description": "Filter by document UUID",
+                        "in": "query",
+                        "name": "documentId",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/ChunkDto"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "List chunks"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "Invalid filter"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions",
+                                            "missing_scopes": [
+                                                "chunks:read"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Chunks"
+                ],
+                "x-required-scopes": [
+                    "chunks:read"
+                ]
+            }
+        },
+        "/documents": {
+            "get": {
+                "operationId": "DocumentsController_list",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "default": 100,
+                            "maximum": 500,
+                            "minimum": 1,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "cursor",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/DocumentDto"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "List ingested documents",
+                        "headers": {
+                            "x-next-cursor": {
+                                "description": "Base64 cursor for next page",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "Invalid filter"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions",
+                                            "missing_scopes": [
+                                                "documents:read"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "x-required-scopes": [
+                    "documents:read"
+                ]
+            },
+            "post": {
+                "operationId": "DocumentsController_create",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "content": {
+                                        "type": "string"
+                                    },
+                                    "filename": {
+                                        "type": "string"
+                                    },
+                                    "projectId": {
+                                        "format": "uuid",
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DocumentDto"
+                                }
+                            }
+                        },
+                        "description": "Created document"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "Invalid request"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions",
+                                            "missing_scopes": [
+                                                "documents:write"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "x-required-scopes": [
+                    "documents:write"
+                ]
+            }
+        },
+        "/documents/{id}": {
+            "delete": {
+                "operationId": "DocumentsController_delete",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "x-required-scopes": [
+                    "documents:write"
+                ]
+            },
+            "get": {
+                "operationId": "DocumentsController_get",
+                "parameters": [
+                    {
+                        "description": "Document UUID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DocumentDto"
+                                }
+                            }
+                        },
+                        "description": "Get a document"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "Invalid id"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions",
+                                            "missing_scopes": [
+                                                "documents:read"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "x-required-scopes": [
+                    "documents:read"
+                ]
+            }
+        },
+        "/health": {
+            "get": {
+                "operationId": "HealthController_get",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "db": "up",
+                                        "model": "gemini-pro",
+                                        "ok": true
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Health probe"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "Invalid request"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "tags": [
+                    "Health"
+                ]
+            }
+        },
+        "/ingest/upload": {
+            "post": {
+                "operationId": "IngestionController_upload",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/IngestionUploadDto"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "alreadyExists": false,
+                                        "chunks": 12,
+                                        "documentId": "11111111-2222-3333-4444-555555555555"
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Upload a file for ingestion"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "validation-failed",
+                                            "details": {
+                                                "filename": [
+                                                    "must be a string"
+                                                ]
+                                            },
+                                            "message": "Validation failed"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Invalid upload payload"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions",
+                                            "missing_scopes": [
+                                                "ingest:write"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Ingestion"
+                ],
+                "x-required-scopes": [
+                    "ingest:write"
+                ]
+            }
+        },
+        "/ingest/url": {
+            "post": {
+                "operationId": "IngestionController_ingestUrl",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/IngestionUrlDto"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "alreadyExists": false,
+                                        "chunks": 8,
+                                        "documentId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Ingest a remote URL"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "validation-failed",
+                                            "details": {
+                                                "url": [
+                                                    "must be an URL address"
+                                                ]
+                                            },
+                                            "message": "Validation failed"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Invalid URL payload"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions",
+                                            "missing_scopes": [
+                                                "ingest:write"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Ingestion"
+                ],
+                "x-required-scopes": [
+                    "ingest:write"
+                ]
+            }
+        },
+        "/orgs": {
+            "get": {
+                "operationId": "OrgsController_list",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/OrgDto"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "List organizations"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "Invalid filter"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "tags": [
+                    "Orgs"
+                ]
+            },
+            "post": {
+                "operationId": "OrgsController_create",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateOrgDto"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrgDto"
+                                }
+                            }
+                        },
+                        "description": "Organization created (users may have at most 10 orgs)"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "validation-failed",
+                                            "details": {
+                                                "name": [
+                                                    "must be a string"
+                                                ]
+                                            },
+                                            "message": "Validation failed"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Invalid body"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "example": {
+                                                "error": {
+                                                    "code": "conflict",
+                                                    "message": "Organization limit reached (10)"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "example": {
+                                                "error": {
+                                                    "code": "conflict",
+                                                    "details": {
+                                                        "name": [
+                                                            "already exists"
+                                                        ]
+                                                    },
+                                                    "message": "Organization name already exists"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "Organization limit reached or duplicate name"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "tags": [
+                    "Orgs"
+                ]
+            }
+        },
+        "/orgs/{id}": {
+            "get": {
+                "operationId": "OrgsController_getOne",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrgDto"
+                                }
+                            }
+                        },
+                        "description": "Get an organization"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "Invalid request"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "not-found",
+                                            "message": "Org not found"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Org not found"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "tags": [
+                    "Orgs"
+                ]
+            }
+        },
+        "/projects": {
+            "get": {
+                "operationId": "ProjectsController_list",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter projects by organization id",
+                        "in": "query",
+                        "name": "orgId",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/ProjectDto"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "List projects (must create at least one before ingesting documents)"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "Invalid filter"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "tags": [
+                    "Projects"
+                ]
+            },
+            "post": {
+                "operationId": "ProjectsController_create",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateProjectDto"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProjectDto"
+                                }
+                            }
+                        },
+                        "description": "Create a project"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "duplicate",
+                                            "message": "Project with this name exists in org"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Validation / duplicate / org errors"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "tags": [
+                    "Projects"
+                ]
+            }
+        },
+        "/search": {
+            "get": {
+                "operationId": "SearchController_search",
+                "parameters": [
+                    {
+                        "description": "Query string",
+                        "in": "query",
+                        "name": "q",
+                        "required": true,
+                        "schema": {
+                            "example": "vector index design",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Result limit (1..50)",
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "default": 10,
+                            "maximum": 50,
+                            "minimum": 1,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "mode",
+                        "required": false,
+                        "schema": {
+                            "default": "hybrid",
+                            "enum": [
+                                "hybrid",
+                                "lexical",
+                                "vector"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SearchResponseDto"
+                                }
+                            }
+                        },
+                        "description": "Hybrid / lexical / vector search over chunks"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "validation-failed",
+                                            "details": {
+                                                "q": [
+                                                    "must be longer than or equal to 1 characters"
+                                                ]
+                                            },
+                                            "message": "Validation failed"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Validation failed"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions",
+                                            "missing_scopes": [
+                                                "search:read"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "tags": [
+                    "Search"
+                ],
+                "x-required-scopes": [
+                    "search:read"
+                ]
+            }
+        },
+        "/settings": {
+            "get": {
+                "operationId": "SettingsController_list",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": [
+                                        {
+                                            "key": "theme",
+                                            "value": "dark"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "description": "List settings (placeholder)"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "Invalid request"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "tags": [
+                    "Settings"
+                ]
+            }
+        },
+        "/settings/{key}": {
+            "get": {
+                "operationId": "SettingsController_getOne",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "key",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "key": "theme",
+                                        "value": "dark"
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Get a single setting (placeholder)"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "bad-request",
+                                            "message": "Invalid request"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Bad request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "unauthorized",
+                                            "message": "Missing or invalid credentials"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "forbidden",
+                                            "message": "Insufficient permissions"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "not-found",
+                                            "message": "Setting not found"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Setting not found"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "error": {
+                                            "code": "internal",
+                                            "message": "Unexpected error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "Internal server error"
+                    }
+                },
+                "tags": [
+                    "Settings"
+                ]
+            }
+        }
+    },
+    "servers": [],
+    "tags": [],
+    "x-tagGroups": [
+        {
+            "name": "Health & Auth",
+            "tags": [
+                "Health",
+                "Auth"
+            ]
+        },
+        {
+            "name": "Organizations & Projects",
+            "tags": [
+                "Orgs",
+                "Projects"
+            ]
+        },
+        {
+            "name": "Configuration",
+            "tags": [
+                "Settings"
+            ]
+        },
+        {
+            "name": "Content & Ingestion",
+            "tags": [
+                "Ingestion",
+                "Documents",
+                "Chunks"
+            ]
+        },
+        {
+            "name": "Search",
+            "tags": [
+                "Search"
+            ]
+        },
+        {
+            "name": "Chat",
+            "tags": [
+                "Chat"
+            ]
+        }
+    ]
+}

@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf } from './utils';
 
 // Validates content-hash dedup (same file twice in same project) and cross-project independence.
 // Assumptions (adjust if implementation differs):
@@ -40,7 +41,7 @@ describe('Documents Dedup & Cross-Project Independence E2E', () => {
 
     it('deduplicates identical file in same project', async () => {
         const first = await upload(ctx, TEXT, 'dedup');
-        expect([200, 201]).toContain(first.status);
+        expectStatusOneOf(first.status, [200, 201], 'dedup first');
         const firstId = first.json.documentId || first.json.id;
         expect(firstId).toBeTruthy();
 
@@ -55,11 +56,11 @@ describe('Documents Dedup & Cross-Project Independence E2E', () => {
 
     it('creates a new document with identical content in a different project', async () => {
         const up1 = await upload(ctx, TEXT, 'cross');
-        expect([200, 201]).toContain(up1.status);
+        expectStatusOneOf(up1.status, [200, 201], 'dedup up1');
         const id1 = up1.json.documentId || up1.json.id;
 
         const up2 = await upload(otherCtx, TEXT, 'cross');
-        expect([200, 201]).toContain(up2.status);
+        expectStatusOneOf(up2.status, [200, 201], 'dedup up2');
         const id2 = up2.json.documentId || up2.json.id;
 
         expect(id1).not.toBe(id2);

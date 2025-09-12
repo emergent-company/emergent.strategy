@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf } from './utils';
 
 // Ensures documents are not accessible across projects (GET + DELETE should 404/403 when mismatched project headers or unauthorized project).
 
@@ -15,10 +16,10 @@ describe('Documents Cross-Project Isolation E2E', () => {
     async function createDoc(ctx: E2EContext, label: string) {
         const res = await fetch(`${ctx.baseUrl}/documents`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeader('all', label) },
+            headers: { 'Content-Type': 'application/json', ...authHeader('all', label), 'x-project-id': ctx.projectId },
             body: JSON.stringify({ filename: `${label}.txt`, content: 'secret', projectId: ctx.projectId })
         });
-        expect([200, 201]).toContain(res.status);
+        expectStatusOneOf(res.status, [200, 201], 'create doc cross-project');
         const json = await res.json();
         return json.id as string;
     }

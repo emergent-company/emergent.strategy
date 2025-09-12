@@ -1,6 +1,9 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { ingestDocs } from './utils/fixtures';
+import { lexicalSearch } from './utils/search';
+import { expectStatusOneOf } from './utils';
 
 /**
  * Deterministic Lexical Ranking Test
@@ -21,13 +24,9 @@ interface SearchResult { id: string; snippet: string; score: number; }
 interface SearchResponse { mode: string; results: SearchResult[]; }
 
 async function ingest(ctx: E2EContext, name: string, repetitions: number) {
-    const form = new FormData();
-    form.append('projectId', ctx.projectId);
-    form.append('filename', `${name}.txt`);
     const body = Array.from({ length: repetitions }, (_, i) => `Line ${i} ${TOKEN}`).join('\n');
-    form.append('file', new Blob([body], { type: 'text/plain' }), `${name}.txt`);
-    const res = await fetch(`${ctx.baseUrl}/ingest/upload`, { method: 'POST', headers: authHeader('all', 'rank-lexical'), body: form as any });
-    expect([200, 201]).toContain(res.status);
+    const results = await ingestDocs(ctx, [{ name, content: body }], { userSuffix: 'rank-lexical' });
+    expectStatusOneOf(results[0].status, [200, 201], 'rank lexical ingest');
 }
 
 describe('Search Lexical Deterministic Ranking E2E', () => {
@@ -44,9 +43,9 @@ describe('Search Lexical Deterministic Ranking E2E', () => {
     afterAll(async () => { await ctx.close(); });
 
     it('orders higher frequency document ahead of lower frequency ones (lexical mode)', async () => {
-        const res = await fetch(`${ctx.baseUrl}/search?q=${encodeURIComponent(TOKEN)}&mode=lexical&limit=10`, { headers: authHeader('all', 'rank-lexical') });
-        expect(res.status).toBe(200);
-        const json = await res.json() as SearchResponse;
+        const resp = await lexicalSearch(ctx, TOKEN, 10, 0, { userSuffix: 'rank-lexical' });
+        expect(resp.status).toBe(200);
+        const json = resp.json as SearchResponse;
         if (json.mode !== 'lexical') {
             // Environmental fallback (e.g., embeddings mis-config) — skip ordering assertion but keep baseline checks.
             expect(Array.isArray(json.results)).toBe(true);

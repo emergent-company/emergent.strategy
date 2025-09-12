@@ -6,6 +6,10 @@ export class EnvVariables {
     @IsOptional()
     GOOGLE_API_KEY?: string;
 
+    @IsBoolean()
+    @IsOptional()
+    CHAT_MODEL_ENABLED?: boolean; // when true and GOOGLE_API_KEY present, stream real model output
+
     @IsString()
     PGHOST!: string;
 
@@ -48,6 +52,7 @@ export function validate(config: Record<string, unknown>): EnvVariables {
         DB_AUTOINIT: false,
         SKIP_DB: process.env.SKIP_DB,
         ORGS_DEMO_SEED: process.env.ORGS_DEMO_SEED,
+        CHAT_MODEL_ENABLED: process.env.CHAT_MODEL_ENABLED,
         ...config,
     };
     const transformed = plainToInstance(EnvVariables, {
@@ -56,6 +61,7 @@ export function validate(config: Record<string, unknown>): EnvVariables {
         PORT: withDefaults.PORT ? Number(withDefaults.PORT) : 3001,
         DB_AUTOINIT: withDefaults.DB_AUTOINIT === 'true' || withDefaults.DB_AUTOINIT === true,
         ORGS_DEMO_SEED: withDefaults.ORGS_DEMO_SEED === 'true' || withDefaults.ORGS_DEMO_SEED === true,
+        CHAT_MODEL_ENABLED: withDefaults.CHAT_MODEL_ENABLED === 'true' || withDefaults.CHAT_MODEL_ENABLED === true,
     });
     const errors = validateSync(transformed, { skipMissingProperties: false });
     if (errors.length) {

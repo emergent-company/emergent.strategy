@@ -14,6 +14,9 @@ export const MOCK_SCOPES = {
     writeDocs: 'documents:write',
     readChat: 'chat:read',
     writeChat: 'chat:write',
+    ingestWrite: 'ingest:write',
+    searchRead: 'search:read',
+    chunksRead: 'chunks:read',
 };
 
 @Injectable()

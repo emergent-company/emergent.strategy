@@ -7,6 +7,6 @@ import { ScopesGuard } from './scopes.guard';
 @Module({
     providers: [AuthService, AuthGuard, ScopesGuard],
     controllers: [AuthController],
-    exports: [AuthService, AuthGuard],
+    exports: [AuthService, AuthGuard, ScopesGuard],
 })
 export class AuthModule { }

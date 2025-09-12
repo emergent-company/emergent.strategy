@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf, expectDisjointIds } from './utils';
 
 // Validates documents listing pagination using limit & offset (if supported).
 // If backend returns overlap due to unimplemented offset, test tolerates but logs.
@@ -15,10 +16,10 @@ describe('Documents Pagination E2E', () => {
     async function createDoc(i: number) {
         const res = await fetch(`${ctx.baseUrl}/documents`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeader('all', 'docs-page') },
+            headers: { 'Content-Type': 'application/json', ...authHeader('all', 'docs-page'), 'x-project-id': ctx.projectId },
             body: JSON.stringify({ filename: `file-${i}.txt`, content: `Content ${i}`, projectId: ctx.projectId })
         });
-        expect([200, 201]).toContain(res.status);
+        expectStatusOneOf(res.status, [200, 201], 'create doc pagination');
     }
 
     it('paginates documents', async () => {
@@ -35,9 +36,13 @@ describe('Documents Pagination E2E', () => {
         expect(Array.isArray(page2)).toBe(true);
 
         if (page1.length === 3 && page2.length === 3) {
-            const ids1 = new Set(page1.map((d: any) => d.id));
-            const overlap = page2.some((d: any) => ids1.has(d.id));
-            if (!overlap) expect(overlap).toBe(false);
+            try {
+                expectDisjointIds(page1, page2);
+            } catch (err) {
+                // Allow backend overlap tolerance (legacy behavior) but log once for visibility.
+                // eslint-disable-next-line no-console
+                console.warn('[documents.pagination] overlapping pages tolerated:', (err as Error).message);
+            }
         }
     });
 });

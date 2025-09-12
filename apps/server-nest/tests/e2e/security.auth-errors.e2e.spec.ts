@@ -41,7 +41,7 @@ describe('Security Auth Errors E2E', () => {
             headers: { 'Content-Type': 'application/json', ...authHeader('none'), 'x-project-id': ctx.projectId },
             body: JSON.stringify({ filename: 'z.txt', content: 'z' })
         });
-    expect(res.status).toBe(403);
+        expect(res.status).toBe(403);
     });
 
     it('rejects missing project header with 400 even with auth', async () => {

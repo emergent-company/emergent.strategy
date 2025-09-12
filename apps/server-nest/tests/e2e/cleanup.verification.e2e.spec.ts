@@ -2,6 +2,7 @@
 import { beforeAll, beforeEach, afterAll, describe, it, expect } from 'vitest';
 import { createE2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf } from './utils';
 
 // Verifies per-test cleanup removes created documents (and associated chunks placeholder table) between tests.
 // We create a document in first test, rely on afterEach cleanup, and assert second test sees zero documents.
@@ -16,10 +17,10 @@ describe('Cleanup Verification E2E', () => {
     it('creates a document (will be cleaned)', async () => {
         const res = await fetch(`${ctx.baseUrl}/documents`, {
             method: 'POST',
-            headers: { ...authHeader('all', 'cleanup'), 'content-type': 'application/json' },
+            headers: { ...authHeader('all', 'cleanup'), 'content-type': 'application/json', 'x-project-id': ctx.projectId },
             body: JSON.stringify({ filename: 'temp-clean.txt', content: 'transient', projectId: ctx.projectId })
         });
-        expect([200, 201]).toContain(res.status);
+        expectStatusOneOf(res.status, [200, 201], 'cleanup create');
         const json = await res.json();
         expect(json.id).toBeTruthy();
     });

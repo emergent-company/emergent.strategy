@@ -10,12 +10,14 @@ export class ScopesGuard implements CanActivate {
             context.getHandler(),
             context.getClass(),
         ]);
+        // Temporary debug logging to diagnose missing scope metadata on new modules
+        // (debug logging removed)
         if (!required || required.length === 0) return true;
         const req = context.switchToHttp().getRequest<any>();
         const user = req.user as { scopes?: string[] } | undefined;
         const userScopes = new Set((user?.scopes || []).map(s => s.toLowerCase()));
         const missing = required.filter(r => !userScopes.has(r.toLowerCase()));
-    if (missing.length) throw new ForbiddenException({ error: { code: 'forbidden', message: 'Forbidden', missing_scopes: missing } });
+        if (missing.length) throw new ForbiddenException({ error: { code: 'forbidden', message: 'Forbidden', missing_scopes: missing } });
         return true;
     }
 }

@@ -46,7 +46,7 @@ describe('Multi-Tenancy / Org & Project', () => {
     async function createDocument(baseUrl: string, projectId: string, filename: string, userSuffix: string) {
         const res = await fetch(`${baseUrl}/documents`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeader('all', userSuffix) },
+            headers: { 'Content-Type': 'application/json', ...authHeader('all', userSuffix), 'x-project-id': projectId },
             body: JSON.stringify({ filename, projectId, content: 'Hello' }),
         });
         if (res.status !== 201) {

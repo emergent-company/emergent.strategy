@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf } from './utils';
 
 // Validates behavior when embeddings are disabled (E2E flag assumed: set E2E_DISABLE_EMBEDDINGS=true before run if supported).
 // Fallback expectations:
@@ -19,7 +20,7 @@ async function ingest(ctx: E2EContext) {
     form.append('filename', 'emb-off.txt');
     form.append('file', new Blob(['Embedding disabled path test content'], { type: 'text/plain' }), 'emb-off.txt');
     const res = await fetch(`${ctx.baseUrl}/ingest/upload`, { method: 'POST', headers: authHeader('all', 'emb-off'), body: form as any });
-    expect([200, 201]).toContain(res.status);
+    expectStatusOneOf(res.status, [200, 201], 'embeddings disabled ingest');
 }
 
 describe('Embeddings Disabled Fallbacks E2E', () => {
