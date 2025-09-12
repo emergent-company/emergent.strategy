@@ -1,10 +1,11 @@
+# Operations
+
 ## HTTP Endpoints (v0.1)
 - GET `/health` -> { ok, model, db }
 - POST `/ingest/url` -> { status, documentId, chunks }
 - POST `/ingest/upload` (multipart file) -> { status, documentId, chunks }
 
 Auth: None in v0.1 for local dev; add bearer tokens and CSRF in v1.
-# Operations
 
 ## Deployments
 - Dev: docker-compose with Postgres (pgvector), LangChain ingestion service, MCP server, MinIO, optional Neo4j.

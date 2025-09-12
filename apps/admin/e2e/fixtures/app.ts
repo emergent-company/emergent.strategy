@@ -8,6 +8,7 @@ export type AppFixtures = {
     consoleErrors: string[];
     pageErrors: string[];
     authToken?: string;
+    serverErrors: string[];
 };
 
 async function extractAuthToken(page: import('@playwright/test').Page): Promise<string | undefined> {
@@ -46,6 +47,43 @@ export const test = base.extend<AppFixtures>({
     authToken: async ({ page }, use) => {
         const token = await extractAuthToken(page);
         await use(token);
+    },
+    serverErrors: async ({ }, use, testInfo) => {
+        const logDir = process.env.ERROR_LOG_DIR || path.resolve(process.cwd(), 'apps', 'server-nest', 'logs');
+        const logFile = path.join(logDir, 'errors.log');
+        let baselineSize = 0;
+        const startIso = new Date().toISOString();
+        try {
+            const fs = await import('node:fs/promises');
+            const stat = await fs.stat(logFile);
+            baselineSize = stat.size;
+        } catch { /* file may not exist yet */ }
+        let delta: string[] = [];
+        await use(delta);
+        try {
+            const fs = await import('node:fs/promises');
+            const stat = await fs.stat(logFile);
+            if (stat.size > baselineSize) {
+                const fh = await fs.open(logFile, 'r');
+                try {
+                    const buf = Buffer.alloc(stat.size - baselineSize);
+                    await fh.read(buf, 0, buf.length, baselineSize);
+                    const rawLines = buf.toString('utf-8').split(/\n+/).filter(l => l.trim());
+                    // Filter by timestamp >= test start (line JSON has field time)
+                    delta = rawLines.filter(l => {
+                        try {
+                            const obj = JSON.parse(l);
+                            if (!obj?.time) return true; // if missing time keep (diagnostic)
+                            return String(obj.time) >= startIso;
+                        } catch { return true; }
+                    });
+                    if (delta.length) {
+                        await testInfo.attach('server-errors.jsonl', { body: delta.join('\n'), contentType: 'application/jsonl' });
+                    }
+                } finally { await fh.close(); }
+            }
+        } catch { /* ignore */ }
+        // Note: we cannot mutate the already provided fixture value post-use; attach artifact is primary output.
     },
 });
 

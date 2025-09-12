@@ -151,7 +151,7 @@ Optional Steps (Architecture / Backend)
 - Offload storage: persist originals to object storage (S3-compatible) instead of memory for large files; stream to disk before processing.
 - Background processing: enqueue ingestion into a job queue (e.g., BullMQ/Redis) to avoid blocking the upload HTTP request; return 202 + job id.
 - Antivirus/malware scanning: integrate ClamAV or a SaaS scanner before extracting text.
-- Content hashing & deduplication: compute checksum (e.g., sha256) and skip re-ingestion for duplicates with clear UI feedback.
+- Content hashing & deduplication: compute checksum (e.g., sha256) and skip re-ingestion for duplicates with clear UI feedback. Deduplication scope is per project (same file/content may exist in different projects without triggering alreadyExists=true).
 - Rate limits & quotas: per-user/org limits for upload size/daily volume.
 - Webhooks/events: emit "document.ingested" after chunking/embedding; the Admin UI can subscribe (SSE/WebSocket) to auto-refresh.
 - Observability: add metrics for upload latency, failures, and ingestion lag; expose in a dashboard.

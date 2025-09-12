@@ -105,3 +105,57 @@ SPA/server integration
 
 More details
 - See `docker/README-zitadel.md` for the full walkthrough, roles, and troubleshooting.
+
+## Schema Resilience & Dual Mode Behavior
+
+The backend operates in two schema modes:
+
+- Minimal (`E2E_MINIMAL_DB=true`): Fast bootstrap for CI and local smoke loops. Contains only the columns/indexes necessary for ingestion, listing, and basic search.
+- Full (default): Adds full text + vector search optimizations, project‑scoped `content_hash` dedup, richer indexing, and triggers.
+
+### Adaptive Logic
+
+Services detect feature availability at runtime and degrade gracefully:
+
+| Component | Primary Behavior | On Missing Column / Constraint | Fallback |
+|-----------|------------------|--------------------------------|----------|
+| Ingestion (documents) | Hash-based dedup via `content_hash` + unique index | `42703` (column) or detection failure | Raw content equality per project |
+| Ingestion (chunks) | Insert with `embedding` + ON CONFLICT(upsert) | `42703` (embedding) or `42P10` (constraint) | Re-insert w/o embedding and/or without upsert |
+| Chunks listing | SELECT includes `embedding`, `created_at` | `42703` | Re-run query excluding absent columns, order by `chunk_index` |
+
+Flags like `hasEmbedding` are computed defensively so downstream features remain stable even without embeddings.
+
+### Deduplication
+
+When `content_hash` exists a project-scoped unique index (`idx_documents_project_hash`) prevents duplicates. If absent, equality comparison on raw `content` is used transparently.
+
+### Operator Signals
+
+One-time warnings:
+```
+kb.documents.content_hash missing; using raw content equality for dedup
+kb.chunks.embedding column missing; continuing without embeddings
+```
+These are informational unless vector / semantic search relevance is a SLO driver.
+
+### Migration Pattern
+1. Deploy additive migration (new columns & indexes).
+2. Instances auto-detect; no coordinated restart required.
+3. Monitor ingest latency, dedup hit %, search relevance metrics.
+4. After stable adoption, fallback branches can be retired.
+
+### Choosing a Mode
+| Use Case | Recommended Mode |
+|----------|------------------|
+| Fast unit/E2E loop, onboarding | Minimal |
+| Performance & relevance benchmarking | Full |
+| Production parity verification | Full |
+| Resilience regression tests | Minimal |
+
+### Troubleshooting
+1. Inspect logs for `42703` / `42P10` to confirm fallback path usage.
+2. `\d kb.documents` / `\d kb.chunks` (psql) to verify expected columns.
+3. Ensure `idx_documents_project_hash` exists for optimal dedup (full mode).
+4. For test DB reset with minimal schema: set `FORCE_E2E_SCHEMA_RESET=true` and restart.
+
+The system favors forward progress; absence of advanced columns never blocks ingestion.

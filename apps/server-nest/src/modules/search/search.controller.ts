@@ -15,7 +15,7 @@ export class SearchController {
     @ApiStandardErrors()
     async search(@Query() query: SearchQueryDto): Promise<SearchResponseDto> {
         const { q = '', limit = 10, mode } = query;
-        const results = await this.searchService.search(q, limit, mode);
-        return { results };
+        const { mode: finalMode, results, warning } = await this.searchService.search(q, limit, mode);
+        return { mode: finalMode, results: results.map(r => ({ id: r.id, snippet: r.text, score: 0 })), warning };
     }
 }

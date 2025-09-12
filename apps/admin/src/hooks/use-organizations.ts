@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { normalizeOrgId } from "@/utils/org-id";
 import { useApi } from "@/hooks/use-api";
 
 export type Organization = {
@@ -7,7 +8,8 @@ export type Organization = {
     slug?: string;
 };
 
-type OrgsResponse = { orgs: Organization[] };
+// API currently returns a plain array (OrgDto[]) from GET /orgs. Accept legacy shape { orgs: [...] } as well.
+type OrgsResponseFlexible = Organization[] | { orgs: Organization[] };
 
 export function useOrganizations() {
     const { apiBase, fetchJson } = useApi();
@@ -19,8 +21,14 @@ export function useOrganizations() {
         setLoading(true);
         setError(undefined);
         try {
-            const data = await fetchJson<OrgsResponse>(`${apiBase}/orgs`, { credentials: "include" });
-            setOrgs(Array.isArray(data.orgs) ? data.orgs : []);
+            const data = await fetchJson<OrgsResponseFlexible>(`${apiBase}/orgs`, { credentials: "include" });
+            const rawList: Organization[] = Array.isArray(data)
+                ? data
+                : Array.isArray((data as any)?.orgs)
+                    ? (data as any).orgs
+                    : [];
+            const list = rawList.map(o => ({ ...o, id: normalizeOrgId(o.id) || o.id }));
+            setOrgs(list);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Unknown error");
         } finally {
@@ -36,7 +44,7 @@ export function useOrganizations() {
                 credentials: "include",
             });
             // Optimistically add to list
-            setOrgs((prev) => (prev ? [data, ...prev] : [data]));
+            setOrgs((prev) => (prev ? [{ ...data, id: normalizeOrgId(data.id) || data.id }, ...prev] : [{ ...data, id: normalizeOrgId(data.id) || data.id }]));
             return data;
         },
         [apiBase, fetchJson],

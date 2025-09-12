@@ -75,8 +75,41 @@ describe('REST GET endpoints basic smoke', () => {
             expect(r.status).toBe(200);
             expect(Array.isArray(r.json)).toBe(true);
         });
+        it('GET /orgs/:id', async () => {
+            const r = await httpGet<any>(ctx.baseUrl, '/orgs/org_1');
+            expect(r.status).toBe(200);
+            expect(r.json).toHaveProperty('id', 'org_1');
+        });
+        it('GET /orgs/:id unknown returns 404', async () => {
+            const r = await httpGet<ErrorEnvelope>(ctx.baseUrl, '/orgs/does-not-exist');
+            expect(r.status).toBe(404);
+            expect(r.json.error.code).toBe('not-found');
+        });
         it('GET /projects', async () => {
             const r = await httpGet<any[]>(ctx.baseUrl, '/projects');
+            expect(r.status).toBe(200);
+            expect(Array.isArray(r.json)).toBe(true);
+        });
+        it('GET /projects?orgId filters', async () => {
+            const all = await httpGet<any[]>(ctx.baseUrl, '/projects');
+            expect(all.status).toBe(200);
+            if (!all.json.length) {
+                // No projects present (offline mode) – filtered call should also succeed (likely empty)
+                const none = await httpGet<any[]>(ctx.baseUrl, '/projects?orgId=00000000-0000-0000-0000-000000000000');
+                expect(none.status).toBe(200);
+                expect(Array.isArray(none.json)).toBe(true);
+                return;
+            }
+            const targetOrgId = all.json[0].orgId;
+            const filtered = await httpGet<any[]>(ctx.baseUrl, `/projects?orgId=${encodeURIComponent(targetOrgId)}`);
+            expect(filtered.status).toBe(200);
+            expect(Array.isArray(filtered.json)).toBe(true);
+            for (const p of filtered.json) {
+                expect(p.orgId).toBe(targetOrgId);
+            }
+        });
+        it('GET /projects?orgId with invalid id returns empty list (no 500)', async () => {
+            const r = await httpGet<any[]>(ctx.baseUrl, '/projects?orgId=not_a_uuid');
             expect(r.status).toBe(200);
             expect(Array.isArray(r.json)).toBe(true);
         });
@@ -114,10 +147,14 @@ describe('REST GET endpoints basic smoke', () => {
             expect(r.status).toBe(200);
             expect(Array.isArray(r.json)).toBe(true);
         });
-        it('GET /chat/c1', async () => {
-            const r = await httpGet<any>(ctx.baseUrl, '/chat/c1');
-            expect(r.status).toBe(200);
-            expect(r.json).toHaveProperty('id', 'c1');
+        it('POST then GET conversation lifecycle', async () => {
+            const created = await fetch(ctx.baseUrl + '/chat/conversations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'Hello world' }) });
+            expect(created.status).toBe(200);
+            const cJson: any = await created.json();
+            expect(cJson).toHaveProperty('id');
+            const got = await httpGet<any>(ctx.baseUrl, `/chat/${cJson.id}`);
+            expect(got.status).toBe(200);
+            expect(got.json).toHaveProperty('id', cJson.id);
         });
         it('GET /chat/unknown returns 404', async () => {
             const r = await httpGet<ErrorEnvelope>(ctx.baseUrl, '/chat/does-not-exist');

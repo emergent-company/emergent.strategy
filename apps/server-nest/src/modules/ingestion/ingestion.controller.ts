@@ -1,19 +1,30 @@
-import { Controller, Post, Body, UsePipes, ValidationPipe } from '@nestjs/common';
-import { ApiBody, ApiOkResponse, ApiTags, ApiProperty, ApiBadRequestResponse } from '@nestjs/swagger';
+import { Controller, Post, Body, UsePipes, ValidationPipe, UploadedFile, UseInterceptors, BadRequestException, UnsupportedMediaTypeException } from '@nestjs/common';
+import { ApiBody, ApiOkResponse, ApiTags, ApiProperty, ApiBadRequestResponse, ApiConsumes } from '@nestjs/swagger';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import { IsString, IsUrl, IsOptional, IsDefined, IsNotEmpty } from 'class-validator';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { IngestionService, IngestResult } from './ingestion.service';
 
 export class IngestionUploadDto {
-    @IsDefined()
     @IsString()
-    @IsNotEmpty()
-    @ApiProperty({ description: 'Original filename', example: 'spec.md' })
-    filename!: string;
+    @IsOptional()
+    @ApiProperty({ description: 'Original filename (optional, will fallback to uploaded file name)', required: false, example: 'spec.md' })
+    filename?: string;
 
     @IsString()
     @IsOptional()
     @ApiProperty({ description: 'Optional MIME type', required: false, example: 'text/markdown' })
     mimeType?: string;
+
+    @IsString()
+    @IsOptional()
+    @ApiProperty({ description: 'Optional organisation UUID to associate the document with', required: false, example: '11111111-2222-3333-4444-555555555555' })
+    orgId?: string;
+
+    @IsString()
+    @IsNotEmpty()
+    @ApiProperty({ description: 'Project UUID that this document belongs to (required)', example: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' })
+    projectId!: string;
 }
 
 export class IngestionUrlDto {
@@ -21,11 +32,22 @@ export class IngestionUrlDto {
     @IsUrl({ require_protocol: true })
     @ApiProperty({ description: 'Remote URL to ingest', example: 'https://example.com/spec.md' })
     url!: string;
+
+    @IsString()
+    @IsOptional()
+    @ApiProperty({ description: 'Optional organisation UUID to associate the document with', required: false, example: '11111111-2222-3333-4444-555555555555' })
+    orgId?: string;
+
+    @IsString()
+    @IsNotEmpty()
+    @ApiProperty({ description: 'Project UUID that this document belongs to (required)', example: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' })
+    projectId!: string;
 }
 
 @ApiTags('Ingestion')
 @Controller('ingest')
 export class IngestionController {
+    constructor(private readonly ingestion: IngestionService) { }
     @Post('upload')
     @UsePipes(new ValidationPipe({
         whitelist: true,
@@ -35,11 +57,26 @@ export class IngestionController {
         validateCustomDecorators: true,
     }))
     @ApiBody({ type: IngestionUploadDto })
-    @ApiOkResponse({ description: 'Upload a file for ingestion', schema: { example: { id: 'job_1', status: 'queued', filename: 'spec.md' } } })
+    @ApiOkResponse({ description: 'Upload a file for ingestion', schema: { example: { documentId: '11111111-2222-3333-4444-555555555555', chunks: 12, alreadyExists: false } } })
     @ApiBadRequestResponse({ description: 'Invalid upload payload', schema: { example: { error: { code: 'validation-failed', message: 'Validation failed', details: { filename: ['must be a string'] } } } } })
     @ApiStandardErrors()
-    upload(@Body() dto: IngestionUploadDto) {
-        return { id: 'job_1', status: 'queued', filename: dto.filename };
+    @ApiConsumes('multipart/form-data')
+    @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+    upload(@Body() dto: IngestionUploadDto, @UploadedFile() file?: Express.Multer.File): Promise<IngestResult> {
+        if (!file) throw new BadRequestException({ error: { code: 'file-required', message: 'file is required' } });
+        // Basic binary / unsupported type detection BEFORE attempting to interpret as UTF-8 to avoid downstream PG errors (e.g. 0x00 in text columns)
+        const declaredMime = dto.mimeType || file.mimetype || 'application/octet-stream';
+        const isLikelyTextMime = declaredMime.startsWith('text/') || ['application/json'].includes(declaredMime);
+        // Heuristic: reject if buffer contains a null byte or if mime not recognised as textual
+        if (!isLikelyTextMime || file.buffer.includes(0x00)) {
+            throw new UnsupportedMediaTypeException({ error: { code: 'unsupported-type', message: 'Binary or unsupported file type' } });
+        }
+        const text = file.buffer.toString('utf-8');
+        if (!text.trim()) {
+            throw new BadRequestException({ error: { code: 'empty', message: 'Text content empty' } });
+        }
+        const effectiveFilename = dto.filename && dto.filename.trim() ? dto.filename : (file.originalname || 'upload');
+        return this.ingestion.ingestText({ text, filename: effectiveFilename, mimeType: dto.mimeType || file.mimetype, orgId: dto.orgId, projectId: dto.projectId });
     }
 
     @Post('url')
@@ -51,10 +88,10 @@ export class IngestionController {
         validateCustomDecorators: true,
     }))
     @ApiBody({ type: IngestionUrlDto })
-    @ApiOkResponse({ description: 'Ingest a remote URL', schema: { example: { id: 'job_2', status: 'queued', url: 'https://example.com/spec.md' } } })
+    @ApiOkResponse({ description: 'Ingest a remote URL', schema: { example: { documentId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', chunks: 8, alreadyExists: false } } })
     @ApiBadRequestResponse({ description: 'Invalid URL payload', schema: { example: { error: { code: 'validation-failed', message: 'Validation failed', details: { url: ['must be an URL address'] } } } } })
     @ApiStandardErrors()
-    ingestUrl(@Body() dto: IngestionUrlDto) {
-        return { id: 'job_2', status: 'queued', url: dto.url };
+    ingestUrl(@Body() dto: IngestionUrlDto): Promise<IngestResult> {
+        return this.ingestion.ingestUrl(dto.url, dto.orgId, dto.projectId);
     }
 }

@@ -3,22 +3,47 @@ import { Icon } from "@/components/ui/Icon";
 import { useAuth } from "@/contexts/auth";
 import { useApi } from "@/hooks/use-api";
 import { PageTitle } from "@/components/PageTitle";
+import { useConfig } from "@/contexts/config";
 import { LoadingEffect } from "@/components/LoadingEffect";
 import { TableEmptyState } from "@/components/TableEmptyState";
 
 type DocumentRow = {
     id: string;
-    source_url: string | null;
-    filename: string | null;
-    mime_type: string | null;
-    created_at: string;
-    updated_at: string;
+    // Original (legacy snake_case) fields
+    source_url?: string | null;
+    filename?: string | null;
+    mime_type?: string | null;
+    created_at?: string;
+    updated_at?: string;
+    // New camelCase fields from Nest server
+    name?: string | null;
+    sourceUrl?: string | null;
+    mimeType?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
     chunks: number;
 };
+
+function normalize(doc: DocumentRow) {
+    const filename = doc.filename || doc.name || null;
+    const sourceUrl = doc.source_url ?? doc.sourceUrl ?? null;
+    const mime = doc.mime_type || doc.mimeType || null;
+    const createdRaw = doc.created_at || doc.createdAt || '';
+    const updatedRaw = doc.updated_at || doc.updatedAt || '';
+    return {
+        ...doc,
+        filename,
+        source_url: sourceUrl,
+        mime_type: mime,
+        created_at: createdRaw,
+        updated_at: updatedRaw,
+    } as DocumentRow;
+}
 
 export default function DocumentsPage() {
     const { getAccessToken } = useAuth();
     const { buildHeaders, apiBase, fetchJson, fetchForm } = useApi();
+    const { config } = useConfig();
     const [data, setData] = useState<DocumentRow[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -36,11 +61,12 @@ export default function DocumentsPage() {
             setLoading(true);
             try {
                 const t = getAccessToken();
-                const json = await fetchJson<{ documents: DocumentRow[] }>(`${apiBase}/documents`, {
+                const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/documents`, {
                     headers: t ? { ...buildHeaders({ json: false }) } : {},
                     json: false,
                 });
-                if (!cancelled) setData(json.documents);
+                const docs = (Array.isArray(json) ? json : json.documents).map(normalize);
+                if (!cancelled) setData(docs);
             } catch (e: unknown) {
                 const msg = e instanceof Error ? e.message : "Failed to load";
                 if (!cancelled) setError(msg);
@@ -92,20 +118,28 @@ export default function DocumentsPage() {
         try {
             const fd = new FormData();
             fd.append("file", file);
+            if (config.activeProjectId) fd.append("projectId", config.activeProjectId);
             const t = getAccessToken();
             await fetchForm<void>(`${apiBase}/ingest/upload`, fd, { method: "POST", headers: t ? buildHeaders({ json: false }) : {} });
-            setUploadSuccess("Upload successful. Refreshing list...");
+            setUploadSuccess("Upload successful. Updating list...");
             // Reload documents
+            setLoading(true);
             try {
                 const t2 = getAccessToken();
-                const json = await fetchJson<{ documents: DocumentRow[] }>(`${apiBase}/documents`, {
+                const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/documents`, {
                     headers: t2 ? { ...buildHeaders({ json: false }) } : {},
                     json: false,
                 });
-                setData(json.documents);
+                const docs = (Array.isArray(json) ? json : json.documents).map(normalize);
+                setData(docs);
+                setUploadSuccess("Upload successful.");
+                // Auto clear after 3s
+                setTimeout(() => setUploadSuccess(null), 3000);
             } catch (e: unknown) {
                 const msg = e instanceof Error ? e.message : "Failed to refresh list";
                 setError(msg);
+                // Clear success if refresh failed to avoid stale message
+                setUploadSuccess(null);
             }
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : "Upload failed";
@@ -249,7 +283,7 @@ export default function DocumentsPage() {
                                     {data && data.length > 0 ? (
                                         data.map((d) => (
                                             <tr key={d.id}>
-                                                <td className="font-medium">{d.filename || "(uploaded)"}</td>
+                                                <td className="font-medium">{d.filename || "(no name)"}</td>
                                                 <td className="max-w-96 truncate">
                                                     {d.source_url ? (
                                                         <a href={d.source_url} target="_blank" className="link" rel="noreferrer">
@@ -269,7 +303,7 @@ export default function DocumentsPage() {
                                                         {d.chunks}
                                                     </a>
                                                 </td>
-                                                <td>{new Date(d.created_at).toLocaleString()}</td>
+                                                <td>{d.created_at ? new Date(d.created_at).toLocaleString() : "—"}</td>
                                                 <td className="text-right">
                                                     <a className="btn btn-sm" href={`/admin/apps/chunks?docId=${d.id}`}>
                                                         View chunks

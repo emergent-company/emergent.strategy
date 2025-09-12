@@ -41,9 +41,12 @@ const useHook = () => {
         updateConfig({ theme });
     }, [updateConfig]);
     const setActiveOrg = (id: string | undefined, name?: string) => {
+        // Skip if no change
+        if (config.activeOrgId === id && config.activeOrgName === name) return;
         updateConfig({ activeOrgId: id, activeOrgName: name, activeProjectId: undefined, activeProjectName: undefined });
     };
     const setActiveProject = (id: string | undefined, name?: string) => {
+        if (config.activeProjectId === id && config.activeProjectName === name) return;
         updateConfig({ activeProjectId: id, activeProjectName: name });
     };
 

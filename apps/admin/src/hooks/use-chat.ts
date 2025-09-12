@@ -381,13 +381,34 @@ export function useChat(opts: UseChatOptions = {}) {
                 signal: controller.signal,
             });
             if (!res.ok || !res.body) {
-                let errText = `Request failed: ${res.status}`;
+                let errText: string = `Request failed: ${res.status}`;
+                let gotJson = false;
                 try {
-                    const j = await res.json();
-                    if (j?.error) errText = j.error;
+                    const clone = res.clone();
+                    const j = await clone.json();
+                    gotJson = true;
+                    if (j?.error) {
+                        const raw = j.error;
+                        if (typeof raw === 'string') errText = raw;
+                        else if (raw && typeof raw.message === 'string') errText = raw.message;
+                        else {
+                            try { errText = JSON.stringify(raw); } catch { errText = String(raw); }
+                        }
+                    }
                 } catch {
-                    // ignore
+                    // not JSON
                 }
+                if (!gotJson) {
+                    try {
+                        const txt = await res.text();
+                        if (txt) errText = txt.trim();
+                    } catch { /* ignore */ }
+                }
+                if (/Cannot POST \/chat\/stream/i.test(errText)) {
+                    errText = 'Chat backend endpoint /chat/stream not found. Start the simple server (apps/server) or implement the chat module in the Nest server.';
+                }
+                // Truncate very large payloads to avoid UI issues
+                if (errText.length > 500) errText = errText.slice(0, 500) + '…';
                 updateMessage(workingConvId, assistant.id, { content: `Error: ${errText}`, citations: [] });
                 setStreaming(false);
                 return;
@@ -464,7 +485,15 @@ export function useChat(opts: UseChatOptions = {}) {
                         } else if (evt.type === "meta" && evt.citations) {
                             updateMessage(currentConvId, assistant.id, { citations: evt.citations });
                         } else if (evt.type === "error") {
-                            updateMessage(currentConvId, assistant.id, { content: `Error: ${evt.error || "unknown"}` });
+                            let errStr: string = 'unknown';
+                            const raw = (evt as any).error;
+                            if (typeof raw === 'string') errStr = raw;
+                            else if (raw && typeof raw.message === 'string') errStr = raw.message;
+                            else if (raw != null) {
+                                try { errStr = JSON.stringify(raw); } catch { errStr = String(raw); }
+                            }
+                            if (errStr.length > 500) errStr = errStr.slice(0, 500) + '…';
+                            updateMessage(currentConvId, assistant.id, { content: `Error: ${errStr}` });
                         } else if (evt.type === "done") {
                             setStreaming(false);
                             // Finalize by hydrating from server to ensure canonical data and drop any temp duplicates

@@ -28,3 +28,6 @@ lcov.info
 *.log
 *.tsbuildinfo
 
+# Server runtime logs (Nest error log output)
+apps/server-nest/logs/
+

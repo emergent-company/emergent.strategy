@@ -25,15 +25,14 @@ describe('Validation - Ingestion endpoints', () => {
         const res = await fetch(`${ctx.baseUrl}/ingest/upload`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({}), // missing required filename
+            body: JSON.stringify({}), // missing required projectId & file
         });
         expect(res.status).toBe(422);
         const json: ErrorEnvelope = await res.json();
         expect(json.error.code).toBe('validation-failed');
         expect(json.error.details).toBeDefined();
-        // We expect a details map containing at least filename
         const details = json.error.details as Record<string, any>;
-        expect(Object.keys(details)).toContain('filename');
+        expect(Object.keys(details)).toContain('projectId');
     });
 
     it('invalid url payload returns 422 validation-failed', async () => {

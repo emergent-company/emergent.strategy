@@ -7,19 +7,51 @@ import { expectNoRuntimeErrors } from '../utils/assertions';
 
 test.describe('Documents Page (authenticated)', () => {
     test('loads without redirect and exposes nav + token', async ({ page, authToken, consoleErrors, pageErrors }) => {
+        await test.step('Seed active org/project before navigation', async () => {
+            await page.addInitScript(() => {
+                try {
+                    const KEY = '__NEXUS_CONFIG_v3.0__';
+                    const raw = localStorage.getItem(KEY);
+                    const state: any = raw ? JSON.parse(raw) : {};
+                    state.activeOrgId = state.activeOrgId || '22222222-2222-4222-8222-222222222222';
+                    state.activeOrgName = state.activeOrgName || 'E2E Org';
+                    state.activeProjectId = state.activeProjectId || '33333333-3333-4333-8333-333333333333';
+                    state.activeProjectName = state.activeProjectName || 'E2E Project';
+                    localStorage.setItem(KEY, JSON.stringify(state));
+                } catch { /* ignore */ }
+            });
+            // Stub core data endpoints to avoid network races / 404s
+            await page.route('**/orgs*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: '22222222-2222-4222-8222-222222222222', name: 'E2E Org' }]) }));
+            await page.route('**/projects*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: '33333333-3333-4333-8333-333333333333', name: 'E2E Project', orgId: '22222222-2222-4222-8222-222222222222' }]) }));
+            await page.route('**/documents*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ documents: [] }) }));
+            await page.route('**://localhost:3001/**', async (route) => {
+                if (route.request().method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+                return route.fulfill({ status: 204 });
+            });
+        });
         await test.step('Navigate to documents route', async () => { await navigate(page, '/admin/apps/documents'); });
 
         await test.step('Verify URL did not redirect away from documents', async () => {
             await expect(page).toHaveURL(/\/admin\/apps\/documents/);
         });
 
-        await test.step('Assert page title is visible', async () => {
-            // Prefer heading role; fallback to legacy selector if heading structure changes
-            const heading = page.getByRole('heading', { name: /documents/i });
-            if (await heading.first().isVisible().catch(() => false)) {
-                await expect(heading.first()).toBeVisible();
-            } else {
-                await expect(page.locator('p.font-medium.text-lg', { hasText: 'Documents' })).toBeVisible();
+        await test.step('Assert page title is visible (robust)', async () => {
+            const candidates = [
+                () => page.getByRole('heading', { name: /documents/i }).first(),
+                () => page.locator('p:has-text("Documents")').first(),
+                () => page.getByText(/^Documents$/i).first(),
+            ];
+            let found = false;
+            for (const fn of candidates) {
+                const loc = fn();
+                try {
+                    await loc.waitFor({ state: 'visible', timeout: 5_000 });
+                    found = true; break;
+                } catch { /* try next */ }
+            }
+            if (!found) {
+                const html = await page.locator('body').innerHTML();
+                throw new Error('Documents title not found. Body snippet: ' + html.slice(0, 400));
             }
         });
 

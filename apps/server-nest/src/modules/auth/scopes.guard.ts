@@ -15,7 +15,7 @@ export class ScopesGuard implements CanActivate {
         const user = req.user as { scopes?: string[] } | undefined;
         const userScopes = new Set((user?.scopes || []).map(s => s.toLowerCase()));
         const missing = required.filter(r => !userScopes.has(r.toLowerCase()));
-        if (missing.length) throw new ForbiddenException('Forbidden');
+    if (missing.length) throw new ForbiddenException({ error: { code: 'forbidden', message: 'Forbidden', missing_scopes: missing } });
         return true;
     }
 }

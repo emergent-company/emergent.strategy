@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/admin-layout/Sidebar";
 import { Topbar } from "@/components/admin-layout/Topbar";
 
 import { adminMenuItems } from "./menu";
+import { OrgAndProjectGateRedirect } from "@/components/OrgAndProjectGate";
 
 const AdminLayout = ({ children }: { children: ReactNode }) => {
     const { ensureAuthenticated, isAuthenticated } = useAuth();
@@ -26,7 +27,9 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
                 <Sidebar menuItems={adminMenuItems} />
                 <div className="flex flex-col min-w-0 h-screen overflow-auto grow">
                     <Topbar />
-                    <div id="layout-content">{children}</div>
+                    <div id="layout-content" className="flex-1 overflow-auto">
+                        <OrgAndProjectGateRedirect>{children}</OrgAndProjectGateRedirect>
+                    </div>
                     <Footer />
                 </div>
             </div>

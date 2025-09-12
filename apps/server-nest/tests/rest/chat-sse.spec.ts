@@ -32,7 +32,10 @@ describe('Chat SSE stream', () => {
     afterAll(async () => { await ctx.close(); });
 
     it('streams tokens then DONE', async () => {
-        const events = await collectSse(`${ctx.baseUrl}/chat/c1/stream`);
+        // Create a conversation first
+        const create = await fetch(`${ctx.baseUrl}/chat/conversations`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'Stream seed' }) });
+        const cj: any = await create.json();
+        const events = await collectSse(`${ctx.baseUrl}/chat/${cj.id}/stream`);
         expect(events.length).toBeGreaterThanOrEqual(6); // 5 tokens + done
         const token0 = events.find(e => typeof e === 'object' && e.message === 'token-0');
         expect(token0).toBeTruthy();

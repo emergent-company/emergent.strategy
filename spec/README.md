@@ -23,4 +23,32 @@ Storage/Retrieval: Postgres with pgvector for embeddings and built-in FTS for ke
 Model Choice: Google Gemini. Embeddings use `text-embedding-004`.
 
 Dev server is available under `src/server.ts`. See RUNBOOK.md for how to run Postgres (Docker) and the server.
+
 ## Frontend (Admin UI)
+
+The Admin SPA (React + Vite) lives under `apps/admin/`.
+
+Key entry points:
+```
+apps/admin/
+  index.html          # Root HTML (Vite mount point)
+  src/main.tsx        # App bootstrap (providers + router)
+  src/router/         # Route registry + layout wiring
+  src/pages/          # Page components grouped by area (admin, auth, settings, etc.)
+  src/components/     # Reusable UI building blocks & layouts
+  src/contexts/       # Global config (theme, direction, font, etc.)
+  src/styles/         # Tailwind + daisyUI CSS entrypoints
+```
+
+Conventions:
+- All authenticated routes are namespaced under `/admin` (see `13-routing-and-urls.md`).
+- Route definitions are centralized in `apps/admin/src/router/register.tsx`.
+- Theme & layout configuration is accessed via the `useConfig` hook.
+
+Upcoming additions:
+- Chunk browser UI (`/admin/apps/chunks`) with server-backed pagination & filters.
+- Settings → AI Prompt Templates (editable prompt registry; server fallback defaults).
+
+---
+
+Extend this section (do not duplicate) for future frontend architectural notes.

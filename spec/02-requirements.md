@@ -12,7 +12,7 @@
   - Each Organization can contain multiple Projects.
   - Users from across the whole system can be invited to Projects (cross-org invitations allowed by email or user id).
   - Users can switch Organization easily in the UI.
-  - Users can switch Project easily in the UI.
+  - Users can switch Project easily in the UI (primary control lives in the Sidebar Project switcher).
   - Every piece of imported data must be assigned to a specific Project and is only available within that Project.
 - Processing
   - Text extraction for common file types (pdf, docx, pptx, xlsx, md, html, txt).
@@ -101,16 +101,23 @@ Acceptance Criteria (Landing)
 - No runtime imports from `reference/**`.
 
 ### Org & Project Switching (Admin UI)
-- Provide clear controls to switch the active Organization and Project.
-- The active Organization/Project context scopes all API requests and views.
-- Persist the last selection locally (e.g., Local Storage) and restore on reload.
-- Prevent access to data outside the active Organization/Project.
+Goal: Remove friction and eliminate race conditions when changing Organizations by auto‑selecting a Project.
+
+Policy / Behavior
+1. When a user selects (or the app auto-selects) an Organization, the client automatically assigns the first available Project in that Organization as active **without** showing an intermediate "Select a project" gating screen.
+2. If the Organization has no Projects, the user is immediately prompted to create one (single input form). After successful creation it becomes active automatically.
+3. A user can still manually change the active Project at any time via the Sidebar Project switcher. Manual selection is respected and never auto-overridden until the user changes Organization again.
+4. Switching Organization clears the previous active Project and triggers the auto‑selection process for the new Organization (first project, or create flow if none). Stale Projects from the previous Organization must not cause the Organization to revert.
+5. Project auto-selection only runs if there is currently no active Project for the selected Organization (i.e., it will not override a user choice within the same Organization session).
+6. The client MUST avoid using data from the previous Organization’s project list during the fetch window for the new Organization to prevent accidental cross‑org reversion.
 
 Acceptance Criteria (Org/Project Switching)
-- A user with memberships in multiple Organizations can switch Orgs from a topbar control.
-- Within an Organization, the user can switch among Projects they are a member of.
-- After switching, lists and searches return only data from the active Project.
-- Upload/ingest flows require a Project context; attempts without one are blocked with a helpful error.
+- A user with memberships in multiple Organizations can switch Orgs from a topbar (avatar dropdown) control.
+- Upon Org switch, if at least one Project exists, the first Project is activated automatically; there is no intermediate selection page.
+- If no Projects exist, a create-project form is shown immediately; successful submission activates the new Project.
+- Manual Project switching (via Sidebar Project switcher) persists until the next Org change.
+- After any switch, lists and searches scope to the active Org/Project and headers `X-Org-ID` / `X-Project-ID` reflect the current context.
+- Upload/ingest flows enforce presence of an active Project; absence occurs only transiently during Org change before auto-selection or creation.
 
 #### Avatar Menu — Organizations Switcher
 - Placement: inside the Topbar profile avatar dropdown, under a section titled "Organizations".
@@ -158,6 +165,7 @@ Acceptance Criteria (Sidebar Project Switcher)
 - Selecting a Project updates the app context and all subsequent API requests include `X-Org-ID`/`X-Project-ID` for the selection.
 - The active Project is visually highlighted; the selection persists across reloads.
 - On mobile/collapsed Sidebar, the switcher remains reachable and functional.
+- Auto‑selection on Org change does not fire if the user has already chosen a Project within that Org during the current session.
 
 UI Notes (Nexus + daisyUI)
 - Avatar menu (Organizations): place an "Organizations" section inside the avatar dropdown using `dropdown` + `menu` classes; active item shows a check icon.

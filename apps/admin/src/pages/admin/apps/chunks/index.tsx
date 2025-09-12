@@ -25,8 +25,18 @@ interface ChunksResponse {
 
 interface DocumentRow {
     id: string;
-    filename: string | null;
-    source_url: string | null;
+    filename?: string | null;
+    name?: string | null;
+    source_url?: string | null;
+    sourceUrl?: string | null;
+}
+
+function normalizeDoc(d: DocumentRow) {
+    return {
+        ...d,
+        filename: d.filename || d.name || null,
+        source_url: d.source_url ?? d.sourceUrl ?? null,
+    } as DocumentRow;
 }
 
 export default function ChunksPage() {
@@ -73,11 +83,11 @@ export default function ChunksPage() {
         (async () => {
             try {
                 const t = getAccessToken();
-                const json = await fetchJson<{ documents: DocumentRow[] }>(`${apiBase}/documents`, {
+                const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/documents`, {
                     headers: t ? { ...buildHeaders({ json: false }) } : {},
                     json: false,
                 });
-                if (!cancelled) setDocs(json.documents || []);
+                if (!cancelled) setDocs((Array.isArray(json) ? json : (json.documents || [])).map(normalizeDoc));
             } catch {
                 // ignore optional
             }
@@ -100,11 +110,45 @@ export default function ChunksPage() {
                 qs.set("pageSize", String(pageSize));
                 if (sort) qs.set("sort", sort);
                 const t = getAccessToken();
-                const json = await fetchJson<ChunksResponse>(`${apiBase}/chunks?${qs.toString()}`, {
+                // Accept both unified paginated shape and legacy/alternate array responses
+                const json = await fetchJson<any>(`${apiBase}/chunks?${qs.toString()}`, {
                     headers: t ? { ...buildHeaders({ json: false }) } : {},
                     json: false,
                 });
-                if (!cancelled) setData(json);
+                if (!cancelled) {
+                    let next: ChunksResponse | null = null;
+                    if (Array.isArray(json)) {
+                        // Legacy simple array (e.g. Nest chunks list). Map to expected richer shape with fallbacks.
+                        const mapped: ChunkRow[] = json.map((c: any): ChunkRow => ({
+                            id: String(c.id),
+                            document_id: c.document_id || c.documentId || 'unknown',
+                            document_title: c.document_title || c.documentTitle || c.filename || c.source_url || c.sourceUrl || c.document_id || c.documentId || 'document',
+                            source_url: c.source_url || c.sourceUrl || null,
+                            chunk_index: typeof c.chunk_index === 'number' ? c.chunk_index : (typeof c.index === 'number' ? c.index : 0),
+                            created_at: c.created_at || c.createdAt || new Date().toISOString(),
+                            text: c.text || '',
+                        }));
+                        next = { items: mapped, page: 1, pageSize: mapped.length || pageSize, total: mapped.length };
+                    } else if (json && typeof json === 'object' && Array.isArray(json.items)) {
+                        // Canonical paginated shape
+                        const items: ChunkRow[] = json.items.map((c: any): ChunkRow => ({
+                            id: String(c.id),
+                            document_id: c.document_id || c.documentId || 'unknown',
+                            document_title: c.document_title || c.documentTitle || c.filename || c.source_url || c.sourceUrl || c.document_id || c.documentId || 'document',
+                            source_url: c.source_url || c.sourceUrl || null,
+                            chunk_index: typeof c.chunk_index === 'number' ? c.chunk_index : (typeof c.index === 'number' ? c.index : 0),
+                            created_at: c.created_at || c.createdAt || new Date().toISOString(),
+                            text: c.text || '',
+                        }));
+                        next = {
+                            items,
+                            page: Number(json.page) || page,
+                            pageSize: Number(json.pageSize) || (items.length || pageSize),
+                            total: Number(json.total) || items.length,
+                        };
+                    }
+                    setData(next);
+                }
             } catch (e: any) {
                 if (!cancelled) setError(e.message || "Failed to load");
             } finally {

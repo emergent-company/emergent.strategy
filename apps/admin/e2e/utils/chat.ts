@@ -22,11 +22,120 @@ export async function ensureDevAuth(page: Page): Promise<void> {
 /** Stub minimal chat backend endpoints (conversations list, hydrate, SSE stream) */
 export async function stubChatBackend(page: Page, opts: { uuid?: string } = {}): Promise<string> {
     const uuid = opts.uuid || '11111111-1111-4111-8111-111111111111';
+    // Debug request logging for orgs/projects
+    page.on('request', (req) => {
+        const url = req.url();
+        if (/\/orgs(\b|[?/])/.test(url) || /\/projects(\b|[?/])/.test(url)) {
+            console.log('[req]', req.method(), url);
+        }
+    });
+    // Ensure org + project active in config BEFORE app scripts run
+    await page.addInitScript(() => {
+        try {
+            // Current app config key (see src/contexts/config.tsx). Keep legacy key write for backward compatibility.
+            const ACTIVE_KEYS = ['__NEXUS_CONFIG_v3.0__', '__nexus_config_v1__'];
+            for (const CONFIG_KEY of ACTIVE_KEYS) {
+                const raw = localStorage.getItem(CONFIG_KEY);
+                let state: any = raw ? JSON.parse(raw) : {};
+                if (!state.activeOrgId) {
+                    state.activeOrgId = '22222222-2222-4222-8222-222222222222';
+                    state.activeOrgName = 'E2E Org';
+                }
+                if (!state.activeProjectId) {
+                    state.activeProjectId = '33333333-3333-4333-8333-333333333333';
+                    state.activeProjectName = 'E2E Project';
+                }
+                localStorage.setItem(CONFIG_KEY, JSON.stringify(state));
+            }
+            // Monkey-patch fetch for orgs/projects to avoid race with route interception (debug fallback)
+            const originalFetch = window.fetch.bind(window);
+            window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+                try {
+                    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+                    if (/\/orgs(\?|$)/.test(url) && (!init || (init.method || 'GET') === 'GET')) {
+                        console.log('[fetch-patch] /orgs responded');
+                        return Promise.resolve(new Response(JSON.stringify([
+                            { id: '22222222-2222-4222-8222-222222222222', name: 'E2E Org' }
+                        ]), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+                    }
+                    if (/\/projects(\?|$)/.test(url) && (!init || (init.method || 'GET') === 'GET')) {
+                        console.log('[fetch-patch] /projects responded');
+                        return Promise.resolve(new Response(JSON.stringify([
+                            { id: '33333333-3333-4333-8333-333333333333', name: 'E2E Project', orgId: '22222222-2222-4222-8222-222222222222' }
+                        ]), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+                    }
+                } catch { /* ignore */ }
+                return originalFetch(input as any, init);
+            };
+        } catch { /* ignore */ }
+    });
+    // Org & project listing endpoints
+    await page.route('**/orgs', async (route) => {
+        const method = route.request().method();
+        const origin = route.request().headers()['origin'] || '*';
+        if (method === 'OPTIONS') {
+            console.log('[stub] CORS preflight /orgs');
+            return route.fulfill({
+                status: 204, headers: {
+                    'Access-Control-Allow-Origin': origin,
+                    'Access-Control-Allow-Credentials': 'true',
+                    'Access-Control-Allow-Headers': 'authorization,content-type,x-org-id,x-project-id',
+                    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+                }
+            });
+        }
+        console.log('[stub] GET /orgs');
+        return route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            headers: {
+                'Access-Control-Allow-Origin': origin,
+                'Access-Control-Allow-Credentials': 'true'
+            },
+            body: JSON.stringify([
+                { id: '22222222-2222-4222-8222-222222222222', name: 'E2E Org' }
+            ])
+        });
+    });
+    await page.route('**/projects*', async (route) => {
+        const method = route.request().method();
+        const origin = route.request().headers()['origin'] || '*';
+        if (method === 'OPTIONS') {
+            console.log('[stub] CORS preflight /projects');
+            return route.fulfill({
+                status: 204, headers: {
+                    'Access-Control-Allow-Origin': origin,
+                    'Access-Control-Allow-Credentials': 'true',
+                    'Access-Control-Allow-Headers': 'authorization,content-type,x-org-id,x-project-id',
+                    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+                }
+            });
+        }
+        console.log('[stub] GET /projects');
+        return route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            headers: {
+                'Access-Control-Allow-Origin': origin,
+                'Access-Control-Allow-Credentials': 'true'
+            },
+            body: JSON.stringify([
+                { id: '33333333-3333-4333-8333-333333333333', name: 'E2E Project', orgId: '22222222-2222-4222-8222-222222222222' }
+            ])
+        });
+    });
     await page.route(/\/chat\/conversations$/, async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ shared: [], private: [] }) }));
     await page.route(new RegExp(`/chat/${uuid.replaceAll('-', '\\-')}$`), async (route) => route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ conversation: { id: uuid, title: 'Stubbed conversation', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), isPrivate: false, messages: [] } }),
+        body: JSON.stringify({
+            conversation: {
+                id: uuid, title: 'Stubbed conversation', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), isPrivate: false, messages: [
+                    { id: 'm_user1', role: 'user', content: 'Restored user message', createdAt: new Date().toISOString() },
+                    { id: 'm_assist1', role: 'assistant', content: ' Pong', createdAt: new Date().toISOString() }
+                ]
+            }
+        }),
     }));
     await page.route(/\/chat\/stream$/, async (route) => {
         const sse = [
@@ -37,6 +146,16 @@ export async function stubChatBackend(page: Page, opts: { uuid?: string } = {}):
         ].join('\n\n');
         await route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream', Connection: 'keep-alive', 'Cache-Control': 'no-cache' }, body: sse });
     });
+    // Same-origin PATCH / DELETE (rename / delete) stubs to avoid 404 console errors
+    await page.route('**/chat/*', async (route) => {
+        const url = route.request().url();
+        if (/\/chat\/stream$/.test(url) || /\/chat\/conversations$/.test(url) || /\/chat\/[0-9a-f-]{36}$/.test(url)) return route.fallback();
+        const method = route.request().method();
+        if (method === 'PATCH' || method === 'DELETE') {
+            return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+        }
+        return route.fallback();
+    });
     await page.route('**://localhost:3001/**', async (route) => {
         const url = route.request().url();
         if (/\/chat\/stream$/.test(url) || /\/chat\/conversations$/.test(url) || /\/chat\/[0-9a-f-]{36}$/.test(url)) return route.fallback();
@@ -44,4 +163,22 @@ export async function stubChatBackend(page: Page, opts: { uuid?: string } = {}):
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(method === 'GET' ? { ok: true } : { status: 'ok' }) });
     });
     return uuid;
+}
+
+/** Force-set active org & project AFTER auth (idempotent) */
+export async function seedOrgProject(page: Page): Promise<void> {
+    await page.evaluate(() => {
+        try {
+            const ACTIVE_KEYS = ['__NEXUS_CONFIG_v3.0__', '__nexus_config_v1__'];
+            for (const CONFIG_KEY of ACTIVE_KEYS) {
+                const raw = localStorage.getItem(CONFIG_KEY);
+                const state: any = raw ? JSON.parse(raw) : {};
+                state.activeOrgId = state.activeOrgId || '22222222-2222-4222-8222-222222222222';
+                state.activeOrgName = state.activeOrgName || 'E2E Org';
+                state.activeProjectId = state.activeProjectId || '33333333-3333-4333-8333-333333333333';
+                state.activeProjectName = state.activeProjectName || 'E2E Project';
+                localStorage.setItem(CONFIG_KEY, JSON.stringify(state));
+            }
+        } catch { /* ignore */ }
+    });
 }

@@ -55,7 +55,7 @@ describe('OpenAPI path coverage', () => {
         expect(res.status).toBe(200);
         const doc: OpenAPIDoc = await res.json();
 
-        const expectedPostPaths = ['/ingest/upload', '/ingest/url'];
+        const expectedPostPaths = ['/ingest/upload', '/ingest/url', '/orgs', '/chat/conversations'];
         const missing = expectedPostPaths.filter(p => !Object.keys(doc.paths).includes(p));
         expect(missing).toStrictEqual([]);
 
@@ -77,14 +77,15 @@ describe('OpenAPI path coverage', () => {
             '/auth/me': ['GET'],
             '/settings': ['GET'],
             '/settings/{key}': ['GET'],
-            '/orgs': ['GET'],
-            '/projects': ['GET'],
+            '/orgs': ['GET', 'POST'],
+            '/orgs/{id}': ['GET'],
+            '/projects': ['GET', 'POST'],
             '/documents': ['GET'],
             '/documents/{id}': ['GET'],
             '/chunks': ['GET'],
             '/search': ['GET'],
-            '/chat/conversations': ['GET'],
-            '/chat/{id}': ['GET'],
+            '/chat/conversations': ['GET', 'POST'],
+            '/chat/{id}': ['GET', 'PATCH', 'DELETE'],
             '/chat/{id}/stream': ['GET'],
             '/ingest/upload': ['POST'],
             '/ingest/url': ['POST'],

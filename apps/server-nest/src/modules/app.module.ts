@@ -11,6 +11,9 @@ import { ProjectsModule } from './projects/projects.module';
 import { SearchModule } from './search/search.module';
 import { OpenApiModule } from './openapi/openapi.module';
 import { DatabaseModule } from '../common/database/database.module';
+import { AppConfigModule } from '../common/config/config.module';
+import { UtilsModule } from '../common/utils/utils.module';
+import { EmbeddingsModule } from './embeddings/embeddings.module';
 
 @Module({
     imports: [
@@ -25,6 +28,9 @@ import { DatabaseModule } from '../common/database/database.module';
         IngestionModule,
         ChatModule,
         OpenApiModule,
+        AppConfigModule,
+        UtilsModule,
+        EmbeddingsModule,
         DatabaseModule,
     ],
 })

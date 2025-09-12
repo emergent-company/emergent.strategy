@@ -44,10 +44,10 @@ export const TopbarProfileMenu: React.FC = () => {
     };
 
     return (
-        <div className="dropdown-bottom ms-1 dropdown dropdown-end">
-            <div tabIndex={0} className="cursor-pointer">
+        <div className="dropdown-bottom ms-1 dropdown dropdown-end" data-testid="profile-menu">
+            <div tabIndex={0} className="cursor-pointer" data-testid="avatar-trigger">
                 <div className="bg-base-200 rounded-full ring ring-success size-7 overflow-hidden avatar">
-                    <img src="/images/avatars/1.png" alt="Avatar" />
+                    <img src="/images/avatars/1.png" alt="Avatar" data-testid="avatar-image" />
                 </div>
             </div>
             <div tabIndex={0} className="bg-base-100 shadow mt-2 rounded-box w-44 dropdown-content">

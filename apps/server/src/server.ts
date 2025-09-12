@@ -503,12 +503,23 @@ async function main() {
                         d.created_at,
                         d.updated_at,
                         COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id), 0) AS chunks
-                                 FROM kb.documents d
-                                 WHERE (d.org_id IS NOT DISTINCT FROM $1)
-                                     AND (d.project_id IS NOT DISTINCT FROM $2)
-                 ORDER BY d.created_at DESC`
-                , [orgId, projectId]);
-            res.json({ documents: rows });
+                 FROM kb.documents d
+                 WHERE (d.org_id IS NOT DISTINCT FROM $1)
+                   AND (d.project_id IS NOT DISTINCT FROM $2)
+                 ORDER BY d.created_at DESC`,
+                [orgId, projectId],
+            );
+            // Unified camelCase shape (plain array)
+            const docs = rows.map(r => ({
+                id: r.id,
+                name: r.filename || r.source_url || 'unknown',
+                sourceUrl: r.source_url,
+                mimeType: r.mime_type,
+                createdAt: r.created_at,
+                updatedAt: r.updated_at,
+                chunks: r.chunks,
+            }));
+            res.json(docs);
         } catch (e: any) {
             res.status(500).json({ error: e.message || 'failed to list documents' });
         }

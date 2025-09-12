@@ -50,19 +50,49 @@ export function useApi() {
                 credentials,
             });
             if (!res.ok) {
-                // Try to parse standard error shape; fallback to text/status
+                // Robust error extraction supporting nested { error: { code, message, details } }
                 let message = `Request failed (${res.status})`;
                 try {
-                    const j = (await res.json()) as { error?: string; message?: string };
-                    message = j.error || j.message || message;
+                    const j = await res.json();
+                    // Shapes we handle:
+                    // 1. { error: "string" }
+                    // 2. { message: "string" }
+                    // 3. { error: { message, code, details } }
+                    // 4. { error: { details: { field: [..] } } }
+                    const nested = (j as any).error;
+                    if (typeof nested === "string") {
+                        message = nested;
+                    } else if (nested && typeof nested === "object") {
+                        if (nested.message) message = nested.message;
+                        // Append first field validation message if generic message present
+                        if (nested.details && typeof nested.details === "object") {
+                            const firstKey = Object.keys(nested.details)[0];
+                            const arr = firstKey ? nested.details[firstKey] : undefined;
+                            if (Array.isArray(arr) && arr.length > 0) {
+                                // Avoid duplicating identical message
+                                if (!message || message.toLowerCase().includes("validation")) {
+                                    message = arr[0];
+                                } else {
+                                    message = `${message}: ${arr[0]}`;
+                                }
+                            }
+                        }
+                        if (!message && nested.code) message = nested.code;
+                    } else if ((j as any).message) {
+                        message = (j as any).message;
+                    }
+                    if (message && typeof message !== "string") {
+                        message = JSON.stringify(message);
+                    }
                 } catch {
                     try {
-                        message = (await res.text()) || message;
+                        const txt = await res.text();
+                        if (txt) message = txt;
                     } catch {
                         // ignore
                     }
                 }
-                throw new Error(message);
+                throw new Error(message || `Request failed (${res.status})`);
             }
             // If no content
             if (res.status === 204) return undefined as unknown as T;
