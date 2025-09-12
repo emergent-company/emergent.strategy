@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf } from './utils';
 
 // Citations tests:
 //  - If embeddings enabled, SSE stream should include a citations frame (non-empty) with chunk references.
@@ -15,7 +16,7 @@ async function seedDocument(ctx: E2EContext, content: string) {
         headers: { 'Content-Type': 'application/json', ...authHeader('all', 'chat-citations'), 'x-project-id': ctx.projectId },
         body: JSON.stringify({ filename: 'cite.txt', content, projectId: ctx.projectId })
     });
-    expect([200, 201]).toContain(res.status);
+    expectStatusOneOf(res.status, [200, 201], 'seed citation doc');
 }
 
 describe('Chat Citations', () => {

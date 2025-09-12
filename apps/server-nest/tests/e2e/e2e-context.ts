@@ -16,6 +16,11 @@ export interface E2EContext {
     userSub: string;
     cleanup: () => Promise<void>;
     close: () => Promise<void>;
+    /**
+     * Cleanup chat + document artifacts for an additional project id created during a test.
+     * Does NOT remove the project/org rows themselves (idempotent best‑effort).
+     */
+    cleanupProjectArtifacts: (projectId: string) => Promise<void>;
 }
 
 function mapUserSubToUuid(sub: string): string {
@@ -95,6 +100,8 @@ async function waitForRelation(pool: Pool, rel: string, attempts = 30, delayMs =
 
 export async function createE2EContext(userSuffix?: string): Promise<E2EContext> {
     // Ensure required env for DatabaseService before NestFactory create
+    // Explicitly disable SKIP_DB for scenario/e2e contexts; tests rely on minimal schema being created.
+    if (process.env.SKIP_DB) delete process.env.SKIP_DB;
     process.env.PGHOST = process.env.PGHOST || 'localhost';
     process.env.PGPORT = process.env.PGPORT || '5432';
     process.env.PGUSER = process.env.PGUSER || 'spec';
@@ -151,6 +158,7 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
         projectId,
         userSub,
         cleanup: async () => cleanupUserData(pool, projectId, userSub),
+        cleanupProjectArtifacts: async (extraProjectId: string) => cleanupUserData(pool, extraProjectId, userSub),
         close: async () => { await pool.end(); await boot.close(); },
     };
 }

@@ -1,9 +1,12 @@
-import { Controller, Post, Body, UsePipes, ValidationPipe, UploadedFile, UseInterceptors, BadRequestException, UnsupportedMediaTypeException } from '@nestjs/common';
+import { Controller, Post, Body, UsePipes, ValidationPipe, UploadedFile, UseInterceptors, BadRequestException, UnsupportedMediaTypeException, UseGuards } from '@nestjs/common';
 import { ApiBody, ApiOkResponse, ApiTags, ApiProperty, ApiBadRequestResponse, ApiConsumes } from '@nestjs/swagger';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import { IsString, IsUrl, IsOptional, IsDefined, IsNotEmpty } from 'class-validator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { IngestionService, IngestResult } from './ingestion.service';
+import { AuthGuard } from '../auth/auth.guard';
+import { ScopesGuard } from '../auth/scopes.guard';
+import { Scopes } from '../auth/scopes.decorator';
 
 export class IngestionUploadDto {
     @IsString()
@@ -46,6 +49,7 @@ export class IngestionUrlDto {
 
 @ApiTags('Ingestion')
 @Controller('ingest')
+@UseGuards(AuthGuard, ScopesGuard)
 export class IngestionController {
     constructor(private readonly ingestion: IngestionService) { }
     @Post('upload')
@@ -62,6 +66,7 @@ export class IngestionController {
     @ApiStandardErrors()
     @ApiConsumes('multipart/form-data')
     @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+    @Scopes('ingest:write')
     upload(@Body() dto: IngestionUploadDto, @UploadedFile() file?: Express.Multer.File): Promise<IngestResult> {
         if (!file) throw new BadRequestException({ error: { code: 'file-required', message: 'file is required' } });
         // Basic binary / unsupported type detection BEFORE attempting to interpret as UTF-8 to avoid downstream PG errors (e.g. 0x00 in text columns)
@@ -91,6 +96,7 @@ export class IngestionController {
     @ApiOkResponse({ description: 'Ingest a remote URL', schema: { example: { documentId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', chunks: 8, alreadyExists: false } } })
     @ApiBadRequestResponse({ description: 'Invalid URL payload', schema: { example: { error: { code: 'validation-failed', message: 'Validation failed', details: { url: ['must be an URL address'] } } } } })
     @ApiStandardErrors()
+    @Scopes('ingest:write')
     ingestUrl(@Body() dto: IngestionUrlDto): Promise<IngestResult> {
         return this.ingestion.ingestUrl(dto.url, dto.orgId, dto.projectId);
     }

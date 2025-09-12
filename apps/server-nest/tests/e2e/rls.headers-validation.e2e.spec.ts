@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf } from './utils';
 
 // Validates header-related RLS edge cases:
 // - Missing x-project-id on write -> 400 (already tested for chat/doc create, but reassert generic route)
@@ -31,8 +32,8 @@ describe('RLS Header Validation E2E', () => {
             headers: { 'Content-Type': 'application/json', ...authHeader('all', 'rls-hdr-other') },
             body: JSON.stringify({ name: 'Foreign Proj', orgId: otherCtx.orgId })
         });
-        if (![200, 201].includes(res.status)) {
-            // If project creation rejected (e.g. org requirement), treat as satisfied (cannot misuse foreign project).
+        if (!([200, 201].includes(res.status))) {
+            // Treat rejection as satisfied (cannot misuse foreign project)
             return;
         }
         const proj = await res.json() as { id: string };

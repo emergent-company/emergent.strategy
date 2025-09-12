@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf, expectDisjointIds } from './utils';
 
 // Validates cursor-based pagination contract:
 //  - Request 1: /documents?limit=3 returns 3 items + x-next-cursor
@@ -17,7 +18,7 @@ async function createDoc(ctx: E2EContext, i: number) {
         headers: { 'Content-Type': 'application/json', ...authHeader('all', 'docs-cursor'), 'x-project-id': ctx.projectId },
         body: JSON.stringify({ filename: `cursor-${i}.txt`, content: `Cursor doc ${i}`, projectId: ctx.projectId })
     });
-    expect([200, 201]).toContain(res.status);
+    expectStatusOneOf(res.status, [200, 201], 'create doc cursor');
 }
 
 describe('Documents Cursor Pagination E2E', () => {
@@ -42,10 +43,11 @@ describe('Documents Cursor Pagination E2E', () => {
             // Page size expectations: first two pages exactly 3, last page <= 3
             if (page < 2) expect(docs.length).toBe(3); else expect(docs.length).toBeGreaterThan(0);
             // Ensure no overlap
-            for (const d of docs) {
-                expect(allIds.includes(d.id)).toBe(false);
-                allIds.push(d.id);
+            if (allIds.length) {
+                // Validate disjointness from previous aggregate set; if violation occurs fail explicitly.
+                expectDisjointIds(allIds.map(id => ({ id })), docs);
             }
+            for (const d of docs) allIds.push(d.id);
             cursor = next;
             page++;
         } while (cursor);

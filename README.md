@@ -10,6 +10,18 @@ See `SETUP.md` for end-to-end local setup (DB, Zitadel auth, API server, Admin S
 
 The system now uses only standard OIDC flows via Zitadel's hosted UI. Previous experimental Passkey / WebAuthn endpoints and helpers were removed (2025-09) to reduce surface area. The deprecated spec document (`spec/15-passkey-auth.md`) is retained only as a short tombstone note. No passwordless-specific environment variables are required anymore.
 
+### Authorization (Scopes)
+
+Every protected endpoint enforces one or more OAuth-style scopes. Missing scopes yield `403` with body:
+
+```
+{
+	"error": { "code": "forbidden", "message": "Forbidden", "missing_scopes": ["<scope>"] }
+}
+```
+
+See `SECURITY_SCOPES.md` for the complete catalogue and mapping to endpoints. The generated OpenAPI (`apps/server-nest/openapi.yaml`) annotates each operation with `x-required-scopes`.
+
 ## Reference projects
 
 We keep UI/UX reference code as Git submodules under `reference/` (read-only, no runtime imports).

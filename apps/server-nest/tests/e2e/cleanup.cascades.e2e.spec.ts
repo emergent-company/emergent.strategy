@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf } from './utils';
 import { Pool } from 'pg';
 
 // Verifies cascading deletions: deleting a document removes its chunks.
@@ -29,7 +30,7 @@ describe('Cleanup Cascades E2E', () => {
         form.append('filename', 'cascade.txt');
         form.append('file', new Blob(['Cascade check text repeated '.repeat(200)], { type: 'text/plain' }), 'cascade.txt');
         const res = await fetch(`${ctx.baseUrl}/ingest/upload`, { method: 'POST', headers: authHeader('all', 'cleanup-cascade'), body: form as any });
-        expect([200, 201]).toContain(res.status);
+        expectStatusOneOf(res.status, [200, 201], 'cascade ingest');
         return res.json();
     }
 
@@ -42,7 +43,7 @@ describe('Cleanup Cascades E2E', () => {
         expect(preCount).toBeGreaterThanOrEqual(1);
 
         const del = await fetch(`${ctx.baseUrl}/documents/${docId}`, { method: 'DELETE', headers: authHeader('all', 'cleanup-cascade') });
-        expect([200, 204]).toContain(del.status);
+        expectStatusOneOf(del.status, [200, 204], 'cascade delete');
 
         const post = await pool.query<{ c: string }>('select count(*)::text as c from kb.chunks where document_id=$1', [docId]);
         const postCount = Number(post.rows[0].c);

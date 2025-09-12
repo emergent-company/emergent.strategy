@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf, expectDisjointIds } from './utils';
 
 /**
  * Documents Cursor Pagination Stress E2E
@@ -29,10 +30,7 @@ async function createDoc(ctx: E2EContext, i: number) {
         headers: { 'Content-Type': 'application/json', ...authHeader('all', 'docs-cursor-stress'), 'x-project-id': ctx.projectId },
         body: JSON.stringify({ filename: `stress-${i}.txt`, content: `Stress doc ${i}`, projectId: ctx.projectId })
     });
-    if (![200, 201].includes(res.status)) {
-        const txt = await res.text();
-        throw new Error(`createDoc failed status=${res.status} body=${txt}`);
-    }
+    expectStatusOneOf(res.status, [200, 201], 'create doc stress');
 }
 
 describe('Documents Cursor Pagination Stress E2E', () => {

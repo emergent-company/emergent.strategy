@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf } from './utils';
 
 /**
  * Chat Citations Persistence E2E
@@ -20,7 +21,7 @@ async function ingestDoc() {
     form.append('filename', 'cite.txt');
     form.append('file', new Blob(['Citation test content about mountains and rivers.'], { type: 'text/plain' }), 'cite.txt');
     const res = await fetch(`${ctx.baseUrl}/ingest/upload`, { method: 'POST', headers: authHeader('all', 'chat-cite-persist'), body: form as any });
-    expect([200, 201]).toContain(res.status);
+    expectStatusOneOf(res.status, [200, 201], 'chat cite ingest');
 }
 
 describe('Chat Citations Persistence', () => {

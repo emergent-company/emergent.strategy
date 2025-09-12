@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf } from './utils';
 
 // Conversation lifecycle aligned with existing CRUD endpoints:
 // - Create: POST /chat/conversations { message }
@@ -61,7 +62,7 @@ describe('Chat Conversation Lifecycle E2E', () => {
     it('deletes conversation and it no longer appears', async () => {
         const convId = await createConversation(ctx, 'To be deleted');
         const del = await fetch(`${ctx.baseUrl}/chat/${convId}`, { method: 'DELETE', headers: { ...authHeader('all', 'chat-life'), 'x-org-id': ctx.orgId, 'x-project-id': ctx.projectId } });
-        expect([200, 204]).toContain(del.status);
+        expectStatusOneOf(del.status, [200, 204], 'conversation delete');
         const priv = await listPrivate(ctx);
         expect(priv.find(c => c.id === convId)).toBeFalsy();
     });

@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf } from './utils';
 import { Pool } from 'pg';
 
 // Validates that posting a long document results in multiple chunk rows in kb.chunks.
@@ -42,7 +43,7 @@ describe('Document Chunk Generation E2E', () => {
             headers: { ...authHeader('all', 'chunks-gen') },
             body: form as any
         });
-        expect([200, 201]).toContain(ingestRes.status);
+        expectStatusOneOf(ingestRes.status, [200, 201], 'chunking ingest');
         const ingestJson = await ingestRes.json();
         const docId = ingestJson.documentId;
         expect(docId).toBeTruthy();

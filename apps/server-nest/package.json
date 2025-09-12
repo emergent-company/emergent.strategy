@@ -10,7 +10,9 @@
         "gen:openapi": "tsc -p tsconfig.json && node dist/openapi-generate.js",
         "test": "vitest run --passWithNoTests",
         "test:e2e": "npm run gen:openapi && vitest run -c vitest.e2e.config.ts --passWithNoTests",
-        "test:e2e:verbose": "E2E_DEBUG_VERBOSE=true npm run test:e2e"
+        "test:e2e:verbose": "E2E_DEBUG_VERBOSE=true npm run test:e2e",
+        "test:scenarios": "vitest run --passWithNoTests tests/scenarios/**/*.spec.ts",
+        "test:scenarios:verbose": "SCENARIO_DEBUG=1 vitest run --passWithNoTests tests/scenarios/**/*.spec.ts"
     },
     "dependencies": {
         "@langchain/google-genai": "^0.2.17",
@@ -23,6 +25,7 @@
         "html-to-text": "^9.0.5",
         "js-yaml": "^4.1.0",
         "pg": "^8.16.3",
+        "dotenv": "^16.4.5",
         "reflect-metadata": "^0.2.2",
         "rxjs": "^7.8.1"
     },

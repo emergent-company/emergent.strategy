@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf } from './utils';
 
 describe('Documents Project Requirement E2E', () => {
     let ctx: E2EContext;
@@ -26,7 +27,7 @@ describe('Documents Project Requirement E2E', () => {
             headers: { 'content-type': 'application/json', 'x-project-id': ctx.projectId, ...authHeader('all', 'docs-proj-req') },
             body: JSON.stringify({ filename: 'header-project.txt', content: 'ok' })
         });
-        expect([200, 201]).toContain(res.status);
+        expectStatusOneOf(res.status, [200, 201], 'create doc project-required');
         const json = await res.json();
         expect(json.id).toBeTruthy();
         if (json.projectId) expect(json.projectId).toBe(ctx.projectId);

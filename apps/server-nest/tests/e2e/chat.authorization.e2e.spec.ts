@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { expectStatusOneOf } from './utils';
 
 // Tests chat conversation ownership and visibility constraints.
 // Aligns with existing endpoints used in chat.basic-crud.e2e.spec.ts:
@@ -87,7 +88,7 @@ describe('Chat Authorization E2E', () => {
             method: 'DELETE',
             headers: { ...authHeader('all', 'chat-owner'), 'x-org-id': ownerCtx.orgId, 'x-project-id': ownerCtx.projectId },
         });
-        expect([200, 204]).toContain(del.status);
+        expectStatusOneOf(del.status, [200, 204], 'auth convo delete');
         const finalList = await listPrivate(ownerCtx, 'chat-owner');
         expect(finalList.find(c => c.id === convId)).toBeUndefined();
     });

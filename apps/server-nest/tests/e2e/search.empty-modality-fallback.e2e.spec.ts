@@ -1,6 +1,9 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { lexicalSearch, vectorSearch, hybridSearch } from './utils/search';
+import { ingestDocs } from './utils/fixtures';
+import { expectStatusOneOf } from './utils';
 
 // Search Empty Modality Fallback E2E
 // Goal: Prove that when one modality (vector or lexical) yields no candidates, system gracefully falls back.
@@ -17,14 +20,9 @@ let ctx: E2EContext;
 const LEX_TOKEN = 'fallbacktoken';
 
 async function ingestLexicalRich(ctx: E2EContext) {
-    for (let i = 0; i < 3; i++) {
-        const form = new FormData();
-        form.append('projectId', ctx.projectId);
-        form.append('filename', `lex-${i}.txt`);
-        form.append('file', new Blob([`This ${LEX_TOKEN} appears many times. ${LEX_TOKEN} ${LEX_TOKEN} ${LEX_TOKEN}.`], { type: 'text/plain' }), `lex-${i}.txt`);
-        const res = await fetch(`${ctx.baseUrl}/ingest/upload`, { method: 'POST', headers: authHeader('all', 'empty-fallback'), body: form as any });
-        expect([200, 201]).toContain(res.status);
-    }
+    const docs = Array.from({ length: 3 }, (_, i) => ({ name: `lex-${i}`, content: `This ${LEX_TOKEN} appears many times. ${LEX_TOKEN} ${LEX_TOKEN} ${LEX_TOKEN}.` }));
+    const results = await ingestDocs(ctx, docs, { userSuffix: 'empty-fallback' });
+    results.forEach(r => expectStatusOneOf(r.status, [200, 201], 'empty modality ingest'));
 }
 
 describe('Search Empty Modality Fallback E2E', () => {
@@ -33,26 +31,23 @@ describe('Search Empty Modality Fallback E2E', () => {
     afterAll(async () => { await ctx.close(); });
 
     it('lexical mode yields results for frequent token', async () => {
-        const res = await fetch(`${ctx.baseUrl}/search?q=${LEX_TOKEN}&mode=lexical&limit=3`, { headers: authHeader('all', 'empty-fallback') });
-        expect(res.status).toBe(200);
-        const json = await res.json();
-        expect(json.mode).toBe('lexical');
-        expect(Array.isArray(json.results)).toBe(true);
-        expect(json.results.length).toBeGreaterThan(0);
+        const resp = await lexicalSearch(ctx, LEX_TOKEN, 3, 0, { userSuffix: 'empty-fallback' });
+        expect(resp.status).toBe(200);
+        expect(resp.json.mode).toBe('lexical');
+        expect(Array.isArray(resp.json.results)).toBe(true);
+        expect(resp.json.results.length).toBeGreaterThan(0);
     });
 
     it('vector mode gracefully falls back or returns results', async () => {
-        const res = await fetch(`${ctx.baseUrl}/search?q=${LEX_TOKEN}&mode=vector&limit=3`, { headers: authHeader('all', 'empty-fallback') });
-        expect(res.status).toBe(200);
-        const json = await res.json();
-        expect(['vector', 'lexical']).toContain(json.mode); // fallback allowed
-        expect(Array.isArray(json.results)).toBe(true);
+        const resp = await vectorSearch(ctx, LEX_TOKEN, 3, { userSuffix: 'empty-fallback' });
+        expect(resp.status).toBe(200);
+        expect(['vector', 'lexical']).toContain(resp.json.mode);
+        expect(Array.isArray(resp.json.results)).toBe(true);
     });
 
     it('hybrid default still succeeds with lexical heavy dataset', async () => {
-        const res = await fetch(`${ctx.baseUrl}/search?q=${LEX_TOKEN}&limit=3`, { headers: authHeader('all', 'empty-fallback') });
-        expect(res.status).toBe(200);
-        const json = await res.json();
-        expect(['hybrid', 'lexical']).toContain(json.mode); // lexical fallback allowed when embeddings disabled
+        const resp = await hybridSearch(ctx, LEX_TOKEN, 3, { userSuffix: 'empty-fallback' });
+        expect(resp.status).toBe(200);
+        expect(['hybrid', 'lexical']).toContain(resp.json.mode);
     });
 });

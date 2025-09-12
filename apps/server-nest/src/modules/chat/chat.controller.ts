@@ -2,6 +2,7 @@ import { Controller, Get, Param, Req, Res, HttpStatus, Patch, Body, Delete, Post
 import { ApiOkResponse, ApiTags, ApiNotFoundResponse, ApiProduces, ApiForbiddenResponse, ApiBadRequestResponse } from '@nestjs/swagger';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import { ChatService } from './chat.service';
+import { ChatGenerationService } from './chat-generation.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
 import { Scopes } from '../auth/scopes.decorator';
@@ -11,7 +12,7 @@ import type { Request, Response } from 'express';
 @Controller('chat')
 @UseGuards(AuthGuard, ScopesGuard)
 export class ChatController {
-    constructor(private readonly chat: ChatService) { }
+    constructor(private readonly chat: ChatService, private readonly gen: ChatGenerationService) { }
     private static readonly UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 
     @Get('conversations')
@@ -95,6 +96,12 @@ export class ChatController {
         res.setHeader('Connection', 'keep-alive');
         (res as any).flushHeaders?.();
 
+        // Emit initial meta frame so tests/dev can see flags early
+        try {
+            const meta = { meta: { chat_model_enabled: this.gen.enabled, google_key: (this.gen as any).hasKey ?? false } };
+            res.write(`data: ${JSON.stringify(meta)}\n\n`);
+        } catch { /* ignore meta errors */ }
+
         // Forced error simulation (for E2E test chat.streaming-error.e2e.spec.ts)
         const forceError = String((req.query?.forceError ?? '')).trim() === '1';
         if (forceError) {
@@ -102,17 +109,74 @@ export class ChatController {
             res.write(`data: ${JSON.stringify({ error: { code: 'upstream-failed', message: 'Simulated upstream model failure' }, done: true })}\n\n`);
             return res.end();
         }
-        const tokens: string[] = [];
-        for (let i = 0; i < 5; i++) {
-            const t = `token-${i}`;
-            tokens.push(t);
-            res.write(`data: ${JSON.stringify({ message: t, index: i, total: 5 })}\n\n`);
-        }
-        // Attempt citation retrieval (best-effort). We treat errors as empty set.
+        // Pre-retrieval for contextual augmentation (move retrieval ahead of generation so model can use it)
         let citations: any[] = [];
+        const userQuestion = conv.messages?.[0]?.content || 'Hello';
         try {
-            citations = await this.chat.retrieveCitations(`conversation:${id}`, 3, orgId, projectId, null) as any[];
-        } catch (_) { /* swallow */ }
+            citations = await this.chat.retrieveCitations(userQuestion, 4, orgId, projectId, null) as any[];
+            if (process.env.E2E_DEBUG_CHAT === '1') {
+                // eslint-disable-next-line no-console
+                console.log('[stream] pre-retrieval citations count=', citations.length);
+            }
+        } catch (e) {
+            if (process.env.E2E_DEBUG_CHAT === '1') {
+                // eslint-disable-next-line no-console
+                console.log('[stream] retrieval failed pre-generation:', (e as Error).message);
+            }
+        }
+        const tokens: string[] = [];
+        if (this.gen.enabled) {
+            if (process.env.E2E_DEBUG_CHAT === '1') {
+                // eslint-disable-next-line no-console
+                console.log(`[stream] generation enabled for conversation ${id}`);
+            }
+            try {
+                let idx = 0;
+                // Assemble contextual prompt (truncate total context to avoid excessive token usage)
+                const contextSnippet = citations.slice(0, 3).map(c => c.text).join('\n---\n').slice(0, 1200);
+                const prompt = `You are a retrieval-augmented assistant. Use ONLY the provided context to answer. If context is empty, say you lack data.\nContext:\n${contextSnippet || '[no-context]'}\n\nQuestion: ${userQuestion}\nAnswer:`;
+                const content = await this.gen.generateStreaming(prompt, (t) => {
+                    const token = t;
+                    tokens.push(token);
+                    res.write(`data: ${JSON.stringify({ message: token, index: idx++, streaming: true })}\n\n`);
+                });
+                // Optional debug: log and stream a truncated preview of the final assembled model response
+                if (process.env.E2E_DEBUG_CHAT === '1') {
+                    const preview = content.slice(0, 400);
+                    // eslint-disable-next-line no-console
+                    console.log('[stream] model full content preview (truncated 400 chars):', preview);
+                    try { res.write(`data: ${JSON.stringify({ meta: { model_content_preview: preview } })}\n\n`); } catch { /* ignore */ }
+                }
+                // Overwrite tokens summary generation based on content length
+            } catch (e) {
+                if (process.env.E2E_DEBUG_CHAT === '1') {
+                    // eslint-disable-next-line no-console
+                    console.log('[stream] generation failed, falling back synthetic:', (e as Error).message);
+                }
+                try { res.write(`data: ${JSON.stringify({ meta: { generation_error: (e as Error).message } })}\n\n`); } catch { /* ignore */ }
+                // Fallback to synthetic if generation fails
+                for (let i = 0; i < 5; i++) {
+                    const t = `token-${i}`;
+                    tokens.push(t);
+                    res.write(`data: ${JSON.stringify({ message: t, index: i, total: 5 })}\n\n`);
+                }
+            }
+        } else {
+            if (process.env.E2E_DEBUG_CHAT === '1') {
+                // eslint-disable-next-line no-console
+                console.log(`[stream] generation disabled (enabled flag false) conversation ${id}`);
+            }
+            try { res.write(`data: ${JSON.stringify({ meta: { generation_disabled: true } })}\n\n`); } catch { /* ignore */ }
+            for (let i = 0; i < 5; i++) {
+                const t = `token-${i}`;
+                tokens.push(t);
+                res.write(`data: ${JSON.stringify({ message: t, index: i, total: 5 })}\n\n`);
+            }
+        }
+        // citations already retrieved pre-generation; if empty we can attempt a fallback retrieval using conversation identifier
+        if (!citations.length) {
+            try { citations = await this.chat.retrieveCitations(`conversation:${id}`, 3, orgId, projectId, null) as any[]; } catch { /* swallow */ }
+        }
         if (citations.length) {
             res.write(`data: ${JSON.stringify({ citations })}\n\n`);
         }

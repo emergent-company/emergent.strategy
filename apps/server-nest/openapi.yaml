@@ -73,7 +73,9 @@ paths:
                 example:
                   error:
                     code: forbidden
-                    message: Forbidden
+                    message: Insufficient permissions
+                    missing_scopes: &ref_0
+                      - read:me
         '500':
           description: Internal server error
           content:
@@ -87,6 +89,7 @@ paths:
         - Auth
       security:
         - bearer: []
+      x-required-scopes: *ref_0
   /settings:
     get:
       operationId: SettingsController_list
@@ -136,7 +139,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_0
+      tags: &ref_1
         - Settings
   /settings/{key}:
     get:
@@ -201,7 +204,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_0
+      tags: *ref_1
   /orgs:
     get:
       operationId: OrgsController_list
@@ -251,7 +254,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_1
+      tags: &ref_2
         - Orgs
     post:
       operationId: OrgsController_create
@@ -325,7 +328,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_2
   /orgs/{id}:
     get:
       operationId: OrgsController_getOne
@@ -387,7 +390,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_2
   /projects:
     get:
       operationId: ProjectsController_list
@@ -448,7 +451,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_2
+      tags: &ref_3
         - Projects
     post:
       operationId: ProjectsController_create
@@ -502,7 +505,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_3
   /search:
     get:
       operationId: SearchController_search
@@ -570,6 +573,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_4
+                      - search:read
         '500':
           description: Internal server error
           content:
@@ -581,6 +586,9 @@ paths:
                     message: Unexpected error
       tags:
         - Search
+      security:
+        - bearer: []
+      x-required-scopes: *ref_4
   /documents:
     get:
       operationId: DocumentsController_list
@@ -639,6 +647,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_5
+                      - documents:read
         '500':
           description: Internal server error
           content:
@@ -648,8 +658,11 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_3
+      tags: &ref_6
         - Documents
+      security:
+        - bearer: []
+      x-required-scopes: *ref_5
     post:
       operationId: DocumentsController_create
       parameters: []
@@ -700,6 +713,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_7
+                      - documents:write
         '500':
           description: Internal server error
           content:
@@ -709,7 +724,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_3
+      tags: *ref_6
+      security:
+        - bearer: []
+      x-required-scopes: *ref_7
   /documents/{id}:
     get:
       operationId: DocumentsController_get
@@ -754,6 +772,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_8
+                      - documents:read
         '500':
           description: Internal server error
           content:
@@ -763,7 +783,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_3
+      tags: *ref_6
+      security:
+        - bearer: []
+      x-required-scopes: *ref_8
     delete:
       operationId: DocumentsController_delete
       parameters:
@@ -775,7 +798,11 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_3
+      tags: *ref_6
+      security:
+        - bearer: []
+      x-required-scopes:
+        - documents:write
   /chunks:
     get:
       operationId: ChunksController_list
@@ -822,6 +849,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_9
+                      - chunks:read
         '500':
           description: Internal server error
           content:
@@ -833,6 +862,9 @@ paths:
                     message: Unexpected error
       tags:
         - Chunks
+      security:
+        - bearer: []
+      x-required-scopes: *ref_9
   /ingest/upload:
     post:
       operationId: IngestionController_upload
@@ -883,6 +915,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_10
+                      - ingest:write
         '500':
           description: Internal server error
           content:
@@ -892,8 +926,11 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_4
+      tags: &ref_11
         - Ingestion
+      security:
+        - bearer: []
+      x-required-scopes: *ref_10
   /ingest/url:
     post:
       operationId: IngestionController_ingestUrl
@@ -944,6 +981,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_12
+                      - ingest:write
         '500':
           description: Internal server error
           content:
@@ -953,7 +992,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
+      tags: *ref_11
+      security:
+        - bearer: []
+      x-required-scopes: *ref_12
   /chat/conversations:
     get:
       operationId: ChatController_listConversations
@@ -995,6 +1037,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_13
+                      - chat:read
         '500':
           description: Internal server error
           content:
@@ -1004,8 +1048,11 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_5
+      tags: &ref_14
         - Chat
+      security:
+        - bearer: []
+      x-required-scopes: *ref_13
     post:
       operationId: ChatController_createConversation
       parameters: []
@@ -1027,7 +1074,11 @@ paths:
                   error:
                     code: bad-request
                     message: message required
-      tags: *ref_5
+      tags: *ref_14
+      security:
+        - bearer: []
+      x-required-scopes:
+        - chat:write
   /chat/{id}:
     get:
       operationId: ChatController_getConversation
@@ -1066,7 +1117,9 @@ paths:
                 example:
                   error:
                     code: forbidden
-                    message: Forbidden
+                    message: Insufficient permissions
+                    missing_scopes: &ref_15
+                      - chat:read
         '404':
           description: Conversation not found
           content:
@@ -1085,7 +1138,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_5
+      tags: *ref_14
+      security:
+        - bearer: []
+      x-required-scopes: *ref_15
     patch:
       operationId: ChatController_rename
       parameters:
@@ -1122,7 +1178,11 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_5
+      tags: *ref_14
+      security:
+        - bearer: []
+      x-required-scopes:
+        - chat:write
     delete:
       operationId: ChatController_delete
       parameters:
@@ -1149,7 +1209,11 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_5
+      tags: *ref_14
+      security:
+        - bearer: []
+      x-required-scopes:
+        - chat:write
   /chat/{id}/stream:
     get:
       operationId: ChatController_streamGet
@@ -1187,10 +1251,16 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_5
+      tags: *ref_14
+      security:
+        - bearer: []
+      x-required-scopes:
+        - chat:read
 info:
   title: Spec Server API
-  description: Generated OpenAPI spec (code-first)
+  description: >-
+    Generated OpenAPI spec (code-first). All protected operations include x-required-scopes and 403 examples with
+    missing_scopes.
   version: 0.2.0
   contact: {}
 tags: []
@@ -1242,9 +1312,7 @@ components:
           description: Project name (unique per organization, case-insensitive)
         orgId:
           type: string
-          description: >-
-            Organization UUID (optional – if omitted, default org will be used
-            or created)
+          description: Organization UUID (optional – if omitted, default org will be used or created)
       required:
         - name
     SearchResultDto:

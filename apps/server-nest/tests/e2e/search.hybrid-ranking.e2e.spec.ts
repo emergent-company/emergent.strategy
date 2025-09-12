@@ -1,6 +1,9 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createE2EContext, E2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
+import { hybridSearch } from './utils/search';
+import { ingestDocs } from './utils/fixtures';
+import { expectStatusOneOf } from './utils';
 
 /**
  * Hybrid / Vector Deterministic Ranking E2E
@@ -25,12 +28,8 @@ const TERM1 = 'hybridrank';
 const TERM2 = 'fusiontoken';
 
 async function ingest(ctx: E2EContext, name: string, content: string) {
-    const form = new FormData();
-    form.append('projectId', ctx.projectId);
-    form.append('filename', `${name}.txt`);
-    form.append('file', new Blob([content], { type: 'text/plain' }), `${name}.txt`);
-    const res = await fetch(`${ctx.baseUrl}/ingest/upload`, { method: 'POST', headers: authHeader('all', 'hybrid-rank'), body: form as any });
-    expect([200, 201]).toContain(res.status);
+    const results = await ingestDocs(ctx, [{ name, content }], { userSuffix: 'hybrid-rank' });
+    expectStatusOneOf(results[0].status, [200, 201], 'hybrid rank ingest');
 }
 
 describe('Search Hybrid Ranking E2E', () => {
@@ -47,26 +46,22 @@ describe('Search Hybrid Ranking E2E', () => {
     afterAll(async () => { await ctx.close(); });
 
     it('prioritizes dual-signal document in hybrid mode', async () => {
-        const url = `${ctx.baseUrl}/search?q=${encodeURIComponent(`${TERM1} ${TERM2}`)}&limit=10`;
-        const res = await fetch(url, { headers: authHeader('all', 'hybrid-rank') });
-        expect(res.status).toBe(200);
-        const json = await res.json() as SearchResponse;
+        const resp = await hybridSearch(ctx, `${TERM1} ${TERM2}`, 10, { userSuffix: 'hybrid-rank' });
+        expect(resp.status).toBe(200);
+        const json = resp.json;
         expect(Array.isArray(json.results)).toBe(true);
-        if (!json.results.length) return; // nothing to assert if no results (should not happen)
+        if (!json.results.length) return;
         if (json.mode === 'hybrid') {
-            // Top snippet should contain both terms
-            const top = json.results[0].snippet.toLowerCase();
+            const top = (json.results[0].snippet || '').toLowerCase();
             expect(top.includes(TERM1.toLowerCase())).toBe(true);
             expect(top.includes(TERM2.toLowerCase())).toBe(true);
         } else if (json.mode === 'lexical') {
-            // Find first snippet containing both terms and one containing only TERM1
-            const bothIdx = json.results.findIndex(r => r.snippet.toLowerCase().includes(TERM1) && r.snippet.toLowerCase().includes(TERM2));
-            const onlyIdx = json.results.findIndex(r => r.snippet.toLowerCase().includes(TERM1) && !r.snippet.toLowerCase().includes(TERM2));
+            const bothIdx = json.results.findIndex(r => (r.snippet || '').toLowerCase().includes(TERM1) && (r.snippet || '').toLowerCase().includes(TERM2));
+            const onlyIdx = json.results.findIndex(r => (r.snippet || '').toLowerCase().includes(TERM1) && !(r.snippet || '').toLowerCase().includes(TERM2));
             if (bothIdx !== -1 && onlyIdx !== -1) {
                 expect(bothIdx).toBeLessThan(onlyIdx);
             }
         } else if (json.mode === 'vector') {
-            // Vector-only environment; assert presence only.
             expect(json.results.length).toBeGreaterThan(0);
         }
     });

@@ -112,7 +112,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Forbidden"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "read:me"
+                      ]
                     }
                   }
                 }
@@ -142,6 +145,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "read:me"
         ]
       }
     },
@@ -940,7 +946,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "search:read"
+                      ]
                     }
                   }
                 }
@@ -965,6 +974,14 @@
         },
         "tags": [
           "Search"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "search:read"
         ]
       }
     },
@@ -1052,7 +1069,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "documents:read"
+                      ]
                     }
                   }
                 }
@@ -1077,6 +1097,14 @@
         },
         "tags": [
           "Documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "documents:read"
         ]
       },
       "post": {
@@ -1152,7 +1180,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "documents:write"
+                      ]
                     }
                   }
                 }
@@ -1177,6 +1208,14 @@
         },
         "tags": [
           "Documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "documents:write"
         ]
       }
     },
@@ -1243,7 +1282,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "documents:read"
+                      ]
                     }
                   }
                 }
@@ -1268,6 +1310,14 @@
         },
         "tags": [
           "Documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "documents:read"
         ]
       },
       "delete": {
@@ -1289,6 +1339,14 @@
         },
         "tags": [
           "Documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "documents:write"
         ]
       }
     },
@@ -1358,7 +1416,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "chunks:read"
+                      ]
                     }
                   }
                 }
@@ -1383,6 +1444,14 @@
         },
         "tags": [
           "Chunks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "chunks:read"
         ]
       }
     },
@@ -1458,7 +1527,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "ingest:write"
+                      ]
                     }
                   }
                 }
@@ -1483,6 +1555,14 @@
         },
         "tags": [
           "Ingestion"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "ingest:write"
         ]
       }
     },
@@ -1558,7 +1638,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "ingest:write"
+                      ]
                     }
                   }
                 }
@@ -1583,6 +1666,14 @@
         },
         "tags": [
           "Ingestion"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "ingest:write"
         ]
       }
     },
@@ -1645,7 +1736,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "chat:read"
+                      ]
                     }
                   }
                 }
@@ -1670,6 +1764,14 @@
         },
         "tags": [
           "Chat"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "chat:read"
         ]
       },
       "post": {
@@ -1707,6 +1809,14 @@
         },
         "tags": [
           "Chat"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "chat:write"
         ]
       }
     },
@@ -1765,7 +1875,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Forbidden"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "chat:read"
+                      ]
                     }
                   }
                 }
@@ -1805,6 +1918,14 @@
         },
         "tags": [
           "Chat"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "chat:read"
         ]
       },
       "patch": {
@@ -1867,6 +1988,14 @@
         },
         "tags": [
           "Chat"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "chat:write"
         ]
       },
       "delete": {
@@ -1913,6 +2042,14 @@
         },
         "tags": [
           "Chat"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "chat:write"
         ]
       }
     },
@@ -1974,13 +2111,21 @@
         },
         "tags": [
           "Chat"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "chat:read"
         ]
       }
     }
   },
   "info": {
     "title": "Spec Server API",
-    "description": "Generated OpenAPI spec (code-first)",
+    "description": "Generated OpenAPI spec (code-first). All protected operations include x-required-scopes and 403 examples with missing_scopes.",
     "version": "0.2.0",
     "contact": {}
   },
