@@ -22,7 +22,7 @@ This repository describes a system that ingests all “facts” about a potentia
 Storage/Retrieval: Postgres with pgvector for embeddings and built-in FTS for keyword search; hybrid fusion (vector + FTS) is the default; optional Neo4j for graph reranking.
 Model Choice: Google Gemini. Embeddings use `text-embedding-004`.
 
-Dev server is available under `src/server.ts`. See RUNBOOK.md for how to run Postgres (Docker) and the server.
+Backend server is consolidated under `apps/server-nest` (NestJS). See RUNBOOK.md for running Postgres (Docker) and the Nest server.
 
 ## Frontend (Admin UI)
 

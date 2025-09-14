@@ -77,19 +77,21 @@ async function bootstrap() {
     const openapiYamlPath = join(process.cwd(), 'openapi.yaml');
     writeFileSync(openapiYamlPath, yaml.dump(document), 'utf-8');
 
-    // Side-by-side copy into legacy server openapi folder (non-fatal if path missing)
-    try {
-        const legacyDir = join(process.cwd(), '..', 'server', 'openapi');
-        writeFileSync(join(legacyDir, 'nest-openapi.yaml'), yaml.dump(document), 'utf-8');
-    } catch (e) {
-        // eslint-disable-next-line no-console
-        console.warn('Could not copy spec to legacy openapi dir (optional):', (e as Error).message);
-    }
+    // Legacy server directory removed; no longer attempt to copy spec there.
 
     SwaggerModule.setup('api', app, () => document);
     app.useGlobalFilters(new GlobalHttpExceptionFilter());
 
     const configService = app.get(AppConfigService);
+    // Log chat model enablement state (always) for clarity during startup
+    const chatEnabled = configService.chatModelEnabled;
+    const keyPresent = !!configService.googleApiKey;
+    // eslint-disable-next-line no-console
+    console.log('[startup] chat-model:', {
+        enabled: chatEnabled,
+        googleApiKey: keyPresent ? 'present' : 'missing',
+        CHAT_MODEL_ENABLED_env: process.env.CHAT_MODEL_ENABLED || 'unset',
+    });
     const port = configService.port;
     await app.listen(port);
     // eslint-disable-next-line no-console

@@ -55,8 +55,8 @@ export class OrgsService {
             if (this.cfg.demoSeedOrgs && this.data.some(o => o.name.toLowerCase() === name.toLowerCase())) {
                 throw new ConflictException({ message: 'Organization name already exists', details: { name: ['already exists'] } });
             }
-            if (this.data.length >= 10) {
-                throw new ConflictException('Organization limit reached (10)');
+            if (this.data.length >= 100) {
+                throw new ConflictException('Organization limit reached (100)');
             }
             if (!this.cfg.demoSeedOrgs) {
                 // When demo seed disabled and DB offline, creating orgs is unsupported -> simulate minimal create
@@ -72,8 +72,8 @@ export class OrgsService {
         try {
             const countRes = await this.db.query<{ count: string }>('SELECT COUNT(*)::text as count FROM kb.orgs');
             const count = parseInt(countRes.rows[0]?.count || '0', 10);
-            if (count >= 10) {
-                throw new ConflictException('Organization limit reached (10)');
+            if (count >= 100) {
+                throw new ConflictException('Organization limit reached (100)');
             }
             try {
                 const res = await this.db.query<OrgRow>('INSERT INTO kb.orgs(name) VALUES($1) RETURNING id, name, created_at, updated_at', [name]);
@@ -90,8 +90,8 @@ export class OrgsService {
                 if (this.cfg.demoSeedOrgs && this.data.some(o => o.name.toLowerCase() === name.toLowerCase())) {
                     throw new ConflictException({ message: 'Organization name already exists', details: { name: ['already exists'] } });
                 }
-                if (this.data.length >= 10) {
-                    throw new ConflictException('Organization limit reached (10)');
+                if (this.data.length >= 100) {
+                    throw new ConflictException('Organization limit reached (100)');
                 }
                 if (!this.cfg.demoSeedOrgs) {
                     const id = `mem_${Math.random().toString(36).slice(2, 10)}`;
@@ -102,6 +102,22 @@ export class OrgsService {
                 this.data.push(org);
                 return org;
             }
+            throw e;
+        }
+    }
+
+    async delete(id: string): Promise<boolean> {
+        if (!this.db.isOnline()) {
+            if (!this.cfg.demoSeedOrgs) return false; // offline delete noop when demo seed disabled
+            const before = this.data.length;
+            this.data = this.data.filter(o => o.id !== id);
+            return this.data.length !== before;
+        }
+        try {
+            const res = await this.db.query('DELETE FROM kb.orgs WHERE id = $1 RETURNING id', [id]);
+            return (res.rowCount || 0) > 0;
+        } catch (e: any) {
+            if (e && e.code === '42P01') return false; // table missing
             throw e;
         }
     }

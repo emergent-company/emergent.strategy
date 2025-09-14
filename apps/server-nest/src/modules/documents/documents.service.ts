@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../../common/database/database.service';
 import { DocumentDto } from './dto/document.dto';
 
@@ -71,18 +71,26 @@ export class DocumentsService {
     }
 
     async create(body: { filename?: string; projectId?: string; content?: string; orgId?: string }): Promise<DocumentDto> {
-        // Resolve project (prefer provided, else pick first existing)
-        let projectId = body.projectId;
+        const projectId = body.projectId;
         if (!projectId) {
-            const p = await this.db.query<{ id: string }>('SELECT id FROM kb.projects LIMIT 1');
-            if (p.rowCount) projectId = p.rows[0].id; else throw new Error('No project available');
+            throw new BadRequestException({ error: { code: 'bad-request', message: 'Unknown projectId' } });
         }
+        // Atomic existence + insert to avoid race causing FK violation (uses CTE)
         const ins = await this.db.query<DocumentRow>(
-            `INSERT INTO kb.documents(org_id, project_id, filename, content) VALUES($1,$2,$3,$4)
-             RETURNING id, org_id, project_id, filename, source_url, mime_type, created_at, updated_at,
-               0 as chunks`,
+            `WITH target AS (
+                SELECT p.id AS project_id, $1::uuid AS org_id
+                FROM kb.projects p
+                WHERE p.id = $2
+                LIMIT 1
+            )
+            INSERT INTO kb.documents(org_id, project_id, filename, content)
+            SELECT target.org_id, target.project_id, $3, $4 FROM target
+            RETURNING id, org_id, project_id, filename, source_url, mime_type, created_at, updated_at, 0 as chunks`,
             [body.orgId || null, projectId, body.filename || 'unnamed.txt', body.content || ''],
         );
+        if (!ins.rowCount) {
+            throw new BadRequestException({ error: { code: 'bad-request', message: 'Unknown projectId' } });
+        }
         return this.mapRow(ins.rows[0]);
     }
 

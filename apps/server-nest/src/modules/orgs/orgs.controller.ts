@@ -1,4 +1,4 @@
-import { Controller, Get, Param, NotFoundException, UseInterceptors, Post, Body, HttpCode } from '@nestjs/common';
+import { Controller, Get, Param, NotFoundException, UseInterceptors, Post, Body, HttpCode, Delete } from '@nestjs/common';
 import { ApiOkResponse, ApiTags, ApiBadRequestResponse, ApiNotFoundResponse, ApiCreatedResponse, ApiConflictResponse } from '@nestjs/swagger';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import { OrgDto } from './dto/org.dto';
@@ -47,5 +47,15 @@ export class OrgsController {
     @ApiStandardErrors()
     async create(@Body(new ValidationPipe({ whitelist: true, transform: true })) dto: CreateOrgDto): Promise<OrgDto> {
         return this.orgs.create(dto.name.trim());
+    }
+
+    @Delete(':id')
+    @ApiOkResponse({ description: 'Organization deleted (projects, documents, chunks, conversations cascade)' })
+    @ApiNotFoundResponse({ description: 'Org not found', schema: { example: { error: { code: 'not-found', message: 'Org not found' } } } })
+    @ApiStandardErrors({ notFound: true })
+    async delete(@Param('id') id: string) {
+        const ok = await this.orgs.delete(id);
+        if (!ok) throw new NotFoundException({ error: { code: 'not-found', message: 'Org not found' } });
+        return { status: 'deleted' };
     }
 }

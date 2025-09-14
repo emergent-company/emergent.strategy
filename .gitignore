@@ -1,5 +1,14 @@
 node_modules/
 dist/
+.next/
+
+# Ignore build outputs in all packages (explicit paths to avoid accidental root-level patterns issues)
+apps/server-nest/dist/
+apps/server-nest/dist-openapi/
+
+# Generic patterns (keep after explicit so intent is clear)
+**/dist-openapi/
+
 .env
 .DS_Store
 
@@ -30,4 +39,7 @@ lcov.info
 
 # Server runtime logs (Nest error log output)
 apps/server-nest/logs/
+
+# Misc
+*.log
 

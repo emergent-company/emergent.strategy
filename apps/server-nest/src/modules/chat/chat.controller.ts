@@ -1,5 +1,47 @@
 import { Controller, Get, Param, Req, Res, HttpStatus, Patch, Body, Delete, Post, UseGuards, BadRequestException } from '@nestjs/common';
-import { ApiOkResponse, ApiTags, ApiNotFoundResponse, ApiProduces, ApiForbiddenResponse, ApiBadRequestResponse } from '@nestjs/swagger';
+import { ApiOkResponse, ApiTags, ApiNotFoundResponse, ApiProduces, ApiForbiddenResponse, ApiBadRequestResponse, ApiBody, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
+import { IsArray, IsBoolean, IsOptional, IsString, IsUUID, Max, Min, ValidateNested, ArrayMaxSize, ArrayNotEmpty } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class HistoryItemDto {
+    @IsString()
+    role!: 'user' | 'assistant' | 'system';
+
+    @IsString()
+    content!: string;
+}
+
+class ChatRequestDto {
+    @IsOptional()
+    @IsString()
+    message?: string;
+
+    @IsOptional()
+    @IsUUID()
+    conversationId?: string;
+
+    @IsOptional()
+    @Min(1)
+    @Max(20)
+    topK?: number;
+
+    @IsOptional()
+    @IsArray()
+    @ArrayNotEmpty()
+    @ArrayMaxSize(50)
+    @IsUUID('4', { each: true })
+    documentIds?: string[];
+
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => HistoryItemDto)
+    history?: HistoryItemDto[];
+
+    @IsOptional()
+    @IsBoolean()
+    isPrivate?: boolean;
+}
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import { ChatService } from './chat.service';
 import { ChatGenerationService } from './chat-generation.service';
@@ -8,7 +50,68 @@ import { ScopesGuard } from '../auth/scopes.guard';
 import { Scopes } from '../auth/scopes.decorator';
 import type { Request, Response } from 'express';
 
+// Extra schema models for richer OpenAPI component documentation of streaming events
+class CitationDto {
+    @IsUUID()
+    documentId!: string;
+
+    @IsOptional()
+    @IsString()
+    filename?: string;
+
+    @IsOptional()
+    @IsString()
+    sourceUrl?: string;
+
+    @IsOptional()
+    @IsString()
+    text?: string;
+
+    @IsOptional()
+    score?: number;
+}
+
+// SSE event variants (union). Represent each possible frame shape for POST /chat/stream
+class ChatStreamMetaEvent {
+    type!: 'meta';
+    conversationId!: string;
+    citations!: CitationDto[];
+}
+class ChatStreamTokenEvent {
+    type!: 'token';
+    token!: string;
+}
+class ChatStreamErrorEvent {
+    type!: 'error';
+    error!: string;
+}
+class ChatStreamDoneEvent {
+    type!: 'done';
+}
+
+// GET stream event frame variants (SSE) (different shape than POST stream for backward compatibility)
+class GetChatStreamMetaFrame { meta!: { chat_model_enabled: boolean; google_key: boolean } }
+class GetChatStreamTokenFrame { message!: string; index!: number; streaming?: boolean; total?: number }
+class GetChatStreamCitationsFrame { citations!: CitationDto[] }
+class GetChatStreamSummaryFrame { summary!: true; token_count!: number; citations_count!: number }
+class GetChatStreamDoneFrame { done!: true; message!: string }
+class GetChatStreamErrorFrame { error!: { code: string; message: string }; done?: true }
+
 @ApiTags('Chat')
+@ApiExtraModels(
+    ChatRequestDto,
+    CitationDto,
+    ChatStreamMetaEvent,
+    ChatStreamTokenEvent,
+    ChatStreamErrorEvent,
+    ChatStreamDoneEvent,
+    GetChatStreamMetaFrame,
+    GetChatStreamTokenFrame,
+    GetChatStreamCitationsFrame,
+    GetChatStreamSummaryFrame,
+    GetChatStreamDoneFrame,
+    GetChatStreamErrorFrame,
+)
 @Controller('chat')
 @UseGuards(AuthGuard, ScopesGuard)
 export class ChatController {
@@ -67,7 +170,31 @@ export class ChatController {
 
     @Get(':id/stream')
     @ApiProduces('text/event-stream')
-    @ApiOkResponse({ description: 'Chat streaming endpoint (SSE)', content: { 'text/event-stream': { schema: { type: 'string', example: 'data: {"message":"token-0"}\n\n' } } } })
+    @ApiOkResponse({
+        description: 'Chat streaming endpoint (SSE). Emits a sequence of JSON frames each prefixed by "data: ".',
+        content: {
+            'text/event-stream': {
+                schema: {
+                    oneOf: [
+                        { $ref: getSchemaPath(GetChatStreamMetaFrame) },
+                        { $ref: getSchemaPath(GetChatStreamTokenFrame) },
+                        { $ref: getSchemaPath(GetChatStreamCitationsFrame) },
+                        { $ref: getSchemaPath(GetChatStreamSummaryFrame) },
+                        { $ref: getSchemaPath(GetChatStreamDoneFrame) },
+                        { $ref: getSchemaPath(GetChatStreamErrorFrame) },
+                    ],
+                },
+                examples: {
+                    meta: { value: 'data: {"meta":{"chat_model_enabled":true,"google_key":true}}\n\n' },
+                    token: { value: 'data: {"message":"token-0","index":0,"streaming":true}\n\n' },
+                    citations: { value: 'data: {"citations":[{"documentId":"11111111-1111-4111-8111-111111111111"}]}\n\n' },
+                    summary: { value: 'data: {"summary":true,"token_count":5,"citations_count":2}\n\n' },
+                    done: { value: 'data: {"done":true,"message":"[DONE]"}\n\n' },
+                    error: { value: 'data: {"error":{"code":"upstream-failed","message":"Simulated upstream model failure"},"done":true}\n\n' },
+                },
+            },
+        },
+    })
     @ApiBadRequestResponse({ description: 'Missing project header', schema: { example: { error: { code: 'bad-request', message: 'x-project-id header required' } } } })
     @ApiNotFoundResponse({ description: 'Conversation not found', schema: { example: { error: { code: 'not-found', message: 'Conversation not found' } } } })
     @Scopes('chat:read')
@@ -233,6 +360,96 @@ export class ChatController {
         if (result === 'not-found') return res.status(HttpStatus.NOT_FOUND).json({ error: { code: 'not-found', message: 'Conversation not found' } });
         if (result === 'forbidden') return res.status(HttpStatus.FORBIDDEN).json({ error: { code: 'forbidden', message: 'Forbidden' } });
         return res.status(HttpStatus.NO_CONTENT).send();
+    }
+
+    // Compatibility endpoint: POST /chat/stream (SSE) expected by admin frontend useChat hook
+    // Mirrors simple Express server behavior: create (or reuse) conversation, persist user message, stream citations + tokens
+    @Post('stream')
+    @ApiProduces('text/event-stream')
+    @ApiOkResponse({
+        description: 'Chat streaming endpoint (SSE). Each line is an SSE data frame beginning with "data: ", followed by one of the JSON event shapes.',
+        content: {
+            'text/event-stream': {
+                schema: {
+                    oneOf: [
+                        { $ref: getSchemaPath(ChatStreamMetaEvent) },
+                        { $ref: getSchemaPath(ChatStreamTokenEvent) },
+                        { $ref: getSchemaPath(ChatStreamErrorEvent) },
+                        { $ref: getSchemaPath(ChatStreamDoneEvent) },
+                    ],
+                    description: 'Union of possible chat stream events (serialized per line as SSE frame).',
+                },
+                examples: {
+                    meta: { value: 'data: {"type":"meta","conversationId":"11111111-1111-4111-8111-111111111111","citations":[]}\n\n' },
+                    token: { value: 'data: {"type":"token","token":"Hello"}\n\n' },
+                    error: { value: 'data: {"type":"error","error":"model key missing"}\n\n' },
+                    done: { value: 'data: {"type":"done"}\n\n' },
+                },
+            },
+        },
+    })
+    @ApiBadRequestResponse({ description: 'Bad request', schema: { example: { error: { code: 'bad-request', message: 'message required' } } } })
+    @ApiBody({ type: ChatRequestDto })
+    @ApiStandardErrors()
+    @Scopes('chat:write')
+    async streamPost(@Body() body: ChatRequestDto, @Req() req: any, @Res() res: Response) {
+        const message = String(body?.message || '').trim();
+        if (!message) return res.status(HttpStatus.BAD_REQUEST).json({ error: { code: 'bad-request', message: 'message required' } });
+        const projectId = (req.headers['x-project-id'] as string | undefined) || null;
+        if (!projectId) return res.status(HttpStatus.BAD_REQUEST).json({ error: { code: 'bad-request', message: 'x-project-id header required' } });
+        const orgId = (req.headers['x-org-id'] as string | undefined) || null;
+        const userId = this.chat.mapUserId(req.user?.sub);
+        const topK = Math.min(Math.max(Number(body?.topK || 5), 1), 20);
+        const filterIds = Array.isArray(body?.documentIds) && body.documentIds.length ? body.documentIds : null;
+    let convId: string;
+        try {
+            convId = await this.chat.createConversationIfNeeded(body?.conversationId, message, userId, orgId, projectId, !!body?.isPrivate);
+            // If we reused an existing conversation (createConversationIfNeeded only persists message when NEW), persist user message explicitly.
+            if (body?.conversationId && body.conversationId === convId) {
+                await this.chat.persistUserMessage(convId, message);
+            }
+        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+            if ((e as Error).message === 'forbidden') return res.status(HttpStatus.FORBIDDEN).json({ error: { code: 'forbidden', message: 'Forbidden' } });
+            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: { code: 'internal', message: 'failed to initialize conversation' } });
+        }
+    // Prepare SSE headers (explicit 200 OK status)
+    res.status(HttpStatus.OK);
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+        (res as any).flushHeaders?.();
+
+        // Retrieve citations (vector + lexical hybrid). Errors -> empty citations.
+        let citations: any[] = [];
+        try { citations = await this.chat.retrieveCitations(message, topK, orgId, projectId, filterIds) as any[]; } catch { citations = []; }
+        // Emit meta frame first with conversationId & citations
+        try { res.write(`data: ${JSON.stringify({ type: 'meta', conversationId: convId, citations })}\n\n`); } catch { /* ignore */ }
+
+        const tokens: string[] = [];
+        const canGenerate = this.gen.enabled && this.gen.hasKey;
+        if (canGenerate) {
+            try {
+                // Assemble lightweight context prompt
+                const context = citations.map((c, i) => `[${i + 1}] ${(c.filename || c.sourceUrl || c.documentId || '').toString()}\n${c.text}`).join('\n\n').slice(0, 4000);
+                const prompt = `You are a retrieval-augmented assistant. Use ONLY the provided context. If insufficient, say you don't know.\nContext:\n${context || '[no-context]'}\n\nQuestion: ${message}\nAnswer:`;
+                await this.gen.generateStreaming(prompt, (t) => {
+                    tokens.push(t);
+                    try { res.write(`data: ${JSON.stringify({ type: 'token', token: t })}\n\n`); } catch { /* swallow */ }
+                });
+            } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+                try { res.write(`data: ${JSON.stringify({ type: 'error', error: (e as Error).message || 'generation failed' })}\n\n`); } catch { }
+            }
+        } else {
+            // Model disabled or missing key: emit a clear error frame and finish
+            try { res.write(`data: ${JSON.stringify({ type: 'error', error: this.gen.enabled ? 'model key missing' : 'chat model disabled' })}\n\n`); } catch { /* ignore */ }
+        }
+
+        // Persist assistant message if any tokens were produced
+        if (tokens.length) {
+            try { await this.chat.persistAssistantMessage(convId, tokens.join(' '), citations); } catch { /* ignore persistence errors */ }
+        }
+        try { res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`); } catch { /* ignore */ }
+        res.end();
     }
 }
 

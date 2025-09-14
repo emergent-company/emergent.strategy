@@ -24,7 +24,7 @@ describe('Validation - Ingestion endpoints', () => {
     it('invalid upload payload returns 422 validation-failed with field details', async () => {
         const res = await fetch(`${ctx.baseUrl}/ingest/upload`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer e2e-all' },
             body: JSON.stringify({}), // missing required projectId & file
         });
         expect(res.status).toBe(422);
@@ -38,7 +38,7 @@ describe('Validation - Ingestion endpoints', () => {
     it('invalid url payload returns 422 validation-failed', async () => {
         const res = await fetch(`${ctx.baseUrl}/ingest/url`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer e2e-all' },
             body: JSON.stringify({ url: 'notaurl' }), // lacks protocol
         });
         expect(res.status).toBe(422);

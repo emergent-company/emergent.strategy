@@ -33,23 +33,45 @@ function mapUserSubToUuid(sub: string): string {
     return `${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}`;
 }
 
+// Concurrency‑safe creation of shared base org/project used by many specs.
+// Multiple workers may attempt to bootstrap simultaneously; we avoid race windows by
+// using INSERT .. ON CONFLICT DO NOTHING and falling back to a SELECT when the row
+// already exists. This prevents duplicate key violations crashing context startup.
 async function ensureBaseFixtures(pool: Pool): Promise<{ orgId: string; projectId: string }> {
-    const orgSel = await pool.query<{ id: string }>(`SELECT id FROM kb.orgs WHERE name = $1 LIMIT 1`, ['E2E Org']);
-    let orgId: string;
-    if (orgSel.rowCount) {
-        orgId = orgSel.rows[0].id;
-    } else {
-        const ins = await pool.query<{ id: string }>(`INSERT INTO kb.orgs(name) VALUES($1) RETURNING id`, ['E2E Org']);
-        orgId = ins.rows[0].id;
+    let orgId: string | undefined;
+    {
+        const ins = await pool.query<{ id: string }>(
+            `INSERT INTO kb.orgs(name) VALUES($1)
+             ON CONFLICT (name) DO NOTHING
+             RETURNING id`,
+            ['E2E Org']
+        );
+        if (ins.rowCount) {
+            orgId = ins.rows[0].id;
+        } else {
+            const sel = await pool.query<{ id: string }>(`SELECT id FROM kb.orgs WHERE name = $1 LIMIT 1`, ['E2E Org']);
+            if (!sel.rowCount) throw new Error('Failed to locate or create base E2E Org');
+            orgId = sel.rows[0].id;
+        }
     }
-    const projSel = await pool.query<{ id: string }>(`SELECT id FROM kb.projects WHERE org_id = $1 AND name = $2 LIMIT 1`, [orgId, 'E2E Project']);
-    let projectId: string;
-    if (projSel.rowCount) {
-        projectId = projSel.rows[0].id;
-    } else {
-        const ins = await pool.query<{ id: string }>(`INSERT INTO kb.projects(org_id, name) VALUES($1,$2) RETURNING id`, [orgId, 'E2E Project']);
-        projectId = ins.rows[0].id;
+
+    let projectId: string | undefined;
+    {
+        const ins = await pool.query<{ id: string }>(
+            `INSERT INTO kb.projects(org_id, name) VALUES($1,$2)
+             ON CONFLICT DO NOTHING
+             RETURNING id`,
+            [orgId, 'E2E Project']
+        );
+        if (ins.rowCount) {
+            projectId = ins.rows[0].id;
+        } else {
+            const sel = await pool.query<{ id: string }>(`SELECT id FROM kb.projects WHERE org_id = $1 AND name = $2 LIMIT 1`, [orgId, 'E2E Project']);
+            if (!sel.rowCount) throw new Error('Failed to locate or create base E2E Project');
+            projectId = sel.rows[0].id;
+        }
     }
+
     return { orgId, projectId };
 }
 
@@ -102,6 +124,8 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
     // Ensure required env for DatabaseService before NestFactory create
     // Explicitly disable SKIP_DB for scenario/e2e contexts; tests rely on minimal schema being created.
     if (process.env.SKIP_DB) delete process.env.SKIP_DB;
+    // Enable static test tokens mode explicitly (Option 3) so fixtures like e2e-* are accepted
+    process.env.AUTH_TEST_STATIC_TOKENS = process.env.AUTH_TEST_STATIC_TOKENS || '1';
     process.env.PGHOST = process.env.PGHOST || 'localhost';
     process.env.PGPORT = process.env.PGPORT || '5432';
     process.env.PGUSER = process.env.PGUSER || 'spec';
@@ -127,24 +151,41 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
         const ready = await waitForRelation(pool, rel);
         if (!ready) throw new Error(`Timed out waiting for ${rel} to be created`);
     }
-    let { orgId, projectId } = await ensureBaseFixtures(pool);
-    // If a userSuffix is provided, create an isolated project for this context to avoid
-    // cross-test interference where other specs clean up the shared base project documents.
-    if (userSuffix) {
-        const uniqueName = `E2E Project ${userSuffix} ${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-        let attempts = 5;
-        while (attempts--) {
-            try {
-                const projIns = await pool.query<{ id: string }>(`INSERT INTO kb.projects(org_id, name) VALUES($1,$2) RETURNING id`, [orgId, uniqueName]);
-                projectId = projIns.rows[0].id;
-                break;
-            } catch (e: any) {
-                if (e.code === '40P01' && attempts > 0) {
-                    // Deadlock detected, retry after short backoff
-                    await new Promise(r => setTimeout(r, 50));
-                    continue;
+    // Default to isolation ON unless explicitly disabled. This reduces cross‑spec state leakage.
+    const isolate = process.env.E2E_ISOLATE_ORGS !== '0';
+    let createdIsolatedOrg = false;
+    let createdIsolatedProject = false;
+    let orgId: string; let projectId: string;
+    if (isolate) {
+        // Fully isolated org + project per context. Enables future migration away from shared base fixture.
+        // Keeps naming deterministic for debugging while guaranteeing uniqueness.
+        const orgName = `Isolated Org ${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+        const orgIns = await pool.query<{ id: string }>(`INSERT INTO kb.orgs(name) VALUES($1) RETURNING id`, [orgName]);
+        orgId = orgIns.rows[0].id;
+        createdIsolatedOrg = true;
+        const projName = `Isolated Project ${userSuffix || 'base'} ${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+        const projIns = await pool.query<{ id: string }>(`INSERT INTO kb.projects(org_id, name) VALUES($1,$2) RETURNING id`, [orgId, projName]);
+        projectId = projIns.rows[0].id;
+        createdIsolatedProject = true;
+    } else {
+        // Historical shared base org/project (more performant; stable cross-spec assumptions)
+        ({ orgId, projectId } = await ensureBaseFixtures(pool));
+        // Optionally create per-suffix isolated project inside shared org (legacy behavior)
+        if (userSuffix) {
+            const uniqueName = `E2E Project ${userSuffix} ${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+            let attempts = 5;
+            while (attempts--) {
+                try {
+                    const projIns = await pool.query<{ id: string }>(`INSERT INTO kb.projects(org_id, name) VALUES($1,$2) RETURNING id`, [orgId, uniqueName]);
+                    projectId = projIns.rows[0].id;
+                    break;
+                } catch (e: any) {
+                    if (e.code === '40P01' && attempts > 0) {
+                        await new Promise(r => setTimeout(r, 50));
+                        continue;
+                    }
+                    throw e;
                 }
-                throw e;
             }
         }
     }
@@ -159,6 +200,21 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
         userSub,
         cleanup: async () => cleanupUserData(pool, projectId, userSub),
         cleanupProjectArtifacts: async (extraProjectId: string) => cleanupUserData(pool, extraProjectId, userSub),
-        close: async () => { await pool.end(); await boot.close(); },
+        close: async () => {
+            try {
+                if (isolate) {
+                    // Best-effort cleanup of isolated project/org (child tables cascade via FKs)
+                    if (createdIsolatedProject) {
+                        try { await pool.query('DELETE FROM kb.projects WHERE id = $1', [projectId]); } catch { /* ignore */ }
+                    }
+                    if (createdIsolatedOrg) {
+                        try { await pool.query('DELETE FROM kb.orgs WHERE id = $1', [orgId]); } catch { /* ignore */ }
+                    }
+                }
+            } finally {
+                await pool.end();
+                await boot.close();
+            }
+        },
     };
 }

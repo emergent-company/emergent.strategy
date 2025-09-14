@@ -388,13 +388,85 @@ paths:
                     code: internal
                     message: Unexpected error
       tags: *ref_1
+    delete:
+      operationId: delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: >-
+            Organization deleted (projects, documents, chunks, conversations
+            cascade)
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '404':
+          description: Org not found
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: not-found
+                    message: Org not found
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_1
   /projects:
     get:
       operationId: list
-      parameters: []
+      parameters:
+        - name: limit
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: orgId
+          required: false
+          in: query
+          description: >-
+            Filter projects by organization id (must be explicit elsewhere when
+            creating projects)
+          schema:
+            type: string
       responses:
         '200':
-          description: List projects
+          description: List projects (must create at least one before ingesting documents)
           content:
             application/json:
               schema:
@@ -437,8 +509,115 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags:
+      tags: &ref_2
         - Projects
+    post:
+      operationId: create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectDto'
+      responses:
+        '200':
+          description: Create a project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDto'
+        '400':
+          description: Validation / duplicate / org errors
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: duplicate
+                    message: Project with this name exists in org
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_2
+  /projects/{id}:
+    delete:
+      operationId: delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted project
+          content:
+            application/json:
+              schema:
+                example:
+                  status: deleted
+        '400':
+          description: Invalid id
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid id
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_2
   /search:
     get:
       operationId: search
@@ -584,8 +763,68 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_2
+      tags: &ref_3
         - Documents
+    post:
+      operationId: create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                filename:
+                  type: string
+                projectId:
+                  type: string
+                  format: uuid
+                content:
+                  type: string
+      responses:
+        '200':
+          description: Created document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_3
   /documents/{id}:
     get:
       operationId: get
@@ -639,7 +878,19 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_3
+    delete:
+      operationId: delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      tags: *ref_3
   /chunks:
     get:
       operationId: list
@@ -714,9 +965,9 @@ paths:
             application/json:
               schema:
                 example:
-                  id: job_1
-                  status: queued
-                  filename: spec.md
+                  documentId: 11111111-2222-3333-4444-555555555555
+                  chunks: 12
+                  alreadyExists: false
         '400':
           description: Invalid upload payload
           content:
@@ -756,7 +1007,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_3
+      tags: &ref_4
         - Ingestion
   /ingest/url:
     post:
@@ -775,9 +1026,9 @@ paths:
             application/json:
               schema:
                 example:
-                  id: job_2
-                  status: queued
-                  url: https://example.com/spec.md
+                  documentId: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+                  chunks: 8
+                  alreadyExists: false
         '400':
           description: Invalid URL payload
           content:
@@ -817,7 +1068,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_3
+      tags: *ref_4
   /chat/conversations:
     get:
       operationId: listConversations
@@ -829,8 +1080,9 @@ paths:
             application/json:
               schema:
                 example:
-                  - id: c1
-                    updatedAt: '2025-01-01T00:00:00Z'
+                  - id: 11111111-1111-4111-8111-111111111111
+                    title: 2025-01-01 — Hello world
+                    is_private: false
         '400':
           description: Bad request
           content:
@@ -839,7 +1091,7 @@ paths:
                 example:
                   error:
                     code: bad-request
-                    message: Invalid query
+                    message: Invalid request
         '401':
           description: Unauthorized
           content:
@@ -867,8 +1119,30 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_4
+      tags: &ref_5
         - Chat
+    post:
+      operationId: createConversation
+      parameters: []
+      responses:
+        '200':
+          description: Create a new conversation (201)
+          content:
+            application/json:
+              schema:
+                example:
+                  id: 11111111-1111-4111-8111-111111111111
+                  title: 2025-01-01 — New Conversation
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: message required
+      tags: *ref_5
   /chat/{id}:
     get:
       operationId: getConversation
@@ -880,13 +1154,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Get a conversation
-          content:
-            application/json:
-              schema:
-                example:
-                  id: c1
-                  messages: []
+          description: Get a conversation with messages
         '400':
           description: Bad request
           content:
@@ -913,7 +1181,7 @@ paths:
                 example:
                   error:
                     code: forbidden
-                    message: Insufficient permissions
+                    message: Forbidden
         '404':
           description: Conversation not found
           content:
@@ -932,10 +1200,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
-  /chat/{id}/stream:
-    get:
-      operationId: streamConversation
+      tags: *ref_5
+    patch:
+      operationId: rename
       parameters:
         - name: id
           required: true
@@ -944,20 +1211,175 @@ paths:
             type: string
       responses:
         '200':
-          description: Stream conversation messages (Server-Sent Events)
+          description: Rename conversation
+          content:
+            application/json:
+              schema:
+                example:
+                  ok: true
+                  id: c1
+                  title: New Title
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: title required
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: not-found
+                    message: Conversation not found
+      tags: *ref_5
+    delete:
+      operationId: delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Delete conversation
+          content:
+            application/json:
+              schema:
+                example:
+                  ok: true
+                  id: c1
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: not-found
+                    message: Conversation not found
+      tags: *ref_5
+  /chat/{id}/stream:
+    get:
+      operationId: streamGet
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: >-
+            Chat streaming endpoint (SSE). Emits a sequence of JSON frames each
+            prefixed by "data: ".
           content:
             text/event-stream:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                  message:
-                    type: string
-                  index:
-                    type: integer
-                  done:
-                    type: boolean
+                oneOf:
+                  - $ref: '#/components/schemas/GetChatStreamMetaFrame'
+                  - $ref: '#/components/schemas/GetChatStreamTokenFrame'
+                  - $ref: '#/components/schemas/GetChatStreamCitationsFrame'
+                  - $ref: '#/components/schemas/GetChatStreamSummaryFrame'
+                  - $ref: '#/components/schemas/GetChatStreamDoneFrame'
+                  - $ref: '#/components/schemas/GetChatStreamErrorFrame'
+              examples:
+                meta:
+                  value: |+
+                    data: {"meta":{"chat_model_enabled":true,"google_key":true}}
+
+                token:
+                  value: |+
+                    data: {"message":"token-0","index":0,"streaming":true}
+
+                citations:
+                  value: >+
+                    data:
+                    {"citations":[{"documentId":"11111111-1111-4111-8111-111111111111"}]}
+
+                summary:
+                  value: |+
+                    data: {"summary":true,"token_count":5,"citations_count":2}
+
+                done:
+                  value: |+
+                    data: {"done":true,"message":"[DONE]"}
+
+                error:
+                  value: >+
+                    data:
+                    {"error":{"code":"upstream-failed","message":"Simulated
+                    upstream model failure"},"done":true}
+
+        '400':
+          description: Missing project header
+          content:
+            text/event-stream:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: x-project-id header required
+        '404':
+          description: Conversation not found
+          content:
+            text/event-stream:
+              schema:
+                example:
+                  error:
+                    code: not-found
+                    message: Conversation not found
+      tags: *ref_5
+  /chat/stream:
+    post:
+      operationId: streamPost
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequestDto'
+      responses:
+        '200':
+          description: >-
+            Chat streaming endpoint (SSE). Each line is an SSE data frame
+            beginning with "data: ", followed by one of the JSON event shapes.
+          content:
+            text/event-stream:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ChatStreamMetaEvent'
+                  - $ref: '#/components/schemas/ChatStreamTokenEvent'
+                  - $ref: '#/components/schemas/ChatStreamErrorEvent'
+                  - $ref: '#/components/schemas/ChatStreamDoneEvent'
+                description: >-
+                  Union of possible chat stream events (serialized per line as
+                  SSE frame).
+              examples:
+                meta:
+                  value: >+
+                    data:
+                    {"type":"meta","conversationId":"11111111-1111-4111-8111-111111111111","citations":[]}
+
+                token:
+                  value: |+
+                    data: {"type":"token","token":"Hello"}
+
+                error:
+                  value: |+
+                    data: {"type":"error","error":"model key missing"}
+
+                done:
+                  value: |+
+                    data: {"type":"done"}
+
         '400':
           description: Bad request
           content:
@@ -966,7 +1388,7 @@ paths:
                 example:
                   error:
                     code: bad-request
-                    message: Invalid request
+                    message: message required
         '401':
           description: Unauthorized
           content:
@@ -985,15 +1407,6 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-        '404':
-          description: Conversation not found
-          content:
-            text/event-stream:
-              schema:
-                example:
-                  error:
-                    code: not-found
-                    message: Conversation not found
         '500':
           description: Internal server error
           content:
@@ -1003,10 +1416,14 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
+      tags: *ref_5
 info:
   title: Spec Server API
-  description: Generated OpenAPI spec (NestJS)
+  description: >-
+    Generated OpenAPI spec (NestJS). NOTE: Each Document MUST belong to a
+    Project and each Project belongs to an Organization. Users with no
+    accessible Projects must create one before using ingestion or search
+    features.
   version: 0.2.0
   contact: {}
 tags: []
@@ -1047,6 +1464,19 @@ components:
           example: org_1
       required:
         - id
+        - name
+        - orgId
+    CreateProjectDto:
+      type: object
+      properties:
+        name:
+          type: string
+          example: My Project
+          description: Project name (unique per organization, case-insensitive)
+        orgId:
+          type: string
+          description: Organization UUID (must belong to caller; no implicit default org)
+      required:
         - name
         - orgId
     SearchResultDto:
@@ -1097,6 +1527,10 @@ components:
           type: string
           example: 11111111-2222-3333-4444-555555555555
           nullable: true
+        projectId:
+          type: string
+          example: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+          nullable: true
         name:
           type: string
           example: Spec.md
@@ -1133,6 +1567,10 @@ components:
         documentId:
           type: string
           example: doc_1
+        documentTitle:
+          type: string
+          example: User Guide.pdf
+          description: Best-effort document title derived from filename or source URL
         index:
           type: number
           example: 0
@@ -1145,12 +1583,18 @@ components:
           type: boolean
           example: true
           description: Whether an embedding vector exists for this chunk
+        text:
+          type: string
+          example: This is the chunk text...
+          description: Plaintext content of the chunk (may be truncated client-side)
       required:
         - id
         - documentId
+        - documentTitle
         - index
         - size
         - hasEmbedding
+        - text
     IngestionUploadDto:
       type: object
       properties:
@@ -1166,6 +1610,12 @@ components:
           type: string
           description: Optional organisation UUID to associate the document with
           example: 11111111-2222-3333-4444-555555555555
+        projectId:
+          type: string
+          description: Project UUID that this document belongs to (required)
+          example: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+      required:
+        - projectId
     IngestionUrlDto:
       type: object
       properties:
@@ -1177,8 +1627,49 @@ components:
           type: string
           description: Optional organisation UUID to associate the document with
           example: 11111111-2222-3333-4444-555555555555
+        projectId:
+          type: string
+          description: Project UUID that this document belongs to (required)
+          example: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
       required:
         - url
+        - projectId
+    ChatRequestDto:
+      type: object
+      properties: {}
+    CitationDto:
+      type: object
+      properties: {}
+    ChatStreamMetaEvent:
+      type: object
+      properties: {}
+    ChatStreamTokenEvent:
+      type: object
+      properties: {}
+    ChatStreamErrorEvent:
+      type: object
+      properties: {}
+    ChatStreamDoneEvent:
+      type: object
+      properties: {}
+    GetChatStreamMetaFrame:
+      type: object
+      properties: {}
+    GetChatStreamTokenFrame:
+      type: object
+      properties: {}
+    GetChatStreamCitationsFrame:
+      type: object
+      properties: {}
+    GetChatStreamSummaryFrame:
+      type: object
+      properties: {}
+    GetChatStreamDoneFrame:
+      type: object
+      properties: {}
+    GetChatStreamErrorFrame:
+      type: object
+      properties: {}
 x-tagGroups:
   - name: Health & Auth
     tags:

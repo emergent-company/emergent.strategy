@@ -27,6 +27,17 @@ export class IngestionService {
     ) { }
 
     async ingestUrl(url: string, orgId: string | undefined, projectId: string): Promise<IngestResult> {
+        // Early validation: avoid outbound fetch if project already deleted / invalid
+        if (this.db.isOnline()) {
+            const proj = await this.db.query<{ id: string; org_id: string }>('SELECT id, org_id FROM kb.projects WHERE id = $1 LIMIT 1', [projectId]);
+            if (!proj.rowCount) {
+                throw new BadRequestException({ error: { code: 'project-not-found', message: 'Project not found (ingestion)' } });
+            }
+            const row = proj.rows[0];
+            if (orgId && row.org_id !== orgId) {
+                throw new BadRequestException({ error: { code: 'org-project-mismatch', message: 'Provided orgId does not match project org' } });
+            }
+        }
         let res: Response;
         try {
             res = await fetch(url, { redirect: 'follow' });
@@ -96,11 +107,22 @@ export class IngestionService {
                 return { documentId: existing.rows[0].id, chunks: 0, alreadyExists: true };
             }
             try {
+                // Atomic existence + insert to avoid FK race (project may be deleted concurrently)
                 const insertDoc = await this.db.query<{ id: string }>(
-                    `INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content, content_hash)
-                     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+                    `WITH target AS (
+                        SELECT p.id AS project_id, $1::uuid AS org_id
+                        FROM kb.projects p
+                        WHERE p.id = $2
+                        LIMIT 1
+                    )
+                    INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content, content_hash)
+                    SELECT target.org_id, target.project_id, $3, $4, $5, $6, $7 FROM target
+                    RETURNING id`,
                     [derivedOrg || orgId || null, projectId, sourceUrl || null, filename || null, mimeType || 'text/plain', text, hash],
                 );
+                if (!insertDoc.rowCount) {
+                    throw new BadRequestException({ error: { code: 'project-not-found', message: 'Project not found (ingestion)' } });
+                }
                 documentId = insertDoc.rows[0]?.id;
             } catch (e: any) {
                 if (e?.code === '23505') { // unique violation -> doc already ingested concurrently
@@ -122,10 +144,20 @@ export class IngestionService {
             const existingByContent = await this.db.query<{ id: string }>('SELECT id FROM kb.documents WHERE project_id = $1 AND content = $2 LIMIT 1', [projectId, text]);
             if (existingByContent.rowCount) return { documentId: existingByContent.rows[0].id, chunks: 0, alreadyExists: true };
             const insertDoc = await this.db.query<{ id: string }>(
-                `INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content)
-                 VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+                `WITH target AS (
+                    SELECT p.id AS project_id, $1::uuid AS org_id
+                    FROM kb.projects p
+                    WHERE p.id = $2
+                    LIMIT 1
+                )
+                INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content)
+                SELECT target.org_id, target.project_id, $3, $4, $5, $6 FROM target
+                RETURNING id`,
                 [derivedOrg || orgId || null, projectId, sourceUrl || null, filename || null, mimeType || 'text/plain', text],
             );
+            if (!insertDoc.rowCount) {
+                throw new BadRequestException({ error: { code: 'project-not-found', message: 'Project not found (ingestion)' } });
+            }
             documentId = insertDoc.rows[0]?.id;
         }
         if (!documentId) {

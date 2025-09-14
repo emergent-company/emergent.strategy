@@ -114,11 +114,18 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     await exec('CREATE TABLE kb.orgs (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL UNIQUE, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())');
                     await exec('CREATE TABLE kb.projects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NOT NULL REFERENCES kb.orgs(id) ON DELETE CASCADE, name TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())');
                     await exec('CREATE UNIQUE INDEX idx_projects_org_lower_name ON kb.projects(org_id, LOWER(name))');
+                    // Retrofit / enforce ON DELETE CASCADE for projects.org_id (older schemas may differ)
+                    await exec(`DO $$ BEGIN
+                    BEGIN
+                        ALTER TABLE kb.projects DROP CONSTRAINT IF EXISTS projects_org_id_fkey;
+                        ALTER TABLE kb.projects ADD CONSTRAINT projects_org_id_fkey FOREIGN KEY (org_id) REFERENCES kb.orgs(id) ON DELETE CASCADE;
+                    EXCEPTION WHEN others THEN END;
+                    END $$;`);
                     // Align minimal documents table columns with those selected in service queries (source_url, mime_type, etc.)
                     await exec(`CREATE TABLE kb.documents (
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                         org_id UUID NULL,
-                        project_id UUID NULL REFERENCES kb.projects(id) ON DELETE SET NULL,
+                        project_id UUID NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
                         source_url TEXT,
                         filename TEXT,
                         mime_type TEXT,
@@ -156,7 +163,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                         owner_user_id UUID NULL,
                         is_private BOOLEAN NOT NULL DEFAULT true,
                         org_id UUID NULL REFERENCES kb.orgs(id) ON DELETE SET NULL,
-                        project_id UUID NULL REFERENCES kb.projects(id) ON DELETE SET NULL,
+                        project_id UUID NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
                         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
                     )`);
@@ -204,17 +211,19 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     citations JSONB NULL,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
                 )`);
-                // Seed default org/project using upserts to avoid race conditions across parallel workers.
-                await exec(`WITH ins AS (
+                // Optional demo seed (was previously unconditional). Controlled via ORGS_DEMO_SEED=true.
+                if (this.config.demoSeedOrgs) {
+                    await exec(`WITH ins AS (
     INSERT INTO kb.orgs(name) VALUES('Default Org')
     ON CONFLICT (name) DO NOTHING
     RETURNING id
 )
 SELECT id FROM ins UNION ALL SELECT id FROM kb.orgs WHERE name='Default Org' LIMIT 1;`);
-                await exec(`WITH org AS (SELECT id FROM kb.orgs WHERE name='Default Org' LIMIT 1)
+                    await exec(`WITH org AS (SELECT id FROM kb.orgs WHERE name='Default Org' LIMIT 1)
 INSERT INTO kb.projects(org_id, name)
 SELECT org.id, 'Default Project' FROM org
 ON CONFLICT DO NOTHING;`);
+                }
             } finally {
                 if (locked) {
                     try { await exec('SELECT pg_advisory_unlock(4815162342)'); } catch {/* ignore */ }
@@ -261,6 +270,13 @@ ON CONFLICT DO NOTHING;`);
         `);
             await this.pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_org_lower_name ON kb.projects(org_id, LOWER(name));');
             await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_projects_org ON kb.projects(org_id);`);
+            // Ensure org -> projects FK uses ON DELETE CASCADE (retrofit legacy installs)
+            await this.pool.query(`DO $$ BEGIN
+            BEGIN
+                ALTER TABLE kb.projects DROP CONSTRAINT IF EXISTS projects_org_id_fkey;
+                ALTER TABLE kb.projects ADD CONSTRAINT projects_org_id_fkey FOREIGN KEY (org_id) REFERENCES kb.orgs(id) ON DELETE CASCADE;
+            EXCEPTION WHEN others THEN END;
+            END $$;`);
 
             // Documents table (base)
             await this.pool.query(`
@@ -268,7 +284,7 @@ ON CONFLICT DO NOTHING;`);
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 -- Legacy org_id retained for backward compatibility (will be synced from project)
                 org_id UUID NULL,
-                project_id UUID NULL REFERENCES kb.projects(id) ON DELETE SET NULL,
+                project_id UUID NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
                 source_url TEXT,
                 filename TEXT,
                 mime_type TEXT,
@@ -336,6 +352,20 @@ ON CONFLICT DO NOTHING;`);
             await this.pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_project_hash ON kb.documents(project_id, content_hash);`);
             await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_documents_org ON kb.documents(org_id);`);
             await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_documents_project ON kb.documents(project_id);`);
+
+            // Ensure project_id FKs on documents & chat_conversations use ON DELETE CASCADE (legacy installs may have SET NULL)
+            await this.pool.query(`DO $$ BEGIN
+            -- Documents FK
+            BEGIN
+                ALTER TABLE kb.documents DROP CONSTRAINT IF EXISTS documents_project_id_fkey;
+                ALTER TABLE kb.documents ADD CONSTRAINT documents_project_id_fkey FOREIGN KEY (project_id) REFERENCES kb.projects(id) ON DELETE CASCADE;
+            EXCEPTION WHEN others THEN END;
+            -- Chat conversations FK
+            BEGIN
+                ALTER TABLE kb.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_project_id_fkey;
+                ALTER TABLE kb.chat_conversations ADD CONSTRAINT chat_conversations_project_id_fkey FOREIGN KEY (project_id) REFERENCES kb.projects(id) ON DELETE CASCADE;
+            EXCEPTION WHEN others THEN END;
+            END $$;`);
 
             // Sync org_id from project_id before insert/update to keep backward compatibility
             await this.pool.query(`
@@ -414,7 +444,7 @@ ON CONFLICT DO NOTHING;`);
                 owner_user_id UUID NULL,
                 is_private BOOLEAN NOT NULL DEFAULT true,
                 org_id UUID NULL REFERENCES kb.orgs(id) ON DELETE SET NULL,
-                project_id UUID NULL REFERENCES kb.projects(id) ON DELETE SET NULL,
+                project_id UUID NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
             );`);
@@ -444,17 +474,19 @@ ON CONFLICT DO NOTHING;`);
             CREATE TRIGGER trg_settings_touch BEFORE UPDATE ON kb.settings
             FOR EACH ROW EXECUTE FUNCTION kb.touch_updated_at();`);
 
-            // Seed default org/project via upsert (race-safe)
-            await this.pool.query(`WITH ins AS (
-  INSERT INTO kb.orgs(name) VALUES('Default Org')
-  ON CONFLICT (name) DO NOTHING
-  RETURNING id
+            // Optional demo seed (enabled only when ORGS_DEMO_SEED=true)
+            if (this.config.demoSeedOrgs) {
+                await this.pool.query(`WITH ins AS (
+    INSERT INTO kb.orgs(name) VALUES('Default Org')
+    ON CONFLICT (name) DO NOTHING
+    RETURNING id
 )
 SELECT id FROM ins UNION ALL SELECT id FROM kb.orgs WHERE name='Default Org' LIMIT 1;`);
-            await this.pool.query(`WITH org AS (SELECT id FROM kb.orgs WHERE name='Default Org' LIMIT 1)
+                await this.pool.query(`WITH org AS (SELECT id FROM kb.orgs WHERE name='Default Org' LIMIT 1)
 INSERT INTO kb.projects(org_id, name)
 SELECT org.id, 'Default Project' FROM org
 ON CONFLICT DO NOTHING;`);
+            }
 
             const ms = Date.now() - start;
             this.logger.log(`Schema ensured in ${ms}ms (orgs/projects/documents updated)`);

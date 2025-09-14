@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe, UnprocessableEntityException } from '
 import { NestFactory } from '@nestjs/core';
 // Import from compiled dist to ensure decorator metadata (esbuild used by Vitest strips it)
 // Tests should be run after a build step (see test:spec script)
+// Import AppModule from built dist (tests now run `npm run build` first ensuring dist is fresh)
 import { AppModule } from '../../dist/modules/app.module';
 import { GlobalHttpExceptionFilter } from '../../src/common/filters/http-exception.filter';
 

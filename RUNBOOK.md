@@ -101,7 +101,7 @@ Common errors and fixes
 
 SPA/server integration
 - Frontend issuer: set to `http://localhost:8080` (see `apps/admin/.env.example`).
-- Server-side validation: set the same issuer and fetch JWKS from `http://localhost:8080` (see `apps/server/.env.example`).
+- Server-side validation: set the same issuer and fetch JWKS from `http://localhost:8080` (see `apps/server-nest/.env.example`).
 
 More details
 - See `docker/README-zitadel.md` for the full walkthrough, roles, and troubleshooting.
