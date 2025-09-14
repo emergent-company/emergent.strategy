@@ -214,19 +214,31 @@ export function useChat(opts: UseChatOptions = {}) {
             try {
                 const res = await fetch(`${apiBase}/chat/${id}`, { headers: authHeaders() });
                 if (!res.ok) return;
-                const data = (await res.json()) as { conversation: Conversation };
+                const payload = await res.json();
+                // Backend returns the conversation object directly (no { conversation } wrapper) – support both
+                const raw: any = payload?.conversation ?? payload;
+                if (!raw || typeof raw !== 'object') return;
+                const convData: Conversation = {
+                    id: raw.id,
+                    title: raw.title || 'Conversation',
+                    createdAt: raw.createdAt || raw.created_at,
+                    updatedAt: raw.updatedAt || raw.updated_at,
+                    ownerUserId: raw.ownerUserId || raw.owner_user_id,
+                    isPrivate: !!(raw.isPrivate ?? raw.is_private),
+                    messages: Array.isArray(raw.messages) ? raw.messages : [],
+                };
                 if (aborted) return;
                 setConversationsPersisted((prev) => {
                     const idx = prev.findIndex((c) => c.id === id);
-                    if (idx < 0) return [...prev, data.conversation];
+                    if (idx < 0) return [...prev, convData];
                     const merged: Conversation = {
                         ...prev[idx],
-                        title: data.conversation.title,
-                        createdAt: data.conversation.createdAt,
-                        updatedAt: data.conversation.updatedAt,
-                        ownerUserId: data.conversation.ownerUserId,
-                        isPrivate: data.conversation.isPrivate,
-                        messages: data.conversation.messages,
+                        title: convData.title,
+                        createdAt: convData.createdAt,
+                        updatedAt: convData.updatedAt,
+                        ownerUserId: convData.ownerUserId,
+                        isPrivate: convData.isPrivate,
+                        messages: convData.messages,
                     };
                     return [...prev.slice(0, idx), merged, ...prev.slice(idx + 1)];
                 });
@@ -405,7 +417,7 @@ export function useChat(opts: UseChatOptions = {}) {
                     } catch { /* ignore */ }
                 }
                 if (/Cannot POST \/chat\/stream/i.test(errText)) {
-                    errText = 'Chat backend endpoint /chat/stream not found. Start the simple server (apps/server) or implement the chat module in the Nest server.';
+                    errText = 'Chat backend endpoint /chat/stream not found. Ensure the Nest server (apps/server-nest) is running and exposes POST /chat/stream.';
                 }
                 // Truncate very large payloads to avoid UI issues
                 if (errText.length > 500) errText = errText.slice(0, 500) + '…';
@@ -500,22 +512,33 @@ export function useChat(opts: UseChatOptions = {}) {
                             const id = serverConvId || currentConvId;
                             if (id && !/^c_/.test(id)) {
                                 try {
-                                    const res = await fetch(`${apiBase}/chat/${id}`, { headers: authHeaders() });
-                                    if (res.ok) {
-                                        const data = (await res.json()) as { conversation: Conversation };
+                                    const refRes = await fetch(`${apiBase}/chat/${id}`, { headers: authHeaders() });
+                                    if (refRes.ok) {
+                                        const payload = await refRes.json();
+                                        const raw: any = (payload as any)?.conversation ?? payload;
+                                        if (!raw || typeof raw !== 'object') return;
+                                        const convData: Conversation = {
+                                            id: raw.id,
+                                            title: raw.title || 'Conversation',
+                                            createdAt: raw.createdAt || raw.created_at,
+                                            updatedAt: raw.updatedAt || raw.updated_at,
+                                            ownerUserId: raw.ownerUserId || raw.owner_user_id,
+                                            isPrivate: !!(raw.isPrivate ?? raw.is_private),
+                                            messages: Array.isArray(raw.messages) ? raw.messages : [],
+                                        };
                                         setConversationsPersisted((prev) => {
-                                            const withoutTemps = prev.filter((c) => c.id === id || !(/^c_/.test(c.id) && keyMatchesFirstUser(c, data.conversation)));
+                                            const withoutTemps = prev.filter((c) => c.id === id || !(/^c_/.test(c.id) && keyMatchesFirstUser(c, convData)));
                                             const idx = withoutTemps.findIndex((c) => c.id === id);
-                                            if (idx < 0) return [data.conversation, ...withoutTemps];
+                                            if (idx < 0) return [convData, ...withoutTemps];
                                             const next = [...withoutTemps];
                                             next[idx] = {
                                                 ...next[idx],
-                                                title: data.conversation.title,
-                                                createdAt: data.conversation.createdAt,
-                                                updatedAt: data.conversation.updatedAt,
-                                                ownerUserId: data.conversation.ownerUserId,
-                                                isPrivate: data.conversation.isPrivate,
-                                                messages: data.conversation.messages,
+                                                title: convData.title,
+                                                createdAt: convData.createdAt,
+                                                updatedAt: convData.updatedAt,
+                                                ownerUserId: convData.ownerUserId,
+                                                isPrivate: convData.isPrivate,
+                                                messages: convData.messages,
                                             };
                                             return next;
                                         });

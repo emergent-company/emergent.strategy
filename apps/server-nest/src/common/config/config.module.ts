@@ -5,21 +5,46 @@ import dotenv from 'dotenv';
 import { AppConfigService } from './config.service';
 import { EnvVariables, validate } from './config.schema';
 
-// Load .env (prioritizing process env already set). This runs once on module import.
+// Load environment variables in layered order (root then app overrides) so that
+// starting the monorepo from the repository root still picks up `apps/server-nest/.env`.
+// This runs once on module import and is idempotent relative to already loaded keys.
 (() => {
     const cwd = process.cwd();
-    // Prefer app-specific .env first, then repo root .env
-    const candidatePaths = [
-        path.join(cwd, '.env.local'),
-        path.join(cwd, '.env'),
-        path.join(cwd, '..', '.env.local'),
-        path.join(cwd, '..', '.env'),
-    ];
+
+    // Detect monorepo root vs app directory execution.
+    const isMonorepoRoot = fs.existsSync(path.join(cwd, 'apps', 'server-nest', 'package.json'));
+
+    // Compose candidate paths in LOW -> HIGH precedence order.
+    // Later files override earlier ones (mirroring common .env layering conventions).
+    const candidatePaths: string[] = [];
+
+    // 1. Root .env (if running from root or app dir's parent)
+    if (isMonorepoRoot) {
+        candidatePaths.push(path.join(cwd, '.env'));
+        candidatePaths.push(path.join(cwd, '.env.local'));
+        // 2. App specific .env inside monorepo
+        candidatePaths.push(path.join(cwd, 'apps', 'server-nest', '.env'));
+        candidatePaths.push(path.join(cwd, 'apps', 'server-nest', '.env.local'));
+    } else {
+        // Running inside the app directory itself
+        candidatePaths.push(path.join(cwd, '.env'));
+        candidatePaths.push(path.join(cwd, '.env.local'));
+        // Fallback to parent root (monorepo) if present
+        candidatePaths.push(path.join(cwd, '..', '.env'));
+        candidatePaths.push(path.join(cwd, '..', '.env.local'));
+    }
+
+    const loaded: string[] = [];
     for (const p of candidatePaths) {
         if (fs.existsSync(p)) {
             dotenv.config({ path: p });
-            break;
+            loaded.push(p);
         }
+    }
+
+    if (process.env.DEBUG_ENV_LOAD === '1') {
+        // eslint-disable-next-line no-console
+        console.log('[config] Loaded env files (in order):', loaded.join(', '));
     }
 })();
 

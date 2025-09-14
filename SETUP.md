@@ -115,4 +115,4 @@ Or via HTTP:
 - Local Auth deep-dive: `docker/README-zitadel.md`
 - Docker Compose: `docker/docker-compose.yml`
 - Admin SPA quickstart: `apps/admin/README.md`
-- Server quickstart: `apps/server/README.md`
+- Server quickstart: `apps/server-nest/README.md`

@@ -8,11 +8,35 @@ export class AuthGuard implements CanActivate {
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const req = context.switchToHttp().getRequest<any>();
-        const header = req.headers['authorization'];
-        const token = typeof header === 'string' && header.startsWith('Bearer ') ? header.slice(7) : undefined;
+        const headerRaw = req.headers['authorization'];
+
+        // 1. Missing header entirely
+        if (!headerRaw) {
+            throw new UnauthorizedException({ error: { code: 'missing_token', message: 'Missing Authorization bearer token' } });
+        }
+
+        const header = Array.isArray(headerRaw) ? headerRaw[0] : headerRaw;
+        if (typeof header !== 'string') {
+            throw new UnauthorizedException({ error: { code: 'malformed_authorization', message: 'Authorization header must be a string' } });
+        }
+
+        // 2. Wrong scheme / malformed value
+        if (!/^Bearer\s+.+/i.test(header)) {
+            throw new UnauthorizedException({ error: { code: 'malformed_authorization', message: 'Authorization header must be: Bearer <token>' } });
+        }
+
+        const token = header.replace(/^Bearer\s+/i, '');
         const user = await this.auth.validateToken(token);
-        if (!user) throw new UnauthorizedException('Unauthorized');
+        if (!user) {
+            throw new UnauthorizedException({ error: { code: 'invalid_token', message: 'Invalid or expired access token' } });
+        }
         req.user = user;
+        if (process.env.DEBUG_AUTH_SCOPES === '1') {
+            try {
+                const res = context.switchToHttp().getResponse();
+                res.setHeader('X-Debug-Scopes', (user.scopes || []).join(','));
+            } catch { /* ignore */ }
+        }
         return true;
     }
 }

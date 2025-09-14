@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import { IsString, MinLength } from 'class-validator';
 
 export class ProjectDto {
     @ApiProperty({ example: 'proj_1' })
@@ -16,8 +16,7 @@ export class CreateProjectDto {
     @MinLength(1)
     name!: string;
 
-    @ApiProperty({ required: false, description: 'Organization UUID (optional – if omitted, default org will be used or created)' })
-    @IsOptional()
+    @ApiProperty({ description: 'Organization UUID (must belong to caller; no implicit default org)' })
     @IsString()
-    orgId?: string;
+    orgId!: string;
 }

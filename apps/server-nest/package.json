@@ -6,9 +6,10 @@
     "scripts": {
         "start": "node dist/main.js",
         "start:dev": "NODE_OPTIONS=--enable-source-maps ts-node-dev --respawn --no-notify --ignore-watch node_modules src/main.ts",
-        "build": "tsc -p tsconfig.json",
-        "gen:openapi": "tsc -p tsconfig.json && node dist/openapi-generate.js",
-        "test": "vitest run --passWithNoTests",
+        "clean": "rimraf dist dist-openapi || true",
+        "build": "npm run clean && tsc -p tsconfig.json",
+    "gen:openapi": "tsc -p tsconfig.json && node dist/openapi-generate.js",
+        "test": "npm run build && vitest run --passWithNoTests",
         "test:e2e": "npm run gen:openapi && vitest run -c vitest.e2e.config.ts --passWithNoTests",
         "test:e2e:verbose": "E2E_DEBUG_VERBOSE=true npm run test:e2e",
         "test:scenarios": "vitest run --passWithNoTests tests/scenarios/**/*.spec.ts",
@@ -32,6 +33,7 @@
     "devDependencies": {
         "@types/js-yaml": "^4.0.9",
         "@types/node": "^22.17.2",
+        "rimraf": "^5.0.5",
         "ts-node": "^10.9.2",
         "ts-node-dev": "^2.0.0",
         "tsx": "^4.19.0",

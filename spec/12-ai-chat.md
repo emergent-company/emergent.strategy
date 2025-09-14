@@ -499,7 +499,7 @@ Implementations MAY log (not return) structured telemetry per exchange:
 ---
 
 ## Backend — New Endpoints
-Add to `src/server.ts`.
+Implemented in Nest controllers under `apps/server-nest`.
 
 ### NestJS Migration Note
 This specification’s endpoint shapes and streaming contract remain authoritative during and after the migration to NestJS (see `spec/03-architecture.md` Framework Migration section). When the server refactor lands:
@@ -801,10 +801,10 @@ Interactive, shareable documentation for the entire API surface (auth probes, or
 Scope (current): All implemented endpoints. The earlier chat-only spec remains temporarily (`chat.openapi.yaml`) but will be deprecated once external consumers migrate.
 
 Deliverables (Unified):
-1. Unified OpenAPI spec file: `apps/server/openapi/openapi.yaml` (authoritative, version >= 0.2.0).
+1. Unified OpenAPI spec file: `apps/server-nest/openapi.yaml` (authoritative, version >= 0.2.0).
 2. Raw unified spec route: `GET /openapi/openapi.yaml` (YAML, `Content-Type: application/yaml`).
 3. Unified docs UI: `GET /docs` (Stoplight Elements pointing at unified spec with tags grouping by functionality).
-4. README section updated (`apps/server/README.md`) with unified workflow.
+4. README section updated (`apps/server-nest/README.md`) with unified workflow.
 
 Authoring Guidelines (Unified):
 - Schemas MUST mirror runtime data models; modify code + spec in same PR.
@@ -830,7 +830,7 @@ Testing Checklist (Unified):
 Regeneration Workflow:
 1. Update TypeScript runtime types / handlers.
 2. Edit `openapi/openapi.yaml` (and `chat.openapi.yaml` if still present).
-3. (Optional) Lint: `npx @redocly/cli lint apps/server/openapi/openapi.yaml`.
+3. (Optional) Lint: `npx @redocly/cli lint apps/server-nest/openapi.yaml`.
 4. Commit code + spec together.
 
 Future Enhancements:

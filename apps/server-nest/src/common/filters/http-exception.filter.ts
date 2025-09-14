@@ -56,7 +56,10 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
                     }
                     break;
                 case 401: code = 'unauthorized'; break;
-                case 403: code = 'forbidden'; break;
+                case 403:
+                    // Preserve more specific codes like missing_scope if already set.
+                    if (code === 'internal' || code === 'forbidden') code = 'forbidden';
+                    break;
                 case 404: code = 'not-found'; break;
                 case 409: code = 'conflict'; break;
                 case 422: code = 'validation-failed'; break;
@@ -65,7 +68,7 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
                 default: code = status >= 500 ? 'internal' : code;
             }
         } else {
-            // Non-HttpExceptions bubble as 500; log for diagnostics in tests only
+            // Non-Http exceptions: log during tests for visibility; deterministic domain errors should be thrown as HttpExceptions earlier.
             if (process.env.NODE_ENV === 'test') {
                 // eslint-disable-next-line no-console
                 console.error('Unhandled exception object:', exception);

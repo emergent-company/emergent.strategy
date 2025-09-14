@@ -82,11 +82,10 @@ export class DocumentsController {
         const projectId = headerProjectId;
         const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         if (!uuidV4Regex.test(projectId)) throw new BadRequestException({ error: { code: 'bad-request', message: 'Invalid projectId format' } });
-        if (orgId) {
-            const projectOrg = await this.documents.getProjectOrg(projectId);
-            if (!projectOrg) throw new BadRequestException({ error: { code: 'bad-request', message: 'Unknown projectId' } });
-            if (projectOrg !== orgId) throw new BadRequestException({ error: { code: 'bad-request', message: 'projectId does not belong to org' } });
-        }
+        // Always validate project existence before attempting insert to avoid FK 500
+        const projectOrg = await this.documents.getProjectOrg(projectId);
+        if (!projectOrg) throw new BadRequestException({ error: { code: 'bad-request', message: 'Unknown projectId' } });
+        if (orgId && projectOrg !== orgId) throw new BadRequestException({ error: { code: 'bad-request', message: 'projectId does not belong to org' } });
         return this.documents.create({ filename: body.filename, projectId, content: body.content, orgId });
     }
 
