@@ -13,6 +13,11 @@ Nexus React (3.0.0)
 - Purpose: UI/UX reference for React + Vite + TypeScript + Tailwind CSS (v4) + daisyUI (v5) and Iconify (Lucide) usage.
 - Location (recommended): `reference/nexus`
 
+react-daisyui
+- Repo: https://github.com/daisyui/react-daisyui
+- Purpose: Source reference for standalone React component patterns aligned with daisyUI 5. Used to manually copy specific component implementations when a richer baseline than our existing code is helpful.
+- Location: `reference/react-daisyui`
+
 Suggested setup (submodule)
 1) Add the submodule:
    git submodule add -b master git@github.com:eyedea-io/Nexus-React-3.0.0.git reference/nexus

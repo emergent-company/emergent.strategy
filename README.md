@@ -28,12 +28,16 @@ We keep UI/UX reference code as Git submodules under `reference/` (read-only, no
 
 - Add Nexus (once):
 	- git submodule add -b master git@github.com:eyedea-io/Nexus-React-3.0.0.git reference/nexus
+ - Add react-daisyui (once):
+	- git submodule add -b main https://github.com/daisyui/react-daisyui.git reference/react-daisyui
 - Initialize/update on fresh clones:
 	- git submodule update --init --recursive
 - Pull latest from upstream:
 	- git -C reference/nexus pull origin master
+ 	- git -C reference/react-daisyui pull origin main
 
 Never import from `reference/` at runtime. Copy patterns into `apps/admin/src/**` with strict TS and our lint/style.
+When copying from `react-daisyui`, keep attribution headers and adapt to use our `useConfig` theming + Iconify Lucide icons.
 
 ## Changelog
 

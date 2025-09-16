@@ -2,3 +2,8 @@
 	path = reference/nexus
 	url = git@github.com:eyedea-io/Nexus-React-3.0.0.git
 	branch = master
+
+[submodule "reference/react-daisyui"]
+	path = reference/react-daisyui
+	url = https://github.com/daisyui/react-daisyui.git
+	branch = main
