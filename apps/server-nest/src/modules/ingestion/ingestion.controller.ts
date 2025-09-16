@@ -66,7 +66,8 @@ export class IngestionController {
     @ApiStandardErrors()
     @ApiConsumes('multipart/form-data')
     @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
-    @Scopes('ingest:write')
+    // Ingestion results in document creation; reuse documents:write scope
+    @Scopes('documents:write')
     upload(@Body() dto: IngestionUploadDto, @UploadedFile() file?: Express.Multer.File): Promise<IngestResult> {
         if (!file) throw new BadRequestException({ error: { code: 'file-required', message: 'file is required' } });
         // Basic binary / unsupported type detection BEFORE attempting to interpret as UTF-8 to avoid downstream PG errors (e.g. 0x00 in text columns)
@@ -96,7 +97,8 @@ export class IngestionController {
     @ApiOkResponse({ description: 'Ingest a remote URL', schema: { example: { documentId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', chunks: 8, alreadyExists: false } } })
     @ApiBadRequestResponse({ description: 'Invalid URL payload', schema: { example: { error: { code: 'validation-failed', message: 'Validation failed', details: { url: ['must be an URL address'] } } } } })
     @ApiStandardErrors()
-    @Scopes('ingest:write')
+    // URL ingestion also requires documents:write
+    @Scopes('documents:write')
     ingestUrl(@Body() dto: IngestionUrlDto): Promise<IngestResult> {
         return this.ingestion.ingestUrl(dto.url, dto.orgId, dto.projectId);
     }

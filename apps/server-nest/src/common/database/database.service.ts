@@ -105,6 +105,15 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                 const guardRes = await this.pool.query<{ exists: string | null }>("SELECT to_regclass('kb.schema_reset_guard') as exists");
                 const guardExists = !!guardRes.rows[0].exists;
                 const shouldDrop = !coreExists && !guardExists; // only drop when truly absent
+                if (!shouldDrop) {
+                    // Re-run of minimal schema within same process: soft reset mutable tables for deterministic tests.
+                    try {
+                        await exec('TRUNCATE core.user_emails RESTART IDENTITY CASCADE');
+                    } catch {/* ignore if table missing */ }
+                    try {
+                        await exec('TRUNCATE core.user_profiles RESTART IDENTITY CASCADE');
+                    } catch {/* ignore */ }
+                }
                 if (shouldDrop) {
                     this.logger.log('Minimal schema core tables missing - performing fresh create');
                     await exec('CREATE EXTENSION IF NOT EXISTS pgcrypto');
@@ -114,6 +123,68 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     await exec('CREATE TABLE kb.orgs (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL UNIQUE, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())');
                     await exec('CREATE TABLE kb.projects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NOT NULL REFERENCES kb.orgs(id) ON DELETE CASCADE, name TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())');
                     await exec('CREATE UNIQUE INDEX idx_projects_org_lower_name ON kb.projects(org_id, LOWER(name))');
+                    // Ensure core schema exists
+                    await exec('CREATE SCHEMA IF NOT EXISTS core');
+                    // Core user profile table (internal canonical user id = subject_id)
+                    await exec(`CREATE TABLE core.user_profiles (
+                        subject_id UUID PRIMARY KEY,
+                        first_name TEXT NULL,
+                        last_name TEXT NULL,
+                        display_name TEXT NULL,
+                        phone_e164 TEXT NULL,
+                        avatar_object_key TEXT NULL,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    )`);
+                    // Alternative / secondary email addresses per user (unique per subject)
+                    await exec(`CREATE TABLE core.user_emails (
+                        subject_id UUID NOT NULL REFERENCES core.user_profiles(subject_id) ON DELETE CASCADE,
+                        email TEXT NOT NULL,
+                        verified BOOLEAN NOT NULL DEFAULT false,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        PRIMARY KEY(subject_id, email)
+                    )`);
+                    // Force-drop any pre-existing legacy membership tables (could be left from failed prior run) to guarantee fresh schema with subject_id
+                    await exec('DROP TABLE IF EXISTS kb.organization_memberships CASCADE');
+                    await exec('DROP TABLE IF EXISTS kb.project_memberships CASCADE');
+                    // Memberships reference subject_id (UUID)
+                    await exec(`CREATE TABLE kb.organization_memberships (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        org_id UUID NOT NULL REFERENCES kb.orgs(id) ON DELETE CASCADE,
+                        subject_id UUID NOT NULL REFERENCES core.user_profiles(subject_id) ON DELETE CASCADE,
+                        role TEXT NOT NULL CHECK (role IN ('org_admin')),
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    )`);
+                    // Debug: log columns right after creation (should include subject_id)
+                    try {
+                        const colDebug = await this.pool.query("SELECT column_name FROM information_schema.columns WHERE table_schema='kb' AND table_name='organization_memberships' ORDER BY ordinal_position");
+                        this.logger.log('[debug] org_memberships (fresh create) columns: ' + colDebug.rows.map(r => r.column_name).join(','));
+                    } catch {/* ignore */ }
+                    // Defer index creation until after full minimal path build; avoid early 42703 race.
+                    // We'll create the unique index later in the upgrade/idempotent section once the table is unquestionably present.
+                    await exec(`CREATE TABLE kb.project_memberships (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        project_id UUID NOT NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+                        subject_id UUID NOT NULL REFERENCES core.user_profiles(subject_id) ON DELETE CASCADE,
+                        role TEXT NOT NULL CHECK (role IN ('project_admin','project_user')),
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    )`);
+                    await exec('CREATE UNIQUE INDEX idx_project_membership_unique ON kb.project_memberships(project_id, subject_id)');
+                    // Invites table (minimal fields for lifecycle tests)
+                    await exec(`CREATE TABLE kb.invites (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        org_id UUID NOT NULL REFERENCES kb.orgs(id) ON DELETE CASCADE,
+                        project_id UUID NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+                        email TEXT NOT NULL,
+                        role TEXT NOT NULL CHECK (role IN ('org_admin','project_admin','project_user')),
+                        token TEXT NOT NULL UNIQUE,
+                        status TEXT NOT NULL DEFAULT 'pending',
+                        expires_at TIMESTAMPTZ NULL,
+                        accepted_at TIMESTAMPTZ NULL,
+                        revoked_at TIMESTAMPTZ NULL,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    )`);
+                    await exec('CREATE INDEX idx_invites_token ON kb.invites(token)');
                     // Retrofit / enforce ON DELETE CASCADE for projects.org_id (older schemas may differ)
                     await exec(`DO $$ BEGIN
                     BEGIN
@@ -160,7 +231,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     await exec(`CREATE TABLE kb.chat_conversations (
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                         title TEXT NOT NULL,
-                        owner_user_id UUID NULL,
+                        owner_subject_id UUID NULL REFERENCES core.user_profiles(subject_id) ON DELETE SET NULL,
                         is_private BOOLEAN NOT NULL DEFAULT true,
                         org_id UUID NULL REFERENCES kb.orgs(id) ON DELETE SET NULL,
                         project_id UUID NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
@@ -196,7 +267,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                 await exec(`CREATE TABLE IF NOT EXISTS kb.chat_conversations (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     title TEXT NOT NULL,
-                    owner_user_id UUID NULL,
+                    owner_subject_id UUID NULL REFERENCES core.user_profiles(subject_id) ON DELETE SET NULL,
                     is_private BOOLEAN NOT NULL DEFAULT true,
                     org_id UUID NULL REFERENCES kb.orgs(id) ON DELETE SET NULL,
                     project_id UUID NULL REFERENCES kb.projects(id) ON DELETE SET NULL,
@@ -211,19 +282,159 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     citations JSONB NULL,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
                 )`);
-                // Optional demo seed (was previously unconditional). Controlled via ORGS_DEMO_SEED=true.
-                if (this.config.demoSeedOrgs) {
-                    await exec(`WITH ins AS (
-    INSERT INTO kb.orgs(name) VALUES('Default Org')
-    ON CONFLICT (name) DO NOTHING
-    RETURNING id
-)
-SELECT id FROM ins UNION ALL SELECT id FROM kb.orgs WHERE name='Default Org' LIMIT 1;`);
-                    await exec(`WITH org AS (SELECT id FROM kb.orgs WHERE name='Default Org' LIMIT 1)
-INSERT INTO kb.projects(org_id, name)
-SELECT org.id, 'Default Project' FROM org
-ON CONFLICT DO NOTHING;`);
-                }
+                // Ensure membership & invites tables exist in case minimal schema was created before auth model migration
+                // Ensure core schema namespace exists and user_profiles table
+                await exec('CREATE SCHEMA IF NOT EXISTS core');
+                await exec(`CREATE TABLE IF NOT EXISTS core.user_profiles (
+                    subject_id UUID PRIMARY KEY,
+                    first_name TEXT NULL,
+                    last_name TEXT NULL,
+                    display_name TEXT NULL,
+                    phone_e164 TEXT NULL,
+                    avatar_object_key TEXT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )`);
+                await exec(`CREATE TABLE IF NOT EXISTS core.user_emails (
+                    subject_id UUID NOT NULL REFERENCES core.user_profiles(subject_id) ON DELETE CASCADE,
+                    email TEXT NOT NULL,
+                    verified BOOLEAN NOT NULL DEFAULT false,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    PRIMARY KEY(subject_id, email)
+                )`);
+                // Hard reset membership tables to guarantee presence of subject_id column (safe under advisory lock and minimal test data)
+                await exec('DROP TABLE IF EXISTS kb.organization_memberships CASCADE');
+                await exec('DROP TABLE IF EXISTS kb.project_memberships CASCADE');
+                // Legacy upgrade: drop old membership tables using user_id and rename chat column if still present
+                await exec(`DO $$ BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema='kb' AND table_name='organization_memberships' AND column_name='user_id'
+                    ) THEN
+                        BEGIN
+                            DROP TABLE kb.organization_memberships CASCADE;
+                        EXCEPTION WHEN others THEN END;
+                    END IF;
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema='kb' AND table_name='project_memberships' AND column_name='user_id'
+                    ) THEN
+                        BEGIN
+                            DROP TABLE kb.project_memberships CASCADE;
+                        EXCEPTION WHEN others THEN END;
+                    END IF;
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema='kb' AND table_name='chat_conversations' AND column_name='owner_user_id'
+                    ) AND NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema='kb' AND table_name='chat_conversations' AND column_name='owner_subject_id'
+                    ) THEN
+                        BEGIN
+                            ALTER TABLE kb.chat_conversations RENAME COLUMN owner_user_id TO owner_subject_id;
+                        EXCEPTION WHEN others THEN END;
+                    END IF;
+                END $$;`);
+                // Secondary safety net: if subject_id still missing (drop may have failed silently), force drop now (raise errors visibly)
+                await exec(`DO $$ BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema='kb' AND table_name='organization_memberships' AND column_name='subject_id'
+                    ) AND EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema='kb' AND table_name='organization_memberships'
+                    ) THEN
+                        EXECUTE 'DROP TABLE kb.organization_memberships CASCADE';
+                    END IF;
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema='kb' AND table_name='project_memberships' AND column_name='subject_id'
+                    ) AND EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema='kb' AND table_name='project_memberships'
+                    ) THEN
+                        EXECUTE 'DROP TABLE kb.project_memberships CASCADE';
+                    END IF;
+                END $$;`);
+                await exec(`CREATE TABLE IF NOT EXISTS kb.organization_memberships (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    org_id UUID NOT NULL REFERENCES kb.orgs(id) ON DELETE CASCADE,
+                    subject_id UUID NOT NULL REFERENCES core.user_profiles(subject_id) ON DELETE CASCADE,
+                    role TEXT NOT NULL CHECK (role IN ('org_admin')),
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )`);
+                // Fallback for legacy table missing subject_id (add column + FK instead of relying solely on drop path)
+                await exec(`ALTER TABLE kb.organization_memberships ADD COLUMN IF NOT EXISTS subject_id UUID`);
+                await exec(`DO $$ BEGIN
+                    BEGIN
+                        ALTER TABLE kb.organization_memberships ADD CONSTRAINT organization_memberships_subject_id_fkey FOREIGN KEY (subject_id) REFERENCES core.user_profiles(subject_id) ON DELETE CASCADE;
+                    EXCEPTION WHEN others THEN END;
+                END $$;`);
+                // Removed org membership unique index creation in minimal schema to avoid failing when subject_id column isn't yet visible.
+                await exec(`CREATE TABLE IF NOT EXISTS kb.project_memberships (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    project_id UUID NOT NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+                    subject_id UUID NOT NULL REFERENCES core.user_profiles(subject_id) ON DELETE CASCADE,
+                    role TEXT NOT NULL CHECK (role IN ('project_admin','project_user')),
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )`);
+                await exec('ALTER TABLE kb.project_memberships ADD COLUMN IF NOT EXISTS subject_id UUID');
+                await exec(`DO $$ BEGIN
+                    BEGIN
+                        ALTER TABLE kb.project_memberships ADD CONSTRAINT project_memberships_subject_id_fkey FOREIGN KEY (subject_id) REFERENCES core.user_profiles(subject_id) ON DELETE CASCADE;
+                    EXCEPTION WHEN others THEN END;
+                END $$;`);
+                await exec(`DO $$ BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema='kb' AND table_name='project_memberships' AND column_name='subject_id'
+                    ) THEN
+                        BEGIN
+                            DROP TABLE IF EXISTS kb.project_memberships CASCADE;
+                            CREATE TABLE kb.project_memberships (
+                                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                project_id UUID NOT NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+                                subject_id UUID NOT NULL REFERENCES core.user_profiles(subject_id) ON DELETE CASCADE,
+                                role TEXT NOT NULL CHECK (role IN ('project_admin','project_user')),
+                                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                            );
+                        EXCEPTION WHEN others THEN END;
+                    END IF;
+                    BEGIN
+                        CREATE UNIQUE INDEX IF NOT EXISTS idx_project_membership_unique ON kb.project_memberships(project_id, subject_id);
+                    EXCEPTION WHEN others THEN END;
+                END $$;`);
+                await exec(`CREATE TABLE IF NOT EXISTS kb.invites (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    org_id UUID NOT NULL REFERENCES kb.orgs(id) ON DELETE CASCADE,
+                    project_id UUID NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+                    email TEXT NOT NULL,
+                    role TEXT NOT NULL CHECK (role IN ('org_admin','project_admin','project_user')),
+                    token TEXT NOT NULL UNIQUE,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    expires_at TIMESTAMPTZ NULL,
+                    accepted_at TIMESTAMPTZ NULL,
+                    revoked_at TIMESTAMPTZ NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )`);
+                await exec('CREATE INDEX IF NOT EXISTS idx_invites_token ON kb.invites(token)');
+                /* demo seed removed */
+                // Reintroduce unique index for organization memberships so ON CONFLICT(org_id,subject_id) in service code works.
+                // Clean up any accidental duplicates first (keep lowest ctid / oldest row) then create index idempotently.
+                await exec(`DO $$ BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema='kb' AND table_name='organization_memberships' AND column_name='subject_id'
+                    ) THEN
+                        -- Remove duplicates prior to unique index creation
+                        DELETE FROM kb.organization_memberships a
+                        USING kb.organization_memberships b
+                        WHERE a.org_id = b.org_id AND a.subject_id = b.subject_id AND a.ctid > b.ctid;
+                        BEGIN
+                            CREATE UNIQUE INDEX IF NOT EXISTS idx_org_membership_unique ON kb.organization_memberships(org_id, subject_id);
+                        EXCEPTION WHEN others THEN END;
+                    END IF;
+                END $$;`);
             } finally {
                 if (locked) {
                     try { await exec('SELECT pg_advisory_unlock(4815162342)'); } catch {/* ignore */ }
@@ -352,6 +563,70 @@ ON CONFLICT DO NOTHING;`);
             await this.pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_project_hash ON kb.documents(project_id, content_hash);`);
             await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_documents_org ON kb.documents(org_id);`);
             await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_documents_project ON kb.documents(project_id);`);
+            // Authorization tables (idempotent for repeated migrations)
+            // Core user profiles (idempotent). Full schema path.
+            await this.pool.query('CREATE SCHEMA IF NOT EXISTS core');
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS core.user_profiles (
+                subject_id UUID PRIMARY KEY,
+                first_name TEXT NULL,
+                last_name TEXT NULL,
+                display_name TEXT NULL,
+                phone_e164 TEXT NULL,
+                avatar_object_key TEXT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );`);
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS core.user_emails (
+                subject_id UUID NOT NULL REFERENCES core.user_profiles(subject_id) ON DELETE CASCADE,
+                email TEXT NOT NULL,
+                verified BOOLEAN NOT NULL DEFAULT false,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                PRIMARY KEY(subject_id, email)
+            );`);
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.organization_memberships (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                org_id UUID NOT NULL REFERENCES kb.orgs(id) ON DELETE CASCADE,
+                subject_id UUID NOT NULL REFERENCES core.user_profiles(subject_id) ON DELETE CASCADE,
+                role TEXT NOT NULL CHECK (role IN ('org_admin')),
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );`);
+            // Ensure uniqueness on (org_id, subject_id) so service layer ON CONFLICT clause functions.
+            await this.pool.query(`DO $$ BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema='kb' AND table_name='organization_memberships' AND column_name='subject_id'
+                ) THEN
+                    -- Remove duplicates prior to unique index creation (keep earliest)
+                    DELETE FROM kb.organization_memberships a
+                    USING kb.organization_memberships b
+                    WHERE a.org_id = b.org_id AND a.subject_id = b.subject_id AND a.ctid > b.ctid;
+                    BEGIN
+                        CREATE UNIQUE INDEX IF NOT EXISTS idx_org_membership_unique ON kb.organization_memberships(org_id, subject_id);
+                    EXCEPTION WHEN others THEN END;
+                END IF;
+            END $$;`);
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.project_memberships (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id UUID NOT NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+                subject_id UUID NOT NULL REFERENCES core.user_profiles(subject_id) ON DELETE CASCADE,
+                role TEXT NOT NULL CHECK (role IN ('project_admin','project_user')),
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );`);
+            await this.pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_project_membership_unique ON kb.project_memberships(project_id, subject_id);');
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.invites (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                org_id UUID NOT NULL REFERENCES kb.orgs(id) ON DELETE CASCADE,
+                project_id UUID NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+                email TEXT NOT NULL,
+                role TEXT NOT NULL CHECK (role IN ('org_admin','project_admin','project_user')),
+                token TEXT NOT NULL UNIQUE,
+                status TEXT NOT NULL DEFAULT 'pending',
+                expires_at TIMESTAMPTZ NULL,
+                accepted_at TIMESTAMPTZ NULL,
+                revoked_at TIMESTAMPTZ NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );`);
+            await this.pool.query('CREATE INDEX IF NOT EXISTS idx_invites_token ON kb.invites(token);');
 
             // Ensure project_id FKs on documents & chat_conversations use ON DELETE CASCADE (legacy installs may have SET NULL)
             await this.pool.query(`DO $$ BEGIN
@@ -441,7 +716,7 @@ ON CONFLICT DO NOTHING;`);
             CREATE TABLE IF NOT EXISTS kb.chat_conversations (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 title TEXT NOT NULL,
-                owner_user_id UUID NULL,
+                owner_subject_id UUID NULL REFERENCES core.user_profiles(subject_id) ON DELETE SET NULL,
                 is_private BOOLEAN NOT NULL DEFAULT true,
                 org_id UUID NULL REFERENCES kb.orgs(id) ON DELETE SET NULL,
                 project_id UUID NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
@@ -457,7 +732,7 @@ ON CONFLICT DO NOTHING;`);
                 citations JSONB NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now()
             );`);
-            await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_conversations_owner ON kb.chat_conversations(owner_user_id, updated_at DESC);`);
+            await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_conversations_owner ON kb.chat_conversations(owner_subject_id, updated_at DESC);`);
             await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_conversations_org_proj ON kb.chat_conversations(org_id, project_id, updated_at DESC);`);
             await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_messages_conv ON kb.chat_messages(conversation_id, created_at ASC);`);
 
@@ -474,19 +749,7 @@ ON CONFLICT DO NOTHING;`);
             CREATE TRIGGER trg_settings_touch BEFORE UPDATE ON kb.settings
             FOR EACH ROW EXECUTE FUNCTION kb.touch_updated_at();`);
 
-            // Optional demo seed (enabled only when ORGS_DEMO_SEED=true)
-            if (this.config.demoSeedOrgs) {
-                await this.pool.query(`WITH ins AS (
-    INSERT INTO kb.orgs(name) VALUES('Default Org')
-    ON CONFLICT (name) DO NOTHING
-    RETURNING id
-)
-SELECT id FROM ins UNION ALL SELECT id FROM kb.orgs WHERE name='Default Org' LIMIT 1;`);
-                await this.pool.query(`WITH org AS (SELECT id FROM kb.orgs WHERE name='Default Org' LIMIT 1)
-INSERT INTO kb.projects(org_id, name)
-SELECT org.id, 'Default Project' FROM org
-ON CONFLICT DO NOTHING;`);
-            }
+            /* demo seed removed */
 
             const ms = Date.now() - start;
             this.logger.log(`Schema ensured in ${ms}ms (orgs/projects/documents updated)`);

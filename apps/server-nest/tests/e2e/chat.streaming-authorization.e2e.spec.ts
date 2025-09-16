@@ -24,6 +24,7 @@ async function createPrivateConversation(ctx: E2EContext) {
 
 describe('Chat Streaming Authorization', () => {
     beforeAll(async () => { ownerCtx = await createE2EContext('chat-stream-auth-owner'); intruderCtx = await createE2EContext('chat-stream-auth-intr'); });
+    beforeAll(() => { process.env.CHAT_TEST_DETERMINISTIC = '1'; });
     beforeEach(async () => { await ownerCtx.cleanup(); await intruderCtx.cleanup(); });
     afterAll(async () => { await ownerCtx.close(); await intruderCtx.close(); });
 

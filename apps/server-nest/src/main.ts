@@ -30,26 +30,18 @@ async function bootstrap() {
         exposedHeaders: ['X-Request-ID'],
     });
 
-    app.useGlobalPipes(
-        new ValidationPipe({
-            whitelist: true,
-            transform: true,
-            forbidUnknownValues: false,
-            transformOptions: { enableImplicitConversion: true },
-            validateCustomDecorators: true,
-            exceptionFactory: (errors) => {
-                const details = errors.reduce<Record<string, string[]>>((acc, err) => {
-                    if (err.constraints) {
-                        acc[err.property] = Object.values(err.constraints);
-                    } else if (err.children?.length) {
-                        acc[err.property] = ['invalid'];
-                    }
-                    return acc;
-                }, {});
-                return new UnprocessableEntityException({ message: 'Validation failed', details });
-            },
-        }),
-    );
+    app.useGlobalPipes(new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidUnknownValues: false,
+        transformOptions: { enableImplicitConversion: true },
+        validateCustomDecorators: true,
+        errorHttpStatusCode: 422,
+        exceptionFactory: (errors) => {
+            const messages = errors.flatMap(e => Object.values(e.constraints || {}));
+            return new UnprocessableEntityException({ message: messages[0] || 'Validation failed', errors: messages });
+        }
+    }));
 
     const config = new DocumentBuilder()
         .setTitle('Spec Server API')

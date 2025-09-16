@@ -7,62 +7,42 @@ interface OrgRow { id: string; name: string; created_at: string; updated_at: str
 
 @Injectable()
 export class OrgsService {
-    // In-process authoritative data (offline fallback / initial seed)
-    private data: OrgDto[] = [
-        { id: 'org_1', name: 'Example Org' },
-        { id: 'org_2', name: 'Second Org' },
-    ];
+    // In-process authoritative data (offline fallback only; stripped example seeds)
+    private data: OrgDto[] = [];
 
     constructor(private readonly db: DatabaseService, private readonly cfg: AppConfigService) { }
 
     async list(): Promise<OrgDto[]> {
-        if (!this.db.isOnline()) {
-            return this.cfg.demoSeedOrgs ? [...this.data] : [];
-        }
+        if (!this.db.isOnline()) return [...this.data];
         try {
             const res = await this.db.query<OrgRow>('SELECT id, name, created_at, updated_at FROM kb.orgs ORDER BY created_at DESC');
-            if (!res.rowCount) {
-                // Return demo seed only if flag enabled
-                return this.cfg.demoSeedOrgs ? [...this.data] : [];
-            }
+            if (!res.rowCount) return [];
             return res.rows.map(r => ({ id: r.id, name: r.name }));
         } catch (e: any) {
-            if (e && e.code === '42P01') { // relation does not exist -> fallback to memory
-                return this.cfg.demoSeedOrgs ? [...this.data] : [];
-            }
+            if (e && e.code === '42P01') return [...this.data];
             throw e;
         }
     }
 
     async get(id: string): Promise<OrgDto | null> {
-        if (!this.db.isOnline()) return this.cfg.demoSeedOrgs ? this.data.find(o => o.id === id) || null : null;
+        if (!this.db.isOnline()) return this.data.find(o => o.id === id) || null;
         try {
             const res = await this.db.query<OrgRow>('SELECT id, name, created_at, updated_at FROM kb.orgs WHERE id = $1 LIMIT 1', [id]);
             if (!res.rowCount) return null;
             const r = res.rows[0];
             return { id: r.id, name: r.name };
         } catch (e: any) {
-            if (e && e.code === '42P01') { // table missing
-                return this.cfg.demoSeedOrgs ? this.data.find(o => o.id === id) || null : null;
-            }
+            if (e && e.code === '42P01') return this.data.find(o => o.id === id) || null;
             throw e;
         }
     }
 
-    async create(name: string): Promise<OrgDto> {
+    async create(name: string, userId?: string): Promise<OrgDto> {
         if (!this.db.isOnline()) {
-            // Duplicate name check (offline data array)
-            if (this.cfg.demoSeedOrgs && this.data.some(o => o.name.toLowerCase() === name.toLowerCase())) {
+            if (this.data.some(o => o.name.toLowerCase() === name.toLowerCase())) {
                 throw new ConflictException({ message: 'Organization name already exists', details: { name: ['already exists'] } });
             }
-            if (this.data.length >= 100) {
-                throw new ConflictException('Organization limit reached (100)');
-            }
-            if (!this.cfg.demoSeedOrgs) {
-                // When demo seed disabled and DB offline, creating orgs is unsupported -> simulate minimal create
-                const id = `mem_${Math.random().toString(36).slice(2, 10)}`;
-                return { id, name };
-            }
+            if (this.data.length >= 100) throw new ConflictException('Organization limit reached (100)');
             const id = `mem_${Math.random().toString(36).slice(2, 10)}`;
             const org = { id, name };
             this.data.push(org);
@@ -76,9 +56,26 @@ export class OrgsService {
                 throw new ConflictException('Organization limit reached (100)');
             }
             try {
-                const res = await this.db.query<OrgRow>('INSERT INTO kb.orgs(name) VALUES($1) RETURNING id, name, created_at, updated_at', [name]);
-                const r = res.rows[0];
-                return { id: r.id, name: r.name };
+                const client = await this.db.getClient();
+                try {
+                    await client.query('BEGIN');
+                    const res = await client.query<OrgRow>('INSERT INTO kb.orgs(name) VALUES($1) RETURNING id, name, created_at, updated_at', [name]);
+                    const r = res.rows[0];
+                    if (userId) {
+                        // Auto-assign creator as org_admin (idempotent)
+                        await client.query(`INSERT INTO kb.organization_memberships(org_id, subject_id, role) VALUES($1,$2,'org_admin') ON CONFLICT (org_id, subject_id) DO NOTHING`, [r.id, userId]);
+                    }
+                    await client.query('COMMIT');
+                    return { id: r.id, name: r.name };
+                } catch (err: any) {
+                    try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+                    if (err && err.code === '23505') { // unique_violation
+                        throw new ConflictException({ message: 'Organization name already exists', details: { name: ['already exists'] } });
+                    }
+                    throw err;
+                } finally {
+                    client.release();
+                }
             } catch (err: any) {
                 if (err && err.code === '23505') { // unique_violation
                     throw new ConflictException({ message: 'Organization name already exists', details: { name: ['already exists'] } });
@@ -86,17 +83,11 @@ export class OrgsService {
                 throw err;
             }
         } catch (e: any) {
-            if (e && e.code === '42P01') { // missing table fallback to memory creation
-                if (this.cfg.demoSeedOrgs && this.data.some(o => o.name.toLowerCase() === name.toLowerCase())) {
+            if (e && e.code === '42P01') {
+                if (this.data.some(o => o.name.toLowerCase() === name.toLowerCase())) {
                     throw new ConflictException({ message: 'Organization name already exists', details: { name: ['already exists'] } });
                 }
-                if (this.data.length >= 100) {
-                    throw new ConflictException('Organization limit reached (100)');
-                }
-                if (!this.cfg.demoSeedOrgs) {
-                    const id = `mem_${Math.random().toString(36).slice(2, 10)}`;
-                    return { id, name };
-                }
+                if (this.data.length >= 100) throw new ConflictException('Organization limit reached (100)');
                 const id = `mem_${Math.random().toString(36).slice(2, 10)}`;
                 const org = { id, name };
                 this.data.push(org);
@@ -108,7 +99,6 @@ export class OrgsService {
 
     async delete(id: string): Promise<boolean> {
         if (!this.db.isOnline()) {
-            if (!this.cfg.demoSeedOrgs) return false; // offline delete noop when demo seed disabled
             const before = this.data.length;
             this.data = this.data.filter(o => o.id !== id);
             return this.data.length !== before;

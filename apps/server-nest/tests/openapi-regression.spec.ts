@@ -18,7 +18,9 @@ function hashSpecPaths(spec: any): string {
 // New hash after adding typed search response DTO
 // Updated after adding /documents/{id} and enriching document schema & error responses
 // Updated after adding /orgs/{id} endpoint
-const EXPECTED_HASH = process.env.OPENAPI_EXPECTED_HASH || 'a159f8b8040661efd2bbb41bb4b3782dce51b94093b85228f3b1853cff70e80e';
+// Updated after adding chat streaming event component schemas & related endpoint refinements
+// Updated after transactional project create race hardening (no path changes, but tag ordering may shift due to rebuild)
+const EXPECTED_HASH = process.env.OPENAPI_EXPECTED_HASH || '0a87e276bdb466abaa865966e3a66a86df362d3288dee247c771c43133df4aa1';
 
 describe('OpenAPI regression', () => {
     it('paths+tags hash matches expected (update EXPECTED_HASH intentionally if spec changed)', () => {

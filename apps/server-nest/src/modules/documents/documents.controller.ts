@@ -90,7 +90,8 @@ export class DocumentsController {
     }
 
     @Delete(':id')
-    @Scopes('documents:write')
+    // Deleting documents requires documents:delete (new taxonomy)
+    @Scopes('documents:delete')
     async delete(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string, @Req() req: any) {
         // Reuse get logic for scope enforcement
         const doc = await this.get(id, req);

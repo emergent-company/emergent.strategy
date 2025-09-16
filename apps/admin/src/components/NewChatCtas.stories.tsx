@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "@storybook/test";
 import { NewChatCtas, type NewChatCard } from "./NewChatCtas";
+import { action } from "../stories/storyAction";
 
 const meta: Meta<typeof NewChatCtas> = {
     title: "Chat/NewChatCtas",
     component: NewChatCtas,
     args: {
-        onPickPrompt: fn(),
-        onSubmit: fn(),
+        onPickPrompt: action('onPickPrompt'),
+        onSubmit: action('onSubmit'),
     },
 };
 

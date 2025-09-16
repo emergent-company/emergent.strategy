@@ -35,13 +35,13 @@ describe('Security Auth Errors E2E', () => {
         expect(res.status).toBe(401);
     });
 
-    it('accepts no-scope token on protected endpoint while scopes disabled', async () => {
+    it('rejects no-scope token on protected endpoint (scopes enforced)', async () => {
         const res = await fetch(`${ctx.baseUrl}/documents`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...authHeader('none'), 'x-project-id': ctx.projectId },
             body: JSON.stringify({ filename: 'z.txt', content: 'z' })
         });
-        expect([200, 201]).toContain(res.status);
+        expect(res.status).toBe(403);
     });
 
     it('rejects missing project header with 400 even with auth', async () => {

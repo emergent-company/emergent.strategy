@@ -26,6 +26,7 @@ async function ingestDoc() {
 
 describe('Chat Citations Persistence', () => {
     beforeAll(async () => { ctx = await createE2EContext('chat-cite-persist'); });
+    beforeAll(() => { process.env.CHAT_TEST_DETERMINISTIC = '1'; });
     beforeEach(async () => { await ctx.cleanup(); await ingestDoc(); });
     afterAll(async () => { await ctx.close(); });
 

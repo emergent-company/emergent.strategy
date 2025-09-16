@@ -15,7 +15,7 @@ export interface ChatCitation {
 }
 
 export interface ChatMessageRow { id: string; role: 'user' | 'assistant' | 'system'; content: string; citations: any | null; created_at: string; }
-export interface ConversationRow { id: string; title: string; created_at: string; updated_at: string; owner_user_id: string | null; is_private: boolean; }
+export interface ConversationRow { id: string; title: string; created_at: string; updated_at: string; owner_subject_id: string | null; is_private: boolean; }
 
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 
@@ -44,13 +44,13 @@ export class ChatService {
     async listConversations(userId: string | null, orgId: string | null, projectId: string | null) {
         if (!this.db.isOnline()) {
             const all = Array.from(this.offlineConvs.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-            return { shared: all.filter(c => !c.isPrivate).map(c => ({ id: c.id, title: c.title, created_at: c.createdAt, updated_at: c.updatedAt, owner_user_id: c.ownerUserId, is_private: c.isPrivate })), private: [] };
+            return { shared: all.filter(c => !c.isPrivate).map(c => ({ id: c.id, title: c.title, created_at: c.createdAt, updated_at: c.updatedAt, owner_subject_id: c.ownerUserId, is_private: c.isPrivate })), private: [] };
         }
         this.logger.log(`[listConversations] userId=${userId} orgId=${orgId} projectId=${projectId}`);
         // Build dynamic filtering: org is optional, project is optional (but controller may enforce project). When a header is omitted
         // we do NOT filter by that dimension to match documents behavior (org optional; project required at controller level).
         const sharedParams: any[] = [];
-        let sharedSQL = `SELECT id, title, created_at, updated_at, owner_user_id, is_private FROM kb.chat_conversations WHERE is_private = false`;
+        let sharedSQL = `SELECT id, title, created_at, updated_at, owner_subject_id, is_private FROM kb.chat_conversations WHERE is_private = false`;
         if (orgId) { sharedParams.push(orgId); sharedSQL += ` AND org_id IS NOT DISTINCT FROM $${sharedParams.length}`; }
         if (projectId) { sharedParams.push(projectId); sharedSQL += ` AND project_id IS NOT DISTINCT FROM $${sharedParams.length}`; }
         sharedSQL += ' ORDER BY updated_at DESC';
@@ -59,7 +59,7 @@ export class ChatService {
         let priv: any = { rows: [] as ConversationRow[], rowCount: 0 };
         if (userId) {
             const privParams: any[] = [userId];
-            let privSQL = `SELECT id, title, created_at, updated_at, owner_user_id, is_private FROM kb.chat_conversations WHERE is_private = true AND owner_user_id = $1`;
+            let privSQL = `SELECT id, title, created_at, updated_at, owner_subject_id, is_private FROM kb.chat_conversations WHERE is_private = true AND owner_subject_id = $1`;
             if (orgId) { privParams.push(orgId); privSQL += ` AND org_id IS NOT DISTINCT FROM $${privParams.length}`; }
             if (projectId) { privParams.push(projectId); privSQL += ` AND project_id IS NOT DISTINCT FROM $${privParams.length}`; }
             privSQL += ' ORDER BY updated_at DESC';
@@ -69,16 +69,16 @@ export class ChatService {
         this.logger.log(`[listConversations] results shared=${shared.rowCount} private=${privCount}`);
         if (priv.rows.length === 0) {
             // Diagnostic query to see if row exists with different org/project (should not happen, but helps debug)
-            const diag = await this.db.query<any>(`SELECT id, title, created_at, updated_at, owner_user_id, is_private, org_id, project_id FROM kb.chat_conversations WHERE owner_user_id = $1`, [userId]);
+            const diag = await this.db.query<any>(`SELECT id, title, created_at, updated_at, owner_subject_id, is_private, org_id, project_id FROM kb.chat_conversations WHERE owner_subject_id = $1`, [userId]);
             this.logger.log(`[listConversations] diag for owner yields ${diag.rowCount} rows: ${diag.rows.map(r => r.id + ':' + (r.org_id || 'null') + ',' + (r.project_id || 'null')).join(',')}`);
             // Additional focused diagnostics to isolate filter predicate behavior
-            const cOwner = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations WHERE owner_user_id = $1', [userId]);
+            const cOwner = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations WHERE owner_subject_id = $1', [userId]);
             const cPrivate = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations WHERE is_private = true');
-            const cBoth = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations WHERE is_private = true AND owner_user_id = $1', [userId]);
+            const cBoth = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations WHERE is_private = true AND owner_subject_id = $1', [userId]);
             this.logger.log(`[listConversations] counts owner=${cOwner.rows[0].c} privateAll=${cPrivate.rows[0].c} both=${cBoth.rows[0].c}`);
             // Peek at recent rows regardless of owner
-            const recent = await this.db.query<any>('SELECT id, owner_user_id, is_private, created_at FROM kb.chat_conversations ORDER BY created_at DESC LIMIT 5');
-            this.logger.log(`[listConversations] recent head: ${recent.rows.map(r => r.id.substring(0, 8) + ' owner=' + (r.owner_user_id || 'null') + ' priv=' + r.is_private).join(' | ')}`);
+            const recent = await this.db.query<any>('SELECT id, owner_subject_id, is_private, created_at FROM kb.chat_conversations ORDER BY created_at DESC LIMIT 5');
+            this.logger.log(`[listConversations] recent head: ${recent.rows.map(r => r.id.substring(0, 8) + ' owner=' + (r.owner_subject_id || 'null') + ' priv=' + r.is_private).join(' | ')}`);
         }
         return { shared: shared.rows, private: priv.rows };
     }
@@ -92,14 +92,14 @@ export class ChatService {
         if (!UUID_RE.test(id)) return null; // reject invalid format
         this.logger.log(`[getConversation] id=${id} userId=${userId} orgId=${orgId} projectId=${projectId}`);
         const convQ = await this.db.query<ConversationRow>(
-            `SELECT id, title, created_at, updated_at, owner_user_id, is_private
+            `SELECT id, title, created_at, updated_at, owner_subject_id, is_private
              FROM kb.chat_conversations WHERE id = $1`,
             [id],
         );
         this.logger.log(`[getConversation] rowCount=${convQ.rowCount}`);
         if (convQ.rowCount === 0) return null;
         const conv = convQ.rows[0];
-        if (conv.is_private && conv.owner_user_id !== userId) return 'forbidden';
+        if (conv.is_private && conv.owner_subject_id !== userId) return 'forbidden';
         const msgsQ = await this.db.query<ChatMessageRow>(
             `SELECT id, role, content, citations, created_at FROM kb.chat_messages WHERE conversation_id = $1 ORDER BY created_at ASC`,
             [id],
@@ -110,7 +110,7 @@ export class ChatService {
             title: conv.title,
             createdAt: conv.created_at,
             updatedAt: conv.updated_at,
-            ownerUserId: conv.owner_user_id,
+            ownerUserId: conv.owner_subject_id,
             isPrivate: conv.is_private,
             messages: msgsQ.rows.map(m => ({ id: m.id, role: m.role, content: m.content, citations: m.citations || undefined, createdAt: m.created_at })),
         };
@@ -123,12 +123,12 @@ export class ChatService {
             c.title = title; c.updatedAt = new Date().toISOString();
             return 'ok';
         }
-        const convQ = await this.db.query<{ id: string; owner_user_id: string | null; is_private: boolean }>(
-            `SELECT id, owner_user_id, is_private FROM kb.chat_conversations WHERE id = $1`,
+        const convQ = await this.db.query<{ id: string; owner_subject_id: string | null; is_private: boolean }>(
+            `SELECT id, owner_subject_id, is_private FROM kb.chat_conversations WHERE id = $1`,
             [id]);
         if (convQ.rowCount === 0) return 'not-found';
         const row = convQ.rows[0];
-        if (row.is_private && row.owner_user_id && row.owner_user_id !== userId) return 'forbidden';
+        if (row.is_private && row.owner_subject_id && row.owner_subject_id !== userId) return 'forbidden';
         await this.db.query(`UPDATE kb.chat_conversations SET title = $1, updated_at = now() WHERE id = $2`, [title, id]);
         return 'ok';
     }
@@ -138,12 +138,12 @@ export class ChatService {
             const existed = this.offlineConvs.delete(id);
             return existed ? 'ok' : 'not-found';
         }
-        const convQ = await this.db.query<{ id: string; owner_user_id: string | null; is_private: boolean }>(
-            `SELECT id, owner_user_id, is_private FROM kb.chat_conversations WHERE id = $1`,
+        const convQ = await this.db.query<{ id: string; owner_subject_id: string | null; is_private: boolean }>(
+            `SELECT id, owner_subject_id, is_private FROM kb.chat_conversations WHERE id = $1`,
             [id]);
         if (convQ.rowCount === 0) return 'not-found';
         const row = convQ.rows[0];
-        if (row.is_private && row.owner_user_id && row.owner_user_id !== userId) return 'forbidden';
+        if (row.is_private && row.owner_subject_id && row.owner_subject_id !== userId) return 'forbidden';
         await this.db.query(`DELETE FROM kb.chat_conversations WHERE id = $1`, [id]);
         return 'ok';
     }
@@ -160,11 +160,11 @@ export class ChatService {
         }
         let convId = existingId && UUID_RE.test(existingId) ? existingId : '';
         if (convId) {
-            const check = await this.db.query<{ id: string; is_private: boolean; owner_user_id: string | null }>(`SELECT id, is_private, owner_user_id FROM kb.chat_conversations WHERE id = $1`, [convId]);
+            const check = await this.db.query<{ id: string; is_private: boolean; owner_subject_id: string | null }>(`SELECT id, is_private, owner_subject_id FROM kb.chat_conversations WHERE id = $1`, [convId]);
             if (check.rowCount === 0) convId = '';
             else {
                 const c = check.rows[0];
-                if (c.is_private && c.owner_user_id && c.owner_user_id !== userId) throw new Error('forbidden');
+                if (c.is_private && c.owner_subject_id && c.owner_subject_id !== userId) throw new Error('forbidden');
             }
         }
         if (!convId) {
@@ -173,7 +173,7 @@ export class ChatService {
             const title = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} — ${snippet || 'New Conversation'}`;
             const owner = userId || crypto.randomUUID();
             const ins = await this.db.query<{ id: string }>(
-                `INSERT INTO kb.chat_conversations (title, owner_user_id, is_private, org_id, project_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+                `INSERT INTO kb.chat_conversations (title, owner_subject_id, is_private, org_id, project_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
                 [title, owner, isPrivate, orgId, projectId],
             );
             convId = ins.rows[0].id;

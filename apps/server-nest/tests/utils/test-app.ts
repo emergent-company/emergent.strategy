@@ -64,7 +64,6 @@ export async function bootstrapTestApp(): Promise<BootstrappedApp> {
             PGUSER: process.env.PGUSER,
             PGDATABASE: process.env.PGDATABASE,
             DB_AUTOINIT: process.env.DB_AUTOINIT,
-            ORGS_DEMO_SEED: process.env.ORGS_DEMO_SEED,
         });
     }
     app.useGlobalFilters(new GlobalHttpExceptionFilter());

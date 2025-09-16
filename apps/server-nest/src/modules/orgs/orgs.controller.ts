@@ -1,9 +1,10 @@
-import { Controller, Get, Param, NotFoundException, UseInterceptors, Post, Body, HttpCode, Delete } from '@nestjs/common';
+import { Controller, Get, Param, NotFoundException, UseInterceptors, Post, Body, HttpCode, Delete, Req, UseGuards } from '@nestjs/common';
 import { ApiOkResponse, ApiTags, ApiBadRequestResponse, ApiNotFoundResponse, ApiCreatedResponse, ApiConflictResponse } from '@nestjs/swagger';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import { OrgDto } from './dto/org.dto';
 import { CachingInterceptor } from '../../common/interceptors/caching.interceptor';
 import { OrgsService } from './orgs.service';
+import { AuthGuard } from '../auth/auth.guard';
 import { IsDefined, IsNotEmpty, IsString, MaxLength } from 'class-validator';
 import { ValidationPipe } from '@nestjs/common';
 
@@ -40,13 +41,16 @@ export class OrgsController {
     }
 
     @Post()
+    // Apply AuthGuard so req.user is populated; creator will be auto-added as org_admin in service layer
+    @UseGuards(AuthGuard)
     @HttpCode(201)
     @ApiCreatedResponse({ description: 'Organization created (users may have at most 10 orgs)', type: OrgDto })
     @ApiConflictResponse({ description: 'Organization limit reached or duplicate name', schema: { oneOf: [{ example: { error: { code: 'conflict', message: 'Organization limit reached (10)' } } }, { example: { error: { code: 'conflict', message: 'Organization name already exists', details: { name: ['already exists'] } } } }] } })
     @ApiBadRequestResponse({ description: 'Invalid body', schema: { example: { error: { code: 'validation-failed', message: 'Validation failed', details: { name: ['must be a string'] } } } } })
     @ApiStandardErrors()
-    async create(@Body(new ValidationPipe({ whitelist: true, transform: true })) dto: CreateOrgDto): Promise<OrgDto> {
-        return this.orgs.create(dto.name.trim());
+    async create(@Body(new ValidationPipe({ whitelist: true, transform: true })) dto: CreateOrgDto, @Req() req: any): Promise<OrgDto> {
+        const userId: string | undefined = req?.user?.sub;
+        return this.orgs.create(dto.name.trim(), userId);
     }
 
     @Delete(':id')

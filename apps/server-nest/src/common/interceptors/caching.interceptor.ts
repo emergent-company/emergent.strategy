@@ -13,13 +13,28 @@ export class CachingInterceptor implements NestInterceptor {
         return next.handle().pipe(map((data) => {
             try {
                 const json = JSON.stringify(data);
-                const etag = 'W/"' + crypto.createHash('sha1').update(json).digest('hex') + '"';
-                const ifNoneMatch = req.headers['if-none-match'];
-                if (ifNoneMatch && ifNoneMatch === etag) {
-                    res.status(304);
-                    return undefined;
+                const hash = crypto.createHash('sha1').update(json).digest('hex');
+                const weakEtag = 'W/"' + hash + '"';
+                const strongEtag = '"' + hash + '"';
+                const ifNoneMatchRaw = req.headers['if-none-match'];
+                if (ifNoneMatchRaw) {
+                    // Support multi-value If-None-Match, weak/strong normalization per RFC 7232
+                    const candidates = String(ifNoneMatchRaw).split(',').map(s => s.trim()).filter(Boolean);
+                    const norm = (v: string) => v.replace(/^W\//i, '').trim();
+                    const weakNorm = norm(weakEtag);
+                    const strongNorm = norm(strongEtag);
+                    const matched = candidates.some(c => {
+                        const cn = norm(c);
+                        return cn === weakNorm || cn === strongNorm;
+                    });
+                    if (matched) {
+                        res.status(304);
+                        if (!res.getHeader('ETag')) res.setHeader('ETag', weakEtag);
+                        return undefined; // No body for 304
+                    }
                 }
-                if (!res.getHeader('ETag')) res.setHeader('ETag', etag);
+                // Prefer weak etag to account for insignificant representation changes
+                if (!res.getHeader('ETag')) res.setHeader('ETag', weakEtag);
                 if (!res.getHeader('Cache-Control')) res.setHeader('Cache-Control', 'private, max-age=30, must-revalidate');
             } catch (_) {
                 // ignore serialization issues

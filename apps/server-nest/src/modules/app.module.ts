@@ -14,6 +14,8 @@ import { DatabaseModule } from '../common/database/database.module';
 import { AppConfigModule } from '../common/config/config.module';
 import { UtilsModule } from '../common/utils/utils.module';
 import { EmbeddingsModule } from './embeddings/embeddings.module';
+import { InvitesModule } from './invites/invites.module';
+import { UserProfileModule } from './user-profile/user-profile.module';
 
 @Module({
     imports: [
@@ -31,6 +33,8 @@ import { EmbeddingsModule } from './embeddings/embeddings.module';
         AppConfigModule,
         UtilsModule,
         EmbeddingsModule,
+        InvitesModule,
+        UserProfileModule,
         DatabaseModule,
     ],
 })
