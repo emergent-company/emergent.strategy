@@ -121,7 +121,8 @@ export class ChatController {
     @Get('conversations')
     @ApiOkResponse({ description: 'List chat conversations', schema: { example: [{ id: '11111111-1111-4111-8111-111111111111', title: '2025-01-01 — Hello world', is_private: false }] } })
     @ApiStandardErrors()
-    @Scopes('chat:read')
+    // Listing conversations = chat usage scope
+    @Scopes('chat:use')
     async listConversations(@Req() req: any) {
         const userId = this.chat.mapUserId(req.user?.sub);
         const orgId = (req.headers['x-org-id'] as string | undefined) || null;
@@ -135,7 +136,8 @@ export class ChatController {
     @Post('conversations')
     @ApiOkResponse({ description: 'Create a new conversation (201)', schema: { example: { id: '11111111-1111-4111-8111-111111111111', title: '2025-01-01 — New Conversation' } } })
     @ApiBadRequestResponse({ description: 'Bad request', schema: { example: { error: { code: 'bad-request', message: 'message required' } } } })
-    @Scopes('chat:write')
+    // Creating conversation = chat usage scope (admin not required)
+    @Scopes('chat:use')
     async createConversation(@Body() body: { message?: string; isPrivate?: boolean }, @Req() req: any, @Res() res: Response) {
         const message = String(body?.message || '').trim();
         if (!message) return res.status(HttpStatus.BAD_REQUEST).json({ error: { code: 'bad-request', message: 'message required' } });
@@ -157,7 +159,8 @@ export class ChatController {
     @ApiNotFoundResponse({ description: 'Conversation not found', schema: { example: { error: { code: 'not-found', message: 'Conversation not found' } } } })
     @ApiForbiddenResponse({ description: 'Forbidden', schema: { example: { error: { code: 'forbidden', message: 'Forbidden' } } } })
     @ApiStandardErrors({ notFound: true })
-    @Scopes('chat:read')
+    // Reading a conversation requires chat:use
+    @Scopes('chat:use')
     async getConversation(@Param('id') id: string, @Req() req: any, @Res() res: Response) {
         const userId = this.chat.mapUserId(req.user?.sub);
         const orgId = (req.headers['x-org-id'] as string | undefined) || null;
@@ -197,7 +200,8 @@ export class ChatController {
     })
     @ApiBadRequestResponse({ description: 'Missing project header', schema: { example: { error: { code: 'bad-request', message: 'x-project-id header required' } } } })
     @ApiNotFoundResponse({ description: 'Conversation not found', schema: { example: { error: { code: 'not-found', message: 'Conversation not found' } } } })
-    @Scopes('chat:read')
+    // Streaming (GET) also requires chat:use
+    @Scopes('chat:use')
     async streamGet(@Param('id') id: string, @Req() req: any, @Res() res: Response) {
         // Validation tightening: enforce x-project-id header & UUID format before streaming.
         const projectId = (req.headers['x-project-id'] as string | undefined) || null;
@@ -265,7 +269,10 @@ export class ChatController {
                 const content = await this.gen.generateStreaming(prompt, (t) => {
                     const token = t;
                     tokens.push(token);
-                    res.write(`data: ${JSON.stringify({ message: token, index: idx++, streaming: true })}\n\n`);
+                    // Deterministic test mode adds total field to simplify assertions
+                    const frame: any = { message: token, index: idx++, streaming: true }; // eslint-disable-line @typescript-eslint/no-explicit-any
+                    if (process.env.CHAT_TEST_DETERMINISTIC === '1') frame.total = 5;
+                    res.write(`data: ${JSON.stringify(frame)}\n\n`);
                 });
                 // Optional debug: log and stream a truncated preview of the final assembled model response
                 if (process.env.E2E_DEBUG_CHAT === '1') {
@@ -328,7 +335,8 @@ export class ChatController {
     @ApiOkResponse({ description: 'Rename conversation', schema: { example: { ok: true, id: 'c1', title: 'New Title' } } })
     @ApiBadRequestResponse({ description: 'Bad request', schema: { example: { error: { code: 'bad-request', message: 'title required' } } } })
     @ApiNotFoundResponse({ description: 'Conversation not found', schema: { example: { error: { code: 'not-found', message: 'Conversation not found' } } } })
-    @Scopes('chat:write')
+    // Renaming conversation considered admin-only mutation
+    @Scopes('chat:admin')
     async rename(@Param('id') id: string, @Body() body: { title?: string }, @Req() req: any, @Res() res: Response) {
         const title = String(body?.title || '').trim();
         if (!title) return res.status(HttpStatus.BAD_REQUEST).json({ error: { code: 'bad-request', message: 'title required' } });
@@ -348,7 +356,8 @@ export class ChatController {
     @Delete(':id')
     @ApiOkResponse({ description: 'Delete conversation', schema: { example: { ok: true, id: 'c1' } } })
     @ApiNotFoundResponse({ description: 'Conversation not found', schema: { example: { error: { code: 'not-found', message: 'Conversation not found' } } } })
-    @Scopes('chat:write')
+    // Deleting conversation = admin
+    @Scopes('chat:admin')
     async delete(@Param('id') id: string, @Req() req: any, @Res() res: Response) {
         const userId = this.chat.mapUserId(req.user?.sub);
         const orgId = (req.headers['x-org-id'] as string | undefined) || null;
@@ -391,7 +400,8 @@ export class ChatController {
     @ApiBadRequestResponse({ description: 'Bad request', schema: { example: { error: { code: 'bad-request', message: 'message required' } } } })
     @ApiBody({ type: ChatRequestDto })
     @ApiStandardErrors()
-    @Scopes('chat:write')
+    // Streaming (POST) usage (create message) requires chat:use
+    @Scopes('chat:use')
     async streamPost(@Body() body: ChatRequestDto, @Req() req: any, @Res() res: Response) {
         const message = String(body?.message || '').trim();
         if (!message) return res.status(HttpStatus.BAD_REQUEST).json({ error: { code: 'bad-request', message: 'message required' } });
@@ -401,7 +411,7 @@ export class ChatController {
         const userId = this.chat.mapUserId(req.user?.sub);
         const topK = Math.min(Math.max(Number(body?.topK || 5), 1), 20);
         const filterIds = Array.isArray(body?.documentIds) && body.documentIds.length ? body.documentIds : null;
-    let convId: string;
+        let convId: string;
         try {
             convId = await this.chat.createConversationIfNeeded(body?.conversationId, message, userId, orgId, projectId, !!body?.isPrivate);
             // If we reused an existing conversation (createConversationIfNeeded only persists message when NEW), persist user message explicitly.
@@ -412,11 +422,11 @@ export class ChatController {
             if ((e as Error).message === 'forbidden') return res.status(HttpStatus.FORBIDDEN).json({ error: { code: 'forbidden', message: 'Forbidden' } });
             return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: { code: 'internal', message: 'failed to initialize conversation' } });
         }
-    // Prepare SSE headers (explicit 200 OK status)
-    res.status(HttpStatus.OK);
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
+        // Prepare SSE headers (explicit 200 OK status)
+        res.status(HttpStatus.OK);
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
         (res as any).flushHeaders?.();
 
         // Retrieve citations (vector + lexical hybrid). Errors -> empty citations.

@@ -14,6 +14,12 @@ export class ChatGenerationService {
     get hasKey(): boolean { return !!this.config.googleApiKey; }
 
     async generateStreaming(prompt: string, onToken: (t: string) => void): Promise<string> {
+        // Deterministic synthetic mode for tests: bypass external model and emit fixed token sequence
+        if (process.env.CHAT_TEST_DETERMINISTIC === '1') {
+            const synthetic: string[] = ['token-0', 'token-1', 'token-2', 'token-3', 'token-4'];
+            synthetic.forEach(t => onToken(t));
+            return synthetic.join(' ');
+        }
         if (!this.enabled) throw new Error('chat model disabled');
         try {
             if (process.env.E2E_DEBUG_CHAT === '1') {

@@ -2,7 +2,7 @@ openapi: 3.0.0
 paths:
   /health:
     get:
-      operationId: HealthController_get
+      operationId: get
       parameters: []
       responses:
         '200':
@@ -36,7 +36,7 @@ paths:
         - Health
   /auth/me:
     get:
-      operationId: AuthController_me
+      operationId: me
       parameters: []
       responses:
         '200':
@@ -73,9 +73,7 @@ paths:
                 example:
                   error:
                     code: forbidden
-                    message: Insufficient permissions
-                    missing_scopes: &ref_0
-                      - read:me
+                    message: Forbidden
         '500':
           description: Internal server error
           content:
@@ -89,10 +87,9 @@ paths:
         - Auth
       security:
         - bearer: []
-      x-required-scopes: *ref_0
   /settings:
     get:
-      operationId: SettingsController_list
+      operationId: list
       parameters: []
       responses:
         '200':
@@ -139,11 +136,11 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_1
+      tags: &ref_0
         - Settings
   /settings/{key}:
     get:
-      operationId: SettingsController_getOne
+      operationId: getOne
       parameters:
         - name: key
           required: true
@@ -204,10 +201,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_0
   /orgs:
     get:
-      operationId: OrgsController_list
+      operationId: list
       parameters: []
       responses:
         '200':
@@ -254,10 +251,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_2
+      tags: &ref_1
         - Orgs
     post:
-      operationId: OrgsController_create
+      operationId: create
       parameters: []
       requestBody:
         required: true
@@ -328,10 +325,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_1
   /orgs/{id}:
     get:
-      operationId: OrgsController_getOne
+      operationId: getOne
       parameters:
         - name: id
           required: true
@@ -390,9 +387,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_1
     delete:
-      operationId: OrgsController_delete
+      operationId: delete
       parameters:
         - name: id
           required: true
@@ -401,7 +398,9 @@ paths:
             type: string
       responses:
         '200':
-          description: Organization deleted (projects, documents, chunks, conversations cascade)
+          description: >-
+            Organization deleted (projects, documents, chunks, conversations
+            cascade)
         '400':
           description: Bad request
           content:
@@ -447,10 +446,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_1
   /projects:
     get:
-      operationId: ProjectsController_list
+      operationId: list
       parameters:
         - name: limit
           required: true
@@ -460,7 +459,9 @@ paths:
         - name: orgId
           required: false
           in: query
-          description: Filter projects by organization id (must be explicit elsewhere when creating projects)
+          description: >-
+            Filter projects by organization id (must be explicit elsewhere when
+            creating projects)
           schema:
             type: string
       responses:
@@ -499,8 +500,6 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_3
-                      - projects:read
         '500':
           description: Internal server error
           content:
@@ -510,13 +509,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_4
+      tags: &ref_2
         - Projects
-      security:
-        - bearer: []
-      x-required-scopes: *ref_3
     post:
-      operationId: ProjectsController_create
+      operationId: create
       parameters: []
       requestBody:
         required: true
@@ -558,8 +554,6 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_5
-                      - projects:write
         '500':
           description: Internal server error
           content:
@@ -569,13 +563,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
-      security:
-        - bearer: []
-      x-required-scopes: *ref_5
+      tags: *ref_2
   /projects/{id}:
     delete:
-      operationId: ProjectsController_delete
+      operationId: delete
       parameters:
         - name: id
           required: true
@@ -617,8 +608,6 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_6
-                      - projects:write
         '500':
           description: Internal server error
           content:
@@ -628,13 +617,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
-      security:
-        - bearer: []
-      x-required-scopes: *ref_6
+      tags: *ref_2
   /search:
     get:
-      operationId: SearchController_search
+      operationId: search
       parameters:
         - name: q
           required: true
@@ -699,8 +685,6 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_7
-                      - search:read
         '500':
           description: Internal server error
           content:
@@ -712,12 +696,9 @@ paths:
                     message: Unexpected error
       tags:
         - Search
-      security:
-        - bearer: []
-      x-required-scopes: *ref_7
   /documents:
     get:
-      operationId: DocumentsController_list
+      operationId: list
       parameters:
         - name: limit
           required: false
@@ -773,8 +754,6 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_8
-                      - documents:read
         '500':
           description: Internal server error
           content:
@@ -784,13 +763,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_9
+      tags: &ref_3
         - Documents
-      security:
-        - bearer: []
-      x-required-scopes: *ref_8
     post:
-      operationId: DocumentsController_create
+      operationId: create
       parameters: []
       requestBody:
         required: true
@@ -839,8 +815,6 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_10
-                      - documents:write
         '500':
           description: Internal server error
           content:
@@ -850,13 +824,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_9
-      security:
-        - bearer: []
-      x-required-scopes: *ref_10
+      tags: *ref_3
   /documents/{id}:
     get:
-      operationId: DocumentsController_get
+      operationId: get
       parameters:
         - name: id
           required: true
@@ -898,8 +869,6 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_11
-                      - documents:read
         '500':
           description: Internal server error
           content:
@@ -909,12 +878,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_9
-      security:
-        - bearer: []
-      x-required-scopes: *ref_11
+      tags: *ref_3
     delete:
-      operationId: DocumentsController_delete
+      operationId: delete
       parameters:
         - name: id
           required: true
@@ -924,14 +890,10 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_9
-      security:
-        - bearer: []
-      x-required-scopes:
-        - documents:write
+      tags: *ref_3
   /chunks:
     get:
-      operationId: ChunksController_list
+      operationId: list
       parameters:
         - name: documentId
           required: false
@@ -975,8 +937,6 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_12
-                      - chunks:read
         '500':
           description: Internal server error
           content:
@@ -988,12 +948,9 @@ paths:
                     message: Unexpected error
       tags:
         - Chunks
-      security:
-        - bearer: []
-      x-required-scopes: *ref_12
   /ingest/upload:
     post:
-      operationId: IngestionController_upload
+      operationId: upload
       parameters: []
       requestBody:
         required: true
@@ -1041,8 +998,6 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_13
-                      - ingest:write
         '500':
           description: Internal server error
           content:
@@ -1052,14 +1007,11 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_14
+      tags: &ref_4
         - Ingestion
-      security:
-        - bearer: []
-      x-required-scopes: *ref_13
   /ingest/url:
     post:
-      operationId: IngestionController_ingestUrl
+      operationId: ingestUrl
       parameters: []
       requestBody:
         required: true
@@ -1107,8 +1059,6 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_15
-                      - ingest:write
         '500':
           description: Internal server error
           content:
@@ -1118,13 +1068,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_14
-      security:
-        - bearer: []
-      x-required-scopes: *ref_15
+      tags: *ref_4
   /chat/conversations:
     get:
-      operationId: ChatController_listConversations
+      operationId: listConversations
       parameters: []
       responses:
         '200':
@@ -1163,8 +1110,6 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_16
-                      - chat:read
         '500':
           description: Internal server error
           content:
@@ -1174,13 +1119,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_17
+      tags: &ref_5
         - Chat
-      security:
-        - bearer: []
-      x-required-scopes: *ref_16
     post:
-      operationId: ChatController_createConversation
+      operationId: createConversation
       parameters: []
       responses:
         '200':
@@ -1200,14 +1142,10 @@ paths:
                   error:
                     code: bad-request
                     message: message required
-      tags: *ref_17
-      security:
-        - bearer: []
-      x-required-scopes:
-        - chat:write
+      tags: *ref_5
   /chat/{id}:
     get:
-      operationId: ChatController_getConversation
+      operationId: getConversation
       parameters:
         - name: id
           required: true
@@ -1243,9 +1181,7 @@ paths:
                 example:
                   error:
                     code: forbidden
-                    message: Insufficient permissions
-                    missing_scopes: &ref_18
-                      - chat:read
+                    message: Forbidden
         '404':
           description: Conversation not found
           content:
@@ -1264,12 +1200,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_17
-      security:
-        - bearer: []
-      x-required-scopes: *ref_18
+      tags: *ref_5
     patch:
-      operationId: ChatController_rename
+      operationId: rename
       parameters:
         - name: id
           required: true
@@ -1304,13 +1237,9 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_17
-      security:
-        - bearer: []
-      x-required-scopes:
-        - chat:write
+      tags: *ref_5
     delete:
-      operationId: ChatController_delete
+      operationId: delete
       parameters:
         - name: id
           required: true
@@ -1335,14 +1264,10 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_17
-      security:
-        - bearer: []
-      x-required-scopes:
-        - chat:write
+      tags: *ref_5
   /chat/{id}/stream:
     get:
-      operationId: ChatController_streamGet
+      operationId: streamGet
       parameters:
         - name: id
           required: true
@@ -1351,7 +1276,9 @@ paths:
             type: string
       responses:
         '200':
-          description: 'Chat streaming endpoint (SSE). Emits a sequence of JSON frames each prefixed by "data: ".'
+          description: >-
+            Chat streaming endpoint (SSE). Emits a sequence of JSON frames each
+            prefixed by "data: ".
           content:
             text/event-stream:
               schema:
@@ -1372,8 +1299,9 @@ paths:
                     data: {"message":"token-0","index":0,"streaming":true}
 
                 citations:
-                  value: |+
-                    data: {"citations":[{"documentId":"11111111-1111-4111-8111-111111111111"}]}
+                  value: >+
+                    data:
+                    {"citations":[{"documentId":"11111111-1111-4111-8111-111111111111"}]}
 
                 summary:
                   value: |+
@@ -1384,8 +1312,10 @@ paths:
                     data: {"done":true,"message":"[DONE]"}
 
                 error:
-                  value: |+
-                    data: {"error":{"code":"upstream-failed","message":"Simulated upstream model failure"},"done":true}
+                  value: >+
+                    data:
+                    {"error":{"code":"upstream-failed","message":"Simulated
+                    upstream model failure"},"done":true}
 
         '400':
           description: Missing project header
@@ -1405,14 +1335,10 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_17
-      security:
-        - bearer: []
-      x-required-scopes:
-        - chat:read
+      tags: *ref_5
   /chat/stream:
     post:
-      operationId: ChatController_streamPost
+      operationId: streamPost
       parameters: []
       requestBody:
         required: true
@@ -1423,8 +1349,8 @@ paths:
       responses:
         '200':
           description: >-
-            Chat streaming endpoint (SSE). Each line is an SSE data frame beginning with "data: ", followed by one of
-            the JSON event shapes.
+            Chat streaming endpoint (SSE). Each line is an SSE data frame
+            beginning with "data: ", followed by one of the JSON event shapes.
           content:
             text/event-stream:
               schema:
@@ -1433,11 +1359,14 @@ paths:
                   - $ref: '#/components/schemas/ChatStreamTokenEvent'
                   - $ref: '#/components/schemas/ChatStreamErrorEvent'
                   - $ref: '#/components/schemas/ChatStreamDoneEvent'
-                description: Union of possible chat stream events (serialized per line as SSE frame).
+                description: >-
+                  Union of possible chat stream events (serialized per line as
+                  SSE frame).
               examples:
                 meta:
-                  value: |+
-                    data: {"type":"meta","conversationId":"11111111-1111-4111-8111-111111111111","citations":[]}
+                  value: >+
+                    data:
+                    {"type":"meta","conversationId":"11111111-1111-4111-8111-111111111111","citations":[]}
 
                 token:
                   value: |+
@@ -1469,12 +1398,6 @@ paths:
                   error:
                     code: unauthorized
                     message: Missing or invalid credentials
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: unauthorized
-                    message: Missing or invalid credentials
         '403':
           description: Forbidden
           content:
@@ -1484,8 +1407,6 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_19
-                      - chat:write
         '500':
           description: Internal server error
           content:
@@ -1495,15 +1416,292 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_17
-      security:
-        - bearer: []
-      x-required-scopes: *ref_19
+      tags: *ref_5
+  /invites:
+    post:
+      operationId: create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInviteDto'
+      responses:
+        '201':
+          description: ''
+  /invites/accept:
+    post:
+      operationId: accept
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInviteDto'
+      responses:
+        '201':
+          description: ''
+  /user/profile:
+    get:
+      operationId: getSelf
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: &ref_6
+        - UserProfile
+    put:
+      operationId: updateSelf
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserProfileDto'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileDto'
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_6
+  /user/profile/emails:
+    get:
+      operationId: listEmails
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AlternativeEmailDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_6
+    post:
+      operationId: addEmail
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddAlternativeEmailDto'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlternativeEmailDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_6
+  /user/profile/emails/{email}:
+    delete:
+      operationId: removeEmail
+      parameters:
+        - name: email
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                example:
+                  status: deleted
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_6
 info:
   title: Spec Server API
   description: >-
-    Generated OpenAPI spec (code-first). All protected operations include x-required-scopes and 403 examples with
-    missing_scopes.
+    Generated OpenAPI spec (NestJS). NOTE: Each Document MUST belong to a
+    Project and each Project belongs to an Organization. Users with no
+    accessible Projects must create one before using ingestion or search
+    features.
   version: 0.2.0
   contact: {}
 tags: []
@@ -1748,6 +1946,56 @@ components:
       type: object
       properties: {}
     GetChatStreamErrorFrame:
+      type: object
+      properties: {}
+    CreateInviteDto:
+      type: object
+      properties: {}
+    AcceptInviteDto:
+      type: object
+      properties: {}
+    UserProfileDto:
+      type: object
+      properties:
+        subjectId:
+          type: string
+          description: Canonical internal user id (subject id, from identity provider)
+          format: uuid
+        firstName:
+          type: object
+        lastName:
+          type: object
+        displayName:
+          type: object
+          description: Display name fallback (explicit) or derived (first + last)
+        phoneE164:
+          type: object
+          description: E.164 formatted phone number, leading + and digits
+        avatarObjectKey:
+          type: object
+          description: Object storage key for avatar (if stored internally)
+      required:
+        - subjectId
+    UpdateUserProfileDto:
+      type: object
+      properties: {}
+    AlternativeEmailDto:
+      type: object
+      properties:
+        email:
+          type: string
+          description: Email address (lowercased canonical form)
+        verified:
+          type: boolean
+          description: Verification status
+        createdAt:
+          type: string
+          description: ISO timestamp created
+      required:
+        - email
+        - verified
+        - createdAt
+    AddAlternativeEmailDto:
       type: object
       properties: {}
 x-tagGroups:

@@ -19,7 +19,8 @@ export class ChunksController {
     @ApiBadRequestResponse({ description: 'Bad request', schema: { example: { error: { code: 'bad-request', message: 'Invalid filter' } } } })
     @ApiQuery({ name: 'documentId', required: false, description: 'Filter by document UUID' })
     @ApiStandardErrors()
-    @Scopes('chunks:read')
+    // Chunk listing covered by documents:read (derived from project/document access)
+    @Scopes('documents:read')
     list(@Query('documentId', new ParseUUIDPipe({ version: '4', optional: true })) documentId?: string) {
         return this.chunks.list(documentId);
     }

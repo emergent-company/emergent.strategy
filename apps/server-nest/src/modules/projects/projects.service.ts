@@ -27,7 +27,7 @@ export class ProjectsService {
         return res.rows.map(r => ({ id: r.id, name: r.name, orgId: r.org_id }));
     }
 
-    async create(name: string, orgId?: string): Promise<ProjectDto> {
+    async create(name: string, orgId?: string, userId?: string): Promise<ProjectDto> {
         if (!name || !name.trim()) {
             throw new BadRequestException({
                 error: { code: 'validation-failed', message: 'Name required', details: { name: ['must not be blank'] } },
@@ -39,21 +39,38 @@ export class ProjectsService {
                 error: { code: 'org-required', message: 'Organization id (orgId) is required to create a project' },
             });
         }
-        const chk = await this.db.query('SELECT 1 FROM kb.orgs WHERE id = $1 LIMIT 1', [orgId]);
-        if (!chk.rowCount) {
-            throw new BadRequestException({ error: { code: 'org-not-found', message: 'Organization not found' } });
-        }
+        // Race-hardened approach: perform org existence check and project insert in SAME transaction.
+        // This prevents a concurrent org deletion (cascade) from occurring between the pre-check and insert,
+        // which could surface as a transient FK 23503 even though the org existed milliseconds earlier.
+        const client = await this.db.getClient();
         try {
-            const insProj = await this.db.query<{ id: string; name: string; org_id: string }>(
+            await client.query('BEGIN');
+            const orgChk = await client.query('SELECT id FROM kb.orgs WHERE id = $1 LIMIT 1 FOR SHARE', [orgId]);
+            if (!orgChk.rowCount) {
+                await client.query('ROLLBACK');
+                throw new BadRequestException({ error: { code: 'org-not-found', message: 'Organization not found' } });
+            }
+            const insProj = await client.query<{ id: string; name: string; org_id: string }>(
                 `INSERT INTO kb.projects(org_id, name) VALUES($1,$2) RETURNING id, name, org_id`,
                 [orgId, name.trim()],
             );
             const p = insProj.rows[0];
+            if (userId) {
+                await client.query(`INSERT INTO kb.project_memberships(project_id, subject_id, role) VALUES($1,$2,'project_admin') ON CONFLICT (project_id, subject_id) DO NOTHING`, [p.id, userId]);
+            }
+            await client.query('COMMIT');
             return { id: p.id, name: p.name, orgId: p.org_id };
         } catch (e) {
+            try { await client.query('ROLLBACK'); } catch { /* ignore */ }
             const msg = (e as Error).message;
+            // Translate FK org deletion race into stable org-not-found semantic
+            if (msg.includes('projects_org_id_fkey')) {
+                throw new BadRequestException({ error: { code: 'org-not-found', message: 'Organization not found (possibly deleted concurrently)' } });
+            }
             if (msg.includes('duplicate')) throw new BadRequestException({ error: { code: 'duplicate', message: 'Project with this name exists in org' } });
             throw e;
+        } finally {
+            client.release();
         }
     }
 

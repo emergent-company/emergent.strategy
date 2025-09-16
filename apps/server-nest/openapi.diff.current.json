@@ -2,6 +2,26 @@
   "baseline": {
     "components": {
       "schemas": {
+        "ChatRequestDto": {
+          "properties": {},
+          "type": "object"
+        },
+        "ChatStreamDoneEvent": {
+          "properties": {},
+          "type": "object"
+        },
+        "ChatStreamErrorEvent": {
+          "properties": {},
+          "type": "object"
+        },
+        "ChatStreamMetaEvent": {
+          "properties": {},
+          "type": "object"
+        },
+        "ChatStreamTokenEvent": {
+          "properties": {},
+          "type": "object"
+        },
         "ChunkDto": {
           "properties": {
             "documentId": {
@@ -47,6 +67,10 @@
             "hasEmbedding",
             "text"
           ],
+          "type": "object"
+        },
+        "CitationDto": {
+          "properties": {},
           "type": "object"
         },
         "CreateOrgDto": {
@@ -122,6 +146,30 @@
             "updatedAt",
             "chunks"
           ],
+          "type": "object"
+        },
+        "GetChatStreamCitationsFrame": {
+          "properties": {},
+          "type": "object"
+        },
+        "GetChatStreamDoneFrame": {
+          "properties": {},
+          "type": "object"
+        },
+        "GetChatStreamErrorFrame": {
+          "properties": {},
+          "type": "object"
+        },
+        "GetChatStreamMetaFrame": {
+          "properties": {},
+          "type": "object"
+        },
+        "GetChatStreamSummaryFrame": {
+          "properties": {},
+          "type": "object"
+        },
+        "GetChatStreamTokenFrame": {
+          "properties": {},
           "type": "object"
         },
         "IngestionUploadDto": {
@@ -523,6 +571,146 @@
           ]
         }
       },
+      "/chat/stream": {
+        "post": {
+          "operationId": "ChatController_streamPost",
+          "parameters": [],
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatRequestDto"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "200": {
+              "content": {
+                "text/event-stream": {
+                  "examples": {
+                    "done": {
+                      "value": "data: {\"type\":\"done\"}\n\n"
+                    },
+                    "error": {
+                      "value": "data: {\"type\":\"error\",\"error\":\"model key missing\"}\n\n"
+                    },
+                    "meta": {
+                      "value": "data: {\"type\":\"meta\",\"conversationId\":\"11111111-1111-4111-8111-111111111111\",\"citations\":[]}\n\n"
+                    },
+                    "token": {
+                      "value": "data: {\"type\":\"token\",\"token\":\"Hello\"}\n\n"
+                    }
+                  },
+                  "schema": {
+                    "description": "Union of possible chat stream events (serialized per line as SSE frame).",
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/ChatStreamMetaEvent"
+                      },
+                      {
+                        "$ref": "#/components/schemas/ChatStreamTokenEvent"
+                      },
+                      {
+                        "$ref": "#/components/schemas/ChatStreamErrorEvent"
+                      },
+                      {
+                        "$ref": "#/components/schemas/ChatStreamDoneEvent"
+                      }
+                    ]
+                  }
+                }
+              },
+              "description": "Chat streaming endpoint (SSE). Each line is an SSE data frame beginning with \"data: \", followed by one of the JSON event shapes."
+            },
+            "400": {
+              "content": {
+                "text/event-stream": {
+                  "schema": {
+                    "example": {
+                      "error": {
+                        "code": "bad-request",
+                        "message": "message required"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "Bad request"
+            },
+            "401": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "example": {
+                      "error": {
+                        "code": "unauthorized",
+                        "message": "Missing or invalid credentials"
+                      }
+                    }
+                  }
+                },
+                "text/event-stream": {
+                  "schema": {
+                    "example": {
+                      "error": {
+                        "code": "unauthorized",
+                        "message": "Missing or invalid credentials"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "Unauthorized"
+            },
+            "403": {
+              "content": {
+                "text/event-stream": {
+                  "schema": {
+                    "example": {
+                      "error": {
+                        "code": "forbidden",
+                        "message": "Insufficient permissions",
+                        "missing_scopes": [
+                          "chat:write"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "Forbidden"
+            },
+            "500": {
+              "content": {
+                "text/event-stream": {
+                  "schema": {
+                    "example": {
+                      "error": {
+                        "code": "internal",
+                        "message": "Unexpected error"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "Internal server error"
+            }
+          },
+          "security": [
+            {
+              "bearer": []
+            }
+          ],
+          "tags": [
+            "Chat"
+          ],
+          "x-required-scopes": [
+            "chat:write"
+          ]
+        }
+      },
       "/chat/{id}": {
         "delete": {
           "operationId": "ChatController_delete",
@@ -773,13 +961,51 @@
             "200": {
               "content": {
                 "text/event-stream": {
+                  "examples": {
+                    "citations": {
+                      "value": "data: {\"citations\":[{\"documentId\":\"11111111-1111-4111-8111-111111111111\"}]}\n\n"
+                    },
+                    "done": {
+                      "value": "data: {\"done\":true,\"message\":\"[DONE]\"}\n\n"
+                    },
+                    "error": {
+                      "value": "data: {\"error\":{\"code\":\"upstream-failed\",\"message\":\"Simulated upstream model failure\"},\"done\":true}\n\n"
+                    },
+                    "meta": {
+                      "value": "data: {\"meta\":{\"chat_model_enabled\":true,\"google_key\":true}}\n\n"
+                    },
+                    "summary": {
+                      "value": "data: {\"summary\":true,\"token_count\":5,\"citations_count\":2}\n\n"
+                    },
+                    "token": {
+                      "value": "data: {\"message\":\"token-0\",\"index\":0,\"streaming\":true}\n\n"
+                    }
+                  },
                   "schema": {
-                    "example": "data: {\"message\":\"token-0\"}\n\n",
-                    "type": "string"
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/GetChatStreamMetaFrame"
+                      },
+                      {
+                        "$ref": "#/components/schemas/GetChatStreamTokenFrame"
+                      },
+                      {
+                        "$ref": "#/components/schemas/GetChatStreamCitationsFrame"
+                      },
+                      {
+                        "$ref": "#/components/schemas/GetChatStreamSummaryFrame"
+                      },
+                      {
+                        "$ref": "#/components/schemas/GetChatStreamDoneFrame"
+                      },
+                      {
+                        "$ref": "#/components/schemas/GetChatStreamErrorFrame"
+                      }
+                    ]
                   }
                 }
               },
-              "description": "Chat streaming endpoint (SSE)"
+              "description": "Chat streaming endpoint (SSE). Emits a sequence of JSON frames each prefixed by \"data: \"."
             },
             "400": {
               "content": {
@@ -2676,6 +2902,30 @@
   "current": {
     "components": {
       "schemas": {
+        "AcceptInviteDto": {
+          "properties": {},
+          "type": "object"
+        },
+        "ChatRequestDto": {
+          "properties": {},
+          "type": "object"
+        },
+        "ChatStreamDoneEvent": {
+          "properties": {},
+          "type": "object"
+        },
+        "ChatStreamErrorEvent": {
+          "properties": {},
+          "type": "object"
+        },
+        "ChatStreamMetaEvent": {
+          "properties": {},
+          "type": "object"
+        },
+        "ChatStreamTokenEvent": {
+          "properties": {},
+          "type": "object"
+        },
         "ChunkDto": {
           "properties": {
             "documentId": {
@@ -2721,6 +2971,14 @@
             "hasEmbedding",
             "text"
           ],
+          "type": "object"
+        },
+        "CitationDto": {
+          "properties": {},
+          "type": "object"
+        },
+        "CreateInviteDto": {
+          "properties": {},
           "type": "object"
         },
         "CreateOrgDto": {
@@ -2796,6 +3054,30 @@
             "updatedAt",
             "chunks"
           ],
+          "type": "object"
+        },
+        "GetChatStreamCitationsFrame": {
+          "properties": {},
+          "type": "object"
+        },
+        "GetChatStreamDoneFrame": {
+          "properties": {},
+          "type": "object"
+        },
+        "GetChatStreamErrorFrame": {
+          "properties": {},
+          "type": "object"
+        },
+        "GetChatStreamMetaFrame": {
+          "properties": {},
+          "type": "object"
+        },
+        "GetChatStreamSummaryFrame": {
+          "properties": {},
+          "type": "object"
+        },
+        "GetChatStreamTokenFrame": {
+          "properties": {},
           "type": "object"
         },
         "IngestionUploadDto": {
@@ -3016,7 +3298,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "read:me"
+                          "org:read"
                         ]
                       }
                     }
@@ -3050,7 +3332,7 @@
             "Auth"
           ],
           "x-required-scopes": [
-            "read:me"
+            "org:read"
           ]
         }
       },
@@ -3114,7 +3396,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "chat:read"
+                          "chat:use"
                         ]
                       }
                     }
@@ -3148,7 +3430,7 @@
             "Chat"
           ],
           "x-required-scopes": [
-            "chat:read"
+            "chat:use"
           ]
         },
         "post": {
@@ -3193,7 +3475,7 @@
             "Chat"
           ],
           "x-required-scopes": [
-            "chat:write"
+            "chat:use"
           ]
         }
       },
@@ -3201,17 +3483,54 @@
         "post": {
           "operationId": "ChatController_streamPost",
           "parameters": [],
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatRequestDto"
+                }
+              }
+            },
+            "required": true
+          },
           "responses": {
             "200": {
               "content": {
                 "text/event-stream": {
+                  "examples": {
+                    "done": {
+                      "value": "data: {\"type\":\"done\"}\n\n"
+                    },
+                    "error": {
+                      "value": "data: {\"type\":\"error\",\"error\":\"model key missing\"}\n\n"
+                    },
+                    "meta": {
+                      "value": "data: {\"type\":\"meta\",\"conversationId\":\"11111111-1111-4111-8111-111111111111\",\"citations\":[]}\n\n"
+                    },
+                    "token": {
+                      "value": "data: {\"type\":\"token\",\"token\":\"Hello\"}\n\n"
+                    }
+                  },
                   "schema": {
-                    "example": "data: {\"type\":\"meta\",\"conversationId\":\"11111111-1111-4111-8111-111111111111\",\"citations\":[]}\n\n",
-                    "type": "string"
+                    "description": "Union of possible chat stream events (serialized per line as SSE frame).",
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/ChatStreamMetaEvent"
+                      },
+                      {
+                        "$ref": "#/components/schemas/ChatStreamTokenEvent"
+                      },
+                      {
+                        "$ref": "#/components/schemas/ChatStreamErrorEvent"
+                      },
+                      {
+                        "$ref": "#/components/schemas/ChatStreamDoneEvent"
+                      }
+                    ]
                   }
                 }
               },
-              "description": "Chat streaming endpoint (SSE)"
+              "description": "Chat streaming endpoint (SSE). Each line is an SSE data frame beginning with \"data: \", followed by one of the JSON event shapes."
             },
             "400": {
               "content": {
@@ -3262,7 +3581,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "chat:write"
+                          "chat:use"
                         ]
                       }
                     }
@@ -3296,7 +3615,7 @@
             "Chat"
           ],
           "x-required-scopes": [
-            "chat:write"
+            "chat:use"
           ]
         }
       },
@@ -3352,7 +3671,7 @@
             "Chat"
           ],
           "x-required-scopes": [
-            "chat:write"
+            "chat:admin"
           ]
         },
         "get": {
@@ -3410,7 +3729,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "chat:read"
+                          "chat:use"
                         ]
                       }
                     }
@@ -3459,7 +3778,7 @@
             "Chat"
           ],
           "x-required-scopes": [
-            "chat:read"
+            "chat:use"
           ]
         },
         "patch": {
@@ -3529,7 +3848,7 @@
             "Chat"
           ],
           "x-required-scopes": [
-            "chat:write"
+            "chat:admin"
           ]
         }
       },
@@ -3550,13 +3869,51 @@
             "200": {
               "content": {
                 "text/event-stream": {
+                  "examples": {
+                    "citations": {
+                      "value": "data: {\"citations\":[{\"documentId\":\"11111111-1111-4111-8111-111111111111\"}]}\n\n"
+                    },
+                    "done": {
+                      "value": "data: {\"done\":true,\"message\":\"[DONE]\"}\n\n"
+                    },
+                    "error": {
+                      "value": "data: {\"error\":{\"code\":\"upstream-failed\",\"message\":\"Simulated upstream model failure\"},\"done\":true}\n\n"
+                    },
+                    "meta": {
+                      "value": "data: {\"meta\":{\"chat_model_enabled\":true,\"google_key\":true}}\n\n"
+                    },
+                    "summary": {
+                      "value": "data: {\"summary\":true,\"token_count\":5,\"citations_count\":2}\n\n"
+                    },
+                    "token": {
+                      "value": "data: {\"message\":\"token-0\",\"index\":0,\"streaming\":true}\n\n"
+                    }
+                  },
                   "schema": {
-                    "example": "data: {\"message\":\"token-0\"}\n\n",
-                    "type": "string"
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/GetChatStreamMetaFrame"
+                      },
+                      {
+                        "$ref": "#/components/schemas/GetChatStreamTokenFrame"
+                      },
+                      {
+                        "$ref": "#/components/schemas/GetChatStreamCitationsFrame"
+                      },
+                      {
+                        "$ref": "#/components/schemas/GetChatStreamSummaryFrame"
+                      },
+                      {
+                        "$ref": "#/components/schemas/GetChatStreamDoneFrame"
+                      },
+                      {
+                        "$ref": "#/components/schemas/GetChatStreamErrorFrame"
+                      }
+                    ]
                   }
                 }
               },
-              "description": "Chat streaming endpoint (SSE)"
+              "description": "Chat streaming endpoint (SSE). Emits a sequence of JSON frames each prefixed by \"data: \"."
             },
             "400": {
               "content": {
@@ -3598,7 +3955,7 @@
             "Chat"
           ],
           "x-required-scopes": [
-            "chat:read"
+            "chat:use"
           ]
         }
       },
@@ -3669,7 +4026,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "chunks:read"
+                          "documents:read"
                         ]
                       }
                     }
@@ -3703,7 +4060,7 @@
             "Chunks"
           ],
           "x-required-scopes": [
-            "chunks:read"
+            "documents:read"
           ]
         }
       },
@@ -3968,7 +4325,7 @@
             "Documents"
           ],
           "x-required-scopes": [
-            "documents:write"
+            "documents:delete"
           ]
         },
         "get": {
@@ -4200,7 +4557,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "ingest:write"
+                          "documents:write"
                         ]
                       }
                     }
@@ -4234,7 +4591,7 @@
             "Ingestion"
           ],
           "x-required-scopes": [
-            "ingest:write"
+            "documents:write"
           ]
         }
       },
@@ -4311,7 +4668,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "ingest:write"
+                          "documents:write"
                         ]
                       }
                     }
@@ -4345,7 +4702,66 @@
             "Ingestion"
           ],
           "x-required-scopes": [
-            "ingest:write"
+            "documents:write"
+          ]
+        }
+      },
+      "/invites": {
+        "post": {
+          "operationId": "InvitesController_create",
+          "parameters": [],
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateInviteDto"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "201": {
+              "description": ""
+            }
+          },
+          "security": [
+            {
+              "bearer": []
+            }
+          ],
+          "x-required-scopes": [
+            "org:invite:create",
+            "project:invite:create"
+          ]
+        }
+      },
+      "/invites/accept": {
+        "post": {
+          "operationId": "InvitesController_accept",
+          "parameters": [],
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptInviteDto"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "201": {
+              "description": ""
+            }
+          },
+          "security": [
+            {
+              "bearer": []
+            }
+          ],
+          "x-required-scopes": [
+            "org:read"
           ]
         }
       },
@@ -4835,7 +5251,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "projects:read"
+                          "project:read"
                         ]
                       }
                     }
@@ -4869,7 +5285,7 @@
             "Projects"
           ],
           "x-required-scopes": [
-            "projects:read"
+            "project:read"
           ]
         },
         "post": {
@@ -4935,7 +5351,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "projects:write"
+                          "org:project:create"
                         ]
                       }
                     }
@@ -4969,7 +5385,7 @@
             "Projects"
           ],
           "x-required-scopes": [
-            "projects:write"
+            "org:project:create"
           ]
         }
       },
@@ -5038,7 +5454,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "projects:write"
+                          "org:project:delete"
                         ]
                       }
                     }
@@ -5072,7 +5488,7 @@
             "Projects"
           ],
           "x-required-scopes": [
-            "projects:write"
+            "org:project:delete"
           ]
         }
       },
@@ -5172,7 +5588,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "search:read"
+                          "documents:read"
                         ]
                       }
                     }
@@ -5206,7 +5622,7 @@
             "Search"
           ],
           "x-required-scopes": [
-            "search:read"
+            "documents:read"
           ]
         }
       },

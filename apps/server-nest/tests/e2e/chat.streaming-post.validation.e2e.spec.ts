@@ -13,49 +13,49 @@ import { authHeader } from './auth-helpers';
 let ctx: E2EContext;
 
 describe('Chat Streaming (POST /chat/stream) validation', () => {
-  beforeAll(async () => { ctx = await createE2EContext('chat-post-stream-val'); });
-  beforeEach(async () => { await ctx.cleanup(); });
-  afterAll(async () => { await ctx.close(); });
+    beforeAll(async () => { ctx = await createE2EContext('chat-post-stream-val'); });
+    beforeEach(async () => { await ctx.cleanup(); });
+    afterAll(async () => { await ctx.close(); });
 
-  it('rejects missing message', async () => {
-    const res = await fetch(`${ctx.baseUrl}/chat/stream`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader('all', 'chat-post-stream-val'), 'x-org-id': ctx.orgId, 'x-project-id': ctx.projectId },
-      body: JSON.stringify({ })
+    it('rejects missing message', async () => {
+        const res = await fetch(`${ctx.baseUrl}/chat/stream`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeader('all', 'chat-post-stream-val'), 'x-org-id': ctx.orgId, 'x-project-id': ctx.projectId },
+            body: JSON.stringify({})
+        });
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(body.error?.code).toBe('bad-request');
     });
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error?.code).toBe('bad-request');
-  });
 
-  it('rejects missing project header', async () => {
-    const res = await fetch(`${ctx.baseUrl}/chat/stream`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader('all', 'chat-post-stream-val'), 'x-org-id': ctx.orgId },
-      body: JSON.stringify({ message: 'hello' })
+    it('rejects missing project header', async () => {
+        const res = await fetch(`${ctx.baseUrl}/chat/stream`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeader('all', 'chat-post-stream-val'), 'x-org-id': ctx.orgId },
+            body: JSON.stringify({ message: 'hello' })
+        });
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(body.error?.message).toMatch(/x-project-id/);
     });
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error?.message).toMatch(/x-project-id/);
-  });
 
-  it('returns 422 for topK below minimum', async () => {
-    const res = await fetch(`${ctx.baseUrl}/chat/stream`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader('all', 'chat-post-stream-val'), 'x-org-id': ctx.orgId, 'x-project-id': ctx.projectId },
-      body: JSON.stringify({ message: 'test', topK: 0 })
+    it('returns 422 for topK below minimum', async () => {
+        const res = await fetch(`${ctx.baseUrl}/chat/stream`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeader('all', 'chat-post-stream-val'), 'x-org-id': ctx.orgId, 'x-project-id': ctx.projectId },
+            body: JSON.stringify({ message: 'test', topK: 0 })
+        });
+        expect(res.status).toBe(422); // From global ValidationPipe
+        // Response body contains validation structure, but we don't assert exact payload to avoid brittleness
     });
-    expect(res.status).toBe(422); // From global ValidationPipe
-  // Response body contains validation structure, but we don't assert exact payload to avoid brittleness
-  });
 
-  it('returns 422 for non-UUID documentIds', async () => {
-    const res = await fetch(`${ctx.baseUrl}/chat/stream`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader('all', 'chat-post-stream-val'), 'x-org-id': ctx.orgId, 'x-project-id': ctx.projectId },
-      body: JSON.stringify({ message: 'test', documentIds: ['not-a-uuid'] })
+    it('returns 422 for non-UUID documentIds', async () => {
+        const res = await fetch(`${ctx.baseUrl}/chat/stream`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeader('all', 'chat-post-stream-val'), 'x-org-id': ctx.orgId, 'x-project-id': ctx.projectId },
+            body: JSON.stringify({ message: 'test', documentIds: ['not-a-uuid'] })
+        });
+        expect(res.status).toBe(422);
+        // Avoid asserting exact validation keys for stability
     });
-    expect(res.status).toBe(422);
-  // Avoid asserting exact validation keys for stability
-  });
 });

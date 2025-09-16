@@ -21,6 +21,15 @@ export interface E2EContext {
      * Does NOT remove the project/org rows themselves (idempotent best‑effort).
      */
     cleanupProjectArtifacts: (projectId: string) => Promise<void>;
+    /**
+     * Delete an externally created org (and cascading projects) not the primary context org.
+     * By default refuses to delete the primary org unless allowPrimary=true.
+     */
+    cleanupExternalOrg: (orgId: string, options?: { allowPrimary?: boolean }) => Promise<void>;
+    /**
+     * Delete an externally created project (will cascade child rows). Will not delete primary context project unless allowPrimary=true.
+     */
+    cleanupExternalProject: (projectId: string, options?: { allowPrimary?: boolean }) => Promise<void>;
 }
 
 function mapUserSubToUuid(sub: string): string {
@@ -80,13 +89,13 @@ async function cleanupUserData(pool: Pool, projectId: string, userSub: string) {
         const r = await pool.query(`SELECT to_regclass($1) as exists`, [name]);
         return !!r.rows[0].exists;
     };
-    // Derive uuid form for owner_user_id (since chat schema stores UUID not raw sub)
+    // Derive uuid form for owner_subject_id (since chat schema stores UUID not raw sub)
     const mappedUserId = mapUserSubToUuid(userSub);
     if (await tableCheck('kb.chat_messages')) {
-        await pool.query(`DELETE FROM kb.chat_messages WHERE conversation_id IN (SELECT id FROM kb.chat_conversations WHERE owner_user_id = $1)`, [mappedUserId]);
+        await pool.query(`DELETE FROM kb.chat_messages WHERE conversation_id IN (SELECT id FROM kb.chat_conversations WHERE owner_subject_id = $1)`, [mappedUserId]);
     }
     if (await tableCheck('kb.chat_conversations')) {
-        await pool.query(`DELETE FROM kb.chat_conversations WHERE owner_user_id = $1`, [mappedUserId]);
+        await pool.query(`DELETE FROM kb.chat_conversations WHERE owner_subject_id = $1`, [mappedUserId]);
     }
     if (await tableCheck('kb.chunks')) {
         await pool.query(`DELETE FROM kb.chunks WHERE document_id IN (SELECT id FROM kb.documents WHERE project_id = $1)`, [projectId]);
@@ -132,7 +141,6 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
     process.env.PGPASSWORD = process.env.PGPASSWORD || 'spec';
     process.env.PGDATABASE = process.env.PGDATABASE || process.env.PGDATABASE_E2E || 'spec';
     process.env.DB_AUTOINIT = process.env.DB_AUTOINIT || 'true';
-    process.env.ORGS_DEMO_SEED = 'false';
     // Force minimal schema consistently across all contexts to avoid mixed-mode races.
     process.env.E2E_MINIMAL_DB = 'true';
     const boot = await bootstrapTestApp();
@@ -200,6 +208,14 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
         userSub,
         cleanup: async () => cleanupUserData(pool, projectId, userSub),
         cleanupProjectArtifacts: async (extraProjectId: string) => cleanupUserData(pool, extraProjectId, userSub),
+        cleanupExternalOrg: async (externalOrgId: string, options?: { allowPrimary?: boolean }) => {
+            if (!options?.allowPrimary && externalOrgId === orgId) return; // guard
+            try { await pool.query('DELETE FROM kb.orgs WHERE id = $1', [externalOrgId]); } catch { /* ignore */ }
+        },
+        cleanupExternalProject: async (externalProjectId: string, options?: { allowPrimary?: boolean }) => {
+            if (!options?.allowPrimary && externalProjectId === projectId) return;
+            try { await pool.query('DELETE FROM kb.projects WHERE id = $1', [externalProjectId]); } catch { /* ignore */ }
+        },
         close: async () => {
             try {
                 if (isolate) {

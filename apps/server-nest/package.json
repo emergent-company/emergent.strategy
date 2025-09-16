@@ -8,12 +8,12 @@
         "start:dev": "NODE_OPTIONS=--enable-source-maps ts-node-dev --respawn --no-notify --ignore-watch node_modules src/main.ts",
         "clean": "rimraf dist dist-openapi || true",
         "build": "npm run clean && tsc -p tsconfig.json",
-    "gen:openapi": "tsc -p tsconfig.json && node dist/openapi-generate.js",
+        "gen:openapi": "tsc -p tsconfig.json && node dist/openapi-generate.js",
         "test": "npm run build && vitest run --passWithNoTests",
+        "test:watch": "vitest --passWithNoTests",
+        "test:coverage": "vitest run --coverage --passWithNoTests",
         "test:e2e": "npm run gen:openapi && vitest run -c vitest.e2e.config.ts --passWithNoTests",
-        "test:e2e:verbose": "E2E_DEBUG_VERBOSE=true npm run test:e2e",
-        "test:scenarios": "vitest run --passWithNoTests tests/scenarios/**/*.spec.ts",
-        "test:scenarios:verbose": "SCENARIO_DEBUG=1 vitest run --passWithNoTests tests/scenarios/**/*.spec.ts"
+        "test:scenarios": "RUN_SCENARIOS=1 vitest run --passWithNoTests tests/scenarios"
     },
     "dependencies": {
         "@langchain/google-genai": "^0.2.17",
@@ -33,11 +33,13 @@
     "devDependencies": {
         "@types/js-yaml": "^4.0.9",
         "@types/node": "^22.17.2",
+        "@types/supertest": "^2.0.16",
         "rimraf": "^5.0.5",
         "ts-node": "^10.9.2",
         "ts-node-dev": "^2.0.0",
         "tsx": "^4.19.0",
         "typescript": "^5.5.4",
-        "vitest": "^2.0.5"
+        "vitest": "^2.0.5",
+        "supertest": "^7.0.0"
     }
 }

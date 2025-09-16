@@ -17,7 +17,8 @@ export class SearchController {
     @ApiOkResponse({ description: 'Hybrid / lexical / vector search over chunks', type: SearchResponseDto })
     @ApiBadRequestResponse({ description: 'Validation failed', schema: { example: { error: { code: 'validation-failed', message: 'Validation failed', details: { q: ['must be longer than or equal to 1 characters'] } } } } })
     @ApiStandardErrors()
-    @Scopes('search:read')
+    // Search requires ability to read documents/chunks
+    @Scopes('documents:read')
     async search(@Query() query: SearchQueryDto): Promise<SearchResponseDto> {
         const { q = '', limit = 10, mode } = query;
         const { mode: finalMode, results, warning } = await this.searchService.search(q, limit, mode);

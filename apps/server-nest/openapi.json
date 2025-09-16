@@ -3,7 +3,7 @@
   "paths": {
     "/health": {
       "get": {
-        "operationId": "HealthController_get",
+        "operationId": "get",
         "parameters": [],
         "responses": {
           "200": {
@@ -58,7 +58,7 @@
     },
     "/auth/me": {
       "get": {
-        "operationId": "AuthController_me",
+        "operationId": "me",
         "parameters": [],
         "responses": {
           "200": {
@@ -112,10 +112,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "read:me"
-                      ]
+                      "message": "Forbidden"
                     }
                   }
                 }
@@ -145,15 +142,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "read:me"
         ]
       }
     },
     "/settings": {
       "get": {
-        "operationId": "SettingsController_list",
+        "operationId": "list",
         "parameters": [],
         "responses": {
           "200": {
@@ -239,7 +233,7 @@
     },
     "/settings/{key}": {
       "get": {
-        "operationId": "SettingsController_getOne",
+        "operationId": "getOne",
         "parameters": [
           {
             "name": "key",
@@ -347,7 +341,7 @@
     },
     "/orgs": {
       "get": {
-        "operationId": "OrgsController_list",
+        "operationId": "list",
         "parameters": [],
         "responses": {
           "200": {
@@ -429,7 +423,7 @@
         ]
       },
       "post": {
-        "operationId": "OrgsController_create",
+        "operationId": "create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -557,7 +551,7 @@
     },
     "/orgs/{id}": {
       "get": {
-        "operationId": "OrgsController_getOne",
+        "operationId": "getOne",
         "parameters": [
           {
             "name": "id",
@@ -660,7 +654,7 @@
         ]
       },
       "delete": {
-        "operationId": "OrgsController_delete",
+        "operationId": "delete",
         "parameters": [
           {
             "name": "id",
@@ -758,7 +752,7 @@
     },
     "/projects": {
       "get": {
-        "operationId": "ProjectsController_list",
+        "operationId": "list",
         "parameters": [
           {
             "name": "limit",
@@ -830,10 +824,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "projects:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -858,18 +849,10 @@
         },
         "tags": [
           "Projects"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "projects:read"
         ]
       },
       "post": {
-        "operationId": "ProjectsController_create",
+        "operationId": "create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -930,10 +913,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "projects:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -958,20 +938,12 @@
         },
         "tags": [
           "Projects"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "projects:write"
         ]
       }
     },
     "/projects/{id}": {
       "delete": {
-        "operationId": "ProjectsController_delete",
+        "operationId": "delete",
         "parameters": [
           {
             "name": "id",
@@ -1033,10 +1005,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "projects:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1061,20 +1030,12 @@
         },
         "tags": [
           "Projects"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "projects:write"
         ]
       }
     },
     "/search": {
       "get": {
-        "operationId": "SearchController_search",
+        "operationId": "search",
         "parameters": [
           {
             "name": "q",
@@ -1167,10 +1128,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "search:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1195,20 +1153,12 @@
         },
         "tags": [
           "Search"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "search:read"
         ]
       }
     },
     "/documents": {
       "get": {
-        "operationId": "DocumentsController_list",
+        "operationId": "list",
         "parameters": [
           {
             "name": "limit",
@@ -1290,10 +1240,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "documents:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1318,18 +1265,10 @@
         },
         "tags": [
           "Documents"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:read"
         ]
       },
       "post": {
-        "operationId": "DocumentsController_create",
+        "operationId": "create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1401,10 +1340,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "documents:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1429,20 +1365,12 @@
         },
         "tags": [
           "Documents"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:write"
         ]
       }
     },
     "/documents/{id}": {
       "get": {
-        "operationId": "DocumentsController_get",
+        "operationId": "get",
         "parameters": [
           {
             "name": "id",
@@ -1503,10 +1431,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "documents:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1531,18 +1456,10 @@
         },
         "tags": [
           "Documents"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:read"
         ]
       },
       "delete": {
-        "operationId": "DocumentsController_delete",
+        "operationId": "delete",
         "parameters": [
           {
             "name": "id",
@@ -1560,20 +1477,12 @@
         },
         "tags": [
           "Documents"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:write"
         ]
       }
     },
     "/chunks": {
       "get": {
-        "operationId": "ChunksController_list",
+        "operationId": "list",
         "parameters": [
           {
             "name": "documentId",
@@ -1637,10 +1546,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "chunks:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1665,20 +1571,12 @@
         },
         "tags": [
           "Chunks"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chunks:read"
         ]
       }
     },
     "/ingest/upload": {
       "post": {
-        "operationId": "IngestionController_upload",
+        "operationId": "upload",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1748,10 +1646,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "ingest:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1776,20 +1671,12 @@
         },
         "tags": [
           "Ingestion"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "ingest:write"
         ]
       }
     },
     "/ingest/url": {
       "post": {
-        "operationId": "IngestionController_ingestUrl",
+        "operationId": "ingestUrl",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1859,10 +1746,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "ingest:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1887,20 +1771,12 @@
         },
         "tags": [
           "Ingestion"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "ingest:write"
         ]
       }
     },
     "/chat/conversations": {
       "get": {
-        "operationId": "ChatController_listConversations",
+        "operationId": "listConversations",
         "parameters": [],
         "responses": {
           "200": {
@@ -1957,10 +1833,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "chat:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1985,18 +1858,10 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:read"
         ]
       },
       "post": {
-        "operationId": "ChatController_createConversation",
+        "operationId": "createConversation",
         "parameters": [],
         "responses": {
           "200": {
@@ -2030,20 +1895,12 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:write"
         ]
       }
     },
     "/chat/{id}": {
       "get": {
-        "operationId": "ChatController_getConversation",
+        "operationId": "getConversation",
         "parameters": [
           {
             "name": "id",
@@ -2096,10 +1953,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "chat:read"
-                      ]
+                      "message": "Forbidden"
                     }
                   }
                 }
@@ -2139,18 +1993,10 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:read"
         ]
       },
       "patch": {
-        "operationId": "ChatController_rename",
+        "operationId": "rename",
         "parameters": [
           {
             "name": "id",
@@ -2209,18 +2055,10 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:write"
         ]
       },
       "delete": {
-        "operationId": "ChatController_delete",
+        "operationId": "delete",
         "parameters": [
           {
             "name": "id",
@@ -2263,20 +2101,12 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:write"
         ]
       }
     },
     "/chat/{id}/stream": {
       "get": {
-        "operationId": "ChatController_streamGet",
+        "operationId": "streamGet",
         "parameters": [
           {
             "name": "id",
@@ -2370,20 +2200,12 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:read"
         ]
       }
     },
     "/chat/stream": {
       "post": {
-        "operationId": "ChatController_streamPost",
+        "operationId": "streamPost",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2461,16 +2283,6 @@
                     }
                   }
                 }
-              },
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
               }
             }
           },
@@ -2482,10 +2294,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "chat:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -2510,21 +2319,478 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
+        ]
+      }
+    },
+    "/invites": {
+      "post": {
+        "operationId": "create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInviteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/invites/accept": {
+      "post": {
+        "operationId": "accept",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInviteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/user/profile": {
+      "get": {
+        "operationId": "getSelf",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      },
+      "put": {
+        "operationId": "updateSelf",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      }
+    },
+    "/user/profile/emails": {
+      "get": {
+        "operationId": "listEmails",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AlternativeEmailDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      },
+      "post": {
+        "operationId": "addEmail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddAlternativeEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlternativeEmailDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      }
+    },
+    "/user/profile/emails/{email}": {
+      "delete": {
+        "operationId": "removeEmail",
+        "parameters": [
           {
-            "bearer": []
+            "name": "email",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
-        "x-required-scopes": [
-          "chat:write"
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "status": "deleted"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "UserProfile"
         ]
       }
     }
   },
   "info": {
     "title": "Spec Server API",
-    "description": "Generated OpenAPI spec (code-first). All protected operations include x-required-scopes and 403 examples with missing_scopes.",
+    "description": "Generated OpenAPI spec (NestJS). NOTE: Each Document MUST belong to a Project and each Project belongs to an Organization. Users with no accessible Projects must create one before using ingestion or search features.",
     "version": "0.2.0",
     "contact": {}
   },
@@ -2850,6 +3116,75 @@
         "properties": {}
       },
       "GetChatStreamErrorFrame": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateInviteDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "AcceptInviteDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UserProfileDto": {
+        "type": "object",
+        "properties": {
+          "subjectId": {
+            "type": "string",
+            "description": "Canonical internal user id (subject id, from identity provider)",
+            "format": "uuid"
+          },
+          "firstName": {
+            "type": "object"
+          },
+          "lastName": {
+            "type": "object"
+          },
+          "displayName": {
+            "type": "object",
+            "description": "Display name fallback (explicit) or derived (first + last)"
+          },
+          "phoneE164": {
+            "type": "object",
+            "description": "E.164 formatted phone number, leading + and digits"
+          },
+          "avatarObjectKey": {
+            "type": "object",
+            "description": "Object storage key for avatar (if stored internally)"
+          }
+        },
+        "required": [
+          "subjectId"
+        ]
+      },
+      "UpdateUserProfileDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "AlternativeEmailDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email address (lowercased canonical form)"
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Verification status"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "ISO timestamp created"
+          }
+        },
+        "required": [
+          "email",
+          "verified",
+          "createdAt"
+        ]
+      },
+      "AddAlternativeEmailDto": {
         "type": "object",
         "properties": {}
       }

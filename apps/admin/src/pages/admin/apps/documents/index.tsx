@@ -6,6 +6,7 @@ import { PageTitle } from "@/components/PageTitle";
 import { useConfig } from "@/contexts/config";
 import { LoadingEffect } from "@/components/LoadingEffect";
 import { TableEmptyState } from "@/components/TableEmptyState";
+import { OrgAndProjectGate } from "@/components/OrgAndProjectGate";
 
 type DocumentRow = {
     id: string;
@@ -55,10 +56,16 @@ export default function DocumentsPage() {
 
     const apiBaseMemo = useMemo(() => apiBase, [apiBase]);
 
+    // Load documents only when an active org & project are selected (prevents 403 on first-login with no org).
     useEffect(() => {
         let cancelled = false;
+        // Require both org & project (project scoping) to fetch; gate handles creation/select flows.
+        if (!config.activeOrgId || !config.activeProjectId) {
+            return () => { cancelled = true; };
+        }
         async function load() {
             setLoading(true);
+            setError(null);
             try {
                 const t = getAccessToken();
                 const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/documents`, {
@@ -75,10 +82,8 @@ export default function DocumentsPage() {
             }
         }
         load();
-        return () => {
-            cancelled = true;
-        };
-    }, [apiBase, apiBaseMemo, getAccessToken, buildHeaders, fetchJson]);
+        return () => { cancelled = true; };
+    }, [apiBase, apiBaseMemo, getAccessToken, buildHeaders, fetchJson, config.activeOrgId, config.activeProjectId]);
 
     const acceptedMimeTypes = useMemo(
         () => [
@@ -180,146 +185,155 @@ export default function DocumentsPage() {
         fileInputRef.current?.click();
     }
 
-    return (
-        <div className="mx-auto p-4 container">
-            <PageTitle title="Documents" items={[{ label: "Apps" }, { label: "Documents", active: true }]} />
+    const ready = !!config.activeOrgId && !!config.activeProjectId;
 
-            {/* Upload controls */}
-            <div
-                className={
-                    "mt-4 border-2 border-dashed rounded-box p-6 transition-colors " +
-                    (dragOver ? "border-primary bg-primary/5" : "border-base-300 bg-base-200/50")
-                }
-                onDragOver={onDragOver}
-                onDragEnter={onDragOver}
-                onDragLeave={onDragLeave}
-                onDrop={onDrop}
-                role="button"
-                aria-label="Upload document. Click to choose a file or drag and drop."
-                tabIndex={0}
-                onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        openChooser();
+    // Until gate selects/creates org & project, just show gate (children ignored).
+    if (!ready) {
+        return <OrgAndProjectGate><div /></OrgAndProjectGate>;
+    }
+
+    return (
+        <OrgAndProjectGate>
+            <div className="mx-auto p-4 container">
+                <PageTitle title="Documents" items={[{ label: "Apps" }, { label: "Documents", active: true }]} />
+
+                {/* Upload controls */}
+                <div
+                    className={
+                        "mt-4 border-2 border-dashed rounded-box p-6 transition-colors " +
+                        (dragOver ? "border-primary bg-primary/5" : "border-base-300 bg-base-200/50")
                     }
-                }}
-            >
-                <div className="flex justify-between items-center gap-4">
-                    <div className="flex items-center gap-3">
-                        <Icon icon="lucide--upload-cloud" className="size-6" aria-hidden />
-                        <div>
-                            <div className="font-medium">Click to upload or drag & drop</div>
-                            <div className="opacity-70 text-sm">
-                                Accepted: pdf, docx, pptx, xlsx, md, html, txt. Max 10MB.
+                    onDragOver={onDragOver}
+                    onDragEnter={onDragOver}
+                    onDragLeave={onDragLeave}
+                    onDrop={onDrop}
+                    role="button"
+                    aria-label="Upload document. Click to choose a file or drag and drop."
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openChooser();
+                        }
+                    }}
+                >
+                    <div className="flex justify-between items-center gap-4">
+                        <div className="flex items-center gap-3">
+                            <Icon icon="lucide--upload-cloud" className="size-6" aria-hidden />
+                            <div>
+                                <div className="font-medium">Click to upload or drag & drop</div>
+                                <div className="opacity-70 text-sm">
+                                    Accepted: pdf, docx, pptx, xlsx, md, html, txt. Max 10MB.
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button className="btn btn-primary" onClick={openChooser} disabled={uploading}>
-                            {uploading ? (
-                                <>
-                                    <span className="loading loading-spinner loading-sm" />
-                                    Uploading...
-                                </>
-                            ) : (
-                                "Upload document"
-                            )}
-                        </button>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            className="hidden"
-                            accept={[
-                                ...acceptedMimeTypes,
-                                ...acceptedExtensions,
-                            ].join(",")}
-                            onChange={onFileInputChange}
-                        />
-                    </div>
-                </div>
-                {uploadError && (
-                    <div role="alert" className="mt-4 alert alert-error">
-                        <Icon icon="lucide--alert-circle" className="size-5" aria-hidden />
-                        <span>{uploadError}</span>
-                    </div>
-                )}
-                {uploadSuccess && (
-                    <div role="alert" className="mt-4 alert alert-success">
-                        <Icon icon="lucide--check-circle" className="size-5" aria-hidden />
-                        <span>{uploadSuccess}</span>
-                    </div>
-                )}
-            </div>
-
-            <div className="mt-4 card">
-                <div className="card-body">
-                    {loading && (
-                        <div className="space-y-2">
-                            <LoadingEffect height={36} />
-                            <LoadingEffect height={36} />
-                            <LoadingEffect height={36} />
+                        <div className="flex items-center gap-2">
+                            <button className="btn btn-primary" onClick={openChooser} disabled={uploading}>
+                                {uploading ? (
+                                    <>
+                                        <span className="loading loading-spinner loading-sm" />
+                                        Uploading...
+                                    </>
+                                ) : (
+                                    "Upload document"
+                                )}
+                            </button>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                className="hidden"
+                                accept={[
+                                    ...acceptedMimeTypes,
+                                    ...acceptedExtensions,
+                                ].join(",")}
+                                onChange={onFileInputChange}
+                            />
                         </div>
-                    )}
-                    {error && (
-                        <div role="alert" className="alert alert-error">
+                    </div>
+                    {uploadError && (
+                        <div role="alert" className="mt-4 alert alert-error">
                             <Icon icon="lucide--alert-circle" className="size-5" aria-hidden />
-                            <span>{error}</span>
+                            <span>{uploadError}</span>
                         </div>
                     )}
-                    {!loading && !error && (
-                        <div className="overflow-x-auto">
-                            <table className="table">
-                                <thead>
-                                    <tr>
-                                        <th>Filename</th>
-                                        <th>Source URL</th>
-                                        <th>Mime</th>
-                                        <th>Chunks</th>
-                                        <th>Created</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {data && data.length > 0 ? (
-                                        data.map((d) => (
-                                            <tr key={d.id}>
-                                                <td className="font-medium">{d.filename || "(no name)"}</td>
-                                                <td className="max-w-96 truncate">
-                                                    {d.source_url ? (
-                                                        <a href={d.source_url} target="_blank" className="link" rel="noreferrer">
-                                                            {d.source_url}
-                                                        </a>
-                                                    ) : (
-                                                        <span className="opacity-60">—</span>
-                                                    )}
-                                                </td>
-                                                <td>{d.mime_type || "text/plain"}</td>
-                                                <td>
-                                                    <a
-                                                        href={`/admin/apps/chunks?docId=${d.id}`}
-                                                        className="badge-outline hover:underline no-underline badge"
-                                                        title="View chunks for this document"
-                                                    >
-                                                        {d.chunks}
-                                                    </a>
-                                                </td>
-                                                <td>{d.created_at ? new Date(d.created_at).toLocaleString() : "—"}</td>
-                                                <td className="text-right">
-                                                    <a className="btn btn-sm" href={`/admin/apps/chunks?docId=${d.id}`}>
-                                                        View chunks
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <TableEmptyState colSpan={6} />
-                                    )}
-                                </tbody>
-                            </table>
+                    {uploadSuccess && (
+                        <div role="alert" className="mt-4 alert alert-success">
+                            <Icon icon="lucide--check-circle" className="size-5" aria-hidden />
+                            <span>{uploadSuccess}</span>
                         </div>
                     )}
                 </div>
+
+                <div className="mt-4 card">
+                    <div className="card-body">
+                        {loading && (
+                            <div className="space-y-2">
+                                <LoadingEffect height={36} />
+                                <LoadingEffect height={36} />
+                                <LoadingEffect height={36} />
+                            </div>
+                        )}
+                        {error && (
+                            <div role="alert" className="alert alert-error">
+                                <Icon icon="lucide--alert-circle" className="size-5" aria-hidden />
+                                <span>{error}</span>
+                            </div>
+                        )}
+                        {!loading && !error && (
+                            <div className="overflow-x-auto">
+                                <table className="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Filename</th>
+                                            <th>Source URL</th>
+                                            <th>Mime</th>
+                                            <th>Chunks</th>
+                                            <th>Created</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {data && data.length > 0 ? (
+                                            data.map((d) => (
+                                                <tr key={d.id}>
+                                                    <td className="font-medium">{d.filename || "(no name)"}</td>
+                                                    <td className="max-w-96 truncate">
+                                                        {d.source_url ? (
+                                                            <a href={d.source_url} target="_blank" className="link" rel="noreferrer">
+                                                                {d.source_url}
+                                                            </a>
+                                                        ) : (
+                                                            <span className="opacity-60">—</span>
+                                                        )}
+                                                    </td>
+                                                    <td>{d.mime_type || "text/plain"}</td>
+                                                    <td>
+                                                        <a
+                                                            href={`/admin/apps/chunks?docId=${d.id}`}
+                                                            className="badge-outline hover:underline no-underline badge"
+                                                            title="View chunks for this document"
+                                                        >
+                                                            {d.chunks}
+                                                        </a>
+                                                    </td>
+                                                    <td>{d.created_at ? new Date(d.created_at).toLocaleString() : "—"}</td>
+                                                    <td className="text-right">
+                                                        <a className="btn btn-sm" href={`/admin/apps/chunks?docId=${d.id}`}>
+                                                            View chunks
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <TableEmptyState colSpan={6} />
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
-        </div>
+        </OrgAndProjectGate>
     );
 }

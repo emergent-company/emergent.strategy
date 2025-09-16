@@ -123,8 +123,9 @@ export const OrgAndProjectGate = ({ children }: { children: React.ReactNode }) =
         );
     }
 
-    // Org selected but no projects -> create first project form (only once list fetched)
-    if (activeOrgId && !projLoading && projectList.length === 0) {
+    // Org selected but no projects -> create first project form (only once list fetched and no project already selected)
+    // Added !activeProjectId to avoid stale form after creating a project (activeProjectId is set optimistically)
+    if (activeOrgId && !activeProjectId && !projLoading && projectList.length === 0) {
         return (
             <div className="mx-auto mt-20 border border-base-300 max-w-lg card">
                 <div className="space-y-4 card-body">

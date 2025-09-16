@@ -36,9 +36,6 @@ export class EnvVariables {
     @IsOptional()
     SKIP_DB?: string;
 
-    @IsBoolean()
-    @IsOptional()
-    ORGS_DEMO_SEED?: boolean;
 }
 
 export function validate(config: Record<string, unknown>): EnvVariables {
@@ -51,7 +48,6 @@ export function validate(config: Record<string, unknown>): EnvVariables {
         PGDATABASE: 'spec',
         DB_AUTOINIT: false,
         SKIP_DB: process.env.SKIP_DB,
-        ORGS_DEMO_SEED: process.env.ORGS_DEMO_SEED,
         CHAT_MODEL_ENABLED: process.env.CHAT_MODEL_ENABLED,
         ...config,
     };
@@ -60,7 +56,6 @@ export function validate(config: Record<string, unknown>): EnvVariables {
         PGPORT: withDefaults.PGPORT ? Number(withDefaults.PGPORT) : 5432,
         PORT: withDefaults.PORT ? Number(withDefaults.PORT) : 3001,
         DB_AUTOINIT: withDefaults.DB_AUTOINIT === 'true' || withDefaults.DB_AUTOINIT === true,
-        ORGS_DEMO_SEED: withDefaults.ORGS_DEMO_SEED === 'true' || withDefaults.ORGS_DEMO_SEED === true,
         CHAT_MODEL_ENABLED: withDefaults.CHAT_MODEL_ENABLED === 'true' || withDefaults.CHAT_MODEL_ENABLED === true,
     });
     const errors = validateSync(transformed, { skipMissingProperties: false });

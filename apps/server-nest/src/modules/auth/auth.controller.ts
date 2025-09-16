@@ -11,7 +11,8 @@ export class AuthController {
     @Get('me')
     @UseGuards(AuthGuard, ScopesGuard)
     @ApiBearerAuth()
-    @Scopes('read:me')
+    // Basic self info requires minimal visibility scope
+    @Scopes('org:read')
     @ApiOkResponse({ description: 'Return current authenticated user (mock)', schema: { example: { sub: 'mock-user-id', email: 'demo@example.com' } } })
     @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token', schema: { example: { error: { code: 'unauthorized', message: 'Unauthorized' } } } })
     @ApiForbiddenResponse({ description: 'Insufficient scope', schema: { example: { error: { code: 'forbidden', message: 'Forbidden' } } } })

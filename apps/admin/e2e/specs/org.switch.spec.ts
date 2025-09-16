@@ -1,6 +1,7 @@
 import { test, expect } from '../fixtures/app';
 import { navigate } from '../utils/navigation';
-import { ensureDevAuth } from '../utils/chat';
+import { ensureDevAuth, ensureActiveOrgAndProject } from '../utils/chat';
+import { openOrgMenu } from '../utils/orgs';
 
 /**
  * Org switching E2E
@@ -15,22 +16,10 @@ test.describe('Organizations - switching active org', () => {
         const PROJECT_ALPHA = { id: '33333333-aaaa-4333-8333-333333333333', name: 'Alpha Project', orgId: ORG_ALPHA.id };
         const PROJECT_BETA = { id: '44444444-bbbb-4444-8444-444444444444', name: 'Beta Project', orgId: ORG_BETA.id };
 
-        await test.step('Seed auth + initial active org + stub /orgs', async () => {
-            await ensureDevAuth(page); // ensure token before scripts
-            // Seed config + stub network before navigation for deterministic initial state
-            await page.addInitScript(({ alpha, projectAlpha }) => {
-                try {
-                    const KEY = '__NEXUS_CONFIG_v3.0__';
-                    const raw = localStorage.getItem(KEY);
-                    const state: any = raw ? JSON.parse(raw) : {};
-                    state.activeOrgId = alpha.id;
-                    state.activeOrgName = alpha.name;
-                    state.activeProjectId = projectAlpha.id;
-                    state.activeProjectName = projectAlpha.name;
-                    localStorage.setItem(KEY, JSON.stringify(state));
-                } catch { /* ignore */ }
-            }, { alpha: ORG_ALPHA, projectAlpha: PROJECT_ALPHA });
-
+        await test.step('Seed auth + initial active org/project and stub listings', async () => {
+            await ensureDevAuth(page);
+            // Provide active initial org/project via helper (uses default ids which we override below on switch)
+            await ensureActiveOrgAndProject(page, { orgId: ORG_ALPHA.id, projectId: PROJECT_ALPHA.id });
             await page.route('**/orgs', async (route) => {
                 if (route.request().method() === 'GET') {
                     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([ORG_ALPHA, ORG_BETA]) });
@@ -43,11 +32,9 @@ test.describe('Organizations - switching active org', () => {
                 }
                 return route.fallback();
             });
-            await page.route('**/documents*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ documents: [] }) }));
-            // Allow any other GET -> empty object (avoid noisy 404s)
-            await page.route('**://localhost:3001/**', async (route) => {
-                if (route.request().method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
-                return route.fulfill({ status: 204 });
+            await page.route((url) => /\/documents($|\?)/.test(url.pathname), (route) => {
+                if (route.request().resourceType() === 'document') return route.fallback();
+                return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ documents: [] }) });
             });
         });
 
@@ -58,33 +45,9 @@ test.describe('Organizations - switching active org', () => {
         });
 
         await test.step('Open avatar dropdown and verify initial active org checkmark', async () => {
-            // Robust avatar resolution: try explicit image, then parent with class .avatar, then any element containing the fallback image path
-            // Wait for React app hydration (root div populated)
-            await page.waitForFunction(() => {
-                const root = document.getElementById('root');
-                return !!root && root.children.length > 0;
-            }, { timeout: 20_000 });
-            const candidates = [
-                '.avatar img[alt="Avatar"]',
-                '.avatar img',
-                'img[alt="Avatar"]',
-                'img[src*="/images/avatars/"]'
-            ];
-            let avatar = page.locator('NOT_A_SELECTOR');
-            for (const sel of candidates) {
-                const loc = page.locator(sel).first();
-                if (await loc.count() > 0) { avatar = loc; break; }
-            }
-            if (await avatar.count() === 0) {
-                // Dump DOM snippet for debugging
-                const bodyHtml = await page.locator('body').innerHTML();
-                console.log('[debug] avatar not found; body snippet:', bodyHtml.slice(0, 800));
-                throw new Error('Avatar element not found via fallback selectors');
-            }
-            await avatar.click();
-            await page.getByText(/organizations/i).first().waitFor({ state: 'visible', timeout: 10_000 });
-            const alphaRow = page.getByRole('button', { name: new RegExp(ORG_ALPHA.name, 'i') }).first();
-            const betaRow = page.getByRole('button', { name: new RegExp(ORG_BETA.name, 'i') }).first();
+            const dropdown = await openOrgMenu(page);
+            const alphaRow = dropdown.getByRole('button', { name: new RegExp(ORG_ALPHA.name, 'i') }).first();
+            const betaRow = dropdown.getByRole('button', { name: new RegExp(ORG_BETA.name, 'i') }).first();
             await expect(alphaRow).toBeVisible();
             await expect(betaRow).toBeVisible();
             await expect(alphaRow.locator('.lucide--check')).toHaveCount(1);
@@ -99,13 +62,9 @@ test.describe('Organizations - switching active org', () => {
         });
 
         await test.step('Re-open dropdown (it closes after click) and assert checkmark moved', async () => {
-            const avatar = page.locator('.avatar img, img[alt="Avatar"], img[src*="/images/avatars/"]').first();
-            if (await avatar.count() === 0) throw new Error('Avatar not found on re-open');
-            await avatar.click();
-            await page.getByText(/organizations/i).first().waitFor({ state: 'visible', timeout: 10_000 });
-            const alphaRow = page.getByRole('button', { name: new RegExp(ORG_ALPHA.name, 'i') }).first();
-            const betaRow = page.getByRole('button', { name: new RegExp(ORG_BETA.name, 'i') }).first();
-            // EXPECTATION: check icon transferred to Beta Org
+            const dropdown = await openOrgMenu(page);
+            const alphaRow = dropdown.getByRole('button', { name: new RegExp(ORG_ALPHA.name, 'i') }).first();
+            const betaRow = dropdown.getByRole('button', { name: new RegExp(ORG_BETA.name, 'i') }).first();
             await expect(betaRow.locator('.lucide--check'), 'Checkmark should move to newly selected org').toHaveCount(1);
             await expect(alphaRow.locator('.lucide--check'), 'Old org should no longer display checkmark').toHaveCount(0);
         });

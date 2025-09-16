@@ -36,11 +36,11 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
                 // Support both top-level { message, code, details } and nested { error: { code, message, details } }
                 if (anyRes.error && typeof anyRes.error === 'object') {
                     const nested = anyRes.error;
-                    if (nested.message) message = nested.message;
+                    if (nested.message && !anyRes.message) message = nested.message;
                     if (nested.details || nested.errors) details = nested.details || nested.errors;
                     if (nested.code && typeof nested.code === 'string') code = nested.code;
                 }
-                if (anyRes.message) message = anyRes.message;
+                if (anyRes.message) message = typeof anyRes.message === 'string' ? anyRes.message : message;
                 if (!details && (anyRes.details || anyRes.errors)) details = anyRes.details || anyRes.errors;
                 if (anyRes.code && typeof anyRes.code === 'string') code = anyRes.code;
             }

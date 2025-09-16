@@ -182,3 +182,37 @@ export async function seedOrgProject(page: Page): Promise<void> {
         } catch { /* ignore */ }
     });
 }
+
+/** Ensure org + project network stubs and config (lightweight replacement for legacy seed assumptions) */
+export async function ensureActiveOrgAndProject(page: Page, opts: { orgId?: string; projectId?: string } = {}): Promise<void> {
+    const orgId = opts.orgId || '22222222-2222-4222-8222-222222222222';
+    const projectId = opts.projectId || '33333333-3333-4333-8333-333333333333';
+    await page.addInitScript(({ _orgId, _projectId }) => {
+        try {
+            const CONFIG_KEYS = ['__NEXUS_CONFIG_v3.0__', '__nexus_config_v1__'];
+            for (const key of CONFIG_KEYS) {
+                const raw = localStorage.getItem(key);
+                const state: any = raw ? JSON.parse(raw) : {};
+                state.activeOrgId = state.activeOrgId || _orgId;
+                state.activeOrgName = state.activeOrgName || 'E2E Org';
+                state.activeProjectId = state.activeProjectId || _projectId;
+                state.activeProjectName = state.activeProjectName || 'E2E Project';
+                localStorage.setItem(key, JSON.stringify(state));
+            }
+        } catch { /* ignore */ }
+    }, { _orgId: orgId, _projectId: projectId });
+
+    // Stub orgs/projects if not already handled
+    await page.route('**/orgs', async (route) => {
+        if (route.request().method() === 'GET') {
+            return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: orgId, name: 'E2E Org' }]) });
+        }
+        return route.fallback();
+    });
+    await page.route('**/projects*', async (route) => {
+        if (route.request().method() === 'GET') {
+            return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: projectId, name: 'E2E Project', orgId }]) });
+        }
+        return route.fallback();
+    });
+}

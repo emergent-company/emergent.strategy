@@ -23,5 +23,4 @@ export class AppConfigService {
     get embeddingsEnabled() { return !!this.env.GOOGLE_API_KEY; }
     get chatModelEnabled() { return !!this.env.GOOGLE_API_KEY && !!this.env.CHAT_MODEL_ENABLED; }
     get autoInitDb() { return !!this.env.DB_AUTOINIT; }
-    get demoSeedOrgs() { return !!this.env.ORGS_DEMO_SEED; }
 }

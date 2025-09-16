@@ -6,6 +6,7 @@ let ctx: E2EContext;
 
 describe('Chat Streaming Ordering', () => {
     beforeAll(async () => { ctx = await createE2EContext('chat-sse-order'); });
+    beforeAll(() => { process.env.CHAT_TEST_DETERMINISTIC = '1'; });
     beforeEach(async () => { await ctx.cleanup(); });
     afterAll(async () => { await ctx.close(); });
 

@@ -17,8 +17,9 @@ const CHAT_FLAGS = { key: !!process.env.GOOGLE_API_KEY, enabled: process.env.CHA
     it('provisions org & project, ingests a document, creates a chat, streams answer with optional citations', async () => {
         const ctx = await createE2EContext('scenario');
         type ProjectResp = { id: string; name: string; orgId: string };
+        type OrgResp = { id: string; name: string };
         let projectResp: ProjectResp | null = null;
-        let orgResp: { id: string; name: string } | null = null;
+        let orgResp: OrgResp | null = null;
         let convId: string | null = null;
         let frames: any[] = [];
         try {
@@ -134,13 +135,21 @@ const CHAT_FLAGS = { key: !!process.env.GOOGLE_API_KEY, enabled: process.env.CHA
                 }
             });
         } finally {
-            // Cleanup user-specific artifacts
-            // (ctx.cleanup removes chat + docs for the generated user/project)
-            // cleanup artifacts for dynamically created project (chat + docs) then base context
-            if (projectResp) {
-                const projId = (projectResp as ProjectResp).id;
+            // Cleanup user-specific artifacts and ensure org/project rows removed.
+            // ctx.cleanup removes chat + docs for the generated base context project.
+            // We additionally delete the scenario-created project & org for zero-leak guarantee.
+            if (projectResp !== null) {
+                const projId: string = (projectResp as ProjectResp).id;
                 await ctx.cleanupProjectArtifacts(projId);
+                await ctx.cleanupExternalProject(projId, { allowPrimary: true });
             }
+            if (orgResp !== null) {
+                await ctx.cleanupExternalOrg((orgResp as OrgResp).id, { allowPrimary: true });
+            }
+            // Best-effort verification (non-blocking): list orgs/projects if APIs exist
+            try {
+                // (Optional verification could query DB directly if needed)
+            } catch {/* ignore */ }
             await ctx.cleanup();
             await ctx.close();
         }

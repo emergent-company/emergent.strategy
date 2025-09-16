@@ -15,6 +15,7 @@ let ctx: E2EContext;
 
 describe('Chat Streaming SSE E2E', () => {
     beforeAll(async () => { ctx = await createE2EContext('chat-sse'); });
+    beforeAll(() => { process.env.CHAT_TEST_DETERMINISTIC = '1'; });
     beforeEach(async () => { await ctx.cleanup(); });
     afterAll(async () => { await ctx.close(); });
 
