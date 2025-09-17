@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { IconButton, type IconButtonProps } from "./IconButton";
+import { IconButton } from "./IconButton";
+import type { IconButtonProps } from "./IconButton";
 import { Icon } from "./Icon";
 
 const meta: Meta<typeof IconButton> = {
@@ -9,6 +10,14 @@ const meta: Meta<typeof IconButton> = {
         "aria-label": "Settings",
         className: "",
     },
+    parameters: {
+        docs: {
+            description: {
+                component: `Button optimized for square icon actions. Pass children (typically an <Icon />). Adds minimal padding & focus styles consistent with design system.\n\nUsage:\n\n\`\`\`tsx\n<IconButton aria-label="Notifications">\n  <Icon icon="lucide--bell" className="size-4" />\n</IconButton>\n\`\`\``,
+            },
+        },
+    },
+    tags: ["autodocs"],
 };
 export default meta;
 

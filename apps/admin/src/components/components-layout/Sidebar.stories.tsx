@@ -1,22 +1,21 @@
 import type { Meta, StoryObj } from "@storybook/react";
-
 import { Sidebar } from "./Sidebar";
 import type { ISidebarMenuItem } from "../admin-layout/SidebarMenuItem";
 
 const meta: Meta<typeof Sidebar> = {
     title: "Components Layout/Sidebar",
     component: Sidebar,
-    decorators: [
-        (Story) => (
-            <div className="h-[480px]">
-                <Story />
-            </div>
-        ),
-    ],
+    parameters: {
+        docs: {
+            description: {
+                component: `Navigation sidebar listing component categories for the showcase section. Collapsible and keyboard navigable.`,
+            },
+        },
+    },
+    tags: ["autodocs"],
 };
-
 export default meta;
-type Story = StoryObj<typeof Sidebar>;
+type Story = StoryObj<typeof meta>;
 
 const menu: ISidebarMenuItem[] = [
     { id: "title", label: "Main", isTitle: true },
@@ -32,6 +31,4 @@ const menu: ISidebarMenuItem[] = [
     },
 ];
 
-export const Default: Story = {
-    args: { menuItems: menu },
-};
+export const Default: Story = { args: { menuItems: menu } };

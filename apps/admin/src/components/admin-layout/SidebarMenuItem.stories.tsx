@@ -1,9 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { SidebarMenuItem, type ISidebarMenuItem } from "./SidebarMenuItem";
+import { SidebarMenuItem } from "./SidebarMenuItem";
+import type { ISidebarMenuItem } from "./SidebarMenuItem";
 
 const meta: Meta<typeof SidebarMenuItem> = {
-    title: "Admin Layout/Sidebar/SidebarMenuItem",
+    title: "AdminLayout/Sidebar/MenuItem",
     component: SidebarMenuItem,
     decorators: [
         (Story) => (
@@ -12,6 +13,14 @@ const meta: Meta<typeof SidebarMenuItem> = {
             </div>
         ),
     ],
+    parameters: {
+        docs: {
+            description: {
+                component: `Composable navigation entry. Renders either a direct link or an expandable parent with children. Provide \`activated\` (Set<string>) to control open / active state externally in higher-level sidebar container. Badges array shows contextual labels.`,
+            },
+        },
+    },
+    tags: ["autodocs"],
 };
 
 export default meta;

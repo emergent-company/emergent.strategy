@@ -8,10 +8,14 @@ const config: StorybookConfig = {
     },
     staticDirs: ["../public"],
     stories: [
-        "../src/**/*.mdx",
         "../src/**/*.stories.@(ts|tsx)",
     ],
-    addons: ["@storybook/addon-a11y", "@storybook/addon-links", "@storybook/addon-docs"],
+    addons: [
+        "@storybook/addon-a11y",
+        "@storybook/addon-links",
+        "@storybook/addon-docs"
+    ],
+    docs: {},
     core: {
         disableTelemetry: true,
     },
@@ -20,7 +24,8 @@ const config: StorybookConfig = {
             ...(baseConfig.resolve ?? {}),
             alias: {
                 ...(baseConfig.resolve?.alias ?? {}),
-                "@": path.resolve(process.cwd(), "src"),
+                // Resolve to admin app's src regardless of invocation CWD
+                "@": path.resolve(__dirname, "../src"),
             },
         };
         return baseConfig;

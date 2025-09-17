@@ -1,10 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
-
 import { Sidebar } from "./Sidebar";
 import type { ISidebarMenuItem } from "./SidebarMenuItem";
 
 const meta: Meta<typeof Sidebar> = {
-    title: "Admin Layout/Sidebar/Sidebar",
+    title: "AdminLayout/Sidebar/Container",
     component: Sidebar,
     decorators: [
         (Story) => (
@@ -13,6 +12,14 @@ const meta: Meta<typeof Sidebar> = {
             </div>
         ),
     ],
+    parameters: {
+        docs: {
+            description: {
+                component: `Primary navigation column. Accepts ordered array of menuItems (title entries, links, nested groups). State (expanded/active) controlled via internal hooks + provided \`activated\` Sets on children.`,
+            },
+        },
+    },
+    tags: ["autodocs"],
 };
 
 export default meta;

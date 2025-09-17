@@ -1,20 +1,22 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { ChatCtaCard, type ChatCtaCardProps } from "./ChatCtaCard";
+import { ChatCtaCard } from "./ChatCtaCard";
+import type { ChatCtaCardProps } from "./ChatCtaCard";
 import { action } from "@/stories";
 
 const meta: Meta<typeof ChatCtaCard> = {
     title: "Chat/ChatCtaCard",
     component: ChatCtaCard,
-    args: {
-        icon: "lucide--sparkles",
-        title: "Summarize Document",
-        desc: "Get a concise summary of your document.",
-        onPick: action('onPick'),
-    } satisfies ChatCtaCardProps,
+    parameters: {
+        docs: {
+            description: {
+                component: `Call‑to‑action card surfaced contextually inside conversation list when user has no conversations or hits a usage boundary. Encourages upgrade or creation of first chat.`,
+            },
+        },
+    },
+    tags: ["autodocs"],
 };
 
 export default meta;
-
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};

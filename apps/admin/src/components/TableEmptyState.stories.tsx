@@ -1,16 +1,25 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { TableEmptyState, type TableEmptyStateProps } from "./TableEmptyState";
-
+import { TableEmptyState } from "./TableEmptyState";
+import type { TableEmptyStateProps } from "./TableEmptyState";
 const meta: Meta<typeof TableEmptyState> = {
     title: "Tables/TableEmptyState",
     component: TableEmptyState,
-    argTypes: {
-        colSpan: { control: { type: "number", min: 1, max: 12 } },
+    argTypes: { colSpan: { control: { type: "number", min: 1, max: 12 } } },
+    args: { colSpan: 4, message: "No data found." },
+    parameters: {
+        docs: {
+            description: {
+                component: "Utility row to show an inline empty state inside tables. Span columns via colSpan prop.",
+            },
+        },
     },
-    args: {
-        colSpan: 4,
-        message: "No data found.",
-    },
+    tags: ["autodocs"],
+};
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
     render: (args) => (
         <div className="overflow-x-auto">
             <table className="table w-full">
@@ -30,11 +39,4 @@ const meta: Meta<typeof TableEmptyState> = {
     ),
 };
 
-export default meta;
-type Story = StoryObj<typeof TableEmptyState>;
-
-export const Default: Story = {};
-
-export const CustomMessage: Story = {
-    args: { message: "Nothing to show here yet." },
-};
+export const CustomMessage: Story = { args: { message: "Nothing to show here yet." } };

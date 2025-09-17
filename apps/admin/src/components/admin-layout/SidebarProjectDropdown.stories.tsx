@@ -2,16 +2,16 @@ import type { Meta, StoryObj } from "@storybook/react";
 import SidebarProjectDropdown from "./SidebarProjectDropdown";
 
 const meta: Meta<typeof SidebarProjectDropdown> = {
-    title: "Admin Layout/Sidebar/SidebarProjectDropdown",
+    title: "AdminLayout/Sidebar/ProjectDropdown",
     component: SidebarProjectDropdown,
     parameters: {
         docs: {
             description: {
-                component:
-                    "Relies on global ConfigProvider and mocked API via useProjects. In Storybook, it will show loading/empty states by default.",
+                component: `Project switcher. Fetches list via useProjects hook and persists current selection through config/context. In Storybook displays loading/empty mocks unless overridden with a provider decorator.`,
             },
         },
     },
+    tags: ["autodocs"],
 };
 
 export default meta;
