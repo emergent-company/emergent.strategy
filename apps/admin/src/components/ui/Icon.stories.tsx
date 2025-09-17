@@ -9,6 +9,14 @@ const meta: Meta<typeof Icon> = {
         ariaLabel: "sparkles icon",
         className: "size-6 text-primary",
     },
+    parameters: {
+        docs: {
+            description: {
+                component: `Lightweight wrapper around an Iconify span. Provide a full icon class (lucide--*) and optional ariaLabel. When ariaLabel is omitted the icon is hidden from assistive tech (aria-hidden).\n\nUsage:\n\n\`\`\`tsx\n<Icon icon="lucide--settings" ariaLabel="settings" className="size-5 text-primary" />\n\`\`\``,
+            },
+        },
+    },
+    tags: ["autodocs"],
 };
 export default meta;
 

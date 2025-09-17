@@ -2,8 +2,16 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { TopbarProfileMenu } from "./TopbarProfileMenu";
 
 const meta: Meta<typeof TopbarProfileMenu> = {
-    title: "Admin Layout/Topbar/TopbarProfileMenu",
+    title: "AdminLayout/Topbar/ProfileMenu",
     component: TopbarProfileMenu,
+    parameters: {
+        docs: {
+            description: {
+                component: `Avatar trigger + dropdown containing account actions (profile, sign out). Consumes auth context (or mock) in Storybook; replace handlers for isolated visual testing.`,
+            },
+        },
+    },
+    tags: ["autodocs"],
 };
 
 export default meta;

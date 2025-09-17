@@ -1,0 +1,41 @@
+export default {
+	title: 'Forms/Overview',
+	parameters: {
+		docs: {
+			description: { component: 'Form-related utilities and wrappers for consistent task input surfaces.' }
+		}
+	},
+	tags: ['autodocs']
+}
+
+# Form Components
+
+Form-related utilities and wrappers for consistent task input surfaces.
+
+## Current Components
+
+- FileUploader
+- (Add future: Selects, Date pickers, Validation helpers)
+
+## Guidelines
+
+- Always label inputs (visually or via `aria-label`).
+- Prefer composition over large monolithic form components.
+- Keep visual states (error, success) aligned with daisyUI semantic colors.
+
+## Adding a Form Component
+1. Implement under `src/components/forms/`.
+2. Create `Component.stories.tsx` with:
+```ts
+const meta: Meta<typeof Component> = {
+	title: 'Forms/Component',
+	component: Component,
+	parameters: { docs: { description: { component: 'Short description.' } } },
+	tags: ['autodocs']
+};
+export default meta;
+```
+3. Document validation expectations succinctly in the description or additional stories.
+
+---
+_Domain index for form utilities._

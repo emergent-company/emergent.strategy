@@ -71,4 +71,9 @@ export const parameters = {
             { name: "dark", value: "#121416" },
         ],
     },
+    docs: {
+        // Enable the modern Storybook Code panel (replacement for deprecated storysource addon)
+        codePanel: true,
+        source: { state: 'open' },
+    },
 };
