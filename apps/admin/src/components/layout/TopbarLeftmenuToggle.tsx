@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import { Icon } from "@/components/ui/Icon";
 
-type Props = ComponentProps<"label"> & { hoverMode?: boolean }; 
+type Props = ComponentProps<"label"> & { hoverMode?: boolean };
 
 export const TopbarLeftmenuToggle = ({ hoverMode = false, className, ...rest }: Props) => {
     const targetId = hoverMode ? "layout-sidebar-hover-trigger" : "layout-sidebar-toggle-trigger";
