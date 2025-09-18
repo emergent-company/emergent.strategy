@@ -5,6 +5,9 @@ import { Sidebar } from "./Sidebar";
 import { SidebarSection } from "./SidebarSection";
 import { SidebarMenuItem } from "./SidebarMenuItem";
 import { SidebarProjectDropdown } from "./SidebarProjectDropdown";
+import * as React from "react";
+import { useConfig } from "@/contexts/config";
+import type { Project } from "@/hooks/use-projects";
 
 // Sets an initial route inside the single (global) MemoryRouter provided by .storybook/preview.tsx
 const InitialRoute: React.FC<{ path: string }> = ({ path }) => {
@@ -191,6 +194,58 @@ export const HoverToggle: Story = {
         docs: {
             description: {
                 story: "Hover the right edge (panel-left-dashed icon) to toggle the dense/hover sidebar mode.",
+            },
+        },
+    },
+};
+
+// 8. Project dropdown with many mock projects
+export const WithManyProjects: Story = {
+    name: "With Project Dropdown (many projects)",
+    render: () => {
+        const Wrapper: React.FC = () => {
+            const { setActiveOrg } = useConfig();
+            React.useEffect(() => {
+                setActiveOrg("org-demo", "Demo Org");
+            }, [setActiveOrg]);
+
+            const mockProjects: Project[] = React.useMemo(
+                () =>
+                    Array.from({ length: 12 }).map((_, i) => ({
+                        id: `proj-${i + 1}`,
+                        name: `Project ${i + 1}`,
+                        status: i % 3 === 0 ? "active" : i % 3 === 1 ? "indexing" : "paused",
+                    })),
+                [],
+            );
+
+            const useMockProjects = () => ({
+                projects: mockProjects,
+                loading: false,
+                error: undefined as string | undefined,
+                createProject: async (name: string) => ({ id: `proj-${mockProjects.length + 1}`, name }),
+            });
+
+            return (
+                <Sidebar>
+                    <SidebarProjectDropdown useProjectsHook={useMockProjects} />
+                    <SidebarSection title="Overview">
+                        <SidebarMenuItem id="documents" url="/admin/documents" icon="lucide--file-text">
+                            Documents
+                        </SidebarMenuItem>
+                        <SidebarMenuItem id="chunks" url="/admin/chunks" icon="lucide--square-stack">
+                            Chunks
+                        </SidebarMenuItem>
+                    </SidebarSection>
+                </Sidebar>
+            );
+        };
+        return <Wrapper />;
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: "Demonstrates the project dropdown with a larger list (12 mock projects) and varied status values without hitting the real API.",
             },
         },
     },

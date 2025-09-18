@@ -4,11 +4,24 @@
 import { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { useConfig } from "@/contexts/config";
-import { useProjects } from "@/hooks/use-projects";
+import { useProjects, type Project } from "@/hooks/use-projects";
 
-export const SidebarProjectDropdown = () => {
+export interface SidebarProjectDropdownProps {
+    /**
+     * Optional injection point for supplying a custom projects hook (e.g. in Storybook).
+     * The function should return the same shape as `useProjects`.
+     */
+    useProjectsHook?: () => {
+        projects: Project[] | undefined;
+        loading: boolean;
+        error: string | undefined;
+        createProject: (name: string) => Promise<Project>;
+    };
+}
+
+export const SidebarProjectDropdown = ({ useProjectsHook }: SidebarProjectDropdownProps) => {
     const { config, setActiveProject } = useConfig();
-    const { projects, loading, error, createProject } = useProjects();
+    const { projects, loading, error, createProject } = (useProjectsHook || useProjects)();
 
     return (
         <>
