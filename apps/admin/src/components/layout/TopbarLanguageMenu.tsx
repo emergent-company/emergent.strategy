@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 
-export const TopbarLanguageMenu = () => {
+// Migrated from admin-layout; eventually enhance to integrate with config context for dynamic language switching.
+export const TopbarLanguageMenu: React.FC = () => {
     return (
         <div className="dropdown dropdown-bottom dropdown-center">
             <div tabIndex={0} className="btn btn-ghost btn-circle btn-sm cursor-pointer">
@@ -63,3 +64,5 @@ export const TopbarLanguageMenu = () => {
         </div>
     );
 };
+
+export default TopbarLanguageMenu;
