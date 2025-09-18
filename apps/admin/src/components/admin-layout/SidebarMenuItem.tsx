@@ -1,5 +1,23 @@
 import { AnchorHTMLAttributes, ReactElement, ReactNode, isValidElement, Children } from "react";
+/**
+ * Migration Notes (Config -> Composition):
+ *
+ * Previous usage for nested items:
+ * (Deprecated old config form – removed) <SidebarMenuItem id="reports" label="Reports" icon="lucide--bar-chart-3" children={[{ id: 'r-daily', label: 'Daily', url: '/daily' }]} />
+ *
+ * New compositional pattern:
+ * New compositional pattern (no label prop; text content is child JSX):
+ * <SidebarMenuItem id="reports" icon="lucide--bar-chart-3" collapsible>
+ *   Reports
+ *   <SidebarMenuItem id="r-daily" url="/daily">Daily</SidebarMenuItem>
+ *   <SidebarMenuItem id="r-monthly" url="/monthly">Monthly</SidebarMenuItem>
+ * </SidebarMenuItem>
+ *
+ * The legacy `children` config array remains temporarily supported but will be removed.
+ * Prefer the `<SidebarMenuItemComposable />` wrapper + `collapsible` prop for nesting.
+ */
 import { Link } from "react-router";
+
 import { ISidebarMenuItemBadges, SidebarMenuItemBadges } from "./SidebarMenuItemBadges";
 import { Icon } from "@/components/ui/Icon";
 
@@ -88,5 +106,3 @@ export const SidebarMenuItem = ({
         </div>
     );
 };
-
-export default SidebarMenuItem;

@@ -143,5 +143,3 @@ export const Sidebar = ({ children }: ISidebarProps) => {
         </>
     );
 };
-
-export default Sidebar;

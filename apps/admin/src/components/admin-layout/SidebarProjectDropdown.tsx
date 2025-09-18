@@ -1,8 +1,18 @@
 /**
- * SidebarProjectDropdown (composable child of <Sidebar />)
+ * SidebarProjectDropdown
+ *
+ * Migration note: This component used to be injected internally by `Sidebar`.
+ * It is now a first-class composable child. To include the project switcher, place it
+ * as the first child inside `<Sidebar>` before any `<SidebarSection />`:
+ *
+ * <Sidebar>
+ *   <SidebarProjectDropdown />
+ *   <SidebarSection id="core" title="Core">...</SidebarSection>
+ * </Sidebar>
  */
 import { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
+
 import { useConfig } from "@/contexts/config";
 import { useProjects } from "@/hooks/use-projects";
 
