@@ -1,297 +1,61 @@
 @plugin "daisyui" {
     exclude: rootscrollgutter;
+    themes: all;
 }
 
+/* Custom override of built-in dark theme.
+     We keep name "dark" so all existing data-theme="dark" usages inherit new values.
+     Adjust OKLCH values for improved contrast + brand accent shift. */
 @plugin "daisyui/theme" {
     name: "dark";
-    color-scheme: dark;
+    /* override built-in */
     prefersdark: true;
-
-    /* == Layout Colors == */
-    --root-bg: #121416;
-    --layout-sidebar-background: #181c20;
-    --layout-topbar-background: #181b1f;
-
-    /* == Base Colors == */
-    --color-base-100: #181c20;
-    --color-base-200: #22262a;
-    --color-base-300: #2c3034;
-    --color-base-content: #f0f4f8;
-
-    /* == Colors == */
-    --color-primary: #378dff;
-    --color-primary-content: #ffffff;
-    --color-secondary: #b071ff;
-    --color-secondary-content: #ffffff;
-    --color-accent: #00d3bb;
-    --color-accent-content: #f3fbf6;
-    --color-neutral: #dce1e6;
-    --color-neutral-content: #1e2832;
-    --color-info: #14b4ff;
-    --color-info-content: #ffffff;
-    --color-success: #0bbf58;
-    --color-success-content: #ffffff;
-    --color-warning: #f5a524;
-    --color-warning-content: #150a00;
-    --color-error: #f31260;
-    --color-error-content: #ffffff;
-
-    /* == Sizes == */
-    --radius-field: 0.25rem;
-    --radius-box: 0.25rem;
-    --rounded-box: 0.25rem;
-    --radius-selector: 0.25rem;
-    --size-selector: 0.25rem;
-    --size-field: 0.25rem;
-    --border: 1px;
-    --card-p: 20px;
-    --card-fs: var(--text-base);
-
-    /* == Other Options == */
-    --depth: 0;
-    --noise: 0;
-}
-
-@plugin "daisyui/theme" {
-    name: "light";
-    default: true;
-    color-scheme: light;
-
-    /* == Layout Colors == */
-    --root-bg: #fafbfc;
-    --layout-sidebar-background: #ffffff;
-    --layout-topbar-background: #ffffff;
-
-    /* == Base Colors == */
-    --color-base-100: #ffffff;
-    --color-base-200: #eef0f2;
-    --color-base-300: #dcdee0;
-    --color-base-content: #1e2328;
-
-    /* == Colors == */
-    --color-primary: #167bff;
-    --color-primary-content: #ffffff;
-    --color-secondary: #9c5de8;
-    --color-secondary-content: #ffffff;
-    --color-accent: #00d3bb;
-    --color-accent-content: #f3fbf6;
-    --color-neutral: #1e2832;
-    --color-neutral-content: #fafcff;
-    --color-info: #14b4ff;
-    --color-info-content: #ffffff;
-    --color-success: #0bbf58;
-    --color-success-content: #ffffff;
-    --color-warning: #f5a524;
-    --color-warning-content: #150a00;
-    --color-error: #f31260;
-    --color-error-content: #ffffff;
-
-    /* == Sizes == */
-    --radius-field: 0.25rem;
-    --radius-box: 0.25rem;
-    --rounded-box: 0.25rem;
-    --radius-selector: 0.25rem;
-    --size-selector: 0.25rem;
-    --size-field: 0.25rem;
-    --border: 1px;
-    --card-p: 20px;
-    --card-fs: var(--text-base);
-
-    /* == Other Options == */
-    --depth: 0;
-    --noise: 0;
-}
-
-@plugin "daisyui/theme" {
-    name: "contrast";
-    color-scheme: light;
-
-    /* == Layout Colors == */
-    --root-bg: #f2f4f6;
-    --layout-sidebar-background: #fcfdff;
-    --layout-topbar-background: #fdfeff;
-
-    /* == Base Colors == */
-    --color-base-100: #ffffff;
-    --color-base-200: #eef0f2;
-    --color-base-300: #dcdee0;
-    --color-base-content: #1e2328;
-
-    /* == Colors == */
-    --color-primary: #167bff;
-    --color-primary-content: #ffffff;
-    --color-secondary: #9c5de8;
-    --color-secondary-content: #ffffff;
-    --color-accent: #00d3bb;
-    --color-accent-content: #f3fbf6;
-    --color-neutral: #1e2832;
-    --color-neutral-content: #fafcff;
-    --color-info: #14b4ff;
-    --color-info-content: #ffffff;
-    --color-success: #0bbf58;
-    --color-success-content: #ffffff;
-    --color-warning: #f5a524;
-    --color-warning-content: #150a00;
-    --color-error: #f31260;
-    --color-error-content: #ffffff;
-
-    /* == Sizes == */
-    --radius-field: 0.25rem;
-    --radius-box: 0.25rem;
-    --rounded-box: 0.25rem;
-    --radius-selector: 0.25rem;
-    --size-selector: 0.25rem;
-    --size-field: 0.25rem;
-    --border: 1px;
-    --card-p: 20px;
-    --card-fs: var(--text-base);
-
-    /* == Other Options == */
-    --depth: 0;
-    --noise: 0;
-}
-
-@plugin "daisyui/theme" {
-    name: "material";
-    color-scheme: light;
-
-    /* == Layout Colors == */
-    --root-bg: #fdfeff;
-    --layout-sidebar-background: #f5f7ff;
-    --layout-topbar-background: #f5f7ff;
-
-    /* == Base Colors == */
-    --color-base-100: #f6f8ff;
-    --color-base-200: #eaecfa;
-    --color-base-300: #e0e2f8;
-    --color-base-content: #191e28;
-
-    /* == Colors == */
-    --color-primary: #167bff;
-    --color-primary-content: #ffffff;
-    --color-secondary: #9c5de8;
-    --color-secondary-content: #ffffff;
-    --color-accent: #00d3bb;
-    --color-accent-content: #f3fbf6;
-    --color-neutral: #1e2832;
-    --color-neutral-content: #fafcff;
-    --color-info: #14b4ff;
-    --color-info-content: #ffffff;
-    --color-success: #0bbf58;
-    --color-success-content: #ffffff;
-    --color-warning: #f5a524;
-    --color-warning-content: #150a00;
-    --color-error: #f31260;
-    --color-error-content: #ffffff;
-
-    /* == Sizes == */
-    --radius-field: 20px;
-    --radius-box: 20px;
-    --rounded-box: 20px;
-    --radius-selector: 20px;
-    --size-selector: 0.25rem;
-    --size-field: 0.25rem;
-    --border: 1px;
-    --card-p: 20px;
-
-    /* == Other Options == */
-    --depth: 0;
-    --noise: 0;
-}
-
-@plugin "daisyui/theme" {
-    name: "dim";
     color-scheme: dark;
 
-    /* == Layout Colors == */
-    --root-bg: #222630;
-    --layout-sidebar-background: #2a2e38;
-    --layout-topbar-background: #2a2e38;
+    /* Base surfaces (slightly warmer dark neutrals) */
+    --color-base-100: oklch(20% 0.015 260);
+    /* background */
+    --color-base-200: oklch(26% 0.02 260);
+    --color-base-300: oklch(32% 0.02 260);
+    --color-base-content: oklch(94% 0.01 260);
 
-    /* == Base Colors == */
-    --color-base-100: #2a2e38;
-    --color-base-200: #343842;
-    --color-base-300: #3c404a;
-    --color-base-content: #f0f4f8;
+    /* Brand primary (violet / indigo hybrid) */
+    --color-primary: oklch(60% 0.20 300);
+    --color-primary-content: oklch(98% 0.01 300);
 
-    /* == Colors == */
-    --color-primary: #378dff;
-    --color-primary-content: #ffffff;
-    --color-secondary: #b071ff;
-    --color-secondary-content: #ffffff;
-    --color-accent: #00d3bb;
-    --color-accent-content: #f3fbf6;
-    --color-neutral: #dce1e6;
-    --color-neutral-content: #1e2832;
-    --color-info: #14b4ff;
-    --color-info-content: #ffffff;
-    --color-success: #0bbf58;
-    --color-success-content: #ffffff;
-    --color-warning: #f5a524;
-    --color-warning-content: #150a00;
-    --color-error: #f31260;
-    --color-error-content: #ffffff;
+    /* Secondary (teal accent) */
+    --color-secondary: oklch(62% 0.18 190);
+    --color-secondary-content: oklch(10% 0.01 190);
 
-    /* == Sizes == */
-    --radius-field: 0.25rem;
-    --radius-box: 0.25rem;
-    --rounded-box: 0.25rem;
-    --radius-selector: 0.25rem;
+    /* Accent (magenta pop) */
+    --color-accent: oklch(65% 0.23 350);
+    --color-accent-content: oklch(10% 0.02 350);
+
+    /* Neutral (panel outlines etc.) */
+    --color-neutral: oklch(38% 0.02 260);
+    --color-neutral-content: oklch(90% 0.01 260);
+
+    /* Info / Success / Warning / Error tuned for dark contrast */
+    --color-info: oklch(70% 0.18 240);
+    --color-info-content: oklch(15% 0.02 240);
+    --color-success: oklch(65% 0.20 150);
+    --color-success-content: oklch(12% 0.02 150);
+    --color-warning: oklch(78% 0.23 85);
+    --color-warning-content: oklch(20% 0.04 85);
+    --color-error: oklch(62% 0.24 25);
+    --color-error-content: oklch(15% 0.02 25);
+
+    /* Radii inherit; optionally tweak to sharpen components */
+    --radius-selector: 0.75rem;
+    --radius-field: 0.375rem;
+    --radius-box: 0.625rem;
+
+    /* Control element sizing (unchanged baseline) */
     --size-selector: 0.25rem;
     --size-field: 0.25rem;
+
+    /* Border & effects */
     --border: 1px;
-    --card-p: 20px;
-    --card-fs: var(--text-base);
-
-    /* == Other Options == */
-    --depth: 0;
-    --noise: 0;
-}
-
-@plugin "daisyui/theme" {
-    name: "material-dark";
-    color-scheme: dark;
-
-    /* == Layout Colors == */
-    --root-bg: #141618;
-    --layout-sidebar-background: #181c20;
-    --layout-topbar-background: #181c22;
-
-    /* == Base Colors == */
-    --color-base-100: #181e24;
-    --color-base-200: #202830;
-    --color-base-300: #2c323a;
-    --color-base-content: #f0f4f8;
-
-    /* == Colors == */
-    --color-primary: #378dff;
-    --color-primary-content: #ffffff;
-    --color-secondary: #b071ff;
-    --color-secondary-content: #ffffff;
-    --color-accent: #00d3bb;
-    --color-accent-content: #f3fbf6;
-    --color-neutral: #dce1e6;
-    --color-neutral-content: #1e2832;
-    --color-info: #14b4ff;
-    --color-info-content: #ffffff;
-    --color-success: #0bbf58;
-    --color-success-content: #ffffff;
-    --color-warning: #f5a524;
-    --color-warning-content: #150a00;
-    --color-error: #f31260;
-    --color-error-content: #ffffff;
-
-    /* == Sizes == */
-    --radius-field: 20px;
-    --radius-box: 20px;
-    --rounded-box: 20px;
-    --radius-selector: 20px;
-    --size-selector: 0.25rem;
-    --size-field: 0.25rem;
-    --border: 1px;
-    --card-p: 20px;
-
-    /* == Other Options == */
-    --depth: 0;
+    --depth: 1;
     --noise: 0;
 }

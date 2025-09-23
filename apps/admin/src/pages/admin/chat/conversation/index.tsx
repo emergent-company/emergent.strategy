@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
-import { PageTitle } from "@/components/PageTitle";
-import NewChatCtas from "@/components/NewChatCtas";
+import { PageTitle } from "@/components";
+import { NewChatCtas } from "@/components/molecules/NewChatCtas";
 import { useChat } from "@/hooks/use-chat";
 import { useAuth } from "@/contexts/auth";
 import type { Conversation, Message } from "@/types/chat";

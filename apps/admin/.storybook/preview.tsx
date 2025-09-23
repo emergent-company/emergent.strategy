@@ -20,12 +20,12 @@ const ThemeSync: React.FC<{ theme: string }> = ({ theme }) => {
 
 const withConfigProvider: Decorator = (Story, context) => {
     const theme = (context.globals as { theme?: string }).theme || "light";
-    // Ensure html has group/html class for group-data selectors used by components
+    const initialPath = (context.parameters as { location?: string }).location || "/admin/documents";
     if (typeof document !== "undefined") {
         document.documentElement.classList.add("group/html");
     }
     return (
-        <MemoryRouter>
+        <MemoryRouter initialEntries={[initialPath]}>
             <ConfigProvider>
                 <AuthProvider>
                     <ThemeSync theme={theme} />

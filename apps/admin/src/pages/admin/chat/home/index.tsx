@@ -3,8 +3,8 @@ import { useNavigate } from "react-router";
 import { useChat } from "@/hooks/use-chat";
 import { useAuth } from "@/contexts/auth";
 import type { Conversation } from "@/types/chat";
-import { PageTitle } from "@/components/PageTitle";
-import NewChatCtas from "@/components/NewChatCtas";
+import { PageTitle } from "@/components";
+import { NewChatCtas } from "@/components/molecules/NewChatCtas";
 
 const suggestions = [
     "Summarize the latest ingested document",

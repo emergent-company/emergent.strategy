@@ -28,6 +28,9 @@
             ],
             "@/stories": [
                 "src/stories/index.ts"
+            ],
+            "@/utils/*": [
+                "src/utils/*"
             ]
         }
     },

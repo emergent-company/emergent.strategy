@@ -2,9 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/auth";
 import { useApi } from "@/hooks/use-api";
 import { useSearchParams } from "react-router";
-import { PageTitle } from "@/components/PageTitle";
-import { LoadingEffect } from "@/components/LoadingEffect";
-import { TableEmptyState } from "@/components/TableEmptyState";
+import { PageTitle } from "@/components";
+import { LoadingEffect, TableEmptyState } from "@/components";
 
 interface ChunkRow {
     id: string;

@@ -1,5 +1,5 @@
-import { MetaData } from "@/components/MetaData";
-import { PageTitle } from "@/components/PageTitle";
+import { MetaData } from "@/components";
+import { PageTitle } from "@/components";
 
 import { ChatApp } from "./ChatApp";
 

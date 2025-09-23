@@ -1,0 +1,7 @@
+import{j as e}from"./iframe-BQqEPkXj.js";import"./preload-helper-D9Z9MdNV.js";const s={title:"Chat/Overview",parameters:{docs:{page:()=>e.jsxs(e.Fragment,{children:[e.jsx("h1",{children:"Chat Components"}),e.jsx("p",{children:"Building blocks (composer, action bar, CTA cards) for conversational UX."}),e.jsx("h2",{children:"Architecture"}),e.jsxs("ul",{children:[e.jsxs("li",{children:[e.jsx("strong",{children:"ChatPromptComposer"}),": multiline input, privacy toggle, submit."]}),e.jsxs("li",{children:[e.jsx("strong",{children:"ChatPromptActions"}),": attach file, privacy toggle, extensible buttons."]}),e.jsxs("li",{children:[e.jsx("strong",{children:"ChatCtaCard"}),": contextual guidance on empty / boundary states."]})]}),e.jsx("h2",{children:"Usage Guidelines"}),e.jsxs("ul",{children:[e.jsx("li",{children:"Composer placeholder: actionable guidance (e.g., “Let us know what you need…”)."}),e.jsx("li",{children:"Reserve CTA cards for zero-history or upgrade prompts."}),e.jsxs("li",{children:["Icons alone must have accessible labels (",e.jsx("code",{children:"aria-label"}),")."]})]}),e.jsx("h2",{children:"Adding a Chat Component"}),e.jsx("pre",{children:e.jsx("code",{children:`const meta: Meta<typeof ChatYourComponent> = {
+  title: 'Chat/YourComponent',
+  component: ChatYourComponent,
+  parameters: { docs: { description: { component: 'Short description.' } } },
+  tags: ['autodocs']
+};
+export default meta;`})})]})}},tags:["autodocs"]},r=[];export{r as __namedExportsOrder,s as default};

@@ -1,7 +1,7 @@
 import React from "react";
 
-import { FileUploader } from "@/components/forms/FileUploader";
-import { Icon } from "@/components/ui/Icon";
+import { FileUploader } from "@/components/molecules/FileUploader";
+import { Icon } from "@/components/atoms/Icon";
 
 export const UserAvatar = () => {
     return (

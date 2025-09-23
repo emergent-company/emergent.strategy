@@ -2,7 +2,7 @@
 import SimpleBar from "simplebar-react";
 
 import { ChatItem, IChatItem } from "./ChatItem";
-import { Icon } from "@/components/ui/Icon";
+import { Icon } from "@/components/atoms/Icon";
 
 type IChatList = {
     chats: IChatItem[];

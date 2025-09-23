@@ -1,5 +1,5 @@
 import { FormEvent } from "react";
-import { Icon } from "@/components/ui/Icon";
+import { Icon } from "@/components/atoms/Icon";
 
 export type IChatInput = {
     onSendMessage(message: string): void;

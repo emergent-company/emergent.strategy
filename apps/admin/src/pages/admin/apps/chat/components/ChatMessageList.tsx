@@ -7,7 +7,7 @@ import { ChatCallModal } from "./ChatCallModal";
 import { ChatInput, IChatInput } from "./ChatInput";
 import { IChatItem } from "./ChatItem";
 import { ChatMessageItem } from "./ChatMessageItem";
-import { Icon } from "@/components/ui/Icon";
+import { Icon } from "@/components/atoms/Icon";
 
 type IChatMessageList = {
     chat: IChatItem;

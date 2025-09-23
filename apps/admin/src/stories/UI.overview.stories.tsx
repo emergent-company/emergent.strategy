@@ -26,7 +26,7 @@ const meta: Meta = {
                         <li>Tooltip</li>
                         <li>TableEmptyState</li>
                         <li>ThemeToggle</li>
-                        <li>PageTitleHero (in Core/)</li>
+                        <li>PageTitleHero (now under Molecules/)</li>
                     </ul>
                     <h2>Adding a New UI Component</h2>
                     <ol>

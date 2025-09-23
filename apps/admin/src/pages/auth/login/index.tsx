@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { MetaData } from "@/components/MetaData";
+import { MetaData } from "@/components/atoms/MetaData";
 import { useAuth } from "@/contexts/auth";
 
 const LoginPage = () => {
