@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Icon } from "@/components/ui/Icon";
+import { Icon } from "@/components/atoms/Icon";
 import { useAuth } from "@/contexts/auth";
 import { useApi } from "@/hooks/use-api";
-import { PageTitle } from "@/components/PageTitle";
+import { PageTitle } from "@/components";
 import { useConfig } from "@/contexts/config";
-import { LoadingEffect } from "@/components/LoadingEffect";
-import { TableEmptyState } from "@/components/TableEmptyState";
-import { OrgAndProjectGate } from "@/components/OrgAndProjectGate";
+import { LoadingEffect, TableEmptyState } from "@/components";
+import { OrgAndProjectGate } from "@/components/organisms/OrgAndProjectGate";
 
 type DocumentRow = {
     id: string;

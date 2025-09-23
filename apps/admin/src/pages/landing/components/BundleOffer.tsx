@@ -1,4 +1,4 @@
-import { Icon } from "@/components/ui/Icon";
+import { Icon } from "@/components/atoms/Icon";
 import { Link } from "react-router";
 
 export const BundleOffer = () => {

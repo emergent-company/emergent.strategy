@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 
-import { Logo } from "@/components/Logo";
-import { Icon } from "@/components/ui/Icon";
+import { Logo } from "@/components";
+import { Icon } from "@/components/atoms/Icon";
 
 export const Footer = () => {
     return (

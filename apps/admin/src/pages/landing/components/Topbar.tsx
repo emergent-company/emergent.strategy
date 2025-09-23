@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Icon } from "@/components/ui/Icon";
+import { Icon } from "@/components/atoms/Icon";
 
-import { Logo } from "@/components/Logo";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { Logo, ThemeToggle } from "@/components";
 
 export const Topbar = () => {
     const [scrollPosition, setScrollPosition] = useState<number>(0);

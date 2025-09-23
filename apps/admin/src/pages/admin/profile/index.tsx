@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router";
-import { Icon } from "@/components/ui/Icon";
+import { Icon } from "@/components/atoms/Icon";
 
 export default function MyProfilePage() {
     return (

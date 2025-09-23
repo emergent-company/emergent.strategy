@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/auth';
 import { parseCallbackParams } from '@/auth/oidc';
-import { Icon } from '@/components/ui/Icon';
+import { Icon } from '@/components/atoms/Icon';
 
 export default function AuthCallbackPage() {
     const nav = useNavigate();

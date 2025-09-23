@@ -2,7 +2,7 @@ import type { Meta } from '@storybook/react';
 import React from 'react';
 
 const meta: Meta = {
-    title: 'Chat/Overview',
+    title: 'Docs/Chat',
     parameters: {
         docs: {
             page: () => (
@@ -24,7 +24,7 @@ const meta: Meta = {
                     <h2>Adding a Chat Component</h2>
                     <pre>
                         <code>{`const meta: Meta<typeof ChatYourComponent> = {
-  title: 'Chat/YourComponent',
+    title: 'Molecules/YourComponent',
   component: ChatYourComponent,
   parameters: { docs: { description: { component: 'Short description.' } } },
   tags: ['autodocs']

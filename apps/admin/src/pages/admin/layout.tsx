@@ -1,15 +1,12 @@
 import { type ReactNode, useEffect } from "react";
 import { useAuth } from "@/contexts/auth";
 
-import { Footer } from "@/components/layout/Footer";
-import { Rightbar } from "@/components/layout/Rightbar";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { SidebarProjectDropdown } from "@/components/layout/SidebarProjectDropdown";
-import { SidebarSection } from "@/components/layout/SidebarSection";
-import { SidebarMenuItem } from "@/components/layout/SidebarMenuItem";
-import { Topbar } from "@/components/layout/Topbar";
+import { Footer } from "@/components/organisms/Footer";
+import { Rightbar } from "@/components/organisms/Rightbar";
+import { Sidebar } from "@/components/organisms/Sidebar";
+import { Topbar } from "@/components/organisms/Topbar";
 
-import { OrgAndProjectGateRedirect } from "@/components/OrgAndProjectGate";
+import { OrgAndProjectGateRedirect } from "@/components/organisms/OrgAndProjectGate";
 
 const AdminLayout = ({ children }: { children: ReactNode }) => {
     const { ensureAuthenticated, isAuthenticated } = useAuth();
@@ -27,27 +24,27 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
         <div className="size-full">
             <div className="flex">
                 <Sidebar>
-                    <SidebarProjectDropdown />
-                    <SidebarSection id="admin-primary" title="Overview">
-                        <SidebarMenuItem id="apps-documents" url="/admin/apps/documents" icon="lucide--file-text">
+                    <Sidebar.ProjectDropdown />
+                    <Sidebar.Section id="admin-primary" title="Overview">
+                        <Sidebar.MenuItem id="apps-documents" url="/admin/apps/documents" icon="lucide--file-text">
                             Documents
-                        </SidebarMenuItem>
-                        <SidebarMenuItem id="apps-chunks" url="/admin/apps/chunks" icon="lucide--square-stack">
+                        </Sidebar.MenuItem>
+                        <Sidebar.MenuItem id="apps-chunks" url="/admin/apps/chunks" icon="lucide--square-stack">
                             Chunks
-                        </SidebarMenuItem>
-                        <SidebarMenuItem id="admin-chat" url="/admin/apps/chat" icon="lucide--message-square">
+                        </Sidebar.MenuItem>
+                        <Sidebar.MenuItem id="admin-chat" url="/admin/apps/chat" icon="lucide--message-square">
                             Chat
-                        </SidebarMenuItem>
-                    </SidebarSection>
-                    <SidebarSection id="admin-settings" title="Settings" className="mt-4">
-                        <SidebarMenuItem
+                        </Sidebar.MenuItem>
+                    </Sidebar.Section>
+                    <Sidebar.Section id="admin-settings" title="Settings" className="mt-4">
+                        <Sidebar.MenuItem
                             id="admin-settings-ai-prompts"
                             url="/admin/settings/ai/prompts"
                             icon="lucide--book-text"
                         >
                             AI Prompts
-                        </SidebarMenuItem>
-                    </SidebarSection>
+                        </Sidebar.MenuItem>
+                    </Sidebar.Section>
                 </Sidebar>
                 <div className="flex flex-col min-w-0 h-screen overflow-auto grow">
                     <Topbar />

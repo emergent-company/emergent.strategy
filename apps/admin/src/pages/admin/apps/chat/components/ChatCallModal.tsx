@@ -1,5 +1,5 @@
 import { IChatItem } from "./ChatItem";
-import { Icon } from "@/components/ui/Icon";
+import { Icon } from "@/components/atoms/Icon";
 
 type IChatCallModal = {
     chat: IChatItem;

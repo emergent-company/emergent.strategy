@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 import { Link } from "react-router";
 
-import { Logo } from "@/components/Logo";
-import { MetaData } from "@/components/MetaData";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { Icon } from "@/components/ui/Icon";
+import { Logo, ThemeToggle } from "@/components";
+import { MetaData } from "@/components";
+import { Icon } from "@/components/atoms/Icon";
 
 const ResetPasswordPage = () => {
     const [showPassword, setShowPassword] = useState(false);

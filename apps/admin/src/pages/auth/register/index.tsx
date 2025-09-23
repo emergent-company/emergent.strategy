@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { Link } from "react-router";
 
-import { Logo } from "@/components/Logo";
-import { MetaData } from "@/components/MetaData";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { Logo, ThemeToggle } from "@/components";
+import { MetaData } from "@/components";
 
 const RegisterPage = () => {
     const [showPassword, setShowPassword] = useState(false);

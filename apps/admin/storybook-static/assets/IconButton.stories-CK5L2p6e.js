@@ -1,0 +1,1 @@
+const e={title:"__deprecated/ui/IconButton",parameters:{docs:{description:{component:"Deprecated legacy UI story. Use molecules/IconButton instead."}}},tags:["hidden","deprecated"]},t=[];export{t as __namedExportsOrder,e as default};

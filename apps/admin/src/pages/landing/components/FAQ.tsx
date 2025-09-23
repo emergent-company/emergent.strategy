@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Icon } from "@/components/ui/Icon";
+import { Icon } from "@/components/atoms/Icon";
 
 export const FAQ = () => {
     return (

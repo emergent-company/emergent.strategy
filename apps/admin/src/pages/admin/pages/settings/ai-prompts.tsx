@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useApi } from "@/hooks/use-api";
 import { Link } from "react-router";
-import { Icon } from "@/components/ui/Icon";
+import { Icon } from "@/components/atoms/Icon";
 
 function useSettingString(key: string, initial: string) {
     const { apiBase, fetchJson } = useApi();

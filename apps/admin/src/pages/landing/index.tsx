@@ -1,4 +1,4 @@
-import { MetaData } from "@/components/MetaData";
+import { MetaData } from "@/components";
 
 import { BundleOffer } from "./components/BundleOffer";
 import { CTA } from "./components/CTA";
