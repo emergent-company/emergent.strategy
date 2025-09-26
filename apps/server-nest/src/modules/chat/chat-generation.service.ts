@@ -41,14 +41,12 @@ export class ChatGenerationService {
             return pieces.slice(0, maxTokens).join(' ');
         } catch (e) {
             const err = e as Error;
-            this.logger.warn(`Generation failed, fallback to synthetic sequence: ${err.message}`);
+            this.logger.warn(`Generation failed: ${err.message}`);
             if (process.env.E2E_DEBUG_CHAT === '1') {
                 this.logger.warn('[gen] stack: ' + (err.stack || 'no-stack'));
             }
-            // Fallback: small deterministic set
-            const fallback = `Answer unavailable for: ${prompt.slice(0, 80)}`;
-            fallback.split(/\s+/).forEach(w => onToken(w));
-            return fallback;
+            // Propagate so controller can emit a generation_error meta frame and synthetic fallback tokens there.
+            throw err;
         }
     }
 }

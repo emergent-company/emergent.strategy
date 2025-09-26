@@ -11,7 +11,15 @@ export class AppConfigService {
                 'computed chatModelEnabled=', !!process.env.GOOGLE_API_KEY && (process.env.CHAT_MODEL_ENABLED === 'true' || process.env.CHAT_MODEL_ENABLED === '1'));
         }
     }
-    get skipDb(): boolean { return !!this.env.SKIP_DB; }
+    /**
+     * Only treat SKIP_DB as enabled when explicitly set to 'true' or '1'. This
+     * prevents accidental activation when the variable is defined but blank or
+     * set to another placeholder value by tooling.
+     */
+    get skipDb(): boolean {
+        const v = (this.env.SKIP_DB || '').trim().toLowerCase();
+        return v === 'true' || v === '1';
+    }
 
     get port() { return this.env.PORT; }
     get dbHost() { return this.env.PGHOST; }

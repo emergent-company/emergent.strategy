@@ -42,6 +42,7 @@ export class PermissionService {
             // Offline fallback: grant minimal visibility only.
             return { userId, orgRoles: [], projectRoles: [], scopes: ['org:read'] };
         }
+        // Membership tables assumed to exist (ensured during schema bootstrap / upgrade).
         // Lazy ensure a user profile row exists (idempotent). subject_id is canonical internal id.
         try {
             await this.db.query(

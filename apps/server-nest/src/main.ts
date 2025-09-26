@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './modules/app.module';
 import { AppConfigService } from './common/config/config.service';
 import { ValidationPipe, UnprocessableEntityException } from '@nestjs/common';
+import { DatabaseReadinessInterceptor } from './common/interceptors/database-readiness.interceptor';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { writeFileSync } from 'node:fs';
@@ -73,6 +74,7 @@ async function bootstrap() {
 
     SwaggerModule.setup('api', app, () => document);
     app.useGlobalFilters(new GlobalHttpExceptionFilter());
+    app.useGlobalInterceptors(app.get(DatabaseReadinessInterceptor));
 
     const configService = app.get(AppConfigService);
     // Log chat model enablement state (always) for clarity during startup

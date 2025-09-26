@@ -62,6 +62,8 @@ export class OrgsService {
                     const res = await client.query<OrgRow>('INSERT INTO kb.orgs(name) VALUES($1) RETURNING id, name, created_at, updated_at', [name]);
                     const r = res.rows[0];
                     if (userId) {
+                        // Ensure user profile row exists to satisfy FK for organization_memberships (idempotent)
+                        await client.query(`INSERT INTO core.user_profiles(subject_id) VALUES($1) ON CONFLICT (subject_id) DO NOTHING`, [userId]);
                         // Auto-assign creator as org_admin (idempotent)
                         await client.query(`INSERT INTO kb.organization_memberships(org_id, subject_id, role) VALUES($1,$2,'org_admin') ON CONFLICT (org_id, subject_id) DO NOTHING`, [r.id, userId]);
                     }

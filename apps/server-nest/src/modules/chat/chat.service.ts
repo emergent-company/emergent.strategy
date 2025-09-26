@@ -97,9 +97,22 @@ export class ChatService {
             [id],
         );
         this.logger.log(`[getConversation] rowCount=${convQ.rowCount}`);
-        if (convQ.rowCount === 0) return null;
+        if (convQ.rowCount === 0) {
+            // Extra diagnostics: check if any conversation rows exist at all (detect wholesale truncation) and recent creation patterns
+            try {
+                const total = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations');
+                const recent = await this.db.query<any>('SELECT id, owner_subject_id, is_private, created_at FROM kb.chat_conversations ORDER BY created_at DESC LIMIT 3');
+                this.logger.warn(`[getConversation] not-found id=${id} totalConvs=${total.rows[0].c} recent=${recent.rows.map(r => r.id.substring(0, 8) + ':' + (r.owner_subject_id || 'null')).join(',')}`);
+            } catch (e) {
+                this.logger.warn(`[getConversation] diag failure for id=${id}: ${(e as Error).message}`);
+            }
+            return null;
+        }
         const conv = convQ.rows[0];
-        if (conv.is_private && conv.owner_subject_id !== userId) return 'forbidden';
+        if (conv.is_private && conv.owner_subject_id !== userId) {
+            this.logger.warn(`[getConversation] forbidden id=${id} owner=${conv.owner_subject_id} user=${userId}`);
+            return 'forbidden';
+        }
         const msgsQ = await this.db.query<ChatMessageRow>(
             `SELECT id, role, content, citations, created_at FROM kb.chat_messages WHERE conversation_id = $1 ORDER BY created_at ASC`,
             [id],
@@ -172,14 +185,45 @@ export class ChatService {
             const snippet = message.split(/\s+/).slice(0, 8).join(' ');
             const title = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} — ${snippet || 'New Conversation'}`;
             const owner = userId || crypto.randomUUID();
-            const ins = await this.db.query<{ id: string }>(
-                `INSERT INTO kb.chat_conversations (title, owner_subject_id, is_private, org_id, project_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-                [title, owner, isPrivate, orgId, projectId],
-            );
-            convId = ins.rows[0].id;
-            this.logger.log(`[createConversationIfNeeded] inserted id=${convId} owner=${owner} private=${isPrivate} orgId=${orgId} projectId=${projectId}`);
-            // Persist the initial user message so that subsequent list/get reflects it immediately
-            await this.persistUserMessage(convId, message);
+            // Ensure user profile exists to satisfy FK (mirrors org/project creation behavior)
+            try {
+                await this.db.query(`INSERT INTO core.user_profiles(subject_id) VALUES($1) ON CONFLICT (subject_id) DO NOTHING`, [owner]);
+            } catch (e) {
+                this.logger.warn(`[createConversationIfNeeded] failed ensuring user profile for owner ${owner}: ${(e as Error).message}`);
+            }
+            // Use an explicit transaction to avoid FK 23503 race when user profile insertion and conversation creation
+            // interleave across parallel tests hitting ensureSchema truncation windows.
+            const client = await this.db.getClient();
+            try {
+                await client.query('BEGIN');
+                await client.query(`INSERT INTO core.user_profiles(subject_id) VALUES($1) ON CONFLICT (subject_id) DO NOTHING`, [owner]);
+                const ins = await client.query<{ id: string }>(
+                    `INSERT INTO kb.chat_conversations (title, owner_subject_id, is_private, org_id, project_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+                    [title, owner, isPrivate, orgId, projectId],
+                );
+                convId = ins.rows[0].id;
+                await client.query(`INSERT INTO kb.chat_messages (conversation_id, role, content) VALUES ($1, 'user', $2)`, [convId, message]);
+                await client.query(`UPDATE kb.chat_conversations SET updated_at = now() WHERE id = $1`, [convId]);
+                await client.query('COMMIT');
+                this.logger.log(`[createConversationIfNeeded] inserted id=${convId} owner=${owner} private=${isPrivate} orgId=${orgId} projectId=${projectId}`);
+            } catch (txErr: any) {
+                try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+                if (txErr && txErr.code === '23503') {
+                    this.logger.warn(`[createConversationIfNeeded] FK violation despite transaction (owner=${owner}) – retrying once`);
+                    // Retry once after ensuring profile out-of-band
+                    try { await this.db.query(`INSERT INTO core.user_profiles(subject_id) VALUES($1) ON CONFLICT (subject_id) DO NOTHING`, [owner]); } catch { }
+                    const retry = await this.db.query<{ id: string }>(
+                        `INSERT INTO kb.chat_conversations (title, owner_subject_id, is_private, org_id, project_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+                        [title, owner, isPrivate, orgId, projectId],
+                    );
+                    convId = retry.rows[0].id;
+                    await this.persistUserMessage(convId, message);
+                } else {
+                    throw txErr;
+                }
+            } finally {
+                client.release();
+            }
         }
         return convId;
     }

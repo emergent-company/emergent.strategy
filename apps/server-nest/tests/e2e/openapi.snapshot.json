@@ -5,6 +5,32 @@
         "properties": {},
         "type": "object"
       },
+      "AddAlternativeEmailDto": {
+        "properties": {},
+        "type": "object"
+      },
+      "AlternativeEmailDto": {
+        "properties": {
+          "createdAt": {
+            "description": "ISO timestamp created",
+            "type": "string"
+          },
+          "email": {
+            "description": "Email address (lowercased canonical form)",
+            "type": "string"
+          },
+          "verified": {
+            "description": "Verification status",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "email",
+          "verified",
+          "createdAt"
+        ],
+        "type": "object"
+      },
       "ChatRequestDto": {
         "properties": {},
         "type": "object"
@@ -73,6 +99,14 @@
         "type": "object"
       },
       "CitationDto": {
+        "properties": {},
+        "type": "object"
+      },
+      "CreateGraphObjectDto": {
+        "properties": {},
+        "type": "object"
+      },
+      "CreateGraphRelationshipDto": {
         "properties": {},
         "type": "object"
       },
@@ -231,6 +265,24 @@
         ],
         "type": "object"
       },
+      "ObjectHistoryResponseDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VersionedObjectDto"
+            },
+            "type": "array"
+          },
+          "next_cursor": {
+            "description": "Present when more pages available; pass as cursor query param",
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "OrgDto": {
         "properties": {
           "id": {
@@ -246,6 +298,14 @@
           "id",
           "name"
         ],
+        "type": "object"
+      },
+      "PatchGraphObjectDto": {
+        "properties": {},
+        "type": "object"
+      },
+      "PatchGraphRelationshipDto": {
+        "properties": {},
         "type": "object"
       },
       "ProjectDto": {
@@ -267,6 +327,24 @@
           "id",
           "name",
           "orgId"
+        ],
+        "type": "object"
+      },
+      "RelationshipHistoryResponseDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VersionedRelationshipDto"
+            },
+            "type": "array"
+          },
+          "next_cursor": {
+            "description": "Present when more pages available; pass as cursor query param",
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
         ],
         "type": "object"
       },
@@ -320,6 +398,162 @@
           "id",
           "snippet",
           "score"
+        ],
+        "type": "object"
+      },
+      "TraverseGraphDto": {
+        "properties": {},
+        "type": "object"
+      },
+      "UpdateUserProfileDto": {
+        "properties": {},
+        "type": "object"
+      },
+      "UserProfileDto": {
+        "properties": {
+          "avatarObjectKey": {
+            "description": "Object storage key for avatar (if stored internally)",
+            "type": "object"
+          },
+          "displayName": {
+            "description": "Display name fallback (explicit) or derived (first + last)",
+            "type": "object"
+          },
+          "firstName": {
+            "type": "object"
+          },
+          "lastName": {
+            "type": "object"
+          },
+          "phoneE164": {
+            "description": "E.164 formatted phone number, leading + and digits",
+            "type": "object"
+          },
+          "subjectId": {
+            "description": "Canonical internal user id (subject id, from identity provider)",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subjectId"
+        ],
+        "type": "object"
+      },
+      "VersionedObjectDto": {
+        "properties": {
+          "canonical_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "nullable": true,
+            "type": "object"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "org_id": {
+            "nullable": true,
+            "type": "object"
+          },
+          "project_id": {
+            "nullable": true,
+            "type": "object"
+          },
+          "properties": {
+            "type": "object"
+          },
+          "supersedes_id": {
+            "nullable": true,
+            "type": "object"
+          },
+          "type": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "org_id",
+          "project_id",
+          "canonical_id",
+          "supersedes_id",
+          "version",
+          "type",
+          "key",
+          "properties",
+          "labels",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "VersionedRelationshipDto": {
+        "properties": {
+          "canonical_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "dst_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "properties": {
+            "type": "object"
+          },
+          "src_id": {
+            "type": "string"
+          },
+          "supersedes_id": {
+            "nullable": true,
+            "type": "object"
+          },
+          "type": {
+            "type": "string"
+          },
+          "valid_from": {
+            "nullable": true,
+            "type": "object"
+          },
+          "valid_to": {
+            "nullable": true,
+            "type": "object"
+          },
+          "version": {
+            "type": "number"
+          },
+          "weight": {
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "canonical_id",
+          "supersedes_id",
+          "version",
+          "type",
+          "src_id",
+          "dst_id",
+          "properties",
+          "created_at",
+          "weight",
+          "valid_from",
+          "valid_to"
         ],
         "type": "object"
       }
@@ -541,6 +775,7 @@
               "application/json": {
                 "schema": {
                   "example": {
+                    "conversationId": "11111111-1111-4111-8111-111111111111",
                     "id": "11111111-1111-4111-8111-111111111111",
                     "title": "2025-01-01 — New Conversation"
                   }
@@ -1528,6 +1763,674 @@
         ]
       }
     },
+    "/graph/objects": {
+      "post": {
+        "operationId": "GraphObjectsController_create",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGraphObjectDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a graph object (initial version)",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      }
+    },
+    "/graph/objects/search": {
+      "get": {
+        "operationId": "GraphObjectsController_searchObjects",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "label",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Search graph objects (basic filters)",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      }
+    },
+    "/graph/objects/{id}": {
+      "delete": {
+        "operationId": "GraphObjectsController_deleteObject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Soft delete (tombstone) an object (creates new version with deleted_at)",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      },
+      "get": {
+        "operationId": "GraphObjectsController_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "404": {
+            "description": "Not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get latest version of a graph object",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      },
+      "patch": {
+        "operationId": "GraphObjectsController_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchGraphObjectDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Version created"
+          },
+          "400": {
+            "description": "No effective change"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Patch (create new version) of a graph object",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      }
+    },
+    "/graph/objects/{id}/edges": {
+      "get": {
+        "operationId": "GraphObjectsController_edges",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List relationships adjacent to an object",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      }
+    },
+    "/graph/objects/{id}/history": {
+      "get": {
+        "operationId": "GraphObjectsController_history",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectHistoryResponseDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "description": "Not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List version history for a graph object",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      }
+    },
+    "/graph/objects/{id}/restore": {
+      "post": {
+        "operationId": "GraphObjectsController_restoreObject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Restored (new version created)"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Restore a soft-deleted object (creates new version clearing deleted_at)",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      }
+    },
+    "/graph/relationships": {
+      "post": {
+        "operationId": "GraphObjectsController_createRel",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGraphRelationshipDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a relationship (initial version) or new version if properties changed",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      }
+    },
+    "/graph/relationships/search": {
+      "get": {
+        "operationId": "GraphObjectsController_searchRels",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "src_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dst_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Search relationships (basic filters)",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      }
+    },
+    "/graph/relationships/{id}": {
+      "delete": {
+        "operationId": "GraphObjectsController_deleteRel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Soft delete a relationship (tombstone version)",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      },
+      "get": {
+        "operationId": "GraphObjectsController_getRel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get relationship by id",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      },
+      "patch": {
+        "operationId": "GraphObjectsController_patchRel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchGraphRelationshipDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Patch (create new version) of a relationship (only head version allowed)",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      }
+    },
+    "/graph/relationships/{id}/history": {
+      "get": {
+        "operationId": "GraphObjectsController_historyRel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipHistoryResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List version history for a relationship",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      }
+    },
+    "/graph/relationships/{id}/restore": {
+      "post": {
+        "operationId": "GraphObjectsController_restoreRel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Restored (new version created)"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Restore a soft-deleted relationship",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      }
+    },
+    "/graph/traverse": {
+      "post": {
+        "operationId": "GraphObjectsController_traverse",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraverseGraphDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Traverse the graph from one or more root object ids (bounded BFS)",
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "HealthController_get",
@@ -2401,7 +3304,7 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -2409,7 +3312,7 @@
                 }
               }
             },
-            "description": "Create a project"
+            "description": "Project created"
           },
           "400": {
             "content": {
@@ -2918,6 +3821,429 @@
           "Settings"
         ]
       }
+    },
+    "/user/profile": {
+      "get": {
+        "operationId": "UserProfileController_getSelf",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      },
+      "put": {
+        "operationId": "UserProfileController_updateSelf",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserProfileDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      }
+    },
+    "/user/profile/emails": {
+      "get": {
+        "operationId": "UserProfileController_listEmails",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlternativeEmailDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      },
+      "post": {
+        "operationId": "UserProfileController_addEmail",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddAlternativeEmailDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlternativeEmailDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      }
+    },
+    "/user/profile/emails/{email}": {
+      "delete": {
+        "operationId": "UserProfileController_removeEmail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "email",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "status": "deleted"
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      }
     }
   },
   "servers": [],
@@ -2961,6 +4287,12 @@
       "name": "Chat",
       "tags": [
         "Chat"
+      ]
+    },
+    {
+      "name": "Knowledge Graph",
+      "tags": [
+        "Graph"
       ]
     }
   ]

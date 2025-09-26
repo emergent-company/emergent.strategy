@@ -3,7 +3,7 @@
   "paths": {
     "/health": {
       "get": {
-        "operationId": "get",
+        "operationId": "HealthController_get",
         "parameters": [],
         "responses": {
           "200": {
@@ -58,7 +58,7 @@
     },
     "/auth/me": {
       "get": {
-        "operationId": "me",
+        "operationId": "AuthController_me",
         "parameters": [],
         "responses": {
           "200": {
@@ -112,7 +112,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Forbidden"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "org:read"
+                      ]
                     }
                   }
                 }
@@ -142,12 +145,15 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "org:read"
         ]
       }
     },
     "/settings": {
       "get": {
-        "operationId": "list",
+        "operationId": "SettingsController_list",
         "parameters": [],
         "responses": {
           "200": {
@@ -233,7 +239,7 @@
     },
     "/settings/{key}": {
       "get": {
-        "operationId": "getOne",
+        "operationId": "SettingsController_getOne",
         "parameters": [
           {
             "name": "key",
@@ -341,7 +347,7 @@
     },
     "/orgs": {
       "get": {
-        "operationId": "list",
+        "operationId": "OrgsController_list",
         "parameters": [],
         "responses": {
           "200": {
@@ -423,7 +429,7 @@
         ]
       },
       "post": {
-        "operationId": "create",
+        "operationId": "OrgsController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -551,7 +557,7 @@
     },
     "/orgs/{id}": {
       "get": {
-        "operationId": "getOne",
+        "operationId": "OrgsController_getOne",
         "parameters": [
           {
             "name": "id",
@@ -654,7 +660,7 @@
         ]
       },
       "delete": {
-        "operationId": "delete",
+        "operationId": "OrgsController_delete",
         "parameters": [
           {
             "name": "id",
@@ -752,7 +758,7 @@
     },
     "/projects": {
       "get": {
-        "operationId": "list",
+        "operationId": "ProjectsController_list",
         "parameters": [
           {
             "name": "limit",
@@ -824,7 +830,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "project:read"
+                      ]
                     }
                   }
                 }
@@ -849,10 +858,18 @@
         },
         "tags": [
           "Projects"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "project:read"
         ]
       },
       "post": {
-        "operationId": "create",
+        "operationId": "ProjectsController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -865,8 +882,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Create a project",
+          "201": {
+            "description": "Project created",
             "content": {
               "application/json": {
                 "schema": {
@@ -913,7 +930,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "org:project:create"
+                      ]
                     }
                   }
                 }
@@ -938,12 +958,20 @@
         },
         "tags": [
           "Projects"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "org:project:create"
         ]
       }
     },
     "/projects/{id}": {
       "delete": {
-        "operationId": "delete",
+        "operationId": "ProjectsController_delete",
         "parameters": [
           {
             "name": "id",
@@ -1005,7 +1033,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "org:project:delete"
+                      ]
                     }
                   }
                 }
@@ -1030,12 +1061,20 @@
         },
         "tags": [
           "Projects"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "org:project:delete"
         ]
       }
     },
     "/search": {
       "get": {
-        "operationId": "search",
+        "operationId": "SearchController_search",
         "parameters": [
           {
             "name": "q",
@@ -1128,7 +1167,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "documents:read"
+                      ]
                     }
                   }
                 }
@@ -1153,12 +1195,20 @@
         },
         "tags": [
           "Search"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "documents:read"
         ]
       }
     },
     "/documents": {
       "get": {
-        "operationId": "list",
+        "operationId": "DocumentsController_list",
         "parameters": [
           {
             "name": "limit",
@@ -1240,7 +1290,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "documents:read"
+                      ]
                     }
                   }
                 }
@@ -1265,10 +1318,18 @@
         },
         "tags": [
           "Documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "documents:read"
         ]
       },
       "post": {
-        "operationId": "create",
+        "operationId": "DocumentsController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1340,7 +1401,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "documents:write"
+                      ]
                     }
                   }
                 }
@@ -1365,12 +1429,20 @@
         },
         "tags": [
           "Documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "documents:write"
         ]
       }
     },
     "/documents/{id}": {
       "get": {
-        "operationId": "get",
+        "operationId": "DocumentsController_get",
         "parameters": [
           {
             "name": "id",
@@ -1431,7 +1503,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "documents:read"
+                      ]
                     }
                   }
                 }
@@ -1456,10 +1531,18 @@
         },
         "tags": [
           "Documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "documents:read"
         ]
       },
       "delete": {
-        "operationId": "delete",
+        "operationId": "DocumentsController_delete",
         "parameters": [
           {
             "name": "id",
@@ -1477,12 +1560,20 @@
         },
         "tags": [
           "Documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "documents:delete"
         ]
       }
     },
     "/chunks": {
       "get": {
-        "operationId": "list",
+        "operationId": "ChunksController_list",
         "parameters": [
           {
             "name": "documentId",
@@ -1546,7 +1637,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "documents:read"
+                      ]
                     }
                   }
                 }
@@ -1571,12 +1665,20 @@
         },
         "tags": [
           "Chunks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "documents:read"
         ]
       }
     },
     "/ingest/upload": {
       "post": {
-        "operationId": "upload",
+        "operationId": "IngestionController_upload",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1646,7 +1748,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "documents:write"
+                      ]
                     }
                   }
                 }
@@ -1671,12 +1776,20 @@
         },
         "tags": [
           "Ingestion"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "documents:write"
         ]
       }
     },
     "/ingest/url": {
       "post": {
-        "operationId": "ingestUrl",
+        "operationId": "IngestionController_ingestUrl",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1746,7 +1859,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "documents:write"
+                      ]
                     }
                   }
                 }
@@ -1771,12 +1887,20 @@
         },
         "tags": [
           "Ingestion"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "documents:write"
         ]
       }
     },
     "/chat/conversations": {
       "get": {
-        "operationId": "listConversations",
+        "operationId": "ChatController_listConversations",
         "parameters": [],
         "responses": {
           "200": {
@@ -1833,7 +1957,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "chat:use"
+                      ]
                     }
                   }
                 }
@@ -1858,10 +1985,18 @@
         },
         "tags": [
           "Chat"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "chat:use"
         ]
       },
       "post": {
-        "operationId": "createConversation",
+        "operationId": "ChatController_createConversation",
         "parameters": [],
         "responses": {
           "200": {
@@ -1870,6 +2005,7 @@
               "application/json": {
                 "schema": {
                   "example": {
+                    "conversationId": "11111111-1111-4111-8111-111111111111",
                     "id": "11111111-1111-4111-8111-111111111111",
                     "title": "2025-01-01 — New Conversation"
                   }
@@ -1895,12 +2031,20 @@
         },
         "tags": [
           "Chat"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "chat:use"
         ]
       }
     },
     "/chat/{id}": {
       "get": {
-        "operationId": "getConversation",
+        "operationId": "ChatController_getConversation",
         "parameters": [
           {
             "name": "id",
@@ -1953,7 +2097,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Forbidden"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "chat:use"
+                      ]
                     }
                   }
                 }
@@ -1993,10 +2140,18 @@
         },
         "tags": [
           "Chat"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "chat:use"
         ]
       },
       "patch": {
-        "operationId": "rename",
+        "operationId": "ChatController_rename",
         "parameters": [
           {
             "name": "id",
@@ -2055,10 +2210,18 @@
         },
         "tags": [
           "Chat"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "chat:admin"
         ]
       },
       "delete": {
-        "operationId": "delete",
+        "operationId": "ChatController_delete",
         "parameters": [
           {
             "name": "id",
@@ -2101,12 +2264,20 @@
         },
         "tags": [
           "Chat"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "chat:admin"
         ]
       }
     },
     "/chat/{id}/stream": {
       "get": {
-        "operationId": "streamGet",
+        "operationId": "ChatController_streamGet",
         "parameters": [
           {
             "name": "id",
@@ -2200,12 +2371,20 @@
         },
         "tags": [
           "Chat"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "chat:use"
         ]
       }
     },
     "/chat/stream": {
       "post": {
-        "operationId": "streamPost",
+        "operationId": "ChatController_streamPost",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2283,6 +2462,16 @@
                     }
                   }
                 }
+              },
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
               }
             }
           },
@@ -2294,7 +2483,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "chat:use"
+                      ]
                     }
                   }
                 }
@@ -2319,12 +2511,20 @@
         },
         "tags": [
           "Chat"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "chat:use"
         ]
       }
     },
     "/invites": {
       "post": {
-        "operationId": "create",
+        "operationId": "InvitesController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2340,12 +2540,21 @@
           "201": {
             "description": ""
           }
-        }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "org:invite:create",
+          "project:invite:create"
+        ]
       }
     },
     "/invites/accept": {
       "post": {
-        "operationId": "accept",
+        "operationId": "InvitesController_accept",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2361,12 +2570,20 @@
           "201": {
             "description": ""
           }
-        }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "org:read"
+        ]
       }
     },
     "/user/profile": {
       "get": {
-        "operationId": "getSelf",
+        "operationId": "UserProfileController_getSelf",
         "parameters": [],
         "responses": {
           "200": {
@@ -2445,7 +2662,7 @@
         ]
       },
       "put": {
-        "operationId": "updateSelf",
+        "operationId": "UserProfileController_updateSelf",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2524,7 +2741,7 @@
     },
     "/user/profile/emails": {
       "get": {
-        "operationId": "listEmails",
+        "operationId": "UserProfileController_listEmails",
         "parameters": [],
         "responses": {
           "200": {
@@ -2606,7 +2823,7 @@
         ]
       },
       "post": {
-        "operationId": "addEmail",
+        "operationId": "UserProfileController_addEmail",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2697,7 +2914,7 @@
     },
     "/user/profile/emails/{email}": {
       "delete": {
-        "operationId": "removeEmail",
+        "operationId": "UserProfileController_removeEmail",
         "parameters": [
           {
             "name": "email",
@@ -2786,11 +3003,679 @@
           "UserProfile"
         ]
       }
+    },
+    "/graph/objects": {
+      "post": {
+        "operationId": "GraphObjectsController_create",
+        "summary": "Create a graph object (initial version)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGraphObjectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      }
+    },
+    "/graph/objects/search": {
+      "get": {
+        "operationId": "GraphObjectsController_searchObjects",
+        "summary": "Search graph objects (basic filters)",
+        "parameters": [
+          {
+            "name": "type",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "key",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "label",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      }
+    },
+    "/graph/objects/{id}": {
+      "get": {
+        "operationId": "GraphObjectsController_get",
+        "summary": "Get latest version of a graph object",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "404": {
+            "description": "Not found"
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      },
+      "patch": {
+        "operationId": "GraphObjectsController_patch",
+        "summary": "Patch (create new version) of a graph object",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchGraphObjectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Version created"
+          },
+          "400": {
+            "description": "No effective change"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      },
+      "delete": {
+        "operationId": "GraphObjectsController_deleteObject",
+        "summary": "Soft delete (tombstone) an object (creates new version with deleted_at)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      }
+    },
+    "/graph/objects/{id}/restore": {
+      "post": {
+        "operationId": "GraphObjectsController_restoreObject",
+        "summary": "Restore a soft-deleted object (creates new version clearing deleted_at)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Restored (new version created)"
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      }
+    },
+    "/graph/objects/{id}/history": {
+      "get": {
+        "operationId": "GraphObjectsController_history",
+        "summary": "List version history for a graph object",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectHistoryResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      }
+    },
+    "/graph/relationships": {
+      "post": {
+        "operationId": "GraphObjectsController_createRel",
+        "summary": "Create a relationship (initial version) or new version if properties changed",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGraphRelationshipDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      }
+    },
+    "/graph/relationships/{id}": {
+      "get": {
+        "operationId": "GraphObjectsController_getRel",
+        "summary": "Get relationship by id",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      },
+      "patch": {
+        "operationId": "GraphObjectsController_patchRel",
+        "summary": "Patch (create new version) of a relationship (only head version allowed)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchGraphRelationshipDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      },
+      "delete": {
+        "operationId": "GraphObjectsController_deleteRel",
+        "summary": "Soft delete a relationship (tombstone version)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      }
+    },
+    "/graph/relationships/search": {
+      "get": {
+        "operationId": "GraphObjectsController_searchRels",
+        "summary": "Search relationships (basic filters)",
+        "parameters": [
+          {
+            "name": "type",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "src_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dst_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      }
+    },
+    "/graph/relationships/{id}/restore": {
+      "post": {
+        "operationId": "GraphObjectsController_restoreRel",
+        "summary": "Restore a soft-deleted relationship",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Restored (new version created)"
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:write"
+        ]
+      }
+    },
+    "/graph/relationships/{id}/history": {
+      "get": {
+        "operationId": "GraphObjectsController_historyRel",
+        "summary": "List version history for a relationship",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipHistoryResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      }
+    },
+    "/graph/objects/{id}/edges": {
+      "get": {
+        "operationId": "GraphObjectsController_edges",
+        "summary": "List relationships adjacent to an object",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "direction",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      }
+    },
+    "/graph/traverse": {
+      "post": {
+        "operationId": "GraphObjectsController_traverse",
+        "summary": "Traverse the graph from one or more root object ids (bounded BFS)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraverseGraphDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Graph"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "graph:read"
+        ]
+      }
     }
   },
   "info": {
     "title": "Spec Server API",
-    "description": "Generated OpenAPI spec (NestJS). NOTE: Each Document MUST belong to a Project and each Project belongs to an Organization. Users with no accessible Projects must create one before using ingestion or search features.",
+    "description": "Generated OpenAPI spec (code-first). All protected operations include x-required-scopes and 403 examples with missing_scopes.",
     "version": "0.2.0",
     "contact": {}
   },
@@ -3187,6 +4072,179 @@
       "AddAlternativeEmailDto": {
         "type": "object",
         "properties": {}
+      },
+      "CreateGraphObjectDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "PatchGraphObjectDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "VersionedObjectDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "project_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "canonical_id": {
+            "type": "string"
+          },
+          "supersedes_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "version": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          },
+          "key": {
+            "type": "object",
+            "nullable": true
+          },
+          "properties": {
+            "type": "object"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "org_id",
+          "project_id",
+          "canonical_id",
+          "supersedes_id",
+          "version",
+          "type",
+          "key",
+          "properties",
+          "labels",
+          "created_at"
+        ]
+      },
+      "ObjectHistoryResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VersionedObjectDto"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "description": "Present when more pages available; pass as cursor query param"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "CreateGraphRelationshipDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "PatchGraphRelationshipDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "VersionedRelationshipDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "canonical_id": {
+            "type": "string"
+          },
+          "supersedes_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "version": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          },
+          "src_id": {
+            "type": "string"
+          },
+          "dst_id": {
+            "type": "string"
+          },
+          "properties": {
+            "type": "object"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "object",
+            "nullable": true
+          },
+          "valid_from": {
+            "type": "object",
+            "nullable": true
+          },
+          "valid_to": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "canonical_id",
+          "supersedes_id",
+          "version",
+          "type",
+          "src_id",
+          "dst_id",
+          "properties",
+          "created_at",
+          "weight",
+          "valid_from",
+          "valid_to"
+        ]
+      },
+      "RelationshipHistoryResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VersionedRelationshipDto"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "description": "Present when more pages available; pass as cursor query param"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "TraverseGraphDto": {
+        "type": "object",
+        "properties": {}
       }
     }
   },
@@ -3229,6 +4287,12 @@
       "name": "Chat",
       "tags": [
         "Chat"
+      ]
+    },
+    {
+      "name": "Knowledge Graph",
+      "tags": [
+        "Graph"
       ]
     }
   ]

@@ -2,7 +2,7 @@ openapi: 3.0.0
 paths:
   /health:
     get:
-      operationId: get
+      operationId: HealthController_get
       parameters: []
       responses:
         '200':
@@ -36,7 +36,7 @@ paths:
         - Health
   /auth/me:
     get:
-      operationId: me
+      operationId: AuthController_me
       parameters: []
       responses:
         '200':
@@ -73,7 +73,9 @@ paths:
                 example:
                   error:
                     code: forbidden
-                    message: Forbidden
+                    message: Insufficient permissions
+                    missing_scopes: &ref_0
+                      - org:read
         '500':
           description: Internal server error
           content:
@@ -87,9 +89,10 @@ paths:
         - Auth
       security:
         - bearer: []
+      x-required-scopes: *ref_0
   /settings:
     get:
-      operationId: list
+      operationId: SettingsController_list
       parameters: []
       responses:
         '200':
@@ -136,11 +139,11 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_0
+      tags: &ref_1
         - Settings
   /settings/{key}:
     get:
-      operationId: getOne
+      operationId: SettingsController_getOne
       parameters:
         - name: key
           required: true
@@ -201,10 +204,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_0
+      tags: *ref_1
   /orgs:
     get:
-      operationId: list
+      operationId: OrgsController_list
       parameters: []
       responses:
         '200':
@@ -251,10 +254,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_1
+      tags: &ref_2
         - Orgs
     post:
-      operationId: create
+      operationId: OrgsController_create
       parameters: []
       requestBody:
         required: true
@@ -325,10 +328,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_2
   /orgs/{id}:
     get:
-      operationId: getOne
+      operationId: OrgsController_getOne
       parameters:
         - name: id
           required: true
@@ -387,9 +390,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_2
     delete:
-      operationId: delete
+      operationId: OrgsController_delete
       parameters:
         - name: id
           required: true
@@ -398,9 +401,7 @@ paths:
             type: string
       responses:
         '200':
-          description: >-
-            Organization deleted (projects, documents, chunks, conversations
-            cascade)
+          description: Organization deleted (projects, documents, chunks, conversations cascade)
         '400':
           description: Bad request
           content:
@@ -446,10 +447,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_2
   /projects:
     get:
-      operationId: list
+      operationId: ProjectsController_list
       parameters:
         - name: limit
           required: true
@@ -459,9 +460,7 @@ paths:
         - name: orgId
           required: false
           in: query
-          description: >-
-            Filter projects by organization id (must be explicit elsewhere when
-            creating projects)
+          description: Filter projects by organization id (must be explicit elsewhere when creating projects)
           schema:
             type: string
       responses:
@@ -500,6 +499,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_3
+                      - project:read
         '500':
           description: Internal server error
           content:
@@ -509,10 +510,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_2
+      tags: &ref_4
         - Projects
+      security:
+        - bearer: []
+      x-required-scopes: *ref_3
     post:
-      operationId: create
+      operationId: ProjectsController_create
       parameters: []
       requestBody:
         required: true
@@ -521,8 +525,8 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateProjectDto'
       responses:
-        '200':
-          description: Create a project
+        '201':
+          description: Project created
           content:
             application/json:
               schema:
@@ -554,6 +558,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_5
+                      - org:project:create
         '500':
           description: Internal server error
           content:
@@ -563,10 +569,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_4
+      security:
+        - bearer: []
+      x-required-scopes: *ref_5
   /projects/{id}:
     delete:
-      operationId: delete
+      operationId: ProjectsController_delete
       parameters:
         - name: id
           required: true
@@ -608,6 +617,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_6
+                      - org:project:delete
         '500':
           description: Internal server error
           content:
@@ -617,10 +628,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_4
+      security:
+        - bearer: []
+      x-required-scopes: *ref_6
   /search:
     get:
-      operationId: search
+      operationId: SearchController_search
       parameters:
         - name: q
           required: true
@@ -685,6 +699,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_7
+                      - documents:read
         '500':
           description: Internal server error
           content:
@@ -696,9 +712,12 @@ paths:
                     message: Unexpected error
       tags:
         - Search
+      security:
+        - bearer: []
+      x-required-scopes: *ref_7
   /documents:
     get:
-      operationId: list
+      operationId: DocumentsController_list
       parameters:
         - name: limit
           required: false
@@ -754,6 +773,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_8
+                      - documents:read
         '500':
           description: Internal server error
           content:
@@ -763,10 +784,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_3
+      tags: &ref_9
         - Documents
+      security:
+        - bearer: []
+      x-required-scopes: *ref_8
     post:
-      operationId: create
+      operationId: DocumentsController_create
       parameters: []
       requestBody:
         required: true
@@ -815,6 +839,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_10
+                      - documents:write
         '500':
           description: Internal server error
           content:
@@ -824,10 +850,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_3
+      tags: *ref_9
+      security:
+        - bearer: []
+      x-required-scopes: *ref_10
   /documents/{id}:
     get:
-      operationId: get
+      operationId: DocumentsController_get
       parameters:
         - name: id
           required: true
@@ -869,6 +898,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_11
+                      - documents:read
         '500':
           description: Internal server error
           content:
@@ -878,9 +909,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_3
+      tags: *ref_9
+      security:
+        - bearer: []
+      x-required-scopes: *ref_11
     delete:
-      operationId: delete
+      operationId: DocumentsController_delete
       parameters:
         - name: id
           required: true
@@ -890,10 +924,14 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_3
+      tags: *ref_9
+      security:
+        - bearer: []
+      x-required-scopes:
+        - documents:delete
   /chunks:
     get:
-      operationId: list
+      operationId: ChunksController_list
       parameters:
         - name: documentId
           required: false
@@ -937,6 +975,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_12
+                      - documents:read
         '500':
           description: Internal server error
           content:
@@ -948,9 +988,12 @@ paths:
                     message: Unexpected error
       tags:
         - Chunks
+      security:
+        - bearer: []
+      x-required-scopes: *ref_12
   /ingest/upload:
     post:
-      operationId: upload
+      operationId: IngestionController_upload
       parameters: []
       requestBody:
         required: true
@@ -998,6 +1041,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_13
+                      - documents:write
         '500':
           description: Internal server error
           content:
@@ -1007,11 +1052,14 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_4
+      tags: &ref_14
         - Ingestion
+      security:
+        - bearer: []
+      x-required-scopes: *ref_13
   /ingest/url:
     post:
-      operationId: ingestUrl
+      operationId: IngestionController_ingestUrl
       parameters: []
       requestBody:
         required: true
@@ -1059,6 +1107,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_15
+                      - documents:write
         '500':
           description: Internal server error
           content:
@@ -1068,10 +1118,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
+      tags: *ref_14
+      security:
+        - bearer: []
+      x-required-scopes: *ref_15
   /chat/conversations:
     get:
-      operationId: listConversations
+      operationId: ChatController_listConversations
       parameters: []
       responses:
         '200':
@@ -1110,6 +1163,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_16
+                      - chat:use
         '500':
           description: Internal server error
           content:
@@ -1119,10 +1174,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_5
+      tags: &ref_17
         - Chat
+      security:
+        - bearer: []
+      x-required-scopes: *ref_16
     post:
-      operationId: createConversation
+      operationId: ChatController_createConversation
       parameters: []
       responses:
         '200':
@@ -1131,6 +1189,7 @@ paths:
             application/json:
               schema:
                 example:
+                  conversationId: 11111111-1111-4111-8111-111111111111
                   id: 11111111-1111-4111-8111-111111111111
                   title: 2025-01-01 — New Conversation
         '400':
@@ -1142,10 +1201,14 @@ paths:
                   error:
                     code: bad-request
                     message: message required
-      tags: *ref_5
+      tags: *ref_17
+      security:
+        - bearer: []
+      x-required-scopes:
+        - chat:use
   /chat/{id}:
     get:
-      operationId: getConversation
+      operationId: ChatController_getConversation
       parameters:
         - name: id
           required: true
@@ -1181,7 +1244,9 @@ paths:
                 example:
                   error:
                     code: forbidden
-                    message: Forbidden
+                    message: Insufficient permissions
+                    missing_scopes: &ref_18
+                      - chat:use
         '404':
           description: Conversation not found
           content:
@@ -1200,9 +1265,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_5
+      tags: *ref_17
+      security:
+        - bearer: []
+      x-required-scopes: *ref_18
     patch:
-      operationId: rename
+      operationId: ChatController_rename
       parameters:
         - name: id
           required: true
@@ -1237,9 +1305,13 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_5
+      tags: *ref_17
+      security:
+        - bearer: []
+      x-required-scopes:
+        - chat:admin
     delete:
-      operationId: delete
+      operationId: ChatController_delete
       parameters:
         - name: id
           required: true
@@ -1264,10 +1336,14 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_5
+      tags: *ref_17
+      security:
+        - bearer: []
+      x-required-scopes:
+        - chat:admin
   /chat/{id}/stream:
     get:
-      operationId: streamGet
+      operationId: ChatController_streamGet
       parameters:
         - name: id
           required: true
@@ -1276,9 +1352,7 @@ paths:
             type: string
       responses:
         '200':
-          description: >-
-            Chat streaming endpoint (SSE). Emits a sequence of JSON frames each
-            prefixed by "data: ".
+          description: 'Chat streaming endpoint (SSE). Emits a sequence of JSON frames each prefixed by "data: ".'
           content:
             text/event-stream:
               schema:
@@ -1299,9 +1373,8 @@ paths:
                     data: {"message":"token-0","index":0,"streaming":true}
 
                 citations:
-                  value: >+
-                    data:
-                    {"citations":[{"documentId":"11111111-1111-4111-8111-111111111111"}]}
+                  value: |+
+                    data: {"citations":[{"documentId":"11111111-1111-4111-8111-111111111111"}]}
 
                 summary:
                   value: |+
@@ -1312,10 +1385,8 @@ paths:
                     data: {"done":true,"message":"[DONE]"}
 
                 error:
-                  value: >+
-                    data:
-                    {"error":{"code":"upstream-failed","message":"Simulated
-                    upstream model failure"},"done":true}
+                  value: |+
+                    data: {"error":{"code":"upstream-failed","message":"Simulated upstream model failure"},"done":true}
 
         '400':
           description: Missing project header
@@ -1335,10 +1406,14 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_5
+      tags: *ref_17
+      security:
+        - bearer: []
+      x-required-scopes:
+        - chat:use
   /chat/stream:
     post:
-      operationId: streamPost
+      operationId: ChatController_streamPost
       parameters: []
       requestBody:
         required: true
@@ -1349,8 +1424,8 @@ paths:
       responses:
         '200':
           description: >-
-            Chat streaming endpoint (SSE). Each line is an SSE data frame
-            beginning with "data: ", followed by one of the JSON event shapes.
+            Chat streaming endpoint (SSE). Each line is an SSE data frame beginning with "data: ", followed by one of
+            the JSON event shapes.
           content:
             text/event-stream:
               schema:
@@ -1359,14 +1434,11 @@ paths:
                   - $ref: '#/components/schemas/ChatStreamTokenEvent'
                   - $ref: '#/components/schemas/ChatStreamErrorEvent'
                   - $ref: '#/components/schemas/ChatStreamDoneEvent'
-                description: >-
-                  Union of possible chat stream events (serialized per line as
-                  SSE frame).
+                description: Union of possible chat stream events (serialized per line as SSE frame).
               examples:
                 meta:
-                  value: >+
-                    data:
-                    {"type":"meta","conversationId":"11111111-1111-4111-8111-111111111111","citations":[]}
+                  value: |+
+                    data: {"type":"meta","conversationId":"11111111-1111-4111-8111-111111111111","citations":[]}
 
                 token:
                   value: |+
@@ -1398,6 +1470,12 @@ paths:
                   error:
                     code: unauthorized
                     message: Missing or invalid credentials
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
         '403':
           description: Forbidden
           content:
@@ -1407,6 +1485,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_19
+                      - chat:use
         '500':
           description: Internal server error
           content:
@@ -1416,10 +1496,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_5
+      tags: *ref_17
+      security:
+        - bearer: []
+      x-required-scopes: *ref_19
   /invites:
     post:
-      operationId: create
+      operationId: InvitesController_create
       parameters: []
       requestBody:
         required: true
@@ -1430,9 +1513,14 @@ paths:
       responses:
         '201':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - org:invite:create
+        - project:invite:create
   /invites/accept:
     post:
-      operationId: accept
+      operationId: InvitesController_accept
       parameters: []
       requestBody:
         required: true
@@ -1443,9 +1531,13 @@ paths:
       responses:
         '201':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - org:read
   /user/profile:
     get:
-      operationId: getSelf
+      operationId: UserProfileController_getSelf
       parameters: []
       responses:
         '200':
@@ -1490,10 +1582,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_6
+      tags: &ref_20
         - UserProfile
     put:
-      operationId: updateSelf
+      operationId: UserProfileController_updateSelf
       parameters: []
       requestBody:
         required: true
@@ -1537,10 +1629,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_6
+      tags: *ref_20
   /user/profile/emails:
     get:
-      operationId: listEmails
+      operationId: UserProfileController_listEmails
       parameters: []
       responses:
         '200':
@@ -1587,9 +1679,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_6
+      tags: *ref_20
     post:
-      operationId: addEmail
+      operationId: UserProfileController_addEmail
       parameters: []
       requestBody:
         required: true
@@ -1640,10 +1732,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_6
+      tags: *ref_20
   /user/profile/emails/{email}:
     delete:
-      operationId: removeEmail
+      operationId: UserProfileController_removeEmail
       parameters:
         - name: email
           required: true
@@ -1694,14 +1786,400 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_6
+      tags: *ref_20
+  /graph/objects:
+    post:
+      operationId: GraphObjectsController_create
+      summary: Create a graph object (initial version)
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGraphObjectDto'
+      responses:
+        '201':
+          description: Created
+        '400':
+          description: Validation error
+      tags: &ref_21
+        - Graph
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
+  /graph/objects/search:
+    get:
+      operationId: GraphObjectsController_searchObjects
+      summary: Search graph objects (basic filters)
+      parameters:
+        - name: type
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: key
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: label
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: limit
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: cursor
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
+  /graph/objects/{id}:
+    get:
+      operationId: GraphObjectsController_get
+      summary: Get latest version of a graph object
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+        '404':
+          description: Not found
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
+    patch:
+      operationId: GraphObjectsController_patch
+      summary: Patch (create new version) of a graph object
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchGraphObjectDto'
+      responses:
+        '200':
+          description: Version created
+        '400':
+          description: No effective change
+        '404':
+          description: Not found
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
+    delete:
+      operationId: GraphObjectsController_deleteObject
+      summary: Soft delete (tombstone) an object (creates new version with deleted_at)
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
+  /graph/objects/{id}/restore:
+    post:
+      operationId: GraphObjectsController_restoreObject
+      summary: Restore a soft-deleted object (creates new version clearing deleted_at)
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Restored (new version created)
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
+  /graph/objects/{id}/history:
+    get:
+      operationId: GraphObjectsController_history
+      summary: List version history for a graph object
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: limit
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: cursor
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectHistoryResponseDto'
+        '404':
+          description: Not found
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
+  /graph/relationships:
+    post:
+      operationId: GraphObjectsController_createRel
+      summary: Create a relationship (initial version) or new version if properties changed
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGraphRelationshipDto'
+      responses:
+        '201':
+          description: ''
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
+  /graph/relationships/{id}:
+    get:
+      operationId: GraphObjectsController_getRel
+      summary: Get relationship by id
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
+    patch:
+      operationId: GraphObjectsController_patchRel
+      summary: Patch (create new version) of a relationship (only head version allowed)
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchGraphRelationshipDto'
+      responses:
+        '200':
+          description: ''
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
+    delete:
+      operationId: GraphObjectsController_deleteRel
+      summary: Soft delete a relationship (tombstone version)
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
+  /graph/relationships/search:
+    get:
+      operationId: GraphObjectsController_searchRels
+      summary: Search relationships (basic filters)
+      parameters:
+        - name: type
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: src_id
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: dst_id
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: limit
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: cursor
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
+  /graph/relationships/{id}/restore:
+    post:
+      operationId: GraphObjectsController_restoreRel
+      summary: Restore a soft-deleted relationship
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Restored (new version created)
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
+  /graph/relationships/{id}/history:
+    get:
+      operationId: GraphObjectsController_historyRel
+      summary: List version history for a relationship
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: limit
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: cursor
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RelationshipHistoryResponseDto'
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
+  /graph/objects/{id}/edges:
+    get:
+      operationId: GraphObjectsController_edges
+      summary: List relationships adjacent to an object
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: direction
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: limit
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
+  /graph/traverse:
+    post:
+      operationId: GraphObjectsController_traverse
+      summary: Traverse the graph from one or more root object ids (bounded BFS)
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TraverseGraphDto'
+      responses:
+        '200':
+          description: ''
+      tags: *ref_21
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
 info:
   title: Spec Server API
   description: >-
-    Generated OpenAPI spec (NestJS). NOTE: Each Document MUST belong to a
-    Project and each Project belongs to an Organization. Users with no
-    accessible Projects must create one before using ingestion or search
-    features.
+    Generated OpenAPI spec (code-first). All protected operations include x-required-scopes and 403 examples with
+    missing_scopes.
   version: 0.2.0
   contact: {}
 tags: []
@@ -1998,6 +2476,132 @@ components:
     AddAlternativeEmailDto:
       type: object
       properties: {}
+    CreateGraphObjectDto:
+      type: object
+      properties: {}
+    PatchGraphObjectDto:
+      type: object
+      properties: {}
+    VersionedObjectDto:
+      type: object
+      properties:
+        id:
+          type: string
+        org_id:
+          type: object
+          nullable: true
+        project_id:
+          type: object
+          nullable: true
+        canonical_id:
+          type: string
+        supersedes_id:
+          type: object
+          nullable: true
+        version:
+          type: number
+        type:
+          type: string
+        key:
+          type: object
+          nullable: true
+        properties:
+          type: object
+        labels:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+      required:
+        - id
+        - org_id
+        - project_id
+        - canonical_id
+        - supersedes_id
+        - version
+        - type
+        - key
+        - properties
+        - labels
+        - created_at
+    ObjectHistoryResponseDto:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VersionedObjectDto'
+        next_cursor:
+          type: string
+          description: Present when more pages available; pass as cursor query param
+      required:
+        - items
+    CreateGraphRelationshipDto:
+      type: object
+      properties: {}
+    PatchGraphRelationshipDto:
+      type: object
+      properties: {}
+    VersionedRelationshipDto:
+      type: object
+      properties:
+        id:
+          type: string
+        canonical_id:
+          type: string
+        supersedes_id:
+          type: object
+          nullable: true
+        version:
+          type: number
+        type:
+          type: string
+        src_id:
+          type: string
+        dst_id:
+          type: string
+        properties:
+          type: object
+        created_at:
+          type: string
+        weight:
+          type: object
+          nullable: true
+        valid_from:
+          type: object
+          nullable: true
+        valid_to:
+          type: object
+          nullable: true
+      required:
+        - id
+        - canonical_id
+        - supersedes_id
+        - version
+        - type
+        - src_id
+        - dst_id
+        - properties
+        - created_at
+        - weight
+        - valid_from
+        - valid_to
+    RelationshipHistoryResponseDto:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VersionedRelationshipDto'
+        next_cursor:
+          type: string
+          description: Present when more pages available; pass as cursor query param
+      required:
+        - items
+    TraverseGraphDto:
+      type: object
+      properties: {}
 x-tagGroups:
   - name: Health & Auth
     tags:
@@ -2021,3 +2625,6 @@ x-tagGroups:
   - name: Chat
     tags:
       - Chat
+  - name: Knowledge Graph
+    tags:
+      - Graph
