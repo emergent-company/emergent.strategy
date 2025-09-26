@@ -44,6 +44,13 @@ async function run() {
         .build();
     // eslint-disable-next-line no-console
     console.log('[openapi] Generating document...');
+    // Provide an explicit operationId factory so we have stable, predictable IDs
+    // that include the controller name. Our scope injection logic below builds
+    // keys in the form `${ControllerName}_${methodName}`. Without this factory
+    // Nest/Swagger will default to using only the method name (which recently
+    // caused all x-required-scopes metadata to disappear because the keys no
+    // longer matched). If in the future we change the naming strategy again,
+    // we also include a lightweight fallback matching pass further below.
     const document = SwaggerModule.createDocument(app, config);
     // Dynamically discover required scopes from controller method metadata (@Scopes decorator)
     const scopeMap: Record<string, string[]> = {};
@@ -60,8 +67,14 @@ async function run() {
                 if (typeof handler !== 'function') continue;
                 const methodScopes: string[] | undefined = Reflect.getMetadata(SCOPES_KEY, handler);
                 if (methodScopes && methodScopes.length) {
-                    const opId = `${metatype.name}_${key}`;
-                    scopeMap[opId] = methodScopes;
+                    // Support both historical (method only) operationId naming
+                    // and an explicit controller + method composite used in
+                    // some earlier internal tooling, so we can inject scopes
+                    // without changing existing public operationIds.
+                    const composite = `${metatype.name}_${key}`;
+                    scopeMap[composite] = methodScopes;
+                    // Plain method name (most current @nestjs/swagger default)
+                    if (!scopeMap[key]) scopeMap[key] = methodScopes;
                 }
             }
         }
@@ -76,28 +89,43 @@ async function run() {
     const UNAUTH_EXAMPLE = {
         error: { code: 'unauthorized', message: 'Missing or invalid credentials' }
     };
+    // To guard against future changes to operationId naming, build an auxiliary
+    // map from raw method name when it is *uniquely* associated to a scope set.
+    const uniqueMethodScopes: Record<string, string[]> = {};
+    const methodNameCounts: Record<string, number> = {};
+    for (const key of Object.keys(scopeMap)) {
+        const methodName = key.split('_').slice(-1)[0];
+        methodNameCounts[methodName] = (methodNameCounts[methodName] || 0) + 1;
+    }
+    for (const key of Object.keys(scopeMap)) {
+        const methodName = key.split('_').slice(-1)[0];
+        if (methodNameCounts[methodName] === 1) {
+            uniqueMethodScopes[methodName] = scopeMap[key];
+        }
+    }
+
     for (const [path, methods] of Object.entries((document as any).paths || {})) {
         const methodEntries = Object.entries(methods as Record<string, any>);
-        for (const [method, op] of methodEntries) {
+        for (const [, op] of methodEntries) {
             const operationId: string | undefined = op.operationId;
             if (!operationId) continue;
-            const scopes = scopeMap[operationId];
-            if (!scopes) continue; // Not a protected op (or already public)
-            // Attach security if absent
+            let scopes = scopeMap[operationId];
+            if (!scopes) {
+                // fallback: look up by method name if unique
+                scopes = uniqueMethodScopes[operationId];
+            }
+            if (!scopes || !scopes.length) continue; // public or unknown
             if (!op.security) {
                 op.security = [{ bearer: [] }];
             }
             (op as any)['x-required-scopes'] = scopes;
-            // Ensure 401/403 examples enriched
             const responses = op.responses || {};
-            // 401
             if (responses['401']) {
                 const c = responses['401'].content || (responses['401'].content = {});
                 const appJson = c['application/json'] || (c['application/json'] = { schema: { example: UNAUTH_EXAMPLE } });
                 if (!appJson.schema) appJson.schema = { example: UNAUTH_EXAMPLE };
                 if (!appJson.schema.example) appJson.schema.example = UNAUTH_EXAMPLE;
             }
-            // 403
             if (responses['403']) {
                 const c = responses['403'].content || (responses['403'].content = {});
                 const appJson = c['application/json'] || c['text/event-stream'] || (c['application/json'] = { schema: { example: SEC_EXAMPLE_TEMPLATE(scopes) } });
@@ -116,7 +144,8 @@ async function run() {
         { name: 'Configuration', tags: ['Settings'] },
         { name: 'Content & Ingestion', tags: ['Ingestion', 'Documents', 'Chunks'] },
         { name: 'Search', tags: ['Search'] },
-        { name: 'Chat', tags: ['Chat'] }
+        { name: 'Chat', tags: ['Chat'] },
+        { name: 'Knowledge Graph', tags: ['Graph'] }
     ];
 
     writeFileSync(join(process.cwd(), 'openapi.json'), JSON.stringify(document, null, 2), 'utf-8');

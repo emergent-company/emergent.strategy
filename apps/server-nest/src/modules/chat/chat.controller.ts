@@ -134,7 +134,7 @@ export class ChatController {
     }
 
     @Post('conversations')
-    @ApiOkResponse({ description: 'Create a new conversation (201)', schema: { example: { id: '11111111-1111-4111-8111-111111111111', title: '2025-01-01 — New Conversation' } } })
+    @ApiOkResponse({ description: 'Create a new conversation (201)', schema: { example: { conversationId: '11111111-1111-4111-8111-111111111111', id: '11111111-1111-4111-8111-111111111111', title: '2025-01-01 — New Conversation' } } })
     @ApiBadRequestResponse({ description: 'Bad request', schema: { example: { error: { code: 'bad-request', message: 'message required' } } } })
     // Creating conversation = chat usage scope (admin not required)
     @Scopes('chat:use')
@@ -149,9 +149,10 @@ export class ChatController {
         const id = await this.chat.createConversationIfNeeded(undefined, message, userId, orgId, projectId, isPrivate);
         const meta = await this.chat.getConversation(id, userId, orgId, projectId);
         // Creation semantics: respond with 201
+        // Backward compatibility: include both conversationId and id in response (tests may use either field)
         return res
             .status(HttpStatus.CREATED)
-            .json({ conversationId: id, title: meta && meta !== 'forbidden' ? meta.title : message });
+            .json({ conversationId: id, id, title: meta && meta !== 'forbidden' ? meta.title : message });
     }
 
     @Get(':id')
@@ -314,6 +315,7 @@ export class ChatController {
         if (citations.length) {
             res.write(`data: ${JSON.stringify({ citations })}\n\n`);
         }
+        // No codename injection – rely on real model output OR generation_error meta path.
         // Persist assistant message if conversation exists (avoid FK violation for arbitrary ids in tests)
         try {
             const exists = await this.chat.hasConversation(id);

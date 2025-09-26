@@ -16,6 +16,7 @@ import { UtilsModule } from '../common/utils/utils.module';
 import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { InvitesModule } from './invites/invites.module';
 import { UserProfileModule } from './user-profile/user-profile.module';
+import { GraphModule } from './graph/graph.module';
 
 @Module({
     imports: [
@@ -35,6 +36,7 @@ import { UserProfileModule } from './user-profile/user-profile.module';
         EmbeddingsModule,
         InvitesModule,
         UserProfileModule,
+        GraphModule,
         DatabaseModule,
     ],
 })

@@ -146,6 +146,29 @@ Acceptance:
 - [ ] Observability baseline established.
 
 ---
+## Graph Module Versioning & Soft Delete (Added 2025-09-25)
+
+The graph objects & relationships now use an append-only versioning model with soft deletes implemented via tombstone head rows. Queries MUST follow the documented **head-first then filter** pattern to avoid resurfacing stale pre-delete versions. See detailed design & operational guidelines in `apps/server-nest/docs/graph-versioning.md`:
+
+Key points:
+- Each logical entity identified by `canonical_id`; latest state = max `version` (head).
+- Soft delete appends a tombstone (head with `deleted_at` set). Deleted entities are excluded by selecting heads first, filtering out tombstones afterward.
+- Restore appends a new live version with `supersedes_id` referencing the tombstone.
+- Distinct selection pattern (simplified):
+   ```sql
+   SELECT * FROM (
+      SELECT DISTINCT ON (canonical_id) *
+      FROM kb.graph_objects
+      ORDER BY canonical_id, version DESC
+   ) h
+   WHERE h.deleted_at IS NULL;
+   ```
+- Composite indexes: `(canonical_id, version DESC)` on both objects & relationships.
+- E2E coverage: `tests/e2e/graph.soft-delete.e2e.spec.ts` ensures delete/restore correctness and stale version suppression.
+
+Any new graph queries grouping by `canonical_id` must adopt this pattern. Violations risk data resurrection bugs.
+
+---
 ## DTO & Validation Considerations
 - Use explicit DTO classes with `@ApiProperty()` and validation decorators (e.g., `@IsUUID()`, `@IsInt()`, `@Min()`, `@Max()`); avoid implicit typing from entities.
 - For arrays of UUIDs (e.g., `documentIds`), validate length & uniqueness (optional optimization).

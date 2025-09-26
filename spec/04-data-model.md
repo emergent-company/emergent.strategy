@@ -270,6 +270,19 @@ Catalogs, matrices, views (build as saved queries/materialized views)
   - evidence.confidence: 0.0–1.0 (model or curator assigned)
 - Many-to-many: Object ↔ Chunk via Evidence table for efficient joins.
 
+  ### Template Packs (Built‑In Framework Schemas)
+  The system supports **Template Packs** – signed, versioned collections of object & relationship type schemas and optional derived views. Packs accelerate adoption of established frameworks while allowing tenant overrides.
+
+  Initial built‑in pack: `togaf-core` providing schemas for the architecture / traceability taxonomy already outlined (Capabilities, Requirements, Goals, Principles, Decisions, WorkPackages, Plateaus, Gaps, RoadmapItems, etc.) plus relationship types (trace_to, refine, realize, deliver, migrate_to, depend_on, conform_to, satisfy, verify, implement, address, own, derive_from).
+
+  Tenants can:
+  - Install a core pack (global baseline) via API.
+  - Add additive overrides (new optional properties, stricter enums) through tenant-scoped schema versions.
+  - Create release snapshots referencing specific object versions (see dynamic object graph spec `19-dynamic-object-graph.md` for branching, snapshots, tags).
+
+  Pack governance: manifests are signed; upgrades support dry-run diffs highlighting added/removed/changed fields & relationship multiplicities. Direct modification of core pack types is prevented (must override). Metrics track validation success rate per pack.
+
+
 ### Storage Notes
 - Objects table (single table with type column) or table-per-type; start with single table + JSONB payload for type-specific fields; add materialized views for frequent queries.
 - Evidence table: (object_id, chunk_id, role, confidence, note, created_at)
