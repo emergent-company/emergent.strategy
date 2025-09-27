@@ -7,3 +7,7 @@
 	path = reference/react-daisyui
 	url = https://github.com/daisyui/react-daisyui.git
 	branch = main
+[submodule "apps/server-nest/reference/unstract"]
+	path = apps/server-nest/reference/unstract
+	url = https://github.com/Zipstack/unstract.git
+	branch = main
