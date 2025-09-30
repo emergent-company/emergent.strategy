@@ -21,10 +21,10 @@ export class SearchService {
 
         // Lexical only path
         const lexicalSql = `SELECT id, document_id, chunk_index, text
-                             FROM kb.chunks
-                             WHERE tsv @@ websearch_to_tsquery('simple', $1)
-                             ORDER BY ts_rank(tsv, websearch_to_tsquery('simple', $1)) DESC
-                             LIMIT $2`;
+                 FROM kb.chunks
+                 WHERE tsv @@ websearch_to_tsquery('simple', $1)
+                 ORDER BY ts_rank(tsv, websearch_to_tsquery('simple', $1)) DESC
+                 LIMIT $2`;
 
         if (mode === SearchMode.LEXICAL || !this.config.embeddingsEnabled) {
             const { rows } = await this.db.query<SearchResultItem>(lexicalSql, [q, clampedLimit]);

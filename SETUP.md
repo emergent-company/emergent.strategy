@@ -116,3 +116,13 @@ Or via HTTP:
 - Docker Compose: `docker/docker-compose.yml`
 - Admin SPA quickstart: `apps/admin/README.md`
 - Server quickstart: `apps/server-nest/README.md`
+
+## Selected Environment Variables
+
+| Variable | Default | Scope | Description |
+|----------|---------|-------|-------------|
+| `GRAPH_MERGE_ENUM_HARD_LIMIT` | `500` | Server (merge dry-run) | Hard cap on the number of divergent canonical objects enumerated during a branch merge dry-run. If more objects exist, the response sets `truncated=true` and only the first `limit` are returned. Lower this to reduce DB load on very large branches. |
+
+Notes:
+- The branch merge feature is currently dry-run only; execution (writing merged versions) is not yet enabled.
+- Increase the limit cautiously—each additional row requires diff classification work and path overlap checks.

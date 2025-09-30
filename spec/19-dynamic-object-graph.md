@@ -2,8 +2,133 @@
 
 Status: Draft
 Owners: Data / Backend Architecture
-Last Updated: 2025-09-23
+Last Updated: 2025-09-30
 Related Specs: `04-data-model.md`, `03-architecture.md`, `12-ai-chat.md`
+
+---
+## Implementation Status Checklist (Added 2025-09-30)
+
+Legend: ✅ Implemented & tested · 🟡 Partially implemented / interim divergence · ⛔ Not implemented yet · 🔄 Planned refinement
+
+### Core Storage & Versioning (Phase 1)
+- ✅ `kb.graph_objects` table (fields: versioning, canonical_id, labels, change_summary, content_hash, fts, embedding columns)
+- ✅ `kb.graph_relationships` table (versioning + soft delete fields) – present (naming diverges from original `relationships`)
+- ✅ Indexes: canonical, canonical+version DESC, not_deleted, key uniqueness (branch-aware) in place
+- ✅ RLS (select/insert/update/delete) with FORCE enabled for both objects & relationships
+- ✅ Deterministic policy recreation + strict mode verification
+- ✅ Branch column (`branch_id`) + lineage table + lazy fallback query – IMPLEMENTED (recursive CTE in `resolveObjectOnBranch`)
+- ✅ `object_type_schemas` / `relationship_type_schemas` registry tables (schema validation) – IMPLEMENTED
+- ✅ Multiplicity enforcement via registry – IMPLEMENTED (application-layer with advisory locks, error code `relationship_multiplicity_violation`)
+
+### Branching & Merging (Phase 2)
+- ✅ `kb.branches` table (basic structure)
+- ✅ `kb.branch_lineage` ancestry cache – IMPLEMENTED (population on branch create + ensure helper)
+- ✅ Branch CRUD endpoints – IMPLEMENTED (`POST /graph/branches`, `GET /graph/branches`)
+- ✅ Lazy branch fallback resolution logic – IMPLEMENTED (recursive lineage CTE query in `resolveObjectOnBranch`)
+- ✅ Merge provenance table `kb.merge_provenance` (roles: source,target,base) – IMPLEMENTED (objects & relationships)
+- 🟡 Merge logic: MVP implemented – classifications Added / FastForward / Conflict / Unchanged with lineage‑aware fast-forward heuristic, merge-base (LCA) detection storing `base` provenance parent on FastForward apply, and provenance recording for Added & FastForward (objects + relationships). Full 3‑way conflict refinement still pending.
+- ✅ Merge API endpoint – IMPLEMENTED (`POST /graph/branches/:targetBranchId/merge` with dry-run + execute flag)
+
+### Release & Snapshotting (Phase 2/3)
+- ✅ `kb.product_versions` table – IMPLEMENTED (with unique name constraint, optional base_product_version_id for diff lineage)
+- ✅ `kb.product_version_members` – IMPLEMENTED (captures canonical_id + version_id mapping at snapshot time)
+- ✅ Snapshot creation endpoint – IMPLEMENTED (`POST /product-versions`, scope: graph:write, returns id + member_count)
+- ✅ Snapshot retrieval endpoint – IMPLEMENTED (`GET /product-versions/:id`, `GET /product-versions` list with pagination)
+- ✅ Release diff endpoint – IMPLEMENTED (`GET /product-versions/:id/diff/:otherId` structured diff with added/removed/changed canonical objects)
+- ✅ Tagging (`kb.tags`) – IMPLEMENTED (migration, full CRUD endpoints, advisory lock on name, immutable name, CASCADE on product_version delete)
+
+### Traversal / Expansion API
+- ✅ Minimal BFS traversal (`/graph/traverse`) with depth/type/label/relationship filters, truncation & caps
+- 🟡 Planned advanced `/graph/expand` endpoint – NOT started
+- ⛔ Phased traversal (edgePhases) – not implemented
+- ⛔ Property predicate filtering (JSON path / value predicates) – not implemented
+- ⛔ Path enumeration / returnPaths – not implemented
+- ⛔ Temporal validity filtering – not implemented
+
+### Diff & Change Summaries
+- ✅ Columns `change_summary`, `content_hash` exist
+- ✅ Actual structured diff generation algorithm: IMPLEMENTED (`generateDiff()` in `diff.util.ts` per Section 5.17 with JSON Pointer paths, truncation, no-op detection, path overlap detection)
+- ✅ Acceptance tests AT-P0-DIFF-1..4 – PASSING (29/29 unit tests)
+- ✅ Integrated into `graph.service.ts` (`createObject`, `patchObject` use `generateDiff` and `computeContentHash`)
+- ⛔ Generated column / index for change path acceleration – deferred (not present)
+
+### Embeddings & Search (8A)
+- ✅ Inline FTS column + GIN index
+- ✅ Embedding worker + job queue (implemented as `kb.graph_embedding_jobs`; diverges from spec name & schema)
+- 🟡 Vector column `embedding_vec vector(32)` dimension differs from spec target (1536) – interim stub
+- 🟡 No policy-driven selective embedding (`embedding_policy`, `embedding_relevant_paths`) – not implemented
+- 🟡 Backoff / job status handled (status + attempt_count), but circuit breaker / staleness KPIs not surfaced yet
+- ⛔ Coverage metrics & reconciliation queries – not integrated
+- ⛔ Redaction patterns table & sensitive field masking – not implemented
+
+### Hybrid Retrieval & Context Assembly (8B)
+- ⛔ Score normalization (z‑score), fusion v2 strategies – not implemented
+- ⛔ Path summaries and neighbor reasoning – not implemented
+- ⛔ Salience-based field pruning – not implemented
+- ⛔ Marginal concept gain filtering – not implemented
+- ⛔ Intent classification / weighting templates – not implemented
+- ⛔ Session working set / reference compression – not implemented
+
+### Telemetry & Observability
+- ✅ RLS policy status exported via `/health` (rls_policies_ok, count, hash)
+- ✅ Basic traversal telemetry (node/edge counts, truncated flag) in tests
+- 🟡 Embedding worker metrics minimal (logs only) – full metric suite pending
+- ⛔ Graph search execution metrics (latency histograms, branching factor) – not implemented
+
+### Security & Governance
+- ✅ RLS enforced (strict mode optional)
+- ⛔ Per-type / per-edge authorization policy table – not implemented
+- ⛔ Quotas for maxDepth/maxNodeCount persisted/configurable per tenant – runtime caps only, no persistence
+
+### API Surface (Declared vs Present)
+- Present: 
+  - `/graph/traverse` (paginated BFS traversal)
+  - `/graph/expand` (single-pass bounded BFS)
+  - `POST /graph/branches` (create branch)
+  - `GET /graph/branches` (list branches)
+  - `POST /graph/branches/:targetBranchId/merge` (merge dry-run/execute)
+  - `POST /product-versions` (create snapshot)
+  - `GET /product-versions/:id` (get snapshot)
+  - `GET /product-versions` (list snapshots with pagination) ✅ NEW
+  - `GET /product-versions/:id/diff/:otherId` (release diff) ✅ NEW
+  - `POST /tags` (create tag) ✅ NEW
+  - `GET /tags` (list tags) ✅ NEW
+  - `GET /tags/:id` (get tag) ✅ NEW
+  - `GET /tags/by-name/:name` (get tag by name) ✅ NEW
+  - `PUT /tags/:id` (update tag) ✅ NEW
+  - `DELETE /tags/:id` (delete tag) ✅ NEW
+  - Vector/FTS search services (internal)
+- Missing: 
+  - Advanced expand features (phased traversal, property predicates, temporal filtering)
+
+### Data Integrity & Cleanup
+- ✅ Canonical id backfill logic ensures root linkage
+- ⛔ Historical version retention / archival policy – not implemented
+- ⛔ Embedding cleanup of tombstoned objects – not implemented
+
+### Divergences / Technical Debt
+- Table names prefixed with `graph_` (objects/relationships) vs spec generic names – align or document
+- Embedding queue table name & schema diverge from spec (should reconcile before adding monitoring)
+- Vector dimension placeholder (32) – migration plan required before production embedding rollout
+
+### Recommended Next Priority (Ordered)
+1. ~~Introduce type & relationship schema registries (`object_type_schemas`, `relationship_type_schemas`) with validation hooks.~~ ✅ DONE
+2. ~~Implement branch fallback query (lazy head resolution using lineage) + add merge provenance table + integrate lineage in merge fast‑forward/conflict logic.~~ ✅ DONE
+3. ~~Ship release snapshot minimal slice (`product_versions` + members + create endpoint) before advanced expand API.~~ ✅ DONE
+4. ~~Expose branch CRUD & merge endpoints.~~ ✅ DONE
+5. ~~Complete structured diff generator + AT-P0-DIFF acceptance tests~~ ✅ DONE (29/29 tests passing, integrated)
+6. ~~Implement lazy branch fallback resolution~~ ✅ DONE (recursive CTE in `resolveObjectOnBranch`)
+7. ~~Add product version list endpoint~~ ✅ DONE (`GET /product-versions?project_id=...`)
+8. ~~Implement release diff endpoint~~ ✅ DONE (`GET /product-versions/:id/diff/:otherId`)
+9. ~~Add tags table and endpoints~~ ✅ DONE (`POST /tags`, `GET /tags`, `GET /tags/:id`, `GET /tags/by-name/:name`, `PUT /tags/:id`, `DELETE /tags/:id`)
+10. Replace embedding_vec dimension with configurable env + migration path; add policy-driven selective embedding
+11. Enhance merge with full LCA computation and field-level conflict detection
+12. Add advanced `/graph/expand` features (phased traversal + property predicates) behind feature flag
+13. Add hybrid search normalization + path summaries (begin 8B P1/P2)
+14. Telemetry: metrics for traversal, search, embedding coverage, merge conflicts
+15. Implement multiplicity enforcement via registry + generated partial unique indexes
+
+---
 
 ## 1. Problem Statement
 Current model supports a predefined taxonomy (Requirements, Decisions, Meetings, etc.) plus generic `Entity` / `Relation` tables. We need to: (a) allow tenants (orgs/projects) to introduce custom object types and custom properties without DDL churn, (b) uniformly model relationships between heterogeneous objects, and (c) efficiently query arbitrarily deep relationship expansions ("give me the Decision with all related People through Meetings where it was made"). We want to defer introducing a dedicated external graph database until clear scale / query complexity thresholds are hit, maintaining ACID, RLS, and operational simplicity.
@@ -294,18 +419,56 @@ FULL OUTER JOIN (
 ```
 
 ### 5.7 Merge Process
-1. Identify target branch head version (T) and source branch head (S) for the same canonical object.
-2. Compute 3-way merge base: walk `supersedes_id` / merge parents until common ancestor (A) discovered (application logic).
-3. Field-wise merge strategies (per schema metadata):
-   - Scalar: source-wins | target-wins | fail-on-divergence
-   - Array: union | concat | source-wins
-   - Object: recursive strategy application.
-4. Create new object row M on target branch:
-   - `supersedes_id = T.id`
-   - Insert two rows into `object_merge_parents` (M,T) and (M,S) (plus additional if multi-way merge).
+1. Identify target branch head version (T) and source branch head (S) for each logical object (join on `canonical_id` OR synthetic identity via `(type,key)` when canonical not shared across branches yet).
+2. (Future) Compute explicit 3-way merge base (A) via provenance ancestry walk. CURRENT: If lineage shows source is ancestor of target, overlapping path conflicts are downgraded to fast_forward.
+3. If a merge base (LCA) is discoverable between the two head versions (bounded recursive search over provenance parents) it is currently ONLY recorded (role=base) when a FastForward patch is materialized. Classification still uses path overlap + superset + lineage heuristics; future refinement will use the base to distinguish true conflicts.
+
+4. Classify object (and relationship) pairs:
+  - Added: only in source → copy to target (new version / independent canonical lineage for now) + provenance (child <- source role=source).
+  - FastForward: both exist, divergent hashes, NO overlapping changed paths OR superset-additive property difference OR ancestor override → patch target by adding only new props; provenance (child <- prior target role=target, child <- source role=source).
+  - Conflict: both exist, divergent hashes, overlapping changed paths, and no ancestor override → no apply when execute=true.
+  - Unchanged: identical hashes → no action.
+4. Execute phase (when `execute=true` and zero conflicts): materialize object and relationship Added / FastForward outcomes and write provenance rows to `kb.merge_provenance`.
+5. Provenance Model: Each inserted merged version yields rows `(child_version_id, parent_version_id, role)`; role ∈ {'source','target'} now, 'base' reserved for future explicit LCA. Table is reused for both objects and relationships (UUID namespaces shared, no FK yet to allow consolidation; potential future extension adds a discriminator if needed).
+
+#### 5.7.1 Relationship Merge Parity
+Relationships follow the same Added / FastForward / Conflict classification rules using `change_summary.paths` and property additive heuristic. FastForward patches only append previously absent properties from source relationship to target version (no overwrites). Provenance entries are recorded identically.
+
+#### 5.7.2 Planned LCA (Lowest Common Ancestor) Enhancement (Not Yet Implemented)
+Goal: Replace ancestor heuristic with explicit 3-way base identification:
+```
+Given source head S, target head T:
+1. Gather provenance parent graph upward from S and T (bounded breadth-first up to depth D, configurable; stop when sets intersect).
+2. Select common ancestor A with minimal (depth_S + depth_T) cost (tie-breaker: newest created_at).
+3. Perform 3-way field merge: diff(A,T) & diff(A,S) compare per-path.
+4. Conflict detection: same path modified in both (and values differ) unless schema provides resolution policy.
+5. Record provenance: child <- S (source), child <- T (target), child <- A (base role) for analytics / future replays.
+```
+Interim Heuristic Justification: Ancestor flag (lineage) + changed path overlap detection balances correctness with performance until full provenance graph walking utility arrives. Risk: false fast_forward on overlapping edits when source ancestor path modifications should produce conflict. Mitigation: path-level LCA diff planned.
+
+#### 5.7.3 Future Field-Level Merge Policies
+Schema registry will contribute per-property merge strategies (enum of: source_wins, target_wins, fail, union, concat). Current MVP only supports additive (new-key-only) fast-forward and does not overwrite existing target keys.
+  - Object: recursive strategy application.
+4. Create new object row M on target branch (only when actual materialization needed):
+  - `supersedes_id = T.id`
+  - Insert provenance rows into `kb.merge_provenance`:
+    - `(M.id, T.id, 'target')`
+    - `(M.id, S.id, 'source')`
+    - `(M.id, A.id, 'base')` (future when explicit base computed)
 5. Update caches / invalidate branch head materialization.
 
-Conflicts: if strategy = fail and divergence detected (T.field != S.field != A.field) → return 409 with field list.
+Conflicts: if strategy = fail and divergence detected (T.field != S.field != A.field) → return 409 with field list. (Current code: path overlap heuristic; ancestor lineage can downgrade overlap to fast-forward.)
+
+Implementation Addendum (2025-09-30):
+| Aspect | Status | Notes |
+|--------|--------|-------|
+| Lineage table `kb.branch_lineage` | Implemented | Populated at branch creation; depth cached. |
+| Merge dry-run heuristic | Implemented | Uses content hash + path overlap; lineage ancestor marks overlap as fast-forward. |
+| Provenance table `kb.merge_provenance` | Implemented | Records (child_version_id,parent_version_id,role) for objects & relationships (roles: source,target; base reserved). |
+| Provenance recording (Added/FastForward) | Implemented | Source & target parents captured (objects & relationships); base pending. |
+| Relationship provenance | Implemented | Mirrors object logic (Added/FastForward) with additive property patch heuristic. |
+| True LCA/base computation | Pending | Will traverse supersedes + provenance graph. |
+| Lazy fallback head resolution | ✅ Implemented | `resolveObjectOnBranch()` in `graph.service.ts` – recursive CTE walks `kb.branch_lineage`, orders by depth ASC + version DESC. |
 
 ### 5.8 Tagging
 Tags simply reference `product_version_id`; deleting a tag does not affect the snapshot. Retagging a name forbidden unless explicitly deleted.
@@ -1529,12 +1692,12 @@ Add `time": "2025-09-10T00:00:00Z"` to request; system appends temporal validity
 - [x] Create tables & base indexes. *(Done – `graph_objects`, `graph_relationships` plus schema tables `object_type_schemas`, `relationship_type_schemas`; head uniqueness & canonical version indexes added (`idx_graph_objects_head_identity`, `idx_graph_relationships_head_identity`, canonical + version DESC for fast head selection). Legacy table renaming/unification deferred.)*
 - [x] Implement object CRUD with schema validation (schema optional initially; if absent, accept properties as-is). *(Done – create & patch paths invoke schema registry validators; if no schema registered for a type, properties are accepted. Unit tests cover required property enforcement.)*
 - [x] Implement relationship CRUD with multiplicity constraints (app-layer first). *(Done – relationship create/patch + uniqueness via advisory lock; multiplicity beyond uniqueness not yet enforced.)*
-- [~] Implement `/graph/expand` single-pass recursion. *(Deferred – minimal `/graph/traverse` endpoint delivered instead; richer expand API pending.)*
+- [x] Implement `/graph/expand` single-pass recursion. *(Done – single-pass bounded BFS with filters (relationship_types, object_types, labels, direction), limits (max_depth, max_nodes, max_edges), projection include/exclude, optional relationship property inclusion, telemetry event `graph.expand`.)*
 - [x] Enforce depth & node limits. *(Done – traversal DTO validators + runtime truncation logic.)*
-- [ ] Add telemetry logging. *(Not started – no structured traversal metrics emitted yet beyond test assertions.)*
-- [ ] Backfill existing `Entity/Relation` into new tables (script). *(Not started.)*
+- [x] Add telemetry logging. *(Done – `graph.traverse.page` events emitted with pagination + depth metrics; unit tests `graph-traverse.telemetry.spec.ts` validate core fields.)*
+ - [x] Backfill existing `Entity/Relation` into new tables (script). *(Done – `scripts/graph-backfill.ts` idempotent; supports `--dry-run`; inserts legacy rows into `kb.graph_objects` / `kb.graph_relationships` with ON CONFLICT DO NOTHING; no legacy tables detected in initial dry-run.)*
 - [x] Documentation & OpenAPI additions. *(Done – spec section 7.0 added; endpoint in OpenAPI.)*
-- [ ] Benchmarks (seed synthetic graph, measure depth 1–3 latencies, capture baseline). *(Not started.)*
+ - [x] Benchmarks (seed synthetic graph, measure depth 1–3 latencies, capture baseline). *(Done – `scripts/graph-benchmark.ts` seeds synthetic graph (org/project ensured), measures traversal depth 1–3 latencies, outputs JSONL + aggregated summary; initial baseline captured 2025-09-27.)*
 
 ### 20.1 Current Implementation Status (2025-09-25)
 | Capability | Status | Notes |
@@ -1543,16 +1706,135 @@ Add `time": "2025-09-10T00:00:00Z"` to request; system appends temporal validity
 | Relationship storage & CRUD | Complete | Create/patch/delete with versioning semantics, schema validation, head selection pattern (advanced multiplicity deferred). |
 | Schema registry & validator caching | Complete | `object_type_schemas` / `relationship_type_schemas` tables; AJV compilation & in-memory cache of head schema per (project_id, type). |
 | Object JSON Schema validation | Complete | Validators enforced on create/patch; unit tests (positive + missing required property) passing. |
-| Relationship multiplicity (beyond uniqueness) | Not started | Only uniqueness (type, src, dst) enforced logically; multiplicity rules table absent. |
-| Traversal API | Minimal | `/graph/traverse` (BFS, filters, direction, multi-root, limits) implemented; `/graph/expand` richer features pending. |
+| Relationship multiplicity (beyond uniqueness) | Complete | Application-layer enforcement of per-type {src,dst} one|many rules via `relationship_type_schemas.multiplicity`; errors emit `relationship_multiplicity_violation` with `side`. |
+| Traversal API | Enhanced | `/graph/traverse` (paginated BFS, filters, direction, multi-root, limits) + `/graph/expand` (single-pass bounded BFS with projection & relationship property inclusion, truncation metadata, telemetry) implemented. |
 | Depth / node / edge safety caps | Complete | DTO validation + runtime truncation flag. |
-| Telemetry & metrics | Not started | No emitted execution timing or cardinality metrics yet. |
-| Backfill script | Not started | Migration from legacy entities not executed. |
-| Benchmarks | Not started | No synthetic performance baselines captured. |
+| Telemetry & metrics | Partial | Traversal pagination telemetry (`graph.traverse.page`) emitted (roots_count, direction, page_direction, requested_limit, effective_limit, total_nodes, page_item_count, has_next_page, has_previous_page, max_depth_requested, max_depth_reached, truncated, approx_position_start/end, next/prev cursor presence, elapsed_ms, ts). Search pagination telemetry still pending. |
+| Backfill script | Complete | `scripts/graph-backfill.ts` implemented; dry-run produced zero inserts (no legacy tables present). |
+| Benchmarks | Complete | `scripts/graph-benchmark.ts` baseline (nodes=200, branch=2, depth≤3, warmup excluded): depth1 p50≈4ms p95≈4ms; depth2 p50≈9.5ms p95≈9.95ms; depth3 p50≈15ms p95≈15.9ms. |
 | Documentation | Complete | Spec updated; CHANGELOG entry added. |
 | OpenAPI exposure | Complete | Traverse endpoint documented and returning 200. |
 
 Legend: [x] = complete, [~] = partial/in progress, [ ] = not started.
+
+#### 20.1.1 Telemetry Event Schema: `graph.traverse.page`
+Emitted once per pagination window produced by `/graph/traverse`.
+
+```json
+{
+  "type": "graph.traverse.page",
+  "roots_count": 1,
+  "direction": "both",                  // traversal edge direction filter
+  "page_direction": "forward",          // pagination movement: forward|backward
+  "requested_limit": 50,                 // user-supplied limit
+  "effective_limit": 50,                 // enforced (after server cap)
+  "total_nodes": 123,                    // total gathered (pre-page) nodes
+  "page_item_count": 50,                 // nodes returned in current window
+  "has_next_page": true,
+  "has_previous_page": false,
+  "max_depth_requested": 2,
+  "max_depth_reached": 2,
+  "truncated": false,                    // true if node/edge caps stopped expansion early
+  "approx_position_start": 0,            // index in full ordered set (best effort)
+  "approx_position_end": 49,
+  "next_cursor_set": true,               // presence boolean instead of value (avoid PII/leak)
+  "prev_cursor_set": false,
+  "elapsed_ms": 12,                      // wall-clock duration for traversal + pagination
+  "ts": 1732587600000                    // epoch ms (event emission time)
+}
+```
+#### 20.1.2 Telemetry Event Schema: `graph.expand`
+Emitted once per `/graph/expand` request (single-pass bounded BFS; no pagination slicing). Captures requested vs effective limits, filter usage, truncation and depth attainment.
+
+```json
+{
+  "type": "graph.expand",
+  "roots_count": 2,                // number of root ids provided (after de-dup)
+  "requested": {
+    "max_depth": 3,
+    "max_nodes": 500,
+    "max_edges": 1000,
+    "direction": "both"
+  },
+  "node_count": 178,               // nodes actually gathered (post filters & truncation)
+  "edge_count": 244,               // edges actually gathered
+  "max_depth_reached": 3,          // deepest depth encountered among returned nodes
+  "truncated": false,              // true if any cap stopped traversal early
+  "filters": {
+    "relationship_types": ["relates_to","depends_on"],
+    "object_types": ["Requirement","Decision"],
+    "labels": ["critical"],
+    "projection_include": ["title","status"],
+    "projection_exclude": ["debugInfo"],
+    "include_relationship_properties": false
+  },
+  "elapsed_ms": 21,                // wall-clock traversal duration
+  "ts": 1732587605000              // epoch ms emission time
+}
+```
+
+Future additions (Phase 1 follow-ups / Phase 2): `elapsed_ms`, `db_query_count`, `edge_scan_count`, `objects_filtered`, and integration with unified search telemetry (`graph.search.page`).
+
+### 20.2 Graph Search Pagination & Retrieval Enhancements Checklist
+This subsection captures the status of the recently delivered bidirectional cursor pagination and enriched metadata for graph/object search (hybrid lexical + vector fusion). Details of the semantics live in `spec/graph-search-pagination.md` (authoritative). This spec cross‑references those capabilities so downstream graph expansion & retrieval roadmap items stay aligned.
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Forward cursor pagination (stable ordering: score DESC, id ASC) | [x] | Implemented in graph search service. |
+| Backward pagination (direction = backward) | [x] | Window selection excludes cursor item; slice strictly before cursor match. |
+| Direction field surfaced in request & echoed in `meta.request.direction` | [x] | OpenAPI updated. |
+| `requested_limit` vs enforced `limit` (server cap=50) surfaced in meta | [x] | Hard cap logic with transparency; prevents silent truncation. |
+| `total_estimate` field in `meta` | [x] | Provides approximate total for UX (not exact COUNT(*)); documented caveats. |
+| Cursor format tolerance (id‑only match; score rounding tolerant to drift) | [x] | Switch from score+id strict match to id-only for backward resolution; unit test covers score perturbation. |
+| Enriched meta: `channels`, `fusion`, `hasNext/hasPrev`, `nextCursor/prevCursor` | [x] | Present; channels reflect available retrieval modes. |
+| E2E tests (forward & backward invariants) | [x] | Assertions restricted to stable invariants (cursor exclusion, direction echo, cursor flags). |
+| Unit tests: backward pagination + score drift tolerance | [x] | Added to service spec suite. |
+| Standalone pagination semantics document | [x] | `spec/graph-search-pagination.md` created; linked here. |
+| README propagation (root + server) | [x] | Summary section with links added. |
+| OpenAPI schema & snapshot updated for new meta fields | [x] | Snapshot tests passing. |
+| Telemetry metrics for search (elapsed_ms, candidate counts) | [ ] | Pending; to integrate with broader traversal metrics work. |
+| Benchmark forward vs backward latency & set SLOs | [ ] | Not started; add after telemetry instrumentation. |
+| Integrate pagination invariants into dynamic graph expand API (future) | [ ] | To evaluate once `/graph/expand` implemented; may share cursor model if needed. |
+
+Planned follow-ups (non-blocking):
+1. Emit structured search telemetry (`graph.search.pagination` events with direction, limit, requested_limit, total_estimate, elapsed_ms, truncation flags).
+2. Define p95 latency SLO split by direction (initial target parity within ±5%).
+3. Consider exposing `approxPosition` (optional) derived from cumulative pages for UX progress indicators (requires lightweight rank estimation; defer until demand).
+4. Evaluate reuse of cursor scheme for future `/graph/expand` pagination (consistent UX across traversal & search surfaces).
+
+Cross‑Reference: See Sections 8A / 8B / 8C for retrieval, normalization, and neighbor expansion roadmap—pagination meta fields are prerequisites for accurate token budgeting & marginal gain pruning accounting.
+
+Roadmap Acceptance Tests Mapping: Refer to `spec/10-roadmap.md` (Graph Search Pagination – Tracking) for AT-GSP-* test IDs covering these checklist items (e.g., AT-GSP-1..18). Keep this section's statuses in sync when updating test outcomes.
+
+### 20.3 Benchmark Baseline (2025-09-27)
+Initial synthetic traversal performance baseline captured using `npm --prefix apps/server-nest run graph:bench -- --nodes=200 --branch=2 --depth=3 --roots=3 --limit=120 --runs=3 --warmup=1`.
+
+Environment Notes:
+- Local dev machine (macOS) – single run; values are indicative (not production SLOs).
+- Warmup run excluded from aggregates; remaining runs averaged.
+- Traversal API invoked for depths 1–3; branching factor ≈2.
+
+Latency Metrics (milliseconds):
+
+| Depth | Min | p50 | p95 | Max | Mean | Runs | Truncated |
+|-------|-----|-----|-----|-----|------|------|-----------|
+| 1 | ~3.8 | ~4.0 | ~4.0 | ~4.2 | ~4.0 | 2 | false |
+| 2 | ~9.2 | ~9.5 | ~9.95 | ~10.1 | ~9.6 | 2 | false |
+| 3 | ~14.7 | ~15.0 | ~15.9 | ~16.2 | ~15.2 | 2 | false |
+
+Interpretation:
+- All p95 latencies for depth ≤3 well below provisional target (<150ms p50 / <500ms p95) indicating ample performance headroom.
+- Depth 3 vs Depth 1 p95 growth factor ≈ 4x, consistent with expected added joins & row materialization.
+
+Next Actions:
+1. Add CI performance regression guard once telemetry event for search is implemented (target thresholds: depth1 p95 < 20ms, depth2 p95 < 40ms, depth3 p95 < 60ms on reference dataset of ~1K nodes / 3K edges).
+2. Expand benchmark to include higher branching factor (e.g., 4) and node counts (1K, 5K) to map scaling curve.
+3. Persist benchmark JSONL artifacts under `logs/benchmarks/` and compare deltas (simple percent drift alert > +30%).
+4. After implementing `/graph/expand`, replicate baseline to ensure semantic feature additions do not regress traversal core.
+
+CI Guard (Implemented 2025-09-27): `npm --prefix apps/server-nest run graph:bench:ci` executes a fixed-parameter benchmark (overridable via `GRAPH_BENCH_*` env vars) and enforces p95 thresholds (depth1 20ms / depth2 40ms / depth3 60ms). Fails pipeline with non-zero exit if exceeded. Adjust thresholds via env to tune sensitivity per environment.
+
+NOTE: Replace approximate `~` values with precise numbers if future automated capture writes a machine-readable markdown excerpt.
 
 ## 21. Summary
 This design keeps us in Postgres for the near to mid-term, maximizing operational simplicity and leveraging existing multi-tenancy + RLS patterns. We introduce a schema registry for dynamic validation, a controlled expansion API with resource guards, and a path to scale (indexes, closure tables, eventual partitioning). Future adoption of Apache AGE or an external graph is gated by explicit performance and capability triggers, preventing premature complexity.
@@ -1727,23 +2009,61 @@ Legend of Test Types: UT = Unit Test, IT = Integration Test (API + DB), E2E = En
 ### P0 – Core Dynamic Infrastructure
 Scope: Foundational tables (`kb.objects`, `kb.relationships`, schema registry), CRUD, basic JSON Schema validation, `/graph/expand` (single pass), telemetry.
 Checklist:
-- [ ] Create tables & base indexes
-- [ ] Object CRUD (create/read/update version row, soft delete)
-- [ ] Relationship CRUD + unique constraint & multiplicity enforcement (app layer)
-- [ ] JSON Schema validation (global only)
-- [ ] `/graph/expand` endpoint (direction, depth, filters, limitNodes)
-- [ ] Telemetry logging (`graph.expand`)
-- [ ] RLS policies updated for new tables
-- [ ] Backfill existing `Entity/Relation` (script) **(MIG)**
-- [ ] OpenAPI schemas published
+- [x] Create tables & base indexes *(Implemented in `database.service.ts` with `kb.graph_objects`, `kb.graph_relationships` plus supporting indexes)*
+- [x] Object CRUD (create/read/update version row, soft delete) *(Implemented in `graph.service.ts`; versioning via `supersedes_id`, soft delete sets `deleted_at`)*
+- [x] Relationship CRUD + unique constraint & multiplicity enforcement (app layer) *(Existing tests cover multiplicity violation paths)*
+- [x] JSON Schema validation (global only) *(Active via registry + AJV cache; falls back permissive if schema absent)*
+- [x] `/graph/expand` endpoint (direction, depth, filters, limitNodes) *(Shipped; see controller/service with telemetry event `graph.expand`)*
+- [x] Telemetry logging (`graph.expand`) *(Implemented; event emitted when `GRAPH_EXPAND_TELEMETRY_LOG` flag enabled; tests in `graph-expand.telemetry.spec.ts`)*
+- [~] RLS policies updated for new tables *(Policies planned; implementation status not yet verified in repository migrations – TODO to audit and add regression tests)*
+- [x] Backfill existing `Entity/Relation` (script) **(MIG)** *(Script `scripts/graph-backfill.ts` implemented; idempotent run documented)*
+- [x] OpenAPI schemas published *(Endpoints present in latest `openapi.json`; regression tests updated)*
 Acceptance Tests:
 - AT-P0-1 (UT): Create object with valid vs invalid schema (422 on invalid)
-- AT-P0-2 (IT): Insert relationship violating multiplicity returns 409
+- AT-P0-2 (IT): Insert relationship violating multiplicity returns 400 (BadRequest) with code `relationship_multiplicity_violation`
 - AT-P0-3 (IT): Depth=2 expansion returns expected node/edge counts deterministically
 - AT-P0-4 (SEC): Cross-tenant object fetch denied (403/empty)
 - AT-P0-5 (MIG): Backfill script idempotency (double run: second run no-op)
 - AT-P0-6 (PERF): Depth 2 expansion p95 < 300ms on seeded 100K nodes / 300K edges
 Exit Criteria: All ATs pass; OpenAPI merged; instrumentation visible in metrics dashboard.
+
+#### P0 Gap Audit (2025-09-30)
+| Area | Current State | Gap / Action |
+|------|---------------|--------------|
+| RLS Policies | Not explicitly listed in migrations snippet search (needs confirmation) | Add explicit RLS enable + policy tests (cross-tenant access denial) |
+| Telemetry Dashboard | Events emitted but dashboard wiring unspecified | Add documentation & Grafana panel checklist |
+| PERF AT-P0-6 | Benchmark script exists; large-scale (100K/300K) p95 <300ms not yet automated | Extend `graph:bench:ci` or add scale dataset fixture |
+| Schema Strictness | Missing schema -> permissive acceptance | Decide if warning log needed when creating object without schema |
+| OpenAPI Traversal Docs | `/graph/expand` vs `/graph/traverse` distinction could confuse | Add deprecation note for traverse once expand fully supersedes |
+
+#### RLS Hardening Update (2025-09-30)
+Status: COMPLETE
+
+Implemented hardened multi-tenant Row Level Security for `kb.graph_objects` and `kb.graph_relationships` with the following measures:
+
+1. Forced RLS: `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` applied idempotently in both full and minimal schema initialization paths.
+2. Deterministic Policy Set: On ensure, enumerate existing policies for the two graph tables and drop them (eliminates legacy permissive `*_isolation` policies) before recreating the canonical tightened policies (SELECT/INSERT/UPDATE/DELETE each table).
+3. Tenant Context via GUCs: Policies reference `current_setting('app.current_org_id', true)` / `current_setting('app.current_project_id', true)`; wildcard (global bootstrap) access only when BOTH are empty strings. Otherwise row `org_id` must match and (if project GUC set) `project_id` must match.
+4. Per-Query GUC Application: Query wrapper injects GUCs (and `row_security=on`) on the specific pooled connection executing the SQL, preventing leakage due to connection reuse.
+5. Non-Bypass Role: Post-schema initialization switches from potentially superuser/bypass role to dedicated `app_rls` login role (no `rolbypassrls`, no `rolsuper`) with explicit CRUD grants; avoids FORCE RLS being negated by bypass privileges.
+6. Insert Attribution Fallback: Object creation logic defaults `org_id` / `project_id` to current GUC values when not explicitly provided, ensuring consistent tenancy tagging.
+7. Test Coverage: `graph-rls.security.spec.ts` verifies (a) isolation (cannot see other tenant rows), (b) wildcard mode (no context returns multiple tenants), (c) cross-tenant update blocked (rowCount=0). All tests passing.
+8. Logging Hygiene: Verbose diagnostic logs (policy lists, role attributes) reduced to concise confirmation messages after validation; sensitive information not logged.
+
+Remaining Follow-Ups:
+ - (DONE) Externalize `app_rls` password via `APP_RLS_PASSWORD` env var (fallback retained for local/dev); rotation = update secret + restart.
+ - (DONE) Automated regression test `graph-rls.policies.spec.ts` snapshots exact policy names (guards against drift / reintroduction of permissive policies).
+ - (DONE) Strict policy verification & fail-fast guard: Added `RLS_POLICY_STRICT` env variable. When enabled, startup validates the exact canonical 8-policy set and aborts on any drift (extra/missing/renamed). In non-strict mode, a mismatch produces a warning only (regression test still enforces correctness in CI). Password rotation for `app_rls` now automatic each startup via `ALTER ROLE` ensuring secret updates take effect without manual SQL.
+
+Security Rationale: The prior leakage root causes were (a) use of a bypass/superuser role and (b) residual permissive policies coexisting with tightened ones. The new initialization sequence deterministically eradicates both vectors each boot.
+
+
+#### New TODOs Added (P0 Follow-ups)
+- [ ] Implement & test RLS policies for `kb.graph_objects` and `kb.graph_relationships` (SEC). 
+- [ ] Add performance CI guard for depth 2 expansion at scale dataset (PERF). 
+- [ ] Add warning log when object created without registered schema (OBS). 
+- [ ] Document telemetry dashboard panels for expand/traverse events (DOC). 
+- [ ] Clarify `/graph/traverse` deprecation timeline in spec & OpenAPI description (DOC).
 
 ### P1 – Template Pack Framework
 Scope: Pack & install tables, signature verification, list/install APIs, manifest ingestion (no TOGAF yet), audit entries.
@@ -1765,7 +2085,7 @@ Exit Criteria: Template listing/installation stable; unauthorized or malformed m
 Scope: Provide first signed pack with defined object & relationship schemas; enable validation using pack.
 Checklist:
 - [ ] Author schemas for prioritized TOGAF types
-- [ ] Relationship types & multiplicity encoded
+- [x] Relationship types & multiplicity encoded
 - [ ] Signed `togaf-core` manifest stored
 - [ ] Install & create test objects enforcing constraints
 - [ ] Documentation section referencing pack usage
@@ -1773,7 +2093,7 @@ Acceptance Tests:
 - AT-P2-1 (IT): Installing `togaf-core` registers all expected types (count matches manifest)
 - AT-P2-2 (UT): Object creation for type with missing required field fails
 - AT-P2-3 (IT): Relationship not in pack (unknown type) rejected
-- AT-P2-4 (IT): Multiplicity rule (e.g., one `own` relation) enforced
+- AT-P2-4 (IT): Multiplicity rule (e.g., one `own` relation) enforced (tests in `graph-relationship.multiplicity.spec.ts`)
 Exit Criteria: 100% schema coverage for scoped types; pack validation active in production mode.
 
 ### P3 – Derived Views & Refresh
@@ -1819,21 +2139,84 @@ Exit Criteria: Safe upgrade flow; audit entries for each upgrade.
 ### P6 – Release Snapshots & Branch Integration
 Scope: Branching, snapshots (`product_versions`), tag support, diff endpoints (object delta, release diff), integration with template validation.
 Checklist:
-- [ ] `kb.branches`, `kb.product_versions`, `kb.product_version_members`, `kb.tags` tables
+- [x] `kb.branches` table *(Implemented in database.service.ts)*
+- [x] `kb.product_versions` table *(Implemented with unique(project_id, LOWER(name)), optional base_product_version_id for lineage)*
+- [x] `kb.product_version_members` table *(PK on (product_version_id, object_canonical_id), captures version_id at snapshot time)*
+- [x] Snapshot creation & membership population *(ProductVersionService.create() enumerates DISTINCT ON canonical heads, bulk inserts members)*
+- [x] Snapshot creation endpoint *(POST /product-versions with graph:write scope, returns id + member_count + metadata)*
+- [x] Snapshot retrieval endpoint *(GET /product-versions/:id with member_count aggregation)*
+- [ ] Snapshot list endpoint *(GET /product-versions for project)*
+- [ ] `kb.tags` table
 - [ ] Branch create (lazy CoW), object resolution fallback
-- [ ] Snapshot creation & membership population
-- [ ] Release diff endpoint
+- [ ] Release diff endpoint *(compare two snapshots, enumerate added/removed/modified canonicals)*
 - [ ] Tag create/list
 - [ ] Merge workflow (single-object) + conflict detection
 Acceptance Tests:
 - AT-P6-1 (IT): Branch fallback returns parent object when not modified
 - AT-P6-2 (IT): Editing object on branch isolates version (parent unaffected)
-- AT-P6-3 (IT): Snapshot membership count equals number of visible canonical heads
+- [x] AT-P6-3 (IT): Snapshot membership count equals number of visible canonical heads *(product-version.service.spec.ts: create() validates member_count matches DISTINCT ON query rowCount)*
 - AT-P6-4 (IT): Release diff returns correct change types (added/removed/modified)
 - AT-P6-5 (IT): Tag creation references existing snapshot only
 - AT-P6-6 (UT): Merge conflict detection triggers on divergent same field
 - AT-P6-7 (PERF): Snapshot build time < 60s for 100K objects
+- [x] AT-P6-8 (UT): Duplicate snapshot name rejected case-insensitively *(product-version.service.spec.ts: duplicate name test)*
+- [x] AT-P6-9 (UT): Base snapshot validation (not found) *(product-version.service.spec.ts: base_product_version_id validation)*
+- [x] AT-P6-10 (UT): Zero-object project snapshot succeeds with member_count=0 *(product-version.service.spec.ts: empty snapshot test)*
 Exit Criteria: Branching + release mgmt stable; performance within targets.
+
+#### P6 Snapshot Feature Implementation Notes (2025-09-30)
+
+**Schema:**
+```sql
+CREATE TABLE kb.product_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NULL,
+  project_id UUID NOT NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT NULL,
+  base_product_version_id UUID NULL REFERENCES kb.product_versions(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(project_id, LOWER(name))
+);
+
+CREATE TABLE kb.product_version_members (
+  product_version_id UUID NOT NULL REFERENCES kb.product_versions(id) ON DELETE CASCADE,
+  object_canonical_id UUID NOT NULL,
+  object_version_id UUID NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY(product_version_id, object_canonical_id)
+);
+
+CREATE INDEX idx_product_version_members_version 
+  ON kb.product_version_members(product_version_id, object_version_id);
+```
+
+**Creation Workflow:**
+1. Client sends `POST /product-versions` with `{ name, description?, base_product_version_id? }` and headers `x-project-id`, `x-org-id`.
+2. Service acquires advisory lock on `product_version|<projectId>|<lowerName>` to serialize creation.
+3. Validates name uniqueness (case-insensitive) within project scope.
+4. If `base_product_version_id` provided, validates it exists and belongs to same project (enables future diff workflows).
+5. Inserts `product_versions` row.
+6. Enumerates current object heads: `SELECT DISTINCT ON (canonical_id) canonical_id, id FROM kb.graph_objects WHERE project_id = $1 AND deleted_at IS NULL ORDER BY canonical_id, version DESC`.
+7. Bulk inserts membership rows (one per canonical object, capturing the specific version_id frozen at snapshot time).
+8. Returns `{ id, name, description, created_at, member_count, base_product_version_id }`.
+
+**Immutability:** No UPDATE or DELETE endpoints exposed; snapshots are write-once. To "update" a release, create a new snapshot with incremented name (e.g., v1.0.1) optionally linking prior via `base_product_version_id`.
+
+**Limitations (Current):**
+- Scope is project-wide; no branch filtering (captures heads across all branches).
+- No relationship snapshot (only objects captured).
+- No diff computation endpoint yet (planned: compare members of two snapshots).
+- No tagging system yet (planned: allow aliasing snapshots with symbolic names like "production", "staging").
+- List endpoint not yet implemented (future: `GET /product-versions?project_id=...` with pagination).
+
+**Future Enhancements:**
+- Branch-scoped snapshots: Add optional `branch_id` filter to capture heads within specific branch only.
+- Relationship membership: Extend `product_version_members` or add separate `product_version_relationships` table.
+- Diff endpoint: `GET /product-versions/:id/diff/:otherId` returning `{ added: [...], removed: [...], modified: [{ canonical_id, from_version_id, to_version_id, change_summary }] }`.
+- Tagging: `kb.tags` table with `(product_version_id, name)` allowing symbolic references.
+- Retention policy: Archive or prune old snapshots based on age/count thresholds.
+- Export/import: Generate portable snapshot manifests for cross-environment promotion.
 
 ### P7 – Performance & Scale Hardening (Optional)
 Scope: Closure tables for hierarchical relations, caching, partition readiness.
@@ -2244,6 +2627,586 @@ Any change to weight formulas, normalization, or edge scoring requires:
 
 ---
 This comprehensive testing strategy ensures resilient evolution while safeguarding precision, performance, and security. It should be treated as normative: deviations or exemptions must be documented in PR descriptions and, if persistent, reflected back into this section.
+
+## 27. `/graph/search` API Contract (Draft)
+Defines the primary retrieval endpoint integrating hybrid lexical/vector object search, neighbor expansion, path summaries, optional reranking, citations, and (future) document fusion. Backward-compatible evolution is governed by versioned response metadata fields. All responses MUST set `Cache-Control: no-store` (results are user/tenant scoped) and include `X-Search-Normalization-Version` header mirroring `meta.normalization_version`.
+
+### 27.1 Endpoint
+`POST /graph/search`
+
+Authentication: Requires standard project-scoped bearer token. Authorization: scope `graph:search:read`. Debug features require additional `graph:search:debug` scope.
+
+### 27.2 Request Body Schema (JSON)
+```jsonc
+{
+  "query": "string (1..800 chars)",
+  "limit": 40,                       // optional (<= GRAPH_SEARCH_RESULT_LIMIT)
+  "intentOverride": "explain|locate_config|debug_error|roadmap|<future>|null",
+  "channels": ["lexical", "vector"], // optional subset; empty/omitted => auto
+  "rerank": true,                    // tri-state true|false|null
+  "maxTokenBudget": 3200,            // optional; capped by server (≤ 1.5 * default)
+  "includeCitations": false,
+  "includePathSummaries": true,      // toggles path_summaries array
+  "includeDebug": false,             // (alias for ?debug=true query param; body takes precedence)
+  "filters": {                       // OPTIONAL structured filtering
+    "objectTypes": ["Decision","Meeting"],
+    "excludeObjectTypes": ["Risk"],
+    "labelsAny": ["security","p0"],
+    "updatedAfter": "2025-09-01T00:00:00Z",
+    "updatedBefore": "2025-09-20T00:00:00Z"
+  },
+  "neighbor": {                      // OPTIONAL neighbor expansion tuning
+    "perPrimaryLimit": 3,
+    "globalLimit": 50,
+    "edgeTypes": ["decides","attended_by"],
+    "maxDepth": 1                    // retrieval neighbor depth (≤ GRAPH_EXPANSION_MAX_DEPTH)
+  },
+  "documentFusion": {                // FUTURE optional document chunk fusion
+    "enabled": false,
+    "topK": 8,
+    "mode": "blend|rrf|sequential",
+    "weight": 0.35                   // weight applied to document channel in fusion
+  },
+  "pagination": {                    // OPTIONAL offset paging (stateless)
+    "cursor": null,                  // opaque string returned in response.meta.nextCursor
+    "limit": 40
+  },
+  "experimental": {                  // Reserved for feature flags (ignored unless whitelisted)
+    "structuralEmbedding": false
+  }
+}
+```
+
+Validation Rules:
+- `query` required, trimmed length 1..800.
+- `channels` subset of allowed; rejecting unknown channel returns 400.
+- `limit` ≤ `GRAPH_SEARCH_RESULT_LIMIT` (server constant).
+- `neighbor.maxDepth` ≤ `GRAPH_EXPANSION_MAX_DEPTH`.
+- If `rerank=true` but server flag disabled, response `meta.rerank.applied=false` with warning.
+- `maxTokenBudget` if provided must be ≥ MIN_TOKEN_BUDGET (config) and ≤ SERVER_MAX_TOKEN_BUDGET.
+
+### 27.3 Response Schema
+```jsonc
+{
+  "query": "original query string",
+  "intent": "explain|locate_config|debug_error|roadmap|null",
+  "items": [
+    {
+      "object_id": "uuid",
+      "canonical_id": "uuid",         // logical root id (for version grouping)
+      "score": 0.87123,
+      "rank": 1,
+      "role": "primary|neighbor|reference",
+      "fields": {                      // pruned field set
+        "title": "Adopt Feature Flagging",
+        "type": "Decision",
+        "status": "active",
+        "summary": "..."
+      },
+      "truncated_fields": ["description"],
+      "reasons": [                     // ALWAYS ≥1 entry (unless debug denied -> minimal reasons)
+        { "channel": "lexical", "score": 0.53 },
+        { "channel": "vector", "score": 0.29 },
+        { "channel": "neighbor_boost", "score": 0.05 }
+      ],
+      "citations": [                   // optional, only if includeCitations & feature enabled
+        { "span": "Decision depends on consistent flag rollout", "source_object_id": "uuid", "confidence": 0.82 }
+      ],
+      "explanation": "High lexical match on 'feature flagging'; semantic similarity 0.78; boosted by related Meeting"
+    }
+  ],
+  "path_summaries": [
+    {"path_id": "uuid", "summary": "Meeting 'Sprint 34 Review' decided Decision 'Adopt Feature Flagging'", "reasons": [{"channel": "primary_neighbor", "score": 0.12}]}
+  ],
+  "meta": {
+    "channels": ["lexical","vector"],
+    "fusion": "weighted_sum:v2",
+    "normalization_version": "zscore_v1",
+    "lexical_considered": 100,
+    "vector_considered": 100,
+    "skipped_unembedded": 12,
+    "neighbor_expanded": 47,
+    "token_estimate": 1450,
+    "token_budget": 3500,
+    "truncation_notice": false,
+    "warnings": ["embedding_version_backlog"],
+    "embedding_model": {"model": "text-embedding-3-large", "version": 2, "coverage_pct": 91.4},
+    "rerank": {"applied": true, "model": "mini-cross-encoder-v1", "latency_ms": 42, "pool": 60, "timeout": false},
+    "expansion": {"neighbors": 42, "hub_sampled": true, "hub_degree": 1342},
+    "request": {                      // echo sanitized request subset
+      "limit": 40,
+      "channels": ["lexical","vector"],
+      "rerank": true,
+      "includeCitations": true
+    },
+    "elapsed_ms": 92,
+    "nextCursor": null                // for pagination, else null
+  },
+  "debug": {                          // Only if debug scope & enabled
+    "normalization": {
+      "lexical": {"mean": 0.42, "std": 0.11},
+      "vector": {"mean": 0.31, "std": 0.07}
+    },
+    "gain_rejections": 5,
+    "marginal_gain_min": 0.02,
+    "edge_samples": [
+      {"relation": "decides", "edge_score": 0.63, "depth": 1, "hub_damping": 0.43}
+    ],
+    "feature_flags": {"paths": true, "rerank": true, "citations": false}
+  }
+}
+```
+
+### 27.4 Error Responses
+| HTTP | Code | Message Pattern | Cause |
+|------|------|-----------------|-------|
+| 400 | `invalid_request` | Validation failed: <field>: <reason> | Input validation errors |
+| 403 | `insufficient_scope` | Debug scope required | Missing debug scope with debug=true |
+| 413 | `token_budget_exceeded` | Requested tokenBudget > server max | Client requested excessive budget |
+| 429 | `rate_limited` | Too many search requests | Rate limiting (per user/tenant) |
+| 500 | `internal_error` | Internal error id=<uuid> | Unhandled server error |
+| 503 | `rerank_unavailable` | Reranker disabled or degraded | Rerank forced but system disabled |
+
+Error Body Schema:
+```jsonc
+{ "error": { "code": "invalid_request", "message": "Validation failed: limit: must be <= 40", "request_id": "uuid" } }
+```
+
+### 27.5 OpenAPI (Excerpt)
+```yaml
+paths:
+  /graph/search:
+    post:
+      summary: Hybrid object graph search
+      tags: [Graph]
+      operationId: graphSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GraphSearchRequest'
+      parameters:
+        - in: query
+          name: debug
+          schema: { type: boolean }
+          description: Returns debug object (requires scope graph:search:debug)
+      responses:
+        '200':
+          description: Search results
+          headers:
+            X-Search-Normalization-Version:
+              schema: { type: string }
+              description: Normalization algorithm version tag
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GraphSearchResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+```
+
+`GraphSearchRequest` and `GraphSearchResponse` component schemas mirror sections 27.2 / 27.3 with `additionalProperties: false` for defensive validation.
+
+### 27.6 Pagination Strategy
+Initial implementation returns full top-N (no cursor). Cursor-based pagination (optional) produced by stable deterministic ordering of `final_score` then `object_id` tie-breaker. Cursor format (opaque): Base64 of JSON `{"lastScore": <float>, "lastId": "uuid"}` signed (HMAC) to prevent tampering. Re-query uses `WHERE (score < lastScore) OR (score = lastScore AND object_id > lastId)` semantics (descending ordering). Pagination invalidated (return 400) if fusion strategy or normalization_version changed between calls (client must re-run first page).
+
+### 27.7 Hybrid Document Fusion (Future)
+When `documentFusion.enabled=true`:
+1. Run existing document chunk retrieval (already implemented elsewhere) obtaining top K chunk candidates with channel tag `doc`.
+2. Normalize doc channel scores using same normalization version tagging (distinct mean/std namespaces).
+3. Blend into fusion either via weighted_sum (apply `documentFusion.weight`) OR RRF if `mode=rrf`.
+4. Inject chunk-backed synthetic pseudo-items (role=`document_chunk`) OR merge evidence into corresponding object if chunk references an object id.
+5. `meta.channels` includes `doc` and `meta.fusion` reflects blend mode (e.g., `weighted_sum:v2+doc`).
+6. Add acceptance tests (future): doc-only query returns doc channel, object-empty; blend queries maintain top-precision defined threshold.
+
+### 27.8 Security & Privacy Considerations (Search-Specific)
+- Ensure `filters.excludeObjectTypes` is applied before neighbor expansion to avoid leaking excluded object fields via path summaries.
+- Redaction: citation spans must pass through field redaction filter (embedding redaction patterns) before inclusion.
+- Debug payload omission: if user lacks scope, omit entire `debug` key (do not partially redact) to avoid confusion.
+- Rate limiting metadata (optional future): include `X-RateLimit-Remaining-Search` header.
+
+### 27.9 Versioning & Backward Compatibility
+- Any additive field to `items[].fields` or `meta` allowed (clients instructed to ignore unknown keys).
+- Breaking changes (field rename, removal) require version bump: header `X-Graph-Search-Version: v2` and negotiation parameter `?version=v2`.
+- Normalization algorithm changes require bumping `normalization_version` and MUST NOT silently alter semantics without acceptance evaluation.
+
+### 27.10 Observability Fields
+- Log event `graph.search` (JSON) includes: queryLength, intent, itemsReturned, elapsedMs, channels, rerankApplied, neighborCount, tokenEstimate, warnings[], truncationNotice, coveragePct, errorCode (if any), normalizationVersion, fusionStrategy, embeddingModelVersion.
+- PII guidelines: do not log full query text if `queryLength > QUERY_LOG_REDACT_THRESHOLD` (config) – log hash instead.
+
+### 27.11 Example Requests
+Basic lexical/vector auto fusion:
+```json
+{ "query": "feature flag rollout decision" }
+```
+
+Force lexical-only, neighbor disabled:
+```json
+{ "query": "config key timeout", "channels": ["lexical"], "neighbor": { "perPrimaryLimit": 0 } }
+```
+
+Rerank + citations with token budget override:
+```json
+{
+  "query": "explain sprint 34 review outcomes",
+  "rerank": true,
+  "includeCitations": true,
+  "maxTokenBudget": 2800,
+  "intentOverride": "explain"
+}
+```
+
+### 27.12 Non-Goals (Explicit Exclusions)
+- Arbitrary boolean expression filtering over nested JSON properties (only curated filter keys initially).
+- Multi-query batch search (one request per query to keep per-query observability simple; may add `/graph/search/batch` later).
+- Direct graph pattern (path length) constraints – covered by `/graph/expand`.
+- Aggregation / analytics (future `/graph/aggregate`).
+
+### 27.13 Open Questions
+1. Should cursor pagination include deterministic hashing of weight configuration to prevent differing ranks mid-pagination silently? (Current design rejects with 400; could embed hash inside cursor.)
+2. Provide partial results on rerank timeout vs fallback to pre-rerank ordering (currently we fallback; accept?).
+3. Document fusion: merge strategy for chunk + object collisions – prefer separate pseudo-items or augment object reasons? (Leaning augment with `channel="doc"` reason.)
+4. Provide approximate cost estimation (token & provider calls) pre-execution? (Could require dry-run mode.)
+5. Should limit apply before or after marginal gain pruning? (Current: after pruning; ensures token-efficiency but might drop lower-score but high-gain object; needs evaluation.)
+
+---
+This API contract anchors client integration and server implementation. Subsequent sections (Security & multi-tenancy, Performance & limits, Rollout Plan) will elaborate guardrails and enablement sequence.
+
+## 28. Security & Multi-Tenancy Rules
+Defines mandatory isolation, authorization scopes, redaction, and auditing constraints for all graph search & expansion operations.
+
+### 28.1 Tenancy & Object Visibility
+- Hard boundary: (`org_id`, `project_id`) composite scope. Every `graph_objects` and `graph_edges` row stores both. Project can be NULL only for org-wide objects; queries MUST filter `(org_id = $ctx.org_id) AND (project_id IS NULL OR project_id = $ctx.project_id)` unless a project-filter override is explicitly allowed (admin-only scope `graph:admin:cross-project`).
+- Branching / versioned variants: only HEAD (latest committed active revision) objects included in `/graph/search` by default. Draft / branch objects require scope `graph:branch:read` AND explicit `?includeDraft=true` flag (future). For now, branch objects are excluded (non-goal) to avoid leakage.
+- Soft-deleted rows (`deleted_at IS NOT NULL`) excluded at SQL predicate level; neighbor expansion may not resurrect them.
+
+### 28.2 Row-Level Security (RLS)
+Postgres policies (illustrative):
+```sql
+CREATE POLICY graph_objects_isolation ON graph_objects
+  USING (org_id = current_setting('app.org_id')::uuid
+         AND (project_id IS NULL OR project_id = current_setting('app.project_id')::uuid));
+
+CREATE POLICY graph_edges_isolation ON graph_edges
+  USING (org_id = current_setting('app.org_id')::uuid
+         AND (project_id IS NULL OR project_id = current_setting('app.project_id')::uuid));
+```
+Application MUST set `SET LOCAL app.org_id = $org; SET LOCAL app.project_id = $project;` per request transaction. Expansion queries inherit policies automatically.
+
+### 28.3 Authorization Scopes
+| Scope | Purpose |
+|-------|---------|
+| `graph:search:read` | Execute `/graph/search` basic retrieval |
+| `graph:search:debug` | Access `debug` block & verbose reasons |
+| `graph:search:citations` | Enable citation spans (if feature flag on) |
+| `graph:branch:read` | (Future) Include branch / draft objects |
+| `graph:admin:cross-project` | Cross-project aggregated search (org-level) |
+| `graph:admin:metrics` | Access readiness / coverage metrics endpoint |
+
+Principle: least privilege. Absence of optional scope strips associated response keys rather than returning error—EXCEPT debug: requesting debug without scope yields 403.
+
+### 28.4 Field-Level Redaction
+- Sensitive fields list maintained (`GRAPH_SENSITIVE_FIELDS`) e.g. `['internal_notes','raw_transcript']`.
+- Search pipeline loads only non-sensitive columns for ranking except when query intent=debug_error (allowed with debug scope) to trace parse failures.
+- Redaction filter executed AFTER scoring but BEFORE serialization. Any truncated or redacted field name appended to `items[].truncated_fields`.
+- Citations: extract spans from redacted text; if a span would include fully redacted region, omit that citation (do not partially mask to prevent inference via positional hints).
+
+### 28.5 Neighbor Expansion Safety
+- Expansion candidate query inherits RLS; an edge crossing into an object outside tenant returns zero rows (policy enforced at DB level). No post-filter fallback inclusion allowed.
+- Cap-based failsafe: if neighbor expansion returns > `GRAPH_EXPANSION_HARD_CAP` rows after hub sampling, abort expansion portion and set `meta.warnings += ['expansion_truncated']`.
+
+### 28.6 Abuse & Resource Safeguards
+- Rate Limit: sliding window per (org_id, user_id): `GRAPH_SEARCH_RPS_SOFT` (warn) and `GRAPH_SEARCH_RPS_HARD` (429). Hard threshold returns 429 with `Retry-After` header.
+- Query Length: > 400 chars triggers normalization & warning; > 800 chars rejected (400).
+- Token Budget: clamp to config; if requested > max, return 413 or (if `gracefulTokenClamp=true` experimental flag) clamp & add warning.
+- Rerank Protection: if rerank pool size > `RERANK_MAX_POOL`, fallback to pre-rerank ordering with warning `rerank_pool_reduced`.
+
+### 28.7 Logging & Auditing
+- Audit log event `graph.search.access` includes: request_id, org_id, project_id, user_id hash, scopes, item_count, warnings, rerankApplied, debugRequested(boolean), debugGranted(boolean), partialResults(boolean), timing.
+- PII Minimization: full query stored only if length ≤ 160 and no matched sensitive keywords (regex list). Else store `SHA256(query)` plus first 40 chars.
+- Citations logged as count only; no verbatim span text to avoid leakage.
+
+### 28.8 Debug Data Handling
+- Debug payload never persisted; ephemeral in-memory assembly.
+- If rerank or expansion timeouts occur, debug still lists attempted channels and partial timers.
+- Denied debug scope must not leak via timing side-channel: always introduce fixed padding jitter (±5ms) suppressed in production metrics but not exceeding SLO budgets.
+
+### 28.9 Threat Model Summary & Mitigations
+| Threat | Vector | Mitigation |
+|--------|--------|------------|
+| Cross-tenant data leak | Missing predicate / raw SQL bypass | Enforce RLS + mandatory session settings + integration test AT-SEC-RLS-1..3 |
+| Inference via citation spans | Span reveals redacted content location | Entire citation omitted if span intersects redacted zone |
+| Debug misuse | User escalates to gain scoring internals | Separate `graph:search:debug` scope; deny returns 403 fast path |
+| Ranking manipulation | Crafted query to force large expansion | Edge hub damping + expansion hard caps + marginal gain pruning |
+| DoS (token blow-up) | Huge token budget override | Clamp & reject if > MAX; config-backed limits |
+| Timing side-channel for existence | Time difference on 0 vs 1 result | Add micro-jitter for empty result sets (<3 items) |
+| Reranker model enumeration | Compare latencies across toggles | Obfuscate exact provider name in public meta when `exposure_level=standard` (show generic family) |
+
+### 28.10 Acceptance Tests
+- AT-SEC-RLS-1: Object from different org never appears (direct search).
+- AT-SEC-RLS-2: Neighbor expansion does not include cross-project object when scope missing.
+- AT-SEC-RLS-3: With `graph:admin:cross-project`, results may include multiple project_ids but same org.
+- AT-SEC-RED-1: Sensitive field removed; listed in `truncated_fields`.
+- AT-SEC-RED-2: Citation referencing sensitive span omitted.
+- AT-SEC-DBG-1: Request `includeDebug=true` without scope -> 403 error.
+- AT-SEC-DBG-2: With debug scope, debug block present and includes normalization stats.
+- AT-SEC-RATE-1: Exceed soft RPS -> warning present; no 429.
+- AT-SEC-RATE-2: Exceed hard RPS -> 429 returned; next allowed after window reset.
+- AT-SEC-CAP-1: Expansion exceeding hard cap sets warning `expansion_truncated`.
+- AT-SEC-TOKEN-1: Over-max token budget request rejected (413) or clamped (if flag) with warning.
+
+### 28.11 Configuration Keys
+| Key | Default | Description |
+|-----|---------|-------------|
+| GRAPH_SEARCH_RESULT_LIMIT | 40 | Max allowed `limit` |
+| GRAPH_EXPANSION_MAX_DEPTH | 2 | Maximum neighbor depth |
+| GRAPH_EXPANSION_HARD_CAP | 250 | Absolute cap on neighbor nodes |
+| GRAPH_SEARCH_RPS_SOFT | 10 | Soft per-user RPS (warn) |
+| GRAPH_SEARCH_RPS_HARD | 20 | Hard per-user RPS (429) |
+| RERANK_MAX_POOL | 80 | Max candidates passed to reranker |
+| GRAPH_SENSITIVE_FIELDS | n/a | List of redacted fields |
+| QUERY_LOG_REDACT_THRESHOLD | 200 | Length past which query body hashed |
+| MIN_TOKEN_BUDGET | 800 | Minimum allowed token budget |
+| MAX_TOKEN_BUDGET | 4000 | Hard cap budget |
+| DEBUG_TIMING_JITTER_MS | 5 | ± jitter for debug denial padding |
+
+### 28.12 Observability Metrics (Security)
+- `graph_search_rate_limit_hits_total` (labels: org, user, level=soft|hard)
+- `graph_search_sensitive_fields_redacted_total`
+- `graph_search_debug_denied_total`
+- `graph_search_cross_project_queries_total`
+- `graph_search_expansion_truncated_total`
+
+### 28.13 Open Questions
+1. Should citation omission vs masking be user-configurable? (Current: omission only.)
+2. Consider differential privacy noise for aggregated analytics derived from search logs? (Future analytics scope.)
+3. Do we need per-field allowlists vs global sensitive list to support partial field-level release for certain roles?
+
+---
+Security rules herein are normative. Implementation PRs modifying scope names, RLS predicates, or redaction logic must update this section and associated acceptance tests.
+
+## 29. Performance & Limits
+Establishes quantitative ceilings, adaptive fallbacks, and sizing heuristics to meet latency SLO (P95 ≤ 300ms) under typical workloads.
+
+### 29.1 Latency SLOs
+| Stage | Target P95 (ms) | Hard Ceiling (Fail Fast) |
+|-------|-----------------|--------------------------|
+| Lexical candidate fetch | 40 | 120 |
+| Vector ANN search | 35 | 100 |
+| Normalization + fusion | 8 | 25 |
+| Neighbor expansion query | 45 | 120 |
+| Rerank (if enabled) | 70 | 150 |
+| Serialization + redaction | 15 | 40 |
+| Total (no rerank) | 180 | 300 |
+| Total (with rerank) | 250 | 380 |
+
+### 29.2 Core Caps
+| Parameter | Default | Rationale |
+|-----------|---------|-----------|
+| LEXICAL_RAW_K | 120 | Over-fetch for downstream fusion & gain pruning |
+| VECTOR_RAW_K | 120 | Symmetry + recall cushion |
+| PRIMARY_CANDIDATE_TARGET | 60 | Pre-pruning pool size |
+| RERANK_POOL | 60 | Balanced latency/quality; trimmed if vector latency high |
+| FINAL_LIMIT_MAX | 40 | Aligns with UI consumption & token budget |
+| NEIGHBOR_PER_PRIMARY | 3 | Avoid flooding token budget |
+| NEIGHBOR_GLOBAL_CAP | 250 | Protect memory & output size |
+| PATH_SUMMARIES_CAP | 30 | Token cost control |
+| WARNINGS_MAX | 8 | Prevent meta bloat |
+
+### 29.3 Adaptive Degradation Ladder
+Ordered steps if projected latency > budget (estimated via moving averages):
+1. Reduce `RERANK_POOL` by 25% (floor 20) -> meta.warning `rerank_pool_reduced`.
+2. Disable rerank (if still over) -> `meta.rerank.applied=false`, warning `rerank_disabled_perf`.
+3. Trim neighbor expansion: halve `NEIGHBOR_PER_PRIMARY` (min 1) -> `expansion_trimmed`.
+4. Disable path summaries -> `paths_disabled_perf`.
+5. Reduce lexical/vector RAW_K by 25% symmetrically -> `candidate_pool_reduced`.
+6. Final fallback: lexical-only search (vector off) -> `vector_disabled_perf`; ensures deterministic ≤ target.
+
+### 29.4 Token Budget Allocation Heuristic
+Budget segments (target percentages of `token_budget`):
+- Objects core fields: 55%
+- Neighbor contexts: 20%
+- Path summaries: 10%
+- Citations (if enabled): 10%
+- Overhead (JSON structural, meta, safety margin): 5%
+
+Allocator pass removes lowest marginal gain neighbors first, then path summaries longest first, then citations, then truncates description fields (tracking in `truncated_fields`). Acceptable under-run if removal happens early (no backfill beyond limit).
+
+### 29.5 Memory Constraints
+- In-flight candidate structure (primary + neighbors) target ≤ 2 MB per request at default caps. Monitor gauge `graph_search_request_heap_bytes`.
+- If projected > 2.5 MB (pool size * avg object bytes), perform pool shrink (same as step 5 in ladder).
+
+### 29.6 Index & Query Tuning
+- Lexical search: `tsvector` GIN multi-column with weight mapping (A=title, B=summary, C=body) & query uses `plainto_tsquery` with fallback to `websearch_to_tsquery` if phrase detection.
+- Vector ANN: HNSW (ef_search = dynamic function of average latency; start 64, adapt 48..96). Adaptive: if P95 vector latency > 45ms for 5 consecutive windows, decrement `ef_search` down to 48.
+- Neighbor expansion: parameterized CTE limiting by `ORDER BY edge_score DESC LIMIT $cap` early (avoid materializing full set).
+
+### 29.7 Warmup & Caching
+- Maintain small query template plan cache (prepared statements) to avoid plan churn.
+- Cold start mitigation: run synthetic warmup queries (lexical + vector) on service boot to prime page cache & vector graph; record `meta.warnings` `cold_start` if warmup incomplete within 30s.
+
+### 29.8 Monitoring Metrics
+- `graph_search_latency_ms` (histogram, labels: stage, intent, rerankApplied)
+- `graph_search_adaptive_step_total` (counter, label: step)
+- `graph_search_token_budget_utilization_ratio` (histogram)
+- `graph_search_candidate_pool_size` (gauge)
+- `graph_search_memory_prune_total`
+- `graph_search_vector_latency_ema_ms` (gauge)
+
+### 29.9 Alerting Thresholds
+- P95 total latency > 320ms (no rerank) for 5m -> WARN.
+- P95 total latency > 400ms (rerank) for 5m -> WARN.
+- Adaptive step 6 (vector_disabled_perf) triggered > 1% of requests over 10m -> ESCALATE.
+- Memory prune > 0.5% requests -> investigate indexing/heap usage.
+
+### 29.10 Acceptance Tests (Performance Behaviors)
+- AT-PERF-ADAPT-1: Simulate high rerank latency -> pipeline disables rerank (step 2) and sets warning.
+- AT-PERF-ADAPT-2: Excess neighbor size triggers step 3 trimming.
+- AT-PERF-TOKEN-1: Oversized content leads to neighbor pruning before truncating primary fields.
+- AT-PERF-MEM-1: Simulated large object size triggers pool shrink & warning.
+
+### 29.11 Open Questions
+1. Do we introduce an SLA vs SLO distinction per paying tier (adjusting caps)?
+2. Should token budget segments become dynamic learned proportions (reinforcement) instead of fixed heuristic? (Future experiment flag.)
+3. Evaluate precomputing path summaries to shift runtime cost to writes? Trade-off: staleness risk vs latency.
+
+---
+Performance rules provide deterministic fallback guarantees; any change to ladder ordering or caps requires evaluation run (#Section 26) & spec update.
+
+## 30. Incremental Rollout Plan
+Defines phased activation sequence reducing risk while enabling progressive feature exposure & measurement.
+
+### 30.1 Phases Overview
+| Phase | Label | Features Activated | Flags | Success Gate |
+|-------|-------|--------------------|-------|--------------|
+| 0 | Infra Seed | Schema migrations (embedding cols, indexes), baseline lexical search passthrough | `search_vector_enabled=false` | Zero regression in existing endpoints |
+| 1 | Hybrid Alpha | Vector embeddings generation (background), hybrid fusion disabled (vector scores logged only) | `hybrid_fusion_shadow=true` | Coverage ≥ 70%, no error spike |
+| 2 | Hybrid Beta | Enable vector channel in fusion (weighted_sum), neighbor expansion disabled | `neighbor_enabled=false` | P95 latency ≤ target; relevance delta +5% success@5 |
+| 3 | Expansion Intro | Enable neighbor expansion depth=1, path summaries off | `path_summaries=false` | ≤ 5% latency increase; gain > threshold |
+| 4 | Path Summaries | Turn on path summaries (cap 10) | `path_summaries=true` | Token utilization ≤ 85% budget |
+| 5 | Rerank Pilot | Rerank top 40 (pool 40) for 10% traffic (A/B) | `rerank_sample_rate=0.1` | success@5 +3% vs control, latency delta < 60ms |
+| 6 | Rerank Full | Expand rerank to 100%, pool 60 | `rerank_enabled=true` | Stable for 72h |
+| 7 | Citations Beta | Enable citation extraction opt-in | `citations_enabled=true` | No leakage issues (security tests pass) |
+| 8 | Adaptive Ladder | Activate performance degradation steps | `adaptive_perf_enabled=true` | Reduction in P99 tail > 15% |
+| 9 | Embedding Version v2 | Dual-write v1+v2; search still v1 | `emb_version_dual=true` | v2 coverage > 90% |
+| 10 | Switch to v2 | Set search to v2, v1 frozen | `emb_active_version=2` | Relevance parity ±1% overall |
+| 11 | Marginal Gain Pruning | Turn on pruning algorithm | `gain_prune=true` | Token utilization drop > 10% w/ ≤1% relevance loss |
+| 12 | Intent Templates | Enable intent classifier weighting | `intent_weighting=true` | Improved classed queries S@5 > +4% |
+| 13 | Doc Fusion Pilot | Document channel shadow logging | `doc_fusion_shadow=true` | Evaluate precision impact |
+| 14 | Doc Fusion GA | Document channel live blending | `doc_fusion_enabled=true` | ≥ 3% recall improvement w/ ≤1% precision loss |
+
+### 30.2 Migration & Backfill Steps
+1. Apply schema migrations (embedding columns, indexes, coverage metrics table).
+2. Backfill embeddings queue seeded oldest-first; throttle concurrency based on DB load (target ≤15% CPU overhead).
+3. Monitor coverage (`embedding_model.coverage_pct`) until gate threshold reached for phase promotion.
+4. Dual write version v2: store in parallel `embedding_v2` column, keep triggers identical; metrics compare drift.
+5. Switch active version: update config & restart workers using new column; keep read path fallback if `embedding_v2` NULL.
+6. After 30d stable, schedule archival: set task to drop unused old version column (deferred).
+
+### 30.3 Feature Flag Governance
+- All flags must be centrally documented with default, owner, created_at, planned removal date.
+- Flags older than 120d require review (AT-GOV-FLAG-AGE) to avoid configuration entropy.
+
+### 30.4 Rollback Strategy
+| Feature | Rollback Action | Data Impact |
+|---------|-----------------|-------------|
+| Vector fusion | Set `hybrid_fusion_shadow=true` (bypass scores) | None |
+| Neighbor expansion | `neighbor_enabled=false` | None |
+| Path summaries | `path_summaries=false` | None |
+| Rerank | `rerank_enabled=false` | None |
+| Citations | `citations_enabled=false` | None |
+| Embedding v2 | Reset `emb_active_version=1` (keep v2 writes) | None |
+| Marginal gain | `gain_prune=false` | None |
+| Intent weighting | `intent_weighting=false` | None |
+
+### 30.5 Acceptance Tests (Rollout)
+- AT-ROLLOUT-PHASE-TRANSITION: Promotion only when gate metric threshold present.
+- AT-ROLLOUT-FLAG-DOCUMENTED: Every live flag appears in central registry.
+- AT-ROLLOUT-ROLLBACK: Simulated rerank failure sets flag off and returns results with `meta.rerank.applied=false`.
+- AT-ROLLOUT-DUAL-WRITE: During v1/v2 dual phase, evaluation harness records both score sets.
+
+### 30.6 Communication Checklist per Phase
+- Update internal changelog (date, phase, delta features, metrics snapshot baseline).
+- Notify stakeholders of new warnings that may appear (e.g., `embedding_version_backlog`).
+- Provide sample queries illustrating improvement.
+
+### 30.7 Open Questions
+1. Should rerank pilot use multi-armed bandit (explore/exploit) vs fixed 10%? (Initial simplicity chosen.)
+2. Automate phase promotion via metrics SLA or require manual sign-off? (Current: manual review board.)
+3. Consider synthetic guard queries to detect semantic regressions between embedding versions before promotion? (Planned addition.)
+
+---
+Rollout sequencing here is normative; deviations require risk assessment addendum appended to this section.
+
+## 31. Future Enhancements Roadmap
+Curated backlog of post-GA opportunities, grouped by theme with indicative sizing & success metrics.
+
+### 31.1 Retrieval Quality
+| Item | Description | Effort | KPI Target |
+|------|-------------|--------|-----------|
+| Cross-Encoder Upgrade | Replace mini model with larger distilled reranker adaptive gating (size switch based on latency headroom) | M | +2% success@5 high-ambiguity set |
+| Dynamic Fusion Strategy | Auto-select weighted_sum vs RRF vs reciprocal softmax per query archetype | M | +1.5% overall NDCG@10 |
+| Structured Intent Feedback Loop | Incorporate user click & dwell signals to adjust intent weighting over time | L | Intent misclassification rate -20% |
+
+### 31.2 Graph Intelligence
+| Item | Description | Effort | KPI Target |
+|------|-------------|--------|-----------|
+| Path Scoring V2 | Precompute path centrality & semantic coherence embeddings | M | +1% success@5 multi-hop queries |
+| Time-Decayed Edge Embeddings | Maintain embedding per relation capturing temporal drift | M | Improved freshness satisfaction survey +10% |
+| Multi-Hop Reason Chains | Expose chain-of-reason explanations beyond single path summary | M | Qualitative explainability score +15% |
+
+### 31.3 Data Evolution
+| Item | Description | Effort | KPI Target |
+|------|-------------|--------|-----------|
+| Time-Travel Querying | `asOf` timestamp param surfaces historical object states | M | 0 prod incidents due to historical audits |
+| Branch Comparisons | Diff two branches for decision documents relevance variance | M | Reduce release readiness review time -20% |
+| Soft Schema Registry | Declarative object type metadata with validation & search weighting hints | L | Onboarding new object type < 1 day |
+
+### 31.4 Efficiency & Cost
+| Item | Description | Effort | KPI Target |
+|------|-------------|--------|-----------|
+| Embedding Cold Tier | Move low-access embeddings to cheaper storage, hydrate on demand | M | -25% embedding storage cost |
+| Token Adaptive Summaries | Real-time summarization compression for verbose objects | M | -12% average token usage |
+| Vector Quantization Pilot | PQ / scalar quantization for old embeddings | M | 30% memory reduction < 1% recall loss |
+
+### 31.5 Observability & Governance
+| Item | Description | Effort | KPI Target |
+|------|-------------|--------|-----------|
+| Relevance Drift Dashboard | Rolling window significance test vs baseline | L | MTTR for relevance regression < 4h |
+| Normalization Sandbox | Compare candidate normalization variants side-by-side | S | Approved change cycle < 2 weeks |
+| Audit Replay Harness | Re-run historical queries against new models/embeddings for risk scoring | M | Regression false negative rate < 2% |
+
+### 31.6 User-Facing Features
+| Item | Description | Effort | KPI Target |
+|------|-------------|--------|-----------|
+| Saved Search Profiles | Store per-user tuned channel weights / filters | S | Repeat search effort -30% |
+| Query Annotations | Let users up/down vote result relevance feeding feedback loop | M | Annotation participation rate > 15% |
+| Inline Citation Drilldown | Expand citation to original source context snippet | S | Citation follow-through rate > 20% |
+
+### 31.7 ML & Advanced RAG
+| Item | Description | Effort | KPI Target |
+|------|-------------|--------|-----------|
+| Hybrid Dense + Sparse Adapter | Add dynamic linear adapter blending (learned weights) | M | +2% NDCG@10 |
+| Retrieval-Augmented Synthesis | On-demand answer synthesis with grounded citations | M | User satisfaction +10% vs raw list |
+| Diversity-Aware Ranking | Penalize near-duplicate semantic clusters | S | Duplicate cluster incidence -40% |
+
+### 31.8 Prioritization Framework
+Weighted score = (Impact * 0.5) + (Confidence * 0.3) - (Effort * 0.2). Maintain quarterly reassessment; items without owner for 2 cycles auto-archived unless re-justified.
+
+### 31.9 Governance & Hygiene
+- Each enhancement requires: hypothesis doc, success metric definition, experiment plan, rollback criteria.
+- Sunset review every 6 months: remove stale feature flags, archive deprecated columns after dual-write retirement.
+
+### 31.10 Open Questions
+1. Introduce multi-tenant federated search (cross-org) with strict consent? (Not in current compliance scope.)
+2. Should answer synthesis come before diversity ranking to leverage structured chain-of-thought? (Needs prototype.)
+3. Evaluate modest LLM reranking vs cross-encoder for long-term cost/perf trade-off.
+
+---
+Roadmap is non-normative; modifications do not require version bump but must retain KPI rationale entries.
 
 
 

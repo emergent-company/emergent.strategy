@@ -17,6 +17,7 @@ import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { InvitesModule } from './invites/invites.module';
 import { UserProfileModule } from './user-profile/user-profile.module';
 import { GraphModule } from './graph/graph.module';
+import { GraphSearchModule } from './graph-search/graph-search.module';
 
 @Module({
     imports: [
@@ -37,6 +38,7 @@ import { GraphModule } from './graph/graph.module';
         InvitesModule,
         UserProfileModule,
         GraphModule,
+        GraphSearchModule,
         DatabaseModule,
     ],
 })

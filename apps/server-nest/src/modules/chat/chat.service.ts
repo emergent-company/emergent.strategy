@@ -168,7 +168,18 @@ export class ChatService {
             const d = new Date();
             const snippet = message.split(/\s+/).slice(0, 8).join(' ');
             const title = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} — ${snippet || 'New Conversation'}`;
-            this.offlineConvs.set(id, { id, title, createdAt: d.toISOString(), updatedAt: d.toISOString(), ownerUserId: owner, isPrivate, messages: [] });
+            // For offline parity with the online path (which inserts the initial user message inside the transaction),
+            // we immediately persist the first user message locally.
+            const createdAt = d.toISOString();
+            this.offlineConvs.set(id, {
+                id,
+                title,
+                createdAt,
+                updatedAt: createdAt,
+                ownerUserId: owner,
+                isPrivate,
+                messages: [{ id: crypto.randomUUID(), role: 'user', content: message, createdAt }],
+            });
             return id;
         }
         let convId = existingId && UUID_RE.test(existingId) ? existingId : '';

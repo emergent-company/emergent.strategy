@@ -1,4 +1,11 @@
 import { Controller, Post, Body, UsePipes, ValidationPipe, UploadedFile, UseInterceptors, BadRequestException, UnsupportedMediaTypeException, UseGuards } from '@nestjs/common';
+import type { Express } from 'express';
+// Local minimal file type to avoid reliance on Express.Multer global type which may not be picked up by TS in strict build.
+interface UploadedMulterFile {
+    originalname?: string;
+    mimetype?: string;
+    buffer: Buffer;
+}
 import { ApiBody, ApiOkResponse, ApiTags, ApiProperty, ApiBadRequestResponse, ApiConsumes } from '@nestjs/swagger';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import { IsString, IsUrl, IsOptional, IsDefined, IsNotEmpty } from 'class-validator';
@@ -68,7 +75,8 @@ export class IngestionController {
     @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
     // Ingestion results in document creation; reuse documents:write scope
     @Scopes('documents:write')
-    upload(@Body() dto: IngestionUploadDto, @UploadedFile() file?: Express.Multer.File): Promise<IngestResult> {
+    // NOTE: Using Express.Multer.File can error if global augmentation not picked; rely on MulterFile alias.
+    upload(@Body() dto: IngestionUploadDto, @UploadedFile() file?: UploadedMulterFile): Promise<IngestResult> {
         if (!file) throw new BadRequestException({ error: { code: 'file-required', message: 'file is required' } });
         // Basic binary / unsupported type detection BEFORE attempting to interpret as UTF-8 to avoid downstream PG errors (e.g. 0x00 in text columns)
         const declaredMime = dto.mimeType || file.mimetype || 'application/octet-stream';

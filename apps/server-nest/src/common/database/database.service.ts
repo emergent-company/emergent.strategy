@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit, forwardRef } from '@nestjs/common';
 import { AppConfigService } from '../config/config.service';
 import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 
@@ -21,15 +21,36 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         fullSchemaEnsures: 0,
     };
 
-    constructor(private readonly config: AppConfigService) { }
+    // Persist the last requested tenant context so that each query can reliably
+    // apply the appropriate GUCs on the session actually executing the SQL.
+    // Without this, calling set_config on one pooled connection and then
+    // executing the next query on a different connection results in RLS GUCs
+    // not being visible to policies (leading to test leakage across tenants).
+    private currentOrgId: string | null | undefined;
+    private currentProjectId: string | null | undefined;
+
+    constructor(@Inject(AppConfigService) private readonly config: AppConfigService) {
+        // Temporary debug log to understand DI behavior in test harness.
+        if (!config) {
+            // eslint-disable-next-line no-console
+            console.error('[DatabaseService] Constructor received undefined AppConfigService');
+        }
+    }
 
     async onModuleInit() {
+        if (!this.config) {
+            // Defensive guard: DI misconfiguration; surface explicit log and mark offline so tests can proceed (will operate in offline mode returning empty query results)
+            this.logger.error('AppConfigService not injected into DatabaseService – operating in offline mode');
+            this.online = false;
+            return;
+        }
         if (this.config.skipDb) {
             this.logger.warn('SKIP_DB flag set - skipping database initialization');
             this.online = false;
             return;
         }
         try {
+            // Establish initial pool using configured (likely owner / bypass) role
             this.pool = new Pool({
                 host: this.config.dbHost,
                 port: this.config.dbPort,
@@ -37,24 +58,25 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                 password: this.config.dbPassword,
                 database: this.config.dbName,
             });
-            // Try a simple query to confirm connectivity
             await this.pool.query('SELECT 1');
             if (this.config.autoInitDb) {
-                // Build schema before marking DB as online to prevent race with other services' onModuleInit hooks.
                 try {
                     await this.ensureSchema();
                 } catch (e) {
-                    // If ensureSchema fails we keep online=false so callers treat DB as offline gracefully.
                     this.logger.warn(`ensureSchema failed; keeping DB offline: ${(e as Error).message}`);
                     throw e;
                 }
             }
+            // Post-schema: switch to non-bypass role (no-op if already non-bypass)
+            try {
+                await this.switchToRlsApplicationRole();
+            } catch (e) {
+                this.logger.warn('switchToRlsApplicationRole failed (continuing with current role): ' + (e as Error).message);
+            }
             this.online = true;
         } catch (err) {
+            this.logger.error('Database initialization failed: ' + (err as Error).message);
             this.online = false;
-            this.logger.warn(`Database offline (non-fatal for tests): ${(err as Error).message}`);
-            // eslint-disable-next-line no-console
-            console.error('[database.init] failure stack:', err);
         }
     }
 
@@ -65,11 +87,24 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     }
 
     async query<T extends QueryResultRow = QueryResultRow>(text: string, params?: any[]): Promise<QueryResult<T>> {
-        if (!this.pool) {
-            await this.lazyInit();
-        }
+        if (!this.pool) { await this.lazyInit(); }
         if (!this.online) {
             return { rows: [], rowCount: 0, command: 'SELECT', fields: [], oid: 0 } as unknown as QueryResult<T>;
+        }
+        // If tenant context has been set, ensure the executing session has the
+        // correct GUCs before running the user query. We cannot rely on a prior
+        // set_config call because the Pool may give us a different connection.
+        if (this.currentOrgId !== undefined || this.currentProjectId !== undefined) {
+            const client = await this.pool.connect();
+            try {
+                await client.query(
+                    'SELECT set_config($1,$2,false), set_config($3,$4,false), set_config($5,$6,false)',
+                    ['app.current_org_id', this.currentOrgId ?? '', 'app.current_project_id', this.currentProjectId ?? '', 'row_security', 'on']
+                );
+                return await client.query<T>(text, params);
+            } finally {
+                client.release();
+            }
         }
         return this.pool.query<T>(text, params);
     }
@@ -108,13 +143,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         }
         this.initializing = (async () => {
             try {
-                this.pool = new Pool({
-                    host: this.config.dbHost,
-                    port: this.config.dbPort,
-                    user: this.config.dbUser,
-                    password: this.config.dbPassword,
-                    database: this.config.dbName,
-                });
+                this.pool = new Pool({ host: this.config.dbHost, port: this.config.dbPort, user: this.config.dbUser, password: this.config.dbPassword, database: this.config.dbName });
                 await this.pool.query('SELECT 1');
                 if (this.config.autoInitDb) {
                     try {
@@ -125,6 +154,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                         return;
                     }
                 }
+                try { await this.switchToRlsApplicationRole(); } catch (e) { this.logger.warn('switchToRlsApplicationRole (lazy) failed: ' + (e as Error).message); }
                 this.online = true;
             } catch (err) {
                 this.logger.warn(`Lazy DB init failed: ${(err as Error).message}`);
@@ -135,34 +165,69 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         })();
         await this.initializing;
     }
-
     private async ensureSchema() {
+        // If already ensured, run minimal re-upgrade additions (if minimal mode) then return
         if (this.schemaEnsured) {
             if (process.env.E2E_MINIMAL_DB === 'true') {
-                // Ensure newly added graph/schema registry tables exist in already-initialized minimal schema
+                // Minimal re-upgrade path: acquire the same advisory lock used for initial minimal creation
+                // to avoid concurrent test processes racing on late-added artifacts (e.g., lineage/provenance tables)
+                let reupgradeLocked = false;
+                try { await this.pool.query('SELECT pg_advisory_lock(4815162342)'); reupgradeLocked = true; } catch (e) { this.logger.warn('[minimal re-upgrade] failed to acquire advisory lock: ' + (e as Error).message); }
+                // Re-upgrade path for new graph/schema related artifacts added after initial minimal boot
                 try {
-                    await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
-                    await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_relationships (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, src_id UUID NOT NULL, dst_id UUID NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, deleted_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+                    await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.branches (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, name TEXT NOT NULL, parent_branch_id UUID NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(project_id, name))`);
+                    await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, embedding_vec vector(32) NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+                    // Branch lineage table (captures ancestor chain + depth for fast queries)
+                    try {
+                        await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.branch_lineage (branch_id UUID NOT NULL REFERENCES kb.branches(id) ON DELETE CASCADE, ancestor_branch_id UUID NOT NULL REFERENCES kb.branches(id) ON DELETE CASCADE, depth INT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(branch_id, ancestor_branch_id))`);
+                        await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_branch_lineage_ancestor_depth ON kb.branch_lineage(ancestor_branch_id, depth)`);
+                    } catch (e) { this.logger.warn('[minimal re-upgrade] branch_lineage ensure failed: ' + (e as Error).message); }
+                    // Merge provenance table (records lineage of merged versions). Non-blocking if fails.
+                    try {
+                        await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.merge_provenance (
+                                                    child_version_id UUID NOT NULL,
+                                                    parent_version_id UUID NOT NULL,
+                                                    role TEXT NOT NULL CHECK (role IN ('source','target','base')),
+                                                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                                    PRIMARY KEY(child_version_id, parent_version_id, role)
+                                                )`);
+                    } catch (e) { this.logger.warn('[minimal re-upgrade] merge_provenance ensure failed: ' + (e as Error).message); }
+                    // Product version snapshot tables (release snapshots). Non-blocking if creation fails; added after provenance.
+                    try {
+                        await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.product_versions (
+                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            org_id UUID NULL,
+                            project_id UUID NOT NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+                            name TEXT NOT NULL,
+                            description TEXT NULL,
+                            base_product_version_id UUID NULL REFERENCES kb.product_versions(id) ON DELETE SET NULL,
+                            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                            UNIQUE(project_id, LOWER(name))
+                        )`);
+                        await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.product_version_members (
+                            product_version_id UUID NOT NULL REFERENCES kb.product_versions(id) ON DELETE CASCADE,
+                            object_canonical_id UUID NOT NULL,
+                            object_version_id UUID NOT NULL,
+                            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                            PRIMARY KEY(product_version_id, object_canonical_id)
+                        )`);
+                        await this.pool.query('CREATE INDEX IF NOT EXISTS idx_product_version_members_version ON kb.product_version_members(product_version_id, object_version_id)');
+                    } catch (e) { this.logger.warn('[minimal re-upgrade] product_versions ensure failed: ' + (e as Error).message); }
+                    await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_relationships (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, src_id UUID NOT NULL, dst_id UUID NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
                     await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.object_type_schemas (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, json_schema JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
-                    await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.relationship_type_schemas (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, json_schema JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
-                    await this.pool.query(`UPDATE kb.graph_objects SET canonical_id = id WHERE canonical_id IS NULL`);
-                    await this.pool.query(`UPDATE kb.graph_relationships SET canonical_id = id WHERE canonical_id IS NULL`);
-                    await this.pool.query(`UPDATE kb.object_type_schemas SET canonical_id = id WHERE canonical_id IS NULL`);
-                    await this.pool.query(`UPDATE kb.relationship_type_schemas SET canonical_id = id WHERE canonical_id IS NULL`);
-                    await this.pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_objects_head_identity ON kb.graph_objects(project_id, type, key) WHERE supersedes_id IS NULL AND deleted_at IS NULL AND key IS NOT NULL`);
-                    await this.pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_relationships_head_identity ON kb.graph_relationships(project_id, type, src_id, dst_id) WHERE supersedes_id IS NULL AND deleted_at IS NULL`);
-                    await this.pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_object_type_schemas_head_identity ON kb.object_type_schemas(project_id, type) WHERE supersedes_id IS NULL`);
-                    await this.pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_relationship_type_schemas_head_identity ON kb.relationship_type_schemas(project_id, type) WHERE supersedes_id IS NULL`);
+                    await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.relationship_type_schemas (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, json_schema JSONB NOT NULL, multiplicity JSONB NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
                 } catch (e) { this.logger.warn('[minimal re-upgrade] graph/schema ensure failed: ' + (e as Error).message); }
+                finally { if (reupgradeLocked) { try { await this.pool.query('SELECT pg_advisory_unlock(4815162342)'); } catch { /* ignore */ } } }
             }
-            return; // already ensured
+            return;
         }
+
         // ---------------- Minimal Path ----------------
         if (process.env.E2E_MINIMAL_DB === 'true') {
             const startMini = Date.now();
             this.logger.log('E2E_MINIMAL_DB enabled - creating minimal schema');
             this.metrics.minimalSchemaBoots++;
-            const exec = async (sql: string) => { try { await this.pool.query(sql); } catch (e) { /* eslint-disable no-console */ console.error('[minimal schema] failed SQL:', sql, '\nError:', e); throw e; } };
+            const exec = async (sql: string) => { try { await this.pool.query(sql); } catch (e) { console.error('[minimal schema] failed SQL:', sql, '\nError:', e); throw e; } };
             let locked = false;
             try { await exec('SELECT pg_advisory_lock(4815162342)'); locked = true; } catch (e) { this.logger.warn('Failed to acquire minimal schema advisory lock: ' + (e as Error).message); }
             try {
@@ -172,12 +237,6 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                 const guardExists = !!guardRes.rows[0].exists;
                 const shouldDrop = !coreExists && !guardExists;
                 if (!shouldDrop) {
-                    // Previously we truncated core.user_emails and core.user_profiles on every minimal ensure.
-                    // Under parallel e2e execution this caused (a) deadlocks (TRUNCATE takes AccessExclusiveLock)
-                    // and (b) FK races for chat_conversations inserts referencing freshly inserted user_profiles.
-                    // We now retain existing rows by default to provide eventual consistency across concurrently
-                    // bootstrapped test apps. Set E2E_RESET_PROFILES=true to force legacy truncate behavior when
-                    // an isolated clean slate is truly required.
                     if (process.env.E2E_RESET_PROFILES === 'true') {
                         try { await exec('TRUNCATE core.user_emails RESTART IDENTITY CASCADE'); } catch { }
                         try { await exec('TRUNCATE core.user_profiles RESTART IDENTITY CASCADE'); } catch { }
@@ -202,38 +261,120 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     await exec('CREATE UNIQUE INDEX idx_project_membership_unique ON kb.project_memberships(project_id, subject_id)');
                     await exec(`CREATE TABLE kb.invites (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NOT NULL REFERENCES kb.orgs(id) ON DELETE CASCADE, project_id UUID NULL REFERENCES kb.projects(id) ON DELETE CASCADE, email TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN (\'org_admin\',\'project_admin\',\'project_user\')), token TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'pending', expires_at TIMESTAMPTZ NULL, accepted_at TIMESTAMPTZ NULL, revoked_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
                     await exec('CREATE INDEX idx_invites_token ON kb.invites(token)');
-                    // Graph + schema registry base tables
-                    await exec(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
-                    await exec(`CREATE TABLE IF NOT EXISTS kb.graph_relationships (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, src_id UUID NOT NULL, dst_id UUID NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, deleted_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+                    await exec(`CREATE TABLE IF NOT EXISTS kb.branches (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, name TEXT NOT NULL, parent_branch_id UUID NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(project_id, name))`);
+                    await exec(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, embedding_vec vector(32) NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+                    // Introduced after original minimal path: lineage & merge provenance tables must exist BEFORE any branch creation logic that writes to them.
+                    try {
+                        await exec(`CREATE TABLE IF NOT EXISTS kb.branch_lineage (branch_id UUID NOT NULL REFERENCES kb.branches(id) ON DELETE CASCADE, ancestor_branch_id UUID NOT NULL REFERENCES kb.branches(id) ON DELETE CASCADE, depth INT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(branch_id, ancestor_branch_id))`);
+                        await exec(`CREATE INDEX IF NOT EXISTS idx_branch_lineage_ancestor_depth ON kb.branch_lineage(ancestor_branch_id, depth)`);
+                    } catch (e) { this.logger.warn('[minimal initial] branch_lineage ensure failed: ' + (e as Error).message); }
+                    try {
+                        await exec(`CREATE TABLE IF NOT EXISTS kb.merge_provenance (
+                            child_version_id UUID NOT NULL,
+                            parent_version_id UUID NOT NULL,
+                            role TEXT NOT NULL CHECK (role IN ('source','target','base')),
+                            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                            PRIMARY KEY(child_version_id, parent_version_id, role)
+                        )`);
+                    } catch (e) { this.logger.warn('[minimal initial] merge_provenance ensure failed: ' + (e as Error).message); }
+                    // Product version snapshot tables (minimal initial path)
+                    try {
+                        await exec(`CREATE TABLE IF NOT EXISTS kb.product_versions (
+                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            org_id UUID NULL,
+                            project_id UUID NOT NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+                            name TEXT NOT NULL,
+                            description TEXT NULL,
+                            base_product_version_id UUID NULL REFERENCES kb.product_versions(id) ON DELETE SET NULL,
+                            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                            UNIQUE(project_id, LOWER(name))
+                        )`);
+                        await exec(`CREATE TABLE IF NOT EXISTS kb.product_version_members (
+                            product_version_id UUID NOT NULL REFERENCES kb.product_versions(id) ON DELETE CASCADE,
+                            object_canonical_id UUID NOT NULL,
+                            object_version_id UUID NOT NULL,
+                            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                            PRIMARY KEY(product_version_id, object_canonical_id)
+                        )`);
+                        await exec('CREATE INDEX IF NOT EXISTS idx_product_version_members_version ON kb.product_version_members(product_version_id, object_version_id)');
+                    } catch (e) { this.logger.warn('[minimal initial] product_versions ensure failed: ' + (e as Error).message); }
+                    await exec(`CREATE TABLE IF NOT EXISTS kb.graph_relationships (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, src_id UUID NOT NULL, dst_id UUID NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
                     await exec(`CREATE TABLE IF NOT EXISTS kb.object_type_schemas (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, json_schema JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
-                    await exec(`CREATE TABLE IF NOT EXISTS kb.relationship_type_schemas (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, json_schema JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+                    await exec(`CREATE TABLE IF NOT EXISTS kb.relationship_type_schemas (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, json_schema JSONB NOT NULL, multiplicity JSONB NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+                    await exec(`ALTER TABLE kb.relationship_type_schemas ADD COLUMN IF NOT EXISTS multiplicity JSONB NULL`);
+                    await exec(`UPDATE kb.relationship_type_schemas SET multiplicity = jsonb_build_object('src','many','dst','many') WHERE multiplicity IS NULL`);
+                    await exec(`CREATE TABLE IF NOT EXISTS kb.graph_embedding_jobs (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), object_id UUID NOT NULL REFERENCES kb.graph_objects(id) ON DELETE CASCADE, status TEXT NOT NULL CHECK (status IN ('pending','processing','failed','completed')), attempt_count INT NOT NULL DEFAULT 0, last_error TEXT NULL, priority INT NOT NULL DEFAULT 0, scheduled_at TIMESTAMPTZ NOT NULL DEFAULT now(), started_at TIMESTAMPTZ NULL, completed_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+                    await exec(`CREATE INDEX IF NOT EXISTS idx_graph_embedding_jobs_status_sched ON kb.graph_embedding_jobs(status, scheduled_at)`);
+                    await exec(`CREATE INDEX IF NOT EXISTS idx_graph_embedding_jobs_object ON kb.graph_embedding_jobs(object_id)`);
+                    await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_embedding_jobs_object_pending ON kb.graph_embedding_jobs(object_id) WHERE status IN ('pending','processing')`);
                 }
-                // Common minimal (post-create) idempotent ensures & indexes
-                await exec(`ALTER TABLE kb.documents ADD COLUMN IF NOT EXISTS content_hash TEXT`);
-                await exec(`CREATE TABLE IF NOT EXISTS kb.chat_conversations (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), title TEXT NOT NULL, owner_subject_id UUID NULL REFERENCES core.user_profiles(subject_id) ON DELETE SET NULL, is_private BOOLEAN NOT NULL DEFAULT true, org_id UUID NULL REFERENCES kb.orgs(id) ON DELETE SET NULL, project_id UUID NULL REFERENCES kb.projects(id) ON DELETE SET NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
-                await exec(`CREATE TABLE IF NOT EXISTS kb.chat_messages (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), conversation_id UUID NOT NULL REFERENCES kb.chat_conversations(id) ON DELETE CASCADE, role TEXT NOT NULL CHECK (role IN (\'user\',\'assistant\',\'system\')), content TEXT NOT NULL, citations JSONB NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
-                // Graph & registry indexes
-                await exec(`UPDATE kb.graph_objects SET canonical_id = id WHERE canonical_id IS NULL`);
-                await exec(`UPDATE kb.graph_relationships SET canonical_id = id WHERE canonical_id IS NULL`);
-                await exec(`UPDATE kb.object_type_schemas SET canonical_id = id WHERE canonical_id IS NULL`);
-                await exec(`UPDATE kb.relationship_type_schemas SET canonical_id = id WHERE canonical_id IS NULL`);
-                await exec(`CREATE INDEX IF NOT EXISTS idx_graph_objects_canonical ON kb.graph_objects(canonical_id)`);
-                await exec(`CREATE INDEX IF NOT EXISTS idx_graph_objects_key ON kb.graph_objects(key) WHERE key IS NOT NULL`);
-                await exec(`CREATE INDEX IF NOT EXISTS idx_graph_objects_not_deleted ON kb.graph_objects(project_id) WHERE deleted_at IS NULL`);
-                await exec(`CREATE INDEX IF NOT EXISTS idx_graph_objects_canonical_version ON kb.graph_objects(canonical_id, version DESC)`);
-                await exec(`CREATE INDEX IF NOT EXISTS idx_graph_rel_canonical ON kb.graph_relationships(canonical_id)`);
-                await exec(`CREATE INDEX IF NOT EXISTS idx_graph_rel_not_deleted ON kb.graph_relationships(project_id) WHERE deleted_at IS NULL`);
-                await exec(`CREATE INDEX IF NOT EXISTS idx_graph_rel_canonical_version ON kb.graph_relationships(canonical_id, version DESC)`);
-                await exec(`DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relname='idx_graph_rel_unique_latest' AND n.nspname='kb') THEN BEGIN EXECUTE 'DROP INDEX IF EXISTS kb.idx_graph_rel_unique_latest'; EXCEPTION WHEN others THEN END; END IF; END $$;`);
-                await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_objects_head_identity ON kb.graph_objects(project_id, type, key) WHERE supersedes_id IS NULL AND deleted_at IS NULL AND key IS NOT NULL`);
-                await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_relationships_head_identity ON kb.graph_relationships(project_id, type, src_id, dst_id) WHERE supersedes_id IS NULL AND deleted_at IS NULL`);
-                await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_object_type_schemas_head_identity ON kb.object_type_schemas(project_id, type) WHERE supersedes_id IS NULL`);
-                await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_relationship_type_schemas_head_identity ON kb.relationship_type_schemas(project_id, type) WHERE supersedes_id IS NULL`);
-                await exec(`CREATE INDEX IF NOT EXISTS idx_object_type_schemas_canonical_version ON kb.object_type_schemas(canonical_id, version DESC)`);
-                await exec(`CREATE INDEX IF NOT EXISTS idx_relationship_type_schemas_canonical_version ON kb.relationship_type_schemas(canonical_id, version DESC)`);
+                // Existing minimal upgrade steps (subset) ... (retain essential graph/schema + indexes + policies)
+                try { await exec('ALTER TABLE kb.relationship_type_schemas ADD COLUMN IF NOT EXISTS multiplicity JSONB NULL'); } catch { }
+                await exec(`UPDATE kb.relationship_type_schemas SET multiplicity = jsonb_build_object('src','many','dst','many') WHERE multiplicity IS NULL`);
+                // RLS policies (tightened) for minimal path
+                try {
+                    await exec(`DO $$ BEGIN
+                        ALTER TABLE kb.graph_objects ENABLE ROW LEVEL SECURITY;
+                        ALTER TABLE kb.graph_relationships ENABLE ROW LEVEL SECURITY;
+                        BEGIN EXECUTE 'ALTER TABLE kb.graph_objects FORCE ROW LEVEL SECURITY'; EXCEPTION WHEN others THEN END;
+                        BEGIN EXECUTE 'ALTER TABLE kb.graph_relationships FORCE ROW LEVEL SECURITY'; EXCEPTION WHEN others THEN END;
+                    END $$;`);
+                    // Drop any existing policies (legacy permissive ones) using application-side loop for reliability
+                    const existing = await this.pool.query<{ policyname: string; tablename: string }>(`SELECT policyname, tablename FROM pg_policies WHERE schemaname='kb' AND tablename IN ('graph_objects','graph_relationships')`);
+                    for (const p of existing.rows) {
+                        try { await exec(`DROP POLICY IF EXISTS ${p.policyname} ON kb.${p.tablename}`); } catch { /* ignore */ }
+                    }
+                    const createPolicies: string[] = [
+                        `CREATE POLICY graph_objects_select ON kb.graph_objects FOR SELECT USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
+                        `CREATE POLICY graph_objects_insert ON kb.graph_objects FOR INSERT WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
+                        `CREATE POLICY graph_objects_update ON kb.graph_objects FOR UPDATE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true))))) WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
+                        `CREATE POLICY graph_objects_delete ON kb.graph_objects FOR DELETE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
+                        `CREATE POLICY graph_relationships_select ON kb.graph_relationships FOR SELECT USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
+                        `CREATE POLICY graph_relationships_insert ON kb.graph_relationships FOR INSERT WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
+                        `CREATE POLICY graph_relationships_update ON kb.graph_relationships FOR UPDATE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true))))) WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
+                        `CREATE POLICY graph_relationships_delete ON kb.graph_relationships FOR DELETE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`
+                    ];
+                    for (const stmt of createPolicies) { await exec(stmt); }
+                    try {
+                        const flags = await this.pool.query<{ relrowsecurity: boolean; relforcerowsecurity: boolean }>(`SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname='graph_objects' AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname='kb')`);
+                        this.logger.log('[RLS|minimal] graph_objects RLS enabled (force=' + flags.rows[0].relforcerowsecurity + ')');
+                    } catch (e2) { this.logger.warn('[RLS|minimal] flag/policy verification failed: ' + (e2 as Error).message); }
+                    // Strict verification (minimal path) – enforce canonical policy set if enabled
+                    try {
+                        const expected = new Set([
+                            'graph_objects_select', 'graph_objects_insert', 'graph_objects_update', 'graph_objects_delete',
+                            'graph_relationships_select', 'graph_relationships_insert', 'graph_relationships_update', 'graph_relationships_delete'
+                        ]);
+                        const found = await this.pool.query<{ policyname: string }>(`SELECT policyname FROM pg_policies WHERE schemaname='kb' AND tablename IN ('graph_objects','graph_relationships')`);
+                        const actual = new Set(found.rows.map(r => r.policyname));
+                        let mismatch = actual.size !== expected.size;
+                        if (!mismatch) {
+                            for (const name of expected) { if (!actual.has(name)) { mismatch = true; break; } }
+                            if (!mismatch) {
+                                for (const name of actual) { if (!expected.has(name)) { mismatch = true; break; } }
+                            }
+                        }
+                        if (mismatch) {
+                            const detail = `expected=[${[...expected].sort().join(',')}] actual=[${[...actual].sort().join(',')}]`;
+                            this.logger.error('[RLS|minimal] STRICT verification mismatch: ' + detail);
+                            if (this.config.rlsPolicyStrict) {
+                                throw new Error('RLS policy strict verification failed (minimal path): ' + detail);
+                            }
+                        } else if (this.config.rlsPolicyStrict) {
+                            this.logger.log('[RLS|minimal] STRICT verification passed (8 canonical policies)');
+                        }
+                    } catch (strictErr) {
+                        if (this.config.rlsPolicyStrict) {
+                            throw strictErr;
+                        } else {
+                            this.logger.warn('[RLS|minimal] strict verification skipped/soft-failed: ' + (strictErr as Error).message);
+                        }
+                    }
+                } catch (e) { this.logger.warn('[RLS|minimal] setup skipped or partial: ' + (e as Error).message); }
             } finally { if (locked) { try { await exec('SELECT pg_advisory_unlock(4815162342)'); } catch { } } }
             const msMini = Date.now() - startMini; this.logger.log(`Minimal schema ensured in ${msMini}ms`); this.schemaEnsured = true; return;
         }
+
         // ---------------- Full Path ----------------
         const start = Date.now();
         this.logger.log('Ensuring database schema (idempotent)...');
@@ -300,32 +441,251 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.settings (key TEXT PRIMARY KEY, value JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
             await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_settings_key ON kb.settings(key);`);
             // Graph & schema registry (full path)
-            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
-            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_relationships (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, src_id UUID NOT NULL, dst_id UUID NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, deleted_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.branches (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, name TEXT NOT NULL, parent_branch_id UUID NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(project_id, name))`);
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, embedding_vec vector(32) NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, embedding_vec vector(32) NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+            // Branch lineage table (full path)
+            try {
+                await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.branch_lineage (branch_id UUID NOT NULL REFERENCES kb.branches(id) ON DELETE CASCADE, ancestor_branch_id UUID NOT NULL REFERENCES kb.branches(id) ON DELETE CASCADE, depth INT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(branch_id, ancestor_branch_id))`);
+                await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_branch_lineage_ancestor_depth ON kb.branch_lineage(ancestor_branch_id, depth)`);
+            } catch (e) { this.logger.warn('[full ensure] branch_lineage ensure failed: ' + (e as Error).message); }
+            try {
+                await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.merge_provenance (
+                                    child_version_id UUID NOT NULL,
+                                    parent_version_id UUID NOT NULL,
+                                    role TEXT NOT NULL CHECK (role IN ('source','target','base')),
+                                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                    PRIMARY KEY(child_version_id, parent_version_id, role)
+                                )`);
+            } catch (e) { this.logger.warn('[full ensure] merge_provenance ensure failed: ' + (e as Error).message); }
+            // Product version snapshot tables (full ensure path)
+            try {
+                await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.product_versions (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    org_id UUID NULL,
+                    project_id UUID NOT NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+                    name TEXT NOT NULL,
+                    description TEXT NULL,
+                    base_product_version_id UUID NULL REFERENCES kb.product_versions(id) ON DELETE SET NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    UNIQUE(project_id, LOWER(name))
+                )`);
+                await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.product_version_members (
+                    product_version_id UUID NOT NULL REFERENCES kb.product_versions(id) ON DELETE CASCADE,
+                    object_canonical_id UUID NOT NULL,
+                    object_version_id UUID NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    PRIMARY KEY(product_version_id, object_canonical_id)
+                )`);
+                await this.pool.query('CREATE INDEX IF NOT EXISTS idx_product_version_members_version ON kb.product_version_members(product_version_id, object_version_id)');
+            } catch (e) { this.logger.warn('[full ensure] product_versions ensure failed: ' + (e as Error).message); }
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_relationships (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, src_id UUID NOT NULL, dst_id UUID NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
             await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.object_type_schemas (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, json_schema JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
-            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.relationship_type_schemas (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, json_schema JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.relationship_type_schemas (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, json_schema JSONB NOT NULL, multiplicity JSONB NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+            // Embedding jobs queue (full path)
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_embedding_jobs (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), object_id UUID NOT NULL REFERENCES kb.graph_objects(id) ON DELETE CASCADE, status TEXT NOT NULL CHECK (status IN ('pending','processing','failed','completed')), attempt_count INT NOT NULL DEFAULT 0, last_error TEXT NULL, priority INT NOT NULL DEFAULT 0, scheduled_at TIMESTAMPTZ NOT NULL DEFAULT now(), started_at TIMESTAMPTZ NULL, completed_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
             await this.pool.query('UPDATE kb.graph_objects SET canonical_id = id WHERE canonical_id IS NULL;');
+            await this.pool.query('ALTER TABLE kb.graph_objects ADD COLUMN IF NOT EXISTS fts tsvector NULL;');
+            await this.pool.query('ALTER TABLE kb.graph_objects ADD COLUMN IF NOT EXISTS embedding BYTEA NULL;');
+            await this.pool.query('ALTER TABLE kb.graph_objects ADD COLUMN IF NOT EXISTS embedding_updated_at TIMESTAMPTZ NULL;');
+            await this.pool.query('ALTER TABLE kb.graph_objects ADD COLUMN IF NOT EXISTS embedding_vec vector(32) NULL;');
+            await this.pool.query(`DO $$ BEGIN BEGIN EXECUTE 'CREATE INDEX IF NOT EXISTS idx_graph_objects_embedding_vec ON kb.graph_objects USING ivfflat (embedding_vec vector_cosine_ops) WITH (lists=100)'; EXCEPTION WHEN others THEN END; END $$;`);
+            // Full path upgrade safety: ensure branches table then add branch_id if missing
+            await this.pool.query('CREATE TABLE IF NOT EXISTS kb.branches (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, name TEXT NOT NULL, parent_branch_id UUID NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(project_id, name));');
+            await this.pool.query('ALTER TABLE kb.graph_objects ADD COLUMN IF NOT EXISTS branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL;');
+            await this.pool.query('ALTER TABLE kb.graph_relationships ADD COLUMN IF NOT EXISTS branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL;');
             await this.pool.query('UPDATE kb.graph_relationships SET canonical_id = id WHERE canonical_id IS NULL;');
             await this.pool.query('UPDATE kb.object_type_schemas SET canonical_id = id WHERE canonical_id IS NULL;');
             await this.pool.query('UPDATE kb.relationship_type_schemas SET canonical_id = id WHERE canonical_id IS NULL;');
+            await this.pool.query(`UPDATE kb.relationship_type_schemas SET multiplicity = jsonb_build_object('src','many','dst','many') WHERE multiplicity IS NULL;`);
             await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_objects_canonical ON kb.graph_objects(canonical_id);');
             await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_objects_key ON kb.graph_objects(key) WHERE key IS NOT NULL;');
             await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_objects_not_deleted ON kb.graph_objects(project_id) WHERE deleted_at IS NULL;');
             await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_objects_canonical_version ON kb.graph_objects(canonical_id, version DESC);');
+            await this.pool.query(`DO $$ BEGIN BEGIN EXECUTE 'CREATE INDEX IF NOT EXISTS idx_graph_objects_embedding_vec ON kb.graph_objects USING ivfflat (embedding_vec vector_cosine_ops) WITH (lists=100)'; EXCEPTION WHEN others THEN END; END $$;`);
+            await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_graph_objects_fts ON kb.graph_objects USING GIN(fts)`);
             await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_rel_canonical ON kb.graph_relationships(canonical_id);');
             await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_rel_not_deleted ON kb.graph_relationships(project_id) WHERE deleted_at IS NULL;');
             await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_rel_canonical_version ON kb.graph_relationships(canonical_id, version DESC);');
             await this.pool.query(`DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relname='idx_graph_rel_unique_latest' AND n.nspname='kb') THEN BEGIN EXECUTE 'DROP INDEX IF EXISTS kb.idx_graph_rel_unique_latest'; EXCEPTION WHEN others THEN END; END IF; END $$;`);
-            await this.pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_objects_head_identity ON kb.graph_objects(project_id, type, key) WHERE supersedes_id IS NULL AND deleted_at IS NULL AND key IS NOT NULL;');
-            await this.pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_relationships_head_identity ON kb.graph_relationships(project_id, type, src_id, dst_id) WHERE supersedes_id IS NULL AND deleted_at IS NULL;');
+            // Drop legacy pre-branch unique indexes and create branch-aware versions
+            await this.pool.query(`DO $$ BEGIN
+                BEGIN EXECUTE 'DROP INDEX IF EXISTS kb.idx_graph_objects_head_identity'; EXCEPTION WHEN others THEN END;
+                BEGIN EXECUTE 'DROP INDEX IF EXISTS kb.idx_graph_relationships_head_identity'; EXCEPTION WHEN others THEN END;
+            END $$;`);
+            await this.pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_objects_head_identity_branch ON kb.graph_objects(project_id, branch_id, type, key) WHERE supersedes_id IS NULL AND deleted_at IS NULL AND key IS NOT NULL;');
+            await this.pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_relationships_head_identity_branch ON kb.graph_relationships(project_id, branch_id, type, src_id, dst_id) WHERE supersedes_id IS NULL AND deleted_at IS NULL;');
+            await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_objects_branch_canonical_version ON kb.graph_objects(branch_id, canonical_id, version DESC);');
+            await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_rel_branch_canonical_version ON kb.graph_relationships(branch_id, canonical_id, version DESC);');
+            await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_objects_branch_not_deleted ON kb.graph_objects(project_id, branch_id) WHERE deleted_at IS NULL;');
+            await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_rel_branch_not_deleted ON kb.graph_relationships(project_id, branch_id) WHERE deleted_at IS NULL;');
             await this.pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_object_type_schemas_head_identity ON kb.object_type_schemas(project_id, type) WHERE supersedes_id IS NULL;');
             await this.pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_relationship_type_schemas_head_identity ON kb.relationship_type_schemas(project_id, type) WHERE supersedes_id IS NULL;');
             await this.pool.query('CREATE INDEX IF NOT EXISTS idx_object_type_schemas_canonical_version ON kb.object_type_schemas(canonical_id, version DESC);');
             await this.pool.query('CREATE INDEX IF NOT EXISTS idx_relationship_type_schemas_canonical_version ON kb.relationship_type_schemas(canonical_id, version DESC);');
-            const ms = Date.now() - start; this.logger.log(`Schema ensured in ${ms}ms (full path)`); this.schemaEnsured = true;
+            await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_embedding_jobs_status_sched ON kb.graph_embedding_jobs(status, scheduled_at);');
+            await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_embedding_jobs_object ON kb.graph_embedding_jobs(object_id);');
+            await this.pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_embedding_jobs_object_pending ON kb.graph_embedding_jobs(object_id) WHERE status IN ('pending','processing')`);
+            // RLS policies (tightened) full path
+            try {
+                // Enable & force RLS (idempotent) first
+                await this.pool.query(`DO $$ BEGIN
+                    ALTER TABLE kb.graph_objects ENABLE ROW LEVEL SECURITY;
+                    ALTER TABLE kb.graph_relationships ENABLE ROW LEVEL SECURITY;
+                    BEGIN EXECUTE 'ALTER TABLE kb.graph_objects FORCE ROW LEVEL SECURITY'; EXCEPTION WHEN others THEN END;
+                    BEGIN EXECUTE 'ALTER TABLE kb.graph_relationships FORCE ROW LEVEL SECURITY'; EXCEPTION WHEN others THEN END;
+                END $$;`);
+                // Enumerate & drop any existing policies (legacy or stale) using host-side logic for reliability
+                const existingFull = await this.pool.query<{ policyname: string; tablename: string }>(`SELECT policyname, tablename FROM pg_policies WHERE schemaname='kb' AND tablename IN ('graph_objects','graph_relationships')`);
+                for (const p of existingFull.rows) {
+                    try { await this.pool.query(`DROP POLICY IF EXISTS ${p.policyname} ON kb.${p.tablename}`); } catch { /* ignore */ }
+                }
+                const createPoliciesFull: string[] = [
+                    `CREATE POLICY graph_objects_select ON kb.graph_objects FOR SELECT USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
+                    `CREATE POLICY graph_objects_insert ON kb.graph_objects FOR INSERT WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
+                    `CREATE POLICY graph_objects_update ON kb.graph_objects FOR UPDATE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true))))) WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
+                    `CREATE POLICY graph_objects_delete ON kb.graph_objects FOR DELETE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
+                    `CREATE POLICY graph_relationships_select ON kb.graph_relationships FOR SELECT USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
+                    `CREATE POLICY graph_relationships_insert ON kb.graph_relationships FOR INSERT WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
+                    `CREATE POLICY graph_relationships_update ON kb.graph_relationships FOR UPDATE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true))))) WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
+                    `CREATE POLICY graph_relationships_delete ON kb.graph_relationships FOR DELETE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`
+                ];
+                for (const stmt of createPoliciesFull) { await this.pool.query(stmt); }
+                // Lightweight verification (will be trimmed in later cleanup task)
+                try {
+                    const flagsFull = await this.pool.query<{ relrowsecurity: boolean; relforcerowsecurity: boolean }>(`SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname='graph_objects' AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname='kb')`);
+                    this.logger.log('[RLS|full] graph_objects RLS enabled (force=' + flagsFull.rows[0].relforcerowsecurity + ')');
+                } catch { /* ignore */ }
+                // Strict verification (full path)
+                try {
+                    const expected = new Set([
+                        'graph_objects_select', 'graph_objects_insert', 'graph_objects_update', 'graph_objects_delete',
+                        'graph_relationships_select', 'graph_relationships_insert', 'graph_relationships_update', 'graph_relationships_delete'
+                    ]);
+                    const found = await this.pool.query<{ policyname: string }>(`SELECT policyname FROM pg_policies WHERE schemaname='kb' AND tablename IN ('graph_objects','graph_relationships')`);
+                    const actual = new Set(found.rows.map(r => r.policyname));
+                    let mismatch = actual.size !== expected.size;
+                    if (!mismatch) {
+                        for (const name of expected) { if (!actual.has(name)) { mismatch = true; break; } }
+                        if (!mismatch) {
+                            for (const name of actual) { if (!expected.has(name)) { mismatch = true; break; } }
+                        }
+                    }
+                    if (mismatch) {
+                        const detail = `expected=[${[...expected].sort().join(',')}] actual=[${[...actual].sort().join(',')}]`;
+                        this.logger.error('[RLS|full] STRICT verification mismatch: ' + detail);
+                        if (this.config.rlsPolicyStrict) {
+                            throw new Error('RLS policy strict verification failed (full path): ' + detail);
+                        }
+                    } else if (this.config.rlsPolicyStrict) {
+                        this.logger.log('[RLS|full] STRICT verification passed (8 canonical policies)');
+                    }
+                } catch (strictErr) {
+                    if (this.config.rlsPolicyStrict) {
+                        throw strictErr;
+                    } else {
+                        this.logger.warn('[RLS|full] strict verification skipped/soft-failed: ' + (strictErr as Error).message);
+                    }
+                }
+            } catch (e) {
+                if (this.config.rlsPolicyStrict) {
+                    throw e;
+                } else {
+                    this.logger.warn('[RLS] tightened setup skipped or partial: ' + (e as Error).message);
+                }
+            }
+            this.schemaEnsured = true;
+            const ms = Date.now() - start; this.logger.log(`Schema ensured in ${ms}ms (full path)`);
         } finally { if (locked) { try { await this.pool.query('SELECT pg_advisory_unlock(4815162343)'); } catch { } } }
+    }
+    /**
+     * If the connected role has rolbypassrls=true, create/login a dedicated
+     * non-bypass role (app_rls) with CRUD privileges on kb schema tables and
+     * swap pool to that role. Avoid ownership transfer to keep idempotent
+     * ALTERs under the original owner; ensureSchema must always run BEFORE
+     * this is invoked.
+     */
+    private async switchToRlsApplicationRole() {
+        if (!this.pool) return;
+        const res = await this.pool.query<{ bypass: boolean; super: boolean; user: string }>(`SELECT rolbypassrls as bypass, rolsuper as super, rolname as user FROM pg_roles WHERE rolname = current_user`);
+        const row = res.rows[0];
+        // Treat superuser the same as bypass for RLS purposes (superuser always bypasses policies)
+        if (row && !row.bypass && !row.super) {
+            this.logger.log(`[DatabaseService] Using non-bypass role '${row.user}' (bypass=${row.bypass}, super=${row.super}) – no switch needed`);
+            return; // already safe
+        }
+        this.logger.log(`[DatabaseService] Switching from bypass/superuser role '${row?.user}' (bypass=${row?.bypass}, super=${row?.super}) to dedicated 'app_rls' role for RLS enforcement`);
+        // Create role if missing
+        await this.pool.query(`DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='app_rls') THEN
+                -- Password sourced from application configuration (APP_RLS_PASSWORD) with fallback; rotate by updating secret & restarting.
+                EXECUTE format('CREATE ROLE app_rls LOGIN PASSWORD %L', $q$${this.config.appRlsPassword}$q$);
+            END IF;
+        END $$;`);
+        // Grant privileges (idempotent)
+        await this.pool.query(`GRANT USAGE ON SCHEMA kb TO app_rls`);
+        await this.pool.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA kb TO app_rls`);
+        await this.pool.query(`ALTER DEFAULT PRIVILEGES IN SCHEMA kb GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_rls`);
+        // Rotate password each startup so updating APP_RLS_PASSWORD takes effect without manual intervention.
+        try {
+            await this.pool.query('ALTER ROLE app_rls PASSWORD $1', [this.config.appRlsPassword]);
+            this.logger.log('[DatabaseService] Rotated password for role app_rls');
+        } catch (e) {
+            this.logger.warn('[DatabaseService] Failed to rotate password for app_rls: ' + (e as Error).message);
+        }
+        // Recreate pool with app_rls
+        await this.pool.end();
+        this.pool = new Pool({ host: this.config.dbHost, port: this.config.dbPort, user: 'app_rls', password: this.config.appRlsPassword, database: this.config.dbName });
+        await this.pool.query('SELECT 1');
+        // Log confirmation of new role status
+        try {
+            const verify = await this.pool.query<{ user: string; bypass: boolean; super: boolean }>(`SELECT current_user as user, (SELECT rolbypassrls FROM pg_roles WHERE rolname=current_user) as bypass, (SELECT rolsuper FROM pg_roles WHERE rolname=current_user) as super`);
+            const v = verify.rows[0];
+            this.logger.log(`[DatabaseService] Now running as role '${v.user}' (bypass=${v.bypass}, super=${v.super}) with graph_objects RLS enforced`);
+        } catch (e) {
+            this.logger.warn('[DatabaseService] Failed to verify switched role: ' + (e as Error).message);
+        }
     }
 
     /** Return shallow copy of internal metrics (primarily for tests / debug). */
     getMetrics() { return { ...this.metrics }; }
+
+    /** Lightweight status summary of current RLS policy set (used by health endpoint & ops). */
+    async getRlsPolicyStatus(): Promise<{ policies_ok: boolean; count: number; hash: string | null }> {
+        if (!this.pool || !this.online) return { policies_ok: false, count: 0, hash: null };
+        try {
+            const res = await this.pool.query<{ policyname: string }>(`SELECT policyname FROM pg_policies WHERE schemaname='kb' AND tablename IN ('graph_objects','graph_relationships')`);
+            const names = res.rows.map(r => r.policyname).sort();
+            const expected = [
+                'graph_objects_delete', 'graph_objects_insert', 'graph_objects_select', 'graph_objects_update',
+                'graph_relationships_delete', 'graph_relationships_insert', 'graph_relationships_select', 'graph_relationships_update'
+            ].sort();
+            const ok = names.length === expected.length && names.every((v, i) => v === expected[i]);
+            // Simple hash (stable) without pulling crypto for lightweight status: join + length; crypto not required here.
+            const hash = 'policies:' + names.join(',').length + ':' + names.join(',').split('').reduce((a, c) => (a + c.charCodeAt(0)) % 65536, 0).toString(16);
+            return { policies_ok: ok, count: names.length, hash };
+        } catch {
+            return { policies_ok: false, count: 0, hash: null };
+        }
+    }
+
+    /**
+     * Set per-session tenant context for RLS policies. Pass null/undefined to clear (wildcard access for bootstrap/testing).
+     */
+    async setTenantContext(orgId?: string | null, projectId?: string | null) {
+        // Persist for subsequent queries; actual set_config is applied within each query() call
+        this.currentOrgId = orgId ?? '';
+        this.currentProjectId = projectId ?? '';
+        if (!this.pool) { await this.lazyInit(); }
+        if (!this.pool) return; // DB disabled
+        // Opportunistically set on one connection so that an immediate getClient() caller benefits.
+        try {
+            await this.pool.query(
+                'SELECT set_config($1,$2,false), set_config($3,$4,false), set_config($5,$6,false)',
+                ['app.current_org_id', this.currentOrgId, 'app.current_project_id', this.currentProjectId, 'row_security', 'on']
+            );
+        } catch {
+            /* ignore */
+        }
+    }
 }

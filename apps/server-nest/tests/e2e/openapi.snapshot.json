@@ -213,6 +213,665 @@
         "properties": {},
         "type": "object"
       },
+      "GraphSearchCitationDto": {
+        "properties": {
+          "confidence": {
+            "example": 0.82,
+            "type": "number"
+          },
+          "source_object_id": {
+            "example": "b3d52c50-5101-4c6c-8d30-4a1f0f7645cb",
+            "type": "string"
+          },
+          "span": {
+            "example": "Decision depends on consistent flag rollout",
+            "type": "string"
+          }
+        },
+        "required": [
+          "span",
+          "source_object_id",
+          "confidence"
+        ],
+        "type": "object"
+      },
+      "GraphSearchDebugDto": {
+        "properties": {
+          "edge_samples": {
+            "example": [
+              {
+                "depth": 1,
+                "edge_score": 0.63,
+                "hub_damping": 0.43,
+                "relation": "decides"
+              }
+            ],
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "feature_flags": {
+            "example": {
+              "citations": false,
+              "paths": true,
+              "rerank": true
+            },
+            "type": "object"
+          },
+          "gain_rejections": {
+            "example": 5,
+            "type": "number"
+          },
+          "marginal_gain_min": {
+            "example": 0.02,
+            "type": "number"
+          },
+          "normalization": {
+            "example": {
+              "lexical": {
+                "mean": 0.42,
+                "std": 0.11
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "normalization",
+          "gain_rejections",
+          "marginal_gain_min",
+          "edge_samples",
+          "feature_flags"
+        ],
+        "type": "object"
+      },
+      "GraphSearchDocumentFusionDto": {
+        "properties": {
+          "enabled": {
+            "default": false,
+            "type": "boolean"
+          },
+          "mode": {
+            "default": "blend",
+            "enum": [
+              "blend",
+              "rrf",
+              "sequential"
+            ],
+            "type": "string"
+          },
+          "topK": {
+            "default": 8,
+            "maximum": 50,
+            "minimum": 1,
+            "type": "number"
+          },
+          "weight": {
+            "default": 0.35,
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "GraphSearchEmbeddingModelMetaDto": {
+        "properties": {
+          "coverage_pct": {
+            "example": 91.4,
+            "type": "number"
+          },
+          "model": {
+            "example": "text-embedding-3-large",
+            "type": "string"
+          },
+          "version": {
+            "example": 2,
+            "type": "number"
+          }
+        },
+        "required": [
+          "model",
+          "version",
+          "coverage_pct"
+        ],
+        "type": "object"
+      },
+      "GraphSearchExpansionMetaDto": {
+        "properties": {
+          "hub_degree": {
+            "example": 1342,
+            "type": "number"
+          },
+          "hub_sampled": {
+            "example": true,
+            "type": "boolean"
+          },
+          "neighbors": {
+            "example": 42,
+            "type": "number"
+          }
+        },
+        "required": [
+          "neighbors",
+          "hub_sampled"
+        ],
+        "type": "object"
+      },
+      "GraphSearchFiltersDto": {
+        "properties": {
+          "excludeObjectTypes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "labelsAny": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "objectTypes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "updatedAfter": {
+            "example": "2025-09-01T00:00:00Z",
+            "type": "string"
+          },
+          "updatedBefore": {
+            "example": "2025-09-20T00:00:00Z",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "GraphSearchItemDto": {
+        "properties": {
+          "canonical_id": {
+            "example": "af6b1db2-e7f9-4d2f-b3f4-5d8c0c61c9cd",
+            "type": "string"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/GraphSearchCitationDto"
+            },
+            "type": "array"
+          },
+          "cursor": {
+            "example": "eyJzY29yZSI6MC44NzEyMywiaWQiOiJkb2MtMSJ9",
+            "type": "string"
+          },
+          "explanation": {
+            "example": "High lexical match on ...",
+            "type": "string"
+          },
+          "fields": {
+            "example": {
+              "status": "active",
+              "title": "Adopt Feature Flagging",
+              "type": "Decision"
+            },
+            "type": "object"
+          },
+          "object_id": {
+            "example": "af6b1db2-e7f9-4d2f-b3f4-5d8c0c61c9cd",
+            "type": "string"
+          },
+          "rank": {
+            "example": 1,
+            "type": "number"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/GraphSearchReasonDto"
+            },
+            "type": "array"
+          },
+          "role": {
+            "enum": [
+              "primary",
+              "neighbor",
+              "reference",
+              "document_chunk"
+            ],
+            "type": "string"
+          },
+          "score": {
+            "example": 0.87123,
+            "type": "number"
+          },
+          "truncated_fields": {
+            "example": [
+              "description"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "object_id",
+          "canonical_id",
+          "score",
+          "rank",
+          "role",
+          "fields",
+          "reasons"
+        ],
+        "type": "object"
+      },
+      "GraphSearchMetaDto": {
+        "properties": {
+          "channels": {
+            "example": [
+              "lexical",
+              "vector"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "elapsed_ms": {
+            "example": 92,
+            "type": "number"
+          },
+          "embedding_model": {
+            "$ref": "#/components/schemas/GraphSearchEmbeddingModelMetaDto"
+          },
+          "expansion": {
+            "$ref": "#/components/schemas/GraphSearchExpansionMetaDto"
+          },
+          "fusion": {
+            "example": "weighted_sum:v2",
+            "type": "string"
+          },
+          "hasNext": {
+            "example": true,
+            "type": "boolean"
+          },
+          "hasPrev": {
+            "example": false,
+            "type": "boolean"
+          },
+          "lexical_considered": {
+            "example": 100,
+            "type": "number"
+          },
+          "neighbor_expanded": {
+            "example": 47,
+            "type": "number"
+          },
+          "nextCursor": {
+            "example": null,
+            "type": "object"
+          },
+          "normalization_version": {
+            "example": "zscore_v1",
+            "type": "string"
+          },
+          "prevCursor": {
+            "example": null,
+            "type": "object"
+          },
+          "request": {
+            "$ref": "#/components/schemas/GraphSearchRequestMetaDto"
+          },
+          "rerank": {
+            "$ref": "#/components/schemas/GraphSearchRerankMetaDto"
+          },
+          "skipped_unembedded": {
+            "example": 12,
+            "type": "number"
+          },
+          "token_budget": {
+            "example": 3500,
+            "type": "number"
+          },
+          "token_estimate": {
+            "example": 1450,
+            "type": "number"
+          },
+          "total_estimate": {
+            "description": "Total size of fused candidate pool prior to pagination (may be less than lexical_considered+vector_considered due to overlaps).",
+            "example": 8,
+            "type": "number"
+          },
+          "truncation_notice": {
+            "example": false,
+            "type": "boolean"
+          },
+          "vector_considered": {
+            "example": 100,
+            "type": "number"
+          },
+          "warnings": {
+            "example": [
+              "embedding_version_backlog"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "channels",
+          "fusion",
+          "normalization_version",
+          "lexical_considered",
+          "vector_considered",
+          "skipped_unembedded",
+          "neighbor_expanded",
+          "token_estimate",
+          "token_budget",
+          "truncation_notice",
+          "embedding_model",
+          "rerank",
+          "expansion",
+          "request",
+          "elapsed_ms",
+          "total_estimate",
+          "hasNext",
+          "hasPrev"
+        ],
+        "type": "object"
+      },
+      "GraphSearchNeighborDto": {
+        "properties": {
+          "edgeTypes": {
+            "example": [
+              "decides",
+              "attended_by"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "globalLimit": {
+            "default": 50,
+            "minimum": 0,
+            "type": "number"
+          },
+          "maxDepth": {
+            "default": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "perPrimaryLimit": {
+            "default": 3,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "GraphSearchPaginationDto": {
+        "properties": {
+          "cursor": {
+            "example": null,
+            "type": "object"
+          },
+          "direction": {
+            "default": "forward",
+            "description": "Pagination direction relative to cursor (forward = items after cursor, backward = items before cursor). Only meaningful when cursor is supplied.",
+            "enum": [
+              "forward",
+              "backward"
+            ],
+            "type": "string"
+          },
+          "limit": {
+            "default": 40,
+            "maximum": 100,
+            "minimum": 1,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "GraphSearchPathSummaryDto": {
+        "properties": {
+          "path_id": {
+            "example": "e7b7ff6e-ef5f-4b55-9580-5d3b45d0a123",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/GraphSearchReasonDto"
+            },
+            "type": "array"
+          },
+          "summary": {
+            "example": "Meeting X decided Decision Y",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path_id",
+          "summary",
+          "reasons"
+        ],
+        "type": "object"
+      },
+      "GraphSearchReasonDto": {
+        "properties": {
+          "channel": {
+            "enum": [
+              "lexical",
+              "vector",
+              "neighbor_boost",
+              "doc"
+            ],
+            "type": "string"
+          },
+          "score": {
+            "example": 0.42,
+            "type": "number"
+          }
+        },
+        "required": [
+          "channel",
+          "score"
+        ],
+        "type": "object"
+      },
+      "GraphSearchRequestDto": {
+        "properties": {
+          "channels": {
+            "items": {
+              "enum": [
+                "lexical",
+                "vector",
+                "neighbor_boost",
+                "doc"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "documentFusion": {
+            "$ref": "#/components/schemas/GraphSearchDocumentFusionDto"
+          },
+          "experimental": {
+            "description": "Experimental feature flags container",
+            "type": "object"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/GraphSearchFiltersDto"
+          },
+          "includeCitations": {
+            "default": false,
+            "type": "boolean"
+          },
+          "includeDebug": {
+            "default": false,
+            "type": "boolean"
+          },
+          "includePathSummaries": {
+            "default": true,
+            "type": "boolean"
+          },
+          "intentOverride": {
+            "enum": [
+              "explain",
+              "locate_config",
+              "debug_error",
+              "roadmap"
+            ],
+            "example": "explain",
+            "type": "string"
+          },
+          "limit": {
+            "default": 40,
+            "maximum": 100,
+            "minimum": 1,
+            "type": "number"
+          },
+          "maxTokenBudget": {
+            "default": 3500,
+            "maximum": 6000,
+            "minimum": 800,
+            "type": "number"
+          },
+          "neighbor": {
+            "$ref": "#/components/schemas/GraphSearchNeighborDto"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/GraphSearchPaginationDto"
+          },
+          "query": {
+            "description": "Search query",
+            "maxLength": 800,
+            "type": "string"
+          },
+          "rerank": {
+            "default": null,
+            "type": "object"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "GraphSearchRequestMetaDto": {
+        "properties": {
+          "channels": {
+            "example": [
+              "lexical",
+              "vector"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "direction": {
+            "description": "Pagination direction used for this page.",
+            "enum": [
+              "forward",
+              "backward"
+            ],
+            "example": "forward",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Effective page size after server cap",
+            "example": 40,
+            "type": "number"
+          },
+          "requested_limit": {
+            "description": "Original client requested limit before clamping",
+            "example": 100,
+            "type": "number"
+          },
+          "rerank": {
+            "example": false,
+            "type": "object"
+          }
+        },
+        "required": [
+          "limit"
+        ],
+        "type": "object"
+      },
+      "GraphSearchRerankMetaDto": {
+        "properties": {
+          "applied": {
+            "example": true,
+            "type": "boolean"
+          },
+          "latency_ms": {
+            "example": 42,
+            "type": "number"
+          },
+          "model": {
+            "example": "mini-cross-encoder-v1",
+            "type": "string"
+          },
+          "pool": {
+            "example": 60,
+            "type": "number"
+          },
+          "timeout": {
+            "example": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "applied"
+        ],
+        "type": "object"
+      },
+      "GraphSearchResponseDto": {
+        "properties": {
+          "debug": {
+            "$ref": "#/components/schemas/GraphSearchDebugDto"
+          },
+          "intent": {
+            "enum": [
+              "explain",
+              "locate_config",
+              "debug_error",
+              "roadmap"
+            ],
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GraphSearchItemDto"
+            },
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/GraphSearchMetaDto"
+          },
+          "path_summaries": {
+            "items": {
+              "$ref": "#/components/schemas/GraphSearchPathSummaryDto"
+            },
+            "type": "array"
+          },
+          "query": {
+            "example": "original query text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query",
+          "items",
+          "meta"
+        ],
+        "type": "object"
+      },
       "IngestionUploadDto": {
         "properties": {
           "filename": {
@@ -2395,6 +3054,72 @@
         ],
         "x-required-scopes": [
           "graph:write"
+        ]
+      }
+    },
+    "/graph/search": {
+      "post": {
+        "operationId": "GraphSearchController_search",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "debug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GraphSearchRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphSearchResponseDto"
+                }
+              }
+            },
+            "description": "Graph hybrid search results (prototype)"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "graph:search:read"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Missing required scope (e.g., debug scope)"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Graph"
+        ],
+        "x-required-scopes": [
+          "graph:search:read"
         ]
       }
     },

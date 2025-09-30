@@ -3,7 +3,7 @@
   "paths": {
     "/health": {
       "get": {
-        "operationId": "HealthController_get",
+        "operationId": "get",
         "parameters": [],
         "responses": {
           "200": {
@@ -13,8 +13,12 @@
                 "schema": {
                   "example": {
                     "ok": true,
-                    "model": "gemini-pro",
-                    "db": "up"
+                    "model": "text-embedding-004",
+                    "db": "up",
+                    "embeddings": "enabled",
+                    "rls_policies_ok": true,
+                    "rls_policy_count": 8,
+                    "rls_policy_hash": "policies:123:1a2b"
                   }
                 }
               }
@@ -58,7 +62,7 @@
     },
     "/auth/me": {
       "get": {
-        "operationId": "AuthController_me",
+        "operationId": "me",
         "parameters": [],
         "responses": {
           "200": {
@@ -112,10 +116,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "org:read"
-                      ]
+                      "message": "Forbidden"
                     }
                   }
                 }
@@ -145,15 +146,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "org:read"
         ]
       }
     },
     "/settings": {
       "get": {
-        "operationId": "SettingsController_list",
+        "operationId": "list",
         "parameters": [],
         "responses": {
           "200": {
@@ -239,7 +237,7 @@
     },
     "/settings/{key}": {
       "get": {
-        "operationId": "SettingsController_getOne",
+        "operationId": "getOne",
         "parameters": [
           {
             "name": "key",
@@ -347,7 +345,7 @@
     },
     "/orgs": {
       "get": {
-        "operationId": "OrgsController_list",
+        "operationId": "list",
         "parameters": [],
         "responses": {
           "200": {
@@ -429,7 +427,7 @@
         ]
       },
       "post": {
-        "operationId": "OrgsController_create",
+        "operationId": "create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -557,7 +555,7 @@
     },
     "/orgs/{id}": {
       "get": {
-        "operationId": "OrgsController_getOne",
+        "operationId": "getOne",
         "parameters": [
           {
             "name": "id",
@@ -660,7 +658,7 @@
         ]
       },
       "delete": {
-        "operationId": "OrgsController_delete",
+        "operationId": "delete",
         "parameters": [
           {
             "name": "id",
@@ -758,7 +756,7 @@
     },
     "/projects": {
       "get": {
-        "operationId": "ProjectsController_list",
+        "operationId": "list",
         "parameters": [
           {
             "name": "limit",
@@ -830,10 +828,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "project:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -858,18 +853,10 @@
         },
         "tags": [
           "Projects"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "project:read"
         ]
       },
       "post": {
-        "operationId": "ProjectsController_create",
+        "operationId": "create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -930,10 +917,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "org:project:create"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -958,20 +942,12 @@
         },
         "tags": [
           "Projects"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "org:project:create"
         ]
       }
     },
     "/projects/{id}": {
       "delete": {
-        "operationId": "ProjectsController_delete",
+        "operationId": "delete",
         "parameters": [
           {
             "name": "id",
@@ -1033,10 +1009,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "org:project:delete"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1061,20 +1034,12 @@
         },
         "tags": [
           "Projects"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "org:project:delete"
         ]
       }
     },
     "/search": {
       "get": {
-        "operationId": "SearchController_search",
+        "operationId": "search",
         "parameters": [
           {
             "name": "q",
@@ -1167,10 +1132,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "documents:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1195,20 +1157,12 @@
         },
         "tags": [
           "Search"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:read"
         ]
       }
     },
     "/documents": {
       "get": {
-        "operationId": "DocumentsController_list",
+        "operationId": "list",
         "parameters": [
           {
             "name": "limit",
@@ -1290,10 +1244,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "documents:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1318,18 +1269,10 @@
         },
         "tags": [
           "Documents"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:read"
         ]
       },
       "post": {
-        "operationId": "DocumentsController_create",
+        "operationId": "create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1401,10 +1344,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "documents:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1429,20 +1369,12 @@
         },
         "tags": [
           "Documents"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:write"
         ]
       }
     },
     "/documents/{id}": {
       "get": {
-        "operationId": "DocumentsController_get",
+        "operationId": "get",
         "parameters": [
           {
             "name": "id",
@@ -1503,10 +1435,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "documents:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1531,18 +1460,10 @@
         },
         "tags": [
           "Documents"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:read"
         ]
       },
       "delete": {
-        "operationId": "DocumentsController_delete",
+        "operationId": "delete",
         "parameters": [
           {
             "name": "id",
@@ -1560,20 +1481,12 @@
         },
         "tags": [
           "Documents"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:delete"
         ]
       }
     },
     "/chunks": {
       "get": {
-        "operationId": "ChunksController_list",
+        "operationId": "list",
         "parameters": [
           {
             "name": "documentId",
@@ -1637,10 +1550,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "documents:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1665,20 +1575,12 @@
         },
         "tags": [
           "Chunks"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:read"
         ]
       }
     },
     "/ingest/upload": {
       "post": {
-        "operationId": "IngestionController_upload",
+        "operationId": "upload",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1748,10 +1650,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "documents:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1776,20 +1675,12 @@
         },
         "tags": [
           "Ingestion"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:write"
         ]
       }
     },
     "/ingest/url": {
       "post": {
-        "operationId": "IngestionController_ingestUrl",
+        "operationId": "ingestUrl",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1859,10 +1750,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "documents:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1887,20 +1775,12 @@
         },
         "tags": [
           "Ingestion"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:write"
         ]
       }
     },
     "/chat/conversations": {
       "get": {
-        "operationId": "ChatController_listConversations",
+        "operationId": "listConversations",
         "parameters": [],
         "responses": {
           "200": {
@@ -1957,10 +1837,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "chat:use"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1985,18 +1862,10 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:use"
         ]
       },
       "post": {
-        "operationId": "ChatController_createConversation",
+        "operationId": "createConversation",
         "parameters": [],
         "responses": {
           "200": {
@@ -2031,20 +1900,12 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:use"
         ]
       }
     },
     "/chat/{id}": {
       "get": {
-        "operationId": "ChatController_getConversation",
+        "operationId": "getConversation",
         "parameters": [
           {
             "name": "id",
@@ -2097,10 +1958,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "chat:use"
-                      ]
+                      "message": "Forbidden"
                     }
                   }
                 }
@@ -2140,18 +1998,10 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:use"
         ]
       },
       "patch": {
-        "operationId": "ChatController_rename",
+        "operationId": "rename",
         "parameters": [
           {
             "name": "id",
@@ -2210,18 +2060,10 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:admin"
         ]
       },
       "delete": {
-        "operationId": "ChatController_delete",
+        "operationId": "delete",
         "parameters": [
           {
             "name": "id",
@@ -2264,20 +2106,12 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:admin"
         ]
       }
     },
     "/chat/{id}/stream": {
       "get": {
-        "operationId": "ChatController_streamGet",
+        "operationId": "streamGet",
         "parameters": [
           {
             "name": "id",
@@ -2371,20 +2205,12 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:use"
         ]
       }
     },
     "/chat/stream": {
       "post": {
-        "operationId": "ChatController_streamPost",
+        "operationId": "streamPost",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2462,16 +2288,6 @@
                     }
                   }
                 }
-              },
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
               }
             }
           },
@@ -2483,10 +2299,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "chat:use"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -2511,20 +2324,12 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:use"
         ]
       }
     },
     "/invites": {
       "post": {
-        "operationId": "InvitesController_create",
+        "operationId": "create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2540,21 +2345,12 @@
           "201": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "org:invite:create",
-          "project:invite:create"
-        ]
+        }
       }
     },
     "/invites/accept": {
       "post": {
-        "operationId": "InvitesController_accept",
+        "operationId": "accept",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2570,20 +2366,12 @@
           "201": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "org:read"
-        ]
+        }
       }
     },
     "/user/profile": {
       "get": {
-        "operationId": "UserProfileController_getSelf",
+        "operationId": "getSelf",
         "parameters": [],
         "responses": {
           "200": {
@@ -2662,7 +2450,7 @@
         ]
       },
       "put": {
-        "operationId": "UserProfileController_updateSelf",
+        "operationId": "updateSelf",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2741,7 +2529,7 @@
     },
     "/user/profile/emails": {
       "get": {
-        "operationId": "UserProfileController_listEmails",
+        "operationId": "listEmails",
         "parameters": [],
         "responses": {
           "200": {
@@ -2823,7 +2611,7 @@
         ]
       },
       "post": {
-        "operationId": "UserProfileController_addEmail",
+        "operationId": "addEmail",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2914,7 +2702,7 @@
     },
     "/user/profile/emails/{email}": {
       "delete": {
-        "operationId": "UserProfileController_removeEmail",
+        "operationId": "removeEmail",
         "parameters": [
           {
             "name": "email",
@@ -3006,7 +2794,7 @@
     },
     "/graph/objects": {
       "post": {
-        "operationId": "GraphObjectsController_create",
+        "operationId": "create",
         "summary": "Create a graph object (initial version)",
         "parameters": [],
         "requestBody": {
@@ -3029,21 +2817,14 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/graph/objects/search": {
       "get": {
-        "operationId": "GraphObjectsController_searchObjects",
+        "operationId": "searchObjects",
         "summary": "Search graph objects (basic filters)",
+        "description": "Supports pagination via created_at cursor. Optional order param (asc|desc) controls chronological direction (default asc). Desc returns newest first; cursor always set to last item created_at in current page.",
         "parameters": [
           {
             "name": "type",
@@ -3084,6 +2865,19 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "order",
+            "required": false,
+            "in": "query",
+            "description": "Chronological direction (asc=oldest→newest, desc=newest→oldest). Default asc.",
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3093,20 +2887,70 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
+        ]
+      }
+    },
+    "/graph/objects/fts": {
+      "get": {
+        "operationId": "ftsSearch",
+        "summary": "Full-text search graph objects",
+        "description": "Websearch syntax over inline-populated tsvector (type, key, properties JSON). Returns newest heads ranked by ts_rank. Supports optional type, label, branch_id filters. Limit max 100.",
+        "parameters": [
           {
-            "bearer": []
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "description": "Search query (websearch syntax)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "label",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "branch_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
-        "x-required-scopes": [
-          "graph:read"
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Graph"
         ]
       }
     },
     "/graph/objects/{id}": {
       "get": {
-        "operationId": "GraphObjectsController_get",
+        "operationId": "get",
         "summary": "Get latest version of a graph object",
         "parameters": [
           {
@@ -3128,18 +2972,10 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       },
       "patch": {
-        "operationId": "GraphObjectsController_patch",
+        "operationId": "patch",
         "summary": "Patch (create new version) of a graph object",
         "parameters": [
           {
@@ -3174,18 +3010,10 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       },
       "delete": {
-        "operationId": "GraphObjectsController_deleteObject",
+        "operationId": "deleteObject",
         "summary": "Soft delete (tombstone) an object (creates new version with deleted_at)",
         "parameters": [
           {
@@ -3204,20 +3032,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/graph/objects/{id}/restore": {
       "post": {
-        "operationId": "GraphObjectsController_restoreObject",
+        "operationId": "restoreObject",
         "summary": "Restore a soft-deleted object (creates new version clearing deleted_at)",
         "parameters": [
           {
@@ -3236,20 +3056,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/graph/objects/{id}/history": {
       "get": {
-        "operationId": "GraphObjectsController_history",
+        "operationId": "history",
         "summary": "List version history for a graph object",
         "parameters": [
           {
@@ -3294,20 +3106,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/relationships": {
       "post": {
-        "operationId": "GraphObjectsController_createRel",
+        "operationId": "createRel",
         "summary": "Create a relationship (initial version) or new version if properties changed",
         "parameters": [],
         "requestBody": {
@@ -3327,20 +3131,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/graph/relationships/{id}": {
       "get": {
-        "operationId": "GraphObjectsController_getRel",
+        "operationId": "getRel",
         "summary": "Get relationship by id",
         "parameters": [
           {
@@ -3359,18 +3155,10 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       },
       "patch": {
-        "operationId": "GraphObjectsController_patchRel",
+        "operationId": "patchRel",
         "summary": "Patch (create new version) of a relationship (only head version allowed)",
         "parameters": [
           {
@@ -3399,18 +3187,10 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       },
       "delete": {
-        "operationId": "GraphObjectsController_deleteRel",
+        "operationId": "deleteRel",
         "summary": "Soft delete a relationship (tombstone version)",
         "parameters": [
           {
@@ -3429,21 +3209,14 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/graph/relationships/search": {
       "get": {
-        "operationId": "GraphObjectsController_searchRels",
+        "operationId": "searchRels",
         "summary": "Search relationships (basic filters)",
+        "description": "Supports pagination via created_at cursor. Optional order param (asc|desc) for chronological direction (default asc).",
         "parameters": [
           {
             "name": "type",
@@ -3484,6 +3257,19 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "order",
+            "required": false,
+            "in": "query",
+            "description": "Chronological direction (asc=oldest→newest, desc=newest→oldest). Default asc.",
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3493,20 +3279,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/relationships/{id}/restore": {
       "post": {
-        "operationId": "GraphObjectsController_restoreRel",
+        "operationId": "restoreRel",
         "summary": "Restore a soft-deleted relationship",
         "parameters": [
           {
@@ -3525,20 +3303,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/graph/relationships/{id}/history": {
       "get": {
-        "operationId": "GraphObjectsController_historyRel",
+        "operationId": "historyRel",
         "summary": "List version history for a relationship",
         "parameters": [
           {
@@ -3580,20 +3350,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/objects/{id}/edges": {
       "get": {
-        "operationId": "GraphObjectsController_edges",
+        "operationId": "edges",
         "summary": "List relationships adjacent to an object",
         "parameters": [
           {
@@ -3628,20 +3390,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/traverse": {
       "post": {
-        "operationId": "GraphObjectsController_traverse",
+        "operationId": "traverse",
         "summary": "Traverse the graph from one or more root object ids (bounded BFS)",
         "parameters": [],
         "requestBody": {
@@ -3661,21 +3415,714 @@
         },
         "tags": [
           "Graph"
+        ]
+      }
+    },
+    "/graph/expand": {
+      "post": {
+        "operationId": "expand",
+        "summary": "Expand graph (single-pass bounded traversal with projection & edge property option)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GraphExpandDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
+    "/graph/objects/vector-search": {
+      "post": {
+        "operationId": "vectorSearch",
+        "summary": "Vector similarity search",
+        "description": "Returns nearest neighbors (cosine distance) for provided query vector over embedding_vec. Threshold: use maxDistance (preferred) or legacy minScore (acts as maximum distance). When both are supplied, maxDistance takes precedence.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VectorSearchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
+    "/graph/objects/{id}/similar": {
+      "get": {
+        "operationId": "similar",
+        "summary": "Find objects similar to given object id using stored embedding_vec",
+        "description": "Supports same filters as POST /graph/objects/vector-search (type, orgId, projectId, branchId, keyPrefix, labelsAll, labelsAny, maxDistance|minScore, limit). maxDistance preferred; if both provided, maxDistance overrides minScore.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Limit number of neighbors (1-100); default 10",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "minScore",
+            "required": false,
+            "in": "query",
+            "description": "Maximum cosine distance (lower is more similar). 0 ≤ d ≤ 2. Rows with distance > threshold filtered out.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxDistance",
+            "required": false,
+            "in": "query",
+            "description": "Alias for minScore (preferred name). 0 ≤ d ≤ 2. If both provided, maxDistance wins.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Filter by object type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by org id (UUID)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by project id (UUID)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by branch id (UUID)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyPrefix",
+            "required": false,
+            "in": "query",
+            "description": "Filter by key prefix (ILIKE)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "labelsAll",
+            "required": false,
+            "in": "query",
+            "description": "Require all labels to be present on object",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "labelsAny",
+            "required": false,
+            "in": "query",
+            "description": "Require any of the labels to overlap",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
+    "/graph/branches/{targetBranchId}/merge": {
+      "post": {
+        "operationId": "mergeDryRun",
+        "summary": "Branch merge (dry-run or execute)",
+        "description": "Enumerate divergent canonical graph objects between source and target branches. Default is dry-run (no mutations). If `execute=true` and there are no conflicts: Added objects are cloned into target; Fast-forward objects are patched by adding only new properties (superset heuristic). Conflicts block apply. Classification statuses: added, unchanged, fast_forward, conflict.",
+        "parameters": [
+          {
+            "name": "targetBranchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BranchMergeRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Merge summary including classification counts, per-object statuses, and optional applied/applied_objects when executed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchMergeSummaryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing sourceBranchId or validation error"
+          },
+          "404": {
+            "description": "Branch not found"
+          }
+        },
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
+    "/graph/branches": {
+      "post": {
+        "operationId": "create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      },
+      "get": {
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "project_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/product-versions": {
+      "post": {
+        "operationId": "create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductVersionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Create product version snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "id": "11111111-1111-4111-8111-111111111111",
+                    "name": "v1.0.0",
+                    "member_count": 42
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Name exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "product_version_name_exists",
+                      "message": "Name already exists"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Product Versions"
+        ]
+      },
+      "get": {
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Pagination cursor (created_at timestamp of last item from previous page)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page (1-100, default 20)",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List product version snapshots for a project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "items": [
+                      {
+                        "id": "...",
+                        "name": "v1.0.0",
+                        "description": null,
+                        "created_at": "2025-01-01T00:00:00Z",
+                        "member_count": 42,
+                        "base_product_version_id": null
+                      }
+                    ],
+                    "next_cursor": "2025-01-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Product Versions"
+        ]
+      }
+    },
+    "/product-versions/{id}": {
+      "get": {
+        "operationId": "get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get product version snapshot"
+          }
+        },
+        "tags": [
+          "Product Versions"
+        ]
+      }
+    },
+    "/product-versions/{id}/diff/{otherId}": {
+      "get": {
+        "operationId": "diff",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "otherId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Diff two product version snapshots",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "items": [
+                      {
+                        "canonical_id": "...",
+                        "change_type": "modified",
+                        "version_a_object_id": "...",
+                        "version_b_object_id": "..."
+                      }
+                    ],
+                    "meta": {
+                      "added": 5,
+                      "removed": 2,
+                      "modified": 10,
+                      "unchanged": 100
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Product Versions"
+        ]
+      }
+    },
+    "/tags": {
+      "post": {
+        "operationId": "create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Create tag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "id": "11111111-1111-4111-8111-111111111111",
+                    "name": "stable",
+                    "product_version_id": "22222222-2222-4222-8222-222222222222",
+                    "description": "Stable release",
+                    "created_at": "2025-09-30T00:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tag name exists or product version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "tag_name_exists",
+                      "message": "Tag name already exists"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Tags"
+        ]
+      },
+      "get": {
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Pagination cursor (created_at timestamp)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page (1-100, default 20)",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List tags for a project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "items": [
+                      {
+                        "id": "...",
+                        "name": "stable",
+                        "product_version_id": "...",
+                        "description": null,
+                        "created_at": "2025-09-30T00:00:00Z"
+                      }
+                    ],
+                    "next_cursor": "2025-09-30T00:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Tags"
+        ]
+      }
+    },
+    "/tags/{id}": {
+      "get": {
+        "operationId": "get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get tag by ID"
+          },
+          "404": {
+            "description": "Tag not found"
+          }
+        },
+        "tags": [
+          "Tags"
+        ]
+      },
+      "put": {
+        "operationId": "update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Update tag"
+          },
+          "404": {
+            "description": "Tag not found"
+          }
+        },
+        "tags": [
+          "Tags"
+        ]
+      },
+      "delete": {
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Tag deleted"
+          },
+          "404": {
+            "description": "Tag not found"
+          }
+        },
+        "tags": [
+          "Tags"
+        ]
+      }
+    },
+    "/tags/by-name/{name}": {
+      "get": {
+        "operationId": "getByName",
+        "parameters": [
+          {
+            "name": "name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get tag by name"
+          },
+          "404": {
+            "description": "Tag not found"
+          }
+        },
+        "tags": [
+          "Tags"
+        ]
+      }
+    },
+    "/graph/search": {
+      "post": {
+        "operationId": "search",
+        "parameters": [
+          {
+            "name": "debug",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GraphSearchRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Graph hybrid search results (prototype)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphSearchResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing required scope (e.g., debug scope)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "insufficient_scope",
+                      "message": "Debug scope required",
+                      "details": {
+                        "missing": [
+                          "graph:search:debug"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Graph"
         ],
         "security": [
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     }
   },
   "info": {
     "title": "Spec Server API",
-    "description": "Generated OpenAPI spec (code-first). All protected operations include x-required-scopes and 403 examples with missing_scopes.",
+    "description": "Generated OpenAPI spec (NestJS). NOTE: Each Document MUST belong to a Project and each Project belongs to an Organization. Users with no accessible Projects must create one before using ingestion or search features.",
     "version": "0.2.0",
     "contact": {}
   },
@@ -4245,6 +4692,1041 @@
       "TraverseGraphDto": {
         "type": "object",
         "properties": {}
+      },
+      "GraphExpandDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "VectorSearchDto": {
+        "type": "object",
+        "properties": {
+          "vector": {
+            "description": "Query vector numbers",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "limit": {
+            "type": "number",
+            "description": "Max results (default 10, max 100)",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "minScore": {
+            "type": "number",
+            "description": "Optional max distance (cosine) filter (0 ≤ d ≤ 2; typical cosine range).",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "maxDistance": {
+            "type": "number",
+            "description": "Alias for minScore (preferred). Same constraints (0 ≤ d ≤ 2). If both provided, maxDistance wins.",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "type": {
+            "type": "string",
+            "description": "Filter by object type (exact match)"
+          },
+          "orgId": {
+            "type": "string",
+            "description": "Filter by org id",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "description": "Filter by project id",
+            "format": "uuid"
+          },
+          "branchId": {
+            "type": "string",
+            "description": "Filter by branch id",
+            "format": "uuid"
+          },
+          "keyPrefix": {
+            "type": "string",
+            "description": "Optional key prefix match (ILIKE prefix%)"
+          },
+          "labelsAll": {
+            "description": "Require all labels (array contains) – matches rows whose labels array contains every listed label",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "labelsAny": {
+            "description": "Require any label (overlap) – matches rows whose labels array overlaps any listed label",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "vector"
+        ]
+      },
+      "BranchMergeRequestDto": {
+        "type": "object",
+        "properties": {
+          "sourceBranchId": {
+            "type": "string",
+            "description": "Source branch to merge from"
+          },
+          "execute": {
+            "type": "boolean",
+            "description": "If true, attempt to apply the merge (will fail with 409 if any conflicts). When false or omitted, performs a dry-run only."
+          },
+          "limit": {
+            "type": "number",
+            "description": "Optional enumeration limit override (must be <= server max). Primarily for testing."
+          }
+        },
+        "required": [
+          "sourceBranchId"
+        ]
+      },
+      "BranchMergeObjectSummaryDto": {
+        "type": "object",
+        "properties": {
+          "canonical_id": {
+            "type": "string",
+            "description": "Canonical object id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "unchanged",
+              "added",
+              "fast_forward",
+              "conflict"
+            ]
+          },
+          "source_head_id": {
+            "type": "object",
+            "description": "Head version id on source branch",
+            "nullable": true
+          },
+          "target_head_id": {
+            "type": "object",
+            "description": "Head version id on target branch",
+            "nullable": true
+          },
+          "source_paths": {
+            "description": "Changed property paths on source since LCA",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "target_paths": {
+            "description": "Changed property paths on target since LCA (empty if no divergence)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conflicts": {
+            "description": "List of conflicting property paths (subset intersection of source/target paths with differing final values)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "canonical_id",
+          "status",
+          "source_head_id",
+          "target_head_id",
+          "source_paths",
+          "target_paths"
+        ]
+      },
+      "BranchMergeRelationshipSummaryDto": {
+        "type": "object",
+        "properties": {
+          "canonical_id": {
+            "type": "string",
+            "description": "Canonical relationship id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "unchanged",
+              "added",
+              "fast_forward",
+              "conflict"
+            ]
+          },
+          "source_head_id": {
+            "type": "object",
+            "description": "Head version id on source branch",
+            "nullable": true
+          },
+          "target_head_id": {
+            "type": "object",
+            "description": "Head version id on target branch",
+            "nullable": true
+          },
+          "source_src_id": {
+            "type": "object",
+            "description": "Source node id (src) on source head",
+            "nullable": true
+          },
+          "source_dst_id": {
+            "type": "object",
+            "description": "Destination node id (dst) on source head",
+            "nullable": true
+          },
+          "target_src_id": {
+            "type": "object",
+            "description": "Source node id (src) on target head",
+            "nullable": true
+          },
+          "target_dst_id": {
+            "type": "object",
+            "description": "Destination node id (dst) on target head",
+            "nullable": true
+          },
+          "source_paths": {
+            "description": "Changed property paths on source since LCA",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "target_paths": {
+            "description": "Changed property paths on target since LCA (empty if no divergence)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conflicts": {
+            "description": "List of conflicting property paths (subset intersection of source/target paths with differing final values)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "canonical_id",
+          "status",
+          "source_head_id",
+          "target_head_id",
+          "source_src_id",
+          "source_dst_id",
+          "target_src_id",
+          "target_dst_id",
+          "source_paths",
+          "target_paths"
+        ]
+      },
+      "BranchMergeSummaryDto": {
+        "type": "object",
+        "properties": {
+          "targetBranchId": {
+            "type": "string",
+            "description": "Target branch the merge would apply to"
+          },
+          "sourceBranchId": {
+            "type": "string",
+            "description": "Source branch provided in request"
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "True if this response is only a dry-run (always true in MVP)"
+          },
+          "total_objects": {
+            "type": "number",
+            "description": "Total divergent canonical objects considered"
+          },
+          "unchanged_count": {
+            "type": "number",
+            "description": "Count of objects unchanged after merge (no action needed)"
+          },
+          "added_count": {
+            "type": "number",
+            "description": "Count of objects newly added by source branch"
+          },
+          "fast_forward_count": {
+            "type": "number",
+            "description": "Count of objects that can be applied without conflict (fast-forward or safe merge)"
+          },
+          "conflict_count": {
+            "type": "number",
+            "description": "Count of objects with conflicts requiring manual resolution"
+          },
+          "objects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BranchMergeObjectSummaryDto"
+            }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "Set when enumeration truncated due to limit cap"
+          },
+          "hard_limit": {
+            "type": "number",
+            "description": "Server enforced hard limit (for client visibility)"
+          },
+          "applied": {
+            "type": "boolean",
+            "description": "True when merge changes were applied (execute=true & no conflicts)"
+          },
+          "applied_objects": {
+            "type": "number",
+            "description": "Number of objects mutated/created during apply (added + fast_forward)"
+          },
+          "relationships_total": {
+            "type": "number",
+            "description": "Total divergent canonical relationships considered"
+          },
+          "relationships_unchanged_count": {
+            "type": "number",
+            "description": "Count of relationships unchanged after merge (no action needed)"
+          },
+          "relationships_added_count": {
+            "type": "number",
+            "description": "Count of relationships newly added by source branch"
+          },
+          "relationships_fast_forward_count": {
+            "type": "number",
+            "description": "Count of relationships that can be applied without conflict (fast-forward or safe merge)"
+          },
+          "relationships_conflict_count": {
+            "type": "number",
+            "description": "Count of relationships with conflicts requiring manual resolution"
+          },
+          "relationships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BranchMergeRelationshipSummaryDto"
+            }
+          }
+        },
+        "required": [
+          "targetBranchId",
+          "sourceBranchId",
+          "dryRun",
+          "total_objects",
+          "unchanged_count",
+          "added_count",
+          "fast_forward_count",
+          "conflict_count",
+          "objects"
+        ]
+      },
+      "CreateProductVersionDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateTagDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Tag name (unique within project)",
+            "example": "stable"
+          },
+          "product_version_id": {
+            "type": "string",
+            "description": "Product version ID to tag",
+            "example": "11111111-1111-4111-8111-111111111111"
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional tag description",
+            "example": "Stable release for production"
+          }
+        },
+        "required": [
+          "name",
+          "product_version_id"
+        ]
+      },
+      "UpdateTagDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Updated tag description",
+            "example": "Updated stable release"
+          }
+        }
+      },
+      "GraphSearchFiltersDto": {
+        "type": "object",
+        "properties": {
+          "objectTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "excludeObjectTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "labelsAny": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updatedAfter": {
+            "type": "string",
+            "example": "2025-09-01T00:00:00Z"
+          },
+          "updatedBefore": {
+            "type": "string",
+            "example": "2025-09-20T00:00:00Z"
+          }
+        }
+      },
+      "GraphSearchNeighborDto": {
+        "type": "object",
+        "properties": {
+          "perPrimaryLimit": {
+            "type": "number",
+            "minimum": 0,
+            "default": 3
+          },
+          "globalLimit": {
+            "type": "number",
+            "minimum": 0,
+            "default": 50
+          },
+          "maxDepth": {
+            "type": "number",
+            "minimum": 0,
+            "default": 1
+          },
+          "edgeTypes": {
+            "example": [
+              "decides",
+              "attended_by"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GraphSearchDocumentFusionDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "topK": {
+            "type": "number",
+            "default": 8,
+            "minimum": 1,
+            "maximum": 50
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "blend",
+              "rrf",
+              "sequential"
+            ],
+            "default": "blend"
+          },
+          "weight": {
+            "type": "number",
+            "default": 0.35,
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      },
+      "GraphSearchPaginationDto": {
+        "type": "object",
+        "properties": {
+          "cursor": {
+            "type": "object",
+            "example": null
+          },
+          "limit": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 40
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "forward",
+              "backward"
+            ],
+            "default": "forward",
+            "description": "Pagination direction relative to cursor (forward = items after cursor, backward = items before cursor). Only meaningful when cursor is supplied."
+          }
+        }
+      },
+      "GraphSearchRequestDto": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query",
+            "maxLength": 800
+          },
+          "limit": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 40
+          },
+          "intentOverride": {
+            "type": "string",
+            "enum": [
+              "explain",
+              "locate_config",
+              "debug_error",
+              "roadmap"
+            ],
+            "example": "explain"
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "lexical",
+                "vector",
+                "neighbor_boost",
+                "doc"
+              ]
+            }
+          },
+          "rerank": {
+            "type": "object",
+            "default": null
+          },
+          "maxTokenBudget": {
+            "type": "number",
+            "minimum": 800,
+            "maximum": 6000,
+            "default": 3500
+          },
+          "includeCitations": {
+            "type": "boolean",
+            "default": false
+          },
+          "includePathSummaries": {
+            "type": "boolean",
+            "default": true
+          },
+          "includeDebug": {
+            "type": "boolean",
+            "default": false
+          },
+          "filters": {
+            "$ref": "#/components/schemas/GraphSearchFiltersDto"
+          },
+          "neighbor": {
+            "$ref": "#/components/schemas/GraphSearchNeighborDto"
+          },
+          "documentFusion": {
+            "$ref": "#/components/schemas/GraphSearchDocumentFusionDto"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/GraphSearchPaginationDto"
+          },
+          "experimental": {
+            "type": "object",
+            "description": "Experimental feature flags container"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "GraphSearchReasonDto": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "lexical",
+              "vector",
+              "neighbor_boost",
+              "doc"
+            ]
+          },
+          "score": {
+            "type": "number",
+            "example": 0.42
+          }
+        },
+        "required": [
+          "channel",
+          "score"
+        ]
+      },
+      "GraphSearchCitationDto": {
+        "type": "object",
+        "properties": {
+          "span": {
+            "type": "string",
+            "example": "Decision depends on consistent flag rollout"
+          },
+          "source_object_id": {
+            "type": "string",
+            "example": "b3d52c50-5101-4c6c-8d30-4a1f0f7645cb"
+          },
+          "confidence": {
+            "type": "number",
+            "example": 0.82
+          }
+        },
+        "required": [
+          "span",
+          "source_object_id",
+          "confidence"
+        ]
+      },
+      "GraphSearchItemDto": {
+        "type": "object",
+        "properties": {
+          "object_id": {
+            "type": "string",
+            "example": "af6b1db2-e7f9-4d2f-b3f4-5d8c0c61c9cd"
+          },
+          "canonical_id": {
+            "type": "string",
+            "example": "af6b1db2-e7f9-4d2f-b3f4-5d8c0c61c9cd"
+          },
+          "score": {
+            "type": "number",
+            "example": 0.87123
+          },
+          "rank": {
+            "type": "number",
+            "example": 1
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "primary",
+              "neighbor",
+              "reference",
+              "document_chunk"
+            ]
+          },
+          "fields": {
+            "type": "object",
+            "example": {
+              "title": "Adopt Feature Flagging",
+              "type": "Decision",
+              "status": "active"
+            }
+          },
+          "truncated_fields": {
+            "example": [
+              "description"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphSearchReasonDto"
+            }
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphSearchCitationDto"
+            }
+          },
+          "explanation": {
+            "type": "string",
+            "example": "High lexical match on ..."
+          },
+          "cursor": {
+            "type": "string",
+            "example": "eyJzY29yZSI6MC44NzEyMywiaWQiOiJkb2MtMSJ9"
+          }
+        },
+        "required": [
+          "object_id",
+          "canonical_id",
+          "score",
+          "rank",
+          "role",
+          "fields",
+          "reasons"
+        ]
+      },
+      "GraphSearchPathSummaryDto": {
+        "type": "object",
+        "properties": {
+          "path_id": {
+            "type": "string",
+            "example": "e7b7ff6e-ef5f-4b55-9580-5d3b45d0a123"
+          },
+          "summary": {
+            "type": "string",
+            "example": "Meeting X decided Decision Y"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphSearchReasonDto"
+            }
+          }
+        },
+        "required": [
+          "path_id",
+          "summary",
+          "reasons"
+        ]
+      },
+      "GraphSearchEmbeddingModelMetaDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "example": "text-embedding-3-large"
+          },
+          "version": {
+            "type": "number",
+            "example": 2
+          },
+          "coverage_pct": {
+            "type": "number",
+            "example": 91.4
+          }
+        },
+        "required": [
+          "model",
+          "version",
+          "coverage_pct"
+        ]
+      },
+      "GraphSearchRerankMetaDto": {
+        "type": "object",
+        "properties": {
+          "applied": {
+            "type": "boolean",
+            "example": true
+          },
+          "model": {
+            "type": "string",
+            "example": "mini-cross-encoder-v1"
+          },
+          "latency_ms": {
+            "type": "number",
+            "example": 42
+          },
+          "pool": {
+            "type": "number",
+            "example": 60
+          },
+          "timeout": {
+            "type": "boolean",
+            "example": false
+          }
+        },
+        "required": [
+          "applied"
+        ]
+      },
+      "GraphSearchExpansionMetaDto": {
+        "type": "object",
+        "properties": {
+          "neighbors": {
+            "type": "number",
+            "example": 42
+          },
+          "hub_sampled": {
+            "type": "boolean",
+            "example": true
+          },
+          "hub_degree": {
+            "type": "number",
+            "example": 1342
+          }
+        },
+        "required": [
+          "neighbors",
+          "hub_sampled"
+        ]
+      },
+      "GraphSearchRequestMetaDto": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number",
+            "example": 40,
+            "description": "Effective page size after server cap"
+          },
+          "requested_limit": {
+            "type": "number",
+            "example": 100,
+            "description": "Original client requested limit before clamping"
+          },
+          "channels": {
+            "example": [
+              "lexical",
+              "vector"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rerank": {
+            "type": "object",
+            "example": false
+          },
+          "direction": {
+            "type": "string",
+            "example": "forward",
+            "enum": [
+              "forward",
+              "backward"
+            ],
+            "description": "Pagination direction used for this page."
+          }
+        },
+        "required": [
+          "limit"
+        ]
+      },
+      "GraphSearchMetaDto": {
+        "type": "object",
+        "properties": {
+          "channels": {
+            "example": [
+              "lexical",
+              "vector"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fusion": {
+            "type": "string",
+            "example": "weighted_sum:v2"
+          },
+          "normalization_version": {
+            "type": "string",
+            "example": "zscore_v1"
+          },
+          "lexical_considered": {
+            "type": "number",
+            "example": 100
+          },
+          "vector_considered": {
+            "type": "number",
+            "example": 100
+          },
+          "skipped_unembedded": {
+            "type": "number",
+            "example": 12
+          },
+          "neighbor_expanded": {
+            "type": "number",
+            "example": 47
+          },
+          "token_estimate": {
+            "type": "number",
+            "example": 1450
+          },
+          "token_budget": {
+            "type": "number",
+            "example": 3500
+          },
+          "truncation_notice": {
+            "type": "boolean",
+            "example": false
+          },
+          "warnings": {
+            "example": [
+              "embedding_version_backlog"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "embedding_model": {
+            "$ref": "#/components/schemas/GraphSearchEmbeddingModelMetaDto"
+          },
+          "rerank": {
+            "$ref": "#/components/schemas/GraphSearchRerankMetaDto"
+          },
+          "expansion": {
+            "$ref": "#/components/schemas/GraphSearchExpansionMetaDto"
+          },
+          "request": {
+            "$ref": "#/components/schemas/GraphSearchRequestMetaDto"
+          },
+          "elapsed_ms": {
+            "type": "number",
+            "example": 92
+          },
+          "total_estimate": {
+            "type": "number",
+            "example": 8,
+            "description": "Total size of fused candidate pool prior to pagination (may be less than lexical_considered+vector_considered due to overlaps)."
+          },
+          "nextCursor": {
+            "type": "object",
+            "example": null
+          },
+          "prevCursor": {
+            "type": "object",
+            "example": null
+          },
+          "hasNext": {
+            "type": "boolean",
+            "example": true
+          },
+          "hasPrev": {
+            "type": "boolean",
+            "example": false
+          },
+          "approx_position_start": {
+            "type": "number",
+            "example": 41,
+            "description": "Approximate 1-based index of first item in this page relative to fused pool snapshot. 0 if page empty."
+          },
+          "approx_position_end": {
+            "type": "number",
+            "example": 80,
+            "description": "Approximate 1-based index of last item in this page relative to fused pool snapshot. 0 if page empty."
+          }
+        },
+        "required": [
+          "channels",
+          "fusion",
+          "normalization_version",
+          "lexical_considered",
+          "vector_considered",
+          "skipped_unembedded",
+          "neighbor_expanded",
+          "token_estimate",
+          "token_budget",
+          "truncation_notice",
+          "embedding_model",
+          "rerank",
+          "expansion",
+          "request",
+          "elapsed_ms",
+          "total_estimate",
+          "hasNext",
+          "hasPrev"
+        ]
+      },
+      "GraphSearchDebugDto": {
+        "type": "object",
+        "properties": {
+          "normalization": {
+            "type": "object",
+            "example": {
+              "lexical": {
+                "mean": 0.42,
+                "std": 0.11
+              }
+            }
+          },
+          "gain_rejections": {
+            "type": "number",
+            "example": 5
+          },
+          "marginal_gain_min": {
+            "type": "number",
+            "example": 0.02
+          },
+          "edge_samples": {
+            "example": [
+              {
+                "relation": "decides",
+                "edge_score": 0.63,
+                "depth": 1,
+                "hub_damping": 0.43
+              }
+            ],
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "feature_flags": {
+            "type": "object",
+            "example": {
+              "paths": true,
+              "rerank": true,
+              "citations": false
+            }
+          }
+        },
+        "required": [
+          "normalization",
+          "gain_rejections",
+          "marginal_gain_min",
+          "edge_samples",
+          "feature_flags"
+        ]
+      },
+      "GraphSearchResponseDto": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "example": "original query text"
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "explain",
+              "locate_config",
+              "debug_error",
+              "roadmap"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphSearchItemDto"
+            }
+          },
+          "path_summaries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphSearchPathSummaryDto"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/GraphSearchMetaDto"
+          },
+          "debug": {
+            "$ref": "#/components/schemas/GraphSearchDebugDto"
+          }
+        },
+        "required": [
+          "query",
+          "items",
+          "meta"
+        ]
       }
     }
   },
@@ -4287,12 +5769,6 @@
       "name": "Chat",
       "tags": [
         "Chat"
-      ]
-    },
-    {
-      "name": "Knowledge Graph",
-      "tags": [
-        "Graph"
       ]
     }
   ]

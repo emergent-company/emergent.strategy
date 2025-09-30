@@ -10,10 +10,22 @@
         "build": "npm run clean && tsc -p tsconfig.json",
         "gen:openapi": "tsc -p tsconfig.json && node dist/openapi-generate.js",
         "test": "npm run build && vitest run --passWithNoTests",
+        "test:coverage": "npm run build && vitest run --coverage --passWithNoTests",
+        "test:ci": "CI=1 npm run build && vitest run --coverage --passWithNoTests",
         "test:watch": "vitest --passWithNoTests",
-        "test:coverage": "vitest run --coverage --passWithNoTests",
+        "test:coverage:raw": "vitest run --coverage --passWithNoTests",
+        "test:coverage:e2e": "vitest run -c vitest.e2e.config.ts --coverage --passWithNoTests",
         "test:e2e": "npm run gen:openapi && vitest run -c vitest.e2e.config.ts --passWithNoTests",
-        "test:scenarios": "RUN_SCENARIOS=1 vitest run --passWithNoTests tests/scenarios"
+        "test:e2e:one": "vitest run -c vitest.e2e.config.ts --passWithNoTests",
+        "test:scenarios": "RUN_SCENARIOS=1 vitest run --passWithNoTests tests/scenarios",
+        "bench:graph:relationships": "ts-node ./scripts/graph-benchmark.relationships.ts",
+        "bench:graph:objects": "ts-node ./scripts/graph-benchmark.objects.ts",
+        "bench:graph:traverse": "ts-node ./scripts/graph-benchmark.traverse.ts",
+        "graph:bench": "ts-node ./scripts/graph-benchmark.ts",
+        "bench:report": "ts-node ./scripts/graph-benchmark-report.ts",
+        "graph:backfill": "ts-node ./scripts/graph-backfill.ts",
+        "graph:bench:ci": "ts-node ./scripts/graph-benchmark-ci.ts",
+        "print:openapi:scopes": "ts-node scripts/openapi-print-scopes.ts"
     },
     "dependencies": {
         "@langchain/google-genai": "^0.2.17",
@@ -23,23 +35,29 @@
         "@nestjs/swagger": "^7.4.2",
         "class-transformer": "^0.5.1",
         "class-validator": "^0.14.2",
+        "dotenv": "^16.4.5",
         "html-to-text": "^9.0.5",
         "js-yaml": "^4.1.0",
         "pg": "^8.16.3",
-        "dotenv": "^16.4.5",
         "reflect-metadata": "^0.2.2",
         "rxjs": "^7.8.1"
     },
     "devDependencies": {
+        "@nestjs/testing": "^10.3.0",
+        "@types/express": "^5.0.3",
+        "@types/jest": "^29.5.12",
         "@types/js-yaml": "^4.0.9",
+        "@types/multer": "^2.0.0",
         "@types/node": "^22.17.2",
         "@types/supertest": "^2.0.16",
+        "multer": "^2.0.2",
         "rimraf": "^5.0.5",
+        "supertest": "^7.0.0",
         "ts-node": "^10.9.2",
         "ts-node-dev": "^2.0.0",
         "tsx": "^4.19.0",
         "typescript": "^5.5.4",
-        "vitest": "^2.0.5",
-        "supertest": "^7.0.0"
+        "vitest": "^3.2.4",
+        "@vitest/coverage-v8": "^3.2.4"
     }
 }

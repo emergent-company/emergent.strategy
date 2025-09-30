@@ -1,33 +1,50 @@
 import { describe, it, expect } from 'vitest';
 import { GraphService } from '../src/modules/graph/graph.service';
+import { makeSchemaRegistryStub } from './helpers/schema-registry.stub';
 
 // Minimal mock DB focusing only on relationship creation path used in tests
 class MockDb {
   rels: any[] = [];
+  objects: any[] = [];
   async getClient() {
     return {
       query: async (sql: string, params?: any[]) => {
         if (sql.startsWith('BEGIN') || sql.startsWith('COMMIT') || sql.startsWith('ROLLBACK')) {
           return { rows: [], rowCount: 0 } as any;
         }
+        if (/SELECT id, project_id, deleted_at, branch_id FROM kb\.graph_objects WHERE id = ANY/.test(sql)) {
+          const ids = (params?.[0] || []) as string[];
+          const rows = ids.map(id => {
+            let obj = this.objects.find(o => o.id === id);
+            if (!obj) { obj = { id, project_id: 'proj', deleted_at: null, branch_id: null }; this.objects.push(obj); }
+            return { id: obj.id, project_id: obj.project_id, deleted_at: obj.deleted_at, branch_id: obj.branch_id };
+          });
+          return { rows, rowCount: rows.length } as any;
+        }
         if (/SELECT pg_advisory_xact_lock/.test(sql)) return { rows: [], rowCount: 0 } as any;
-        if (/SELECT \* FROM kb\.graph_relationships\n\s*WHERE project_id=/.test(sql)) {
-          // head lookup before first insert -> empty
-          const [projectId, type, src, dst] = params || [];
+        if (/SELECT \* FROM kb\.graph_relationships/.test(sql) && /ORDER BY version DESC LIMIT 1/.test(sql)) {
+          // supports optional branch predicate; ignore branch for mock
+          let projectId: any, type: any, src: any, dst: any;
+          if (/branch_id IS NOT DISTINCT FROM \$2/.test(sql)) {
+            projectId = params?.[0]; type = params?.[2]; src = params?.[3]; dst = params?.[4];
+          } else {
+            projectId = params?.[0]; type = params?.[1]; src = params?.[2]; dst = params?.[3];
+          }
           const existing = this.rels
             .filter(r => r.project_id === projectId && r.type === type && r.src_id === src && r.dst_id === dst)
             .sort((a, b) => b.version - a.version);
           return { rows: existing.slice(0, 1), rowCount: existing.length ? 1 : 0 } as any;
         }
-        if (/INSERT INTO kb\.graph_relationships\(org_id, project_id, type, src_id, dst_id, properties, version, canonical_id\)/.test(sql)) {
+        if (/INSERT INTO kb\.graph_relationships\(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, change_summary, content_hash\)/.test(sql)) {
           const row = {
             id: 'rel-' + (this.rels.length + 1),
             org_id: params?.[0],
             project_id: params?.[1],
-            type: params?.[2],
-            src_id: params?.[3],
-            dst_id: params?.[4],
-            properties: params?.[5],
+            branch_id: params?.[2] ?? null,
+            type: params?.[3],
+            src_id: params?.[4],
+            dst_id: params?.[5],
+            properties: params?.[6],
             version: 1,
             supersedes_id: null,
             canonical_id: 'can-' + (this.rels.length + 1),
@@ -42,7 +59,7 @@ class MockDb {
         }
         return { rows: [], rowCount: 0 } as any;
       },
-      release() {}
+      release() { }
     };
   }
 }
@@ -63,22 +80,21 @@ function makeValidator(required: string[]) {
 describe('Graph relationship schema validation', () => {
   it('rejects relationship missing required property', async () => {
     const db: any = new MockDb();
-    const schemaRegistry: any = {
-      getObjectValidator: async () => undefined,
-      getRelationshipValidator: async () => makeValidator(['weight'])
-    };
+    const schemaRegistry: any = makeSchemaRegistryStub({ relationshipValidator: makeValidator(['weight']) });
     const graph = new GraphService(db, schemaRegistry);
+    // create endpoint objects first (project_id consistent)
+    db.objects.push({ id: 'a', project_id: 'proj', deleted_at: null, branch_id: null });
+    db.objects.push({ id: 'b', project_id: 'proj', deleted_at: null, branch_id: null });
     await expect(graph.createRelationship({ type: 'rel', src_id: 'a', dst_id: 'b', properties: {} } as any, 'org', 'proj'))
       .rejects.toMatchObject({ response: { code: 'relationship_schema_validation_failed' } });
   });
 
   it('accepts relationship with required property', async () => {
     const db: any = new MockDb();
-    const schemaRegistry: any = {
-      getObjectValidator: async () => undefined,
-      getRelationshipValidator: async () => makeValidator(['weight'])
-    };
+    const schemaRegistry: any = makeSchemaRegistryStub({ relationshipValidator: makeValidator(['weight']) });
     const graph = new GraphService(db, schemaRegistry);
+    db.objects.push({ id: 'a', project_id: 'proj', deleted_at: null, branch_id: null });
+    db.objects.push({ id: 'b', project_id: 'proj', deleted_at: null, branch_id: null });
     const rel = await graph.createRelationship({ type: 'rel', src_id: 'a', dst_id: 'b', properties: { weight: 1 } } as any, 'org', 'proj');
     expect(rel.properties.weight).toBe(1);
     expect(rel.version).toBe(1);

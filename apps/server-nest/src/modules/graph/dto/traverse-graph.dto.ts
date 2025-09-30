@@ -33,4 +33,17 @@ export class TraverseGraphDto {
 
     @IsOptional() @IsArray() @ArrayMaxSize(64) @Matches(/^[A-Za-z0-9_.:-]{1,64}$/, { each: true })
     labels?: string[];
+
+    // Pagination (breaking change addition): supports bidirectional cursor-based paging over ordered node list.
+    // limit: page size (default 50, max 200)
+    @IsOptional() @IsInt() @Min(1) @Max(200)
+    limit?: number = 50;
+
+    // direction: 'forward' (default) or 'backward' relative to cursor position.
+    @IsOptional() @IsIn(['forward', 'backward'])
+    page_direction?: 'forward' | 'backward' = 'forward';
+
+    // Opaque cursor produced by previous page (encodes depth & id of boundary item).
+    @IsOptional() @IsString()
+    cursor?: string;
 }

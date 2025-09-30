@@ -16,6 +16,13 @@ This repository describes a system that ingests all “facts” about a potentia
 - 11-open-questions.md — Assumptions and decisions needed
 - 13-routing-and-urls.md — URL namespaces, conventions, and redirects
 - 14-reference-projects.md — Guidelines for keeping external templates as read-only references
+- 15-passkey-auth.md — Passkey-based authentication flows
+- 16-user-profile.md — User profile data model & operations
+- 17-server-nest-e2e-testing.md — Backend E2E testing strategy
+- 18-authorization-model.md — Authorization & RBAC model
+- 19-dynamic-object-graph.md — Dynamic graph & schema/branch architecture
+- 20-graph-overview.md — Plain-language project graph feature overview
+- 21-branch-merge-mvp.md — Branch merge minimal viable design (see also server README section "Branch Merge Dry-Run (MVP)")
 - glossary.md — Common terms
 
 ## Scope assumptions

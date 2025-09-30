@@ -42,3 +42,30 @@ When copying from `react-daisyui`, keep attribution headers and adapt to use our
 ## Changelog
 
 See `CHANGELOG.md` for notable removals and additions.
+
+## Graph Search Pagination (Summary)
+Bidirectional cursor pagination is supported for hybrid (lexical + vector) fused results. Each item carries an opaque Base64URL cursor. Requests accept:
+```
+pagination: { limit?: number; cursor?: string | null; direction?: 'forward' | 'backward' }
+```
+Server caps `limit` at 50 and echoes `meta.request.limit` plus `requested_limit`. Backward pages return items preceding the supplied cursor item (cursor item excluded) and reuse `nextCursor` to continue moving further backward. Ranks are per-request and may shift slightly; rely on item identity instead of cross-request rank comparisons.
+
+See: `apps/server-nest/README.md` ("Graph Search Cursor Pagination Semantics") or the dedicated spec doc `spec/graph-search-pagination.md` for full details.
+
+## Graph Test Helper & Benchmark
+
+Graph unit and service-level tests rely on a unified in-memory emulator at `apps/server-nest/tests/helpers/fake-graph-db.ts` documented in `apps/server-nest/tests/helpers/README.md`. When changing `GraphService` SQL patterns (DISTINCT ON head selection, history queries, search filtering) update the helper first so test failures clearly surface unsupported patterns.
+
+Lightweight relationship throughput benchmark (create + patch cycles) can be run to spot gross regressions:
+
+```
+npm --prefix apps/server-nest run bench:graph:relationships
+```
+
+Output is JSON summarizing ops/sec and avg ms/op using the FakeGraphDb (not a substitute for real DB profiling).
+
+Additional:
+- Objects benchmark: `npm run bench:graph:objects` (create + patch objects)
+- Strict emulator mode: pass `{ strict: true }` to `makeFakeGraphDb` in tests to have unmatched SQL throw immediately—useful when adding new GraphService queries.
+- Traversal benchmark: `npm run bench:graph:traverse` (breadth-limited traversal performance)
+- Query recording: use `{ recordQueries: true }` to assert sequence or count of generated SQL in tests.

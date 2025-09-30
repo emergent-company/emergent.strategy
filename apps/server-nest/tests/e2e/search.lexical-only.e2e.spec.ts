@@ -39,12 +39,12 @@ describe('Search Lexical Mode & Pagination E2E', () => {
 
         // Basic disjointness test when both pages populated
         if (page1.results.length === 3 && page2.results.length === 3) {
+            // Tolerant disjointness check: warn but don't fail (cursor-based pagination tests enforce strict guarantees).
             try {
                 expectDisjointIds(page1.results, page2.results);
             } catch (err) {
-                // Tolerate overlap; log for visibility.
                 // eslint-disable-next-line no-console
-                console.warn('[search.lexical-only] overlapping pages tolerated:', (err as Error).message);
+                console.warn('[search.lexical-only] overlap tolerated (non-fatal)');
             }
         }
     });

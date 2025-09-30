@@ -148,6 +148,44 @@ async function run() {
         { name: 'Knowledge Graph', tags: ['Graph'] }
     ];
 
+    // --- Deterministic top-level tag normalization ---------------------------------
+    // In some recent @nestjs/swagger versions we observed loss of aggregated top-level
+    // `tags` (ended up as an empty array) while per-operation tags remained. Our
+    // regression hash test only considers `paths` + `tags`, so an empty list broke
+    // determinism even though the functional surface was unchanged. We rebuild a
+    // stable tag list here:
+    //   1. Gather every distinct tag used by any operation.
+    //   2. Prefer ordering implied by x-tagGroups (flattened) to keep human grouping.
+    //   3. Append any operation tags not present in groups in sorted order.
+    //   4. Emit as list of `{ name: string }` objects ONLY if missing or empty, so we
+    //      do not override an intentionally curated list maintained elsewhere.
+    const docAny = document as any;
+    const existingTopTags = Array.isArray(docAny.tags) ? docAny.tags : [];
+    if (!existingTopTags.length) {
+        const opTagSet = new Set<string>();
+        for (const methods of Object.values(docAny.paths || {})) {
+            for (const op of Object.values(methods as Record<string, any>)) {
+                if (Array.isArray(op.tags)) op.tags.forEach((t: string) => opTagSet.add(t));
+            }
+        }
+        // Flatten group ordering if present
+        const groupOrder: string[] = Array.isArray(docAny['x-tagGroups'])
+            ? (docAny['x-tagGroups'] as any[]).flatMap(g => Array.isArray(g.tags) ? g.tags : [])
+            : [];
+        const orderedUnique: string[] = [];
+        const seen = new Set<string>();
+        for (const t of groupOrder) {
+            if (opTagSet.has(t) && !seen.has(t)) {
+                seen.add(t); orderedUnique.push(t);
+            }
+        }
+        // Any remaining operation tags not covered by groups (alphabetical for determinism)
+        const remaining = Array.from(opTagSet).filter(t => !seen.has(t)).sort((a, b) => a.localeCompare(b));
+        for (const t of remaining) orderedUnique.push(t);
+        docAny.tags = orderedUnique.map(t => ({ name: t }));
+    }
+    // -------------------------------------------------------------------------------
+
     writeFileSync(join(process.cwd(), 'openapi.json'), JSON.stringify(document, null, 2), 'utf-8');
     writeFileSync(join(process.cwd(), 'openapi.yaml'), yaml.dump(document, { lineWidth: 120 }), 'utf-8');
     // eslint-disable-next-line no-console
