@@ -24,7 +24,11 @@ function hashSpecPaths(spec: any): string {
 // Updated after adding Knowledge Graph search endpoints
 // Updated after adding traversal endpoint /graph/traverse
 // Updated after adding object/relationship delete+restore endpoints & traversal 201->200 response adjustment
-const EXPECTED_HASH = process.env.OPENAPI_EXPECTED_HASH || 'f61b0145e0c27e55c3883eda568cd13dc5f3d7c3613e26c7251c6ecbc9c238ff';
+// Updated after adding pagination fields to graph search response DTO (meta.nextCursor/prevCursor/hasNext/hasPrev & item.cursor)
+// Updated after adding ordering (order=asc|desc) query param annotations for object & relationship search endpoints
+// Updated after restoring deterministic top-level tags (generation normalization fix)
+// Updated after adding vector similarity + FTS endpoints (/graph/objects/vector-search, /graph/objects/{id}/similar, /graph/objects/fts)
+const EXPECTED_HASH = process.env.OPENAPI_EXPECTED_HASH || 'f408826cf4afb53f3cc9d044fd18e5191f89ae75bbdb60d8df80e789f7a82785';
 
 describe('OpenAPI regression', () => {
     it('paths+tags hash matches expected (update EXPECTED_HASH intentionally if spec changed)', () => {

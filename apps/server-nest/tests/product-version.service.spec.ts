@@ -1,0 +1,167 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ProductVersionService } from '../src/modules/graph/product-version.service';
+
+// Reusable error helper
+function pgError(code: string, message = code): any { return Object.assign(new Error(message), { code }); }
+
+// Fake transactional client
+class FakeClient {
+    public queries: { text: string; params?: any[] }[] = [];
+    constructor(private scripts: Array<{ text: RegExp; result?: any; throw?: Error }>) { }
+    async query(text: string, params?: any[]) {
+        this.queries.push({ text, params });
+        const script = this.scripts.find(s => s.text.test(text));
+        if (!script) return { rows: [], rowCount: 0 };
+        if (script.throw) throw script.throw;
+        return script.result ?? { rows: [], rowCount: 0 };
+    }
+    release() { }
+}
+
+class FakeDb {
+    constructor(private clientFactory: () => FakeClient, private scriptedQueries: Array<{ text: RegExp; result?: any; throw?: Error }> = []) { }
+    async query<T = any>(text: string, params?: any[]) {
+        const script = this.scriptedQueries.find(s => s.text.test(text));
+        if (script) {
+            if (script.throw) throw script.throw;
+            return script.result ?? { rows: [], rowCount: 0 } as any;
+        }
+        return { rows: [], rowCount: 0 } as any;
+    }
+    async getClient() { return this.clientFactory(); }
+}
+
+function uuid(n: number) { return `00000000-0000-4000-8000-${n.toString().padStart(12, '0')}`; }
+
+describe('ProductVersionService', () => {
+    it('create() inserts snapshot and enumerates object heads', async () => {
+        const projectId = uuid(1);
+        const orgId = uuid(2);
+        const client = new FakeClient([
+            { text: /BEGIN/ },
+            { text: /pg_advisory_xact_lock/ },
+            { text: /SELECT id FROM kb\.product_versions WHERE project_id/, result: { rows: [], rowCount: 0 } },
+            {
+                text: /INSERT INTO kb\.product_versions/,
+                result: { rows: [{ id: uuid(100), org_id: orgId, project_id: projectId, name: 'v1.0.0', description: 'First release', base_product_version_id: null, created_at: '2025-01-01T00:00:00Z' }], rowCount: 1 },
+            },
+            {
+                text: /SELECT DISTINCT ON.*canonical_id.*FROM kb\.graph_objects.*WHERE project_id/s,
+                result: { rows: [{ canonical_id: uuid(10), id: uuid(11) }, { canonical_id: uuid(20), id: uuid(21) }], rowCount: 2 },
+            },
+            { text: /INSERT INTO kb\.product_version_members/ },
+            { text: /COMMIT/ },
+        ]);
+        const svc = new ProductVersionService(new FakeDb(() => client) as any);
+        const result = await svc.create(projectId, orgId, { name: 'v1.0.0', description: 'First release' });
+        expect(result.id).toBe(uuid(100));
+        expect(result.name).toBe('v1.0.0');
+        expect(result.description).toBe('First release');
+        expect(result.member_count).toBe(2);
+        expect(result.base_product_version_id).toBeNull();
+        // Ensure membership insert called
+        expect(client.queries.some(q => /INSERT INTO kb\.product_version_members/.test(q.text))).toBe(true);
+    });
+
+    it('create() rejects duplicate name (case-insensitive)', async () => {
+        const projectId = uuid(1);
+        const orgId = uuid(2);
+        const client = new FakeClient([
+            { text: /BEGIN/ },
+            { text: /pg_advisory_xact_lock/ },
+            { text: /SELECT id FROM kb\.product_versions WHERE project_id/, result: { rows: [{ id: uuid(99) }], rowCount: 1 } },
+        ]);
+        const svc = new ProductVersionService(new FakeDb(() => client) as any);
+        await expect(svc.create(projectId, orgId, { name: 'Duplicate' })).rejects.toThrow('product_version_name_exists');
+    });
+
+    it('create() validates base_product_version_id exists', async () => {
+        const projectId = uuid(1);
+        const orgId = uuid(2);
+        const baseId = uuid(50);
+        const client = new FakeClient([
+            { text: /BEGIN/ },
+            { text: /pg_advisory_xact_lock/ },
+            { text: /SELECT id FROM kb\.product_versions WHERE project_id.*LOWER/, result: { rows: [], rowCount: 0 } },
+            { text: /SELECT id FROM kb\.product_versions WHERE id/, result: { rows: [], rowCount: 0 } },
+        ]);
+        const svc = new ProductVersionService(new FakeDb(() => client) as any);
+        await expect(svc.create(projectId, orgId, { name: 'v2.0.0', base_product_version_id: baseId })).rejects.toThrow('base_product_version_not_found');
+    });
+
+    it('create() links base snapshot when provided', async () => {
+        const projectId = uuid(1);
+        const orgId = uuid(2);
+        const baseId = uuid(50);
+        const client = new FakeClient([
+            { text: /BEGIN/ },
+            { text: /pg_advisory_xact_lock/ },
+            { text: /SELECT id FROM kb\.product_versions WHERE project_id.*LOWER/, result: { rows: [], rowCount: 0 } },
+            { text: /SELECT id FROM kb\.product_versions WHERE id/, result: { rows: [{ id: baseId }], rowCount: 1 } },
+            {
+                text: /INSERT INTO kb\.product_versions/,
+                result: { rows: [{ id: uuid(101), org_id: orgId, project_id: projectId, name: 'v2.0.0', description: null, base_product_version_id: baseId, created_at: '2025-01-02T00:00:00Z' }], rowCount: 1 },
+            },
+            { text: /SELECT DISTINCT ON.*canonical_id.*FROM kb\.graph_objects/s, result: { rows: [{ canonical_id: uuid(10), id: uuid(12) }], rowCount: 1 } },
+            { text: /INSERT INTO kb\.product_version_members/ },
+            { text: /COMMIT/ },
+        ]);
+        const svc = new ProductVersionService(new FakeDb(() => client) as any);
+        const result = await svc.create(projectId, orgId, { name: 'v2.0.0', base_product_version_id: baseId });
+        expect(result.base_product_version_id).toBe(baseId);
+    });
+
+    it('create() handles zero objects gracefully', async () => {
+        const projectId = uuid(1);
+        const orgId = uuid(2);
+        const client = new FakeClient([
+            { text: /BEGIN/ },
+            { text: /pg_advisory_xact_lock/ },
+            { text: /SELECT id FROM kb\.product_versions WHERE project_id/, result: { rows: [], rowCount: 0 } },
+            {
+                text: /INSERT INTO kb\.product_versions/,
+                result: { rows: [{ id: uuid(102), org_id: orgId, project_id: projectId, name: 'empty', description: null, base_product_version_id: null, created_at: '2025-01-03T00:00:00Z' }], rowCount: 1 },
+            },
+            { text: /SELECT DISTINCT ON.*canonical_id.*FROM kb\.graph_objects/s, result: { rows: [], rowCount: 0 } },
+            { text: /COMMIT/ },
+        ]);
+        const svc = new ProductVersionService(new FakeDb(() => client) as any);
+        const result = await svc.create(projectId, orgId, { name: 'empty' });
+        expect(result.member_count).toBe(0);
+        // No membership insert when rowCount is 0
+        expect(client.queries.some(q => /INSERT INTO kb\.product_version_members/.test(q.text))).toBe(false);
+    });
+
+    it('create() rejects empty name', async () => {
+        const projectId = uuid(1);
+        const svc = new ProductVersionService(new FakeDb(() => new FakeClient([])) as any);
+        await expect(svc.create(projectId, null, { name: '   ' })).rejects.toThrow('name_required');
+    });
+
+    it('get() returns snapshot with member count', async () => {
+        const projectId = uuid(1);
+        const snapshotId = uuid(100);
+        const db = new FakeDb(() => new FakeClient([]), [
+            { text: /SELECT id, project_id, name, description, base_product_version_id, created_at FROM kb\.product_versions WHERE id/, result: { rows: [{ id: snapshotId, project_id: projectId, name: 'v1.0.0', description: 'Release', base_product_version_id: null, created_at: '2025-01-01T00:00:00Z' }], rowCount: 1 } },
+            { text: /SELECT COUNT\(\*\)::int as c FROM kb\.product_version_members WHERE product_version_id/, result: { rows: [{ c: 42 }], rowCount: 1 } },
+        ]);
+        const svc = new ProductVersionService(db as any);
+        const result = await svc.get(projectId, snapshotId);
+        expect(result).not.toBeNull();
+        expect(result!.id).toBe(snapshotId);
+        expect(result!.name).toBe('v1.0.0');
+        expect(result!.member_count).toBe(42);
+    });
+
+    it('get() returns null when not found', async () => {
+        const projectId = uuid(1);
+        const snapshotId = uuid(999);
+        const db = new FakeDb(() => new FakeClient([]), [
+            { text: /SELECT id, project_id, name, description, base_product_version_id, created_at FROM kb\.product_versions WHERE id/, result: { rows: [], rowCount: 0 } },
+        ]);
+        const svc = new ProductVersionService(db as any);
+        const result = await svc.get(projectId, snapshotId);
+        expect(result).toBeNull();
+    });
+});

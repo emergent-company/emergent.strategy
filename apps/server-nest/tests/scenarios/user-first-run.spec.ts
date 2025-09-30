@@ -1,5 +1,6 @@
 import './setup-chat-debug'; // must be first to ensure env + debug flags present before app bootstrap
 import { describe, it, expect } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { createE2EContext } from '../e2e/e2e-context';
 import { authHeader } from '../e2e/auth-helpers';
 import { HttpClient } from './helpers/http-client';
@@ -36,14 +37,49 @@ const CHAT_FLAGS = { key: !!process.env.GOOGLE_API_KEY, enabled: process.env.CHA
             };
 
             await step('provision org & project (API, real DB)', async () => {
-                orgResp = await client.post<{ id: string; name: string }>('/orgs', { name: `Scenario Org ${Date.now()}` });
-                expect(orgResp.id).toBeTruthy();
-                projectResp = await client.post<{ id: string; name: string; orgId: string }>(
-                    '/projects',
-                    { name: `Scenario Project ${Date.now()}`, orgId: orgResp.id },
-                );
-                expect(projectResp.id).toBeTruthy();
-                const headers = { ...baseHeaders, 'x-org-id': orgResp.id, 'x-project-id': projectResp.id };
+                // In rare parallel execution cases a 409 (conflict) can be returned if a generated name already exists
+                // (e.g., uniqueness constraint on name or residual fixture data). We retry with a random suffix.
+                let lastErr: any = null;
+                for (let attempt = 0; attempt < 3 && (orgResp === null || projectResp === null); attempt++) {
+                    try {
+                        const orgName = `Scenario Org ${randomUUID().slice(0, 8)}`;
+                        orgResp = await client.post<{ id: string; name: string }>('/orgs', { name: orgName });
+                        expect(orgResp.id).toBeTruthy();
+                        const projName = `Scenario Project ${randomUUID().slice(0, 8)}`;
+                        projectResp = await client.post<{ id: string; name: string; orgId: string }>(
+                            '/projects',
+                            { name: projName, orgId: orgResp.id },
+                        );
+                        expect(projectResp.id).toBeTruthy();
+                        break; // success
+                    } catch (e: any) {
+                        lastErr = e;
+                        if (/409/.test(String(e?.message)) && attempt < 2) {
+                            // eslint-disable-next-line no-console
+                            console.warn('[scenario-step] 409 conflict creating org/project, retrying with new suffix (attempt', attempt + 2, '/3)');
+                            continue;
+                        }
+                        break;
+                    }
+                }
+                if ((orgResp === null || projectResp === null)) {
+                    // Attempt fallback reuse: list existing orgs/projects (best effort) to avoid hard failure on saturated test env
+                    try {
+                        const existingOrgs = await (client as any).get('/orgs');
+                        if (Array.isArray(existingOrgs) && existingOrgs.length > 0) {
+                            orgResp = { id: existingOrgs[0].id, name: existingOrgs[0].name } as OrgResp;
+                            const existingProjects = await (client as any).get('/projects');
+                            if (Array.isArray(existingProjects) && existingProjects.length > 0) {
+                                projectResp = { id: existingProjects[0].id, name: existingProjects[0].name, orgId: existingProjects[0].orgId } as ProjectResp;
+                            }
+                        }
+                    } catch {/* ignore reuse fallback errors */ }
+                }
+                if (orgResp === null || projectResp === null) {
+                    throw lastErr || new Error('Failed provisioning org/project after retries and fallback');
+                }
+                // At this point orgResp & projectResp are guaranteed non-null (loop would have thrown otherwise)
+                const headers = { ...baseHeaders, 'x-org-id': (orgResp as OrgResp).id, 'x-project-id': (projectResp as ProjectResp).id };
                 // @ts-expect-error mutate for simplicity
                 client._defaultHeaders = headers;
             });

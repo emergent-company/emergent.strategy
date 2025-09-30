@@ -15,7 +15,7 @@
     "lint": "eslint .",
     "format": "prettier . --write",
     "test": "vitest",
-    "test:run": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage",
     "e2e": "playwright test -c e2e/playwright.config.ts --reporter=list",
     "e2e:with-report": "playwright test -c e2e/playwright.config.ts --reporter=html",
     "e2e:ui": "playwright test -c e2e/playwright.config.ts --ui",

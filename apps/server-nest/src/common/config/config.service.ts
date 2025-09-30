@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { EnvVariables } from './config.schema';
 
 @Injectable()
 export class AppConfigService {
-    constructor(private readonly env: EnvVariables) {
+    constructor(@Inject(EnvVariables) private readonly env: EnvVariables) {
         if (process.env.E2E_DEBUG_CHAT === '1') {
             // eslint-disable-next-line no-console
             console.log('[config-debug] CHAT_MODEL_ENABLED raw=', process.env.CHAT_MODEL_ENABLED,
@@ -29,6 +29,10 @@ export class AppConfigService {
     get dbName() { return this.env.PGDATABASE; }
     get googleApiKey() { return this.env.GOOGLE_API_KEY; }
     get embeddingsEnabled() { return !!this.env.GOOGLE_API_KEY; }
+    get embeddingsNetworkDisabled() { return !!this.env.EMBEDDINGS_NETWORK_DISABLED; }
     get chatModelEnabled() { return !!this.env.GOOGLE_API_KEY && !!this.env.CHAT_MODEL_ENABLED; }
     get autoInitDb() { return !!this.env.DB_AUTOINIT; }
+    /** Password used when creating / connecting as dedicated non-bypass RLS role (app_rls). Optional so tests can rely on default. */
+    get appRlsPassword() { return this.env.APP_RLS_PASSWORD || 'app_rls_pw'; }
+    get rlsPolicyStrict() { return !!this.env.RLS_POLICY_STRICT; }
 }

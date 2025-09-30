@@ -12,10 +12,15 @@
         "sourceMap": true,
         "strict": true,
         "esModuleInterop": true,
-        "skipLibCheck": true
+        "skipLibCheck": true,
+        "types": [
+            "node",
+            "vitest"
+        ]
     },
     "include": [
-        "src"
+        "src",
+        "src/tests/**/*.ts"
     ],
     "exclude": [
         "dist",

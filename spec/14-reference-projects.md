@@ -19,6 +19,38 @@ This document defines how we use external codebases as references for design, ar
 - Purpose: UI/UX reference for React + Vite + TypeScript + Tailwind CSS (v4) + daisyUI (v5) and Iconify (Lucide) patterns.
 - Location (recommended): `reference/nexus`
 
+### Additional References
+
+#### Unstract
+- Name: Unstract (latest main)
+- Repo: `https://github.com/Zipstack/unstract.git`
+- Purpose: Reference for an end-to-end open source platform implementing agentic / LLM-powered document data extraction and workflow orchestration (Prompt Studio, multi-model integrations, ETL connectors, MCP server mode). We will primarily study:
+  - Extraction pipeline orchestration patterns (backend + worker coordination)
+  - Multi-provider LLM / embedding / vector DB abstraction surfaces
+  - Integration & connector configuration UX
+  - Human-in-the-loop review UI patterns (side-by-side comparison & highlighting)
+  - Deployment + self-host bootstrap scripts (compose orchestration patterns)
+- License: Apache 2.0 (retain headers when copying any code snippets; attribute per policy).
+- Location (recommended): `reference/unstract`
+
+Suggested setup (submodule):
+```
+git submodule add -b main https://github.com/Zipstack/unstract.git reference/unstract
+```
+Update & maintenance:
+```
+git -C reference/unstract pull origin main
+# Or to advance pointer & record in superproject
+git submodule update --remote --merge reference/unstract
+git add reference/unstract
+git commit -m "chore(reference): bump unstract"
+```
+
+Notes:
+- Treat as read-only inspiration for complex extraction + connector patterns; copy only minimal, license-compliant snippets.
+- Do NOT import runtime code directly (same no-import policy as other references).
+- When adopting patterns (e.g., multi-provider abstraction), re-implement with our existing NestJS module conventions & telemetry standards.
+
 Suggested setup (submodule)
 - Add: `git submodule add -b master git@github.com:eyedea-io/Nexus-React-3.0.0.git reference/nexus`
 - Init on fresh clones: `git submodule update --init --recursive`

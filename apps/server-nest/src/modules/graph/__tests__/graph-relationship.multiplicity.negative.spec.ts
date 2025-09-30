@@ -1,0 +1,96 @@
+import 'reflect-metadata';
+import { describe, it, beforeAll, afterAll, expect } from 'vitest';
+import { GraphService } from '../graph.service';
+import { DatabaseService } from '../../../common/database/database.service';
+import { AppConfigService } from '../../../common/config/config.service';
+import { withMultiplicities } from '../../../tests/helpers/schema-registry.stub';
+
+// This spec focuses purely on violation scenarios using a stubbed schema registry
+// instead of inserting relationship_type_schemas rows. This keeps the feedback loop
+// fast and isolates GraphService logic.
+
+async function seedProject(db: DatabaseService) {
+    const org = await db.query<{ id: string }>(`INSERT INTO kb.orgs(name) VALUES ($1) RETURNING id`, ['neg-mult-org-' + Date.now()]);
+    const project = await db.query<{ id: string }>(`INSERT INTO kb.projects(org_id, name) VALUES ($1,$2) RETURNING id`, [org.rows[0].id, 'neg-proj-' + Date.now()]);
+    return { orgId: org.rows[0].id, projectId: project.rows[0].id };
+}
+
+let seedSeq = 0;
+async function seedObjects(graph: GraphService, orgId: string, projectId: string) {
+    const prefix = `n${seedSeq++}`;
+    const a = await graph.createObject({ type: 'Node', key: `${prefix}-a`, properties: {}, org_id: orgId, project_id: projectId } as any);
+    const b = await graph.createObject({ type: 'Node', key: `${prefix}-b`, properties: {}, org_id: orgId, project_id: projectId } as any);
+    const c = await graph.createObject({ type: 'Node', key: `${prefix}-c`, properties: {}, org_id: orgId, project_id: projectId } as any);
+    return { a, b, c };
+}
+
+// Note: Prior deadlocks appeared due to test file level parallelization in the
+// broader suite, not intra-file concurrency. We avoid explicit parallel helpers
+// here and keep deterministic object key prefixes via incrementing seedSeq.
+describe('Graph Relationship Multiplicity (negative via stub)', () => {
+    let graph: GraphService;
+    let db: DatabaseService;
+    let projectId: string; let orgId: string;
+
+    beforeAll(async () => {
+        process.env.E2E_MINIMAL_DB = 'true';
+        process.env.PGHOST = process.env.PGHOST || 'localhost';
+        process.env.PGPORT = process.env.PGPORT || '5432';
+        process.env.PGUSER = process.env.PGUSER || 'spec';
+        process.env.PGPASSWORD = process.env.PGPASSWORD || 'spec';
+        process.env.PGDATABASE = process.env.PGDATABASE || 'spec';
+        process.env.DB_AUTOINIT = 'true';
+        const fakeConfig: any = {
+            skipDb: false,
+            autoInitDb: true,
+            dbHost: process.env.PGHOST,
+            dbPort: +(process.env.PGPORT || 5432),
+            dbUser: process.env.PGUSER,
+            dbPassword: process.env.PGPASSWORD,
+            dbName: process.env.PGDATABASE,
+        } satisfies Partial<AppConfigService>;
+        db = new DatabaseService(fakeConfig as AppConfigService);
+        await db.onModuleInit();
+
+        // Build stub with per-type multiplicities (no DB schema rows needed)
+        const schemaRegistryStub = withMultiplicities({
+            ONE_SRC: { src: 'one', dst: 'many' },
+            ONE_DST: { src: 'many', dst: 'one' },
+            ONE_ONE: { src: 'one', dst: 'one' }
+        });
+        graph = new GraphService(db as any, schemaRegistryStub as any);
+        const seeded = await seedProject(db);
+        projectId = seeded.projectId; orgId = seeded.orgId;
+    });
+
+    afterAll(async () => {
+        // Close DB connections to ensure clean shutdown & release any remaining locks
+        await db?.onModuleDestroy?.();
+    });
+
+    it('violates one-src multiplicity on second relationship from same src', async () => {
+        const { a, b, c } = await seedObjects(graph, orgId, projectId);
+        await graph.createRelationship({ type: 'ONE_SRC', src_id: a.id, dst_id: b.id, properties: {} }, orgId, projectId);
+        await expect(graph.createRelationship({ type: 'ONE_SRC', src_id: a.id, dst_id: c.id, properties: {} }, orgId, projectId))
+            .rejects.toMatchObject({ response: { code: 'relationship_multiplicity_violation', side: 'src', type: 'ONE_SRC' } });
+    });
+
+    it('violates one-dst multiplicity on second relationship to same dst', async () => {
+        const { a, b, c } = await seedObjects(graph, orgId, projectId);
+        await graph.createRelationship({ type: 'ONE_DST', src_id: a.id, dst_id: b.id, properties: {} }, orgId, projectId);
+        await expect(graph.createRelationship({ type: 'ONE_DST', src_id: c.id, dst_id: b.id, properties: {} }, orgId, projectId))
+            .rejects.toMatchObject({ response: { code: 'relationship_multiplicity_violation', side: 'dst', type: 'ONE_DST' } });
+    });
+
+    it('violates one-one multiplicity for src then dst sides separately', async () => {
+        const { a, b, c } = await seedObjects(graph, orgId, projectId);
+        await graph.createRelationship({ type: 'ONE_ONE', src_id: a.id, dst_id: b.id, properties: {} }, orgId, projectId);
+        // src side violation
+        await expect(graph.createRelationship({ type: 'ONE_ONE', src_id: a.id, dst_id: c.id, properties: {} }, orgId, projectId))
+            .rejects.toMatchObject({ response: { code: 'relationship_multiplicity_violation', side: 'src', type: 'ONE_ONE' } });
+        // dst side violation (need new src since b already used as dst)
+        const { a: a2 } = await seedObjects(graph, orgId, projectId);
+        await expect(graph.createRelationship({ type: 'ONE_ONE', src_id: a2.id, dst_id: b.id, properties: {} }, orgId, projectId))
+            .rejects.toMatchObject({ response: { code: 'relationship_multiplicity_violation', side: 'dst', type: 'ONE_ONE' } });
+    });
+});

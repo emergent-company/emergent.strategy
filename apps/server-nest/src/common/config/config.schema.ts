@@ -25,6 +25,10 @@ export class EnvVariables {
     @IsString()
     PGDATABASE!: string;
 
+    @IsString()
+    @IsOptional()
+    APP_RLS_PASSWORD?: string; // password for non-bypass RLS enforcement role (app_rls)
+
     @IsNumber()
     PORT: number = 3001; // default aligned with admin frontend fallback
 
@@ -36,6 +40,14 @@ export class EnvVariables {
     @IsOptional()
     SKIP_DB?: string;
 
+    @IsBoolean()
+    @IsOptional()
+    EMBEDDINGS_NETWORK_DISABLED?: boolean; // when true, force dummy embeddings even if key present
+
+    @IsBoolean()
+    @IsOptional()
+    RLS_POLICY_STRICT?: boolean; // when true, fail-fast if unexpected RLS policies detected
+
 }
 
 export function validate(config: Record<string, unknown>): EnvVariables {
@@ -46,9 +58,12 @@ export function validate(config: Record<string, unknown>): EnvVariables {
         PGUSER: 'spec',
         PGPASSWORD: 'spec',
         PGDATABASE: 'spec',
+        APP_RLS_PASSWORD: process.env.APP_RLS_PASSWORD,
         DB_AUTOINIT: false,
         SKIP_DB: process.env.SKIP_DB,
         CHAT_MODEL_ENABLED: process.env.CHAT_MODEL_ENABLED,
+        EMBEDDINGS_NETWORK_DISABLED: process.env.EMBEDDINGS_NETWORK_DISABLED,
+        RLS_POLICY_STRICT: process.env.RLS_POLICY_STRICT,
         ...config,
     };
     const transformed = plainToInstance(EnvVariables, {
@@ -57,6 +72,8 @@ export function validate(config: Record<string, unknown>): EnvVariables {
         PORT: withDefaults.PORT ? Number(withDefaults.PORT) : 3001,
         DB_AUTOINIT: withDefaults.DB_AUTOINIT === 'true' || withDefaults.DB_AUTOINIT === true,
         CHAT_MODEL_ENABLED: withDefaults.CHAT_MODEL_ENABLED === 'true' || withDefaults.CHAT_MODEL_ENABLED === true,
+        EMBEDDINGS_NETWORK_DISABLED: withDefaults.EMBEDDINGS_NETWORK_DISABLED === 'true' || withDefaults.EMBEDDINGS_NETWORK_DISABLED === true,
+        RLS_POLICY_STRICT: withDefaults.RLS_POLICY_STRICT === 'true' || withDefaults.RLS_POLICY_STRICT === true,
     });
     const errors = validateSync(transformed, { skipMissingProperties: false });
     if (errors.length) {

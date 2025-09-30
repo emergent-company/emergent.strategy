@@ -1,5 +1,5 @@
-import { Controller, Post, Get, Param, Body, Patch, Query, Delete, HttpCode } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiOkResponse } from '@nestjs/swagger';
+import { Controller, Post, Get, Param, Body, Patch, Query, Delete, HttpCode, BadRequestException, Inject, ParseArrayPipe, Logger } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiOkResponse, ApiQuery } from '@nestjs/swagger';
 import { Scopes } from '../auth/scopes.decorator';
 import { GraphService } from './graph.service';
 import { CreateGraphObjectDto } from './dto/create-graph-object.dto';
@@ -7,12 +7,28 @@ import { PatchGraphObjectDto } from './dto/patch-graph-object.dto';
 import { CreateGraphRelationshipDto } from './dto/create-graph-relationship.dto';
 import { PatchGraphRelationshipDto } from './dto/patch-graph-relationship.dto';
 import { TraverseGraphDto } from './dto/traverse-graph.dto';
+import { GraphExpandDto } from './dto/expand-graph.dto';
 import { HistoryQueryDto, ObjectHistoryResponseDto, RelationshipHistoryResponseDto } from './dto/history.dto';
+import { BranchMergeRequestDto, BranchMergeSummaryDto } from './dto/merge.dto';
+import { GraphVectorSearchService } from './graph-vector-search.service';
+import { VectorSearchDto } from './dto/vector-search.dto';
+import { SimilarVectorSearchQueryDto } from './dto/similar-vector-search.dto';
 
 @ApiTags('Graph')
 @Controller('graph')
 export class GraphObjectsController {
     constructor(private readonly service: GraphService) { }
+
+    // NOTE: Using property injection for GraphVectorSearchService.
+    // In the current test harness, constructor injection produced an undefined instance
+    // (likely due to circular metadata or module ordering during dynamic test module compilation).
+    // Property injection avoids that transient resolution issue while still allowing DI in runtime.
+    @Inject(GraphVectorSearchService)
+    private readonly vectorSearchService!: GraphVectorSearchService;
+    // Internal once-only warning flags (avoid noisy logs for legacy param usage)
+    private _warnedVectorLegacy = false;
+    private _warnedSimilarLegacy = false;
+    private readonly logger = new Logger(GraphObjectsController.name);
 
     @Post('objects')
     @Scopes('graph:write')
@@ -23,9 +39,34 @@ export class GraphObjectsController {
 
     @Get('objects/search')
     @Scopes('graph:read')
-    @ApiOperation({ summary: 'Search graph objects (basic filters)' })
-    searchObjects(@Query('type') type?: string, @Query('key') key?: string, @Query('label') label?: string, @Query('limit') limit?: string, @Query('cursor') cursor?: string) {
-        return this.service.searchObjects({ type, key, label, limit: limit ? parseInt(limit, 10) : 20, cursor });
+    @ApiOperation({ summary: 'Search graph objects (basic filters)', description: 'Supports pagination via created_at cursor. Optional order param (asc|desc) controls chronological direction (default asc). Desc returns newest first; cursor always set to last item created_at in current page.' })
+    @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'], description: 'Chronological direction (asc=oldest→newest, desc=newest→oldest). Default asc.' })
+    searchObjects(
+        @Query('type') type?: string,
+        @Query('key') key?: string,
+        @Query('label') label?: string,
+        @Query('limit') limit?: string,
+        @Query('cursor') cursor?: string,
+        @Query('order') order?: string,
+    ) {
+        const parsedLimit = limit ? parseInt(limit, 10) : 20;
+        const ord = (order && (order.toLowerCase() === 'asc' || order.toLowerCase() === 'desc')) ? order.toLowerCase() as 'asc' | 'desc' : undefined;
+        return this.service.searchObjects({ type, key, label, limit: parsedLimit, cursor, order: ord });
+    }
+
+    @Get('objects/fts')
+    @Scopes('graph:read')
+    @ApiOperation({ summary: 'Full-text search graph objects', description: 'Websearch syntax over inline-populated tsvector (type, key, properties JSON). Returns newest heads ranked by ts_rank. Supports optional type, label, branch_id filters. Limit max 100.' })
+    @ApiQuery({ name: 'q', required: true, description: 'Search query (websearch syntax)' })
+    ftsSearch(
+        @Query('q') q: string,
+        @Query('limit') limit?: string,
+        @Query('type') type?: string,
+        @Query('label') label?: string,
+        @Query('branch_id') branch_id?: string,
+    ) {
+        const parsedLimit = limit ? parseInt(limit, 10) : 20;
+        return this.service.searchObjectsFts({ q, limit: parsedLimit, type, label, branch_id });
     }
 
     @Get('objects/:id')
@@ -85,9 +126,12 @@ export class GraphObjectsController {
 
     @Get('relationships/search')
     @Scopes('graph:read')
-    @ApiOperation({ summary: 'Search relationships (basic filters)' })
-    searchRels(@Query('type') type?: string, @Query('src_id') src_id?: string, @Query('dst_id') dst_id?: string, @Query('limit') limit?: string, @Query('cursor') cursor?: string) {
-        return this.service.searchRelationships({ type, src_id, dst_id, limit: limit ? parseInt(limit, 10) : 20, cursor });
+    @ApiOperation({ summary: 'Search relationships (basic filters)', description: 'Supports pagination via created_at cursor. Optional order param (asc|desc) for chronological direction (default asc).' })
+    @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'], description: 'Chronological direction (asc=oldest→newest, desc=newest→oldest). Default asc.' })
+    searchRels(@Query('type') type?: string, @Query('src_id') src_id?: string, @Query('dst_id') dst_id?: string, @Query('limit') limit?: string, @Query('cursor') cursor?: string, @Query('order') order?: string) {
+        const parsedLimit = limit ? parseInt(limit, 10) : 20;
+        const ord = (order && (order.toLowerCase() === 'asc' || order.toLowerCase() === 'desc')) ? order.toLowerCase() as 'asc' | 'desc' : undefined;
+        return this.service.searchRelationships({ type, src_id, dst_id, limit: parsedLimit, cursor, order: ord });
     }
 
     @Patch('relationships/:id')
@@ -129,6 +173,90 @@ export class GraphObjectsController {
     @HttpCode(200)
     traverse(@Body() dto: TraverseGraphDto) {
         return this.service.traverse(dto);
+    }
+
+    @Post('expand')
+    @Scopes('graph:read')
+    @ApiOperation({ summary: 'Expand graph (single-pass bounded traversal with projection & edge property option)' })
+    @HttpCode(200)
+    expand(@Body() dto: GraphExpandDto) {
+        if (process.env.GRAPH_EXPAND_DISABLED === '1') {
+            return { error: 'expand_disabled' };
+        }
+        return this.service.expand(dto as any);
+    }
+
+    // ---------------- Vector Similarity ----------------
+    @Post('objects/vector-search')
+    @Scopes('graph:read')
+    @ApiOperation({ summary: 'Vector similarity search', description: 'Returns nearest neighbors (cosine distance) for provided query vector over embedding_vec. Threshold: use maxDistance (preferred) or legacy minScore (acts as maximum distance). When both are supplied, maxDistance takes precedence.' })
+    @HttpCode(200)
+    async vectorSearch(@Body() dto: VectorSearchDto) {
+        const minScore = dto.maxDistance != null ? dto.maxDistance : dto.minScore;
+        if (dto.maxDistance == null && dto.minScore != null && !this._warnedVectorLegacy) {
+            this._warnedVectorLegacy = true;
+            this.logger.debug('[vector-search] Using legacy param minScore (prefer maxDistance).');
+        }
+        return this.vectorSearchService.searchByVector(dto.vector, {
+            limit: dto.limit,
+            minScore,
+            type: dto.type,
+            orgId: dto.orgId,
+            projectId: dto.projectId,
+            branchId: dto.branchId,
+            keyPrefix: dto.keyPrefix,
+            labelsAll: dto.labelsAll,
+            labelsAny: dto.labelsAny,
+        });
+    }
+
+    @Get('objects/:id/similar')
+    @Scopes('graph:read')
+    @ApiOperation({ summary: 'Find objects similar to given object id using stored embedding_vec', description: 'Supports same filters as POST /graph/objects/vector-search (type, orgId, projectId, branchId, keyPrefix, labelsAll, labelsAny, maxDistance|minScore, limit). maxDistance preferred; if both provided, maxDistance overrides minScore.' })
+    async similar(
+        @Param('id') id: string,
+        @Query() query: SimilarVectorSearchQueryDto,
+        @Query('labelsAll', new ParseArrayPipe({ items: String, separator: ',', optional: true })) labelsAll?: string[],
+        @Query('labelsAny', new ParseArrayPipe({ items: String, separator: ',', optional: true })) labelsAny?: string[],
+    ) {
+        const minScore = query.maxDistance != null ? query.maxDistance : query.minScore;
+        if (query.maxDistance == null && query.minScore != null && !this._warnedSimilarLegacy) {
+            this._warnedSimilarLegacy = true;
+            this.logger.debug('[vector-similar] Using legacy param minScore (prefer maxDistance).');
+        }
+        return this.vectorSearchService.searchSimilar(id, {
+            limit: query.limit,
+            minScore,
+            type: query.type,
+            orgId: query.orgId,
+            projectId: query.projectId,
+            branchId: query.branchId,
+            keyPrefix: query.keyPrefix,
+            labelsAll: labelsAll || query.labelsAll,
+            labelsAny: labelsAny || query.labelsAny,
+        });
+    }
+
+    // ---------------- Branch Merge (Dry-Run + Execute) ----------------
+    @Post('branches/:targetBranchId/merge')
+    @Scopes('graph:write')
+    @ApiOperation({
+        summary: 'Branch merge (dry-run or execute)',
+        description: 'Enumerate divergent canonical graph objects between source and target branches. Default is dry-run (no mutations). If `execute=true` and there are no conflicts: Added objects are cloned into target; Fast-forward objects are patched by adding only new properties (superset heuristic). Conflicts block apply. Classification statuses: added, unchanged, fast_forward, conflict.'
+    })
+    @ApiOkResponse({ description: 'Merge summary including classification counts, per-object statuses, and optional applied/applied_objects when executed', type: BranchMergeSummaryDto })
+    @ApiResponse({ status: 400, description: 'Missing sourceBranchId or validation error' })
+    @ApiResponse({ status: 404, description: 'Branch not found' })
+    @ApiResponse({ status: 200, description: 'Successful dry-run or applied merge summary' })
+    @HttpCode(200)
+    async mergeDryRun(
+        @Param('targetBranchId') targetBranchId: string,
+        @Body() dto: BranchMergeRequestDto,
+    ): Promise<BranchMergeSummaryDto> {
+        if (!dto.sourceBranchId) {
+            throw new BadRequestException('source_branch_required');
+        }
+        return this.service.mergeBranchDryRun(targetBranchId, dto);
     }
 }
 

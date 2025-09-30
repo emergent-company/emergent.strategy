@@ -1,22 +1,104 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject, Optional } from '@nestjs/common';
+import { createHash } from 'crypto';
+import { pairIndependentHeads, pairIndependentRelationshipHeads } from './merge.util';
 import { DatabaseService } from '../../common/database/database.service';
 import { diffProperties } from '../../graph/change-summary';
+import { generateDiff, computeContentHash } from './diff.util';
 import { CreateGraphObjectDto } from './dto/create-graph-object.dto';
 import { PatchGraphObjectDto } from './dto/patch-graph-object.dto';
 import { GraphObjectDto, GraphObjectRow, GraphRelationshipDto, GraphRelationshipRow, GraphTraversalResult } from './graph.types';
 import { TraverseGraphDto } from './dto/traverse-graph.dto';
 import { CreateGraphRelationshipDto } from './dto/create-graph-relationship.dto';
 import { SchemaRegistryService } from './schema-registry.service';
+import { EmbeddingJobsService } from './embedding-jobs.service';
+import { AppConfigService } from '../../common/config/config.service';
 import { PatchGraphRelationshipDto } from './dto/patch-graph-relationship.dto';
+import { BranchMergeRequestDto, BranchMergeSummaryDto, BranchMergeObjectStatus, BranchMergeObjectSummaryDto, BranchMergeRelationshipSummaryDto, BranchMergeRelationshipStatus } from './dto/merge.dto';
 
 @Injectable()
 export class GraphService {
-    constructor(private readonly db: DatabaseService, private readonly schemaRegistry: SchemaRegistryService) { }
-
-    async createObject(input: CreateGraphObjectDto): Promise<GraphObjectDto> {
-        const client = await this.db.getClient();
-        const { type, key, properties = {}, labels = [], org_id = null, project_id = null } = input as any;
+    /**
+     * Find a merge base (lowest common ancestor) between two object/relationship version IDs using
+     * the kb.merge_provenance parent linkage graph. This performs a bounded bidirectional ancestry
+     * expansion (depth-first via recursion) and returns the first common ancestor minimizing
+     * combined depth (s_depth + t_depth). If none is found within the depth budget the function
+     * returns null. The search intentionally treats provenance parents uniformly (roles source|target|base)
+     * because for ancestry purposes any parent edge expresses historical precedence.
+     *
+     * Depth bound (MERGE_BASE_MAX_DEPTH env, default 20) keeps worst-case explosion in check.
+     * This is an MVP heuristic; future iterations may incorporate explicit version timestamps or
+     * topological ordering to break ties more deterministically.
+     */
+    private async findMergeBase(sourceVersionId: string, targetVersionId: string): Promise<string | null> {
+        if (!sourceVersionId || !targetVersionId || sourceVersionId === targetVersionId) return null;
+        const maxDepth = parseInt(process.env.GRAPH_MERGE_BASE_MAX_DEPTH || '20', 10);
+        const sql = `WITH RECURSIVE src_anc(id, depth) AS (
+                          SELECT $1::uuid, 0
+                          UNION ALL
+                          SELECT mp.parent_version_id, depth + 1
+                          FROM kb.merge_provenance mp
+                          JOIN src_anc sa ON mp.child_version_id = sa.id
+                          WHERE sa.depth < $3
+                      ),
+                      tgt_anc(id, depth) AS (
+                          SELECT $2::uuid, 0
+                          UNION ALL
+                          SELECT mp.parent_version_id, depth + 1
+                          FROM kb.merge_provenance mp
+                          JOIN tgt_anc ta ON mp.child_version_id = ta.id
+                          WHERE ta.depth < $3
+                      ),
+                      common AS (
+                          SELECT s.id, s.depth AS s_depth, t.depth AS t_depth, (s.depth + t.depth) AS total_depth
+                          FROM src_anc s
+                          JOIN tgt_anc t ON s.id = t.id
+                      )
+                      SELECT id FROM common ORDER BY total_depth, s_depth, t_depth LIMIT 1`;
         try {
+            const res = await this.db.query<{ id: string }>(sql, [sourceVersionId, targetVersionId, maxDepth]);
+            if (res.rowCount) return res.rows[0].id;
+        } catch (e) {
+            // Non-blocking; merge logic can proceed without a base. Swallow errors to avoid
+            // failing the entire merge dry-run due to an LCA query issue.
+        }
+        return null;
+    }
+    constructor(
+        @Inject(DatabaseService) private readonly db: DatabaseService,
+        @Inject(SchemaRegistryService) private readonly schemaRegistry: SchemaRegistryService,
+        @Optional() @Inject(EmbeddingJobsService) private readonly embeddingJobs?: EmbeddingJobsService,
+        @Optional() @Inject(AppConfigService) private readonly config?: AppConfigService,
+    ) { }
+
+    private sortObject(value: any): any { // stable key ordering for hashing
+        if (value === null || typeof value !== 'object') return value;
+        if (Array.isArray(value)) return value.map(v => this.sortObject(v));
+        const entries = Object.keys(value).sort().map(k => [k, this.sortObject(value[k])]);
+        return Object.fromEntries(entries);
+    }
+
+    async createObject(input: CreateGraphObjectDto & { branch_id?: string | null }): Promise<GraphObjectDto> {
+        const client = await this.db.getClient();
+        let { type, key, properties = {}, labels = [], org_id = null, project_id = null, branch_id = null } = input as any;
+        // Fallback: if caller did not supply org/project, derive from session GUCs (tenant context) so rows are scoped and RLS isolation holds.
+        if (!org_id) {
+            try {
+                const guc = await this.db.query<{ org: string | null }>("SELECT current_setting('app.current_org_id', true) as org");
+                org_id = guc.rows[0].org || null;
+            } catch { /* ignore */ }
+        }
+        if (!project_id) {
+            try {
+                const guc = await this.db.query<{ proj: string | null }>("SELECT current_setting('app.current_project_id', true) as proj");
+                project_id = guc.rows[0].proj || null;
+            } catch { /* ignore */ }
+        }
+        try {
+            // Branch existence validation (if provided)
+            if (branch_id) {
+                const b = await this.db.query<{ id: string }>(`SELECT id FROM kb.branches WHERE id=$1`, [branch_id]);
+                if (!b.rowCount) throw new NotFoundException('branch_not_found');
+            }
             // Schema validation (if schema exists for type)
             const validator = await this.schemaRegistry.getObjectValidator(project_id ?? null, type);
             if (validator) {
@@ -31,24 +113,43 @@ export class GraphService {
                 await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`obj|${project_id}|${type}|${key}`]);
                 // Head = max(version) for (project_id,type,key)
                 const existing = await client.query<GraphObjectRow>(
-                    `SELECT id, org_id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, created_at
+                    `SELECT id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, created_at
                      FROM kb.graph_objects
-                     WHERE project_id IS NOT DISTINCT FROM $1 AND type=$2 AND key=$3
+                     WHERE project_id IS NOT DISTINCT FROM $1 AND branch_id IS NOT DISTINCT FROM $2 AND type=$3 AND key=$4
                      ORDER BY version DESC
-                     LIMIT 1`, [project_id, type, key]
+                     LIMIT 1`, [project_id, branch_id, type, key]
                 );
                 if (existing.rowCount) {
                     throw new BadRequestException('object_key_exists');
                 }
             }
+            // Deduplicate labels (prevent duplicates on insert)
+            const dedupedLabels = Array.from(new Set(labels));
+            // Compute content hash using new utility (returns Buffer, convert to base64)
+            const hashBuffer = computeContentHash(properties);
+            const hash = hashBuffer.toString('base64');
+            // Compute rich change summary (treat prior state as empty object). Empty previous state ensures all provided
+            // properties register as added paths with proper meta counters and path union.
+            const changeSummary = generateDiff({}, properties);
+            // Inline FTS population (basic lexical vector) over type, key, and serialized properties.
+            // IMPORTANT: Do NOT reuse the JSON properties parameter ($3) inside the FTS expression because
+            // PostgreSQL will attempt to infer a single type for $3 across JSONB and text concatenation usages,
+            // yielding "inconsistent types deduced" errors. Instead, we duplicate the serialized properties
+            // string as a later parameter ($11) that is explicitly text.
+            const ftsVectorSql = `to_tsvector('simple', coalesce($1,'') || ' ' || coalesce($2,'') || ' ' || coalesce($10,'') )`;
             const row = await client.query<GraphObjectRow>(
-                `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, org_id, project_id)
-                 VALUES ($1,$2,$3,$4,1,gen_random_uuid(),$5,$6)
-                 RETURNING id, org_id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, created_at`,
-                [type, key ?? null, properties, labels, org_id, project_id]
+                `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, org_id, project_id, branch_id, change_summary, content_hash, fts, embedding, embedding_updated_at)
+                 VALUES ($1,$2,$3,$4,1,gen_random_uuid(),$5,$6,$7,$8,$9, ${ftsVectorSql}, NULL, NULL)
+                 RETURNING id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
+                [type, key ?? null, properties, dedupedLabels, org_id, project_id, branch_id, changeSummary, hash, JSON.stringify(properties)]
             );
             await client.query('COMMIT');
-            return row.rows[0];
+            const created = row.rows[0];
+            // Best-effort enqueue embedding job if embeddings enabled and object lacks embedding
+            if (this.config?.embeddingsEnabled && (created as any).embedding == null) {
+                try { await this.embeddingJobs?.enqueue(created.id); } catch { /* swallow */ }
+            }
+            return created;
         } catch (e) {
             try { await client.query('ROLLBACK'); } catch { /* ignore */ }
             throw e;
@@ -63,7 +164,41 @@ export class GraphService {
         return res.rows[0];
     }
 
-    async patchObject(id: string, patch: PatchGraphObjectDto): Promise<GraphObjectDto> {
+    /**
+     * Resolve object HEAD on a branch with lazy fallback to ancestor branches.
+     * Per spec Section 5.6.1: Uses recursive CTE to walk branch lineage,
+     * picks earliest depth (closest branch) then highest version.
+     * 
+     * @param canonical_id The canonical_id of the object
+     * @param branch_id The branch to resolve from
+     * @returns The head version of the object on the branch or nearest ancestor
+     * @throws NotFoundException if object not found on branch or any ancestor
+     */
+    async resolveObjectOnBranch(canonical_id: string, branch_id: string): Promise<GraphObjectDto> {
+        const res = await this.db.query<GraphObjectRow>(
+            `WITH RECURSIVE lineage AS (
+                SELECT b.id, 0 AS depth FROM kb.branches b WHERE b.id = $1
+                UNION ALL
+                SELECT bl.ancestor_branch_id, l.depth + 1
+                FROM lineage l
+                JOIN kb.branch_lineage bl ON bl.branch_id = l.id
+                WHERE bl.ancestor_branch_id IS NOT NULL
+            )
+            SELECT o.id, o.org_id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, 
+                   o.version, o.type, o.key, o.properties, o.labels, o.deleted_at, 
+                   o.change_summary, o.content_hash, o.created_at
+            FROM lineage l
+            JOIN kb.graph_objects o ON o.branch_id = l.id AND o.canonical_id = $2
+            WHERE o.deleted_at IS NULL
+            ORDER BY l.depth ASC, o.version DESC
+            LIMIT 1`,
+            [branch_id, canonical_id]
+        );
+        if (!res.rowCount) throw new NotFoundException('object_not_found_on_branch');
+        return res.rows[0];
+    }
+
+    async patchObject(id: string, patch: PatchGraphObjectDto & { branch_id?: string | null }): Promise<GraphObjectDto> {
         const client = await this.db.getClient();
         try {
             await client.query('BEGIN');
@@ -75,7 +210,7 @@ export class GraphService {
             await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`obj|${current.canonical_id}`]);
             // Ensure this id is still the head (no newer version exists)
             const newer = await client.query<{ id: string }>(
-                'SELECT id FROM kb.graph_objects WHERE canonical_id=$1 AND version > $2 LIMIT 1', [current.canonical_id, current.version]
+                'SELECT id FROM kb.graph_objects WHERE canonical_id=$1 AND version > $2 AND branch_id IS NOT DISTINCT FROM $3 LIMIT 1', [current.canonical_id, current.version, (current as any).branch_id ?? null]
             );
             if (newer.rowCount) throw new BadRequestException('cannot_patch_non_head_version');
             const nextProps = patch.properties ? { ...current.properties, ...patch.properties } : current.properties;
@@ -91,17 +226,26 @@ export class GraphService {
             } else if (patch.replaceLabels) {
                 nextLabels = [];
             }
-            const diff = diffProperties(current.properties, nextProps);
+            const diff = generateDiff(current.properties, nextProps);
             const labelsChanged = JSON.stringify(current.labels) !== JSON.stringify(nextLabels);
             if (!diff && !labelsChanged) throw new BadRequestException('no_effective_change');
+            // Compute content hash using new utility
+            const hashBuffer = computeContentHash(nextProps);
+            const hash = hashBuffer.toString('base64');
+            // IMPORTANT: Keep serialized properties text parameter separate from JSONB properties to avoid type inference conflicts.
+            const ftsVectorSql = `to_tsvector('simple', coalesce($13,'') || ' ' || coalesce($14,'') || ' ' || coalesce($15,'') )`;
             const inserted = await client.query<GraphObjectRow>(
-                `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, org_id, project_id, deleted_at)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL)
-                 RETURNING id, org_id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, created_at`,
-                [current.type, current.key, nextProps, nextLabels, current.version + 1, current.canonical_id, current.id, (current as any).org_id ?? null, (current as any).project_id ?? null]
+                `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, org_id, project_id, branch_id, deleted_at, change_summary, content_hash, fts, embedding, embedding_updated_at)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL,$11,$12, ${ftsVectorSql}, NULL, NULL)
+                 RETURNING id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
+                [current.type, current.key, nextProps, nextLabels, current.version + 1, current.canonical_id, current.id, (current as any).org_id ?? null, (current as any).project_id ?? null, (current as any).branch_id ?? null, diff, hash, current.key ?? '', JSON.stringify(nextProps), current.type]
             );
             await client.query('COMMIT');
-            return { ...inserted.rows[0], diff };
+            const updated = { ...inserted.rows[0], diff } as any;
+            if (this.config?.embeddingsEnabled && updated.embedding == null) {
+                try { await this.embeddingJobs?.enqueue(updated.id); } catch { /* ignore */ }
+            }
+            return updated;
         } catch (e) {
             try { await client.query('ROLLBACK'); } catch { /* ignore */ }
             throw e;
@@ -132,19 +276,79 @@ export class GraphService {
     }
 
     // ---------------- Relationships ----------------
-    async createRelationship(input: CreateGraphRelationshipDto, orgId: string, projectId: string): Promise<GraphRelationshipDto> {
-        const { type, src_id, dst_id, properties = {} } = input;
+    async createRelationship(input: CreateGraphRelationshipDto & { branch_id?: string | null }, orgId: string, projectId: string): Promise<GraphRelationshipDto> {
+        const { type, src_id, dst_id, properties = {}, branch_id = null } = input as any;
         if (src_id === dst_id) throw new BadRequestException('self_loop_not_allowed');
         const client = await this.db.getClient();
         try {
             await client.query('BEGIN');
+            // Validate endpoints exist & not deleted
+            const objs = await client.query<{ id: string; project_id: string | null; deleted_at: string | null; branch_id: string | null }>(
+                `SELECT id, project_id, deleted_at, branch_id FROM kb.graph_objects WHERE id = ANY($1::uuid[])`,
+                [[src_id, dst_id]]
+            );
+            if (objs.rowCount !== 2) {
+                const missingSrc = !objs.rows.find(r => r.id === src_id);
+                const missingDst = !objs.rows.find(r => r.id === dst_id);
+                if (missingSrc) throw new NotFoundException('src_object_not_found');
+                if (missingDst) throw new NotFoundException('dst_object_not_found');
+            }
+            const srcObj = objs.rows.find(r => r.id === src_id)!;
+            const dstObj = objs.rows.find(r => r.id === dst_id)!;
+            if (srcObj.deleted_at) throw new BadRequestException('src_object_deleted');
+            if (dstObj.deleted_at) throw new BadRequestException('dst_object_deleted');
+            // Enforce same project
+            if ((srcObj.project_id ?? null) !== (projectId ?? null) || (dstObj.project_id ?? null) !== (projectId ?? null)) {
+                throw new BadRequestException('relationship_project_mismatch');
+            }
+            // Branch existence & consistency
+            if (branch_id) {
+                const b = await client.query<{ id: string }>(`SELECT id FROM kb.branches WHERE id=$1`, [branch_id]);
+                if (!b.rowCount) throw new NotFoundException('branch_not_found');
+                if ((srcObj.branch_id ?? null) !== (branch_id ?? null) || (dstObj.branch_id ?? null) !== (branch_id ?? null)) {
+                    throw new BadRequestException('relationship_branch_mismatch');
+                }
+            } else {
+                // If no branch specified, require both endpoints in same (null) branch or identical branch id
+                if ((srcObj.branch_id ?? null) !== (dstObj.branch_id ?? null)) {
+                    throw new BadRequestException('relationship_branch_mismatch');
+                }
+            }
+            const effectiveBranchId = branch_id !== undefined && branch_id !== null ? branch_id : (srcObj.branch_id ?? null);
+            // Fetch multiplicity (default many-many) and enforce BEFORE identity lock to surface side-specific errors early.
+            const multiplicity = await this.schemaRegistry.getRelationshipMultiplicity(projectId, type);
+            // For 'one' sides we serialize creation across all relationships sharing that endpoint & type to avoid race duplicates.
+            if (multiplicity.src === 'one') {
+                await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`rel|src|${projectId}|${type}|${src_id}`]);
+                const existingSrc = await client.query<{ id: string }>(
+                    `SELECT id FROM kb.graph_relationships
+                     WHERE project_id=$1 AND type=$2 AND src_id=$3 AND supersedes_id IS NULL AND deleted_at IS NULL
+                     LIMIT 1`, [projectId, type, src_id]
+                );
+                if (existingSrc.rowCount) {
+                    await client.query('ROLLBACK');
+                    throw new BadRequestException({ code: 'relationship_multiplicity_violation', side: 'src', type });
+                }
+            }
+            if (multiplicity.dst === 'one') {
+                await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`rel|dst|${projectId}|${type}|${dst_id}`]);
+                const existingDst = await client.query<{ id: string }>(
+                    `SELECT id FROM kb.graph_relationships
+                     WHERE project_id=$1 AND type=$2 AND dst_id=$3 AND supersedes_id IS NULL AND deleted_at IS NULL
+                     LIMIT 1`, [projectId, type, dst_id]
+                );
+                if (existingDst.rowCount) {
+                    await client.query('ROLLBACK');
+                    throw new BadRequestException({ code: 'relationship_multiplicity_violation', side: 'dst', type });
+                }
+            }
             // Serialize relationship creation/upsert on logical identity
             await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`rel|${projectId}|${type}|${src_id}|${dst_id}`]);
             const head = await client.query<GraphRelationshipRow>(
                 `SELECT * FROM kb.graph_relationships
-                 WHERE project_id=$1 AND type=$2 AND src_id=$3 AND dst_id=$4
+                 WHERE project_id=$1 AND branch_id IS NOT DISTINCT FROM $2 AND type=$3 AND src_id=$4 AND dst_id=$5
                  ORDER BY version DESC LIMIT 1`,
-                [projectId, type, src_id, dst_id]
+                [projectId, effectiveBranchId, type, src_id, dst_id]
             );
             if (!head.rowCount) {
                 // Validate relationship properties if schema exists
@@ -154,11 +358,14 @@ export class GraphService {
                     if (!valid) throw new BadRequestException({ code: 'relationship_schema_validation_failed', errors: validator.errors });
                 }
                 try { await client.query('DROP INDEX IF EXISTS kb.idx_graph_rel_unique'); } catch { /* ignore */ }
+                const stable = JSON.stringify(this.sortObject(properties));
+                const hash = createHash('sha256').update(stable).digest('base64');
+                const changeSummary = diffProperties({}, properties) || null;
                 const inserted = await client.query<GraphRelationshipRow>(
-                    `INSERT INTO kb.graph_relationships(org_id, project_id, type, src_id, dst_id, properties, version, canonical_id)
-                     VALUES ($1,$2,$3,$4,$5,$6,1,gen_random_uuid())
-                     RETURNING id, org_id, project_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, created_at`,
-                    [orgId, projectId, type, src_id, dst_id, properties]
+                    `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, change_summary, content_hash)
+                     VALUES ($1,$2,$3,$4,$5,$6,$7,1,gen_random_uuid(),$8,$9)
+                     RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, change_summary, content_hash, created_at`,
+                    [orgId, projectId, effectiveBranchId, type, src_id, dst_id, properties, changeSummary, hash]
                 );
                 await client.query('COMMIT');
                 return inserted.rows[0];
@@ -176,11 +383,13 @@ export class GraphService {
                 const valid = validator(properties || {});
                 if (!valid) throw new BadRequestException({ code: 'relationship_schema_validation_failed', errors: validator.errors });
             }
+            const stable = JSON.stringify(this.sortObject(properties));
+            const hash = createHash('sha256').update(stable).digest('base64');
             const inserted = await client.query<GraphRelationshipRow>(
-                `INSERT INTO kb.graph_relationships(org_id, project_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-                 RETURNING id, org_id, project_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, created_at`,
-                [orgId, projectId, type, src_id, dst_id, properties, nextVersion, current.canonical_id, current.id]
+                `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, change_summary, content_hash)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+                 RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, change_summary, content_hash, created_at`,
+                [orgId, projectId, (current as any).branch_id ?? null, type, src_id, dst_id, properties, nextVersion, current.canonical_id, current.id, diff, hash]
             );
             await client.query('COMMIT');
             return { ...inserted.rows[0], diff };
@@ -217,11 +426,13 @@ export class GraphService {
             if (!diff) throw new BadRequestException('no_effective_change');
             const nextVersion = (current.version || 1) + 1;
             try { await client.query('DROP INDEX IF EXISTS kb.idx_graph_rel_unique'); } catch { /* ignore */ }
+            const stable = JSON.stringify(this.sortObject(nextProps));
+            const hash = createHash('sha256').update(stable).digest('base64');
             const inserted = await client.query<GraphRelationshipRow>(
-                `INSERT INTO kb.graph_relationships(org_id, project_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL)
-                 RETURNING id, org_id, project_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, deleted_at, created_at`,
-                [current.org_id, current.project_id, current.type, current.src_id, current.dst_id, nextProps, nextVersion, current.canonical_id, current.id]
+                `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at, change_summary, content_hash)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL,$11,$12)
+                 RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, deleted_at, change_summary, content_hash, created_at`,
+                [current.org_id, current.project_id, (current as any).branch_id ?? null, current.type, current.src_id, current.dst_id, nextProps, nextVersion, current.canonical_id, current.id, diff, hash]
             );
             await client.query('COMMIT');
             return { ...inserted.rows[0], diff };
@@ -244,11 +455,12 @@ export class GraphService {
             const head = await client.query<GraphObjectRow>(`SELECT * FROM kb.graph_objects WHERE canonical_id=$1 ORDER BY version DESC LIMIT 1`, [current.canonical_id]);
             if (!head.rowCount) throw new NotFoundException('object_not_found');
             if (head.rows[0].deleted_at) throw new BadRequestException('already_deleted');
+            const ftsVectorSql = `to_tsvector('simple', coalesce($10,'') || ' ' || coalesce($11,'') || ' ' || coalesce($12,'') )`;
             const tombstone = await client.query<GraphObjectRow>(
-                `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, org_id, project_id, deleted_at)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,now())
-                 RETURNING id, org_id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, created_at`,
-                [head.rows[0].type, head.rows[0].key, head.rows[0].properties, head.rows[0].labels, head.rows[0].version + 1, head.rows[0].canonical_id, head.rows[0].id, (head.rows[0] as any).org_id ?? null, (head.rows[0] as any).project_id ?? null]
+                `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, org_id, project_id, deleted_at, fts, embedding, embedding_updated_at)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,now(), ${ftsVectorSql}, NULL, NULL)
+                 RETURNING id, org_id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, fts, created_at`,
+                [head.rows[0].type, head.rows[0].key, head.rows[0].properties, head.rows[0].labels, head.rows[0].version + 1, head.rows[0].canonical_id, head.rows[0].id, (head.rows[0] as any).org_id ?? null, (head.rows[0] as any).project_id ?? null, head.rows[0].key ?? '', JSON.stringify(head.rows[0].properties), head.rows[0].type]
             );
             await client.query('COMMIT');
             return tombstone.rows[0];
@@ -273,11 +485,12 @@ export class GraphService {
             const prevLive = await client.query<GraphObjectRow>(
                 `SELECT * FROM kb.graph_objects WHERE canonical_id=$1 AND deleted_at IS NULL ORDER BY version DESC LIMIT 1`, [canonicalId]);
             if (!prevLive.rowCount) throw new BadRequestException('no_prior_live_version');
+            const ftsVectorSql = `to_tsvector('simple', coalesce($10,'') || ' ' || coalesce($11,'') || ' ' || coalesce($12,'') )`;
             const restored = await client.query<GraphObjectRow>(
-                `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, org_id, project_id, deleted_at)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL)
-                 RETURNING id, org_id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, created_at`,
-                [prevLive.rows[0].type, prevLive.rows[0].key, prevLive.rows[0].properties, prevLive.rows[0].labels, head.rows[0].version + 1, canonicalId, head.rows[0].id, (prevLive.rows[0] as any).org_id ?? null, (prevLive.rows[0] as any).project_id ?? null]
+                `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, org_id, project_id, deleted_at, fts, embedding, embedding_updated_at)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL, ${ftsVectorSql}, NULL, NULL)
+                 RETURNING id, org_id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, fts, created_at`,
+                [prevLive.rows[0].type, prevLive.rows[0].key, prevLive.rows[0].properties, prevLive.rows[0].labels, head.rows[0].version + 1, canonicalId, head.rows[0].id, (prevLive.rows[0] as any).org_id ?? null, (prevLive.rows[0] as any).project_id ?? null, prevLive.rows[0].key ?? '', JSON.stringify(prevLive.rows[0].properties), prevLive.rows[0].type]
             );
             await client.query('COMMIT');
             return restored.rows[0];
@@ -300,10 +513,10 @@ export class GraphService {
             const head = headRes.rows[0];
             if ((head as any).deleted_at) throw new BadRequestException('already_deleted');
             const tombstone = await client.query<GraphRelationshipRow>(
-                `INSERT INTO kb.graph_relationships(org_id, project_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,now())
-                 RETURNING id, org_id, project_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, deleted_at, created_at`,
-                [head.org_id, head.project_id, head.type, head.src_id, head.dst_id, head.properties, (head.version || 1) + 1, head.canonical_id, head.id]
+                `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now())
+                 RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, deleted_at, created_at`,
+                [head.org_id, head.project_id, (head as any).branch_id ?? null, head.type, head.src_id, head.dst_id, head.properties, (head.version || 1) + 1, head.canonical_id, head.id]
             );
             await client.query('COMMIT');
             return tombstone.rows[0];
@@ -330,10 +543,10 @@ export class GraphService {
             if (!prevLive.rowCount) throw new BadRequestException('no_prior_live_version');
             const prev = prevLive.rows[0];
             const restored = await client.query<GraphRelationshipRow>(
-                `INSERT INTO kb.graph_relationships(org_id, project_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL)
-                 RETURNING id, org_id, project_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, deleted_at, created_at`,
-                [prev.org_id, prev.project_id, prev.type, prev.src_id, prev.dst_id, prev.properties, (head.version || 1) + 1, canonicalId, head.id]
+                `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL)
+                 RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, deleted_at, created_at`,
+                [prev.org_id, prev.project_id, (prev as any).branch_id ?? null, prev.type, prev.src_id, prev.dst_id, prev.properties, (head.version || 1) + 1, canonicalId, head.id]
             );
             await client.query('COMMIT');
             return restored.rows[0];
@@ -364,56 +577,117 @@ export class GraphService {
     }
 
     // ---------------- Search (basic filtering + forward cursor by created_at) ----------------
-    async searchObjects(opts: { type?: string; key?: string; label?: string; limit?: number; cursor?: string }): Promise<{ items: GraphObjectDto[]; next_cursor?: string }> {
-        const { type, key, label, limit = 20, cursor } = opts;
+    async searchObjects(opts: { type?: string; key?: string; label?: string; limit?: number; cursor?: string; branch_id?: string | null; order?: 'asc' | 'desc' }): Promise<{ items: GraphObjectDto[]; next_cursor?: string }> {
+        const { type, key, label, limit = 20, cursor, branch_id, order = 'asc' } = opts;
         // Head selection (may include deleted heads) followed by outer filter to exclude tombstones to avoid
         // resurfacing stale pre-delete versions.
         // Pattern reference: see docs/graph-versioning.md (head-first then filter).
-        const filters: string[] = [];
-        const params: any[] = [];
-        let idx = 1;
-        if (type) { filters.push(`t.type = $${idx++}`); params.push(type); }
-        if (key) { filters.push(`t.key = $${idx++}`); params.push(key); }
-        if (label) { filters.push(`$${idx} = ANY(t.labels)`); params.push(label); idx++; }
-        if (cursor) { filters.push(`t.created_at > $${idx++}`); params.push(new Date(cursor)); }
-        params.push(limit + 1);
-        const where = filters.length ? 'AND ' + filters.join(' AND ') : '';
-        const sql = `SELECT * FROM (
-              SELECT DISTINCT ON (canonical_id) id, org_id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, created_at
-              FROM kb.graph_objects
-              ORDER BY canonical_id, version DESC
-          ) t
-          WHERE t.deleted_at IS NULL ${where}
-          ORDER BY t.created_at ASC
-          LIMIT $${params.length}`;
-        const res = await this.db.query<GraphObjectRow>(sql, params);
+        const headFilters: string[] = [];
+        const headParams: any[] = [];
+        if (branch_id !== undefined) { headParams.push(branch_id ?? null); headFilters.push(`branch_id IS NOT DISTINCT FROM $${headParams.length}`); }
+        const headWhere = headFilters.length ? 'WHERE ' + headFilters.join(' AND ') : '';
+        const baseHeadCte = `SELECT DISTINCT ON (canonical_id) id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, created_at
+                             FROM kb.graph_objects
+                             ${headWhere}
+                             ORDER BY canonical_id, version DESC`;
+        const outerFilters: string[] = ['t.deleted_at IS NULL'];
+        const outerParams: any[] = [...headParams];
+        if (type) { outerParams.push(type); outerFilters.push(`t.type = $${outerParams.length}`); }
+        if (key) { outerParams.push(key); outerFilters.push(`t.key = $${outerParams.length}`); }
+        if (label) { outerParams.push(label); outerFilters.push(`$${outerParams.length} = ANY(t.labels)`); }
+        if (cursor) {
+            outerParams.push(new Date(cursor));
+            if (order === 'desc') {
+                // Fetch older items when paging forward in a newest-first initial listing
+                outerFilters.push(`t.created_at < $${outerParams.length}`);
+            } else {
+                // Ascending ordering: fetch newer items beyond cursor
+                outerFilters.push(`t.created_at > $${outerParams.length}`);
+            }
+        }
+        outerParams.push(limit + 1); // final param for limit
+        // Ordering: previously ASC (oldest first) which caused newly created objects to be absent from first page
+        // when prior historical objects existed (tests expecting immediate visibility failed). We switch to DESC (newest first)
+        // to better support typical recency queries. Cursor now represents the last item's created_at so clients can pass
+        // it back to retrieve older items (still using created_at > cursor with ASC would invert semantics). To maintain
+        // forward pagination we invert the comparison when using DESC ordering.
+        const orderDir = order === 'desc' ? 'DESC' : 'ASC';
+        const sql = `SELECT * FROM (${baseHeadCte}) t
+             WHERE ${outerFilters.join(' AND ')}
+             ORDER BY t.created_at ${orderDir}
+             LIMIT $${outerParams.length}`;
+        const res = await this.db.query<GraphObjectRow>(sql, outerParams);
         let next_cursor: string | undefined;
         let rows = res.rows;
         if (rows.length > limit) { rows = rows.slice(0, limit); }
-        if (rows.length) { next_cursor = new Date(rows[rows.length - 1].created_at as any).toISOString(); }
+        if (rows.length) {
+            // Cursor always reflects the created_at of the last row in the returned ordering.
+            next_cursor = new Date(rows[rows.length - 1].created_at as any).toISOString();
+        }
         return { items: rows, next_cursor };
     }
 
-    async searchRelationships(opts: { type?: string; src_id?: string; dst_id?: string; limit?: number; cursor?: string }): Promise<{ items: GraphRelationshipDto[]; next_cursor?: string }> {
-        const { type, src_id, dst_id, limit = 20, cursor } = opts;
+    // ---------------- FTS Search (websearch syntax over inline populated tsvector) ----------------
+    async searchObjectsFts(opts: { q: string; limit?: number; type?: string; label?: string; branch_id?: string | null }): Promise<{ query: string; items: (GraphObjectDto & { rank: number })[]; total: number; limit: number; }> {
+        const q = (opts.q || '').trim();
+        const limit = Math.min(Math.max(opts.limit || 20, 1), 100);
+        if (!q) return { query: q, items: [], total: 0, limit };
+        const params: any[] = [q];
+        let idx = params.length;
         const filters: string[] = [];
-        const params: any[] = [];
-        let idx = 1;
-        if (type) { filters.push(`h.type = $${idx++}`); params.push(type); }
-        if (src_id) { filters.push(`h.src_id = $${idx++}`); params.push(src_id); }
-        if (dst_id) { filters.push(`h.dst_id = $${idx++}`); params.push(dst_id); }
-        if (cursor) { filters.push(`h.created_at > $${idx++}`); params.push(new Date(cursor)); }
-        params.push(limit + 1);
-        const where = filters.length ? 'AND ' + filters.join(' AND ') : '';
-        const sql = `SELECT * FROM (
-                        SELECT DISTINCT ON (r.canonical_id) r.id, r.org_id, r.project_id, r.type, r.src_id, r.dst_id, r.properties, r.version, r.supersedes_id, r.canonical_id, r.weight, r.valid_from, r.valid_to, r.deleted_at, r.created_at
-                        FROM kb.graph_relationships r
-                        ORDER BY r.canonical_id, r.version DESC
-                    ) h
-                    WHERE h.deleted_at IS NULL ${where}
-                    ORDER BY h.created_at ASC
-                    LIMIT $${params.length}`;
-        const res = await this.db.query<GraphRelationshipRow>(sql, params);
+        if (opts.type) { params.push(opts.type); idx++; filters.push(`h.type = $${idx}`); }
+        if (opts.label) { params.push(opts.label); idx++; filters.push(`$${idx} = ANY(h.labels)`); }
+        if (opts.branch_id !== undefined) { params.push(opts.branch_id ?? null); idx++; filters.push(`h.branch_id IS NOT DISTINCT FROM $${idx}`); }
+        // Head selection restricted to FTS matches first, then filter deleted heads; rank computed on head row's fts vector.
+        const sql = `WITH heads AS (
+              SELECT DISTINCT ON (o.canonical_id) o.id, o.org_id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.properties, o.labels, o.deleted_at, o.created_at, o.fts
+              FROM kb.graph_objects o
+              WHERE o.fts @@ websearch_to_tsquery('simple', $1)
+              ORDER BY o.canonical_id, o.version DESC
+          )
+          SELECT *, ts_rank(fts, websearch_to_tsquery('simple', $1)) AS rank
+          FROM heads h
+          WHERE h.deleted_at IS NULL ${filters.length ? 'AND ' + filters.join(' AND ') : ''}
+          ORDER BY rank DESC, created_at DESC
+          LIMIT ${limit}`;
+        const res = await this.db.query<any>(sql, params);
+        const items = res.rows.map(r => {
+            const { rank, fts: _fts, ...rest } = r; // strip internal vector
+            return { ...rest, rank } as GraphObjectDto & { rank: number };
+        });
+        return { query: q, items, total: items.length, limit };
+    }
+
+    async searchRelationships(opts: { type?: string; src_id?: string; dst_id?: string; limit?: number; cursor?: string; branch_id?: string | null; order?: 'asc' | 'desc' }): Promise<{ items: GraphRelationshipDto[]; next_cursor?: string }> {
+        const { type, src_id, dst_id, limit = 20, cursor, branch_id, order = 'asc' } = opts;
+        const headFilters: string[] = [];
+        const headParams: any[] = [];
+        if (branch_id !== undefined) { headParams.push(branch_id ?? null); headFilters.push(`r.branch_id IS NOT DISTINCT FROM $${headParams.length}`); }
+        const headWhere = headFilters.length ? 'WHERE ' + headFilters.join(' AND ') : '';
+        const baseHead = `SELECT DISTINCT ON (r.canonical_id) r.id, r.org_id, r.project_id, r.branch_id, r.type, r.src_id, r.dst_id, r.properties, r.version, r.supersedes_id, r.canonical_id, r.weight, r.valid_from, r.valid_to, r.deleted_at, r.created_at
+                          FROM kb.graph_relationships r
+                          ${headWhere}
+                          ORDER BY r.canonical_id, r.version DESC`;
+        const outerFilters: string[] = ['h.deleted_at IS NULL'];
+        const outerParams: any[] = [...headParams];
+        if (type) { outerParams.push(type); outerFilters.push(`h.type = $${outerParams.length}`); }
+        if (src_id) { outerParams.push(src_id); outerFilters.push(`h.src_id = $${outerParams.length}`); }
+        if (dst_id) { outerParams.push(dst_id); outerFilters.push(`h.dst_id = $${outerParams.length}`); }
+        if (cursor) {
+            outerParams.push(new Date(cursor));
+            if (order === 'desc') {
+                outerFilters.push(`h.created_at < $${outerParams.length}`);
+            } else {
+                outerFilters.push(`h.created_at > $${outerParams.length}`);
+            }
+        }
+        outerParams.push(limit + 1);
+        const orderDir = order === 'desc' ? 'DESC' : 'ASC';
+        const sql = `SELECT * FROM (${baseHead}) h
+                     WHERE ${outerFilters.join(' AND ')}
+                     ORDER BY h.created_at ${orderDir}
+                     LIMIT $${outerParams.length}`;
+        const res = await this.db.query<GraphRelationshipRow>(sql, outerParams);
         let rows = res.rows;
         let next_cursor: string | undefined;
         if (rows.length > limit) { rows = rows.slice(0, limit); }
@@ -453,7 +727,8 @@ export class GraphService {
     }
 
     // ---------------- Traversal ----------------
-    async traverse(dto: TraverseGraphDto): Promise<GraphTraversalResult> {
+    async traverse(dto: TraverseGraphDto & { branch_id?: string | null }): Promise<GraphTraversalResult> {
+        const _start = Date.now();
         const direction = dto.direction || 'both';
         const maxDepth = dto.max_depth ?? 2;
         const maxNodes = dto.max_nodes ?? 200;
@@ -462,10 +737,10 @@ export class GraphService {
         const objTypeFilter = dto.object_types?.length ? new Set(dto.object_types) : undefined;
         const labelFilter = dto.labels?.length ? new Set(dto.labels) : undefined;
 
-        // Seed roots
+        // Perform traversal first (unpaged) honoring expansion limits
         const queue: { id: string; depth: number }[] = dto.root_ids.map(id => ({ id, depth: 0 }));
         const seen = new Set<string>();
-        const nodes: Record<string, { depth: number; type: string; key?: string | null; labels: string[] }> = {};
+        const gathered: { id: string; depth: number; type: string; key?: string | null; labels: string[] }[] = [];
         const edges: { id: string; type: string; src_id: string; dst_id: string }[] = [];
         let truncated = false;
         let maxDepthReached = 0;
@@ -474,43 +749,37 @@ export class GraphService {
             const current = queue.shift()!;
             if (seen.has(current.id)) continue;
             seen.add(current.id);
-
-            // Fetch object (latest version). If missing, skip.
-            const objRes = await this.db.query<GraphObjectRow>(
-                `SELECT id, type, key, labels, deleted_at FROM kb.graph_objects WHERE id=$1`, [current.id]);
+            const objRes = await this.db.query<GraphObjectRow>(`SELECT id, type, key, labels, deleted_at, branch_id FROM kb.graph_objects WHERE id=$1`, [current.id]);
             if (!objRes.rowCount) continue;
             const row = objRes.rows[0];
-            if (row.deleted_at) continue; // skip deleted heads
-            // Apply object filters (if fails, do not include or expand further)
+            if ((dto as any).branch_id !== undefined && row.branch_id !== (dto as any).branch_id && (row.branch_id ?? null) !== ((dto as any).branch_id ?? null)) continue;
+            if (row.deleted_at) continue;
             if (objTypeFilter && !objTypeFilter.has(row.type)) continue;
             if (labelFilter && !row.labels.some(l => labelFilter.has(l))) continue;
-            nodes[current.id] = { depth: current.depth, type: row.type, key: row.key, labels: row.labels };
+            gathered.push({ id: row.id, depth: current.depth, type: row.type, key: row.key, labels: row.labels });
             maxDepthReached = Math.max(maxDepthReached, current.depth);
-            if (Object.keys(nodes).length >= maxNodes) { truncated = true; break; }
-            if (current.depth >= maxDepth) continue; // do not expand further
-
-            // Collect edges adjacent in requested direction
+            if (gathered.length >= maxNodes) { truncated = true; break; }
+            if (current.depth >= maxDepth) continue;
             const dirClauses: string[] = [];
             const params: any[] = [current.id];
             if (direction === 'out') dirClauses.push('src_id = $1');
             else if (direction === 'in') dirClauses.push('dst_id = $1');
             else dirClauses.push('(src_id = $1 OR dst_id = $1)');
             if (relTypeFilter) {
-                // dynamic IN list
                 const types = Array.from(relTypeFilter);
                 params.push(...types);
                 dirClauses.push(`type = ANY(ARRAY[${types.map((_, i) => '$' + (i + 2)).join(',')}])`);
             }
-            // Head-first edge selection (may include deleted heads) then exclude deleted to avoid resurfacing stale versions.
-            // Do not add `deleted_at IS NULL` inside the DISTINCT ON subquery.
             const edgeSql = `SELECT * FROM (
-                                SELECT DISTINCT ON (canonical_id) id, type, src_id, dst_id, deleted_at, version
-                                FROM kb.graph_relationships
-                                WHERE ${dirClauses.join(' AND ')}
-                                ORDER BY canonical_id, version DESC
-                             ) h
-                             WHERE h.deleted_at IS NULL
-                             LIMIT 500`;
+                                          SELECT DISTINCT ON (canonical_id) id, type, src_id, dst_id, deleted_at, version, branch_id
+                                          FROM kb.graph_relationships
+                                          WHERE ${dirClauses.join(' AND ')}
+                                          ORDER BY canonical_id, version DESC
+                                      ) h
+                                      WHERE h.deleted_at IS NULL
+                                      ${dto.branch_id !== undefined ? 'AND h.branch_id IS NOT DISTINCT FROM $' + (params.length + 1) : ''}
+                                      LIMIT 500`;
+            if (dto.branch_id !== undefined) params.push((dto as any).branch_id ?? null);
             const edgeRes = await this.db.query<GraphRelationshipRow>(edgeSql, params);
             for (const e of edgeRes.rows) {
                 if (edges.length >= maxEdges) { truncated = true; break; }
@@ -521,12 +790,725 @@ export class GraphService {
             if (truncated) break;
         }
 
+        // Deterministic ordering: depth ASC, id ASC
+        gathered.sort((a, b) => (a.depth - b.depth) || a.id.localeCompare(b.id));
+
+        // Pagination window
+        const limit = dto.limit ?? 50;
+        const pageDirection = dto.page_direction ?? 'forward';
+        const { decodeTraverseCursor, encodeTraverseCursor } = await import('./traverse-cursor.util');
+        const decoded = decodeTraverseCursor(dto.cursor);
+        let startIndex = 0;
+        if (decoded) {
+            const idx = gathered.findIndex(n => n.depth === decoded.d && n.id === decoded.id);
+            if (idx >= 0) {
+                if (pageDirection === 'forward') startIndex = idx + 1; else startIndex = Math.max(0, idx - limit);
+            }
+        }
+        let pageItems: typeof gathered;
+        if (pageDirection === 'forward') {
+            pageItems = gathered.slice(startIndex, startIndex + limit);
+        } else {
+            const cursorIdx = decoded ? gathered.findIndex(n => n.depth === decoded.d && n.id === decoded.id) : -1;
+            const sliceEnd = cursorIdx >= 0 ? cursorIdx : 0; // exclusive
+            const raw = gathered.slice(Math.max(0, startIndex), sliceEnd >= 0 ? sliceEnd : undefined);
+            pageItems = raw.slice(-limit); // last N to keep ascending order
+        }
+        const first = pageItems[0];
+        const last = pageItems[pageItems.length - 1];
+        const hasPrevious = !!first && !(first.depth === gathered[0]?.depth && first.id === gathered[0]?.id);
+        const hasNext = !!last && !(last.depth === gathered[gathered.length - 1]?.depth && last.id === gathered[gathered.length - 1]?.id);
+        const nextCursor = hasNext && last ? encodeTraverseCursor(last.depth, last.id) : null;
+        const prevCursor = hasPrevious && first ? encodeTraverseCursor(first.depth, first.id) : null;
+        const approxStart = first ? gathered.findIndex(n => n.id === first.id && n.depth === first.depth) : 0;
+        const approxEnd = last ? gathered.findIndex(n => n.id === last.id && n.depth === last.depth) : 0;
+        // Telemetry emission for traversal pagination (Phase 1 telemetry item)
+        try {
+            const evt = {
+                type: 'graph.traverse.page',
+                roots_count: dto.root_ids.length,
+                direction: direction,
+                page_direction: pageDirection,
+                requested_limit: dto.limit ?? 50,
+                effective_limit: limit,
+                total_nodes: gathered.length,
+                page_item_count: pageItems.length,
+                has_next_page: hasNext,
+                has_previous_page: hasPrevious,
+                max_depth_requested: maxDepth,
+                max_depth_reached: maxDepthReached,
+                truncated,
+                approx_position_start: approxStart,
+                approx_position_end: approxEnd,
+                next_cursor_set: !!nextCursor,
+                prev_cursor_set: !!prevCursor,
+                elapsed_ms: Date.now() - _start,
+                ts: Date.now(),
+            };
+            // Store on a lightweight in-memory holder (mirrors search pattern if added later)
+            // @ts-ignore add ad-hoc bag
+            if (!this.telemetry) this.telemetry = { traverseEvents: 0 };
+            // @ts-ignore
+            this.telemetry.traverseEvents++;
+            // @ts-ignore
+            this.telemetry.lastTraverse = evt;
+            if (process.env.GRAPH_TRAVERSE_TELEMETRY_LOG?.toLowerCase() === 'true') {
+                // eslint-disable-next-line no-console
+                console.log('[telemetry]', evt);
+            }
+        } catch { /* swallow errors – telemetry must never break traversal */ }
+
         return {
             roots: dto.root_ids,
-            nodes: Object.entries(nodes).map(([id, v]) => ({ id, ...v })),
+            nodes: pageItems,
             edges,
             truncated,
-            max_depth_reached: maxDepthReached
+            max_depth_reached: maxDepthReached,
+            total_nodes: gathered.length,
+            has_next_page: hasNext,
+            has_previous_page: hasPrevious,
+            next_cursor: nextCursor,
+            previous_cursor: prevCursor,
+            approx_position_start: approxStart,
+            approx_position_end: approxEnd,
+            page_direction: pageDirection
         };
+    }
+
+    // ---------------- Expand (single-pass richer traversal) ----------------
+    async expand(dto: any & { branch_id?: string | null }): Promise<{ roots: string[]; nodes: any[]; edges: any[]; truncated: boolean; max_depth_reached: number; total_nodes: number; meta: any; }> {
+        const start = Date.now();
+        const direction: 'out' | 'in' | 'both' = dto.direction || 'both';
+        const maxDepth = dto.max_depth ?? 2;
+        const maxNodes = dto.max_nodes ?? 400;
+        const maxEdges = dto.max_edges ?? 800;
+        const relTypeFilter = dto.relationship_types?.length ? new Set(dto.relationship_types) : undefined;
+        const objTypeFilter = dto.object_types?.length ? new Set(dto.object_types) : undefined;
+        const labelFilter = dto.labels?.length ? new Set(dto.labels) : undefined;
+        const includeRelProps = !!dto.include_relationship_properties;
+        const projection = dto.projection as { include_object_properties?: string[]; exclude_object_properties?: string[] } | undefined;
+        const includeKeys = projection?.include_object_properties ? new Set(projection.include_object_properties) : undefined;
+        const excludeKeys = projection?.exclude_object_properties ? new Set(projection.exclude_object_properties) : undefined;
+
+        const queue: { id: string; depth: number }[] = dto.root_ids.map((r: string) => ({ id: r, depth: 0 }));
+        const seen = new Set<string>();
+        const nodes: any[] = [];
+        const edges: any[] = [];
+        let truncated = false;
+        let maxDepthReached = 0;
+
+        while (queue.length) {
+            const current = queue.shift()!;
+            if (seen.has(current.id)) continue;
+            seen.add(current.id);
+            const objRes = await this.db.query<GraphObjectRow>(`SELECT id, type, key, labels, properties, deleted_at, branch_id FROM kb.graph_objects WHERE id=$1`, [current.id]);
+            if (!objRes.rowCount) continue;
+            const row = objRes.rows[0];
+            if (dto.branch_id !== undefined && row.branch_id !== (dto.branch_id ?? null)) continue;
+            if (row.deleted_at) continue;
+            if (objTypeFilter && !objTypeFilter.has(row.type)) continue;
+            if (labelFilter && !row.labels.some(l => labelFilter.has(l))) continue;
+            // Projection filter (shallow keys only for now)
+            let props: Record<string, any> | undefined = row.properties as any;
+            if (includeKeys && props) {
+                const filtered: Record<string, any> = {};
+                for (const k of includeKeys) if (k in props) filtered[k] = (props as any)[k];
+                props = filtered;
+            }
+            if (excludeKeys && props) {
+                for (const k of excludeKeys) delete props[k];
+            }
+            nodes.push({ id: row.id, depth: current.depth, type: row.type, key: row.key, labels: row.labels, properties: props });
+            maxDepthReached = Math.max(maxDepthReached, current.depth);
+            if (nodes.length >= maxNodes) { truncated = true; break; }
+            if (current.depth >= maxDepth) continue;
+            const dirClauses: string[] = [];
+            const params: any[] = [current.id];
+            if (direction === 'out') dirClauses.push('src_id = $1');
+            else if (direction === 'in') dirClauses.push('dst_id = $1');
+            else dirClauses.push('(src_id = $1 OR dst_id = $1)');
+            if (relTypeFilter) {
+                const types = Array.from(relTypeFilter);
+                params.push(...types);
+                dirClauses.push(`type = ANY(ARRAY[${types.map((_, i) => '$' + (i + 2)).join(',')}])`);
+            }
+            const edgeSql = `SELECT * FROM (
+                                          SELECT DISTINCT ON (canonical_id) id, type, src_id, dst_id, properties, deleted_at, version, branch_id
+                                          FROM kb.graph_relationships
+                                          WHERE ${dirClauses.join(' AND ')}
+                                          ORDER BY canonical_id, version DESC
+                                      ) h
+                                      WHERE h.deleted_at IS NULL
+                                      ${dto.branch_id !== undefined ? 'AND h.branch_id IS NOT DISTINCT FROM $' + (params.length + 1) : ''}
+                                      LIMIT 1000`;
+            if (dto.branch_id !== undefined) params.push(dto.branch_id ?? null);
+            const edgeRes = await this.db.query<GraphRelationshipRow>(edgeSql, params);
+            for (const e of edgeRes.rows) {
+                if (edges.length >= maxEdges) { truncated = true; break; }
+                edges.push(includeRelProps ? { id: e.id, type: e.type, src_id: e.src_id, dst_id: e.dst_id, properties: e.properties } : { id: e.id, type: e.type, src_id: e.src_id, dst_id: e.dst_id });
+                const nextId = e.src_id === current.id ? e.dst_id : e.src_id;
+                if (!seen.has(nextId)) queue.push({ id: nextId, depth: current.depth + 1 });
+            }
+            if (truncated) break;
+        }
+
+        nodes.sort((a, b) => (a.depth - b.depth) || a.id.localeCompare(b.id));
+        const meta = {
+            requested: { max_depth: maxDepth, max_nodes: maxNodes, max_edges: maxEdges, direction },
+            node_count: nodes.length,
+            edge_count: edges.length,
+            truncated,
+            max_depth_reached: maxDepthReached,
+            elapsed_ms: Date.now() - start,
+            filters: {
+                relationship_types: relTypeFilter ? Array.from(relTypeFilter) : undefined,
+                object_types: objTypeFilter ? Array.from(objTypeFilter) : undefined,
+                labels: labelFilter ? Array.from(labelFilter) : undefined,
+                projection: projection ? { include: includeKeys ? Array.from(includeKeys) : undefined, exclude: excludeKeys ? Array.from(excludeKeys) : undefined } : undefined,
+                include_relationship_properties: includeRelProps || undefined
+            }
+        };
+
+        // Telemetry
+        try {
+            const evt = { type: 'graph.expand', ...meta, roots_count: dto.root_ids.length, ts: Date.now() };
+            // @ts-ignore
+            if (!this.telemetry) this.telemetry = { expandEvents: 0 };
+            // @ts-ignore
+            this.telemetry.expandEvents = (this.telemetry.expandEvents || 0) + 1;
+            // @ts-ignore
+            this.telemetry.lastExpand = evt;
+            if (process.env.GRAPH_EXPAND_TELEMETRY_LOG?.toLowerCase() === 'true') {
+                // eslint-disable-next-line no-console
+                console.log('[telemetry]', evt);
+            }
+        } catch {/* swallow */ }
+
+        return { roots: dto.root_ids, nodes, edges, truncated, max_depth_reached: maxDepthReached, total_nodes: nodes.length, meta };
+    }
+
+    // ---------------- Branch Merge (Dry-Run MVP) ----------------
+    async mergeBranchDryRun(targetBranchId: string, dto: BranchMergeRequestDto): Promise<BranchMergeSummaryDto> {
+        const sourceBranchId = dto.sourceBranchId;
+        if (sourceBranchId === targetBranchId) {
+            return {
+                targetBranchId,
+                sourceBranchId,
+                dryRun: true,
+                total_objects: 0,
+                unchanged_count: 0,
+                added_count: 0,
+                fast_forward_count: 0,
+                conflict_count: 0,
+                objects: []
+            };
+        }
+        // Branch validation
+        const branches = await this.db.query<{ id: string }>(`SELECT id FROM kb.branches WHERE id = ANY($1::uuid[])`, [[targetBranchId, sourceBranchId]]);
+        if (branches.rowCount !== 2) {
+            throw new NotFoundException('branch_not_found');
+        }
+        // Determine lineage relationship (is source an ancestor of target, or vice versa?)
+        let sourceIsAncestor = false;
+        let targetIsAncestor = false;
+        try {
+            const lineageRes = await this.db.query<{ ancestor_branch_id: string }>(`SELECT ancestor_branch_id FROM kb.branch_lineage WHERE branch_id = $1`, [targetBranchId]);
+            if (lineageRes.rowCount) {
+                sourceIsAncestor = lineageRes.rows.some(r => r.ancestor_branch_id === sourceBranchId);
+            }
+            const reverseLineageRes = await this.db.query<{ ancestor_branch_id: string }>(`SELECT ancestor_branch_id FROM kb.branch_lineage WHERE branch_id = $1`, [sourceBranchId]);
+            if (reverseLineageRes.rowCount) {
+                targetIsAncestor = reverseLineageRes.rows.some(r => r.ancestor_branch_id === targetBranchId);
+            }
+        } catch { /* lineage optional; classification will fallback */ }
+
+        // Hard limits
+        const HARD_LIMIT = parseInt(process.env.GRAPH_MERGE_ENUM_HARD_LIMIT || '500', 10);
+        const requestedLimit = dto.limit && dto.limit > 0 ? Math.min(dto.limit, HARD_LIMIT) : HARD_LIMIT;
+
+        // Strategy (simplified MVP):
+        // 1. Select heads (latest versions) per canonical_id for both branches.
+        // 2. Full outer join on canonical_id to see presence & compare change summaries & hashes.
+        // 3. Classify.
+        // NOTE: LCA / ancestor logic omitted in MVP; we treat any difference in content_hash as divergence.
+
+        // NOTE: Current implementation does not propagate canonical_id across branches when creating the
+        // same (type,key) logical object independently. To surface meaningful merge semantics (incl. conflicts)
+        // we treat objects sharing (type,key) across branches as the same logical identity even if their
+        // canonical_id differs. This broadened join lets us classify Added vs Conflict instead of two independent
+        // rows (target-only + source-only). In future when true branching copies canonical history (shared
+        // canonical_id) this OR condition remains valid but typically resolves on the canonical_id equality.
+        const sql = `WITH tgt AS (
+                        SELECT DISTINCT ON (canonical_id) canonical_id, id, type, key, content_hash, change_summary, properties
+                        FROM kb.graph_objects
+                        WHERE branch_id = $1
+                        ORDER BY canonical_id, version DESC
+                     ), src AS (
+                        SELECT DISTINCT ON (canonical_id) canonical_id, id, type, key, content_hash, change_summary, properties
+                        FROM kb.graph_objects
+                        WHERE branch_id = $2
+                        ORDER BY canonical_id, version DESC
+                     )
+                     SELECT COALESCE(tgt.canonical_id, src.canonical_id) as canonical_id,
+                            tgt.id as target_id,
+                            src.id as source_id,
+                            tgt.content_hash as target_hash,
+                            src.content_hash as source_hash,
+                            tgt.change_summary as target_change,
+                            src.change_summary as source_change,
+                            tgt.properties as target_props,
+                            src.properties as source_props,
+                            tgt.type as target_type,
+                            src.type as source_type,
+                            tgt.key as target_key,
+                            src.key as source_key
+                     FROM tgt
+                     FULL OUTER JOIN src ON tgt.canonical_id = src.canonical_id
+                     LIMIT $3`;
+        const res = await this.db.query<any>(sql, [targetBranchId, sourceBranchId, requestedLimit + 1]);
+        let rows = pairIndependentHeads(res.rows);
+        const truncated = rows.length > requestedLimit;
+        const effectiveRows = truncated ? rows.slice(0, requestedLimit) : rows;
+
+        const objects: BranchMergeObjectSummaryDto[] = [];
+        let unchanged = 0, added = 0, ff = 0, conflict = 0;
+        for (const r of effectiveRows) {
+            const canonicalId = r.canonical_id;
+            const sourceHeadId = r.source_id || null;
+            const targetHeadId = r.target_id || null;
+            if (process.env.GRAPH_MERGE_ORDERING_DEBUG?.toLowerCase() === 'true') {
+                // eslint-disable-next-line no-console
+                console.log('[merge-debug] row pre-classify', {
+                    target_key: r.target_key, source_key: r.source_key,
+                    target_hash: r.target_hash, source_hash: r.source_hash,
+                    target_change_paths: r.target_change?.paths, source_change_paths: r.source_change?.paths
+                });
+            }
+            let status: BranchMergeObjectStatus;
+            let sourcePaths: string[] = []; let targetPaths: string[] = []; let conflicts: string[] | undefined;
+            if (sourceHeadId && !targetHeadId) {
+                status = BranchMergeObjectStatus.Added; added++;
+                sourcePaths = (r.source_change?.paths) || ['/'];
+            } else if (!sourceHeadId && targetHeadId) {
+                // Exists only on target – treat as unchanged (no action needed)
+                status = BranchMergeObjectStatus.Unchanged; unchanged++;
+                targetPaths = (r.target_change?.paths) || ['/'];
+            } else if (sourceHeadId && targetHeadId) {
+                // IMPORTANT: content_hash is stored as BYTEA in Postgres so node-postgres returns Buffer objects.
+                // Direct reference equality (===) on Buffers will almost always be false even when the underlying
+                // bytes are identical. This previously caused identical objects to be misclassified as conflicts
+                // (overlapping path sets) instead of 'unchanged'. We perform a byte/content comparison here.
+                const hashesEqual = (() => {
+                    const a = r.source_hash as any; const b = r.target_hash as any;
+                    if (!a || !b) return false;
+                    if (Buffer.isBuffer(a) && Buffer.isBuffer(b)) return (a as Buffer).equals(b as Buffer);
+                    return String(a) === String(b);
+                })();
+                if (hashesEqual) {
+                    status = BranchMergeObjectStatus.Unchanged; unchanged++;
+                } else {
+                    // Compare changed paths intersection; if overlapping paths differ -> conflict else fast-forward
+                    sourcePaths = (r.source_change?.paths) || ['/'];
+                    targetPaths = (r.target_change?.paths) || ['/'];
+                    // Lineage fast-forward override: if source branch is an ancestor of target branch, any differing object
+                    // whose target head exists is treated as FastForward (the target diverged; source provides newer additions) unless
+                    // overlapping changed path sets indicate conflicting edits post-fork. This is a heuristic pending full 3-way base.
+                    // Superset fast-forward heuristic: if target properties are a subset of source with identical values
+                    // (i.e., source only adds new properties), treat as fast-forward even though change path sets overlap.
+                    try {
+                        const targetProps: Record<string, any> = r.target_props || {};
+                        const sourceProps: Record<string, any> = r.source_props || {};
+                        const targetKeys = Object.keys(targetProps);
+                        const superset = targetKeys.every(k => Object.prototype.hasOwnProperty.call(sourceProps, k) && JSON.stringify(sourceProps[k]) === JSON.stringify(targetProps[k]));
+                        if (superset && Object.keys(sourceProps).some(k => !Object.prototype.hasOwnProperty.call(targetProps, k))) {
+                            status = BranchMergeObjectStatus.FastForward; ff++;
+                        } else {
+                            const setA = new Set(sourcePaths);
+                            const overlap = targetPaths.filter((p: string) => setA.has(p));
+                            if (overlap.length) {
+                                if (sourceIsAncestor) {
+                                    // Ancestor override: treat as fast-forward despite overlap (we assume target modifications are descendants of source)
+                                    status = BranchMergeObjectStatus.FastForward; ff++;
+                                } else {
+                                    status = BranchMergeObjectStatus.Conflict; conflict++;
+                                    conflicts = overlap.sort();
+                                }
+                            } else {
+                                status = BranchMergeObjectStatus.FastForward; ff++;
+                            }
+                        }
+                    } catch {
+                        const setA = new Set(sourcePaths);
+                        const overlap = targetPaths.filter((p: string) => setA.has(p));
+                        if (overlap.length) {
+                            if (sourceIsAncestor) {
+                                status = BranchMergeObjectStatus.FastForward; ff++;
+                            } else {
+                                status = BranchMergeObjectStatus.Conflict; conflict++;
+                                conflicts = overlap.sort();
+                            }
+                        } else {
+                            status = BranchMergeObjectStatus.FastForward; ff++;
+                        }
+                    }
+                }
+            } else {
+                // Should not happen (no head in either branch), skip
+                continue;
+            }
+            objects.push({
+                canonical_id: canonicalId,
+                status,
+                source_head_id: sourceHeadId,
+                target_head_id: targetHeadId,
+                source_paths: sourcePaths,
+                target_paths: targetPaths,
+                conflicts,
+            });
+        }
+
+        // Deterministic ordering (stable across runs for same dataset):
+        // Priority by status: conflict (0) -> fast_forward (1) -> added (2) -> unchanged (3)
+        // Within same status bucket: order by canonical_id ascending to avoid flakiness.
+        const statusPriority: Record<BranchMergeObjectStatus, number> = {
+            [BranchMergeObjectStatus.Conflict]: 0,
+            [BranchMergeObjectStatus.FastForward]: 1,
+            [BranchMergeObjectStatus.Added]: 2,
+            [BranchMergeObjectStatus.Unchanged]: 3,
+        } as const;
+        // Bucket-based deterministic ordering (avoids relying solely on comparator correctness across environments).
+        const bucketMap: Record<number, BranchMergeObjectSummaryDto[]> = { 0: [], 1: [], 2: [], 3: [] };
+        for (const o of objects) {
+            const p = statusPriority[o.status];
+            (bucketMap[p ?? 3] ||= []).push(o);
+        }
+        for (const p of Object.keys(bucketMap)) {
+            bucketMap[p as any].sort((a, b) => a.canonical_id.localeCompare(b.canonical_id));
+        }
+        const reordered = [...bucketMap[0], ...bucketMap[1], ...bucketMap[2], ...bucketMap[3]];
+        objects.splice(0, objects.length, ...reordered);
+        // Fallback defensive comparator (should be no-op if bucket ordering already correct) – ensures any later mutation keeps order stable.
+        objects.sort((a, b) => {
+            const pa = statusPriority[a.status];
+            const pb = statusPriority[b.status];
+            if (pa !== pb) return pa - pb;
+            return a.canonical_id.localeCompare(b.canonical_id);
+        });
+        // Attach debug priority always (harmless) so tests can introspect even if NODE_ENV mismatch.
+        const dbgPriority: Record<BranchMergeObjectStatus, number> = statusPriority;
+        for (const o of objects) {
+            // @ts-ignore debug field (non-spec)
+            o.debug_priority = dbgPriority[o.status];
+        }
+        // Optional verbose ordering log (enable via GRAPH_MERGE_ORDERING_DEBUG=true)
+        if (process.env.GRAPH_MERGE_ORDERING_DEBUG?.toLowerCase() === 'true') {
+            // eslint-disable-next-line no-console
+            console.log('AT-MERGE ordering final statuses', objects.map(o => o.status), 'priorities', objects.map(o => (o as any).debug_priority));
+        }
+        // Enumerate relationships (parallel logic) BEFORE apply so we can apply relationship changes too
+        const relSql = `WITH tgt AS (
+                            SELECT DISTINCT ON (canonical_id) canonical_id, id, type, src_id, dst_id, content_hash, change_summary, properties
+                            FROM kb.graph_relationships
+                            WHERE branch_id = $1
+                            ORDER BY canonical_id, version DESC
+                         ), src AS (
+                            SELECT DISTINCT ON (canonical_id) canonical_id, id, type, src_id, dst_id, content_hash, change_summary, properties
+                            FROM kb.graph_relationships
+                            WHERE branch_id = $2
+                            ORDER BY canonical_id, version DESC
+                         )
+                         SELECT COALESCE(tgt.canonical_id, src.canonical_id) as canonical_id,
+                                tgt.id as target_id,
+                                src.id as source_id,
+                                tgt.content_hash as target_hash,
+                                src.content_hash as source_hash,
+                                tgt.change_summary as target_change,
+                                src.change_summary as source_change,
+                                tgt.properties as target_props,
+                                src.properties as source_props,
+                                tgt.type as target_type,
+                                src.type as source_type,
+                                tgt.src_id as target_src_id,
+                                tgt.dst_id as target_dst_id,
+                                src.src_id as source_src_id,
+                                src.dst_id as source_dst_id
+                         FROM tgt
+                         FULL OUTER JOIN src ON tgt.canonical_id = src.canonical_id
+                         LIMIT $3`;
+        const relRes = await this.db.query<any>(relSql, [targetBranchId, sourceBranchId, requestedLimit + 1]);
+        let relRows = pairIndependentRelationshipHeads(relRes.rows);
+        const relTruncated = relRows.length > requestedLimit;
+        const effectiveRelRows = relTruncated ? relRows.slice(0, requestedLimit) : relRows;
+        const relationships: BranchMergeRelationshipSummaryDto[] = [];
+        let rUnchanged = 0, rAdded = 0, rFF = 0, rConflict = 0;
+        for (const r of effectiveRelRows) {
+            const sourceHeadId = r.source_id || null;
+            const targetHeadId = r.target_id || null;
+            let status: BranchMergeRelationshipStatus;
+            let sourcePaths: string[] = []; let targetPaths: string[] = []; let conflicts: string[] | undefined;
+            if (sourceHeadId && !targetHeadId) {
+                status = BranchMergeObjectStatus.Added; rAdded++;
+                sourcePaths = (r.source_change?.paths) || ['/'];
+            } else if (!sourceHeadId && targetHeadId) {
+                status = BranchMergeObjectStatus.Unchanged; rUnchanged++;
+                targetPaths = (r.target_change?.paths) || ['/'];
+            } else if (sourceHeadId && targetHeadId) {
+                const hashesEqual = (() => {
+                    const a = r.source_hash as any; const b = r.target_hash as any;
+                    if (!a || !b) return false;
+                    if (Buffer.isBuffer(a) && Buffer.isBuffer(b)) return (a as Buffer).equals(b as Buffer);
+                    return String(a) === String(b);
+                })();
+                if (hashesEqual) {
+                    status = BranchMergeObjectStatus.Unchanged; rUnchanged++;
+                } else {
+                    sourcePaths = (r.source_change?.paths) || ['/'];
+                    targetPaths = (r.target_change?.paths) || ['/'];
+                    try {
+                        const targetProps: Record<string, any> = r.target_props || {};
+                        const sourceProps: Record<string, any> = r.source_props || {};
+                        const targetKeys = Object.keys(targetProps);
+                        const superset = targetKeys.every(k => Object.prototype.hasOwnProperty.call(sourceProps, k) && JSON.stringify(sourceProps[k]) === JSON.stringify(targetProps[k]));
+                        if (superset && Object.keys(sourceProps).some(k => !Object.prototype.hasOwnProperty.call(targetProps, k))) {
+                            status = BranchMergeObjectStatus.FastForward; rFF++;
+                        } else {
+                            const setA = new Set(sourcePaths);
+                            const overlap = targetPaths.filter((p: string) => setA.has(p));
+                            if (overlap.length) {
+                                if (sourceIsAncestor) {
+                                    status = BranchMergeObjectStatus.FastForward; rFF++;
+                                } else {
+                                    status = BranchMergeObjectStatus.Conflict; rConflict++;
+                                    conflicts = overlap.sort();
+                                }
+                            } else {
+                                status = BranchMergeObjectStatus.FastForward; rFF++;
+                            }
+                        }
+                    } catch {
+                        const setA = new Set(sourcePaths);
+                        const overlap = targetPaths.filter((p: string) => setA.has(p));
+                        if (overlap.length) {
+                            if (sourceIsAncestor) {
+                                status = BranchMergeObjectStatus.FastForward; rFF++;
+                            } else {
+                                status = BranchMergeObjectStatus.Conflict; rConflict++;
+                                conflicts = overlap.sort();
+                            }
+                        } else {
+                            status = BranchMergeObjectStatus.FastForward; rFF++;
+                        }
+                    }
+                }
+            } else { continue; }
+            relationships.push({
+                canonical_id: r.canonical_id,
+                status,
+                source_head_id: sourceHeadId,
+                target_head_id: targetHeadId,
+                source_paths: sourcePaths,
+                target_paths: targetPaths,
+                conflicts,
+                source_src_id: r.source_src_id || null,
+                source_dst_id: r.source_dst_id || null,
+                target_src_id: r.target_src_id || null,
+                target_dst_id: r.target_dst_id || null,
+            });
+        }
+        // END relationship enumeration
+        let applied = false; let appliedObjects = 0;
+        // Apply phase (Phase 2): if execute requested AND no conflicts -> materialize changes.
+        // For Added: copy source head object version into target branch as new independent object (new canonical lineage).
+        // For FastForward: copy source head object state into target as new version if object exists, else treat like Added.
+        // For Unchanged / Conflict: no action (conflict blocks entire apply).
+        if (dto.execute) {
+            if (conflict > 0) {
+                // Conflicts block merge apply – surface in summary (applied stays false)
+            } else {
+                // Materialize changes
+                for (const o of objects) {
+                    if (o.status === BranchMergeObjectStatus.Added) {
+                        appliedObjects++;
+                        if (o.source_head_id) {
+                            const srcHead = await this.db.query<any>(`SELECT type, key, properties, labels, org_id, project_id FROM kb.graph_objects WHERE id=$1`, [o.source_head_id]);
+                            if (srcHead.rowCount) {
+                                const row = srcHead.rows[0];
+                                const created = await this.createObject({ type: row.type, key: row.key, properties: row.properties, labels: row.labels, org_id: row.org_id, project_id: row.project_id, branch_id: targetBranchId });
+                                // Provenance: child <- source (role=source)
+                                try { await this.db.query(`INSERT INTO kb.merge_provenance(child_version_id, parent_version_id, role) VALUES ($1,$2,'source') ON CONFLICT DO NOTHING`, [created.id, o.source_head_id]); } catch {/* ignore provenance errors */ }
+                            }
+                        }
+                    } else if (o.status === BranchMergeObjectStatus.FastForward) {
+                        // Fast-forward: integrate non-overlapping changes from source into target as a new version.
+                        // We intentionally only add properties absent on the target head to avoid accidental overwrite.
+                        if (o.source_head_id && o.target_head_id) {
+                            // Attempt merge-base detection (non-blocking)
+                            let baseVersion: string | null = null;
+                            try { baseVersion = await this.findMergeBase(o.source_head_id, o.target_head_id); } catch { /* swallow */ }
+                            const rowsRes = await this.db.query<any>(
+                                `SELECT id, type, key, properties FROM kb.graph_objects WHERE id = ANY($1::uuid[])`,
+                                [[o.source_head_id, o.target_head_id]]
+                            );
+                            const src = rowsRes.rows.find(r => r.id === o.source_head_id);
+                            const tgt = rowsRes.rows.find(r => r.id === o.target_head_id);
+                            if (src && tgt) {
+                                const diff: Record<string, any> = {};
+                                for (const [k, v] of Object.entries(src.properties || {})) {
+                                    if (!(k in (tgt.properties || {}))) diff[k] = v;
+                                }
+                                if (Object.keys(diff).length) {
+                                    appliedObjects++;
+                                    // Patch will create a new version with merged properties
+                                    const patched = await this.patchObject(o.target_head_id, { properties: diff } as any);
+                                    // Provenance: new child version has both prior target and source heads as parents
+                                    try {
+                                        if (patched?.id) {
+                                            await this.db.query(`INSERT INTO kb.merge_provenance(child_version_id, parent_version_id, role) VALUES ($1,$2,'target') ON CONFLICT DO NOTHING`, [patched.id, o.target_head_id]);
+                                            await this.db.query(`INSERT INTO kb.merge_provenance(child_version_id, parent_version_id, role) VALUES ($1,$2,'source') ON CONFLICT DO NOTHING`, [patched.id, o.source_head_id]);
+                                            if (baseVersion) {
+                                                await this.db.query(`INSERT INTO kb.merge_provenance(child_version_id, parent_version_id, role) VALUES ($1,$2,'base') ON CONFLICT DO NOTHING`, [patched.id, baseVersion]);
+                                            }
+                                        }
+                                    } catch {/* provenance non-blocking */ }
+                                }
+                            }
+                        }
+                    }
+                }
+                // Apply relationship changes (mirrors object logic) -----------------
+                for (const r of relationships) {
+                    if (r.status === BranchMergeObjectStatus.Added) {
+                        if (r.source_head_id) {
+                            const srcHead = await this.db.query<any>(`SELECT type, src_id, dst_id, properties, org_id, project_id FROM kb.graph_relationships WHERE id=$1`, [r.source_head_id]);
+                            if (srcHead.rowCount) {
+                                const row = srcHead.rows[0];
+                                // Recreate on target branch as new independent canonical relationship
+                                // createRelationship helper not shown; fallback to direct insert
+                                try {
+                                    const createdRel = await this.db.query<{ id: string }>(`INSERT INTO kb.graph_relationships (org_id, project_id, branch_id, type, src_id, dst_id, properties, labels, version, canonical_id, supersedes_id, change_summary, content_hash)
+                                        SELECT $1,$2,$3,$4,$5,$6,$7,'{}',1,gen_random_uuid(),NULL,NULL,NULL
+                                        RETURNING id`, [row.org_id, row.project_id, targetBranchId, row.type, row.src_id, row.dst_id, row.properties || {}]);
+                                    if (createdRel.rowCount) {
+                                        appliedObjects++; // count as an applied change overall
+                                        try { await this.db.query(`INSERT INTO kb.merge_provenance(child_version_id, parent_version_id, role) VALUES ($1,$2,'source') ON CONFLICT DO NOTHING`, [createdRel.rows[0].id, r.source_head_id]); } catch {/* ignore */ }
+                                    }
+                                } catch { /* ignore relationship apply errors */ }
+                            }
+                        }
+                    } else if (r.status === BranchMergeObjectStatus.FastForward) {
+                        if (r.source_head_id && r.target_head_id) {
+                            let baseVersion: string | null = null;
+                            try { baseVersion = await this.findMergeBase(r.source_head_id, r.target_head_id); } catch { /* swallow */ }
+                            const rowsRes = await this.db.query<any>(`SELECT id, properties FROM kb.graph_relationships WHERE id = ANY($1::uuid[])`, [[r.source_head_id, r.target_head_id]]);
+                            const src = rowsRes.rows.find(rr => rr.id === r.source_head_id);
+                            const tgt = rowsRes.rows.find(rr => rr.id === r.target_head_id);
+                            if (src && tgt) {
+                                const diff: Record<string, any> = {};
+                                for (const [k, v] of Object.entries(src.properties || {})) {
+                                    if (!(k in (tgt.properties || {}))) diff[k] = v;
+                                }
+                                if (Object.keys(diff).length) {
+                                    try {
+                                        // Patch target relationship creating a new version (simplified insert-as-new-version pattern)
+                                        const patched = await this.db.query<{ id: string }>(`INSERT INTO kb.graph_relationships (org_id, project_id, branch_id, type, src_id, dst_id, properties, labels, version, canonical_id, supersedes_id, change_summary, content_hash)
+                                            SELECT org_id, project_id, branch_id, type, src_id, dst_id, (properties || $2::jsonb), labels, (version + 1), canonical_id, id, NULL, NULL FROM kb.graph_relationships WHERE id=$1 RETURNING id`, [r.target_head_id, diff]);
+                                        if (patched.rowCount) {
+                                            appliedObjects++;
+                                            const newId = patched.rows[0].id;
+                                            try {
+                                                await this.db.query(`INSERT INTO kb.merge_provenance(child_version_id, parent_version_id, role) VALUES ($1,$2,'target') ON CONFLICT DO NOTHING`, [newId, r.target_head_id]);
+                                                await this.db.query(`INSERT INTO kb.merge_provenance(child_version_id, parent_version_id, role) VALUES ($1,$2,'source') ON CONFLICT DO NOTHING`, [newId, r.source_head_id]);
+                                                if (baseVersion) {
+                                                    await this.db.query(`INSERT INTO kb.merge_provenance(child_version_id, parent_version_id, role) VALUES ($1,$2,'base') ON CONFLICT DO NOTHING`, [newId, baseVersion]);
+                                                }
+                                            } catch {/* ignore provenance */ }
+                                        }
+                                    } catch { /* ignore relationship patch errors */ }
+                                }
+                            }
+                        }
+                    }
+                }
+                applied = true;
+            }
+        }
+
+
+        const summary: BranchMergeSummaryDto = {
+            targetBranchId,
+            sourceBranchId,
+            dryRun: !dto.execute,
+            total_objects: objects.length,
+            unchanged_count: unchanged,
+            added_count: added,
+            fast_forward_count: ff,
+            conflict_count: conflict,
+            objects,
+            truncated: truncated || undefined,
+            hard_limit: HARD_LIMIT,
+            applied: applied || undefined,
+            applied_objects: appliedObjects || undefined,
+            relationships_total: relationships.length || undefined,
+            relationships_unchanged_count: rUnchanged || undefined,
+            relationships_added_count: rAdded || undefined,
+            relationships_fast_forward_count: rFF || undefined,
+            relationships_conflict_count: rConflict || undefined,
+            relationships: relationships.length ? relationships : undefined,
+        };
+
+        // Lightweight telemetry/logging (never throws). Mirrors traversal/expand pattern.
+        try {
+            const evt = {
+                type: 'graph.merge.dry_run',
+                target_branch: targetBranchId,
+                source_branch: sourceBranchId,
+                total: summary.total_objects,
+                counts: {
+                    unchanged: summary.unchanged_count,
+                    added: summary.added_count,
+                    fast_forward: summary.fast_forward_count,
+                    conflict: summary.conflict_count
+                },
+                truncated: !!summary.truncated,
+                hard_limit: summary.hard_limit,
+                requested_limit: dto.limit ?? null,
+                ts: Date.now()
+            };
+            // @ts-ignore internal ad-hoc telemetry bag
+            if (!this.telemetry) this.telemetry = { mergeEvents: 0 };
+            // @ts-ignore
+            this.telemetry.mergeEvents = (this.telemetry.mergeEvents || 0) + 1;
+            // @ts-ignore
+            this.telemetry.lastMergeDryRun = evt;
+            if (process.env.GRAPH_MERGE_TELEMETRY_LOG?.toLowerCase() === 'true') {
+                // eslint-disable-next-line no-console
+                console.log('[telemetry]', evt);
+            }
+            // Per-object telemetry (only when reasonably small to avoid noise)
+            const objectTelemetry = process.env.GRAPH_MERGE_OBJECT_TELEMETRY_LOG?.toLowerCase() === 'true';
+            const maxObjectEvents = parseInt(process.env.GRAPH_MERGE_OBJECT_TELEMETRY_MAX || '50', 10);
+            if (objectTelemetry && summary.total_objects <= maxObjectEvents) {
+                for (const o of summary.objects) {
+                    const objEvt = {
+                        type: 'graph.merge.object',
+                        target_branch: targetBranchId,
+                        source_branch: sourceBranchId,
+                        canonical_id: o.canonical_id,
+                        status: o.status,
+                        has_conflicts: !!o.conflicts?.length,
+                        conflict_paths: o.conflicts,
+                        ts: Date.now()
+                    };
+                    // @ts-ignore
+                    this.telemetry.lastMergeObject = objEvt;
+                    if (process.env.GRAPH_MERGE_OBJECT_TELEMETRY_LOG?.toLowerCase() === 'true') {
+                        // eslint-disable-next-line no-console
+                        console.log('[telemetry]', objEvt);
+                    }
+                }
+            }
+        } catch { /* swallow */ }
+
+        return summary;
     }
 }

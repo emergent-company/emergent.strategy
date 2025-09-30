@@ -31,7 +31,15 @@
     "ref:pull": "git -C reference/nexus pull origin master",
     "e2e:admin:real": ". ./.env && E2E_REAL_LOGIN=1 npm --prefix apps/admin run e2e",
     "e2e:admin:ui": ". ./.env && E2E_REAL_LOGIN=1 npm --prefix apps/admin run e2e:ui",
-    "e2e:admin:setup": ". ./.env && E2E_REAL_LOGIN=1 npm --prefix apps/admin run e2e:setup"
+    "e2e:admin:setup": ". ./.env && E2E_REAL_LOGIN=1 npm --prefix apps/admin run e2e:setup",
+    "bench:graph:relationships": "npm --prefix apps/server-nest run bench:graph:relationships",
+    "bench:graph:objects": "npm --prefix apps/server-nest run bench:graph:objects",
+    "bench:graph:traverse": "npm --prefix apps/server-nest run bench:graph:traverse",
+    "test:coverage:admin": "npm --prefix apps/admin run test:coverage",
+    "test:coverage:server": "npm --prefix apps/server-nest run test:coverage",
+    "test:coverage:server:e2e": "npm --prefix apps/server-nest run test:coverage:e2e",
+    "test:coverage:server:all": "npm run test:coverage:server && npm run test:coverage:server:e2e",
+    "test:coverage:all": "npm run test:coverage:server && npm run test:coverage:admin"
   },
   "dependencies": {
     "@langchain/google-genai": "^0.2.1",

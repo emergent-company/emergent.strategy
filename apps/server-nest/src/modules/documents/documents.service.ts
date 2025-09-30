@@ -59,6 +59,7 @@ export class DocumentsService {
         return { items, nextCursor: null };
     }
 
+
     async get(id: string): Promise<DocumentDto | null> {
         const res = await this.db.query<DocumentRow>(
             `SELECT d.id, d.org_id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
