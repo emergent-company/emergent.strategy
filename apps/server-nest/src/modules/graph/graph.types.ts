@@ -11,6 +11,7 @@ export interface GraphObjectRow {
     properties: any;
     labels: string[];
     deleted_at?: string | null;
+    expires_at?: string | null; // Phase 3 Task 7c: TTL-based expiration
     change_summary?: any | null;
     content_hash?: string | null; // base64 encoded
     fts?: string | null; // tsvector not normally selected; optional for debug
@@ -63,6 +64,20 @@ export interface TraversalNode {
     type: string;
     key?: string | null;
     labels: string[];
+    /**
+     * PHASE 3: Phase index that discovered this node.
+     * Only present when edgePhases is used in the traversal request.
+     * - Phase 0: Root nodes (starting points)
+     * - Phase 1+: Nodes discovered in respective phases
+     */
+    phaseIndex?: number;
+    /**
+     * PHASE 3: Full paths from root nodes to this node.
+     * Only present when returnPaths=true in the traversal request.
+     * Each path is an array of node IDs showing the route taken.
+     * Multiple paths indicate the node is reachable via different routes.
+     */
+    paths?: string[][];
 }
 
 export interface TraversalEdge {
@@ -87,6 +102,9 @@ export interface GraphTraversalResult {
     approx_position_start?: number;
     approx_position_end?: number;
     page_direction?: 'forward' | 'backward';
+    // Phase 3: Query Telemetry (5a)
+    query_time_ms?: number; // Query execution time in milliseconds
+    result_count?: number; // Total nodes found before pagination
 }
 
 

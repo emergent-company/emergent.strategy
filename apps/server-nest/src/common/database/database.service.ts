@@ -176,7 +176,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                 // Re-upgrade path for new graph/schema related artifacts added after initial minimal boot
                 try {
                     await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.branches (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, name TEXT NOT NULL, parent_branch_id UUID NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(project_id, name))`);
-                    await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, embedding_vec vector(32) NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+                    await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, embedding_vec vector(${this.config.embeddingDimension}) NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
                     // Branch lineage table (captures ancestor chain + depth for fast queries)
                     try {
                         await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.branch_lineage (branch_id UUID NOT NULL REFERENCES kb.branches(id) ON DELETE CASCADE, ancestor_branch_id UUID NOT NULL REFERENCES kb.branches(id) ON DELETE CASCADE, depth INT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(branch_id, ancestor_branch_id))`);
@@ -216,6 +216,21 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_relationships (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, src_id UUID NOT NULL, dst_id UUID NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
                     await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.object_type_schemas (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, json_schema JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
                     await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.relationship_type_schemas (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, type TEXT NOT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, json_schema JSONB NOT NULL, multiplicity JSONB NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+                    // Embedding policies (Phase 3: selective embedding)
+                    await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.embedding_policies (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        project_id UUID NOT NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+                        object_type TEXT NOT NULL,
+                        enabled BOOLEAN NOT NULL DEFAULT true,
+                        max_property_size INT DEFAULT 10000,
+                        required_labels TEXT[] NOT NULL DEFAULT '{}'::text[],
+                        excluded_labels TEXT[] NOT NULL DEFAULT '{}'::text[],
+                        relevant_paths TEXT[] NOT NULL DEFAULT '{}'::text[],
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        UNIQUE(project_id, object_type)
+                    )`);
+                    await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_embedding_policies_project ON kb.embedding_policies(project_id)`);
                 } catch (e) { this.logger.warn('[minimal re-upgrade] graph/schema ensure failed: ' + (e as Error).message); }
                 finally { if (reupgradeLocked) { try { await this.pool.query('SELECT pg_advisory_unlock(4815162342)'); } catch { /* ignore */ } } }
             }
@@ -262,7 +277,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     await exec(`CREATE TABLE kb.invites (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NOT NULL REFERENCES kb.orgs(id) ON DELETE CASCADE, project_id UUID NULL REFERENCES kb.projects(id) ON DELETE CASCADE, email TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN (\'org_admin\',\'project_admin\',\'project_user\')), token TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'pending', expires_at TIMESTAMPTZ NULL, accepted_at TIMESTAMPTZ NULL, revoked_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
                     await exec('CREATE INDEX idx_invites_token ON kb.invites(token)');
                     await exec(`CREATE TABLE IF NOT EXISTS kb.branches (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, name TEXT NOT NULL, parent_branch_id UUID NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(project_id, name))`);
-                    await exec(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, embedding_vec vector(32) NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+                    await exec(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, embedding_vec vector(${this.config.embeddingDimension}) NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
                     // Introduced after original minimal path: lineage & merge provenance tables must exist BEFORE any branch creation logic that writes to them.
                     try {
                         await exec(`CREATE TABLE IF NOT EXISTS kb.branch_lineage (branch_id UUID NOT NULL REFERENCES kb.branches(id) ON DELETE CASCADE, ancestor_branch_id UUID NOT NULL REFERENCES kb.branches(id) ON DELETE CASCADE, depth INT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(branch_id, ancestor_branch_id))`);
@@ -307,10 +322,42 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     await exec(`CREATE INDEX IF NOT EXISTS idx_graph_embedding_jobs_status_sched ON kb.graph_embedding_jobs(status, scheduled_at)`);
                     await exec(`CREATE INDEX IF NOT EXISTS idx_graph_embedding_jobs_object ON kb.graph_embedding_jobs(object_id)`);
                     await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_embedding_jobs_object_pending ON kb.graph_embedding_jobs(object_id) WHERE status IN ('pending','processing')`);
+                    // Embedding policies (Phase 3: selective embedding)
+                    await exec(`CREATE TABLE IF NOT EXISTS kb.embedding_policies (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        project_id UUID NOT NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+                        object_type TEXT NOT NULL,
+                        enabled BOOLEAN NOT NULL DEFAULT true,
+                        max_property_size INT DEFAULT 10000,
+                        required_labels TEXT[] NOT NULL DEFAULT '{}'::text[],
+                        excluded_labels TEXT[] NOT NULL DEFAULT '{}'::text[],
+                        relevant_paths TEXT[] NOT NULL DEFAULT '{}'::text[],
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        UNIQUE(project_id, object_type)
+                    )`);
+                    await exec(`CREATE INDEX IF NOT EXISTS idx_embedding_policies_project ON kb.embedding_policies(project_id)`);
                 }
                 // Existing minimal upgrade steps (subset) ... (retain essential graph/schema + indexes + policies)
                 try { await exec('ALTER TABLE kb.relationship_type_schemas ADD COLUMN IF NOT EXISTS multiplicity JSONB NULL'); } catch { }
                 await exec(`UPDATE kb.relationship_type_schemas SET multiplicity = jsonb_build_object('src','many','dst','many') WHERE multiplicity IS NULL`);
+                // Embedding policies upgrade (Phase 3: ensure table exists for existing databases)
+                try {
+                    await exec(`CREATE TABLE IF NOT EXISTS kb.embedding_policies (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        project_id UUID NOT NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+                        object_type TEXT NOT NULL,
+                        enabled BOOLEAN NOT NULL DEFAULT true,
+                        max_property_size INT DEFAULT 10000,
+                        required_labels TEXT[] NOT NULL DEFAULT '{}'::text[],
+                        excluded_labels TEXT[] NOT NULL DEFAULT '{}'::text[],
+                        relevant_paths TEXT[] NOT NULL DEFAULT '{}'::text[],
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        UNIQUE(project_id, object_type)
+                    )`);
+                    await exec(`CREATE INDEX IF NOT EXISTS idx_embedding_policies_project ON kb.embedding_policies(project_id)`);
+                } catch (e) { this.logger.warn('[minimal upgrade] embedding_policies ensure failed: ' + (e as Error).message); }
                 // RLS policies (tightened) for minimal path
                 try {
                     await exec(`DO $$ BEGIN
@@ -442,8 +489,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_settings_key ON kb.settings(key);`);
             // Graph & schema registry (full path)
             await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.branches (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, name TEXT NOT NULL, parent_branch_id UUID NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(project_id, name))`);
-            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, embedding_vec vector(32) NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
-            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, embedding_vec vector(32) NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, embedding_vec vector(${this.config.embeddingDimension}) NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
             // Branch lineage table (full path)
             try {
                 await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.branch_lineage (branch_id UUID NOT NULL REFERENCES kb.branches(id) ON DELETE CASCADE, ancestor_branch_id UUID NOT NULL REFERENCES kb.branches(id) ON DELETE CASCADE, depth INT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(branch_id, ancestor_branch_id))`);
@@ -488,7 +534,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             await this.pool.query('ALTER TABLE kb.graph_objects ADD COLUMN IF NOT EXISTS fts tsvector NULL;');
             await this.pool.query('ALTER TABLE kb.graph_objects ADD COLUMN IF NOT EXISTS embedding BYTEA NULL;');
             await this.pool.query('ALTER TABLE kb.graph_objects ADD COLUMN IF NOT EXISTS embedding_updated_at TIMESTAMPTZ NULL;');
-            await this.pool.query('ALTER TABLE kb.graph_objects ADD COLUMN IF NOT EXISTS embedding_vec vector(32) NULL;');
+            await this.pool.query(`ALTER TABLE kb.graph_objects ADD COLUMN IF NOT EXISTS embedding_vec vector(${this.config.embeddingDimension}) NULL;`);
             await this.pool.query(`DO $$ BEGIN BEGIN EXECUTE 'CREATE INDEX IF NOT EXISTS idx_graph_objects_embedding_vec ON kb.graph_objects USING ivfflat (embedding_vec vector_cosine_ops) WITH (lists=100)'; EXCEPTION WHEN others THEN END; END $$;`);
             // Full path upgrade safety: ensure branches table then add branch_id if missing
             await this.pool.query('CREATE TABLE IF NOT EXISTS kb.branches (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, name TEXT NOT NULL, parent_branch_id UUID NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(project_id, name));');
@@ -526,6 +572,21 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_embedding_jobs_status_sched ON kb.graph_embedding_jobs(status, scheduled_at);');
             await this.pool.query('CREATE INDEX IF NOT EXISTS idx_graph_embedding_jobs_object ON kb.graph_embedding_jobs(object_id);');
             await this.pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_embedding_jobs_object_pending ON kb.graph_embedding_jobs(object_id) WHERE status IN ('pending','processing')`);
+            // Embedding policies (Phase 3: selective embedding) - full path
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.embedding_policies (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id UUID NOT NULL REFERENCES kb.projects(id) ON DELETE CASCADE,
+                object_type TEXT NOT NULL,
+                enabled BOOLEAN NOT NULL DEFAULT true,
+                max_property_size INT DEFAULT 10000,
+                required_labels TEXT[] NOT NULL DEFAULT '{}'::text[],
+                excluded_labels TEXT[] NOT NULL DEFAULT '{}'::text[],
+                relevant_paths TEXT[] NOT NULL DEFAULT '{}'::text[],
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                UNIQUE(project_id, object_type)
+            )`);
+            await this.pool.query('CREATE INDEX IF NOT EXISTS idx_embedding_policies_project ON kb.embedding_policies(project_id);');
             // RLS policies (tightened) full path
             try {
                 // Enable & force RLS (idempotent) first

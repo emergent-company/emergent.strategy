@@ -9,6 +9,7 @@ import { SchemaRegistryService } from './schema-registry.service';
 import { BranchService } from './branch.service';
 import { BranchController } from './branch.controller';
 import { EmbeddingJobsService } from './embedding-jobs.service';
+import { EmbeddingPolicyService } from './embedding-policy.service';
 import { EmbeddingWorkerService } from './embedding-worker.service';
 import { DummySha256EmbeddingProvider } from './embedding.provider';
 import { GoogleVertexEmbeddingProvider } from './google-vertex-embedding.provider';
@@ -17,6 +18,9 @@ import { ProductVersionService } from './product-version.service';
 import { ProductVersionController } from './product-version.controller';
 import { TagService } from './tag.service';
 import { TagController } from './tag.controller';
+import { RedactionInterceptor } from './redaction.interceptor';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+
 @Module({
     imports: [DatabaseModule, AppConfigModule, AuthModule],
     controllers: [GraphObjectsController, BranchController, ProductVersionController, TagController],
@@ -27,6 +31,7 @@ import { TagController } from './tag.controller';
         ProductVersionService,
         TagService,
         EmbeddingJobsService,
+        EmbeddingPolicyService,
         {
             provide: 'EMBEDDING_PROVIDER',
             useFactory: (config: AppConfigService) => {
@@ -40,6 +45,11 @@ import { TagController } from './tag.controller';
         },
         EmbeddingWorkerService,
         GraphVectorSearchService,
+        // Phase 3 Task 8a: Redaction Interceptor
+        {
+            provide: APP_INTERCEPTOR,
+            useClass: RedactionInterceptor,
+        },
     ],
     exports: [GraphService, BranchService, EmbeddingJobsService, GraphVectorSearchService, ProductVersionService, TagService],
 })

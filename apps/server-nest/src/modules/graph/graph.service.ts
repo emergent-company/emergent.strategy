@@ -11,9 +11,14 @@ import { TraverseGraphDto } from './dto/traverse-graph.dto';
 import { CreateGraphRelationshipDto } from './dto/create-graph-relationship.dto';
 import { SchemaRegistryService } from './schema-registry.service';
 import { EmbeddingJobsService } from './embedding-jobs.service';
+import { EmbeddingPolicyService } from './embedding-policy.service';
 import { AppConfigService } from '../../common/config/config.service';
 import { PatchGraphRelationshipDto } from './dto/patch-graph-relationship.dto';
 import { BranchMergeRequestDto, BranchMergeSummaryDto, BranchMergeObjectStatus, BranchMergeObjectSummaryDto, BranchMergeRelationshipSummaryDto, BranchMergeRelationshipStatus } from './dto/merge.dto';
+import { evaluatePredicates } from './predicate-evaluator';
+import { buildTemporalFilterClause } from './temporal-filter.util';
+import { pruneGraphResult, FieldStrategy } from './utils/field-pruning.util';
+import { buildExpirationFilterClause } from './utils/expiration-filter.util';
 
 @Injectable()
 export class GraphService {
@@ -67,6 +72,7 @@ export class GraphService {
         @Inject(DatabaseService) private readonly db: DatabaseService,
         @Inject(SchemaRegistryService) private readonly schemaRegistry: SchemaRegistryService,
         @Optional() @Inject(EmbeddingJobsService) private readonly embeddingJobs?: EmbeddingJobsService,
+        @Optional() @Inject(EmbeddingPolicyService) private readonly embeddingPolicy?: EmbeddingPolicyService,
         @Optional() @Inject(AppConfigService) private readonly config?: AppConfigService,
     ) { }
 
@@ -145,9 +151,27 @@ export class GraphService {
             );
             await client.query('COMMIT');
             const created = row.rows[0];
-            // Best-effort enqueue embedding job if embeddings enabled and object lacks embedding
+            // Policy-aware embedding job enqueueing (Phase 3: selective embedding)
             if (this.config?.embeddingsEnabled && (created as any).embedding == null) {
-                try { await this.embeddingJobs?.enqueue(created.id); } catch { /* swallow */ }
+                try {
+                    // Check policies before queueing
+                    if (this.embeddingPolicy && project_id) {
+                        const policies = await this.embeddingPolicy.findByProject(project_id);
+                        const evaluation = this.embeddingPolicy.shouldEmbed(
+                            created.type,
+                            created.properties,
+                            created.labels,
+                            policies
+                        );
+
+                        if (evaluation.shouldEmbed) {
+                            await this.embeddingJobs?.enqueue(created.id);
+                        }
+                    } else {
+                        // No policy service or project context: default to enqueueing (backward compatible)
+                        await this.embeddingJobs?.enqueue(created.id);
+                    }
+                } catch { /* swallow embedding queue errors */ }
             }
             return created;
         } catch (e) {
@@ -586,11 +610,11 @@ export class GraphService {
         const headParams: any[] = [];
         if (branch_id !== undefined) { headParams.push(branch_id ?? null); headFilters.push(`branch_id IS NOT DISTINCT FROM $${headParams.length}`); }
         const headWhere = headFilters.length ? 'WHERE ' + headFilters.join(' AND ') : '';
-        const baseHeadCte = `SELECT DISTINCT ON (canonical_id) id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, created_at
+        const baseHeadCte = `SELECT DISTINCT ON (canonical_id) id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, created_at, expires_at
                              FROM kb.graph_objects
                              ${headWhere}
                              ORDER BY canonical_id, version DESC`;
-        const outerFilters: string[] = ['t.deleted_at IS NULL'];
+        const outerFilters: string[] = ['t.deleted_at IS NULL', buildExpirationFilterClause('t')];
         const outerParams: any[] = [...headParams];
         if (type) { outerParams.push(type); outerFilters.push(`t.type = $${outerParams.length}`); }
         if (key) { outerParams.push(key); outerFilters.push(`t.key = $${outerParams.length}`); }
@@ -640,14 +664,14 @@ export class GraphService {
         if (opts.branch_id !== undefined) { params.push(opts.branch_id ?? null); idx++; filters.push(`h.branch_id IS NOT DISTINCT FROM $${idx}`); }
         // Head selection restricted to FTS matches first, then filter deleted heads; rank computed on head row's fts vector.
         const sql = `WITH heads AS (
-              SELECT DISTINCT ON (o.canonical_id) o.id, o.org_id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.properties, o.labels, o.deleted_at, o.created_at, o.fts
+              SELECT DISTINCT ON (o.canonical_id) o.id, o.org_id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.properties, o.labels, o.deleted_at, o.created_at, o.fts, o.expires_at
               FROM kb.graph_objects o
               WHERE o.fts @@ websearch_to_tsquery('simple', $1)
               ORDER BY o.canonical_id, o.version DESC
           )
           SELECT *, ts_rank(fts, websearch_to_tsquery('simple', $1)) AS rank
           FROM heads h
-          WHERE h.deleted_at IS NULL ${filters.length ? 'AND ' + filters.join(' AND ') : ''}
+          WHERE h.deleted_at IS NULL AND ${buildExpirationFilterClause('h')} ${filters.length ? 'AND ' + filters.join(' AND ') : ''}
           ORDER BY rank DESC, created_at DESC
           LIMIT ${limit}`;
         const res = await this.db.query<any>(sql, params);
@@ -726,8 +750,303 @@ export class GraphService {
         return { items: rows, next_cursor };
     }
 
+    // ---------------- Phased Traversal (Phase 3) ----------------
+    /**
+     * Execute multi-phase graph traversal where each phase has its own constraints.
+     * Phases run sequentially with each phase starting from nodes discovered by previous phase.
+     * 
+     * @param dto TraverseGraphDto with edgePhases defined
+     * @returns GraphTraversalResult with phaseIndex for each node
+     */
+    private async traversePhased(dto: TraverseGraphDto & { branch_id?: string | null }): Promise<GraphTraversalResult> {
+        const startTime = performance.now();
+        const _start = Date.now();
+        const maxNodes = dto.max_nodes ?? 200;
+        const maxEdges = dto.max_edges ?? 400;
+        const phases = dto.edgePhases!; // Guaranteed to exist by caller check
+
+        // Track all discovered nodes with their phase
+        const seen = new Set<string>();
+        const gathered: { id: string; depth: number; type: string; key?: string | null; labels: string[]; phaseIndex: number }[] = [];
+        const edges: { id: string; type: string; src_id: string; dst_id: string }[] = [];
+        let truncated = false;
+        let maxDepthReached = 0;
+
+        // Path tracking (Phase 3: Path Enumeration)
+        const trackPaths = dto.returnPaths === true;
+        const maxPathsPerNode = dto.maxPathsPerNode ?? 10;
+        const pathMap = new Map<string, string[][]>(); // nodeId -> array of paths
+
+        // Phase 0: Process root nodes
+        const rootNodes: Array<{ id: string; depth: number; type: string; key?: string | null; labels: string[]; phaseIndex: number }> = [];
+
+        // Build temporal filter if provided
+        const temporalFilter = dto.temporalFilter ? buildTemporalFilterClause(dto.temporalFilter, 'o') : null;
+
+        for (const rootId of dto.root_ids) {
+            if (seen.has(rootId)) continue;
+
+            // Build query with optional temporal filter and expiration filter
+            const objectQueryParts: string[] = ['SELECT id, type, key, labels, deleted_at, branch_id, properties FROM kb.graph_objects o WHERE id=$1'];
+            const objectQueryParams: any[] = [rootId];
+
+            if (temporalFilter) {
+                objectQueryParts.push('AND ' + temporalFilter.sqlClause);
+                objectQueryParams.push(...temporalFilter.params);
+            }
+
+            // Exclude expired objects (Phase 3 Task 7c)
+            objectQueryParts.push('AND ' + buildExpirationFilterClause('o'));
+
+            const objRes = await this.db.query<GraphObjectRow>(objectQueryParts.join(' '), objectQueryParams);
+            if (!objRes.rowCount) continue;
+            const row = objRes.rows[0];
+            if (dto.branch_id !== undefined && row.branch_id !== dto.branch_id && (row.branch_id ?? null) !== (dto.branch_id ?? null)) continue;
+            if (row.deleted_at) continue;
+            // Apply node predicate filter
+            if (dto.nodeFilter && !evaluatePredicates(row, [dto.nodeFilter])) continue;
+            seen.add(row.id);
+            const node = { id: row.id, depth: 0, type: row.type, key: row.key, labels: row.labels, phaseIndex: 0 };
+            rootNodes.push(node);
+            gathered.push(node);
+            // Track path for root node (path is just itself)
+            if (trackPaths) {
+                pathMap.set(row.id, [[row.id]]);
+            }
+            if (gathered.length >= maxNodes) {
+                truncated = true;
+                break;
+            }
+        }
+
+        // Execute each phase sequentially
+        let phaseStartNodes = rootNodes;
+        for (let phaseIdx = 0; phaseIdx < phases.length; phaseIdx++) {
+            if (truncated) break;
+            const phase = phases[phaseIdx];
+            const phaseNum = phaseIdx + 1; // Root nodes are phase 0, first phase is 1
+
+            // Phase-specific filters
+            const relTypeFilter = phase.relationshipTypes?.length ? new Set(phase.relationshipTypes) : undefined;
+            const objTypeFilter = phase.objectTypes?.length ? new Set(phase.objectTypes) : undefined;
+            const labelFilter = phase.labels?.length ? new Set(phase.labels) : undefined;
+
+            // BFS within this phase
+            const queue: { id: string; depth: number; path?: string[] }[] = phaseStartNodes.map(n => {
+                const paths = trackPaths ? pathMap.get(n.id) : undefined;
+                return { id: n.id, depth: 0, path: paths?.[0] }; // Start with first path from phase start node
+            });
+            const phaseNodes: typeof gathered = [];
+
+            while (queue.length) {
+                const current = queue.shift()!;
+                // Skip if already processed (can happen if node reached from multiple paths)
+                if (current.depth >= phase.maxDepth) continue;
+
+                // Fetch outgoing/ingoing relationships based on phase direction
+                const dirClauses: string[] = [];
+                const params: any[] = [current.id];
+
+                if (phase.direction === 'out') dirClauses.push('src_id = $1');
+                else if (phase.direction === 'in') dirClauses.push('dst_id = $1');
+                else dirClauses.push('(src_id = $1 OR dst_id = $1)');
+
+                if (relTypeFilter) {
+                    const types = Array.from(relTypeFilter);
+                    params.push(...types);
+                    dirClauses.push(`type = ANY(ARRAY[${types.map((_, i) => '$' + (i + 2)).join(',')}])`);
+                }
+
+                // Build WHERE clause with optional temporal filter
+                const whereClauseParts: string[] = ['h.deleted_at IS NULL'];
+
+                if (dto.branch_id !== undefined) {
+                    params.push(dto.branch_id ?? null);
+                    whereClauseParts.push(`h.branch_id IS NOT DISTINCT FROM $${params.length}`);
+                }
+
+                // Add temporal filter for edges if provided
+                if (temporalFilter) {
+                    const edgeTemporalFilter = buildTemporalFilterClause(dto.temporalFilter!, 'h');
+                    whereClauseParts.push(edgeTemporalFilter.sqlClause.replace(/\$1/g, `$${params.length + 1}`));
+                    params.push(...edgeTemporalFilter.params);
+                }
+
+                const edgeSql = `SELECT * FROM (
+                    SELECT DISTINCT ON (canonical_id) id, type, src_id, dst_id, deleted_at, version, branch_id, properties${temporalFilter ? ', valid_from, valid_to, created_at, updated_at' : ''}
+                    FROM kb.graph_relationships
+                    WHERE ${dirClauses.join(' AND ')}
+                    ORDER BY canonical_id, version DESC
+                ) h
+                WHERE ${whereClauseParts.join(' AND ')}
+                LIMIT 500`;
+
+                const edgeRes = await this.db.query<GraphRelationshipRow>(edgeSql, params);
+
+                for (const e of edgeRes.rows) {
+                    // Apply edge predicate filter
+                    if (dto.edgeFilter && !evaluatePredicates(e, [dto.edgeFilter])) continue;
+                    if (edges.length >= maxEdges) {
+                        truncated = true;
+                        break;
+                    }
+                    // Only add edge once
+                    if (!edges.find(edge => edge.id === e.id)) {
+                        edges.push({ id: e.id, type: e.type, src_id: e.src_id, dst_id: e.dst_id });
+                    }
+
+                    // Determine next node to explore
+                    const nextId = e.src_id === current.id ? e.dst_id : e.src_id;
+                    if (seen.has(nextId)) continue; // Skip already seen nodes
+
+                    // Fetch and validate next node (with temporal and expiration filters)
+                    const nextNodeQueryParts: string[] = ['SELECT id, type, key, labels, deleted_at, branch_id, properties FROM kb.graph_objects o WHERE id=$1'];
+                    const nextNodeParams: any[] = [nextId];
+
+                    if (temporalFilter) {
+                        const nodeTemporalFilter = buildTemporalFilterClause(dto.temporalFilter!, 'o');
+                        nextNodeQueryParts.push('AND ' + nodeTemporalFilter.sqlClause.replace(/\$1/g, `$${nextNodeParams.length + 1}`));
+                        nextNodeParams.push(...nodeTemporalFilter.params);
+                    }
+
+                    // Exclude expired objects (Phase 3 Task 7c)
+                    nextNodeQueryParts.push('AND ' + buildExpirationFilterClause('o'));
+
+                    const nextObjRes = await this.db.query<GraphObjectRow>(nextNodeQueryParts.join(' '), nextNodeParams);
+                    if (!nextObjRes.rowCount) continue;
+                    const nextRow = nextObjRes.rows[0];
+                    if (dto.branch_id !== undefined && nextRow.branch_id !== dto.branch_id && (nextRow.branch_id ?? null) !== (dto.branch_id ?? null)) continue;
+                    if (nextRow.deleted_at) continue;
+
+                    // Apply phase-specific node filters
+                    if (objTypeFilter && !objTypeFilter.has(nextRow.type)) continue;
+                    if (labelFilter && !nextRow.labels.some(l => labelFilter.has(l))) continue;
+                    // Apply node predicate filter
+                    if (dto.nodeFilter && !evaluatePredicates(nextRow, [dto.nodeFilter])) continue;
+
+                    // Track path to this node
+                    const newPath = trackPaths && current.path ? [...current.path, nextId] : undefined;
+                    const alreadySeen = seen.has(nextId);
+
+                    // If node already seen, add alternate path (up to limit)
+                    if (alreadySeen && trackPaths && newPath) {
+                        const existingPaths = pathMap.get(nextId) ?? [];
+                        if (existingPaths.length < maxPathsPerNode) {
+                            existingPaths.push(newPath);
+                            pathMap.set(nextId, existingPaths);
+                        }
+                        continue; // Don't re-add to results or queue
+                    }
+
+                    if (alreadySeen) continue; // Skip already seen nodes (path tracking disabled)
+
+                    // Add to results
+                    seen.add(nextId);
+                    const nextDepth = current.depth + 1;
+                    const node = { id: nextRow.id, depth: nextDepth, type: nextRow.type, key: nextRow.key, labels: nextRow.labels, phaseIndex: phaseNum };
+                    phaseNodes.push(node);
+                    gathered.push(node);
+                    maxDepthReached = Math.max(maxDepthReached, nextDepth);
+
+                    // Store path for this node
+                    if (trackPaths && newPath) {
+                        pathMap.set(nextId, [newPath]);
+                    }
+
+                    if (gathered.length >= maxNodes) {
+                        truncated = true;
+                        break;
+                    }
+
+                    // Add to queue for further exploration
+                    if (nextDepth < phase.maxDepth) {
+                        queue.push({ id: nextId, depth: nextDepth, path: newPath });
+                    }
+                }
+                if (truncated) break;
+            }
+
+            // Next phase starts from nodes discovered in this phase
+            phaseStartNodes = phaseNodes;
+            if (phaseStartNodes.length === 0) break; // No nodes to continue from
+        }
+
+        // Deterministic ordering: phaseIndex ASC, depth ASC, id ASC
+        gathered.sort((a, b) =>
+            (a.phaseIndex - b.phaseIndex) || (a.depth - b.depth) || a.id.localeCompare(b.id)
+        );
+
+        // Pagination (reuse existing pagination logic)
+        const limit = dto.limit ?? 50;
+        const pageDirection = dto.page_direction ?? 'forward';
+        const { decodeTraverseCursor, encodeTraverseCursor } = await import('./traverse-cursor.util');
+        const decoded = decodeTraverseCursor(dto.cursor);
+        let startIndex = 0;
+        if (decoded) {
+            const idx = gathered.findIndex(n => n.depth === decoded.d && n.id === decoded.id);
+            if (idx >= 0) {
+                if (pageDirection === 'forward') startIndex = idx + 1;
+                else startIndex = Math.max(0, idx - limit);
+            }
+        }
+        let pageItems: typeof gathered;
+        if (pageDirection === 'forward') {
+            pageItems = gathered.slice(startIndex, startIndex + limit);
+        } else {
+            const cursorIdx = decoded ? gathered.findIndex(n => n.depth === decoded.d && n.id === decoded.id) : -1;
+            const sliceEnd = cursorIdx >= 0 ? cursorIdx : 0;
+            const raw = gathered.slice(Math.max(0, startIndex), sliceEnd >= 0 ? sliceEnd : undefined);
+            pageItems = raw.slice(-limit);
+        }
+
+        const first = pageItems[0];
+        const last = pageItems[pageItems.length - 1];
+        const hasPrevious = !!first && !(first.depth === gathered[0]?.depth && first.id === gathered[0]?.id);
+        const hasNext = !!last && !(last.depth === gathered[gathered.length - 1]?.depth && last.id === gathered[gathered.length - 1]?.id);
+        const nextCursor = hasNext && last ? encodeTraverseCursor(last.depth, last.id) : null;
+        const prevCursor = hasPrevious && first ? encodeTraverseCursor(first.depth, first.id) : null;
+        const approxStart = first ? gathered.findIndex(n => n.id === first.id && n.depth === first.depth) : 0;
+        const approxEnd = last ? gathered.findIndex(n => n.id === last.id && n.depth === last.depth) : 0;
+
+        // Add paths to result nodes if requested
+        const resultNodes = trackPaths ? pageItems.map(n => ({
+            ...n,
+            paths: pathMap.get(n.id) ?? []
+        })) : pageItems;
+
+        const result: GraphTraversalResult = {
+            roots: dto.root_ids,
+            nodes: resultNodes,
+            edges,
+            truncated,
+            max_depth_reached: maxDepthReached,
+            total_nodes: gathered.length,
+            has_next_page: hasNext,
+            has_previous_page: hasPrevious,
+            next_cursor: nextCursor,
+            previous_cursor: prevCursor,
+            approx_position_start: approxStart,
+            approx_position_end: approxEnd,
+            page_direction: pageDirection,
+            query_time_ms: Math.round((performance.now() - startTime) * 100) / 100,
+            result_count: gathered.length,
+        };
+
+        // Apply field pruning if requested (Phase 3: Field Pruning)
+        const fieldStrategy = (dto.fieldStrategy || 'full') as FieldStrategy;
+        return pruneGraphResult(result, fieldStrategy);
+    }
+
     // ---------------- Traversal ----------------
     async traverse(dto: TraverseGraphDto & { branch_id?: string | null }): Promise<GraphTraversalResult> {
+        const startTime = performance.now();
+
+        // PHASE 3: Dispatch to phased traversal if edgePhases provided
+        if (dto.edgePhases && dto.edgePhases.length > 0) {
+            return this.traversePhased(dto);
+        }
+
+        // Legacy traversal (backward compatible)
         const _start = Date.now();
         const direction = dto.direction || 'both';
         const maxDepth = dto.max_depth ?? 2;
@@ -737,8 +1056,16 @@ export class GraphService {
         const objTypeFilter = dto.object_types?.length ? new Set(dto.object_types) : undefined;
         const labelFilter = dto.labels?.length ? new Set(dto.labels) : undefined;
 
+        // Path tracking (Phase 3: Path Enumeration)
+        const trackPaths = dto.returnPaths === true;
+        const maxPathsPerNode = dto.maxPathsPerNode ?? 10;
+        const pathMap = new Map<string, string[][]>(); // nodeId -> array of paths
+
+        // Build temporal filter if provided (Phase 3: Temporal Filtering)
+        const temporalFilter = dto.temporalFilter ? buildTemporalFilterClause(dto.temporalFilter, 'o') : null;
+
         // Perform traversal first (unpaged) honoring expansion limits
-        const queue: { id: string; depth: number }[] = dto.root_ids.map(id => ({ id, depth: 0 }));
+        const queue: { id: string; depth: number; path?: string[] }[] = dto.root_ids.map(id => ({ id, depth: 0, path: trackPaths ? [id] : undefined }));
         const seen = new Set<string>();
         const gathered: { id: string; depth: number; type: string; key?: string | null; labels: string[] }[] = [];
         const edges: { id: string; type: string; src_id: string; dst_id: string }[] = [];
@@ -747,19 +1074,42 @@ export class GraphService {
 
         while (queue.length) {
             const current = queue.shift()!;
+
+            // Track path to current node
+            if (trackPaths && current.path && !pathMap.has(current.id)) {
+                pathMap.set(current.id, [current.path]);
+            }
+
             if (seen.has(current.id)) continue;
             seen.add(current.id);
-            const objRes = await this.db.query<GraphObjectRow>(`SELECT id, type, key, labels, deleted_at, branch_id FROM kb.graph_objects WHERE id=$1`, [current.id]);
+
+            // Build object query with temporal filter and expiration filter
+            const objQueryParts: string[] = ['SELECT id, type, key, labels, deleted_at, branch_id, properties FROM kb.graph_objects o WHERE id=$1'];
+            const objQueryParams: any[] = [current.id];
+
+            if (temporalFilter) {
+                objQueryParts.push('AND ' + temporalFilter.sqlClause.replace(/\$1/g, `$${objQueryParams.length + 1}`));
+                objQueryParams.push(...temporalFilter.params);
+            }
+
+            // Exclude expired objects (Phase 3 Task 7c)
+            objQueryParts.push('AND ' + buildExpirationFilterClause('o'));
+
+            const objRes = await this.db.query<GraphObjectRow>(objQueryParts.join(' '), objQueryParams);
             if (!objRes.rowCount) continue;
             const row = objRes.rows[0];
             if ((dto as any).branch_id !== undefined && row.branch_id !== (dto as any).branch_id && (row.branch_id ?? null) !== ((dto as any).branch_id ?? null)) continue;
             if (row.deleted_at) continue;
             if (objTypeFilter && !objTypeFilter.has(row.type)) continue;
             if (labelFilter && !row.labels.some(l => labelFilter.has(l))) continue;
+            // Apply node predicate filter
+            if (dto.nodeFilter && !evaluatePredicates(row, [dto.nodeFilter])) continue;
             gathered.push({ id: row.id, depth: current.depth, type: row.type, key: row.key, labels: row.labels });
             maxDepthReached = Math.max(maxDepthReached, current.depth);
             if (gathered.length >= maxNodes) { truncated = true; break; }
             if (current.depth >= maxDepth) continue;
+
+            // Build edge query
             const dirClauses: string[] = [];
             const params: any[] = [current.id];
             if (direction === 'out') dirClauses.push('src_id = $1');
@@ -770,22 +1120,54 @@ export class GraphService {
                 params.push(...types);
                 dirClauses.push(`type = ANY(ARRAY[${types.map((_, i) => '$' + (i + 2)).join(',')}])`);
             }
+
+            // Build WHERE clause with optional temporal filter
+            const edgeWhereClauseParts: string[] = ['h.deleted_at IS NULL'];
+
+            if (dto.branch_id !== undefined) {
+                params.push((dto as any).branch_id ?? null);
+                edgeWhereClauseParts.push(`h.branch_id IS NOT DISTINCT FROM $${params.length}`);
+            }
+
+            // Add temporal filter for edges if provided
+            if (temporalFilter) {
+                const edgeTemporalFilter = buildTemporalFilterClause(dto.temporalFilter!, 'h');
+                edgeWhereClauseParts.push(edgeTemporalFilter.sqlClause.replace(/\$1/g, `$${params.length + 1}`));
+                params.push(...edgeTemporalFilter.params);
+            }
+
             const edgeSql = `SELECT * FROM (
-                                          SELECT DISTINCT ON (canonical_id) id, type, src_id, dst_id, deleted_at, version, branch_id
+                                          SELECT DISTINCT ON (canonical_id) id, type, src_id, dst_id, deleted_at, version, branch_id, properties${temporalFilter ? ', valid_from, valid_to, created_at, updated_at' : ''}
                                           FROM kb.graph_relationships
                                           WHERE ${dirClauses.join(' AND ')}
                                           ORDER BY canonical_id, version DESC
                                       ) h
-                                      WHERE h.deleted_at IS NULL
-                                      ${dto.branch_id !== undefined ? 'AND h.branch_id IS NOT DISTINCT FROM $' + (params.length + 1) : ''}
+                                      WHERE ${edgeWhereClauseParts.join(' AND ')}
                                       LIMIT 500`;
-            if (dto.branch_id !== undefined) params.push((dto as any).branch_id ?? null);
+
             const edgeRes = await this.db.query<GraphRelationshipRow>(edgeSql, params);
             for (const e of edgeRes.rows) {
+                // Apply edge predicate filter
+                if (dto.edgeFilter && !evaluatePredicates(e, [dto.edgeFilter])) continue;
                 if (edges.length >= maxEdges) { truncated = true; break; }
                 edges.push({ id: e.id, type: e.type, src_id: e.src_id, dst_id: e.dst_id });
                 const nextId = e.src_id === current.id ? e.dst_id : e.src_id;
-                if (!seen.has(nextId)) queue.push({ id: nextId, depth: current.depth + 1 });
+
+                // Track path or handle multiple paths
+                const newPath = trackPaths && current.path ? [...current.path, nextId] : undefined;
+                if (seen.has(nextId)) {
+                    // Node already seen - add alternate path (up to limit)
+                    if (trackPaths && newPath) {
+                        const existingPaths = pathMap.get(nextId) ?? [];
+                        if (existingPaths.length < maxPathsPerNode) {
+                            existingPaths.push(newPath);
+                            pathMap.set(nextId, existingPaths);
+                        }
+                    }
+                } else {
+                    // New node - add to queue
+                    queue.push({ id: nextId, depth: current.depth + 1, path: newPath });
+                }
             }
             if (truncated) break;
         }
@@ -858,9 +1240,15 @@ export class GraphService {
             }
         } catch { /* swallow errors – telemetry must never break traversal */ }
 
-        return {
+        // Add paths to result nodes if requested (Phase 3: Path Enumeration)
+        const resultNodes = trackPaths ? pageItems.map(n => ({
+            ...n,
+            paths: pathMap.get(n.id) ?? []
+        })) : pageItems;
+
+        const result: GraphTraversalResult = {
             roots: dto.root_ids,
-            nodes: pageItems,
+            nodes: resultNodes,
             edges,
             truncated,
             max_depth_reached: maxDepthReached,
@@ -873,6 +1261,10 @@ export class GraphService {
             approx_position_end: approxEnd,
             page_direction: pageDirection
         };
+
+        // Apply field pruning if requested (Phase 3: Field Pruning)
+        const fieldStrategy = (dto.fieldStrategy || 'full') as FieldStrategy;
+        return pruneGraphResult(result, fieldStrategy);
     }
 
     // ---------------- Expand (single-pass richer traversal) ----------------

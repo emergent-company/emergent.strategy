@@ -121,12 +121,19 @@ Legend: ✅ Implemented & tested · 🟡 Partially implemented / interim diverge
 7. ~~Add product version list endpoint~~ ✅ DONE (`GET /product-versions?project_id=...`)
 8. ~~Implement release diff endpoint~~ ✅ DONE (`GET /product-versions/:id/diff/:otherId`)
 9. ~~Add tags table and endpoints~~ ✅ DONE (`POST /tags`, `GET /tags`, `GET /tags/:id`, `GET /tags/by-name/:name`, `PUT /tags/:id`, `DELETE /tags/:id`)
-10. Replace embedding_vec dimension with configurable env + migration path; add policy-driven selective embedding
-11. Enhance merge with full LCA computation and field-level conflict detection
-12. Add advanced `/graph/expand` features (phased traversal + property predicates) behind feature flag
-13. Add hybrid search normalization + path summaries (begin 8B P1/P2)
-14. Telemetry: metrics for traversal, search, embedding coverage, merge conflicts
-15. Implement multiplicity enforcement via registry + generated partial unique indexes
+10. ~~Implement multiplicity enforcement via registry~~ ✅ DONE (application-layer with advisory locks, tests passing)
+
+**All Phase 1 & 2 MVP priorities complete! 🎉**
+
+See `GRAPH_PHASE3_ROADMAP.md` for Phase 3+ enhancements (embedding production readiness, advanced traversal, policy-driven features).
+
+**Phase 3 Highlights** (to be prioritized based on usage):
+11. Replace embedding_vec dimension with configurable env + migration path (HIGH priority technical debt)
+12. Add policy-driven selective embedding (`embedding_policy`, `embedding_relevant_paths`)
+13. Enhance merge with full LCA computation and field-level conflict detection (already MVP complete)
+14. Add advanced `/graph/expand` features (phased traversal + property predicates) behind feature flag
+15. Add hybrid search normalization + path summaries (begin 8B P1/P2)
+16. Telemetry: metrics for traversal, search, embedding coverage, merge conflicts
 
 ---
 

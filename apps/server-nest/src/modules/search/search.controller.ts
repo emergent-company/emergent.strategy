@@ -20,8 +20,35 @@ export class SearchController {
     // Search requires ability to read documents/chunks
     @Scopes('documents:read')
     async search(@Query() query: SearchQueryDto): Promise<SearchResponseDto> {
-        const { q = '', limit = 10, mode } = query;
-        const { mode: finalMode, results, warning } = await this.searchService.search(q, limit, mode);
-        return { mode: finalMode, results: results.map(r => ({ id: r.id, snippet: r.text, score: 0 })), warning };
+        const startTime = performance.now();
+        const { q = '', limit = 10, mode, lexicalWeight = 0.5, vectorWeight = 0.5, includePaths = false } = query;
+        const { mode: finalMode, results, warning, pathSummaries, totalCandidates } = await this.searchService.search(q, limit, mode, lexicalWeight, vectorWeight, includePaths);
+        const queryTimeMs = Math.round((performance.now() - startTime) * 100) / 100;
+
+        // Map results and merge path summaries
+        const mappedResults = results.map(r => {
+            const result: { id: string; snippet: string; score: number; source: string; pathSummary?: string } = {
+                id: r.id,
+                snippet: r.text,
+                score: 0,
+                source: r.document_id,
+            };
+
+            // Add path summary if available
+            if (pathSummaries && pathSummaries.has(r.document_id)) {
+                const pathData = pathSummaries.get(r.document_id);
+                result.pathSummary = pathData.summary;
+            }
+
+            return result;
+        });
+
+        return {
+            mode: finalMode,
+            results: mappedResults,
+            warning,
+            query_time_ms: queryTimeMs,
+            result_count: totalCandidates || results.length,
+        };
     }
 }
