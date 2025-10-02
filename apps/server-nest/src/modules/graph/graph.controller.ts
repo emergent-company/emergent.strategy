@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Body, Patch, Query, Delete, HttpCode, BadRequestException, Inject, ParseArrayPipe, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, Patch, Query, Delete, HttpCode, BadRequestException, Inject, ParseArrayPipe, Logger, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiOkResponse, ApiQuery } from '@nestjs/swagger';
 import { Scopes } from '../auth/scopes.decorator';
 import { GraphService } from './graph.service';
@@ -13,11 +13,16 @@ import { BranchMergeRequestDto, BranchMergeSummaryDto } from './dto/merge.dto';
 import { GraphVectorSearchService } from './graph-vector-search.service';
 import { VectorSearchDto } from './dto/vector-search.dto';
 import { SimilarVectorSearchQueryDto } from './dto/similar-vector-search.dto';
+import { EmbeddingPolicyService } from './embedding-policy.service';
+import { CreateEmbeddingPolicyDto, UpdateEmbeddingPolicyDto, EmbeddingPolicyResponseDto } from './embedding-policy.dto';
 
 @ApiTags('Graph')
 @Controller('graph')
 export class GraphObjectsController {
-    constructor(private readonly service: GraphService) { }
+    constructor(
+        private readonly service: GraphService,
+        private readonly embeddingPolicyService: EmbeddingPolicyService,
+    ) { }
 
     // NOTE: Using property injection for GraphVectorSearchService.
     // In the current test harness, constructor injection produced an undefined instance
@@ -235,6 +240,98 @@ export class GraphObjectsController {
             labelsAll: labelsAll || query.labelsAll,
             labelsAny: labelsAny || query.labelsAny,
         });
+    }
+
+    // ---------------- Embedding Policies ----------------
+    @Post('embedding-policies')
+    @Scopes('graph:write')
+    @ApiOperation({ summary: 'Create an embedding policy for a project and object type' })
+    @ApiResponse({ status: 201, description: 'Policy created', type: EmbeddingPolicyResponseDto })
+    @ApiResponse({ status: 400, description: 'Validation error or duplicate policy' })
+    async createEmbeddingPolicy(@Body() dto: CreateEmbeddingPolicyDto): Promise<EmbeddingPolicyResponseDto> {
+        return this.embeddingPolicyService.create(dto.projectId, dto);
+    }
+
+    @Get('embedding-policies')
+    @Scopes('graph:read')
+    @ApiOperation({ summary: 'List all embedding policies for a project' })
+    @ApiQuery({ name: 'project_id', required: true, description: 'Filter policies by project ID' })
+    @ApiQuery({ name: 'object_type', required: false, description: 'Filter policies by object type' })
+    @ApiOkResponse({ description: 'List of policies', type: [EmbeddingPolicyResponseDto] })
+    async listEmbeddingPolicies(
+        @Query('project_id') projectId?: string,
+        @Query('object_type') objectType?: string,
+    ): Promise<EmbeddingPolicyResponseDto[]> {
+        if (!projectId) {
+            throw new BadRequestException('project_id query parameter is required');
+        }
+        if (objectType) {
+            const policy = await this.embeddingPolicyService.findByType(projectId, objectType);
+            return policy ? [policy] : [];
+        }
+        return this.embeddingPolicyService.findByProject(projectId);
+    }
+
+    @Get('embedding-policies/:id')
+    @Scopes('graph:read')
+    @ApiOperation({ summary: 'Get a specific embedding policy by ID' })
+    @ApiQuery({ name: 'project_id', required: true, description: 'Project ID for authorization' })
+    @ApiOkResponse({ description: 'Policy details', type: EmbeddingPolicyResponseDto })
+    @ApiResponse({ status: 404, description: 'Policy not found' })
+    async getEmbeddingPolicy(
+        @Param('id') id: string,
+        @Query('project_id') projectId?: string,
+    ): Promise<EmbeddingPolicyResponseDto> {
+        if (!projectId) {
+            throw new BadRequestException('project_id query parameter is required');
+        }
+        const policy = await this.embeddingPolicyService.findById(id, projectId);
+        if (!policy) {
+            throw new NotFoundException(`Embedding policy with id ${id} not found`);
+        }
+        return policy;
+    }
+
+    @Patch('embedding-policies/:id')
+    @Scopes('graph:write')
+    @ApiOperation({ summary: 'Update an embedding policy' })
+    @ApiQuery({ name: 'project_id', required: true, description: 'Project ID for authorization' })
+    @ApiOkResponse({ description: 'Policy updated', type: EmbeddingPolicyResponseDto })
+    @ApiResponse({ status: 404, description: 'Policy not found' })
+    @ApiResponse({ status: 400, description: 'Validation error' })
+    async updateEmbeddingPolicy(
+        @Param('id') id: string,
+        @Query('project_id') projectId: string,
+        @Body() dto: UpdateEmbeddingPolicyDto,
+    ): Promise<EmbeddingPolicyResponseDto> {
+        if (!projectId) {
+            throw new BadRequestException('project_id query parameter is required');
+        }
+        const updated = await this.embeddingPolicyService.update(id, projectId, dto);
+        if (!updated) {
+            throw new NotFoundException(`Embedding policy with id ${id} not found`);
+        }
+        return updated;
+    }
+
+    @Delete('embedding-policies/:id')
+    @Scopes('graph:write')
+    @ApiOperation({ summary: 'Delete an embedding policy' })
+    @ApiQuery({ name: 'project_id', required: true, description: 'Project ID for authorization' })
+    @HttpCode(204)
+    @ApiResponse({ status: 204, description: 'Policy deleted' })
+    @ApiResponse({ status: 404, description: 'Policy not found' })
+    async deleteEmbeddingPolicy(
+        @Param('id') id: string,
+        @Query('project_id') projectId?: string,
+    ): Promise<void> {
+        if (!projectId) {
+            throw new BadRequestException('project_id query parameter is required');
+        }
+        const deleted = await this.embeddingPolicyService.delete(id, projectId);
+        if (!deleted) {
+            throw new NotFoundException(`Embedding policy with id ${id} not found`);
+        }
     }
 
     // ---------------- Branch Merge (Dry-Run + Execute) ----------------

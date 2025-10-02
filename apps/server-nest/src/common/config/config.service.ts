@@ -29,7 +29,25 @@ export class AppConfigService {
     get dbName() { return this.env.PGDATABASE; }
     get googleApiKey() { return this.env.GOOGLE_API_KEY; }
     get embeddingsEnabled() { return !!this.env.GOOGLE_API_KEY; }
-    get embeddingsNetworkDisabled() { return !!this.env.EMBEDDINGS_NETWORK_DISABLED; }
+    get embeddingsNetworkDisabled(): boolean {
+        return Boolean(process.env.EMBEDDINGS_NETWORK_DISABLED);
+    }
+
+    get embeddingDimension(): number {
+        const dim = parseInt(process.env.EMBEDDING_DIMENSION || '1536', 10);
+        if (isNaN(dim) || dim <= 0) {
+            // eslint-disable-next-line no-console
+            console.warn(`[config] Invalid EMBEDDING_DIMENSION: ${process.env.EMBEDDING_DIMENSION}, using default 1536`);
+            return 1536;
+        }
+        // Support common dimensions: 32 (legacy stub), 128, 384, 768, 1536, 3072
+        const validDimensions = [32, 128, 384, 768, 1536, 3072];
+        if (!validDimensions.includes(dim)) {
+            // eslint-disable-next-line no-console
+            console.warn(`[config] Non-standard EMBEDDING_DIMENSION: ${dim}. Supported: ${validDimensions.join(', ')}`);
+        }
+        return dim;
+    }
     get chatModelEnabled() { return !!this.env.GOOGLE_API_KEY && !!this.env.CHAT_MODEL_ENABLED; }
     get autoInitDb() { return !!this.env.DB_AUTOINIT; }
     /** Password used when creating / connecting as dedicated non-bypass RLS role (app_rls). Optional so tests can rely on default. */

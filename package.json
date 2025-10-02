@@ -24,6 +24,7 @@
     "db:init": "tsx scripts/init-db.ts",
     "db:reset": "tsx scripts/reset-db.ts",
     "db:full-reset": "tsx scripts/full-reset-db.ts",
+    "migrate:embedding-dimension": "tsx scripts/migrate-embedding-dimension.ts",
     "test:smoke": "tsx scripts/smoke-test.ts",
     "mcp:db": "node .vscode/mcp.js",
     "check:stories": "node scripts/check-stories.mjs",

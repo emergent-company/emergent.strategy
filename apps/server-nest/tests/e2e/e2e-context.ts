@@ -155,7 +155,7 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
     const online = await waitForConnectivity(pool);
     if (!online) throw new Error('Database connectivity failed for E2E tests');
     // Wait until minimal schema bootstrap (another worker may still be holding advisory lock rebuilding schema)
-    for (const rel of ['kb.orgs', 'kb.projects', 'kb.documents', 'kb.chunks', 'kb.chat_conversations', 'kb.chat_messages']) {
+    for (const rel of ['kb.orgs', 'kb.projects', 'kb.documents', 'kb.chunks', 'kb.chat_conversations', 'kb.chat_messages', 'kb.embedding_policies']) {
         const ready = await waitForRelation(pool, rel);
         if (!ready) throw new Error(`Timed out waiting for ${rel} to be created`);
     }
