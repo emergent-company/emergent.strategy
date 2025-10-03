@@ -7,6 +7,7 @@ import { AppConfigService } from '../../common/config/config.service';
 import { AuthModule } from '../auth/auth.module';
 import { SchemaRegistryService } from './schema-registry.service';
 import { BranchService } from './branch.service';
+import { TypeRegistryModule } from '../type-registry/type-registry.module';
 import { BranchController } from './branch.controller';
 import { EmbeddingJobsService } from './embedding-jobs.service';
 import { EmbeddingPolicyService } from './embedding-policy.service';
@@ -22,7 +23,7 @@ import { RedactionInterceptor } from './redaction.interceptor';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
-    imports: [DatabaseModule, AppConfigModule, AuthModule],
+    imports: [DatabaseModule, AppConfigModule, AuthModule, TypeRegistryModule],
     controllers: [GraphObjectsController, BranchController, ProductVersionController, TagController],
     providers: [
         GraphService,

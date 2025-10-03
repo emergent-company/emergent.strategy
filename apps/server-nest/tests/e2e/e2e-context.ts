@@ -106,6 +106,20 @@ async function cleanupUserData(pool: Pool, projectId: string, userSub: string) {
     if (await tableCheck('kb.settings')) {
         await pool.query(`DELETE FROM kb.settings WHERE key LIKE 'e2e-%'`);
     }
+    // Phase 1 table cleanup (template packs, type registry, extraction jobs)
+    if (await tableCheck('kb.object_extraction_jobs')) {
+        await pool.query(`DELETE FROM kb.object_extraction_jobs WHERE project_id = $1`, [projectId]);
+    }
+    if (await tableCheck('kb.project_object_type_registry')) {
+        await pool.query(`DELETE FROM kb.project_object_type_registry WHERE project_id = $1`, [projectId]);
+    }
+    if (await tableCheck('kb.project_template_packs')) {
+        await pool.query(`DELETE FROM kb.project_template_packs WHERE project_id = $1`, [projectId]);
+    }
+    // Template packs don't have project_id, but we can delete test packs by name pattern
+    if (await tableCheck('kb.graph_template_packs')) {
+        await pool.query(`DELETE FROM kb.graph_template_packs WHERE name LIKE 'E2E%' OR name LIKE 'Test%' OR name LIKE '%Test%' OR name LIKE 'TOGAF%'`);
+    }
 }
 
 async function waitForConnectivity(pool: Pool, attempts = 20, delayMs = 200): Promise<boolean> {

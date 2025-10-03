@@ -5,6 +5,9 @@ export default defineConfig({
         globals: true,
         include: ['tests/e2e/**/*.e2e.spec.ts'],
         watch: false,
-        setupFiles: ['tests/e2e/global-org-cleanup.ts']
+        setupFiles: ['tests/e2e/global-org-cleanup.ts'],
+        env: {
+            E2E_MINIMAL_DB: 'true',
+        },
     },
 });
