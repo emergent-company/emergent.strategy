@@ -53,4 +53,39 @@ export class AppConfigService {
     /** Password used when creating / connecting as dedicated non-bypass RLS role (app_rls). Optional so tests can rely on default. */
     get appRlsPassword() { return this.env.APP_RLS_PASSWORD || 'app_rls_pw'; }
     get rlsPolicyStrict() { return !!this.env.RLS_POLICY_STRICT; }
+
+    // --- Extraction Worker (Vertex AI) ---
+    get vertexAiProjectId() { return this.env.VERTEX_AI_PROJECT_ID; }
+    get vertexAiLocation() { return this.env.VERTEX_AI_LOCATION || 'us-central1'; }
+    get vertexAiModel() { return this.env.VERTEX_AI_MODEL || 'gemini-1.5-pro-002'; }
+
+    // --- Extraction Worker Behavior ---
+    get extractionWorkerEnabled() {
+        // Only enable if Vertex AI project ID is configured
+        return !!this.env.VERTEX_AI_PROJECT_ID && !!this.env.EXTRACTION_WORKER_ENABLED;
+    }
+    get extractionWorkerPollIntervalMs() {
+        return this.env.EXTRACTION_WORKER_POLL_INTERVAL_MS || 5000;
+    }
+    get extractionWorkerBatchSize() {
+        return this.env.EXTRACTION_WORKER_BATCH_SIZE || 5;
+    }
+    get extractionRateLimitRpm() {
+        return this.env.EXTRACTION_RATE_LIMIT_RPM || 60;
+    }
+    get extractionRateLimitTpm() {
+        return this.env.EXTRACTION_RATE_LIMIT_TPM || 30000;
+    }
+    get extractionEntityLinkingStrategy() {
+        return this.env.EXTRACTION_ENTITY_LINKING_STRATEGY || 'always_new';
+    }
+    get extractionConfidenceThresholdMin() {
+        return this.env.EXTRACTION_CONFIDENCE_THRESHOLD_MIN || 0.0;
+    }
+    get extractionConfidenceThresholdReview() {
+        return this.env.EXTRACTION_CONFIDENCE_THRESHOLD_REVIEW || 0.7;
+    }
+    get extractionConfidenceThresholdAuto() {
+        return this.env.EXTRACTION_CONFIDENCE_THRESHOLD_AUTO || 0.85;
+    }
 }

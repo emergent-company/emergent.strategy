@@ -76,7 +76,7 @@ describe('ExtractionJobService', () => {
             const result = await service.createJob(createDto);
 
             expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('INSERT INTO kb.extraction_jobs'),
+                expect.stringContaining('INSERT INTO kb.object_extraction_jobs'),
                 expect.arrayContaining([
                     mockOrgId,
                     mockProjectId,
@@ -122,7 +122,7 @@ describe('ExtractionJobService', () => {
             const result = await service.getJobById(mockJobId, mockProjectId, mockOrgId);
 
             expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('SELECT * FROM kb.extraction_jobs'),
+                expect.stringContaining('SELECT * FROM kb.object_extraction_jobs'),
                 [mockJobId, mockProjectId, mockOrgId]
             );
             expect(result.id).toBe(mockJobId);
@@ -235,7 +235,7 @@ describe('ExtractionJobService', () => {
             });
 
             expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('UPDATE kb.extraction_jobs'),
+                expect.stringContaining('UPDATE kb.object_extraction_jobs'),
                 expect.arrayContaining([ExtractionJobStatus.COMPLETED])
             );
             expect(result.status).toBe(ExtractionJobStatus.COMPLETED);
@@ -279,8 +279,8 @@ describe('ExtractionJobService', () => {
             expect(mockDb.query).toHaveBeenCalledWith(
                 expect.stringContaining('discovered_types = $1'),
                 expect.arrayContaining([
-                    JSON.stringify(['Requirement', 'Feature']),
-                    JSON.stringify(['obj-1', 'obj-2']),
+                    ['Requirement', 'Feature'],
+                    ['obj-1', 'obj-2'],
                 ])
             );
         });
@@ -435,7 +435,7 @@ describe('ExtractionJobService', () => {
             await service.deleteJob(mockJobId, mockProjectId, mockOrgId);
 
             expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('DELETE FROM kb.extraction_jobs'),
+                expect.stringContaining('DELETE FROM kb.object_extraction_jobs'),
                 [mockJobId, mockProjectId, mockOrgId]
             );
         });
