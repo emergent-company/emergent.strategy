@@ -4,6 +4,7 @@ import { pairIndependentHeads, pairIndependentRelationshipHeads } from './merge.
 import { DatabaseService } from '../../common/database/database.service';
 import { diffProperties } from '../../graph/change-summary';
 import { generateDiff, computeContentHash } from './diff.util';
+import { TypeRegistryService } from '../type-registry/type-registry.service';
 import { CreateGraphObjectDto } from './dto/create-graph-object.dto';
 import { PatchGraphObjectDto } from './dto/patch-graph-object.dto';
 import { GraphObjectDto, GraphObjectRow, GraphRelationshipDto, GraphRelationshipRow, GraphTraversalResult } from './graph.types';
@@ -71,6 +72,7 @@ export class GraphService {
     constructor(
         @Inject(DatabaseService) private readonly db: DatabaseService,
         @Inject(SchemaRegistryService) private readonly schemaRegistry: SchemaRegistryService,
+        @Optional() @Inject(TypeRegistryService) private readonly typeRegistry?: TypeRegistryService,
         @Optional() @Inject(EmbeddingJobsService) private readonly embeddingJobs?: EmbeddingJobsService,
         @Optional() @Inject(EmbeddingPolicyService) private readonly embeddingPolicy?: EmbeddingPolicyService,
         @Optional() @Inject(AppConfigService) private readonly config?: AppConfigService,
@@ -111,6 +113,33 @@ export class GraphService {
                 const valid = validator(properties || {});
                 if (!valid) {
                     throw new BadRequestException({ code: 'object_schema_validation_failed', errors: validator.errors });
+                }
+            }
+
+            // Type Registry validation (Phase 1 dynamic type system)
+            if (this.typeRegistry && project_id && org_id) {
+                try {
+                    const validationResult = await this.typeRegistry.validateObjectData(
+                        project_id,
+                        org_id,
+                        { type, properties: properties || {} }
+                    );
+                    if (!validationResult.valid && validationResult.errors) {
+                        throw new BadRequestException({
+                            code: 'type_registry_validation_failed',
+                            message: 'Object properties do not match type schema',
+                            errors: validationResult.errors,
+                        });
+                    }
+                } catch (error) {
+                    // If type not found in registry, allow creation (type registry is optional)
+                    if (error instanceof NotFoundException) {
+                        // Type not registered yet - allow creation
+                    } else if (error instanceof BadRequestException) {
+                        // Type is disabled or validation failed - propagate error
+                        throw error;
+                    }
+                    // Other errors (e.g., DB connection) - log but don't block
                 }
             }
             await client.query('BEGIN');
@@ -243,6 +272,33 @@ export class GraphService {
             if (validator) {
                 const valid = validator(nextProps);
                 if (!valid) throw new BadRequestException({ code: 'object_schema_validation_failed', errors: validator.errors });
+            }
+
+            // Type Registry validation (Phase 1 dynamic type system)
+            if (this.typeRegistry && (current as any).project_id && (current as any).org_id) {
+                try {
+                    const validationResult = await this.typeRegistry.validateObjectData(
+                        (current as any).project_id,
+                        (current as any).org_id,
+                        { type: current.type, properties: nextProps }
+                    );
+                    if (!validationResult.valid && validationResult.errors) {
+                        throw new BadRequestException({
+                            code: 'type_registry_validation_failed',
+                            message: 'Updated properties do not match type schema',
+                            errors: validationResult.errors,
+                        });
+                    }
+                } catch (error) {
+                    // If type not found in registry, allow update (type registry is optional)
+                    if (error instanceof NotFoundException) {
+                        // Type not registered yet - allow update
+                    } else if (error instanceof BadRequestException) {
+                        // Type is disabled or validation failed - propagate error
+                        throw error;
+                    }
+                    // Other errors (e.g., DB connection) - log but don't block
+                }
             }
             let nextLabels = current.labels;
             if (patch.labels) {

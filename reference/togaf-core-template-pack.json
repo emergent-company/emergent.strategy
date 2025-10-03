@@ -1,0 +1,850 @@
+{
+    "name": "togaf-core",
+    "version": "1.0.0",
+    "description": "Core TOGAF architecture artifact types for IT projects",
+    "author": "Nexus Platform",
+    "minEngineVersion": "1.0.0",
+    "tags": {
+        "domain": "architecture",
+        "framework": "TOGAF",
+        "category": "enterprise-architecture"
+    },
+    "objectTypes": [
+        {
+            "type": "Capability",
+            "description": "Business capability - what the organization can do",
+            "category": "business-architecture",
+            "admPhase": "B",
+            "icon": "lucide--zap",
+            "color": "#3B82F6",
+            "schemaVersion": 1,
+            "jsonSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "required": [
+                    "title",
+                    "status"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 256,
+                        "description": "Capability name"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "What this capability enables"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "proposed",
+                            "active",
+                            "retiring",
+                            "retired"
+                        ],
+                        "default": "proposed"
+                    },
+                    "business_value": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 10,
+                        "description": "Business value score 0-10"
+                    },
+                    "maturity_level": {
+                        "type": "string",
+                        "enum": [
+                            "initial",
+                            "developing",
+                            "defined",
+                            "managed",
+                            "optimizing"
+                        ]
+                    },
+                    "owner": {
+                        "type": "string",
+                        "description": "Business owner"
+                    },
+                    "kpis": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Key performance indicators"
+                    }
+                }
+            },
+            "uiConfig": {
+                "formLayout": [
+                    {
+                        "field": "title",
+                        "width": "full"
+                    },
+                    {
+                        "field": "status",
+                        "width": "half"
+                    },
+                    {
+                        "field": "business_value",
+                        "width": "half"
+                    },
+                    {
+                        "field": "description",
+                        "widget": "textarea"
+                    },
+                    {
+                        "field": "maturity_level",
+                        "width": "half"
+                    },
+                    {
+                        "field": "owner",
+                        "width": "half"
+                    },
+                    {
+                        "field": "kpis",
+                        "widget": "tags"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Requirement",
+            "description": "System or business requirement",
+            "category": "requirements",
+            "admPhase": "B",
+            "icon": "lucide--clipboard-check",
+            "color": "#10B981",
+            "schemaVersion": 1,
+            "jsonSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "required": [
+                    "title",
+                    "category"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 256
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "category": {
+                        "type": "string",
+                        "enum": [
+                            "functional",
+                            "non-functional",
+                            "constraint",
+                            "compliance",
+                            "business-rule"
+                        ],
+                        "description": "Requirement type"
+                    },
+                    "priority": {
+                        "type": "string",
+                        "enum": [
+                            "must",
+                            "should",
+                            "could",
+                            "wont"
+                        ],
+                        "description": "MoSCoW priority"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "draft",
+                            "proposed",
+                            "approved",
+                            "implemented",
+                            "verified",
+                            "rejected"
+                        ]
+                    },
+                    "rationale": {
+                        "type": "string",
+                        "description": "Why this requirement exists"
+                    },
+                    "acceptance_criteria": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "How to verify this requirement"
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "Where this requirement came from"
+                    },
+                    "risk_level": {
+                        "type": "string",
+                        "enum": [
+                            "low",
+                            "medium",
+                            "high",
+                            "critical"
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "type": "Decision",
+            "description": "Architecture Decision Record (ADR)",
+            "category": "governance",
+            "admPhase": "all",
+            "icon": "lucide--git-branch",
+            "color": "#8B5CF6",
+            "schemaVersion": 1,
+            "jsonSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "required": [
+                    "title",
+                    "status"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 256
+                    },
+                    "context": {
+                        "type": "string",
+                        "description": "What is the issue we're trying to solve?"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "proposed",
+                            "accepted",
+                            "superseded",
+                            "deprecated",
+                            "rejected"
+                        ]
+                    },
+                    "decision": {
+                        "type": "string",
+                        "description": "What decision was made?"
+                    },
+                    "consequences": {
+                        "type": "string",
+                        "description": "What are the results of this decision?"
+                    },
+                    "alternatives_considered": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "option": {
+                                    "type": "string"
+                                },
+                                "pros": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "cons": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "decided_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "decided_by": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        {
+            "type": "ApplicationComponent",
+            "description": "Software application or system",
+            "category": "application-architecture",
+            "admPhase": "C",
+            "icon": "lucide--layout-grid",
+            "color": "#F59E0B",
+            "schemaVersion": 1,
+            "jsonSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "required": [
+                    "title"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 256
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "planned",
+                            "in-development",
+                            "active",
+                            "retiring",
+                            "retired"
+                        ]
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "web-app",
+                            "mobile-app",
+                            "api",
+                            "service",
+                            "database",
+                            "integration",
+                            "other"
+                        ]
+                    },
+                    "technology_stack": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "hosting": {
+                        "type": "string",
+                        "enum": [
+                            "cloud",
+                            "on-premise",
+                            "hybrid",
+                            "saas"
+                        ]
+                    },
+                    "owner_team": {
+                        "type": "string"
+                    },
+                    "repository_url": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "deployment_url": {
+                        "type": "string",
+                        "format": "uri"
+                    }
+                }
+            }
+        },
+        {
+            "type": "DataEntity",
+            "description": "Logical data entity or domain model",
+            "category": "data-architecture",
+            "admPhase": "C",
+            "icon": "lucide--database",
+            "color": "#06B6D4",
+            "schemaVersion": 1,
+            "jsonSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "required": [
+                    "title"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 256
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "attributes": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string"
+                                },
+                                "required": {
+                                    "type": "boolean"
+                                },
+                                "pii": {
+                                    "type": "boolean"
+                                }
+                            }
+                        }
+                    },
+                    "primary_key": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "storage_location": {
+                        "type": "string"
+                    },
+                    "retention_policy": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Interface",
+            "description": "API or system interface",
+            "category": "application-architecture",
+            "admPhase": "C",
+            "icon": "lucide--plug",
+            "color": "#EC4899",
+            "schemaVersion": 1,
+            "jsonSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "required": [
+                    "title",
+                    "protocol"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 256
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "protocol": {
+                        "type": "string",
+                        "enum": [
+                            "REST",
+                            "GraphQL",
+                            "gRPC",
+                            "SOAP",
+                            "WebSocket",
+                            "Event",
+                            "Other"
+                        ]
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "endpoint": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "authentication": {
+                        "type": "string",
+                        "enum": [
+                            "none",
+                            "api-key",
+                            "oauth2",
+                            "jwt",
+                            "basic",
+                            "mtls"
+                        ]
+                    },
+                    "sla": {
+                        "type": "object",
+                        "properties": {
+                            "availability": {
+                                "type": "string"
+                            },
+                            "response_time_ms": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "type": "Risk",
+            "description": "Project or technical risk",
+            "category": "governance",
+            "admPhase": "all",
+            "icon": "lucide--alert-triangle",
+            "color": "#EF4444",
+            "schemaVersion": 1,
+            "jsonSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "required": [
+                    "title",
+                    "likelihood",
+                    "impact"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 256
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "likelihood": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5,
+                        "description": "Probability (1=rare, 5=almost certain)"
+                    },
+                    "impact": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5,
+                        "description": "Impact if occurs (1=minimal, 5=catastrophic)"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "identified",
+                            "analyzing",
+                            "mitigating",
+                            "monitoring",
+                            "closed"
+                        ]
+                    },
+                    "mitigation_strategy": {
+                        "type": "string"
+                    },
+                    "owner": {
+                        "type": "string"
+                    },
+                    "review_date": {
+                        "type": "string",
+                        "format": "date"
+                    }
+                }
+            }
+        },
+        {
+            "type": "WorkPackage",
+            "description": "Deliverable work package",
+            "category": "implementation",
+            "admPhase": "E",
+            "icon": "lucide--package",
+            "color": "#6366F1",
+            "schemaVersion": 1,
+            "jsonSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "required": [
+                    "title"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 256
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "planned",
+                            "in-progress",
+                            "completed",
+                            "cancelled",
+                            "blocked"
+                        ]
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "effort_estimate": {
+                        "type": "number",
+                        "description": "Effort in person-days"
+                    },
+                    "cost_estimate": {
+                        "type": "number"
+                    },
+                    "owner": {
+                        "type": "string"
+                    },
+                    "dependencies": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    ],
+    "relationshipTypes": [
+        {
+            "type": "trace_to",
+            "description": "Traces requirement to goal/objective",
+            "allowedSrcTypes": [
+                "Requirement",
+                "Feature",
+                "UserStory"
+            ],
+            "allowedDstTypes": [
+                "Goal",
+                "Objective",
+                "Driver",
+                "ArchitecturePrinciple"
+            ],
+            "multiplicity": {
+                "src": "many",
+                "dst": "many"
+            }
+        },
+        {
+            "type": "refine",
+            "description": "Breaks down into more detailed items",
+            "allowedSrcTypes": [
+                "Epic",
+                "Feature",
+                "Capability"
+            ],
+            "allowedDstTypes": [
+                "Feature",
+                "UserStory",
+                "Requirement"
+            ],
+            "multiplicity": {
+                "src": "one",
+                "dst": "many"
+            }
+        },
+        {
+            "type": "satisfy",
+            "description": "Satisfies a requirement",
+            "allowedSrcTypes": [
+                "Feature",
+                "UserStory",
+                "ApplicationComponent"
+            ],
+            "allowedDstTypes": [
+                "Requirement",
+                "Goal"
+            ],
+            "multiplicity": {
+                "src": "many",
+                "dst": "many"
+            }
+        },
+        {
+            "type": "implement",
+            "description": "Implements a capability or service",
+            "allowedSrcTypes": [
+                "ApplicationComponent",
+                "Interface",
+                "WorkPackage"
+            ],
+            "allowedDstTypes": [
+                "Capability",
+                "BusinessService",
+                "Feature"
+            ],
+            "multiplicity": {
+                "src": "many",
+                "dst": "many"
+            }
+        },
+        {
+            "type": "depend_on",
+            "description": "Depends on another component",
+            "allowedSrcTypes": [
+                "ApplicationComponent",
+                "Interface",
+                "WorkPackage",
+                "Requirement"
+            ],
+            "allowedDstTypes": [
+                "ApplicationComponent",
+                "Interface",
+                "TechnologyComponent",
+                "DataEntity"
+            ],
+            "multiplicity": {
+                "src": "many",
+                "dst": "many"
+            }
+        },
+        {
+            "type": "address",
+            "description": "Addresses a risk or issue",
+            "allowedSrcTypes": [
+                "Decision",
+                "WorkPackage",
+                "Requirement"
+            ],
+            "allowedDstTypes": [
+                "Risk",
+                "Issue",
+                "Gap"
+            ],
+            "multiplicity": {
+                "src": "many",
+                "dst": "many"
+            }
+        },
+        {
+            "type": "uses",
+            "description": "Application uses technology or data",
+            "allowedSrcTypes": [
+                "ApplicationComponent"
+            ],
+            "allowedDstTypes": [
+                "TechnologyComponent",
+                "DataEntity",
+                "Interface"
+            ],
+            "multiplicity": {
+                "src": "many",
+                "dst": "many"
+            }
+        },
+        {
+            "type": "stores_in",
+            "description": "Data is stored in",
+            "allowedSrcTypes": [
+                "DataEntity"
+            ],
+            "allowedDstTypes": [
+                "ApplicationComponent",
+                "DataStore"
+            ],
+            "multiplicity": {
+                "src": "many",
+                "dst": "one"
+            }
+        },
+        {
+            "type": "integrate_with",
+            "description": "Integrates with another system",
+            "allowedSrcTypes": [
+                "ApplicationComponent"
+            ],
+            "allowedDstTypes": [
+                "ApplicationComponent",
+                "Interface"
+            ],
+            "multiplicity": {
+                "src": "many",
+                "dst": "many"
+            }
+        },
+        {
+            "type": "owns",
+            "description": "Ownership responsibility",
+            "allowedSrcTypes": [
+                "Stakeholder",
+                "Team",
+                "OrganizationalUnit"
+            ],
+            "allowedDstTypes": [
+                "Capability",
+                "ApplicationComponent",
+                "BusinessProcess",
+                "DataEntity"
+            ],
+            "multiplicity": {
+                "src": "one",
+                "dst": "many"
+            }
+        },
+        {
+            "type": "decides",
+            "description": "Meeting or person made a decision",
+            "allowedSrcTypes": [
+                "Meeting",
+                "Stakeholder"
+            ],
+            "allowedDstTypes": [
+                "Decision"
+            ],
+            "multiplicity": {
+                "src": "many",
+                "dst": "many"
+            }
+        }
+    ],
+    "extractionPrompts": [
+        {
+            "objectType": "Requirement",
+            "systemPrompt": "Extract requirements from the document. Look for statements that describe what the system must do (functional), quality attributes (non-functional), limitations (constraints), or regulations (compliance). For each requirement:\n\n1. Identify the category (functional/non-functional/constraint/compliance)\n2. Extract the requirement text as the title\n3. Capture any rationale or justification\n4. Identify acceptance criteria if mentioned\n5. Assign MoSCoW priority if indicated\n6. Look for relationships to goals or features\n\nReturn as structured JSON matching the Requirement schema.",
+            "fewShotExamples": [
+                {
+                    "input": "The system must support 10,000 concurrent users with response times under 200ms. This is critical for our peak traffic periods during holiday sales.",
+                    "output": {
+                        "type": "Requirement",
+                        "title": "Support 10,000 concurrent users with <200ms response time",
+                        "category": "non-functional",
+                        "priority": "must",
+                        "rationale": "Critical for peak traffic periods during holiday sales",
+                        "acceptance_criteria": [
+                            "Load test with 10,000 simulated users",
+                            "95th percentile response time < 200ms"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "objectType": "Decision",
+            "systemPrompt": "Extract architecture decisions (ADRs) from the document. Look for:\n\n1. Decision statements (we decided to...)\n2. Context explaining the problem\n3. Alternatives that were considered\n4. Consequences or implications\n5. Status (proposed/accepted/superseded)\n\nReturn as structured JSON matching the Decision schema.",
+            "fewShotExamples": [
+                {
+                    "input": "After evaluating PostgreSQL, MongoDB, and DynamoDB, we decided to use PostgreSQL for our primary datastore. This decision was made because we need strong ACID guarantees and complex relational queries. MongoDB was rejected due to lack of strong consistency, and DynamoDB due to cost concerns.",
+                    "output": {
+                        "type": "Decision",
+                        "title": "Use PostgreSQL as primary datastore",
+                        "context": "Need for strong ACID guarantees and complex relational queries",
+                        "decision": "Selected PostgreSQL over MongoDB and DynamoDB",
+                        "status": "accepted",
+                        "alternatives_considered": [
+                            {
+                                "option": "MongoDB",
+                                "cons": [
+                                    "Lack of strong consistency"
+                                ]
+                            },
+                            {
+                                "option": "DynamoDB",
+                                "cons": [
+                                    "Cost concerns"
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    ],
+    "views": [
+        {
+            "name": "capability_map",
+            "description": "Visual map of business capabilities",
+            "query": "SELECT id, title, status, business_value, maturity_level FROM objects WHERE type = 'Capability' AND deleted_at IS NULL"
+        },
+        {
+            "name": "requirements_traceability",
+            "description": "Traceability matrix from requirements to goals",
+            "query": "SELECT r.id as req_id, r.title as req_title, rel.type as link_type, g.id as goal_id, g.title as goal_title FROM objects r JOIN relationships rel ON rel.src_object_id = r.id JOIN objects g ON g.id = rel.dst_object_id WHERE r.type = 'Requirement' AND rel.type = 'trace_to' AND r.deleted_at IS NULL"
+        },
+        {
+            "name": "application_portfolio",
+            "description": "All applications with their status and tech stack",
+            "query": "SELECT id, title, status, technology_stack, hosting, owner_team FROM objects WHERE type = 'ApplicationComponent' AND deleted_at IS NULL ORDER BY status, title"
+        },
+        {
+            "name": "risk_register",
+            "description": "Active risks sorted by severity",
+            "query": "SELECT id, title, likelihood, impact, (likelihood * impact) as severity, status, owner FROM objects WHERE type = 'Risk' AND status != 'closed' AND deleted_at IS NULL ORDER BY severity DESC"
+        }
+    ],
+    "signature": "ed25519:placeholder_signature_would_go_here"
+}

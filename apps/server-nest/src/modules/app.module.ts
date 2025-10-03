@@ -18,6 +18,9 @@ import { InvitesModule } from './invites/invites.module';
 import { UserProfileModule } from './user-profile/user-profile.module';
 import { GraphModule } from './graph/graph.module';
 import { GraphSearchModule } from './graph-search/graph-search.module';
+import { TemplatePackModule } from './template-packs/template-pack.module';
+import { TypeRegistryModule } from './type-registry/type-registry.module';
+import { ExtractionJobModule } from './extraction-jobs/extraction-job.module';
 
 @Module({
     imports: [
@@ -39,6 +42,9 @@ import { GraphSearchModule } from './graph-search/graph-search.module';
         UserProfileModule,
         GraphModule,
         GraphSearchModule,
+        TemplatePackModule,
+        TypeRegistryModule,
+        ExtractionJobModule,
         DatabaseModule,
     ],
 })
