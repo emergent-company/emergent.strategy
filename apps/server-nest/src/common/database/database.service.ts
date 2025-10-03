@@ -257,7 +257,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                         try { await exec('TRUNCATE core.user_profiles RESTART IDENTITY CASCADE'); } catch { }
                     }
                     try { await exec('CREATE EXTENSION IF NOT EXISTS pgcrypto'); } catch { }
-                    try { await exec('CREATE EXTENSION IF NOT EXISTS vector'); } catch { }
+                    try { await this.pool.query('CREATE EXTENSION IF NOT EXISTS vector'); } catch (e) { this.logger.warn('Vector extension not available, skipping'); }
                 }
                 if (shouldDrop) {
                     await exec('CREATE EXTENSION IF NOT EXISTS pgcrypto');
