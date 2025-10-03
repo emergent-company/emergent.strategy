@@ -20,7 +20,7 @@ import {
 export class ExtractionJobService {
     private readonly logger = new Logger(ExtractionJobService.name);
 
-    constructor(private readonly db: DatabaseService) {}
+    constructor(private readonly db: DatabaseService) { }
 
     /**
      * Create a new extraction job
@@ -236,6 +236,205 @@ export class ExtractionJobService {
     }
 
     /**
+     * Dequeue pending jobs for processing (used by worker)
+     * 
+     * Uses FOR UPDATE SKIP LOCKED for safe concurrent access
+     * 
+     * @param batchSize - Number of jobs to claim
+     * @returns Array of claimed jobs
+     */
+    async dequeueJobs(batchSize: number = 1): Promise<ExtractionJobDto[]> {
+        this.logger.debug(`Attempting to dequeue ${batchSize} pending jobs`);
+
+        const result = await this.db.query<ExtractionJobDto>(
+            `UPDATE kb.object_extraction_jobs
+             SET status = $1, 
+                 started_at = NOW(),
+                 updated_at = NOW()
+             WHERE id IN (
+                 SELECT id FROM kb.object_extraction_jobs
+                 WHERE status = $2
+                   AND (next_retry_at IS NULL OR next_retry_at <= NOW())
+                 ORDER BY created_at ASC
+                 LIMIT $3
+                 FOR UPDATE SKIP LOCKED
+             )
+             RETURNING *`,
+            [ExtractionJobStatus.RUNNING, ExtractionJobStatus.PENDING, batchSize]
+        );
+
+        const jobs = result.rows.map((row) => this.mapRowToDto(row));
+
+        if (jobs.length > 0) {
+            this.logger.log(`Dequeued ${jobs.length} jobs for processing`);
+        }
+
+        return jobs;
+    }
+
+    /**
+     * Mark job as running (idempotent)
+     */
+    async markRunning(jobId: string): Promise<void> {
+        await this.db.query(
+            `UPDATE kb.object_extraction_jobs
+             SET status = $1,
+                 started_at = COALESCE(started_at, NOW()),
+                 updated_at = NOW()
+             WHERE id = $2`,
+            [ExtractionJobStatus.RUNNING, jobId]
+        );
+        this.logger.debug(`Marked job ${jobId} as running`);
+    }
+
+    /**
+     * Mark job as completed
+     */
+    async markCompleted(
+        jobId: string,
+        results: {
+            created_objects?: string[];
+            discovered_types?: string[];
+            successful_items?: number;
+            total_items?: number;
+            rejected_items?: number;
+            review_required_count?: number;
+        },
+        finalStatus: 'completed' | 'requires_review' = 'completed'
+    ): Promise<void> {
+        const status = finalStatus === 'requires_review'
+            ? ExtractionJobStatus.REQUIRES_REVIEW
+            : ExtractionJobStatus.COMPLETED;
+
+        await this.db.query(
+            `UPDATE kb.object_extraction_jobs
+             SET status = $1,
+                 completed_at = NOW(),
+                 updated_at = NOW(),
+                 created_objects = COALESCE($2, created_objects),
+                 discovered_types = COALESCE($3, discovered_types),
+                 successful_items = COALESCE($4, successful_items),
+                 total_items = COALESCE($5, total_items),
+                 processed_items = COALESCE($5, processed_items)
+             WHERE id = $6`,
+            [
+                status,
+                results.created_objects || null,
+                results.discovered_types || null,
+                results.successful_items || null,
+                results.total_items || null,
+                jobId,
+            ]
+        );
+
+        if (finalStatus === 'requires_review') {
+            this.logger.log(
+                `Marked job ${jobId} as requires_review: ` +
+                `${results.review_required_count || 0} objects need review, ` +
+                `${results.rejected_items || 0} rejected`
+            );
+        } else {
+            this.logger.log(
+                `Marked job ${jobId} as completed: ` +
+                `${results.successful_items}/${results.total_items} items` +
+                `${results.rejected_items ? `, ${results.rejected_items} rejected` : ''}`
+            );
+        }
+    }
+
+    /**
+     * Mark job as failed with retry logic
+     * 
+     * Implements exponential backoff for retries
+     */
+    async markFailed(
+        jobId: string,
+        errorMessage: string,
+        errorDetails?: any
+    ): Promise<void> {
+        // Get current retry count
+        const jobResult = await this.db.query<{ retry_count: number }>(
+            `SELECT retry_count FROM kb.object_extraction_jobs WHERE id = $1`,
+            [jobId]
+        );
+
+        if (!jobResult.rowCount) {
+            this.logger.error(`Cannot mark failed: job ${jobId} not found`);
+            return;
+        }
+
+        const currentRetryCount = jobResult.rows[0].retry_count || 0;
+        const maxRetries = 3;
+        const shouldRetry = currentRetryCount < maxRetries;
+
+        if (shouldRetry) {
+            // Calculate exponential backoff: 2^retry_count minutes
+            const backoffMinutes = Math.pow(2, currentRetryCount);
+            const nextRetryAt = new Date(Date.now() + backoffMinutes * 60 * 1000);
+
+            await this.db.query(
+                `UPDATE kb.object_extraction_jobs
+                 SET status = $1,
+                     retry_count = retry_count + 1,
+                     next_retry_at = $2,
+                     error_message = $3,
+                     error_details = $4,
+                     updated_at = NOW()
+                 WHERE id = $5`,
+                [
+                    ExtractionJobStatus.PENDING,
+                    nextRetryAt,
+                    errorMessage,
+                    JSON.stringify(errorDetails || {}),
+                    jobId,
+                ]
+            );
+
+            this.logger.warn(
+                `Job ${jobId} failed (retry ${currentRetryCount + 1}/${maxRetries}), ` +
+                `will retry at ${nextRetryAt.toISOString()}`
+            );
+        } else {
+            // Max retries exceeded, mark as permanently failed
+            await this.db.query(
+                `UPDATE kb.object_extraction_jobs
+                 SET status = $1,
+                     completed_at = NOW(),
+                     error_message = $2,
+                     error_details = $3,
+                     updated_at = NOW()
+                 WHERE id = $4`,
+                [
+                    ExtractionJobStatus.FAILED,
+                    errorMessage,
+                    JSON.stringify(errorDetails || {}),
+                    jobId,
+                ]
+            );
+
+            this.logger.error(`Job ${jobId} permanently failed after ${maxRetries} retries`);
+        }
+    }
+
+    /**
+     * Update job progress (for long-running extractions)
+     */
+    async updateProgress(
+        jobId: string,
+        processed: number,
+        total: number
+    ): Promise<void> {
+        await this.db.query(
+            `UPDATE kb.object_extraction_jobs
+             SET processed_items = $1,
+                 total_items = $2,
+                 updated_at = NOW()
+             WHERE id = $3`,
+            [processed, total, jobId]
+        );
+    }
+
+    /**
      * Cancel an extraction job
      * 
      * Phase 1: Updates status to 'cancelled'
@@ -245,7 +444,7 @@ export class ExtractionJobService {
         const job = await this.getJobById(jobId, projectId, orgId);
 
         // Can only cancel pending or running jobs
-        if (job.status === ExtractionJobStatus.COMPLETED || 
+        if (job.status === ExtractionJobStatus.COMPLETED ||
             job.status === ExtractionJobStatus.FAILED ||
             job.status === ExtractionJobStatus.CANCELLED) {
             throw new BadRequestException(`Cannot cancel job with status: ${job.status}`);

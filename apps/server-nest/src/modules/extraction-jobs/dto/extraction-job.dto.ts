@@ -8,6 +8,7 @@ export enum ExtractionJobStatus {
     PENDING = 'pending',
     RUNNING = 'running',
     COMPLETED = 'completed',
+    REQUIRES_REVIEW = 'requires_review',
     FAILED = 'failed',
     CANCELLED = 'cancelled',
 }
