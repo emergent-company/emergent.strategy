@@ -17,9 +17,22 @@ const dashboardRoutes: IRoutesProps[] = [
     { path: "/admin/apps/chat/c/:id?", element: cw(lazy(() => import("@/pages/admin/chat/conversation"))) },
     { path: "/admin/apps/documents", element: cw(lazy(() => import("@/pages/admin/apps/documents/index"))) },
     { path: "/admin/apps/chunks", element: cw(lazy(() => import("@/pages/admin/apps/chunks/index"))) },
+    { path: "/admin/objects", element: cw(lazy(() => import("@/pages/admin/pages/objects/index"))) },
+    {
+        path: '/admin/extraction-jobs',
+        element: cw(lazy(() => import('@/pages/admin/pages/extraction-jobs'))),
+    },
+    {
+        path: '/admin/extraction-jobs/:jobId',
+        element: cw(lazy(() => import('@/pages/admin/pages/extraction-jobs/detail'))),
+    },
+    { path: "/admin/inbox", element: cw(lazy(() => import("@/pages/admin/inbox/index"))) },
     { path: "/admin/profile", element: cw(lazy(() => import("@/pages/admin/profile"))) },
     { path: "/admin/settings", element: <Navigate to="/admin/settings/ai/prompts" replace /> },
     { path: "/admin/settings/ai/prompts", element: cw(lazy(() => import("@/pages/admin/pages/settings/ai-prompts"))) },
+    { path: "/admin/settings/project", element: <Navigate to="/admin/settings/project/templates" replace /> },
+    { path: "/admin/settings/project/templates", element: cw(lazy(() => import("@/pages/admin/pages/settings/project/templates"))) },
+    { path: "/admin/settings/project/auto-extraction", element: cw(lazy(() => import("@/pages/admin/pages/settings/project/auto-extraction"))) },
 ];
 
 const appRoutes: IRoutesProps[] = [];

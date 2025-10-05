@@ -5,6 +5,19 @@ import { DatabaseModule } from '../../common/database/database.module';
 import { UtilsModule } from '../../common/utils/utils.module';
 import { EmbeddingsModule } from '../embeddings/embeddings.module';
 import { AuthModule } from '../auth/auth.module';
-@Module({ imports: [DatabaseModule, UtilsModule, EmbeddingsModule, AuthModule], controllers: [IngestionController], providers: [IngestionService], exports: [IngestionService] })
+import { ExtractionJobModule } from '../extraction-jobs/extraction-job.module';
+
+@Module({
+    imports: [
+        DatabaseModule,
+        UtilsModule,
+        EmbeddingsModule,
+        AuthModule,
+        ExtractionJobModule,
+    ],
+    controllers: [IngestionController],
+    providers: [IngestionService],
+    exports: [IngestionService]
+})
 export class IngestionModule { }
 

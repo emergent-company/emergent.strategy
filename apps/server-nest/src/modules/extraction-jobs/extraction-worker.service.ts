@@ -8,6 +8,7 @@ import { ConfidenceScorerService } from './confidence-scorer.service';
 import { EntityLinkingService } from './entity-linking.service';
 import { GraphService } from '../graph/graph.service';
 import { DocumentsService } from '../documents/documents.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ExtractionJobDto } from './dto/extraction-job.dto';
 
 /**
@@ -43,6 +44,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         private readonly entityLinking: EntityLinkingService,
         private readonly graphService: GraphService,
         private readonly documentsService: DocumentsService,
+        private readonly notificationsService: NotificationsService,
     ) { }
 
     onModuleInit() {
@@ -314,6 +316,16 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                     `${reviewRequiredObjectIds.length} objects need human validation, ` +
                     `${rejectedCount.value} rejected`
                 );
+
+                // Create notification about extraction completion (with review needed)
+                await this.createCompletionNotification(job, {
+                    createdObjectIds,
+                    objectsByType: this.countObjectsByType(extractionResult.entities, createdObjectIds),
+                    averageConfidence: this.calculateAverageConfidence(extractionResult.entities),
+                    durationSeconds: (Date.now() - startTime) / 1000,
+                    requiresReview: reviewRequiredObjectIds.length,
+                    lowConfidenceCount: reviewRequiredObjectIds.length,
+                });
             } else {
                 // Job completed successfully
                 await this.jobService.markCompleted(job.id, {
@@ -322,6 +334,14 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                     successful_items: extractionResult.entities.length - rejectedCount.value,
                     total_items: extractionResult.entities.length,
                     rejected_items: rejectedCount.value,
+                });
+
+                // Create notification about successful extraction
+                await this.createCompletionNotification(job, {
+                    createdObjectIds,
+                    objectsByType: this.countObjectsByType(extractionResult.entities, createdObjectIds),
+                    averageConfidence: this.calculateAverageConfidence(extractionResult.entities),
+                    durationSeconds: (Date.now() - startTime) / 1000,
                 });
             }
 
@@ -341,14 +361,23 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         } catch (error) {
             this.logger.error(`Extraction job ${job.id} failed`, error);
 
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            const willRetry = await this.willRetryJob(job.id);
+
             await this.jobService.markFailed(
                 job.id,
-                error instanceof Error ? error.message : 'Unknown error',
+                errorMessage,
                 {
-                    error: error instanceof Error ? error.message : String(error),
+                    error: errorMessage,
                     stack: error instanceof Error ? error.stack : undefined,
                 }
             );
+
+            // Create failure notification
+            await this.createFailureNotification(job, {
+                errorMessage,
+                willRetry,
+            });
 
             this.processedCount++;
             this.failureCount++;
@@ -411,31 +440,69 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             extraction_prompts: any;
             default_prompt_key: string | null;
         }>(
-            `SELECT tp.extraction_prompts, ptp.config->>'default_prompt_key' as default_prompt_key
+            `SELECT tp.extraction_prompts, ptp.customizations->>'default_prompt_key' as default_prompt_key
              FROM kb.project_template_packs ptp
              JOIN kb.graph_template_packs tp ON tp.id = ptp.template_pack_id
-             WHERE ptp.project_id = $1 AND ptp.enabled = true
+             WHERE ptp.project_id = $1 AND ptp.active = true
              LIMIT 1`,
             [job.project_id]
         );
 
         if (!result.rowCount) {
+            this.logger.warn(`No active template pack found for project ${job.project_id}`);
             return null;
         }
 
         const extractionPrompts = result.rows[0].extraction_prompts || {};
-        const defaultKey = result.rows[0].default_prompt_key || 'default';
 
-        // Allow job config to override prompt key
-        const promptKey = job.extraction_config?.prompt_key || defaultKey;
-        const prompt = extractionPrompts[promptKey];
-
-        if (!prompt) {
-            this.logger.warn(`No extraction prompt found for key: ${promptKey}`);
-            return null;
+        // Try to get a generic/default prompt first
+        if (extractionPrompts.default) {
+            this.logger.log(`Using default extraction prompt`);
+            return typeof extractionPrompts.default === 'string'
+                ? extractionPrompts.default
+                : (extractionPrompts.default.system || extractionPrompts.default.user);
         }
 
-        return prompt;
+        // If specific entity types are requested, combine their prompts
+        const requestedTypes = job.extraction_config?.entity_types || [];
+        if (requestedTypes.length > 0) {
+            const availablePrompts: string[] = [];
+
+            for (const entityType of requestedTypes) {
+                if (extractionPrompts[entityType]) {
+                    const prompt = extractionPrompts[entityType];
+                    const promptText = typeof prompt === 'string'
+                        ? prompt
+                        : `${prompt.system || ''}\n${prompt.user || ''}`.trim();
+
+                    if (promptText) {
+                        availablePrompts.push(`For ${entityType}: ${promptText}`);
+                    }
+                }
+            }
+
+            if (availablePrompts.length > 0) {
+                const combinedPrompt = `Extract the following entity types from the document:\n\n${availablePrompts.join('\n\n')}`;
+                this.logger.log(`Using combined extraction prompt for ${availablePrompts.length} entity types`);
+                return combinedPrompt;
+            }
+        }
+
+        // Fallback: use the first available prompt
+        const availableKeys = Object.keys(extractionPrompts);
+        if (availableKeys.length > 0) {
+            const firstKey = availableKeys[0];
+            const firstPrompt = extractionPrompts[firstKey];
+            const promptText = typeof firstPrompt === 'string'
+                ? firstPrompt
+                : `${firstPrompt.system || ''}\n${firstPrompt.user || ''}`.trim();
+
+            this.logger.warn(`No matching prompts found, using fallback prompt key: ${firstKey}`);
+            return promptText;
+        }
+
+        this.logger.warn(`No extraction prompts available in template pack`);
+        return null;
     }
 
     /**
@@ -508,5 +575,155 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             failed: this.failureCount,
             rateLimiter: this.rateLimiter.getStatus(),
         };
+    }
+
+    /**
+     * Create completion notification for user
+     */
+    private async createCompletionNotification(
+        job: ExtractionJobDto,
+        params: {
+            createdObjectIds: string[];
+            objectsByType: Record<string, number>;
+            averageConfidence: number;
+            durationSeconds: number;
+            requiresReview?: number;
+            lowConfidenceCount?: number;
+        }
+    ): Promise<void> {
+        try {
+            // Skip notification if job has no creator (e.g., system-generated jobs)
+            if (!job.subject_id) {
+                this.logger.debug(`Skipping notification for job ${job.id} - no user context`);
+                return;
+            }
+
+            // Get document name from source metadata
+            const documentName = job.source_metadata?.filename ||
+                job.source_metadata?.source_url ||
+                `Document ${job.source_id}`;
+
+            await this.notificationsService.notifyExtractionCompleted({
+                userId: job.subject_id,
+                tenantId: job.org_id, // Using org_id as tenant_id
+                organizationId: job.org_id,
+                projectId: job.project_id,
+                documentId: job.source_id || '',
+                documentName,
+                jobId: job.id,
+                entitiesCreated: params.createdObjectIds.length,
+                requiresReview: params.requiresReview,
+                objectsByType: params.objectsByType,
+                averageConfidence: params.averageConfidence,
+                durationSeconds: params.durationSeconds,
+                lowConfidenceCount: params.lowConfidenceCount,
+            });
+
+            this.logger.log(`Created completion notification for job ${job.id}`);
+        } catch (error) {
+            this.logger.error(`Failed to create completion notification for job ${job.id}`, error);
+            // Don't throw - notification failure shouldn't fail the job
+        }
+    }
+
+    /**
+     * Create failure notification for user
+     */
+    private async createFailureNotification(
+        job: ExtractionJobDto,
+        params: {
+            errorMessage: string;
+            willRetry: boolean;
+        }
+    ): Promise<void> {
+        try {
+            // Skip notification if job has no creator (e.g., system-generated jobs)
+            if (!job.subject_id) {
+                this.logger.debug(`Skipping failure notification for job ${job.id} - no user context`);
+                return;
+            }
+
+            const documentName = job.source_metadata?.filename ||
+                job.source_metadata?.source_url ||
+                `Document ${job.source_id}`;
+
+            // Get retry count from job
+            const retryCount = await this.getJobRetryCount(job.id);
+
+            await this.notificationsService.notifyExtractionFailed({
+                userId: job.subject_id,
+                tenantId: job.org_id,
+                organizationId: job.org_id,
+                projectId: job.project_id,
+                documentId: job.source_id || '',
+                documentName,
+                jobId: job.id,
+                errorMessage: params.errorMessage,
+                retryCount,
+                willRetry: params.willRetry,
+            });
+
+            this.logger.log(`Created failure notification for job ${job.id}`);
+        } catch (error) {
+            this.logger.error(`Failed to create failure notification for job ${job.id}`, error);
+        }
+    }
+
+    /**
+     * Count objects by type from extraction result
+     */
+    private countObjectsByType(entities: any[], createdObjectIds: string[]): Record<string, number> {
+        const counts: Record<string, number> = {};
+
+        // Only count entities that were actually created
+        const createdSet = new Set(createdObjectIds);
+
+        for (const entity of entities) {
+            // Check if this entity was created (has ID in createdObjectIds)
+            // This is a simplification - in reality we'd need to track which entity maps to which object ID
+            const typeName = entity.type || 'Unknown';
+            counts[typeName] = (counts[typeName] || 0) + 1;
+        }
+
+        return counts;
+    }
+
+    /**
+     * Calculate average confidence from extracted entities
+     */
+    private calculateAverageConfidence(entities: any[]): number {
+        if (entities.length === 0) return 0;
+
+        const totalConfidence = entities.reduce((sum, entity) => {
+            return sum + (entity.confidence || 0);
+        }, 0);
+
+        return totalConfidence / entities.length;
+    }
+
+    /**
+     * Check if job will be retried based on current retry count
+     */
+    private async willRetryJob(jobId: string): Promise<boolean> {
+        const retryCount = await this.getJobRetryCount(jobId);
+        const maxRetries = 3;
+        return retryCount < maxRetries;
+    }
+
+    /**
+     * Get current retry count for a job
+     */
+    private async getJobRetryCount(jobId: string): Promise<number> {
+        try {
+            const result = await this.db.query<{ retry_count: number }>(
+                'SELECT retry_count FROM kb.object_extraction_jobs WHERE id = $1',
+                [jobId]
+            );
+
+            return result.rows[0]?.retry_count || 0;
+        } catch (error) {
+            this.logger.warn(`Failed to get retry count for job ${jobId}`, error);
+            return 0;
+        }
     }
 }

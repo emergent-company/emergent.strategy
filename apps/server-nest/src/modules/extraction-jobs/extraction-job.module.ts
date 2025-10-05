@@ -6,6 +6,7 @@ import { RateLimiterService } from './rate-limiter.service';
 import { ConfidenceScorerService } from './confidence-scorer.service';
 import { EntityLinkingService } from './entity-linking.service';
 import { VertexAIProvider } from './llm/vertex-ai.provider';
+import { LangChainGeminiProvider } from './llm/langchain-gemini.provider';
 import { LLMProviderFactory } from './llm/llm-provider.factory';
 import { DatabaseModule } from '../../common/database/database.module';
 import { AppConfigModule } from '../../common/config/config.module';
@@ -13,6 +14,7 @@ import { GraphModule } from '../graph/graph.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { TemplatePackModule } from '../template-packs/template-pack.module';
 import { EmbeddingsModule } from '../embeddings/embeddings.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 /**
  * Extraction Job Module
@@ -29,7 +31,8 @@ import { EmbeddingsModule } from '../embeddings/embeddings.module';
  * - RateLimiterService: Token bucket rate limiter for API quota compliance
  * - ConfidenceScorerService: Multi-factor confidence calculation for extracted entities
  * - EntityLinkingService: Intelligent entity linking to avoid duplicates and merge information
- * - VertexAIProvider: Google Vertex AI Gemini integration
+ * - LangChainGeminiProvider: LangChain + Google Gemini (primary, consistent with chat service)
+ * - VertexAIProvider: Google Vertex AI Gemini (legacy fallback)
  * - LLMProviderFactory: Multi-provider abstraction for future extensibility
  */
 @Module({
@@ -40,6 +43,7 @@ import { EmbeddingsModule } from '../embeddings/embeddings.module';
         DocumentsModule,
         TemplatePackModule,
         EmbeddingsModule,
+        NotificationsModule,
     ],
     providers: [
         ExtractionJobService,
@@ -47,6 +51,7 @@ import { EmbeddingsModule } from '../embeddings/embeddings.module';
         RateLimiterService,
         ConfidenceScorerService,
         EntityLinkingService,
+        LangChainGeminiProvider,
         VertexAIProvider,
         LLMProviderFactory,
     ],

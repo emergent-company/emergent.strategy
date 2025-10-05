@@ -43,7 +43,7 @@ export class TypeRegistryController {
         @Query('org_id') orgIdParam: string | undefined,
         @Req() req: any
     ): Promise<TypeRegistryEntryDto[]> {
-        const orgId = orgIdParam || req.context?.organization_id;
+        const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
         if (!orgId) {
             throw new BadRequestException('Organization ID required');
         }
@@ -58,7 +58,7 @@ export class TypeRegistryController {
         @Query('org_id') orgIdParam: string | undefined,
         @Req() req: any
     ): Promise<TypeRegistryEntryDto> {
-        const orgId = orgIdParam || req.context?.organization_id;
+        const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
         if (!orgId) {
             throw new BadRequestException('Organization ID required');
         }
@@ -76,9 +76,9 @@ export class TypeRegistryController {
         @Query('user_id') userIdParam: string | undefined,
         @Req() req: any
     ): Promise<ProjectTypeRegistryRow> {
-        const orgId = orgIdParam || req.context?.organization_id;
-        const tenantId = tenantIdParam || req.context?.tenant_id;
-        const userId = userIdParam || req.context?.user_id;
+        const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
+        const tenantId = tenantIdParam || (req.user?.sub as string | undefined);
+        const userId = userIdParam || (req.user?.sub as string | undefined);
 
         if (!orgId || !tenantId || !userId) {
             throw new BadRequestException('Full auth context required');
@@ -96,7 +96,7 @@ export class TypeRegistryController {
         @Query('org_id') orgIdParam: string | undefined,
         @Req() req: any
     ): Promise<ProjectTypeRegistryRow> {
-        const orgId = orgIdParam || req.context?.organization_id;
+        const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
         if (!orgId) {
             throw new BadRequestException('Organization ID required');
         }
@@ -112,7 +112,7 @@ export class TypeRegistryController {
         @Query('org_id') orgIdParam: string | undefined,
         @Req() req: any
     ): Promise<void> {
-        const orgId = orgIdParam || req.context?.organization_id;
+        const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
         if (!orgId) {
             throw new BadRequestException('Organization ID required');
         }
@@ -127,7 +127,7 @@ export class TypeRegistryController {
         @Query('org_id') orgIdParam: string | undefined,
         @Req() req: any
     ): Promise<ValidationResult> {
-        const orgId = orgIdParam || req.context?.organization_id;
+        const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
         if (!orgId) {
             throw new BadRequestException('Organization ID required');
         }
@@ -142,7 +142,7 @@ export class TypeRegistryController {
         @Query('org_id') orgIdParam: string | undefined,
         @Req() req: any
     ): Promise<object> {
-        const orgId = orgIdParam || req.context?.organization_id;
+        const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
         if (!orgId) {
             throw new BadRequestException('Organization ID required');
         }
@@ -158,7 +158,7 @@ export class TypeRegistryController {
         @Query('org_id') orgIdParam: string | undefined,
         @Req() req: any
     ): Promise<ProjectTypeRegistryRow> {
-        const orgId = orgIdParam || req.context?.organization_id;
+        const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
         if (!orgId) {
             throw new BadRequestException('Organization ID required');
         }
@@ -180,7 +180,7 @@ export class TypeRegistryController {
         total_objects: number;
         types_with_objects: number;
     }> {
-        const orgId = orgIdParam || req.context?.organization_id;
+        const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
         if (!orgId) {
             throw new BadRequestException('Organization ID required');
         }

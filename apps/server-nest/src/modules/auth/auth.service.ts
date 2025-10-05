@@ -26,6 +26,9 @@ export const MOCK_SCOPES = {
     // Graph search prototype scopes
     graphSearchRead: 'graph:search:read',
     graphSearchDebug: 'graph:search:debug',
+    // Notification scopes
+    notificationsRead: 'notifications:read',
+    notificationsWrite: 'notifications:write',
 };
 
 @Injectable()

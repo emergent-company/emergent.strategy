@@ -42,10 +42,12 @@ The Extraction Worker is a background processing system that automatically extra
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    LLM Provider Adapter                          │
+│                  (via LangChain TypeScript)                      │
 │  ┌──────────────┬───────────────┬──────────────┬──────────────┐ │
-│  │ Google Vertex│ OpenAI (TODO) │ Anthropic    │ Rate Limiter │ │
-│  │ AI (Gemini)  │               │ (TODO)       │              │ │
+│  │ Google Gemini│ OpenAI (TODO) │ Anthropic    │ Rate Limiter │ │
+│  │ (PRIMARY)    │               │ (TODO)       │              │ │
 │  └──────────────┴───────────────┴──────────────┴──────────────┘ │
+│  Uses: ChatGoogleGenerativeAI.withStructuredOutput(zodSchema)   │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -58,26 +60,108 @@ The Extraction Worker is a background processing system that automatically extra
 
 ---
 
-## 3. Configuration & Environment
+## 3. LLM Integration Strategy
+
+### 3.1 Framework Selection: LangChain TypeScript
+
+**Decision**: Use **LangChain** (`@langchain/google-genai`) for structured extraction.
+
+**Rationale**:
+1. ✅ **Already Installed** - Project uses LangChain v0.2.17 for chat and embeddings
+2. ✅ **Consistent Patterns** - Matches existing `chat-generation.service.ts` structure  
+3. ✅ **Shared Configuration** - Reuses Google API key from environment
+4. ✅ **TypeScript Native** - Full type safety without Python microservice overhead
+5. ✅ **Future-Ready** - Supports RAG, chains, and agents when needed
+
+**Alternative Considered - LangExtract**:
+- ❌ Python-only library (incompatible with TypeScript/NestJS stack)
+- ❌ Would require separate Python microservice (Flask/FastAPI)
+- ❌ Architectural overhead: inter-service communication, deployment complexity
+- Verdict: Not suitable for TypeScript backend
+
+**Alternative Considered - Vercel AI SDK**:
+- ✅ TypeScript native, modern API
+- ❌ New dependency, different patterns from existing chat service
+- ❌ Would require separate configuration/authentication setup
+- Verdict: Good library, but LangChain already integrated
+
+### 3.2 Structured Extraction Method
+
+Uses LangChain's **`.withStructuredOutput(zodSchema)`** method:
+
+```typescript
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { z } from 'zod';
+
+// Define schema for extraction
+const RequirementSchema = z.object({
+  name: z.string().describe('Short requirement name'),
+  description: z.string().describe('Detailed requirement description'),
+  priority: z.enum(['low', 'medium', 'high', 'critical']),
+  status: z.enum(['draft', 'active', 'completed', 'deprecated']),
+  confidence: z.number().min(0).max(1).describe('Confidence score 0-1'),
+  source_text: z.string().describe('Verbatim text from document'),
+});
+
+// Initialize model (pattern from chat-generation.service.ts)
+const model = new ChatGoogleGenerativeAI({
+  modelName: 'gemini-1.5-flash-latest',
+  apiKey: this.configService.get('GOOGLE_GENERATIVE_AI_API_KEY'),
+  temperature: 0, // Deterministic for extraction
+});
+
+// Extract with structured output
+const structuredModel = model.withStructuredOutput(RequirementSchema);
+const result = await structuredModel.invoke([
+  { role: 'system', content: systemPrompt },
+  { role: 'user', content: documentText },
+]);
+```
+
+### 3.3 Model Selection
+
+**Primary Model**: `gemini-1.5-flash-latest`
+- **Cost**: $0.075 input / $0.30 output per 1M tokens
+- **Speed**: 33x cheaper than GPT-4 Turbo
+- **Quality**: Sufficient for structured extraction tasks
+- **Free Tier**: 15 requests/minute
+
+**Alternative**: `gemini-1.5-pro` (higher quality, 17x cost increase)
+
+### 3.4 Dependencies
+
+**Required**:
+- ✅ `@langchain/google-genai` v0.2.17 (already installed)
+- 🔧 `zod` (needs installation) - Schema validation
+
+**No New Dependencies Needed**:
+- Chat service already configured Google Gemini authentication
+- Same `GOOGLE_GENERATIVE_AI_API_KEY` environment variable
+
+---
+
+## 4. Configuration & Environment
 
 ### Environment Variables
 
 ```bash
-# LLM Provider Configuration
-GOOGLE_API_KEY=<key>                    # Enables Google Vertex AI
-GOOGLE_VERTEX_PROJECT=<project-id>     # GCP project for Vertex AI
-GOOGLE_VERTEX_LOCATION=us-central1     # Region for API calls
-VERTEX_EXTRACTION_MODEL=gemini-1.5-pro # Model for extraction
+# LLM Provider Configuration (LangChain + Google Gemini)
+GOOGLE_API_KEY=<key>                    # Google Gemini API key (shared with chat service)
+VERTEX_AI_MODEL=gemini-1.5-flash-latest # Model for extraction (default: gemini-1.5-flash-latest)
+
+# Legacy Vertex AI Configuration (fallback if GOOGLE_API_KEY not set)
+VERTEX_AI_PROJECT_ID=<project-id>       # GCP project for Vertex AI (optional)
+VERTEX_AI_LOCATION=us-central1          # Region for API calls (optional)
 
 # Worker Configuration
 EXTRACTION_WORKER_ENABLED=true          # Enable/disable worker
-EXTRACTION_WORKER_INTERVAL_MS=5000      # Polling interval (ms)
-EXTRACTION_WORKER_BATCH_SIZE=3          # Jobs per batch
+EXTRACTION_WORKER_POLL_INTERVAL_MS=5000 # Polling interval (ms)
+EXTRACTION_WORKER_BATCH_SIZE=5          # Jobs per batch (default: 5)
 EXTRACTION_WORKER_RETRY_MAX=3           # Max retry attempts
 
-# Rate Limiting (Vertex AI quotas)
-EXTRACTION_RATE_LIMIT_RPM=60            # Requests per minute
-EXTRACTION_RATE_LIMIT_TPM=1000000       # Tokens per minute (optional)
+# Rate Limiting (Gemini API quotas)
+EXTRACTION_RATE_LIMIT_RPM=60            # Requests per minute (default: 60)
+EXTRACTION_RATE_LIMIT_TPM=30000         # Tokens per minute (default: 30000)
 
 # Quality Control
 EXTRACTION_MIN_CONFIDENCE=0.0           # Minimum to create (0.0-1.0)
