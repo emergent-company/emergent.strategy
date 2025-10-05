@@ -2,7 +2,8 @@
 
 Status: Draft
 Created: 2025-10-02
-Related: `04-data-model.md`, `19-dynamic-object-graph.md`, `05-ingestion-workflows.md`
+Updated: 2025-10-04
+Related: `04-data-model.md`, `19-dynamic-object-graph.md`, `05-ingestion-workflows.md`, `28-automatic-extraction-and-notifications.md`
 
 ---
 
@@ -15,6 +16,8 @@ This spec defines a comprehensive system for managing, discovering, and ingestin
 3. **Smart Ingestion** - AI-powered extraction of objects from unstructured documents
 4. **Automatic Type Discovery** - Pattern-based suggestion of new object types
 5. **Reprocessing Framework** - Re-run ingestion after schema evolution
+6. **Automatic Extraction** - Trigger object extraction automatically on document upload (see `28-automatic-extraction-and-notifications.md`)
+7. **Extraction Notifications** - Real-time notifications with summaries when extraction completes (see `28-automatic-extraction-and-notifications.md`)
 
 ## 2. Architecture Components
 

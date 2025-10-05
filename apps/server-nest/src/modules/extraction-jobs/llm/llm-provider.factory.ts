@@ -2,14 +2,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AppConfigService } from '../../../common/config/config.service';
 import { ILLMProvider } from './llm-provider.interface';
 import { VertexAIProvider } from './vertex-ai.provider';
+import { LangChainGeminiProvider } from './langchain-gemini.provider';
 
 /**
  * Factory for creating LLM providers
  * 
  * Currently supports:
- * - Google Vertex AI (primary)
+ * - LangChain + Google Gemini (primary, consistent with chat service)
+ * - Google Vertex AI (legacy, fallback)
  * 
- * Future providers can be added here (OpenAI, Azure, etc.)
+ * Future providers can be added here (OpenAI, Anthropic, etc.)
  */
 @Injectable()
 export class LLMProviderFactory {
@@ -18,19 +20,25 @@ export class LLMProviderFactory {
 
     constructor(
         private readonly config: AppConfigService,
+        private readonly langChainProvider: LangChainGeminiProvider,
         private readonly vertexAIProvider: VertexAIProvider
     ) {
         this.initializeProvider();
     }
 
     private initializeProvider() {
-        // For now, we only support Vertex AI
-        // Future: Add logic to select provider based on config
-        if (this.vertexAIProvider.isConfigured()) {
-            this.provider = this.vertexAIProvider;
+        // Prefer LangChain provider (consistent with chat service)
+        if (this.langChainProvider.isConfigured()) {
+            this.provider = this.langChainProvider;
             this.logger.log(`Using LLM provider: ${this.provider.getName()}`);
-        } else {
-            this.logger.warn('No LLM provider configured');
+        }
+        // Fallback to legacy Vertex AI provider
+        else if (this.vertexAIProvider.isConfigured()) {
+            this.provider = this.vertexAIProvider;
+            this.logger.log(`Using LLM provider: ${this.provider.getName()} (legacy)`);
+        }
+        else {
+            this.logger.warn('No LLM provider configured. Set GOOGLE_GENERATIVE_AI_API_KEY or VERTEX_AI_PROJECT_ID');
         }
     }
 
@@ -40,7 +48,7 @@ export class LLMProviderFactory {
      */
     getProvider(): ILLMProvider {
         if (!this.provider) {
-            throw new Error('No LLM provider configured. Set VERTEX_AI_PROJECT_ID to enable extraction.');
+            throw new Error('No LLM provider configured. Set GOOGLE_GENERATIVE_AI_API_KEY or VERTEX_AI_PROJECT_ID to enable extraction.');
         }
         return this.provider;
     }

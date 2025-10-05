@@ -10,6 +10,14 @@ export type Project = {
     status?: string;
     createdAt?: string;
     orgId?: string;
+    auto_extract_objects?: boolean;
+    auto_extract_config?: {
+        enabled_types?: string[];
+        min_confidence?: number;
+        require_review?: boolean;
+        notify_on_complete?: boolean;
+        notification_channels?: string[];
+    };
 };
 
 type CreateProjectPayload = {

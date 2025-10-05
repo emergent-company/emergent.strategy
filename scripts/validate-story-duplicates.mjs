@@ -11,7 +11,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 
 const root = new URL('../apps/admin/src/components/', import.meta.url).pathname;
-const allowedRootDirs = new Set(['atoms', 'molecules', 'organisms', 'templates']); // templates reserved for future use
+const allowedRootDirs = new Set(['atoms', 'molecules', 'organisms', 'templates', 'wireframes']); // templates reserved for future use; wireframes for low-fi mockups
 // Any .tsx/.ts file at root (except index.ts) and any directory not in allowed set is a violation unless explicitly whitelisted
 const allowedRootFiles = new Set(['index.ts']);
 // Transitional allowances (to be removed once migrated)

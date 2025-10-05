@@ -64,10 +64,10 @@ export class CreateExtractionJobDto {
     @IsObject()
     extraction_config!: Record<string, any>;
 
-    @ApiPropertyOptional({ description: 'User ID who created the job', example: '550e8400-e29b-41d4-a716-446655440003' })
+    @ApiPropertyOptional({ description: 'User subject ID (canonical internal user ID)', example: '550e8400-e29b-41d4-a716-446655440003' })
     @IsOptional()
     @IsUUID()
-    created_by?: string;
+    subject_id?: string;
 }
 
 /**
@@ -191,8 +191,8 @@ export class ExtractionJobDto {
     @ApiProperty({ description: 'Job creation timestamp' })
     created_at!: Date;
 
-    @ApiPropertyOptional({ description: 'User who created the job' })
-    created_by?: string;
+    @ApiPropertyOptional({ description: 'User subject ID (canonical internal user ID)' })
+    subject_id?: string;
 
     @ApiProperty({ description: 'Last update timestamp' })
     updated_at!: Date;

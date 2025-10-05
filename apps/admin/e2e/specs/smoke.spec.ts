@@ -17,6 +17,12 @@ test.describe('Route smoke (no console/page errors)', () => {
             if (method === 'GET' && url.pathname === '/chat/conversations') {
                 return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ conversations: [] }) });
             }
+            if (method === 'GET' && url.pathname.includes('/graph/objects/search')) {
+                return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], next_cursor: undefined }) });
+            }
+            if (method === 'GET' && url.pathname.includes('/type-registry/projects/')) {
+                return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+            }
             if (method === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
             return route.fulfill({ status: 204, body: '' });
         });

@@ -70,7 +70,7 @@ export class TemplatePackController {
         @Param('projectId') projectId: string,
         @Req() req: any
     ) {
-        const orgId = req.context?.organization_id;
+        const orgId = (req.headers['x-org-id'] as string | undefined) || undefined;
         if (!orgId) {
             throw new BadRequestException('Organization context required');
         }
@@ -86,7 +86,7 @@ export class TemplatePackController {
         @Param('projectId') projectId: string,
         @Req() req: any
     ) {
-        const orgId = req.context?.organization_id;
+        const orgId = (req.headers['x-org-id'] as string | undefined) || undefined;
         if (!orgId) {
             throw new BadRequestException('Organization context required');
         }
@@ -107,13 +107,17 @@ export class TemplatePackController {
         @Query('tenant_id') queryTenantId?: string,
         @Query('user_id') queryUserId?: string
     ) {
-        // In E2E_MINIMAL_DB mode, context may come from query params instead of req.context
-        const orgId = req.context?.organization_id || queryOrgId;
-        const tenantId = req.context?.tenant_id || queryTenantId;
+        // In E2E_MINIMAL_DB mode, context may come from query params instead of headers
+        const orgId = (req.headers['x-org-id'] as string | undefined) || queryOrgId;
+        const tenantId = (req.headers['x-tenant-id'] as string | undefined) || queryTenantId || orgId; // Use orgId as tenant for development
         const userId = req.user?.sub || queryUserId;
 
-        if (!orgId || !tenantId) {
-            throw new BadRequestException('Organization and tenant context required');
+        if (!orgId) {
+            throw new BadRequestException('Organization context required');
+        }
+
+        if (!tenantId) {
+            throw new BadRequestException('Tenant context required');
         }
 
         return this.templatePackService.assignTemplatePackToProject(
@@ -136,7 +140,7 @@ export class TemplatePackController {
         @Body() dto: UpdateTemplatePackAssignmentDto,
         @Req() req: any
     ) {
-        const orgId = req.context?.organization_id;
+        const orgId = (req.headers['x-org-id'] as string | undefined) || undefined;
         if (!orgId) {
             throw new BadRequestException('Organization context required');
         }
@@ -160,7 +164,7 @@ export class TemplatePackController {
         @Param('assignmentId') assignmentId: string,
         @Req() req: any
     ) {
-        const orgId = req.context?.organization_id;
+        const orgId = (req.headers['x-org-id'] as string | undefined) || undefined;
         if (!orgId) {
             throw new BadRequestException('Organization context required');
         }

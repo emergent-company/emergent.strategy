@@ -41,7 +41,7 @@ describe('ExtractionJobService', () => {
                 source_id: 'doc-123',
                 source_metadata: { filename: 'test.pdf' },
                 extraction_config: { target_types: ['Requirement'] },
-                created_by: mockUserId,
+                subject_id: mockUserId,
             };
 
             const mockJobRow = {
@@ -64,7 +64,7 @@ describe('ExtractionJobService', () => {
                 started_at: null,
                 completed_at: null,
                 created_at: new Date(),
-                created_by: mockUserId,
+                subject_id: mockUserId,
                 updated_at: new Date(),
             };
 

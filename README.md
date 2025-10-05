@@ -22,6 +22,33 @@ Every protected endpoint enforces one or more OAuth-style scopes. Missing scopes
 
 See `SECURITY_SCOPES.md` for the complete catalogue and mapping to endpoints. The generated OpenAPI (`apps/server-nest/openapi.yaml`) annotates each operation with `x-required-scopes`.
 
+## Error Logging & Debugging
+
+The system includes comprehensive error logging for both server and browser:
+
+- **Server**: All 5xx errors automatically logged to `logs/errors.log` with full context (stack traces, user/org/project IDs, request details)
+- **Browser**: Errors logged to localStorage (dev mode), accessible via `window.__errorLogs.printLogs()` in console
+
+**Quick Start:**
+```bash
+# View recent server errors
+tail -20 logs/errors.log | jq '.'
+
+# Follow live errors
+tail -f logs/errors.log | jq '.'
+```
+
+**Browser Console:**
+```javascript
+// View all captured errors
+window.__errorLogs.printLogs()
+
+// Download logs for sharing
+window.__errorLogs.downloadLogs()
+```
+
+See `docs/ERROR_LOGGING.md` for complete guide or `docs/ERROR_LOGGING_QUICKREF.md` for quick reference.
+
 ## Reference projects
 
 We keep UI/UX reference code as Git submodules under `reference/` (read-only, no runtime imports).

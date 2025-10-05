@@ -4,8 +4,15 @@ import { ChunkerService } from '../../common/utils/chunker.service';
 import { HashService } from '../../common/utils/hash.service';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 import { AppConfigService } from '../../common/config/config.service';
+import { ExtractionJobService } from '../extraction-jobs/extraction-job.service';
+import { ExtractionSourceType } from '../extraction-jobs/dto/extraction-job.dto';
 
-export interface IngestResult { documentId: string; chunks: number; alreadyExists: boolean; }
+export interface IngestResult {
+    documentId: string;
+    chunks: number;
+    alreadyExists: boolean;
+    extractionJobId?: string;
+}
 
 @Injectable()
 export class IngestionService {
@@ -24,6 +31,7 @@ export class IngestionService {
         private readonly hash: HashService,
         private readonly embeddings: EmbeddingsService,
         private readonly config: AppConfigService,
+        private readonly extractionJobService: ExtractionJobService,
     ) { }
 
     async ingestUrl(url: string, orgId: string | undefined, projectId: string): Promise<IngestResult> {
@@ -53,6 +61,32 @@ export class IngestionService {
             text = htmlToText(text);
         }
         return this.ingestText({ text, sourceUrl: url, mimeType: contentType, orgId, projectId });
+    }
+
+    /**
+     * Check if auto-extraction is enabled for a project
+     * Returns extraction config if enabled, null otherwise
+     */
+    private async shouldAutoExtract(projectId: string): Promise<{ enabled: boolean; config: any } | null> {
+        try {
+            const result = await this.db.query<{ auto_extract_objects: boolean; auto_extract_config: any }>(
+                'SELECT auto_extract_objects, auto_extract_config FROM kb.projects WHERE id = $1 LIMIT 1',
+                [projectId]
+            );
+
+            if (!result.rowCount || !result.rows[0]) {
+                return null;
+            }
+
+            const row = result.rows[0];
+            return {
+                enabled: row.auto_extract_objects === true,
+                config: row.auto_extract_config || {}
+            };
+        } catch (e) {
+            this.logger.warn(`Failed to check auto-extraction settings for project ${projectId}: ${(e as Error).message}`);
+            return null;
+        }
     }
 
     async ingestText({ text, sourceUrl, filename, mimeType, orgId, projectId }: { text: string; sourceUrl?: string; filename?: string; mimeType?: string; orgId?: string; projectId: string; }): Promise<IngestResult> {
@@ -269,7 +303,53 @@ export class IngestionService {
                 }
             }
         }
-        return { documentId, chunks: chunks.length, alreadyExists: false };
+
+        // Check if auto-extraction is enabled and create extraction job
+        // Note: We only reach this point for new documents (not alreadyExists)
+        let extractionJobId: string | undefined;
+        const autoExtractSettings = await this.shouldAutoExtract(projectId);
+
+        if (autoExtractSettings?.enabled) {
+            try {
+                this.logger.log(`Auto-extraction enabled for project ${projectId}, creating extraction job for document ${documentId}`);
+
+                const extractionJob = await this.extractionJobService.createJob({
+                    org_id: derivedOrg || orgId || '',
+                    project_id: projectId,
+                    source_type: ExtractionSourceType.DOCUMENT,
+                    source_id: documentId,
+                    source_metadata: {
+                        filename: filename || null,
+                        source_url: sourceUrl || null,
+                        mime_type: mimeType || 'text/plain',
+                        chunks: chunks.length,
+                    },
+                    extraction_config: {
+                        ...autoExtractSettings.config,
+                        // Merge project config with any overrides
+                        enabled_types: autoExtractSettings.config.enabled_types || null,
+                        min_confidence: autoExtractSettings.config.min_confidence || 0.7,
+                        require_review: autoExtractSettings.config.require_review || false,
+                    },
+                });
+
+                extractionJobId = extractionJob.id;
+                this.logger.log(`Created extraction job ${extractionJobId} for document ${documentId}`);
+            } catch (e) {
+                // Log error but don't fail ingestion if extraction job creation fails
+                this.logger.error(
+                    `Failed to create auto-extraction job for document ${documentId}: ${(e as Error).message}`,
+                    (e as Error).stack
+                );
+            }
+        }
+
+        return {
+            documentId,
+            chunks: chunks.length,
+            alreadyExists: false,
+            extractionJobId
+        };
     }
 }
 

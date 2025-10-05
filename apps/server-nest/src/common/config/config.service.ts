@@ -61,8 +61,9 @@ export class AppConfigService {
 
     // --- Extraction Worker Behavior ---
     get extractionWorkerEnabled() {
-        // Only enable if Vertex AI project ID is configured
-        return !!this.env.VERTEX_AI_PROJECT_ID && !!this.env.EXTRACTION_WORKER_ENABLED;
+        // Enable if either LangChain (GOOGLE_API_KEY) or Vertex AI (VERTEX_AI_PROJECT_ID) is configured
+        const hasProvider = !!this.env.GOOGLE_API_KEY || !!this.env.VERTEX_AI_PROJECT_ID;
+        return hasProvider && !!this.env.EXTRACTION_WORKER_ENABLED;
     }
     get extractionWorkerPollIntervalMs() {
         return this.env.EXTRACTION_WORKER_POLL_INTERVAL_MS || 5000;

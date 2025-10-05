@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { Icon } from "@/components/atoms/Icon";
 import { useAuth } from "@/contexts/auth";
 import { useApi } from "@/hooks/use-api";
@@ -6,6 +7,8 @@ import { PageTitle } from "@/components";
 import { useConfig } from "@/contexts/config";
 import { LoadingEffect, TableEmptyState } from "@/components";
 import { OrgAndProjectGate } from "@/components/organisms/OrgAndProjectGate";
+import { ExtractionConfigModal, type ExtractionConfig } from "@/components/organisms/ExtractionConfigModal";
+import { createExtractionJobsClient } from "@/api/extraction-jobs";
 
 type DocumentRow = {
     id: string;
@@ -41,7 +44,8 @@ function normalize(doc: DocumentRow) {
 }
 
 export default function DocumentsPage() {
-    const { getAccessToken } = useAuth();
+    const navigate = useNavigate();
+    const { getAccessToken, user } = useAuth();
     const { buildHeaders, apiBase, fetchJson, fetchForm } = useApi();
     const { config } = useConfig();
     const [data, setData] = useState<DocumentRow[] | null>(null);
@@ -52,6 +56,18 @@ export default function DocumentsPage() {
     const [uploading, setUploading] = useState<boolean>(false);
     const [dragOver, setDragOver] = useState<boolean>(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+    // Extraction modal state
+    const [isExtractionModalOpen, setIsExtractionModalOpen] = useState(false);
+    const [selectedDocumentForExtraction, setSelectedDocumentForExtraction] = useState<DocumentRow | null>(null);
+    const [isStartingExtraction, setIsStartingExtraction] = useState(false);
+
+    const extractionClient = createExtractionJobsClient(
+        apiBase,
+        fetchJson,
+        config.activeProjectId,
+        config.activeOrgId
+    );
 
     const apiBaseMemo = useMemo(() => apiBase, [apiBase]);
 
@@ -98,6 +114,51 @@ export default function DocumentsPage() {
     );
 
     const acceptedExtensions = useMemo(() => [".pdf", ".docx", ".pptx", ".xlsx", ".txt", ".md", ".html", ".htm"], []);
+
+    // Handle extract objects button click
+    const handleExtractObjects = (document: DocumentRow) => {
+        setSelectedDocumentForExtraction(document);
+        setIsExtractionModalOpen(true);
+    };
+
+    // Handle extraction confirmation
+    const handleExtractionConfirm = async (extractionConfig: ExtractionConfig) => {
+        if (!selectedDocumentForExtraction || !config.activeProjectId || !config.activeOrgId) return;
+
+        setIsStartingExtraction(true);
+        try {
+            // Only include subject_id if user.sub is a valid UUID
+            const isValidUuid = user?.sub && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.sub);
+
+            const job = await extractionClient.createJob({
+                org_id: config.activeOrgId,
+                project_id: config.activeProjectId,
+                source_type: 'document',
+                source_id: selectedDocumentForExtraction.id,
+                source_metadata: {
+                    filename: selectedDocumentForExtraction.filename || 'unknown',
+                    mime_type: selectedDocumentForExtraction.mime_type || 'application/octet-stream',
+                },
+                extraction_config: extractionConfig,
+                ...(isValidUuid && { subject_id: user.sub }), // Canonical internal user ID (UUID)
+            });
+
+            // Close modal and navigate to job detail page
+            setIsExtractionModalOpen(false);
+            setSelectedDocumentForExtraction(null);
+
+            // Show success message briefly before navigation
+            setUploadSuccess(`Extraction job created successfully! Redirecting...`);
+            setTimeout(() => {
+                navigate(`/admin/extraction-jobs/${job.id}`);
+            }, 1000);
+        } catch (err) {
+            console.error('Failed to create extraction job:', err);
+            setUploadError(err instanceof Error ? err.message : 'Failed to create extraction job');
+        } finally {
+            setIsStartingExtraction(false);
+        }
+    };
 
     function isAccepted(file: File): boolean {
         const byMime = file.type ? acceptedMimeTypes.includes(file.type) : true; // Some browsers may not set type reliably (e.g., .md)
@@ -317,9 +378,19 @@ export default function DocumentsPage() {
                                                     </td>
                                                     <td>{d.created_at ? new Date(d.created_at).toLocaleString() : "—"}</td>
                                                     <td className="text-right">
-                                                        <a className="btn btn-sm" href={`/admin/apps/chunks?docId=${d.id}`}>
-                                                            View chunks
-                                                        </a>
+                                                        <div className="flex justify-end gap-2">
+                                                            <button
+                                                                className="btn btn-sm btn-primary"
+                                                                onClick={() => handleExtractObjects(d)}
+                                                                title="Extract objects using AI"
+                                                            >
+                                                                <Icon icon="lucide--sparkles" />
+                                                                Extract
+                                                            </button>
+                                                            <a className="btn btn-sm btn-ghost" href={`/admin/apps/chunks?docId=${d.id}`}>
+                                                                View chunks
+                                                            </a>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))
@@ -333,6 +404,18 @@ export default function DocumentsPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Extraction Configuration Modal */}
+            <ExtractionConfigModal
+                isOpen={isExtractionModalOpen}
+                onClose={() => {
+                    setIsExtractionModalOpen(false);
+                    setSelectedDocumentForExtraction(null);
+                }}
+                onConfirm={handleExtractionConfirm}
+                isLoading={isStartingExtraction}
+                documentName={selectedDocumentForExtraction?.filename || undefined}
+            />
         </OrgAndProjectGate>
     );
 }

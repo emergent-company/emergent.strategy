@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from "react";
 import { useAuth } from "@/contexts/auth";
 import { useConfig } from "@/contexts/config";
+import { errorLogger } from "@/lib/error-logger";
 
 export type ApiHeadersOptions = {
     json?: boolean; // include Content-Type: application/json
@@ -43,61 +44,80 @@ export function useApi() {
     const fetchJson = useCallback(
         async <T, B = unknown>(url: string, init: FetchJsonInit<B> = {}): Promise<T> => {
             const { method = "GET", body, headers, credentials, json } = init;
-            const res = await fetch(url, {
-                method,
-                headers: { ...buildHeaders({ json: json !== false }), ...(headers || {}) },
-                body: typeof body === "undefined" ? undefined : json === false ? (body as unknown as BodyInit) : JSON.stringify(body as unknown),
-                credentials,
-            });
-            if (!res.ok) {
-                // Robust error extraction supporting nested { error: { code, message, details } }
-                let message = `Request failed (${res.status})`;
-                try {
-                    const j = await res.json();
-                    // Shapes we handle:
-                    // 1. { error: "string" }
-                    // 2. { message: "string" }
-                    // 3. { error: { message, code, details } }
-                    // 4. { error: { details: { field: [..] } } }
-                    const nested = (j as any).error;
-                    if (typeof nested === "string") {
-                        message = nested;
-                    } else if (nested && typeof nested === "object") {
-                        if (nested.message) message = nested.message;
-                        // Append first field validation message if generic message present
-                        if (nested.details && typeof nested.details === "object") {
-                            const firstKey = Object.keys(nested.details)[0];
-                            const arr = firstKey ? nested.details[firstKey] : undefined;
-                            if (Array.isArray(arr) && arr.length > 0) {
-                                // Avoid duplicating identical message
-                                if (!message || message.toLowerCase().includes("validation")) {
-                                    message = arr[0];
-                                } else {
-                                    message = `${message}: ${arr[0]}`;
+
+            try {
+                const res = await fetch(url, {
+                    method,
+                    headers: { ...buildHeaders({ json: json !== false }), ...(headers || {}) },
+                    body: typeof body === "undefined" ? undefined : json === false ? (body as unknown as BodyInit) : JSON.stringify(body as unknown),
+                    credentials,
+                });
+
+                if (!res.ok) {
+                    // Robust error extraction supporting nested { error: { code, message, details } }
+                    let message = `Request failed (${res.status})`;
+                    let responseData: unknown;
+                    try {
+                        const j = await res.json();
+                        responseData = j;
+                        // Shapes we handle:
+                        // 1. { error: "string" }
+                        // 2. { message: "string" }
+                        // 3. { error: { message, code, details } }
+                        // 4. { error: { details: { field: [..] } } }
+                        const nested = (j as any).error;
+                        if (typeof nested === "string") {
+                            message = nested;
+                        } else if (nested && typeof nested === "object") {
+                            if (nested.message) message = nested.message;
+                            // Append first field validation message if generic message present
+                            if (nested.details && typeof nested.details === "object") {
+                                const firstKey = Object.keys(nested.details)[0];
+                                const arr = firstKey ? nested.details[firstKey] : undefined;
+                                if (Array.isArray(arr) && arr.length > 0) {
+                                    // Avoid duplicating identical message
+                                    if (!message || message.toLowerCase().includes("validation")) {
+                                        message = arr[0];
+                                    } else {
+                                        message = `${message}: ${arr[0]}`;
+                                    }
                                 }
                             }
+                            if (!message && nested.code) message = nested.code;
+                        } else if ((j as any).message) {
+                            message = (j as any).message;
                         }
-                        if (!message && nested.code) message = nested.code;
-                    } else if ((j as any).message) {
-                        message = (j as any).message;
-                    }
-                    if (message && typeof message !== "string") {
-                        message = JSON.stringify(message);
-                    }
-                } catch {
-                    try {
-                        const txt = await res.text();
-                        if (txt) message = txt;
+                        if (message && typeof message !== "string") {
+                            message = JSON.stringify(message);
+                        }
                     } catch {
-                        // ignore
+                        try {
+                            const txt = await res.text();
+                            if (txt) {
+                                message = txt;
+                                responseData = txt;
+                            }
+                        } catch {
+                            // ignore
+                        }
                     }
+
+                    // Log API errors
+                    errorLogger.logApiError(url, method, res.status, responseData);
+
+                    throw new Error(message || `Request failed (${res.status})`);
                 }
-                throw new Error(message || `Request failed (${res.status})`);
+                // If no content
+                if (res.status === 204) return undefined as unknown as T;
+                const data = (await res.json()) as T;
+                return data;
+            } catch (error) {
+                // Log network errors
+                if (error instanceof Error && !error.message.includes('Request failed')) {
+                    errorLogger.logNetworkError(url, method, error);
+                }
+                throw error;
             }
-            // If no content
-            if (res.status === 204) return undefined as unknown as T;
-            const data = (await res.json()) as T;
-            return data;
         },
         [buildHeaders]
     );

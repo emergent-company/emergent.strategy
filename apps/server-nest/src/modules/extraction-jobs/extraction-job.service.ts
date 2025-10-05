@@ -39,7 +39,7 @@ export class ExtractionJobService {
                 source_id,
                 source_metadata,
                 extraction_config,
-                created_by,
+                subject_id,
                 status
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *`,
@@ -50,7 +50,7 @@ export class ExtractionJobService {
                 dto.source_id || null,
                 JSON.stringify(dto.source_metadata || {}),
                 JSON.stringify(dto.extraction_config),
-                dto.created_by || null,
+                dto.subject_id || null,
                 ExtractionJobStatus.PENDING,
             ]
         );
@@ -244,7 +244,7 @@ export class ExtractionJobService {
      * @returns Array of claimed jobs
      */
     async dequeueJobs(batchSize: number = 1): Promise<ExtractionJobDto[]> {
-        this.logger.debug(`Attempting to dequeue ${batchSize} pending jobs`);
+        this.logger.log(`[DEQUEUE] Attempting to dequeue ${batchSize} pending jobs`);
 
         const result = await this.db.query<ExtractionJobDto>(
             `UPDATE kb.object_extraction_jobs
@@ -254,7 +254,6 @@ export class ExtractionJobService {
              WHERE id IN (
                  SELECT id FROM kb.object_extraction_jobs
                  WHERE status = $2
-                   AND (next_retry_at IS NULL OR next_retry_at <= NOW())
                  ORDER BY created_at ASC
                  LIMIT $3
                  FOR UPDATE SKIP LOCKED
@@ -265,8 +264,10 @@ export class ExtractionJobService {
 
         const jobs = result.rows.map((row) => this.mapRowToDto(row));
 
+        this.logger.log(`[DEQUEUE] Found ${jobs.length} jobs (rowCount=${result.rowCount})`);
+
         if (jobs.length > 0) {
-            this.logger.log(`Dequeued ${jobs.length} jobs for processing`);
+            this.logger.log(`Dequeued ${jobs.length} jobs for processing: ${jobs.map(j => j.id).join(', ')}`);
         }
 
         return jobs;
@@ -343,77 +344,33 @@ export class ExtractionJobService {
     }
 
     /**
-     * Mark job as failed with retry logic
+     * Mark job as failed
      * 
-     * Implements exponential backoff for retries
+     * Note: Without retry_count column, all failures are permanent
+     * TODO: Add retry_count and next_retry_at columns for retry logic
      */
     async markFailed(
         jobId: string,
         errorMessage: string,
         errorDetails?: any
     ): Promise<void> {
-        // Get current retry count
-        const jobResult = await this.db.query<{ retry_count: number }>(
-            `SELECT retry_count FROM kb.object_extraction_jobs WHERE id = $1`,
-            [jobId]
+        await this.db.query(
+            `UPDATE kb.object_extraction_jobs
+             SET status = $1,
+                 completed_at = NOW(),
+                 error_message = $2,
+                 error_details = $3,
+                 updated_at = NOW()
+             WHERE id = $4`,
+            [
+                ExtractionJobStatus.FAILED,
+                errorMessage,
+                JSON.stringify(errorDetails || {}),
+                jobId,
+            ]
         );
 
-        if (!jobResult.rowCount) {
-            this.logger.error(`Cannot mark failed: job ${jobId} not found`);
-            return;
-        }
-
-        const currentRetryCount = jobResult.rows[0].retry_count || 0;
-        const maxRetries = 3;
-        const shouldRetry = currentRetryCount < maxRetries;
-
-        if (shouldRetry) {
-            // Calculate exponential backoff: 2^retry_count minutes
-            const backoffMinutes = Math.pow(2, currentRetryCount);
-            const nextRetryAt = new Date(Date.now() + backoffMinutes * 60 * 1000);
-
-            await this.db.query(
-                `UPDATE kb.object_extraction_jobs
-                 SET status = $1,
-                     retry_count = retry_count + 1,
-                     next_retry_at = $2,
-                     error_message = $3,
-                     error_details = $4,
-                     updated_at = NOW()
-                 WHERE id = $5`,
-                [
-                    ExtractionJobStatus.PENDING,
-                    nextRetryAt,
-                    errorMessage,
-                    JSON.stringify(errorDetails || {}),
-                    jobId,
-                ]
-            );
-
-            this.logger.warn(
-                `Job ${jobId} failed (retry ${currentRetryCount + 1}/${maxRetries}), ` +
-                `will retry at ${nextRetryAt.toISOString()}`
-            );
-        } else {
-            // Max retries exceeded, mark as permanently failed
-            await this.db.query(
-                `UPDATE kb.object_extraction_jobs
-                 SET status = $1,
-                     completed_at = NOW(),
-                     error_message = $2,
-                     error_details = $3,
-                     updated_at = NOW()
-                 WHERE id = $4`,
-                [
-                    ExtractionJobStatus.FAILED,
-                    errorMessage,
-                    JSON.stringify(errorDetails || {}),
-                    jobId,
-                ]
-            );
-
-            this.logger.error(`Job ${jobId} permanently failed after ${maxRetries} retries`);
-        }
+        this.logger.error(`Job ${jobId} marked as failed: ${errorMessage}`);
     }
 
     /**
@@ -582,7 +539,7 @@ export class ExtractionJobService {
             started_at: row.started_at,
             completed_at: row.completed_at,
             created_at: row.created_at,
-            created_by: row.created_by,
+            subject_id: row.subject_id,
             updated_at: row.updated_at,
         };
     }

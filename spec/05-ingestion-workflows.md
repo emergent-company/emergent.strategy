@@ -2,6 +2,8 @@
 
 This section proposes reference LangChain.js pipelines in TypeScript to ingest, extract, chunk, embed, and index documents.
 
+**Note:** For automatic object extraction and notifications, see `28-automatic-extraction-and-notifications.md`.
+
 ## Triggers
 - HTTP Webhook: file upload and metadata; returns ingestion id.
 - Cloud Storage Watch: S3/GCS bucket new object.
@@ -25,8 +27,10 @@ This section proposes reference LangChain.js pipelines in TypeScript to ingest, 
    - Upsert chunks to vector DB; update FTS; write provenance.
 6. Graph Enrichment (optional v1.1)
    - NER to create Entities; relation extraction; connect evidence.
+   - **Automatic Object Extraction:** If enabled at project level, trigger extraction job to extract structured objects from document based on active template pack types (see `28-automatic-extraction-and-notifications.md`).
 7. Complete
    - Emit event; push to MCP cache; notify caller.
+   - **Notification:** Send notification when extraction job completes with summary of extracted objects (see `28-automatic-extraction-and-notifications.md`).
 
 Error Handling & Idempotency
 - Retry with exponential backoff; dead-letter queue for manual review.
@@ -66,6 +70,7 @@ High-level Steps (LangChain)
    - Link decisions to requirements (refine/trace_to), action items to owners, etc.
 11) Complete & Notify
    - Emit ingestion_complete event; optional notification to a Slack channel
+   - **Modern Approach:** Send in-app notification with extraction summary (object counts, types, quality metrics) - see `28-automatic-extraction-and-notifications.md`
 
 Suggested LangChain.js Pipeline Skeleton (TypeScript)
 - Fastify/Express route (webhook) or worker (BullMQ/Temporal consumer)

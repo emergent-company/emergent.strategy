@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Body, Patch, Query, Delete, HttpCode, BadRequestException, Inject, ParseArrayPipe, Logger, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, Patch, Query, Delete, HttpCode, BadRequestException, Inject, ParseArrayPipe, Logger, NotFoundException, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiOkResponse, ApiQuery } from '@nestjs/swagger';
 import { Scopes } from '../auth/scopes.decorator';
 import { GraphService } from './graph.service';
@@ -53,10 +53,15 @@ export class GraphObjectsController {
         @Query('limit') limit?: string,
         @Query('cursor') cursor?: string,
         @Query('order') order?: string,
+        @Req() req?: any,
     ) {
         const parsedLimit = limit ? parseInt(limit, 10) : 20;
         const ord = (order && (order.toLowerCase() === 'asc' || order.toLowerCase() === 'desc')) ? order.toLowerCase() as 'asc' | 'desc' : undefined;
-        return this.service.searchObjects({ type, key, label, limit: parsedLimit, cursor, order: ord });
+        const orgId = (req?.headers['x-org-id'] as string | undefined) || undefined;
+        const projectId = (req?.headers['x-project-id'] as string | undefined) || undefined;
+        console.log('[GraphController.searchObjects] Headers:', { 'x-org-id': req?.headers['x-org-id'], 'x-project-id': req?.headers['x-project-id'] });
+        console.log('[GraphController.searchObjects] Parsed:', { orgId, projectId, type, limit: parsedLimit, order: ord });
+        return this.service.searchObjects({ type, key, label, limit: parsedLimit, cursor, order: ord, org_id: orgId, project_id: projectId });
     }
 
     @Get('objects/fts')
@@ -69,9 +74,12 @@ export class GraphObjectsController {
         @Query('type') type?: string,
         @Query('label') label?: string,
         @Query('branch_id') branch_id?: string,
+        @Req() req?: any,
     ) {
         const parsedLimit = limit ? parseInt(limit, 10) : 20;
-        return this.service.searchObjectsFts({ q, limit: parsedLimit, type, label, branch_id });
+        const orgId = (req?.headers['x-org-id'] as string | undefined) || undefined;
+        const projectId = (req?.headers['x-project-id'] as string | undefined) || undefined;
+        return this.service.searchObjectsFts({ q, limit: parsedLimit, type, label, branch_id, org_id: orgId, project_id: projectId });
     }
 
     @Get('objects/:id')

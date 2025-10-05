@@ -40,6 +40,9 @@ lcov.info
 # Server runtime logs (Nest error log output)
 apps/server-nest/logs/
 
+# Development PID files
+.dev-pids/
+
 # Misc
 *.log
 

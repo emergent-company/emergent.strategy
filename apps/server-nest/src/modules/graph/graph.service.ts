@@ -657,8 +657,9 @@ export class GraphService {
     }
 
     // ---------------- Search (basic filtering + forward cursor by created_at) ----------------
-    async searchObjects(opts: { type?: string; key?: string; label?: string; limit?: number; cursor?: string; branch_id?: string | null; order?: 'asc' | 'desc' }): Promise<{ items: GraphObjectDto[]; next_cursor?: string }> {
-        const { type, key, label, limit = 20, cursor, branch_id, order = 'asc' } = opts;
+    async searchObjects(opts: { type?: string; key?: string; label?: string; limit?: number; cursor?: string; branch_id?: string | null; order?: 'asc' | 'desc'; org_id?: string; project_id?: string }): Promise<{ items: GraphObjectDto[]; next_cursor?: string }> {
+        const { type, key, label, limit = 20, cursor, branch_id, order = 'asc', org_id, project_id } = opts;
+        console.log('[GraphService.searchObjects] org_id:', org_id, 'project_id:', project_id, 'type:', type, 'key:', key);
         // Head selection (may include deleted heads) followed by outer filter to exclude tombstones to avoid
         // resurfacing stale pre-delete versions.
         // Pattern reference: see docs/graph-versioning.md (head-first then filter).
@@ -666,12 +667,14 @@ export class GraphService {
         const headParams: any[] = [];
         if (branch_id !== undefined) { headParams.push(branch_id ?? null); headFilters.push(`branch_id IS NOT DISTINCT FROM $${headParams.length}`); }
         const headWhere = headFilters.length ? 'WHERE ' + headFilters.join(' AND ') : '';
-        const baseHeadCte = `SELECT DISTINCT ON (canonical_id) id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, created_at, expires_at
+        const baseHeadCte = `SELECT DISTINCT ON (canonical_id) id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, created_at
                              FROM kb.graph_objects
                              ${headWhere}
                              ORDER BY canonical_id, version DESC`;
-        const outerFilters: string[] = ['t.deleted_at IS NULL', buildExpirationFilterClause('t')];
+        const outerFilters: string[] = ['t.deleted_at IS NULL'];
         const outerParams: any[] = [...headParams];
+        if (org_id) { outerParams.push(org_id); outerFilters.push(`t.org_id = $${outerParams.length}`); }
+        if (project_id) { outerParams.push(project_id); outerFilters.push(`t.project_id = $${outerParams.length}`); }
         if (type) { outerParams.push(type); outerFilters.push(`t.type = $${outerParams.length}`); }
         if (key) { outerParams.push(key); outerFilters.push(`t.key = $${outerParams.length}`); }
         if (label) { outerParams.push(label); outerFilters.push(`$${outerParams.length} = ANY(t.labels)`); }
@@ -696,25 +699,38 @@ export class GraphService {
              WHERE ${outerFilters.join(' AND ')}
              ORDER BY t.created_at ${orderDir}
              LIMIT $${outerParams.length}`;
-        const res = await this.db.query<GraphObjectRow>(sql, outerParams);
-        let next_cursor: string | undefined;
-        let rows = res.rows;
-        if (rows.length > limit) { rows = rows.slice(0, limit); }
-        if (rows.length) {
-            // Cursor always reflects the created_at of the last row in the returned ordering.
-            next_cursor = new Date(rows[rows.length - 1].created_at as any).toISOString();
+        const fs = require('fs');
+        fs.appendFileSync('/tmp/graph-debug.log', `\n[${new Date().toISOString()}] searchObjects called\n`);
+        fs.appendFileSync('/tmp/graph-debug.log', `  org_id: ${org_id}, project_id: ${project_id}\n`);
+        fs.appendFileSync('/tmp/graph-debug.log', `  SQL: ${sql}\n`);
+        fs.appendFileSync('/tmp/graph-debug.log', `  Params: ${JSON.stringify(outerParams)}\n`);
+        try {
+            const res = await this.db.query<GraphObjectRow>(sql, outerParams);
+            fs.appendFileSync('/tmp/graph-debug.log', `  Success! Row count: ${res.rows.length}\n`);
+            let next_cursor: string | undefined;
+            let rows = res.rows;
+            if (rows.length > limit) { rows = rows.slice(0, limit); }
+            if (rows.length) {
+                // Cursor always reflects the created_at of the last row in the returned ordering.
+                next_cursor = new Date(rows[rows.length - 1].created_at as any).toISOString();
+            }
+            return { items: rows, next_cursor };
+        } catch (error: any) {
+            fs.appendFileSync('/tmp/graph-debug.log', `  ERROR: ${error?.message || error}\n${error?.stack || ''}\n`);
+            throw error;
         }
-        return { items: rows, next_cursor };
     }
 
     // ---------------- FTS Search (websearch syntax over inline populated tsvector) ----------------
-    async searchObjectsFts(opts: { q: string; limit?: number; type?: string; label?: string; branch_id?: string | null }): Promise<{ query: string; items: (GraphObjectDto & { rank: number })[]; total: number; limit: number; }> {
+    async searchObjectsFts(opts: { q: string; limit?: number; type?: string; label?: string; branch_id?: string | null; org_id?: string; project_id?: string }): Promise<{ query: string; items: (GraphObjectDto & { rank: number })[]; total: number; limit: number; }> {
         const q = (opts.q || '').trim();
         const limit = Math.min(Math.max(opts.limit || 20, 1), 100);
         if (!q) return { query: q, items: [], total: 0, limit };
         const params: any[] = [q];
         let idx = params.length;
         const filters: string[] = [];
+        if (opts.org_id) { params.push(opts.org_id); idx++; filters.push(`h.org_id = $${idx}`); }
+        if (opts.project_id) { params.push(opts.project_id); idx++; filters.push(`h.project_id = $${idx}`); }
         if (opts.type) { params.push(opts.type); idx++; filters.push(`h.type = $${idx}`); }
         if (opts.label) { params.push(opts.label); idx++; filters.push(`$${idx} = ANY(h.labels)`); }
         if (opts.branch_id !== undefined) { params.push(opts.branch_id ?? null); idx++; filters.push(`h.branch_id IS NOT DISTINCT FROM $${idx}`); }

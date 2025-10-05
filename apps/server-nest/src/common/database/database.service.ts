@@ -201,9 +201,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                             name TEXT NOT NULL,
                             description TEXT NULL,
                             base_product_version_id UUID NULL REFERENCES kb.product_versions(id) ON DELETE SET NULL,
-                            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                            UNIQUE(project_id, LOWER(name))
+                            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
                         )`);
+                        await this.pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_product_versions_project_name ON kb.product_versions(project_id, LOWER(name))');
                         await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.product_version_members (
                             product_version_id UUID NOT NULL REFERENCES kb.product_versions(id) ON DELETE CASCADE,
                             object_canonical_id UUID NOT NULL,
@@ -276,6 +276,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     await exec('CREATE UNIQUE INDEX idx_project_membership_unique ON kb.project_memberships(project_id, subject_id)');
                     await exec(`CREATE TABLE kb.invites (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NOT NULL REFERENCES kb.orgs(id) ON DELETE CASCADE, project_id UUID NULL REFERENCES kb.projects(id) ON DELETE CASCADE, email TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN (\'org_admin\',\'project_admin\',\'project_user\')), token TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'pending', expires_at TIMESTAMPTZ NULL, accepted_at TIMESTAMPTZ NULL, revoked_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
                     await exec('CREATE INDEX idx_invites_token ON kb.invites(token)');
+                    // Audit log table (minimal schema)
+                    await exec(`CREATE TABLE IF NOT EXISTS kb.audit_log (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), timestamp TIMESTAMPTZ NOT NULL DEFAULT now(), event_type TEXT NOT NULL, outcome TEXT NOT NULL, user_id UUID NULL, user_email TEXT NULL, resource_type TEXT NULL, resource_id UUID NULL, action TEXT NULL, endpoint TEXT NULL, http_method TEXT NULL, status_code INT NULL, error_code TEXT NULL, error_message TEXT NULL, ip_address TEXT NULL, user_agent TEXT NULL, request_id TEXT NULL, details JSONB NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+                    await exec('CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON kb.audit_log(timestamp DESC)');
+                    await exec('CREATE INDEX IF NOT EXISTS idx_audit_log_user ON kb.audit_log(user_id, timestamp DESC)');
+                    await exec('CREATE INDEX IF NOT EXISTS idx_audit_log_resource ON kb.audit_log(resource_type, resource_id)');
                     // Documents & Chunks (minimal schema) - required by E2E context
                     await exec(`CREATE TABLE IF NOT EXISTS kb.documents (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL REFERENCES kb.projects(id) ON DELETE CASCADE, source_url TEXT, filename TEXT, mime_type TEXT, content TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
                     await exec(`CREATE TABLE IF NOT EXISTS kb.chunks (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), document_id UUID NOT NULL REFERENCES kb.documents(id) ON DELETE CASCADE, chunk_index INT NOT NULL, text TEXT NOT NULL, tsv tsvector, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
@@ -374,11 +379,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                         error_details JSONB,
                         started_at TIMESTAMPTZ,
                         completed_at TIMESTAMPTZ,
-                        created_by UUID,
+                        subject_id UUID REFERENCES core.user_profiles(subject_id) ON DELETE SET NULL,
                         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
                     )`);
                     await exec('CREATE INDEX IF NOT EXISTS idx_extraction_jobs_project_status ON kb.object_extraction_jobs(project_id, status)');
+                    await exec('CREATE INDEX IF NOT EXISTS idx_extraction_jobs_subject_id ON kb.object_extraction_jobs(subject_id) WHERE subject_id IS NOT NULL');
 
                     // Introduced after original minimal path: lineage & merge provenance tables must exist BEFORE any branch creation logic that writes to them.
                     try {
@@ -403,9 +409,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                             name TEXT NOT NULL,
                             description TEXT NULL,
                             base_product_version_id UUID NULL REFERENCES kb.product_versions(id) ON DELETE SET NULL,
-                            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                            UNIQUE(project_id, LOWER(name))
+                            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
                         )`);
+                        await exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_product_versions_project_name ON kb.product_versions(project_id, LOWER(name))');
                         await exec(`CREATE TABLE IF NOT EXISTS kb.product_version_members (
                             product_version_id UUID NOT NULL REFERENCES kb.product_versions(id) ON DELETE CASCADE,
                             object_canonical_id UUID NOT NULL,
@@ -581,6 +587,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             await this.pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_project_membership_unique ON kb.project_memberships(project_id, subject_id);');
             await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.invites (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NOT NULL REFERENCES kb.orgs(id) ON DELETE CASCADE, project_id UUID NULL REFERENCES kb.projects(id) ON DELETE CASCADE, email TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('org_admin','project_admin','project_user')), token TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'pending', expires_at TIMESTAMPTZ NULL, accepted_at TIMESTAMPTZ NULL, revoked_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
             await this.pool.query('CREATE INDEX IF NOT EXISTS idx_invites_token ON kb.invites(token);');
+            // Audit log table (full schema)
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.audit_log (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), timestamp TIMESTAMPTZ NOT NULL DEFAULT now(), event_type TEXT NOT NULL, outcome TEXT NOT NULL, user_id UUID NULL, user_email TEXT NULL, resource_type TEXT NULL, resource_id UUID NULL, action TEXT NULL, endpoint TEXT NULL, http_method TEXT NULL, status_code INT NULL, error_code TEXT NULL, error_message TEXT NULL, ip_address TEXT NULL, user_agent TEXT NULL, request_id TEXT NULL, details JSONB NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+            await this.pool.query('CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON kb.audit_log(timestamp DESC);');
+            await this.pool.query('CREATE INDEX IF NOT EXISTS idx_audit_log_user ON kb.audit_log(user_id, timestamp DESC);');
+            await this.pool.query('CREATE INDEX IF NOT EXISTS idx_audit_log_resource ON kb.audit_log(resource_type, resource_id);');
             // cascading retrofit
             await this.pool.query(`DO $$ BEGIN BEGIN ALTER TABLE kb.documents DROP CONSTRAINT IF EXISTS documents_project_id_fkey; ALTER TABLE kb.documents ADD CONSTRAINT documents_project_id_fkey FOREIGN KEY (project_id) REFERENCES kb.projects(id) ON DELETE CASCADE; EXCEPTION WHEN others THEN END; BEGIN ALTER TABLE kb.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_project_id_fkey; ALTER TABLE kb.chat_conversations ADD CONSTRAINT chat_conversations_project_id_fkey FOREIGN KEY (project_id) REFERENCES kb.projects(id) ON DELETE CASCADE; EXCEPTION WHEN others THEN END; END $$;`);
             // triggers
@@ -620,9 +631,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     name TEXT NOT NULL,
                     description TEXT NULL,
                     base_product_version_id UUID NULL REFERENCES kb.product_versions(id) ON DELETE SET NULL,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                    UNIQUE(project_id, LOWER(name))
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
                 )`);
+                await this.pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_product_versions_project_name ON kb.product_versions(project_id, LOWER(name))');
                 await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.product_version_members (
                     product_version_id UUID NOT NULL REFERENCES kb.product_versions(id) ON DELETE CASCADE,
                     object_canonical_id UUID NOT NULL,

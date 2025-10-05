@@ -21,6 +21,7 @@ import { GraphSearchModule } from './graph-search/graph-search.module';
 import { TemplatePackModule } from './template-packs/template-pack.module';
 import { TypeRegistryModule } from './type-registry/type-registry.module';
 import { ExtractionJobModule } from './extraction-jobs/extraction-job.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
     imports: [
@@ -45,6 +46,7 @@ import { ExtractionJobModule } from './extraction-jobs/extraction-job.module';
         TemplatePackModule,
         TypeRegistryModule,
         ExtractionJobModule,
+        NotificationsModule,
         DatabaseModule,
     ],
 })
