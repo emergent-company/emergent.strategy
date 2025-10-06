@@ -6,7 +6,7 @@ import { BaseExtractedEntitySchema } from './base.schema';
  * Represents an actionable task or action item
  */
 export const TaskSchema = BaseExtractedEntitySchema.extend({
-    title: z.string().min(5).describe('Task title or summary'),
+    title: z.string().describe('Task title or summary'),
     description: z.string().optional().describe('Detailed task description'),
 
     task_type: z.enum([
@@ -32,7 +32,7 @@ export const TaskSchema = BaseExtractedEntitySchema.extend({
 
     due_date: z.string().optional().describe('Due date (ISO format or natural language)'),
 
-    estimated_hours: z.number().positive().optional().describe('Estimated effort in hours'),
+    estimated_hours: z.number().optional().describe('Estimated effort in hours'),
 
     blocking_reason: z.string().optional().describe('If blocked, what is blocking it'),
 

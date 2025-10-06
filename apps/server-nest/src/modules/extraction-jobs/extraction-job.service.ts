@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { DatabaseService } from '../../common/database/database.service';
+import { AppConfigService } from '../../common/config/config.service';
 import {
     CreateExtractionJobDto,
     UpdateExtractionJobDto,
@@ -20,7 +21,10 @@ import {
 export class ExtractionJobService {
     private readonly logger = new Logger(ExtractionJobService.name);
 
-    constructor(private readonly db: DatabaseService) { }
+    constructor(
+        private readonly db: DatabaseService,
+        private readonly config: AppConfigService
+    ) { }
 
     /**
      * Create a new extraction job
@@ -207,6 +211,11 @@ export class ExtractionJobService {
             params.push(JSON.stringify(dto.error_details));
         }
 
+        if (dto.debug_info !== undefined) {
+            updates.push(`debug_info = $${paramIndex++}`);
+            params.push(JSON.stringify(dto.debug_info));
+        }
+
         if (updates.length === 0) {
             throw new BadRequestException('No fields to update');
         }
@@ -300,6 +309,7 @@ export class ExtractionJobService {
             total_items?: number;
             rejected_items?: number;
             review_required_count?: number;
+            debug_info?: Record<string, any>;
         },
         finalStatus: 'completed' | 'requires_review' = 'completed'
     ): Promise<void> {
@@ -316,7 +326,8 @@ export class ExtractionJobService {
                  discovered_types = COALESCE($3, discovered_types),
                  successful_items = COALESCE($4, successful_items),
                  total_items = COALESCE($5, total_items),
-                 processed_items = COALESCE($5, processed_items)
+                 processed_items = COALESCE($5, processed_items),
+                 debug_info = COALESCE($7, debug_info)
              WHERE id = $6`,
             [
                 status,
@@ -325,6 +336,7 @@ export class ExtractionJobService {
                 results.successful_items || null,
                 results.total_items || null,
                 jobId,
+                results.debug_info ? JSON.stringify(results.debug_info) : null,
             ]
         );
 
@@ -389,6 +401,32 @@ export class ExtractionJobService {
              WHERE id = $3`,
             [processed, total, jobId]
         );
+    }
+
+    /**
+     * Retry/recover a stuck job
+     * 
+     * Resets a stuck 'running' job back to 'pending' so it can be retried.
+     * Useful for manual recovery when server restarts leave jobs orphaned.
+     */
+    async retryJob(jobId: string, projectId: string, orgId: string): Promise<ExtractionJobDto> {
+        const job = await this.getJobById(jobId, projectId, orgId);
+
+        // Can only retry running or failed jobs
+        if (job.status !== ExtractionJobStatus.RUNNING && job.status !== ExtractionJobStatus.FAILED) {
+            throw new BadRequestException(
+                `Cannot retry job with status: ${job.status}. Only 'running' or 'failed' jobs can be retried.`
+            );
+        }
+
+        this.logger.log(`Retrying extraction job ${jobId} (was ${job.status})`);
+
+        return this.updateJob(jobId, projectId, orgId, {
+            status: ExtractionJobStatus.PENDING,
+            error_message: job.error_message
+                ? `${job.error_message}\n\nJob was manually retried.`
+                : 'Job was manually retried.',
+        });
     }
 
     /**
@@ -536,11 +574,75 @@ export class ExtractionJobService {
             created_objects: row.created_objects || [],
             error_message: row.error_message,
             error_details: row.error_details,
+            debug_info: row.debug_info,
             started_at: row.started_at,
             completed_at: row.completed_at,
             created_at: row.created_at,
             subject_id: row.subject_id,
             updated_at: row.updated_at,
         };
+    }
+
+    /**
+     * List available Gemini models from Google API
+     * 
+     * Queries the Google Generative AI API to get all available models
+     * with their capabilities, token limits, and supported methods.
+     */
+    async listAvailableGeminiModels(): Promise<any> {
+        const apiKey = this.config.googleApiKey;
+
+        if (!apiKey) {
+            throw new BadRequestException('Google API key not configured');
+        }
+
+        try {
+            // Use the REST API directly to list models
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            const models = data.models || [];
+
+            const modelList = models.map((model: any) => ({
+                name: model.name,
+                displayName: model.displayName,
+                description: model.description || null,
+                supportedGenerationMethods: model.supportedGenerationMethods || [],
+                inputTokenLimit: model.inputTokenLimit || null,
+                outputTokenLimit: model.outputTokenLimit || null,
+                temperature: model.temperature || null,
+                topP: model.topP || null,
+                topK: model.topK || null,
+            }));
+
+            this.logger.log(`Found ${modelList.length} available Gemini models`);
+
+            // Extract just the model name for easier comparison
+            const modelNames = modelList.map((m: any) => m.name.replace('models/', ''));
+
+            return {
+                current_model: this.config.vertexAiModel || 'gemini-1.5-flash-latest',
+                available_models: modelList,
+                model_names: modelNames,
+                total_count: modelList.length,
+                queried_at: new Date().toISOString(),
+            };
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.logger.error('Failed to list Gemini models:', errorMessage);
+            throw new BadRequestException(`Failed to fetch models: ${errorMessage}`);
+        }
     }
 }

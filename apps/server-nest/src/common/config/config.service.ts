@@ -57,7 +57,7 @@ export class AppConfigService {
     // --- Extraction Worker (Vertex AI) ---
     get vertexAiProjectId() { return this.env.VERTEX_AI_PROJECT_ID; }
     get vertexAiLocation() { return this.env.VERTEX_AI_LOCATION || 'us-central1'; }
-    get vertexAiModel() { return this.env.VERTEX_AI_MODEL || 'gemini-1.5-pro-002'; }
+    get vertexAiModel() { return this.env.VERTEX_AI_MODEL || 'gemini-2.5-flash'; }
 
     // --- Extraction Worker Behavior ---
     get extractionWorkerEnabled() {

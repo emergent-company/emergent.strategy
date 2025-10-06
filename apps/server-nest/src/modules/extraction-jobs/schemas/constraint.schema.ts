@@ -6,7 +6,7 @@ import { BaseExtractedEntitySchema } from './base.schema';
  * Represents a limitation or restriction on the project
  */
 export const ConstraintSchema = BaseExtractedEntitySchema.extend({
-    title: z.string().min(5).describe('Constraint title or summary'),
+    title: z.string().describe('Constraint title or summary'),
     description: z.string().describe('Detailed constraint description'),
 
     constraint_type: z.enum([

@@ -6,7 +6,7 @@ import { BaseExtractedEntitySchema } from './base.schema';
  * Represents a decision made during or outside of meetings
  */
 export const DecisionSchema = BaseExtractedEntitySchema.extend({
-    title: z.string().min(5).describe('Brief decision summary'),
+    title: z.string().describe('Brief decision summary'),
     description: z.string().optional().describe('Detailed decision description'),
     rationale: z.string().optional().describe('Why this decision was made'),
 

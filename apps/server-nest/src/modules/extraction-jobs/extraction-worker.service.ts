@@ -47,7 +47,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         private readonly notificationsService: NotificationsService,
     ) { }
 
-    onModuleInit() {
+    async onModuleInit() {
         // Only start if extraction worker is enabled and DB is online
         if (!this.db.isOnline()) {
             this.logger.warn('Database offline at worker init; extraction worker idle.');
@@ -64,11 +64,59 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             return;
         }
 
+        // Recover orphaned jobs from previous server crash/restart
+        await this.recoverOrphanedJobs();
+
         this.start();
     }
 
     onModuleDestroy() {
         this.stop();
+    }
+
+    /**
+     * Recover orphaned jobs that were stuck in 'running' status due to server restart
+     * 
+     * Jobs are considered orphaned if:
+     * - Status is 'running'
+     * - Updated more than 5 minutes ago (likely interrupted)
+     * 
+     * These jobs are reset to 'pending' so they can be retried.
+     */
+    private async recoverOrphanedJobs(): Promise<void> {
+        try {
+            const orphanThresholdMinutes = 5;
+
+            const result = await this.db.query<{ id: string; source_type: string; started_at: string }>(
+                `UPDATE kb.object_extraction_jobs
+                 SET status = 'pending',
+                     error_message = COALESCE(error_message || E'\n\n', '') || 
+                                     'Job was interrupted by server restart and has been reset to pending.',
+                     updated_at = NOW()
+                 WHERE status = 'running'
+                   AND updated_at < NOW() - INTERVAL '${orphanThresholdMinutes} minutes'
+                 RETURNING id, source_type, started_at`,
+                []
+            );
+
+            if (result.rowCount && result.rowCount > 0) {
+                this.logger.warn(
+                    `Recovered ${result.rowCount} orphaned extraction job(s) from 'running' to 'pending': ` +
+                    result.rows.map(r => r.id).join(', ')
+                );
+
+                for (const row of result.rows) {
+                    this.logger.log(
+                        `  - Job ${row.id} (${row.source_type}) was running since ${row.started_at}`
+                    );
+                }
+            } else {
+                this.logger.log('No orphaned extraction jobs found - all clear');
+            }
+        } catch (error) {
+            this.logger.error('Failed to recover orphaned jobs', error);
+            // Don't throw - allow worker to start anyway
+        }
     }
 
     /**
@@ -300,6 +348,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             // 7. Mark job as completed or requires_review
             const requiresReview = reviewRequiredObjectIds.length > 0;
 
+            // Prepare debug info from LLM response
+            const debugInfo = extractionResult.raw_response || null;
+
             if (requiresReview) {
                 // Job needs human review
                 await this.jobService.markCompleted(job.id, {
@@ -309,6 +360,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                     total_items: extractionResult.entities.length,
                     rejected_items: rejectedCount.value,
                     review_required_count: reviewRequiredObjectIds.length,
+                    debug_info: debugInfo,
                 }, 'requires_review');
 
                 this.logger.log(
@@ -334,6 +386,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                     successful_items: extractionResult.entities.length - rejectedCount.value,
                     total_items: extractionResult.entities.length,
                     rejected_items: rejectedCount.value,
+                    debug_info: debugInfo,
                 });
 
                 // Create notification about successful extraction

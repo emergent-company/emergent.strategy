@@ -128,6 +128,14 @@ export class UpdateExtractionJobDto {
     @IsOptional()
     @IsObject()
     error_details?: Record<string, any>;
+
+    @ApiPropertyOptional({
+        description: 'Debug information (LLM requests/responses, intermediate results)',
+        example: { llm_requests: [], llm_responses: [], processing_steps: [] }
+    })
+    @IsOptional()
+    @IsObject()
+    debug_info?: Record<string, any>;
 }
 
 /**
@@ -181,6 +189,21 @@ export class ExtractionJobDto {
 
     @ApiPropertyOptional({ description: 'Error details' })
     error_details?: Record<string, any>;
+
+    @ApiPropertyOptional({
+        description: 'Debug information (LLM requests/responses, intermediate results)',
+        example: {
+            llm_calls: [
+                {
+                    type: 'Requirement',
+                    prompt: 'Extract requirements...',
+                    response: 'LLM response data',
+                    duration_ms: 1234
+                }
+            ]
+        }
+    })
+    debug_info?: Record<string, any>;
 
     @ApiPropertyOptional({ description: 'Job start timestamp' })
     started_at?: Date;

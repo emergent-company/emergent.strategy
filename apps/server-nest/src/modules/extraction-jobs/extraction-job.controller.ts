@@ -110,6 +110,29 @@ export class ExtractionJobController {
     }
 
     /**
+     * Retry a stuck or failed extraction job
+     */
+    @Post(':jobId/retry')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Retry a stuck or failed extraction job',
+        description: 'Resets a job stuck in running status or failed status back to pending for retry. ' +
+            'Useful after server restarts that leave jobs orphaned.'
+    })
+    @ApiParam({ name: 'jobId', description: 'Job ID' })
+    @ApiResponse({ status: 200, description: 'Job reset to pending for retry', type: ExtractionJobDto })
+    @ApiResponse({ status: 404, description: 'Job not found' })
+    @ApiResponse({ status: 400, description: 'Cannot retry job with current status (only running/failed jobs)' })
+    @ApiResponse({ status: 401, description: 'Unauthorized' })
+    async retryJob(
+        @Param('jobId') jobId: string,
+        @Query('project_id') projectId: string,
+        @Query('org_id') orgId: string
+    ): Promise<ExtractionJobDto> {
+        return this.jobService.retryJob(jobId, projectId, orgId);
+    }
+
+    /**
      * Cancel extraction job
      */
     @Post(':jobId/cancel')
@@ -189,5 +212,42 @@ export class ExtractionJobController {
         @Query('org_id') orgId: string
     ): Promise<any> {
         return this.jobService.getJobStatistics(projectId, orgId);
+    }
+
+    /**
+     * List available Gemini models
+     */
+    @Get('_debug/available-models')
+    @ApiOperation({
+        summary: 'List available Gemini models',
+        description: 'Query Google Gemini API to list all available models with their capabilities'
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Models retrieved successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                current_model: { type: 'string', example: 'gemini-1.5-flash-latest' },
+                available_models: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: { type: 'string', example: 'models/gemini-2.0-flash-exp' },
+                            displayName: { type: 'string', example: 'Gemini 2.0 Flash' },
+                            description: { type: 'string' },
+                            supportedGenerationMethods: { type: 'array', items: { type: 'string' } },
+                            inputTokenLimit: { type: 'number' },
+                            outputTokenLimit: { type: 'number' }
+                        }
+                    }
+                }
+            }
+        }
+    })
+    @ApiResponse({ status: 500, description: 'Failed to fetch models from API' })
+    async listAvailableModels(): Promise<any> {
+        return this.jobService.listAvailableGeminiModels();
     }
 }

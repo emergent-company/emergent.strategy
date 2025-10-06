@@ -49,6 +49,23 @@ window.__errorLogs.downloadLogs()
 
 See `docs/ERROR_LOGGING.md` for complete guide or `docs/ERROR_LOGGING_QUICKREF.md` for quick reference.
 
+## MCP Dev Manager (AI Development Assistant)
+
+The project includes a reusable MCP (Model Context Protocol) server for AI-assisted development. This tool integrates with Claude Desktop to help with:
+
+- 🧪 Running tests (Playwright, npm, vitest, jest)
+- 🔄 Managing services (docker-compose, pm2, npm scripts)
+- 📋 Browsing and searching logs
+- 📊 Checking service status and port usage
+
+**Quick Start:**
+
+1. The MCP server is located in `mcp-dev-manager/` as a git submodule
+2. Configure Claude Desktop (see `docs/MCP_DEV_MANAGER.md`)
+3. Ask Claude: "Check the status of all development services" or "Run the playwright tests"
+
+See `docs/MCP_DEV_MANAGER.md` for complete setup and usage instructions. The MCP server can be reused in other projects as a git submodule.
+
 ## Reference projects
 
 We keep UI/UX reference code as Git submodules under `reference/` (read-only, no runtime imports).

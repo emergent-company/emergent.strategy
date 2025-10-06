@@ -22,6 +22,8 @@ export interface ObjectBrowserProps {
     onObjectClick?: (object: GraphObject) => void;
     /** Called when objects are selected for bulk action */
     onBulkSelect?: (selectedIds: string[]) => void;
+    /** Called when bulk delete is requested */
+    onBulkDelete?: (selectedIds: string[]) => void;
     /** Called when search query changes */
     onSearchChange?: (query: string) => void;
     /** Called when type filter changes */
@@ -36,6 +38,7 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
     error = null,
     onObjectClick,
     onBulkSelect,
+    onBulkDelete,
     onSearchChange,
     onTypeFilterChange,
     availableTypes = [],
@@ -180,7 +183,15 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                 <span className="font-medium text-sm">
                     {selectedIds.size} selected
                 </span>
-                <button className="gap-2 btn btn-sm btn-ghost">
+                <button
+                    className="gap-2 btn-outline btn btn-sm btn-error"
+                    onClick={() => {
+                        if (onBulkDelete) {
+                            onBulkDelete(Array.from(selectedIds));
+                            setSelectedIds(new Set());
+                        }
+                    }}
+                >
                     <Icon icon="lucide--trash-2" className="size-4" />
                     Delete
                 </button>
@@ -215,6 +226,7 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                         <th>Name</th>
                         <th>Type</th>
                         <th>Source</th>
+                        <th>Confidence</th>
                         <th>Updated</th>
                         <th>Rel</th>
                     </tr>
@@ -228,13 +240,14 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                                 <td><div className="bg-base-300 rounded w-24 h-4" /></td>
                                 <td><div className="bg-base-300 rounded w-20 h-4" /></td>
                                 <td><div className="bg-base-300 rounded w-16 h-4" /></td>
+                                <td><div className="bg-base-300 rounded w-16 h-4" /></td>
                                 <td><div className="bg-base-300 rounded w-10 h-4" /></td>
                             </tr>
                         ))
                     )}
                     {!loading && error && (
                         <tr>
-                            <td colSpan={6} className="py-10 text-error text-sm text-center">
+                            <td colSpan={7} className="py-10 text-error text-sm text-center">
                                 <Icon icon="lucide--alert-circle" className="mx-auto mb-2 size-5" />
                                 <div>{error}</div>
                             </td>
@@ -242,39 +255,77 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                     )}
                     {!loading && !error && filteredObjects.length === 0 && (
                         <tr>
-                            <td colSpan={6} className="py-10 text-sm text-base-content/70 text-center">
+                            <td colSpan={7} className="py-10 text-sm text-base-content/70 text-center">
                                 <Icon icon="lucide--inbox" className="opacity-50 mx-auto mb-2 size-8" />
                                 <div>No objects match current filters.</div>
                             </td>
                         </tr>
                     )}
-                    {!loading && !error && filteredObjects.map((obj) => (
-                        <tr
-                            key={obj.id}
-                            className={`hover:bg-base-200/50 cursor-pointer ${selectedIds.has(obj.id) ? 'bg-base-200' : ''}`}
-                            onClick={() => onObjectClick?.(obj)}
-                        >
-                            <td onClick={(e) => e.stopPropagation()}>
-                                <input
-                                    type="checkbox"
-                                    className="checkbox checkbox-sm"
-                                    checked={selectedIds.has(obj.id)}
-                                    onChange={(e) => handleSelectOne(obj.id, e.target.checked)}
-                                />
-                            </td>
-                            <td className="font-medium">{obj.name}</td>
-                            <td>
-                                <span className="badge badge-sm badge-ghost">{obj.type}</span>
-                            </td>
-                            <td className="text-sm text-base-content/70">{obj.source || '—'}</td>
-                            <td className="text-sm text-base-content/70">
-                                {new Date(obj.updated_at).toLocaleDateString()}
-                            </td>
-                            <td className="text-sm text-base-content/70">
-                                {obj.relationship_count ?? '—'}
-                            </td>
-                        </tr>
-                    ))}
+                    {!loading && !error && filteredObjects.map((obj) => {
+                        const extractionConfidence = obj.properties?._extraction_confidence as number | undefined;
+                        const hasExtractionData = extractionConfidence !== undefined;
+
+                        return (
+                            <tr
+                                key={obj.id}
+                                className={`hover:bg-base-200/50 cursor-pointer ${selectedIds.has(obj.id) ? 'bg-base-200' : ''}`}
+                                onClick={() => onObjectClick?.(obj)}
+                            >
+                                <td onClick={(e) => e.stopPropagation()}>
+                                    <input
+                                        type="checkbox"
+                                        className="checkbox checkbox-sm"
+                                        checked={selectedIds.has(obj.id)}
+                                        onChange={(e) => handleSelectOne(obj.id, e.target.checked)}
+                                    />
+                                </td>
+                                <td className="font-medium">
+                                    {obj.name}
+                                    {hasExtractionData && (
+                                        <Icon
+                                            icon="lucide--sparkles"
+                                            className="inline-block ml-1 size-3 text-primary"
+                                            title="AI Extracted"
+                                        />
+                                    )}
+                                </td>
+                                <td>
+                                    <span className="badge badge-sm badge-ghost">{obj.type}</span>
+                                </td>
+                                <td className="text-sm text-base-content/70">{obj.source || '—'}</td>
+                                <td>
+                                    {hasExtractionData ? (
+                                        <div className="flex items-center gap-1">
+                                            <span className={`text-xs font-medium ${extractionConfidence >= 0.8 ? 'text-success' :
+                                                    extractionConfidence >= 0.6 ? 'text-warning' :
+                                                        'text-error'
+                                                }`}>
+                                                {(extractionConfidence * 100).toFixed(0)}%
+                                            </span>
+                                            <div className="w-12">
+                                                <progress
+                                                    className={`progress progress-xs ${extractionConfidence >= 0.8 ? 'progress-success' :
+                                                            extractionConfidence >= 0.6 ? 'progress-warning' :
+                                                                'progress-error'
+                                                        }`}
+                                                    value={extractionConfidence * 100}
+                                                    max="100"
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <span className="text-sm text-base-content/70">—</span>
+                                    )}
+                                </td>
+                                <td className="text-sm text-base-content/70">
+                                    {new Date(obj.updated_at).toLocaleDateString()}
+                                </td>
+                                <td className="text-sm text-base-content/70">
+                                    {obj.relationship_count ?? '—'}
+                                </td>
+                            </tr>
+                        );
+                    })}
                 </tbody>
             </table>
         </div>

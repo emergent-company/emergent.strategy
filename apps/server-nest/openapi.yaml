@@ -1318,6 +1318,45 @@ paths:
           description: Job not found
       tags: *ref_5
       security: *ref_6
+  /admin/extraction-jobs/{jobId}/retry:
+    post:
+      operationId: retryJob
+      summary: Retry a stuck or failed extraction job
+      description: >-
+        Resets a job stuck in running status or failed status back to pending
+        for retry. Useful after server restarts that leave jobs orphaned.
+      parameters:
+        - name: jobId
+          required: true
+          in: path
+          description: Job ID
+          schema:
+            type: string
+        - name: project_id
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: org_id
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job reset to pending for retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractionJobDto'
+        '400':
+          description: Cannot retry job with current status (only running/failed jobs)
+        '401':
+          description: Unauthorized
+        '404':
+          description: Job not found
+      tags: *ref_5
+      security: *ref_6
   /admin/extraction-jobs/{jobId}/cancel:
     post:
       operationId: cancelJob
@@ -1409,6 +1448,50 @@ paths:
                     example: 15
         '401':
           description: Unauthorized
+      tags: *ref_5
+      security: *ref_6
+  /admin/extraction-jobs/_debug/available-models:
+    get:
+      operationId: listAvailableModels
+      summary: List available Gemini models
+      description: >-
+        Query Google Gemini API to list all available models with their
+        capabilities
+      parameters: []
+      responses:
+        '200':
+          description: Models retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  current_model:
+                    type: string
+                    example: gemini-1.5-flash-latest
+                  available_models:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: models/gemini-2.0-flash-exp
+                        displayName:
+                          type: string
+                          example: Gemini 2.0 Flash
+                        description:
+                          type: string
+                        supportedGenerationMethods:
+                          type: array
+                          items:
+                            type: string
+                        inputTokenLimit:
+                          type: number
+                        outputTokenLimit:
+                          type: number
+        '500':
+          description: Failed to fetch models from API
       tags: *ref_5
       security: *ref_6
   /graph/objects:
@@ -3875,6 +3958,289 @@ paths:
         - Graph
       security:
         - bearer: []
+  /api/v1/integrations/available:
+    get:
+      operationId: listAvailableIntegrations
+      summary: List available integration types
+      description: >-
+        Get a list of all integration types that can be configured (ClickUp,
+        GitHub, etc.)
+      parameters: []
+      responses:
+        '200':
+          description: Available integrations retrieved successfully
+        '401':
+          description: Unauthorized
+      tags: &ref_14
+        - Integrations
+      security: &ref_15
+        - bearer: []
+  /api/v1/integrations:
+    get:
+      operationId: listIntegrations
+      summary: List integrations
+      description: List all integrations for a project with optional filters
+      parameters:
+        - name: project_id
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: org_id
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Integrations retrieved successfully
+        '401':
+          description: Unauthorized
+      tags: *ref_14
+      security: *ref_15
+    post:
+      operationId: createIntegration
+      summary: Create integration
+      description: Create a new integration configuration with encrypted credentials
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIntegrationDto'
+      responses:
+        '201':
+          description: Integration created successfully
+        '400':
+          description: Invalid request data
+        '401':
+          description: Unauthorized
+        '409':
+          description: Integration already exists for this project
+      tags: *ref_14
+      security: *ref_15
+  /api/v1/integrations/{name}:
+    get:
+      operationId: getIntegration
+      summary: Get integration
+      description: Get detailed information about a specific integration
+      parameters:
+        - name: name
+          required: true
+          in: path
+          description: Integration name (e.g., "clickup")
+          schema:
+            type: string
+        - name: project_id
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: org_id
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Integration retrieved successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Integration not found
+      tags: *ref_14
+      security: *ref_15
+    put:
+      operationId: updateIntegration
+      summary: Update integration
+      description: Update an existing integration configuration
+      parameters:
+        - name: name
+          required: true
+          in: path
+          description: Integration name (e.g., "clickup")
+          schema:
+            type: string
+        - name: project_id
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: org_id
+          required: true
+          in: query
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateIntegrationDto'
+      responses:
+        '200':
+          description: Integration updated successfully
+        '400':
+          description: Invalid update data
+        '401':
+          description: Unauthorized
+        '404':
+          description: Integration not found
+      tags: *ref_14
+      security: *ref_15
+    delete:
+      operationId: deleteIntegration
+      summary: Delete integration
+      description: Delete an integration and all its associated data
+      parameters:
+        - name: name
+          required: true
+          in: path
+          description: Integration name (e.g., "clickup")
+          schema:
+            type: string
+        - name: project_id
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: org_id
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Integration deleted successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Integration not found
+      tags: *ref_14
+      security: *ref_15
+  /api/v1/integrations/{name}/public:
+    get:
+      operationId: getPublicIntegrationInfo
+      summary: Get public integration info
+      description: Get non-sensitive information about an integration
+      parameters:
+        - name: name
+          required: true
+          in: path
+          description: Integration name (e.g., "clickup")
+          schema:
+            type: string
+        - name: project_id
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: org_id
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Public info retrieved successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Integration not found
+      tags: *ref_14
+      security: *ref_15
+  /api/v1/integrations/{name}/test:
+    post:
+      operationId: testConnection
+      summary: Test integration connection
+      description: Test if the integration credentials are valid and the connection works
+      parameters:
+        - name: name
+          required: true
+          in: path
+          description: Integration name (e.g., "clickup")
+          schema:
+            type: string
+        - name: project_id
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: org_id
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Connection test completed
+        '401':
+          description: Unauthorized
+        '404':
+          description: Integration not found
+      tags: *ref_14
+      security: *ref_15
+  /api/v1/integrations/{name}/sync:
+    post:
+      operationId: triggerSync
+      summary: Trigger integration sync
+      description: Manually trigger a full import/sync from the integration
+      parameters:
+        - name: name
+          required: true
+          in: path
+          description: Integration name (e.g., "clickup")
+          schema:
+            type: string
+        - name: project_id
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: org_id
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sync initiated successfully
+        '400':
+          description: Integration does not support import
+        '401':
+          description: Unauthorized
+        '404':
+          description: Integration not found
+      tags: *ref_14
+      security: *ref_15
+  /api/v1/integrations/clickup/structure:
+    get:
+      operationId: getClickUpWorkspaceStructure
+      summary: Get ClickUp workspace structure
+      description: >-
+        Fetch hierarchical workspace structure (spaces, folders, lists) with
+        task counts for list selection UI
+      parameters:
+        - name: project_id
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: org_id
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Workspace structure retrieved successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: ClickUp integration not found or not configured
+      tags: *ref_14
+      security: *ref_15
 info:
   title: Spec Server API
   description: >-
@@ -4223,6 +4589,15 @@ components:
         error_details:
           type: object
           description: Error details
+        debug_info:
+          type: object
+          description: Debug information (LLM requests/responses, intermediate results)
+          example:
+            llm_calls:
+              - type: Requirement
+                prompt: Extract requirements...
+                response: LLM response data
+                duration_ms: 1234
         started_at:
           format: date-time
           type: string
@@ -4343,6 +4718,13 @@ components:
           example:
             stack: ...
             context: ...
+        debug_info:
+          type: object
+          description: Debug information (LLM requests/responses, intermediate results)
+          example:
+            llm_requests: []
+            llm_responses: []
+            processing_steps: []
     CreateGraphObjectDto:
       type: object
       properties: {}
@@ -5704,6 +6086,12 @@ components:
         - query
         - items
         - meta
+    CreateIntegrationDto:
+      type: object
+      properties: {}
+    UpdateIntegrationDto:
+      type: object
+      properties: {}
 x-tagGroups:
   - name: Health & Auth
     tags:

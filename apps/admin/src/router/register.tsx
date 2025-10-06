@@ -26,6 +26,10 @@ const dashboardRoutes: IRoutesProps[] = [
         path: '/admin/extraction-jobs/:jobId',
         element: cw(lazy(() => import('@/pages/admin/pages/extraction-jobs/detail'))),
     },
+    {
+        path: '/admin/integrations',
+        element: cw(lazy(() => import('@/pages/admin/pages/integrations'))),
+    },
     { path: "/admin/inbox", element: cw(lazy(() => import("@/pages/admin/inbox/index"))) },
     { path: "/admin/profile", element: cw(lazy(() => import("@/pages/admin/profile"))) },
     { path: "/admin/settings", element: <Navigate to="/admin/settings/ai/prompts" replace /> },

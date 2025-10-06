@@ -10,7 +10,7 @@ describe('VertexAIProvider', () => {
         mockConfig = {
             vertexAiProjectId: undefined,
             vertexAiLocation: 'us-central1',
-            vertexAiModel: 'gemini-1.5-pro-002',
+            vertexAiModel: 'gemini-1.5-flash-latest',
         };
         provider = new VertexAIProvider(mockConfig as AppConfigService);
     });
@@ -31,7 +31,7 @@ describe('VertexAIProvider', () => {
             // This test verifies the configuration check logic
             mockConfig.vertexAiProjectId = 'test-project';
             const configuredProvider = new VertexAIProvider(mockConfig as AppConfigService);
-            
+
             // Will be false without actual credentials, but checks the logic path
             expect(typeof configuredProvider.isConfigured()).toBe('boolean');
         });

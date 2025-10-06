@@ -6,7 +6,7 @@ import { BaseExtractedEntitySchema } from './base.schema';
  * Represents a potential risk or threat to project success
  */
 export const RiskSchema = BaseExtractedEntitySchema.extend({
-    title: z.string().min(5).describe('Risk title or summary'),
+    title: z.string().describe('Risk title or summary'),
     description: z.string().describe('Detailed risk description'),
 
     risk_type: z.enum([
