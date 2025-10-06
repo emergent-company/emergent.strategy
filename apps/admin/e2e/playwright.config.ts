@@ -27,8 +27,8 @@ dotenv.config();
 
 export default defineConfig({
     testDir: './specs',
-    timeout: 90_000,
-    expect: { timeout: 15_000 },
+    timeout: 30_000, // 30 seconds per test (reduced from 90s)
+    expect: { timeout: 10_000 }, // 10 seconds for assertions (reduced from 15s)
     fullyParallel: true,
     retries: process.env.CI ? 2 : 0,
     reporter: process.env.CI ? [['dot'], ['junit', { outputFile: 'results/junit.xml' }]] : 'html',
@@ -47,7 +47,7 @@ export default defineConfig({
             // If another project already runs on this port, Playwright would reuse it and tests could hit the wrong app.
             // Set E2E_FORCE_START=1 to always start a fresh server and avoid cross-repo leakage.
             reuseExistingServer: !process.env.CI && !process.env.E2E_FORCE_START,
-            timeout: 180_000,
+            timeout: 30_000, // 30 seconds to start server (reduced from 180s)
         }
         : undefined,
     projects: [

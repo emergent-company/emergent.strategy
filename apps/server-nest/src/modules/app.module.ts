@@ -22,6 +22,8 @@ import { TemplatePackModule } from './template-packs/template-pack.module';
 import { TypeRegistryModule } from './type-registry/type-registry.module';
 import { ExtractionJobModule } from './extraction-jobs/extraction-job.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { IntegrationsModule } from './integrations/integrations.module';
+import { ClickUpModule } from './clickup/clickup.module';
 
 @Module({
     imports: [
@@ -47,6 +49,8 @@ import { NotificationsModule } from './notifications/notifications.module';
         TypeRegistryModule,
         ExtractionJobModule,
         NotificationsModule,
+        IntegrationsModule,
+        ClickUpModule,
         DatabaseModule,
     ],
 })

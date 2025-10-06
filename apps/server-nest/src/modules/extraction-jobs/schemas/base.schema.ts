@@ -9,7 +9,7 @@ export const BaseExtractedEntitySchema = z.object({
      * Confidence score from LLM (0.0 - 1.0)
      * Higher scores indicate higher confidence in the extraction
      */
-    confidence: z.number().min(0).max(1).describe('Confidence score from 0 to 1'),
+    confidence: z.number().describe('Confidence score from 0 to 1'),
 
     /**
      * Verbatim text from document that supports this extraction

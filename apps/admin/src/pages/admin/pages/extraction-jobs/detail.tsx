@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
 import { ExtractionJobStatusBadge } from '@/components/molecules/ExtractionJobStatusBadge';
+import { DebugInfoPanel } from '@/components/molecules/DebugInfoPanel';
 import { useApi } from '@/hooks/use-api';
 import { useConfig } from '@/contexts/config';
 import { createExtractionJobsClient, type ExtractionJob } from '@/api/extraction-jobs';
@@ -349,6 +350,22 @@ export function ExtractionJobDetailPage() {
                                 </div>
                             </details>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Debug Information */}
+            {job.debug_info && (
+                <div className="mb-6 card-border card">
+                    <div className="card-body">
+                        <h2 className="card-title">
+                            <Icon icon="lucide--bug" />
+                            Debug Information
+                        </h2>
+                        <p className="mb-4 text-sm text-base-content/70">
+                            LLM request/response data for debugging extraction quality and understanding model behavior
+                        </p>
+                        <DebugInfoPanel debugInfo={job.debug_info} />
                     </div>
                 </div>
             )}

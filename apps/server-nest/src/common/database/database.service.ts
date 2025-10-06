@@ -368,7 +368,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                         source_id TEXT,
                         source_metadata JSONB DEFAULT '{}',
                         extraction_config JSONB DEFAULT '{}',
-                        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
+                        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'requires_review', 'failed', 'cancelled')),
                         total_items INT DEFAULT 0,
                         processed_items INT DEFAULT 0,
                         successful_items INT DEFAULT 0,

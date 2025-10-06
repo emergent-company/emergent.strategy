@@ -65,6 +65,43 @@ ClickUp objects will be mapped to our internal graph data model as follows:
 
 Custom fields in ClickUp will be stored as properties on the corresponding graph objects.
 
+#### 3.3.1. Source Tracking Metadata
+
+**Every imported object MUST include the following metadata properties to track its origin:**
+
+| Property | Type | Description | Example |
+| --- | --- | --- | --- |
+| `external_source` | string | The name of the integration source | `"clickup"` |
+| `external_id` | string | The unique identifier from the source system | `"9hz"` (task ID) |
+| `external_url` | string (optional) | Direct link to the object in the source system | `"https://app.clickup.com/t/9hz"` |
+| `external_parent_id` | string (optional) | The parent object's external ID (for hierarchies) | `"90120"` (list ID) |
+| `synced_at` | datetime | Timestamp of last sync from source | `"2025-10-05T19:51:05Z"` |
+| `external_updated_at` | datetime (optional) | Last modified time in source system | `"2025-10-05T18:30:00Z"` |
+
+**URL Construction Examples:**
+
+- **Task:** `https://app.clickup.com/t/{task_id}`
+- **List:** `https://app.clickup.com/t/{workspace_id}/v/li/{list_id}`
+- **Folder:** `https://app.clickup.com/t/{workspace_id}/v/f/{folder_id}`
+- **Space:** `https://app.clickup.com/t/{workspace_id}/v/s/{space_id}`
+
+**Benefits of Source Tracking:**
+
+1. **Bidirectional Sync:** Enables updates to flow both ways between systems
+2. **Conflict Resolution:** Detect when objects were modified in both systems
+3. **Debugging:** Easily trace objects back to their source for troubleshooting
+4. **Deduplication:** Prevent creating duplicate objects on re-import
+5. **Deep Linking:** Allow users to navigate directly to the source object
+6. **Audit Trail:** Track when and from where objects were imported
+
+**Implementation Notes:**
+
+- The `external_source` field should be indexed for efficient filtering by integration type
+- The combination of `(external_source, external_id)` must be unique across the system
+- When updating an existing object via webhook, match by `(external_source, external_id)`
+- Store `external_url` even if not immediately displayed to users (useful for future features)
+- The `external_parent_id` helps maintain hierarchical relationships during partial imports
+
 ### 3.4. API Endpoints
 
 The following ClickUp API v2 endpoints will be used for the full import process:
@@ -77,15 +114,94 @@ The following ClickUp API v2 endpoints will be used for the full import process:
 
 ### 3.5. Full Import Process
 
-The full import process will be initiated via a CLI command or an API endpoint. It will require a ClickUp API key with the necessary permissions.
+The full import process will be initiated via the admin UI or an API endpoint. It will require a ClickUp API key with the necessary permissions.
 
-The process will be as follows:
+#### 3.5.1. User Flow
 
-1.  Fetch all workspaces.
-2.  For each workspace, fetch all spaces, folders, lists, and tasks.
+1.  **Sync Button:** The user clicks a "Sync" button in the ClickUp integration configuration panel.
+2.  **List Selection Modal:** A modal opens displaying a hierarchical tree of the ClickUp workspace structure:
+    *   Workspace (root)
+        *   Spaces (expandable)
+            *   Folders (expandable)
+                *   Lists (selectable with checkboxes)
+3.  **Tree Interactions:**
+    *   Users can expand/collapse spaces and folders to navigate the hierarchy
+    *   Each list has a checkbox to select/deselect it for import
+    *   Parent nodes (spaces/folders) have tri-state checkboxes:
+        *   Checked: All child lists selected
+        *   Unchecked: No child lists selected
+        *   Indeterminate: Some child lists selected
+    *   "Select All" and "Deselect All" buttons at the top
+4.  **Import Configuration:** Below the tree, additional options are provided:
+    *   "Include completed tasks" checkbox
+    *   "Batch size" number input (default: 100, range: 10-1000)
+    *   "Run in background" toggle
+5.  **Confirmation:** User clicks "Start Import" button to begin the sync with selected lists
+6.  **Progress Tracking:** Modal shows progress with:
+    *   Overall progress bar
+    *   Current item being processed
+    *   Items imported count
+    *   Estimated time remaining (if available)
+
+#### 3.5.2. Backend API
+
+**Fetch Workspace Structure:**
+```
+GET /api/v1/integrations/clickup/structure
+Response: {
+  workspace: {
+    id: string;
+    name: string;
+    spaces: Array<{
+      id: string;
+      name: string;
+      folders: Array<{
+        id: string;
+        name: string;
+        lists: Array<{
+          id: string;
+          name: string;
+          task_count: number;
+        }>;
+      }>;
+      lists: Array<{
+        id: string;
+        name: string;
+        task_count: number;
+      }>;
+    }>;
+  };
+}
+```
+
+**Trigger Selective Import:**
+```
+POST /api/v1/integrations/clickup/sync
+Body: {
+  list_ids: string[];
+  include_completed: boolean;
+  batch_size: number;
+  background: boolean;
+}
+Response: {
+  job_id?: string;
+  success: boolean;
+  message: string;
+  total_lists: number;
+  estimated_tasks: number;
+}
+```
+
+#### 3.5.3. Import Process
+
+The actual import process will execute as follows:
+
+1.  Fetch all workspaces (cached from structure endpoint).
+2.  For each selected list, fetch all tasks with pagination.
 3.  For each task, fetch all subtasks, comments, and assignees.
 4.  For each object, create a corresponding node in our graph database.
 5.  Create relationships between the nodes as defined in the data model mapping.
+6.  Track progress and update job status if running in background.
 
 To avoid overwhelming the ClickUp API, the import process will be rate-limited.
 

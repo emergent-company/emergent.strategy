@@ -117,7 +117,7 @@ export function validate(config: Record<string, unknown>): EnvVariables {
         // Extraction Worker defaults
         VERTEX_AI_PROJECT_ID: process.env.VERTEX_AI_PROJECT_ID,
         VERTEX_AI_LOCATION: process.env.VERTEX_AI_LOCATION || 'us-central1',
-        VERTEX_AI_MODEL: process.env.VERTEX_AI_MODEL || 'gemini-1.5-pro-002',
+        VERTEX_AI_MODEL: process.env.VERTEX_AI_MODEL || 'gemini-2.5-flash',
         EXTRACTION_WORKER_ENABLED: process.env.EXTRACTION_WORKER_ENABLED,
         EXTRACTION_WORKER_POLL_INTERVAL_MS: process.env.EXTRACTION_WORKER_POLL_INTERVAL_MS || '5000',
         EXTRACTION_WORKER_BATCH_SIZE: process.env.EXTRACTION_WORKER_BATCH_SIZE || '5',

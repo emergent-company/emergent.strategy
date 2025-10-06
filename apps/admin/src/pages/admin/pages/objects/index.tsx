@@ -5,20 +5,19 @@ import { useEffect, useState, useCallback } from 'react';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
 import { ObjectBrowser, GraphObject } from '@/components/organisms/ObjectBrowser/ObjectBrowser';
+import { ObjectDetailModal } from '@/components/organisms/ObjectDetailModal';
 
 interface GraphObjectResponse {
     id: string;
-    name: string;
+    key?: string | null;  // Graph objects use 'key' not 'name'
     type: string;
     description?: string;
     properties: Record<string, unknown>;
     labels: string[];
-    source?: string;
     external_id?: string;
     external_type?: string;
     created_at: string;
-    updated_at: string;
-    relationship_count?: number;
+    // Note: No updated_at in graph_objects table
 }
 
 export default function ObjectsPage() {
@@ -31,6 +30,8 @@ export default function ObjectsPage() {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+    const [selectedObject, setSelectedObject] = useState<GraphObject | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const loadObjects = useCallback(async () => {
         if (!config.activeProjectId) return;
@@ -56,11 +57,11 @@ export default function ObjectsPage() {
                 // Transform API response to component format
                 const transformedObjects: GraphObject[] = response.items.map(obj => ({
                     id: obj.id,
-                    name: obj.name,
+                    name: obj.key || (obj.properties?.name as string) || (obj.properties?.title as string) || `${obj.type}-${obj.id.substring(0, 8)}`,
                     type: obj.type,
-                    source: obj.source || (obj.external_id ? obj.external_type : undefined),
-                    updated_at: obj.updated_at,
-                    relationship_count: obj.relationship_count,
+                    source: obj.external_type || (obj.properties?._extraction_source as string) || undefined,
+                    updated_at: obj.created_at,  // Use created_at as updated_at
+                    relationship_count: undefined,  // Not included in API response
                     properties: obj.properties,
                 }));
 
@@ -82,11 +83,11 @@ export default function ObjectsPage() {
                 // Transform API response to component format
                 const transformedObjects: GraphObject[] = response.items.map(obj => ({
                     id: obj.id,
-                    name: obj.name,
+                    name: obj.key || (obj.properties?.name as string) || (obj.properties?.title as string) || `${obj.type}-${obj.id.substring(0, 8)}`,
                     type: obj.type,
-                    source: obj.source || (obj.external_id ? obj.external_type : undefined),
-                    updated_at: obj.updated_at,
-                    relationship_count: obj.relationship_count,
+                    source: obj.external_type || (obj.properties?._extraction_source as string) || undefined,
+                    updated_at: obj.created_at,  // Use created_at as updated_at
+                    relationship_count: undefined,  // Not included in API response
                     properties: obj.properties,
                 }));
 
@@ -124,14 +125,68 @@ export default function ObjectsPage() {
     }, [loadObjects]);
 
     const handleObjectClick = (object: GraphObject) => {
-        console.log('Object clicked:', object);
-        // TODO: Navigate to object detail view or open modal
-        // For now, just log to console
+        setSelectedObject(object);
+        setIsModalOpen(true);
+    };
+
+    const handleModalClose = () => {
+        setIsModalOpen(false);
+        // Small delay before clearing to avoid flicker
+        setTimeout(() => setSelectedObject(null), 300);
+    };
+
+    const handleDelete = async (objectId: string) => {
+        if (!config.activeProjectId) return;
+
+        if (!confirm('Are you sure you want to delete this object? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            await fetchJson(`${apiBase}/graph/objects/${objectId}`, {
+                method: 'DELETE',
+            });
+
+            // Reload objects after deletion
+            await loadObjects();
+
+            // Close modal if it was open
+            if (isModalOpen && selectedObject?.id === objectId) {
+                handleModalClose();
+            }
+        } catch (err) {
+            console.error('Failed to delete object:', err);
+            alert(err instanceof Error ? err.message : 'Failed to delete object');
+        }
+    };
+
+    const handleBulkDelete = async (selectedIds: string[]) => {
+        if (!config.activeProjectId || selectedIds.length === 0) return;
+
+        if (!confirm(`Are you sure you want to delete ${selectedIds.length} object(s)? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            // Delete in parallel
+            await Promise.all(
+                selectedIds.map(id =>
+                    fetchJson(`${apiBase}/graph/objects/${id}`, {
+                        method: 'DELETE',
+                    })
+                )
+            );
+
+            // Reload objects after deletion
+            await loadObjects();
+        } catch (err) {
+            console.error('Failed to delete objects:', err);
+            alert(err instanceof Error ? err.message : 'Failed to delete some objects');
+        }
     };
 
     const handleBulkSelect = (selectedIds: string[]) => {
         console.log('Selected objects:', selectedIds);
-        // TODO: Implement bulk actions
     };
 
     const handleSearchChange = (query: string) => {
@@ -172,9 +227,18 @@ export default function ObjectsPage() {
                 error={error}
                 onObjectClick={handleObjectClick}
                 onBulkSelect={handleBulkSelect}
+                onBulkDelete={handleBulkDelete}
                 onSearchChange={handleSearchChange}
                 onTypeFilterChange={handleTypeFilterChange}
                 availableTypes={availableTypes}
+            />
+
+            {/* Object Detail Modal */}
+            <ObjectDetailModal
+                object={selectedObject}
+                isOpen={isModalOpen}
+                onClose={handleModalClose}
+                onDelete={handleDelete}
             />
         </div>
     );

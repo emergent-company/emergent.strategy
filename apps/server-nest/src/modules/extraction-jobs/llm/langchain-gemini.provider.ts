@@ -36,12 +36,12 @@ export class LangChainGeminiProvider implements ILLMProvider {
             // Use same model configuration as chat service for consistency
             this.model = new ChatGoogleGenerativeAI({
                 apiKey: apiKey,
-                model: this.config.vertexAiModel || 'gemini-1.5-flash-latest',
+                model: this.config.vertexAiModel || 'gemini-2.5-flash',
                 temperature: 0, // Deterministic for extraction
                 maxOutputTokens: 8192,
             });
 
-            this.logger.log(`LangChain Gemini initialized: model=${this.config.vertexAiModel || 'gemini-1.5-flash-latest'}`);
+            this.logger.log(`LangChain Gemini initialized: model=${this.config.vertexAiModel || 'gemini-2.5-flash'}`);
         } catch (error) {
             this.logger.error('Failed to initialize LangChain Gemini', error);
             this.model = null;
@@ -68,6 +68,7 @@ export class LangChainGeminiProvider implements ILLMProvider {
         const startTime = Date.now();
         const allEntities: ExtractedEntity[] = [];
         const discoveredTypes = new Set<string>();
+        const debugCalls: any[] = []; // Collect debug info for each LLM call
 
         // Process each type separately with its specific schema
         const typesToExtract = allowedTypes || this.getAvailableSchemas();
@@ -75,12 +76,29 @@ export class LangChainGeminiProvider implements ILLMProvider {
         this.logger.debug(`Extracting ${typesToExtract.length} types: ${typesToExtract.join(', ')}`);
 
         for (const typeName of typesToExtract) {
+            const callStart = Date.now();
             try {
-                const entities = await this.extractEntitiesForType(
+                const { entities, prompt, rawResponse } = await this.extractEntitiesForType(
                     typeName,
                     documentContent,
                     extractionPrompt
                 );
+
+                // Store debug information for this call
+                debugCalls.push({
+                    type: typeName,
+                    input: {
+                        document: documentContent.substring(0, 500) + (documentContent.length > 500 ? '...' : ''), // Truncate for storage
+                        prompt: prompt,
+                        allowed_types: [typeName]
+                    },
+                    output: rawResponse,
+                    entities_found: entities.length,
+                    duration_ms: Date.now() - callStart,
+                    timestamp: new Date().toISOString(),
+                    model: this.config.vertexAiModel || 'gemini-2.5-flash',
+                    status: 'success'
+                });
 
                 if (entities.length > 0) {
                     allEntities.push(...entities);
@@ -89,6 +107,22 @@ export class LangChainGeminiProvider implements ILLMProvider {
                 }
             } catch (error) {
                 this.logger.error(`Failed to extract ${typeName}:`, error);
+
+                // Store error debug information
+                debugCalls.push({
+                    type: typeName,
+                    input: {
+                        document: documentContent.substring(0, 500) + (documentContent.length > 500 ? '...' : ''),
+                        prompt: extractionPrompt,
+                        allowed_types: [typeName]
+                    },
+                    error: error instanceof Error ? error.message : String(error),
+                    duration_ms: Date.now() - callStart,
+                    timestamp: new Date().toISOString(),
+                    model: this.config.vertexAiModel || 'gemini-2.5-flash',
+                    status: 'error'
+                });
+
                 // Continue with other types even if one fails
             }
         }
@@ -107,6 +141,12 @@ export class LangChainGeminiProvider implements ILLMProvider {
                 completion_tokens: 0,
                 total_tokens: 0,
             },
+            raw_response: {
+                llm_calls: debugCalls,
+                total_duration_ms: duration,
+                total_entities: allEntities.length,
+                types_processed: typesToExtract.length
+            }
         };
     }
 
@@ -117,12 +157,12 @@ export class LangChainGeminiProvider implements ILLMProvider {
         typeName: string,
         documentContent: string,
         basePrompt: string
-    ): Promise<ExtractedEntity[]> {
+    ): Promise<{ entities: ExtractedEntity[]; prompt: string; rawResponse: any }> {
         const schema = getSchemaForType(typeName);
 
         if (!schema) {
             this.logger.warn(`No schema found for type: ${typeName}, skipping`);
-            return [];
+            return { entities: [], prompt: basePrompt, rawResponse: null };
         }
 
         // Create array schema to extract multiple entities
@@ -152,10 +192,46 @@ export class LangChainGeminiProvider implements ILLMProvider {
                 confidence: entity.confidence || 0.8, // Default if not provided
             }));
 
-            return entities;
+            return {
+                entities,
+                prompt: typePrompt,
+                rawResponse: result
+            };
         } catch (error) {
+            // Check if it's a JSON parsing error from malformed LLM response
+            if (error instanceof SyntaxError && error.message.includes('JSON')) {
+                this.logger.warn(`JSON parsing error for ${typeName}: ${error.message}`);
+                this.logger.warn('The LLM returned malformed JSON. Skipping this entity type.');
+
+                // Return empty result instead of crashing the entire extraction
+                return {
+                    entities: [],
+                    prompt: typePrompt,
+                    rawResponse: { error: 'JSON parsing failed', message: error.message }
+                };
+            }
+
+            // Check if it's a Google API schema validation error
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes('Invalid JSON payload')) {
+                this.logger.warn(`Google API schema validation error for ${typeName}: ${errorMessage}`);
+                this.logger.warn('The schema contains unsupported JSON Schema features. Skipping this entity type.');
+
+                // Return empty result instead of crashing
+                return {
+                    entities: [],
+                    prompt: typePrompt,
+                    rawResponse: { error: 'Schema validation failed', message: errorMessage }
+                };
+            }
+
+            // For other errors, log and return empty (graceful degradation)
             this.logger.error(`LLM extraction failed for type ${typeName}:`, error);
-            throw error;
+            return {
+                entities: [],
+                prompt: typePrompt,
+                rawResponse: { error: 'Extraction failed', message: errorMessage }
+            };
         }
     }
 

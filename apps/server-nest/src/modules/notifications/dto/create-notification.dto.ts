@@ -78,7 +78,7 @@ export class CreateNotificationDto {
 
     @ApiProperty()
     @IsUUID()
-    user_id!: string;
+    subject_id!: string;
 
     @ApiProperty({ enum: NotificationCategory })
     @IsEnum(NotificationCategory)

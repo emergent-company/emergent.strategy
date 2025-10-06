@@ -6,7 +6,7 @@ import { BaseExtractedEntitySchema } from './base.schema';
  * Represents a product feature or capability
  */
 export const FeatureSchema = BaseExtractedEntitySchema.extend({
-    name: z.string().min(3).describe('Feature name or title'),
+    name: z.string().describe('Feature name or title'),
     description: z.string().describe('Detailed feature description'),
 
     feature_type: z.enum([

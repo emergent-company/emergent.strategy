@@ -41,8 +41,15 @@ This document tracks the migration of tables from TEXT-based external auth IDs t
 ## Migration 008: Notifications Table ✅ COMPLETE
 
 **Executed**: 2025-10-05  
-**Status**: ✅ Complete  
+**Status**: ✅ Complete (Fixed service layer 2025-10-05)  
 **Migration File**: [008-notifications-subject-id-fk.sql](./008-notifications-subject-id-fk.sql)
+
+**Issue Found**: After database migration, notification endpoints returned 500 errors because `notifications.service.ts` still referenced `user_id` column. Fixed by updating all SQL queries and DTOs to use `subject_id`.
+
+**Files Fixed**:
+- `src/modules/notifications/dto/create-notification.dto.ts` - Changed `user_id` to `subject_id`
+- `src/modules/notifications/entities/notification.entity.ts` - Updated interfaces
+- `src/modules/notifications/notifications.service.ts` - Updated all SQL queries (15+ locations)
 
 ### Current State
 

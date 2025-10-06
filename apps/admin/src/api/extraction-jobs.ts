@@ -40,6 +40,7 @@ export interface ExtractionJob {
     created_objects: string[];
     error_message?: string;
     error_details?: Record<string, any>;
+    debug_info?: Record<string, any>;
     started_at?: string;
     completed_at?: string;
     created_at: string;

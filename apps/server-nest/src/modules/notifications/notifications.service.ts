@@ -25,7 +25,7 @@ export class NotificationsService {
      */
     async create(data: CreateNotificationDto): Promise<Notification | null> {
         // Check user preferences
-        const prefs = await this.getPreferences(data.user_id, data.category);
+        const prefs = await this.getPreferences(data.subject_id, data.category);
 
         if (!prefs.in_app_enabled) {
             this.logger.debug(`Skipping notification - disabled by user preferences`);
@@ -40,7 +40,7 @@ export class NotificationsService {
         const result = await this.db.query<Notification>(
             `
       INSERT INTO kb.notifications (
-        tenant_id, organization_id, project_id, user_id,
+        tenant_id, organization_id, project_id, subject_id,
         category, importance, title, message, details,
         source_type, source_id, action_url, action_label, group_key,
         type, severity, related_resource_type, related_resource_id,
@@ -52,7 +52,7 @@ export class NotificationsService {
                 data.tenant_id,
                 data.organization_id || null,
                 data.project_id || null,
-                data.user_id,
+                data.subject_id,
                 data.category,
                 importance,
                 data.title,
@@ -96,7 +96,7 @@ export class NotificationsService {
         tab: NotificationTab,
         filters: NotificationFilter = {},
     ): Promise<Notification[]> {
-        const conditions: string[] = ['user_id = $1'];
+        const conditions: string[] = ['subject_id = $1'];
         const params: any[] = [userId];
         let paramIndex = 2;
 
@@ -164,7 +164,7 @@ export class NotificationsService {
           COUNT(*) FILTER (WHERE importance = 'other' AND read_at IS NULL AND cleared_at IS NULL AND (snoozed_until IS NULL OR snoozed_until < now())) as other,
           COUNT(*) FILTER (WHERE snoozed_until > now() AND cleared_at IS NULL) as snoozed
         FROM kb.notifications
-        WHERE user_id = $1
+        WHERE subject_id = $1
       `,
                 [userId],
             );
@@ -191,7 +191,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET read_at = now()
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1 AND subject_id = $2
       RETURNING id
     `,
             [notificationId, userId],
@@ -210,7 +210,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET read_at = NULL, read = false
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1 AND subject_id = $2
       RETURNING id
     `,
             [notificationId, userId],
@@ -229,7 +229,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET dismissed = true, dismissed_at = now()
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1 AND subject_id = $2
       RETURNING id
     `,
             [notificationId, userId],
@@ -251,7 +251,7 @@ export class NotificationsService {
         COUNT(*) FILTER (WHERE dismissed = true) as dismissed,
         COUNT(*) as total
       FROM kb.notifications
-      WHERE user_id = $1
+      WHERE subject_id = $1
         AND (expires_at IS NULL OR expires_at > now())
     `,
             [userId],
@@ -272,7 +272,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET cleared_at = now(), snoozed_until = NULL
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1 AND subject_id = $2
       RETURNING id
     `,
             [notificationId, userId],
@@ -291,7 +291,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET cleared_at = NULL
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1 AND subject_id = $2
       RETURNING id
     `,
             [notificationId, userId],
@@ -310,7 +310,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET cleared_at = now()
-      WHERE user_id = $1
+      WHERE subject_id = $1
         AND importance = $2
         AND cleared_at IS NULL
         AND (snoozed_until IS NULL OR snoozed_until < now())
@@ -334,7 +334,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET snoozed_until = $3
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1 AND subject_id = $2
       RETURNING id
     `,
             [notificationId, userId, until],
@@ -353,7 +353,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET snoozed_until = NULL
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1 AND subject_id = $2
       RETURNING id
     `,
             [notificationId, userId],
@@ -374,7 +374,7 @@ export class NotificationsService {
         const result = await this.db.query<NotificationPreferences>(
             `
       SELECT * FROM kb.user_notification_preferences
-      WHERE user_id = $1 AND category = $2
+      WHERE subject_id = $1 AND category = $2
     `,
             [userId, category],
         );
@@ -383,7 +383,7 @@ export class NotificationsService {
         if (result.rows.length === 0) {
             return {
                 id: '',
-                user_id: userId,
+                subject_id: userId,
                 category,
                 in_app_enabled: true,
                 email_enabled: false,
@@ -424,7 +424,7 @@ export class NotificationsService {
             : `Successfully imported ${params.itemsImported} items`;
 
         return this.create({
-            user_id: params.userId,
+            subject_id: params.userId,
             tenant_id: params.tenantId,
             organization_id: params.organizationId,
             project_id: params.projectId,
@@ -521,7 +521,7 @@ export class NotificationsService {
         }
 
         return this.create({
-            user_id: params.userId,
+            subject_id: params.userId,
             tenant_id: params.tenantId,
             organization_id: params.organizationId,
             project_id: params.projectId,
@@ -598,7 +598,7 @@ export class NotificationsService {
         }
 
         return this.create({
-            user_id: params.userId,
+            subject_id: params.userId,
             tenant_id: params.tenantId,
             organization_id: params.organizationId,
             project_id: params.projectId,
@@ -651,7 +651,7 @@ export class NotificationsService {
         objectName: string;
     }): Promise<Notification | null> {
         return this.create({
-            user_id: params.userId,
+            subject_id: params.userId,
             tenant_id: params.tenantId,
             organization_id: params.organizationId,
             project_id: params.projectId,

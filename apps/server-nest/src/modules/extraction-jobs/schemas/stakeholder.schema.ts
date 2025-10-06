@@ -6,7 +6,7 @@ import { BaseExtractedEntitySchema } from './base.schema';
  * Represents a person or group with interest in the project
  */
 export const StakeholderSchema = BaseExtractedEntitySchema.extend({
-    name: z.string().min(2).describe('Stakeholder name or identifier'),
+    name: z.string().describe('Stakeholder name or identifier'),
 
     role: z.string().optional().describe('Role or position'),
 

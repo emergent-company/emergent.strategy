@@ -46,7 +46,7 @@ describe('LLMProviderFactory', () => {
             const configuredConfig = {
                 vertexAiProjectId: 'test-project',
                 vertexAiLocation: 'us-central1',
-                vertexAiModel: 'gemini-1.5-pro-002',
+                vertexAiModel: 'gemini-1.5-flash-latest',
             };
             const configuredVertex = new VertexAIProvider(configuredConfig as AppConfigService);
 

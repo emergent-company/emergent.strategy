@@ -6,7 +6,7 @@ import { BaseExtractedEntitySchema } from './base.schema';
  * Represents a functional or non-functional requirement
  */
 export const RequirementSchema = BaseExtractedEntitySchema.extend({
-    name: z.string().min(3).describe('Short requirement name or identifier'),
+    name: z.string().describe('Short requirement name or identifier'),
     description: z.string().describe('Detailed requirement description'),
 
     type: z.enum([

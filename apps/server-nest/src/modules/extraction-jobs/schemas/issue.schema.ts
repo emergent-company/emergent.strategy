@@ -6,7 +6,7 @@ import { BaseExtractedEntitySchema } from './base.schema';
  * Represents a problem or concern that needs attention
  */
 export const IssueSchema = BaseExtractedEntitySchema.extend({
-    title: z.string().min(5).describe('Issue title or summary'),
+    title: z.string().describe('Issue title or summary'),
     description: z.string().describe('Detailed issue description'),
 
     issue_type: z.enum([

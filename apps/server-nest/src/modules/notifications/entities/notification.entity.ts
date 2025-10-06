@@ -3,7 +3,7 @@ export interface Notification {
     tenant_id: string;
     organization_id: string | null;
     project_id: string | null;
-    user_id: string;
+    subject_id: string;
     category: string;
     importance: 'important' | 'other';
     title: string;
@@ -36,7 +36,7 @@ export interface Notification {
 
 export interface NotificationPreferences {
     id: string;
-    user_id: string;
+    subject_id: string;
     category: string;
     in_app_enabled: boolean;
     email_enabled: boolean;

@@ -17,6 +17,13 @@ export interface GraphObjectRow {
     fts?: string | null; // tsvector not normally selected; optional for debug
     embedding?: any | null; // placeholder (vector/bytea); not exposed externally now
     embedding_updated_at?: string | null;
+    // Integration source tracking (spec/22-clickup-integration.md section 3.3.1)
+    external_source?: string | null; // Integration name (e.g., "clickup", "jira")
+    external_id?: string | null; // Unique ID from source system (e.g., "9hz")
+    external_url?: string | null; // Direct link to source (e.g., "https://app.clickup.com/t/9hz")
+    external_parent_id?: string | null; // Parent object's external ID
+    synced_at?: string | null; // Last sync timestamp
+    external_updated_at?: string | null; // Last modified in source system
     created_at: string;
 }
 

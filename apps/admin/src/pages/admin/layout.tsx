@@ -88,6 +88,13 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
                     </Sidebar.Section>
                     <Sidebar.Section id="admin-settings" title="Settings" className="mt-4">
                         <Sidebar.MenuItem
+                            id="admin-integrations"
+                            url="/admin/integrations"
+                            icon="lucide--plug"
+                        >
+                            Integrations
+                        </Sidebar.MenuItem>
+                        <Sidebar.MenuItem
                             id="admin-settings-project"
                             url="/admin/settings/project"
                             icon="lucide--settings"
