@@ -14,6 +14,3 @@
 [submodule "tools/mcp-dev-manager"]
 	path = tools/mcp-dev-manager
 	url = git@github.com:eyedea-io/mcp-dev-manager.git
-[submodule "mcp-dev-manager"]
-	path = mcp-dev-manager
-	url = https://github.com/eyedea-io/mcp-dev-manager.git
