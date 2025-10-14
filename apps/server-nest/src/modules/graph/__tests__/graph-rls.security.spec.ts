@@ -12,7 +12,8 @@ async function seedTenant(db: DatabaseService, label: string) {
     return { orgId: org.rows[0].id, projectId: project.rows[0].id };
 }
 
-async function createObject(graph: GraphService, orgId: string, projectId: string, key: string) {
+async function createObject(graph: GraphService, db: DatabaseService, orgId: string, projectId: string, key: string) {
+    await db.setTenantContext(orgId, projectId);
     return graph.createObject({ type: 'SecNode', key, properties: { v: key }, org_id: orgId, project_id: projectId, labels: [] } as any);
 }
 
@@ -46,10 +47,8 @@ describe('Graph RLS Security', () => {
     });
 
     it('allows visibility of own tenant and hides others when context set', async () => {
-        await db.setTenantContext(tenantA.orgId, tenantA.projectId);
-        const a1 = await createObject(graph, tenantA.orgId, tenantA.projectId, 'a1');
-        await db.setTenantContext(tenantB.orgId, tenantB.projectId);
-        const b1 = await createObject(graph, tenantB.orgId, tenantB.projectId, 'b1');
+        const a1 = await createObject(graph, db, tenantA.orgId, tenantA.projectId, 'a1');
+        const b1 = await createObject(graph, db, tenantB.orgId, tenantB.projectId, 'b1');
 
         await db.setTenantContext(tenantA.orgId, tenantA.projectId);
         const resA = await db.query<{ id: string }>(`SELECT id FROM kb.graph_objects WHERE type='SecNode'`);
@@ -69,8 +68,7 @@ describe('Graph RLS Security', () => {
     });
 
     it('prevents updating object from another tenant (filtered to zero rows)', async () => {
-        await db.setTenantContext(tenantA.orgId, tenantA.projectId);
-        const a2 = await createObject(graph, tenantA.orgId, tenantA.projectId, 'a2');
+        const a2 = await createObject(graph, db, tenantA.orgId, tenantA.projectId, 'a2');
         await db.setTenantContext(tenantB.orgId, tenantB.projectId);
         const upd = await db.query(`UPDATE kb.graph_objects SET properties = jsonb_set(properties,'{hijack}', '"1"') WHERE id=$1`, [a2.id]);
         expect(upd.rowCount).toBe(0);

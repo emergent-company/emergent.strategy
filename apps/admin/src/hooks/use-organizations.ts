@@ -21,7 +21,7 @@ export function useOrganizations() {
         setLoading(true);
         setError(undefined);
         try {
-            const data = await fetchJson<OrgsResponseFlexible>(`${apiBase}/orgs`, { credentials: "include" });
+            const data = await fetchJson<OrgsResponseFlexible>(`${apiBase}/api/orgs`, { credentials: "include" });
             const rawList: Organization[] = Array.isArray(data)
                 ? data
                 : Array.isArray((data as any)?.orgs)
@@ -38,7 +38,7 @@ export function useOrganizations() {
 
     const createOrg = useCallback(
         async (name: string): Promise<Organization> => {
-            const data = await fetchJson<Organization, { name: string }>(`${apiBase}/orgs`, {
+            const data = await fetchJson<Organization, { name: string }>(`${apiBase}/api/orgs`, {
                 method: "POST",
                 body: { name },
                 credentials: "include",

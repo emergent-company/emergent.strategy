@@ -1,0 +1,49 @@
+{
+    "name": "@eyedea/mcp-dev-manager",
+    "version": "1.0.0",
+    "description": "MCP server for development process management - run tests, restart services, browse logs",
+    "type": "module",
+    "main": "dist/index.js",
+    "bin": {
+        "mcp-dev-manager": "./dist/index.js"
+    },
+    "scripts": {
+        "build": "tsc && chmod +x dist/index.js",
+        "watch": "tsc --watch",
+        "prepare": "npm run build",
+        "inspector": "npx @modelcontextprotocol/inspector dist/index.js",
+        "test": "echo 'Tests coming soon' && exit 0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/eyedea-io/mcp-dev-manager.git"
+    },
+    "bugs": {
+        "url": "https://github.com/eyedea-io/mcp-dev-manager/issues"
+    },
+    "homepage": "https://github.com/eyedea-io/mcp-dev-manager#readme",
+    "keywords": [
+        "mcp",
+        "model-context-protocol",
+        "development",
+        "testing",
+        "process-management",
+        "playwright",
+        "logs",
+        "github-copilot",
+        "ai-tools",
+        "developer-tools"
+    ],
+    "author": "Eyedea <support@eyedea.io>",
+    "license": "MIT",
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.0.4"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.2",
+        "typescript": "^5.7.2"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}

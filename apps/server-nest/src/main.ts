@@ -2,16 +2,27 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './modules/app.module';
 import { AppConfigService } from './common/config/config.service';
-import { ValidationPipe, UnprocessableEntityException } from '@nestjs/common';
+import { ValidationPipe, BadRequestException, HttpStatus } from '@nestjs/common';
 import { DatabaseReadinessInterceptor } from './common/interceptors/database-readiness.interceptor';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
+import { FileLogger } from './common/logger/file-logger.service';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import yaml from 'js-yaml';
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule, { cors: false });
+    // Create file logger instance
+    const fileLogger = new FileLogger();
+
+    const app = await NestFactory.create(AppModule, {
+        cors: false,
+        // Use both default logger (for console) and file logger
+        bufferLogs: true,
+    });
+
+    // Set up file logger to capture all logs
+    app.useLogger(fileLogger);
 
     // Fine-grained CORS: allow credentials for local dev origins only
     const allowedOrigins = new Set([
@@ -37,10 +48,10 @@ async function bootstrap() {
         forbidUnknownValues: false,
         transformOptions: { enableImplicitConversion: true },
         validateCustomDecorators: true,
-        errorHttpStatusCode: 422,
+        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
         exceptionFactory: (errors) => {
             const messages = errors.flatMap(e => Object.values(e.constraints || {}));
-            return new UnprocessableEntityException({ message: messages[0] || 'Validation failed', errors: messages });
+            return new BadRequestException({ message: messages[0] || 'Validation failed', errors: messages });
         }
     }));
 
@@ -80,20 +91,29 @@ async function bootstrap() {
     // Log chat model enablement state (always) for clarity during startup
     const chatEnabled = configService.chatModelEnabled;
     const keyPresent = !!configService.googleApiKey;
-    // eslint-disable-next-line no-console
-    console.log('[startup] chat-model:', {
+    const chatModelInfo = {
         enabled: chatEnabled,
         googleApiKey: keyPresent ? 'present' : 'missing',
         CHAT_MODEL_ENABLED_env: process.env.CHAT_MODEL_ENABLED || 'unset',
-    });
+    };
+
+    fileLogger.log(`[startup] chat-model: ${JSON.stringify(chatModelInfo)}`, 'Bootstrap');
+    // eslint-disable-next-line no-console
+    console.log('[startup] chat-model:', chatModelInfo);
+
     const port = configService.port;
     await app.listen(port);
+
+    const serverInfo = `API listening on http://localhost:${port} (default 3001) (Swagger UI: http://localhost:${port}/api)`;
+    fileLogger.log(serverInfo, 'Bootstrap');
     // eslint-disable-next-line no-console
-    console.log(`API listening on http://localhost:${port} (default 3001) (Swagger UI: http://localhost:${port}/api)`);
+    console.log(serverInfo);
 }
 
 bootstrap().catch((err) => {
     // eslint-disable-next-line no-console
     console.error('Bootstrap failure', err);
+    const fileLogger = new FileLogger();
+    fileLogger.fatal('Bootstrap failure', err.stack, 'Bootstrap');
     process.exit(1);
 });

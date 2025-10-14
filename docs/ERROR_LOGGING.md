@@ -2,6 +2,38 @@
 
 This document explains how to access and use the error logging system for debugging issues in both the browser and server.
 
+## Log Directory Overview
+
+All runtime logs now live in the project root `logs/` directory. The main files are:
+
+| File | Source | Purpose |
+| --- | --- | --- |
+| `logs/app.log` | NestJS FileLogger | Structured Nest logs (startup, service diagnostics, workers) |
+| `logs/errors.log` | NestJS FileLogger & GlobalHttpExceptionFilter | Fatal errors, bootstrap failures, JSON-structured 5xx responses |
+| `logs/api.log` | `scripts/dev-manager.mjs` | Background `npm run dev:server-nest` stdout/stderr (ts-node-dev restarts, migration output) |
+| `logs/admin.log` | `scripts/dev-manager.mjs` | Background Vite dev server output and proxy errors |
+| `logs/db.log` | Docker `postgres` service | Postgres statements, connections, and collector output |
+| `logs/e2e-tests/` | `scripts/run-e2e-with-logs.mjs` | Timestamped Playwright stdout/stderr and summary JSON |
+
+### Quick snapshot script
+
+Use the Dev Manager helper to grab the last 100 lines from every service log in a single report:
+
+```bash
+npm run dev-manager:logs:snapshot
+```
+
+Adjust the number of lines or emit JSON for automated analysis:
+
+```bash
+npm run dev-manager:logs:snapshot -- --lines 200
+npm run dev-manager:logs:snapshot -- --json
+```
+
+The script prints grouped sections for the backend API, admin frontend, NestJS application logs, aggregated error log, Postgres log, and any other `.log` files discovered in the root `logs/` directory.
+
+Previous per-app folders (for example `apps/server-nest/logs/`) are no longer used and can be removed safely. To change the destination, set `LOG_DIR` (global) or stack-specific variables such as `ERROR_LOG_DIR` before starting services.
+
 ## Server-Side Logging (API/Backend)
 
 ### Automatic Logging

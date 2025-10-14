@@ -37,7 +37,7 @@ export default function AuthCallbackPage() {
     }, [handleCallback, nav]);
 
     return (
-        <div className="flex justify-center items-center p-6 min-h-screen">
+        <div data-testid="page-auth-callback" className="flex justify-center items-center p-6 min-h-screen">
             <div className="w-full max-w-sm card">
                 <div className="items-center card-body">
                     {!error ? (

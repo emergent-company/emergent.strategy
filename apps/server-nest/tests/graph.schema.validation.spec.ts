@@ -10,6 +10,8 @@ interface MockDbClient {
 
 class MockDatabaseService {
     private insertCounter = 0;
+    private currentOrgId: string | null = null;
+    private currentProjectId: string | null = null;
     async getClient(): Promise<MockDbClient> {
         return {
             query: async (sql: string) => {
@@ -44,6 +46,22 @@ class MockDatabaseService {
             },
             release: () => { /* no-op */ },
         };
+    }
+
+    async setTenantContext(orgId?: string | null, projectId?: string | null) {
+        this.currentOrgId = orgId ?? null;
+        this.currentProjectId = projectId ?? null;
+    }
+
+    async runWithTenantContext<T>(orgId: string | null, projectId: string | null, fn: () => Promise<T>): Promise<T> {
+        const previousOrg = this.currentOrgId;
+        const previousProject = this.currentProjectId;
+        await this.setTenantContext(orgId, projectId);
+        try {
+            return await fn();
+        } finally {
+            await this.setTenantContext(previousOrg, previousProject);
+        }
     }
 }
 

@@ -20,7 +20,20 @@ console.log(`[vite] dev server on :${DEV_PORT} proxy /api -> ${API_TARGET}`);
 
 // https://vite.dev/config/
 export default defineConfig({
-    plugins: [tailwindcss(), react()],
+    plugins: [
+        tailwindcss(),
+        react({
+            babel: {
+                plugins: [
+                    // Remove data-testid attributes in production builds
+                    process.env.NODE_ENV === 'production' && [
+                        'babel-plugin-react-remove-properties',
+                        { properties: ['data-testid'] }
+                    ]
+                ].filter(Boolean)
+            }
+        })
+    ],
     resolve: {
         alias: {
             "@": path.resolve(path.resolve(), "src"),

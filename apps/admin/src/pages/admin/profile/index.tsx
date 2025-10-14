@@ -4,7 +4,7 @@ import { Icon } from "@/components/atoms/Icon";
 
 export default function MyProfilePage() {
     return (
-        <div className="min-sm:container">
+        <div data-testid="page-profile" className="min-sm:container">
             <div className="text-sm breadcrumbs">
                 <ul>
                     <li><Link to="/admin">Admin</Link></li>

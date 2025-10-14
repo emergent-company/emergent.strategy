@@ -4,26 +4,27 @@ import { ClickUpApiClient } from './clickup-api.client';
 import { ClickUpImportService } from './clickup-import.service';
 import { ClickUpWebhookHandler } from './clickup-webhook.handler';
 import { Logger } from '@nestjs/common';
+import { vi } from 'vitest';
 
 describe('ClickUpIntegration', () => {
     let integration: ClickUpIntegration;
-    let apiClient: jest.Mocked<ClickUpApiClient>;
-    let importService: jest.Mocked<ClickUpImportService>;
-    let webhookHandler: jest.Mocked<ClickUpWebhookHandler>;
+    let apiClient: any;
+    let importService: any;
+    let webhookHandler: any;
 
     beforeEach(async () => {
         // Create mocks
         const mockApiClient = {
-            configure: jest.fn(),
-            getWorkspaces: jest.fn(),
+            configure: vi.fn(),
+            getWorkspaces: vi.fn(),
         };
 
         const mockImportService = {
-            runFullImport: jest.fn(),
+            runFullImport: vi.fn(),
         };
 
         const mockWebhookHandler = {
-            handleWebhook: jest.fn(),
+            handleWebhook: vi.fn(),
         };
 
         const module: TestingModule = await Test.createTestingModule({
@@ -50,9 +51,9 @@ describe('ClickUpIntegration', () => {
         webhookHandler = module.get(ClickUpWebhookHandler);
 
         // Suppress logs during tests
-        jest.spyOn(Logger.prototype, 'log').mockImplementation();
-        jest.spyOn(Logger.prototype, 'error').mockImplementation();
-        jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+        vi.spyOn(Logger.prototype, 'log').mockImplementation(() => { });
+        vi.spyOn(Logger.prototype, 'error').mockImplementation(() => { });
+        vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => { });
     });
 
     describe('Integration Metadata', () => {

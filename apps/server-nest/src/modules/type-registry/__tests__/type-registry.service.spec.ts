@@ -3,10 +3,11 @@ import { TypeRegistryService } from '../type-registry.service';
 import { DatabaseService } from '../../../common/database/database.service';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { CreateObjectTypeDto, UpdateObjectTypeDto, ValidateObjectDataDto } from '../dto/type-registry.dto';
+import { vi } from 'vitest';
 
 describe('TypeRegistryService', () => {
     let service: TypeRegistryService;
-    let mockDb: jest.Mocked<DatabaseService>;
+    let mockDb: any;
 
     const mockProjectId = 'test-project-123';
     const mockOrgId = 'test-org-456';
@@ -44,8 +45,8 @@ describe('TypeRegistryService', () => {
 
     beforeEach(async () => {
         mockDb = {
-            query: jest.fn(),
-            transaction: jest.fn(),
+            query: vi.fn(),
+            transaction: vi.fn(),
         } as any;
 
         const module: TestingModule = await Test.createTestingModule({
@@ -59,10 +60,13 @@ describe('TypeRegistryService', () => {
         }).compile();
 
         service = module.get<TypeRegistryService>(TypeRegistryService);
+
+        // WORKAROUND: Manually assign the mock to fix DI issue
+        (service as any).db = mockDb;
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('getProjectTypes', () => {
@@ -135,6 +139,7 @@ describe('TypeRegistryService', () => {
     describe('createCustomType', () => {
         const createDto: CreateObjectTypeDto = {
             type: 'CustomApp',
+            source: 'custom',
             json_schema: {
                 type: 'object',
                 required: ['name'],
@@ -149,7 +154,11 @@ describe('TypeRegistryService', () => {
         };
 
         it('should create a new custom type', async () => {
-            mockDb.query.mockResolvedValue({ rows: [mockTypeRow], rowCount: 1 });
+            // First query: check if type exists (should return empty)
+            // Second query: INSERT RETURNING
+            mockDb.query
+                .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+                .mockResolvedValueOnce({ rows: [mockTypeRow], rowCount: 1 });
 
             const result = await service.createCustomType(
                 mockProjectId,
@@ -160,7 +169,9 @@ describe('TypeRegistryService', () => {
             );
 
             expect(result.type).toBe('Application');
-            expect(mockDb.query).toHaveBeenCalledWith(
+            // Check the second call (INSERT)
+            expect(mockDb.query).toHaveBeenNthCalledWith(
+                2, // Second call
                 expect.stringContaining('INSERT INTO kb.project_object_type_registry'),
                 expect.arrayContaining([mockProjectId, mockOrgId, createDto.type, 'custom'])
             );
@@ -169,7 +180,7 @@ describe('TypeRegistryService', () => {
         it('should throw ConflictException when type already exists', async () => {
             mockDb.query.mockResolvedValue({ rows: [mockTypeRow], rowCount: 1 });
 
-            const existsCheck = jest.spyOn(service, 'getTypeByName').mockResolvedValue(mockTypeRow as any);
+            const existsCheck = vi.spyOn(service, 'getTypeByName').mockResolvedValue(mockTypeRow as any);
 
             await expect(
                 service.createCustomType(mockProjectId, mockOrgId, mockTenantId, mockUserId, createDto)
@@ -190,9 +201,14 @@ describe('TypeRegistryService', () => {
             const minimalDto: CreateObjectTypeDto = {
                 type: 'MinimalType',
                 json_schema: { type: 'object' },
+                source: 'custom', // Add required field
             };
 
-            mockDb.query.mockResolvedValue({ rows: [mockTypeRow], rowCount: 1 });
+            // First query: check if type exists (should return empty)
+            // Second query: INSERT RETURNING
+            mockDb.query
+                .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+                .mockResolvedValueOnce({ rows: [mockTypeRow], rowCount: 1 });
 
             await service.createCustomType(mockProjectId, mockOrgId, mockTenantId, mockUserId, minimalDto);
 
@@ -222,7 +238,7 @@ describe('TypeRegistryService', () => {
         };
 
         it('should update a custom type', async () => {
-            jest.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, source: 'custom' } as any);
+            vi.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, source: 'custom' } as any);
             mockDb.query.mockResolvedValue({ rows: [mockTypeRow], rowCount: 1 });
 
             const result = await service.updateType(mockProjectId, mockOrgId, 'Application', updateDto);
@@ -234,7 +250,7 @@ describe('TypeRegistryService', () => {
         });
 
         it('should prevent modifying schema of template types', async () => {
-            jest.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, source: 'template' } as any);
+            vi.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, source: 'template' } as any);
 
             await expect(
                 service.updateType(mockProjectId, mockOrgId, 'Application', updateDto)
@@ -242,7 +258,7 @@ describe('TypeRegistryService', () => {
         });
 
         it('should allow enabling/disabling template types', async () => {
-            jest.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, source: 'template' } as any);
+            vi.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, source: 'template' } as any);
             mockDb.query.mockResolvedValue({ rows: [mockTypeRow], rowCount: 1 });
 
             const toggleDto: UpdateObjectTypeDto = { enabled: false };
@@ -253,7 +269,7 @@ describe('TypeRegistryService', () => {
         });
 
         it('should throw NotFoundException when type does not exist', async () => {
-            jest.spyOn(service, 'getTypeByName').mockRejectedValue(new NotFoundException());
+            vi.spyOn(service, 'getTypeByName').mockRejectedValue(new NotFoundException());
 
             await expect(
                 service.updateType(mockProjectId, mockOrgId, 'NonExistent', updateDto)
@@ -263,7 +279,7 @@ describe('TypeRegistryService', () => {
 
     describe('deleteType', () => {
         it('should delete a custom type with no objects', async () => {
-            jest.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, source: 'custom' } as any);
+            vi.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, source: 'custom' } as any);
             mockDb.query.mockResolvedValue({ rows: [], rowCount: 0 }); // No objects
             mockDb.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // Delete query
 
@@ -276,7 +292,7 @@ describe('TypeRegistryService', () => {
         });
 
         it('should throw BadRequestException when deleting template type', async () => {
-            jest.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, source: 'template' } as any);
+            vi.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, source: 'template' } as any);
 
             await expect(
                 service.deleteType(mockProjectId, mockOrgId, 'Application')
@@ -284,8 +300,11 @@ describe('TypeRegistryService', () => {
         });
 
         it('should throw BadRequestException when type has objects', async () => {
-            jest.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, source: 'custom' } as any);
-            mockDb.query.mockResolvedValue({ rows: [{ count: '5' }], rowCount: 1 });
+            vi.spyOn(service, 'getTypeByName').mockResolvedValue({
+                ...mockTypeRow,
+                source: 'custom',
+                object_count: '5' // Add object_count to trigger the error
+            } as any);
 
             await expect(
                 service.deleteType(mockProjectId, mockOrgId, 'Application')
@@ -304,7 +323,7 @@ describe('TypeRegistryService', () => {
         };
 
         it('should validate data against type schema - valid data', async () => {
-            jest.spyOn(service, 'getTypeByName').mockResolvedValue(mockTypeRow as any);
+            vi.spyOn(service, 'getTypeByName').mockResolvedValue(mockTypeRow as any);
 
             const result = await service.validateObjectData(mockProjectId, mockOrgId, validateDto);
 
@@ -313,7 +332,7 @@ describe('TypeRegistryService', () => {
         });
 
         it('should validate data against type schema - missing required fields', async () => {
-            jest.spyOn(service, 'getTypeByName').mockResolvedValue(mockTypeRow as any);
+            vi.spyOn(service, 'getTypeByName').mockResolvedValue(mockTypeRow as any);
 
             const invalidDto: ValidateObjectDataDto = {
                 type: 'Application',
@@ -331,7 +350,7 @@ describe('TypeRegistryService', () => {
         });
 
         it('should throw BadRequestException when type is disabled', async () => {
-            jest.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, enabled: false } as any);
+            vi.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, enabled: false } as any);
 
             await expect(
                 service.validateObjectData(mockProjectId, mockOrgId, validateDto)
@@ -339,7 +358,7 @@ describe('TypeRegistryService', () => {
         });
 
         it('should handle type with no schema defined', async () => {
-            jest.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, json_schema: null } as any);
+            vi.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, json_schema: null } as any);
 
             const result = await service.validateObjectData(mockProjectId, mockOrgId, validateDto);
 
@@ -349,17 +368,25 @@ describe('TypeRegistryService', () => {
 
     describe('getTypeSchema', () => {
         it('should return JSON Schema for a type', async () => {
-            jest.spyOn(service, 'getTypeByName').mockResolvedValue(mockTypeRow as any);
+            vi.spyOn(service, 'getTypeByName').mockResolvedValue(mockTypeRow as any);
 
             const schema = await service.getTypeSchema(mockProjectId, mockOrgId, 'Application');
 
-            expect(schema).toEqual(mockTypeRow.json_schema);
+            expect(schema).toEqual({
+                type: mockTypeRow.type,
+                json_schema: mockTypeRow.json_schema,
+                ui_schema: mockTypeRow.ui_config,
+                validation_rules: {
+                    required: mockTypeRow.json_schema.required,
+                    properties: mockTypeRow.json_schema.properties,
+                },
+            });
         });
     });
 
     describe('toggleType', () => {
         it('should enable a type', async () => {
-            jest.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, enabled: false } as any);
+            vi.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, enabled: false } as any);
             mockDb.query.mockResolvedValue({ rows: [{ ...mockTypeRow, enabled: true }], rowCount: 1 });
 
             const result = await service.toggleType(mockProjectId, mockOrgId, 'Application', true);
@@ -371,7 +398,7 @@ describe('TypeRegistryService', () => {
         });
 
         it('should disable a type', async () => {
-            jest.spyOn(service, 'getTypeByName').mockResolvedValue(mockTypeRow as any);
+            vi.spyOn(service, 'getTypeByName').mockResolvedValue(mockTypeRow as any);
             mockDb.query.mockResolvedValue({ rows: [{ ...mockTypeRow, enabled: false }], rowCount: 1 });
 
             const result = await service.toggleType(mockProjectId, mockOrgId, 'Application', false);

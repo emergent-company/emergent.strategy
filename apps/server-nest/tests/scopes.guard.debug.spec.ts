@@ -7,6 +7,11 @@ class MockPermissionService {
     async compute() { return { scopes: this.scopes } as any; }
 }
 
+class StubAuditService {
+    logAuthzAllowed() { return Promise.resolve(); }
+    logAuthzDenied() { return Promise.resolve(); }
+}
+
 function makeContext() {
     const resHeaders: Record<string, string> = {};
     const response = { setHeader: (k: string, v: string) => { resHeaders[k] = v; } };
@@ -28,7 +33,7 @@ describe('ScopesGuard debug headers', () => {
 
     it('sets debug headers when scopes missing', async () => {
         (reflector as any).getAllAndOverride = () => ['docs:write'];
-        const guard = new ScopesGuard(reflector as any, new MockPermissionService(['docs:read']) as any);
+        const guard = new ScopesGuard(reflector as any, new MockPermissionService(['docs:read']) as any, new StubAuditService() as any);
         const { ctx, resHeaders } = makeContext();
         await expect(guard.canActivate(ctx)).rejects.toMatchObject({ status: 403 });
         expect(resHeaders['X-Missing-Scopes']).toBe('docs:write');

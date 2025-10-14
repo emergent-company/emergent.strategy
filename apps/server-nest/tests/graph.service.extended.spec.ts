@@ -41,16 +41,29 @@ describe('GraphService extended coverage', () => {
     let schema: SchemaRegistryService;
     let svc: GraphService;
     let queries: { sql: string; params: any[] }[];
+    const currentContext = { org: null as string | null, project: null as string | null };
 
     beforeEach(() => {
         queries = [];
         // Minimal mock DB service with scripted responses
+        const setTenantContext = vi.fn(async (orgId?: string | null, projectId?: string | null) => {
+            currentContext.org = orgId ?? null;
+            currentContext.project = projectId ?? null;
+        });
+        const runWithTenantContext = vi.fn(async (orgId: string | null, projectId: string | null, fn: () => Promise<any>) => {
+            const prev = { ...currentContext };
+            await setTenantContext(orgId, projectId);
+            try { return await fn(); }
+            finally { await setTenantContext(prev.org, prev.project); }
+        });
         db = {
             getClient: vi.fn(async () => ({
                 query: async (sql: string, params: any[] = []) => scriptedQuery(sql, params),
                 release: () => { },
             })),
             query: vi.fn(async (sql: string, params: any[] = []) => scriptedQuery(sql, params)),
+            setTenantContext,
+            runWithTenantContext
         } as any;
         schema = {
             getObjectValidator: vi.fn(async () => null),
@@ -112,7 +125,8 @@ describe('GraphService extended coverage', () => {
         }
 
         // Object get by id or batch endpoint existence query (id = ANY($1::uuid[])) used in relationship creation.
-        if (sql.includes('FROM kb.graph_objects WHERE id=$1')) {
+        // Updated to handle expiration filter: `FROM kb.graph_objects o WHERE id=$1 AND (o.expires_at IS NULL OR ...)`
+        if (sql.includes('FROM kb.graph_objects') && sql.includes('WHERE id=$1')) {
             const row = objects.get(params[0]);
             return { rowCount: row ? 1 : 0, rows: row ? [row] : [] };
         }
@@ -182,14 +196,12 @@ describe('GraphService extended coverage', () => {
             return { rowCount: rows.length, rows: rows.slice(0, limit) };
         }
 
-        // Distinct head relationship list (edges traversal) – accommodate branch_id column
-        if (sql.includes('SELECT DISTINCT ON (canonical_id) id, type, src_id, dst_id, deleted_at, version, branch_id FROM kb.graph_relationships')) {
-            const id = params[0];
-            const rows = Array.from(rels.values()).filter(r => (r.src_id === id || r.dst_id === id));
-            return { rowCount: rows.length, rows };
-        }
-        // Distinct head relationship list with properties (expand path) – accommodate branch_id
-        if (sql.includes('SELECT DISTINCT ON (canonical_id) id, type, src_id, dst_id, properties, deleted_at, version, branch_id FROM kb.graph_relationships')) {
+        // Distinct head relationship list (edges traversal) – accommodate branch_id column and properties
+        // Updated to match current traversal SQL which includes properties field
+        if (sql.includes('SELECT DISTINCT ON (canonical_id)') &&
+            sql.includes('FROM kb.graph_relationships') &&
+            sql.includes('src_id') &&
+            sql.includes('dst_id')) {
             const id = params[0];
             const rows = Array.from(rels.values()).filter(r => (r.src_id === id || r.dst_id === id));
             return { rowCount: rows.length, rows };

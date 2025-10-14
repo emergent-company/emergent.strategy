@@ -62,7 +62,7 @@ export default function ProjectAutoExtractionSettingsPage() {
 
         try {
             const projectData = await fetchJson<Project>(
-                `${apiBase}/projects/${config.activeProjectId}`
+                `${apiBase}/api/projects/${config.activeProjectId}`
             );
 
             setProject(projectData);
@@ -98,7 +98,7 @@ export default function ProjectAutoExtractionSettingsPage() {
 
         try {
             const updatedProject = await fetchJson<Project>(
-                `${apiBase}/projects/${config.activeProjectId}`,
+                `${apiBase}/api/projects/${config.activeProjectId}`,
                 {
                     method: 'PATCH',
                     body: {
@@ -181,7 +181,7 @@ export default function ProjectAutoExtractionSettingsPage() {
     }
 
     return (
-        <div className="mx-auto p-6 max-w-4xl container">
+        <div data-testid="page-settings-auto-extraction" className="mx-auto p-6 max-w-4xl container">
             {/* Settings Navigation */}
             <SettingsNav />
 
@@ -264,8 +264,8 @@ export default function ProjectAutoExtractionSettingsPage() {
                                             <label
                                                 key={type.value}
                                                 className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${enabledTypes.includes(type.value)
-                                                        ? 'border-primary bg-primary/5'
-                                                        : 'border-base-300 hover:border-base-400'
+                                                    ? 'border-primary bg-primary/5'
+                                                    : 'border-base-300 hover:border-base-400'
                                                     }`}
                                             >
                                                 <input
@@ -368,8 +368,8 @@ export default function ProjectAutoExtractionSettingsPage() {
                                                         key={channel.value}
                                                         type="button"
                                                         className={`btn btn-sm gap-2 ${notificationChannels.includes(channel.value)
-                                                                ? 'btn-primary'
-                                                                : 'btn-outline'
+                                                            ? 'btn-primary'
+                                                            : 'btn-outline'
                                                             }`}
                                                         onClick={() => handleToggleChannel(channel.value)}
                                                     >

@@ -1,12 +1,43 @@
 {
-  "cookies": [],
+  "cookies": [
+    {
+      "name": "zitadel.login.csrf",
+      "value": "MTc1OTk1NjYyNnxJa05UYzJ3M1EwUTVaMnBGU2xkV1JUQlRSRzQwVmtObFIyTTNVME56VFhsNE9HSnBZVUZpUkc0MVN6ZzlJZ289fEbkSqsAu-mfh1o5AQxBzO8XREYYu7KoLu6uFDTC5yWJ",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1759999826.391624,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "mode",
+      "value": "auto-light",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1791492626,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "zitadel.useragent",
+      "value": "MTc1OTk1NjYyOXxISjltNnJrZ1BnXzBhU0pFcFV5MHRQOUZIWHh1NmdNaEdUWGNjNkxCY2Q3VmlqbjdRN0ZmajdHcFBKLTZna0wxcFF3eVN5UDQxOHNIczdtSXFzWkwtUGVWYVQ2bWdnPT18kECSpv8o36zGVa5hEcVp8cZD5UHkAB3HXKtDkYcOK9U=",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1791492629.367921,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
   "origins": [
     {
       "origin": "http://localhost:5175",
       "localStorage": [
         {
           "name": "__nexus_auth_v1__",
-          "value": "{\"accessToken\":\"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJtYWNpZWpAa3VjaGFyei5uZXQiLCJlbWFpbCI6Im1hY2llakBrdWNoYXJ6Lm5ldCIsIm5hbWUiOiJtYWNpZWoiLCJpYXQiOjE3NTk3MzY0NzksImV4cCI6MTc1OTc0MDA3OX0.\",\"expiresAt\":1759740079992}"
+          "value": "{\"accessToken\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6IjM0MTMxNTU2MTE4OTI3NzY5OSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgxMDAiLCJzdWIiOiIzMzU1MTcxNDkwOTczNjE0MTEiLCJhdWQiOlsiMzM1NTE2Mzg0ODk1MjM4MTQ3IiwiMzM1NTE2MjAyMTI0MTgxNTA3Il0sImV4cCI6MTc1OTk5OTgyOSwiaWF0IjoxNzU5OTU2NjMwLCJuYmYiOjE3NTk5NTY2MzAsImp0aSI6IlYyXzM0MTM1MDI5MzYzMzQ5OTEzOS1hdF8zNDEzNTAyOTM2MzM1NjQ2NzUifQ.b9xWozse3_S_ClUZo-Zue1quiUvJYg75S2sIZtGmBWi6ZnnV0qAVTDFYw8_gjbg2LDU7-XeExT--ORQ1Yerh9DHbMSpAk8HQk127UsL7kufv1kFSOlhxUZoxro9z41wghFaAKP8enKOfIYc4ajF_KeFf-0eu6RbpuIBbI2LHW_BqaxwK0FBsCQFvk6ViJABKjFztPKLyjsLlIqm5SIMgts17Z1sEVsLwKeQcVgbJ5j6C5HtXooNg5nepvHSkanK7DfC_0UeGwjikCkXkrX-4awF4U4SRGhxtMRCqwvU8pcyCDZw44p8mx8WFFGHEC7AU5LoamB6e4hXe75Pg4rttcA\",\"idToken\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6IjM0MTMxNTU2MTE4OTI3NzY5OSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgxMDAiLCJzdWIiOiIzMzU1MTcxNDkwOTczNjE0MTEiLCJhdWQiOlsiMzM1NTE2Mzg0ODk1MjM4MTQ3IiwiMzM1NTE2MjAyMTI0MTgxNTA3Il0sImV4cCI6MTc1OTk5OTgzMCwiaWF0IjoxNzU5OTU2NjMwLCJhdXRoX3RpbWUiOjE3NTk5NTY2MjgsImFtciI6WyJwd2QiXSwiYXpwIjoiMzM1NTE2Mzg0ODk1MjM4MTQ3IiwiY2xpZW50X2lkIjoiMzM1NTE2Mzg0ODk1MjM4MTQ3IiwiYXRfaGFzaCI6IjV4emdNbWZvSVBFemNGQXJEQ1p3X0EiLCJzaWQiOiJWMV8zNDEzNTAyOTE1MzYzNDcxMzkiLCJuYW1lIjoiTWFjaWVqIEt1Y2hhcnoiLCJnaXZlbl9uYW1lIjoiTWFjaWVqIiwiZmFtaWx5X25hbWUiOiJLdWNoYXJ6IiwibG9jYWxlIjpudWxsLCJ1cGRhdGVkX2F0IjoxNzU2NDc5ODA1LCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJtYWNpZWoua3VjaGFyeiIsImVtYWlsIjoibWFjaWVqQGt1Y2hhcnoubmV0IiwiZW1haWxfdmVyaWZpZWQiOnRydWV9.lfPB4TpIhRgve-5ISUHm7S6dcRq8m27PcKwuI2Oh5SG9LiO6b6oTpfhkKW81rppaESQcHijr8OVgT_a1iwpINU6oh39Ng0zqm0A9mjHXzujc6M0AIjHDLGu7d3QvpI7WSE_E32hmxPx9hv4Y_JQQPOnKfOrtQdnKruxQSaZU4Yj61D0QcS2iJb9uwWscZxOcN_Sgp4vNeusP7jl7GPinYqXjSlgVDZgvhIoE73RE6EzdjilwTECtkyDLRDK5GcJSLV_3L7iohEAb8pDwsQJkMSewAweIdDzZxNu8A6EVi1QarrsLTVl7wqrmioHTwcybZ6SJ2ei2uESQqWbOtkooOw\",\"expiresAt\":1759999819010,\"user\":{\"sub\":\"335517149097361411\",\"email\":\"maciej@kucharz.net\",\"name\":\"Maciej Kucharz\"}}"
         }
       ]
     }

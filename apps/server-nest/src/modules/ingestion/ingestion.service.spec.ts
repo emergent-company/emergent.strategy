@@ -1,6 +1,7 @@
+import { vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { IngestionService } from './ingestion.service';
-import { VectorService } from '../vector/vector.service';
+import { EmbeddingsService } from '../embeddings/embeddings.service';
 import { DocumentsService } from '../documents/documents.service';
 import { ExtractionJobService } from '../extraction-jobs/extraction-job.service';
 
@@ -8,18 +9,17 @@ describe('IngestionService - Auto-Extraction', () => {
     let service: IngestionService;
     let extractionJobService: ExtractionJobService;
 
-    const mockVectorService = {
-        generateEmbedding: jest.fn(),
-        storeChunks: jest.fn(),
+    const mockEmbeddingsService = {
+        embedDocuments: vi.fn(),
     };
 
     const mockDocumentsService = {
-        query: jest.fn(),
-        insert: jest.fn(),
+        query: vi.fn(),
+        insert: vi.fn(),
     };
 
     const mockExtractionJobService = {
-        createJob: jest.fn(),
+        createJob: vi.fn(),
     };
 
     beforeEach(async () => {
@@ -27,8 +27,8 @@ describe('IngestionService - Auto-Extraction', () => {
             providers: [
                 IngestionService,
                 {
-                    provide: VectorService,
-                    useValue: mockVectorService,
+                    provide: EmbeddingsService,
+                    useValue: mockEmbeddingsService,
                 },
                 {
                     provide: DocumentsService,
@@ -50,7 +50,7 @@ describe('IngestionService - Auto-Extraction', () => {
 
     describe('shouldAutoExtract', () => {
         it('should return null when project does not exist', async () => {
-            jest.spyOn(service as any, 'query').mockResolvedValue([]);
+            vi.spyOn(service as any, 'query').mockResolvedValue([]);
 
             const result = await (service as any).shouldAutoExtract('project-123');
 
@@ -58,7 +58,7 @@ describe('IngestionService - Auto-Extraction', () => {
         });
 
         it('should return null when auto_extract_objects is false', async () => {
-            jest.spyOn(service as any, 'query').mockResolvedValue([
+            vi.spyOn(service as any, 'query').mockResolvedValue([
                 {
                     auto_extract_objects: false,
                     auto_extract_config: { enabled: true },
@@ -78,7 +78,7 @@ describe('IngestionService - Auto-Extraction', () => {
                 notify_on_complete: true,
             };
 
-            jest.spyOn(service as any, 'query').mockResolvedValue([
+            vi.spyOn(service as any, 'query').mockResolvedValue([
                 {
                     auto_extract_objects: true,
                     auto_extract_config: config,
@@ -109,10 +109,7 @@ describe('IngestionService - Auto-Extraction', () => {
             });
 
             // Mock embedding generation
-            mockVectorService.generateEmbedding.mockResolvedValue([0.1, 0.2, 0.3]);
-
-            // Mock chunk storage
-            mockVectorService.storeChunks.mockResolvedValue(undefined);
+            mockEmbeddingsService.embedDocuments.mockResolvedValue([[0.1, 0.2, 0.3]]);
         });
 
         it('should create extraction job when auto-extraction is enabled', async () => {
@@ -126,7 +123,7 @@ describe('IngestionService - Auto-Extraction', () => {
             };
 
             // Mock auto-extraction enabled
-            jest.spyOn(service as any, 'shouldAutoExtract').mockResolvedValue(extractionConfig);
+            vi.spyOn(service as any, 'shouldAutoExtract').mockResolvedValue(extractionConfig);
 
             // Mock job creation
             mockExtractionJobService.createJob.mockResolvedValue({
@@ -135,27 +132,29 @@ describe('IngestionService - Auto-Extraction', () => {
             });
 
             const result = await service.ingestText({
-                org_id: mockOrgId,
-                project_id: mockProjectId,
-                document_id: mockDocumentId,
-                name: 'test-doc.txt',
+                orgId: mockOrgId,
+                projectId: mockProjectId,
                 text: mockText,
+                filename: 'test-doc.txt',
                 metadata: {},
-                user_id: mockUserId,
-            });
+                userId: mockUserId,
+                sourceUrl: undefined,
+                mimeType: undefined,
+            } as any);
 
             // Verify extraction job was created
             expect(mockExtractionJobService.createJob).toHaveBeenCalledWith({
-                org_id: mockOrgId,
+                organization_id: mockOrgId,
                 project_id: mockProjectId,
                 source_type: 'DOCUMENT',
                 source_id: mockDocumentId,
                 source_metadata: {
-                    document_name: 'test-doc.txt',
-                    ingested_by: mockUserId,
+                    filename: 'test-doc.txt',
+                    source_url: null,
+                    mime_type: 'text/plain',
+                    chunks: expect.any(Number),
                 },
                 extraction_config: extractionConfig,
-                user_id: mockUserId,
             });
 
             // Verify job ID is in result
@@ -164,17 +163,16 @@ describe('IngestionService - Auto-Extraction', () => {
 
         it('should NOT create extraction job when auto-extraction is disabled', async () => {
             // Mock auto-extraction disabled
-            jest.spyOn(service as any, 'shouldAutoExtract').mockResolvedValue(null);
+            vi.spyOn(service as any, 'shouldAutoExtract').mockResolvedValue(null);
 
             const result = await service.ingestText({
-                org_id: mockOrgId,
-                project_id: mockProjectId,
-                document_id: mockDocumentId,
-                name: 'test-doc.txt',
+                orgId: mockOrgId,
+                projectId: mockProjectId,
                 text: mockText,
+                filename: 'test-doc.txt',
                 metadata: {},
-                user_id: mockUserId,
-            });
+                userId: mockUserId,
+            } as any);
 
             // Verify extraction job was NOT created
             expect(mockExtractionJobService.createJob).not.toHaveBeenCalled();
@@ -191,7 +189,7 @@ describe('IngestionService - Auto-Extraction', () => {
             };
 
             // Mock auto-extraction enabled
-            jest.spyOn(service as any, 'shouldAutoExtract').mockResolvedValue(extractionConfig);
+            vi.spyOn(service as any, 'shouldAutoExtract').mockResolvedValue(extractionConfig);
 
             // Mock job creation failure
             mockExtractionJobService.createJob.mockRejectedValue(
@@ -199,18 +197,17 @@ describe('IngestionService - Auto-Extraction', () => {
             );
 
             // Mock logger to verify error logging
-            const loggerSpy = jest.spyOn(service['logger'], 'error');
+            const loggerSpy = vi.spyOn(service['logger'], 'error');
 
             // Should NOT throw error, ingestion should continue
             const result = await service.ingestText({
-                org_id: mockOrgId,
-                project_id: mockProjectId,
-                document_id: mockDocumentId,
-                name: 'test-doc.txt',
+                orgId: mockOrgId,
+                projectId: mockProjectId,
                 text: mockText,
+                filename: 'test-doc.txt',
                 metadata: {},
-                user_id: mockUserId,
-            });
+                userId: mockUserId,
+            } as any);
 
             // Verify error was logged
             expect(loggerSpy).toHaveBeenCalledWith(
@@ -234,7 +231,7 @@ describe('IngestionService - Auto-Extraction', () => {
                 notify_on_complete: true,
             };
 
-            jest.spyOn(service as any, 'shouldAutoExtract').mockResolvedValue(extractionConfig);
+            vi.spyOn(service as any, 'shouldAutoExtract').mockResolvedValue(extractionConfig);
 
             mockExtractionJobService.createJob.mockResolvedValue({
                 id: 'job-123',
@@ -242,14 +239,13 @@ describe('IngestionService - Auto-Extraction', () => {
             });
 
             await service.ingestText({
-                org_id: mockOrgId,
-                project_id: mockProjectId,
-                document_id: mockDocumentId,
-                name: 'test-doc.txt',
+                orgId: mockOrgId,
+                projectId: mockProjectId,
                 text: mockText,
+                filename: 'test-doc.txt',
                 metadata: {},
-                user_id: mockUserId,
-            });
+                userId: mockUserId,
+            } as any);
 
             // Verify extraction config was passed to job
             expect(mockExtractionJobService.createJob).toHaveBeenCalledWith(

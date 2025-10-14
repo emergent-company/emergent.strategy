@@ -82,7 +82,7 @@ export default function ChunksPage() {
         (async () => {
             try {
                 const t = getAccessToken();
-                const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/documents`, {
+                const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/api/documents`, {
                     headers: t ? { ...buildHeaders({ json: false }) } : {},
                     json: false,
                 });
@@ -110,7 +110,7 @@ export default function ChunksPage() {
                 if (sort) qs.set("sort", sort);
                 const t = getAccessToken();
                 // Accept both unified paginated shape and legacy/alternate array responses
-                const json = await fetchJson<any>(`${apiBase}/chunks?${qs.toString()}`, {
+                const json = await fetchJson<any>(`${apiBase}/api/chunks?${qs.toString()}`, {
                     headers: t ? { ...buildHeaders({ json: false }) } : {},
                     json: false,
                 });
@@ -195,7 +195,7 @@ export default function ChunksPage() {
     }
 
     return (
-        <div className="mx-auto p-4 container">
+        <div data-testid="page-chunks" className="mx-auto p-4 container">
             <PageTitle title="Chunks" items={[{ label: "Apps" }, { label: "Chunks", active: true }]} />
 
             {/* Filters */}

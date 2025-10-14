@@ -1037,6 +1037,214 @@
         ]
       }
     },
+    "/template-packs": {
+      "post": {
+        "operationId": "createTemplatePack",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTemplatePackDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      },
+      "get": {
+        "operationId": "listTemplatePacks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/template-packs/{id}": {
+      "get": {
+        "operationId": "getTemplatePack",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/template-packs/projects/{projectId}/available": {
+      "get": {
+        "operationId": "getAvailableTemplates",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/template-packs/projects/{projectId}/installed": {
+      "get": {
+        "operationId": "getInstalledTemplatePacks",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/template-packs/projects/{projectId}/assign": {
+      "post": {
+        "operationId": "assignTemplatePack",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "org_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "user_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignTemplatePackDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/template-packs/projects/{projectId}/assignments/{assignmentId}": {
+      "patch": {
+        "operationId": "updateTemplatePackAssignment",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assignmentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTemplatePackAssignmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      },
+      "delete": {
+        "operationId": "uninstallTemplatePack",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assignmentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/search": {
       "get": {
         "operationId": "search",
@@ -1874,14 +2082,6 @@
             }
           },
           {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "status",
             "required": false,
             "in": "query",
@@ -1984,22 +2184,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "project_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -2039,22 +2223,6 @@
             "required": true,
             "in": "path",
             "description": "Job ID",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "project_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -2113,22 +2281,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "project_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -2166,22 +2318,6 @@
             "required": true,
             "in": "path",
             "description": "Job ID",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "project_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -2232,22 +2368,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "project_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -2292,14 +2412,6 @@
             "required": true,
             "in": "path",
             "description": "Project ID",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -4136,214 +4248,6 @@
         ],
         "responses": {
           "200": {
-            "description": ""
-          }
-        }
-      }
-    },
-    "/template-packs": {
-      "post": {
-        "operationId": "createTemplatePack",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateTemplatePackDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        }
-      },
-      "get": {
-        "operationId": "listTemplatePacks",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        }
-      }
-    },
-    "/template-packs/{id}": {
-      "get": {
-        "operationId": "getTemplatePack",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        }
-      }
-    },
-    "/template-packs/projects/{projectId}/available": {
-      "get": {
-        "operationId": "getAvailableTemplates",
-        "parameters": [
-          {
-            "name": "projectId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        }
-      }
-    },
-    "/template-packs/projects/{projectId}/installed": {
-      "get": {
-        "operationId": "getInstalledTemplatePacks",
-        "parameters": [
-          {
-            "name": "projectId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        }
-      }
-    },
-    "/template-packs/projects/{projectId}/assign": {
-      "post": {
-        "operationId": "assignTemplatePack",
-        "parameters": [
-          {
-            "name": "projectId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "tenant_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "user_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AssignTemplatePackDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        }
-      }
-    },
-    "/template-packs/projects/{projectId}/assignments/{assignmentId}": {
-      "patch": {
-        "operationId": "updateTemplatePackAssignment",
-        "parameters": [
-          {
-            "name": "projectId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "assignmentId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateTemplatePackAssignmentDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        }
-      },
-      "delete": {
-        "operationId": "uninstallTemplatePack",
-        "parameters": [
-          {
-            "name": "projectId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "assignmentId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
             "description": ""
           }
         }
@@ -6443,7 +6347,7 @@
         ]
       }
     },
-    "/api/v1/integrations/available": {
+    "/integrations/available": {
       "get": {
         "operationId": "listAvailableIntegrations",
         "summary": "List available integration types",
@@ -6467,29 +6371,12 @@
         ]
       }
     },
-    "/api/v1/integrations": {
+    "/integrations": {
       "get": {
         "operationId": "listIntegrations",
         "summary": "List integrations",
         "description": "List all integrations for a project with optional filters",
-        "parameters": [
-          {
-            "name": "project_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "Integrations retrieved successfully"
@@ -6546,7 +6433,7 @@
         ]
       }
     },
-    "/api/v1/integrations/{name}": {
+    "/integrations/{name}": {
       "get": {
         "operationId": "getIntegration",
         "summary": "Get integration",
@@ -6557,22 +6444,6 @@
             "required": true,
             "in": "path",
             "description": "Integration name (e.g., \"clickup\")",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "project_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -6608,22 +6479,6 @@
             "required": true,
             "in": "path",
             "description": "Integration name (e.g., \"clickup\")",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "project_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -6675,22 +6530,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "project_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -6714,7 +6553,7 @@
         ]
       }
     },
-    "/api/v1/integrations/{name}/public": {
+    "/integrations/{name}/public": {
       "get": {
         "operationId": "getPublicIntegrationInfo",
         "summary": "Get public integration info",
@@ -6725,22 +6564,6 @@
             "required": true,
             "in": "path",
             "description": "Integration name (e.g., \"clickup\")",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "project_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -6767,7 +6590,7 @@
         ]
       }
     },
-    "/api/v1/integrations/{name}/test": {
+    "/integrations/{name}/test": {
       "post": {
         "operationId": "testConnection",
         "summary": "Test integration connection",
@@ -6778,22 +6601,6 @@
             "required": true,
             "in": "path",
             "description": "Integration name (e.g., \"clickup\")",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "project_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -6820,7 +6627,7 @@
         ]
       }
     },
-    "/api/v1/integrations/{name}/sync": {
+    "/integrations/{name}/sync": {
       "post": {
         "operationId": "triggerSync",
         "summary": "Trigger integration sync",
@@ -6831,22 +6638,6 @@
             "required": true,
             "in": "path",
             "description": "Integration name (e.g., \"clickup\")",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "project_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -6876,29 +6667,12 @@
         ]
       }
     },
-    "/api/v1/integrations/clickup/structure": {
+    "/integrations/clickup/structure": {
       "get": {
         "operationId": "getClickUpWorkspaceStructure",
         "summary": "Get ClickUp workspace structure",
         "description": "Fetch hierarchical workspace structure (spaces, folders, lists) with task counts for list selection UI",
-        "parameters": [
-          {
-            "name": "project_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "org_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "Workspace structure retrieved successfully"
@@ -6998,6 +6772,18 @@
           "name",
           "orgId"
         ]
+      },
+      "CreateTemplatePackDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "AssignTemplatePackDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateTemplatePackAssignmentDto": {
+        "type": "object",
+        "properties": {}
       },
       "SearchResultDto": {
         "type": "object",
@@ -7222,7 +7008,7 @@
       "CreateExtractionJobDto": {
         "type": "object",
         "properties": {
-          "org_id": {
+          "organization_id": {
             "type": "string",
             "description": "Organization ID",
             "example": "550e8400-e29b-41d4-a716-446655440000"
@@ -7275,7 +7061,7 @@
           }
         },
         "required": [
-          "org_id",
+          "organization_id",
           "project_id",
           "source_type",
           "extraction_config"
@@ -7288,7 +7074,7 @@
             "type": "string",
             "description": "Job ID"
           },
-          "org_id": {
+          "organization_id": {
             "type": "string",
             "description": "Organization ID"
           },
@@ -7405,11 +7191,15 @@
             "format": "date-time",
             "type": "string",
             "description": "Last update timestamp"
+          },
+          "org_id": {
+            "type": "string",
+            "description": "Legacy organization ID (deprecated)"
           }
         },
         "required": [
           "id",
-          "org_id",
+          "organization_id",
           "project_id",
           "source_type",
           "source_metadata",
@@ -8486,18 +8276,6 @@
         "properties": {}
       },
       "UpdateObjectTypeDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "CreateTemplatePackDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "AssignTemplatePackDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "UpdateTemplatePackAssignmentDto": {
         "type": "object",
         "properties": {}
       },

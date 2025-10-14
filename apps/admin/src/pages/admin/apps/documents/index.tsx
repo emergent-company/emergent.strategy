@@ -65,8 +65,7 @@ export default function DocumentsPage() {
     const extractionClient = createExtractionJobsClient(
         apiBase,
         fetchJson,
-        config.activeProjectId,
-        config.activeOrgId
+        config.activeProjectId
     );
 
     const apiBaseMemo = useMemo(() => apiBase, [apiBase]);
@@ -83,7 +82,7 @@ export default function DocumentsPage() {
             setError(null);
             try {
                 const t = getAccessToken();
-                const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/documents`, {
+                const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/api/documents`, {
                     headers: t ? { ...buildHeaders({ json: false }) } : {},
                     json: false,
                 });
@@ -131,8 +130,6 @@ export default function DocumentsPage() {
             const isValidUuid = user?.sub && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.sub);
 
             const job = await extractionClient.createJob({
-                org_id: config.activeOrgId,
-                project_id: config.activeProjectId,
                 source_type: 'document',
                 source_id: selectedDocumentForExtraction.id,
                 source_metadata: {
@@ -185,13 +182,13 @@ export default function DocumentsPage() {
             fd.append("file", file);
             if (config.activeProjectId) fd.append("projectId", config.activeProjectId);
             const t = getAccessToken();
-            await fetchForm<void>(`${apiBase}/ingest/upload`, fd, { method: "POST", headers: t ? buildHeaders({ json: false }) : {} });
+            await fetchForm<void>(`${apiBase}/api/ingest/upload`, fd, { method: "POST", headers: t ? buildHeaders({ json: false }) : {} });
             setUploadSuccess("Upload successful. Updating list...");
             // Reload documents
             setLoading(true);
             try {
                 const t2 = getAccessToken();
-                const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/documents`, {
+                const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/api/documents`, {
                     headers: t2 ? { ...buildHeaders({ json: false }) } : {},
                     json: false,
                 });
@@ -254,7 +251,7 @@ export default function DocumentsPage() {
 
     return (
         <OrgAndProjectGate>
-            <div className="mx-auto p-4 container">
+            <div data-testid="page-documents" className="mx-auto p-4 container">
                 <PageTitle title="Documents" items={[{ label: "Apps" }, { label: "Documents", active: true }]} />
 
                 {/* Upload controls */}

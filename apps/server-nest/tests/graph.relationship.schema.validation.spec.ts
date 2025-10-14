@@ -6,6 +6,8 @@ import { makeSchemaRegistryStub } from './helpers/schema-registry.stub';
 class MockDb {
   rels: any[] = [];
   objects: any[] = [];
+  orgId: string | null = null;
+  projectId: string | null = null;
   async getClient() {
     return {
       query: async (sql: string, params?: any[]) => {
@@ -61,6 +63,22 @@ class MockDb {
       },
       release() { }
     };
+  }
+
+  async setTenantContext(orgId?: string | null, projectId?: string | null) {
+    this.orgId = orgId ?? null;
+    this.projectId = projectId ?? null;
+  }
+
+  async runWithTenantContext<T>(orgId: string | null, projectId: string | null, fn: () => Promise<T>): Promise<T> {
+    const prevOrg = this.orgId;
+    const prevProject = this.projectId;
+    await this.setTenantContext(orgId, projectId);
+    try {
+      return await fn();
+    } finally {
+      await this.setTenantContext(prevOrg, prevProject);
+    }
   }
 }
 

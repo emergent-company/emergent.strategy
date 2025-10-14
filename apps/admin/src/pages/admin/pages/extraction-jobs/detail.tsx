@@ -21,8 +21,7 @@ export function ExtractionJobDetailPage() {
     const client = createExtractionJobsClient(
         apiBase,
         fetchJson,
-        config.activeProjectId,
-        config.activeOrgId
+        config.activeProjectId
     );
 
     const [job, setJob] = useState<ExtractionJob | null>(null);
@@ -141,6 +140,45 @@ export function ExtractionJobDetailPage() {
     }
 
     const progress = job.total_items > 0 ? (job.processed_items / job.total_items) * 100 : 0;
+    const remainingItems = Math.max(job.total_items - job.processed_items, 0);
+    const successRate = job.processed_items > 0 ? (job.successful_items / job.processed_items) * 100 : null;
+    const startedAt = job.started_at ? new Date(job.started_at) : null;
+    const lastUpdatedAt = job.updated_at ? new Date(job.updated_at) : null;
+    const elapsedSeconds = startedAt && lastUpdatedAt ? (lastUpdatedAt.getTime() - startedAt.getTime()) / 1000 : null;
+    const throughputPerMinute = elapsedSeconds && elapsedSeconds > 0 ? (job.processed_items / elapsedSeconds) * 60 : null;
+    const estimatedSecondsRemaining = throughputPerMinute && throughputPerMinute > 0 ? (remainingItems / throughputPerMinute) * 60 : null;
+
+    const formatDuration = (seconds: number) => {
+        if (Number.isNaN(seconds) || !Number.isFinite(seconds)) {
+            return null;
+        }
+
+        if (seconds < 60) {
+            return `${Math.max(Math.round(seconds), 1)}s`;
+        }
+
+        const minutes = Math.floor(seconds / 60);
+        const remaining = Math.round(seconds % 60);
+
+        if (minutes >= 60) {
+            const hours = Math.floor(minutes / 60);
+            const remainingMinutes = minutes % 60;
+            return `${hours}h ${remainingMinutes}m`;
+        }
+
+        return `${minutes}m ${remaining}s`;
+    };
+
+    const formatTime = (date?: Date | null) => (date ? date.toLocaleTimeString() : null);
+
+    const formatRate = (rate?: number | null) => {
+        if (!rate || Number.isNaN(rate) || !Number.isFinite(rate)) {
+            return null;
+        }
+
+        const rounded = rate >= 10 ? Math.round(rate) : rate.toFixed(1);
+        return `${rounded} items/min`;
+    };
     const canCancel = job.status === 'running' || job.status === 'pending';
     const canDelete = job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled';
 
@@ -211,14 +249,56 @@ export function ExtractionJobDetailPage() {
 
                     {/* Progress bar for running jobs */}
                     {job.status === 'running' && (
-                        <div>
-                            <div className="flex justify-between mb-2 text-sm">
-                                <span>Processing Progress</span>
-                                <span>{Math.round(progress)}%</span>
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="font-medium text-base-content/80">Processing Progress</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-base-content">{Math.round(progress)}%</span>
+                                    <span className="text-base-content/60">({job.processed_items} / {job.total_items})</span>
+                                </div>
                             </div>
                             <progress className="w-full progress progress-info" value={progress} max="100" />
-                            <div className="mt-2 text-sm text-base-content/60">
-                                {job.processed_items} of {job.total_items} items processed
+                            <div className="gap-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+                                <div className="bg-base-200 p-3 rounded-lg">
+                                    <div className="text-base-content/60">Items remaining</div>
+                                    <div className="font-semibold text-base-content text-lg">{remainingItems}</div>
+                                </div>
+                                <div className="bg-base-200 p-3 rounded-lg">
+                                    <div className="text-base-content/60">Throughput</div>
+                                    <div className="font-semibold text-base-content text-lg">
+                                        {formatRate(throughputPerMinute) || 'Calculating...'}
+                                    </div>
+                                </div>
+                                <div className="bg-base-200 p-3 rounded-lg">
+                                    <div className="text-base-content/60">Success rate</div>
+                                    <div className="font-semibold text-base-content text-lg">
+                                        {successRate !== null ? `${Math.round(successRate)}%` : 'TBD'}
+                                    </div>
+                                </div>
+                                <div className="bg-base-200 p-3 rounded-lg">
+                                    <div className="text-base-content/60">Estimated completion</div>
+                                    <div className="font-semibold text-base-content text-lg">
+                                        {estimatedSecondsRemaining !== null
+                                            ? formatDuration(estimatedSecondsRemaining)
+                                            : 'Collecting data...'}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-4 text-xs text-base-content/60">
+                                {startedAt && (
+                                    <div>
+                                        <span className="font-medium text-base-content/70">Started:</span> {formatTime(startedAt)}
+                                    </div>
+                                )}
+                                {lastUpdatedAt && (
+                                    <div>
+                                        <span className="font-medium text-base-content/70">Last update:</span> {formatTime(lastUpdatedAt)}
+                                    </div>
+                                )}
+                                <div className="flex items-center gap-2 text-base-content/70">
+                                    <Icon icon="lucide--info" className="size-4" />
+                                    We’ll keep updating this view while the extraction runs. Feel free to navigate away — you can return anytime from the job list.
+                                </div>
                             </div>
                         </div>
                     )}

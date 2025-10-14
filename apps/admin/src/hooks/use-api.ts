@@ -15,7 +15,10 @@ export function useApi() {
 
     const apiBase = useMemo(() => {
         const env = (import.meta as any).env || {};
-        return env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:3001`;
+        // Always return empty string - services add their own /api/v1/xxx paths
+        // This goes through Vite dev server proxy which forwards /api/* to backend
+        // In production, /api/* is proxied by the web server
+        return env.VITE_API_BASE || '';
     }, []);
 
     const buildHeaders = useCallback(

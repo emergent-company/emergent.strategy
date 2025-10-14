@@ -49,11 +49,11 @@ export const useProjects = () => {
             const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
             let data: Project[] = [];
             if (uuidRegex.test(activeOrgId)) {
-                const url = `${apiBase}/projects?limit=500&orgId=${encodeURIComponent(activeOrgId)}`;
+                const url = `${apiBase}/api/projects?limit=500&orgId=${encodeURIComponent(activeOrgId)}`;
                 data = await fetchJson<Project[]>(url, { credentials: "include", headers, method: "GET", json: false });
             } else {
                 // fallback: fetch global list
-                const url = `${apiBase}/projects?limit=500`;
+                const url = `${apiBase}/api/projects?limit=500`;
                 data = await fetchJson<Project[]>(url, { credentials: "include", headers, method: "GET", json: false });
             }
             // Normalize project orgId fields for consistent comparisons
@@ -83,7 +83,7 @@ export const useProjects = () => {
                 // Debug log to verify payload actually includes name/orgId before sending
                 console.debug("[createProject] payload", body);
             }
-            const created = await fetchJson<Project, CreateProjectPayload>(`${apiBase}/projects`, {
+            const created = await fetchJson<Project, CreateProjectPayload>(`${apiBase}/api/projects`, {
                 method: "POST",
                 body,
                 credentials: "include",

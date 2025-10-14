@@ -66,7 +66,7 @@ const InboxPage = () => {
     };
 
     return (
-        <>
+        <div data-testid="page-inbox">
             <MetaData title="Inbox" noIndex />
 
             <PageTitle
@@ -90,7 +90,7 @@ const InboxPage = () => {
                     onCustomizeClick={handleCustomizeClick}
                 />
             </div>
-        </>
+        </div>
     );
 };
 

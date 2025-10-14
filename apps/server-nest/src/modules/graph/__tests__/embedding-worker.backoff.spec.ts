@@ -6,6 +6,7 @@ import { GraphModule } from '../graph.module';
 import { GraphService } from '../graph.service';
 import { EmbeddingJobsService } from '../embedding-jobs.service';
 import { EmbeddingWorkerService } from '../embedding-worker.service';
+import { ensureEmbeddingJobsTable } from '../../../test-utils/ensure-embedding-jobs-table';
 
 // Test that a failure during embedding processing triggers backoff (attempt_count increments and job rescheduled)
 
@@ -21,23 +22,7 @@ describe('EmbeddingWorkerService Backoff', () => {
         jobs = mod.get(EmbeddingJobsService);
         worker = mod.get(EmbeddingWorkerService);
         await (service as any).db.query('SELECT 1');
-        // Ensure embedding jobs table + indexes (defensive for suite ordering)
-        await (service as any).db.query(`CREATE TABLE IF NOT EXISTS kb.graph_embedding_jobs (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      object_id UUID NOT NULL REFERENCES kb.graph_objects(id) ON DELETE CASCADE,
-      status TEXT NOT NULL CHECK (status IN ('pending','processing','failed','completed')),
-      attempt_count INT NOT NULL DEFAULT 0,
-      last_error TEXT NULL,
-      priority INT NOT NULL DEFAULT 0,
-      scheduled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      started_at TIMESTAMPTZ NULL,
-      completed_at TIMESTAMPTZ NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )`);
-        await (service as any).db.query(`CREATE INDEX IF NOT EXISTS idx_graph_embedding_jobs_status_sched ON kb.graph_embedding_jobs(status, scheduled_at)`);
-        await (service as any).db.query(`CREATE INDEX IF NOT EXISTS idx_graph_embedding_jobs_object ON kb.graph_embedding_jobs(object_id)`);
-        await (service as any).db.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_embedding_jobs_object_pending ON kb.graph_embedding_jobs(object_id) WHERE status IN ('pending','processing')`);
+        await ensureEmbeddingJobsTable((service as any).db);
         // Stop any background interval
         worker.stop();
         const uniqueOrg = 'embed_backoff_org_' + Math.random().toString(36).slice(2, 8);
@@ -55,6 +40,7 @@ describe('EmbeddingWorkerService Backoff', () => {
         (worker as any).extractText = () => { throw new Error('forced_extract_failure'); };
         const j = await (service as any).db.query(`SELECT id FROM kb.graph_embedding_jobs WHERE object_id=$1 AND status='pending' LIMIT 1`, [objectId]);
         jobId = j.rows[0].id;
+        await (service as any).db.query(`UPDATE kb.graph_embedding_jobs SET status='pending', attempt_count=0, scheduled_at=now(), last_error=NULL WHERE id=$1`, [jobId]);
     });
 
     it('requeues job with incremented attempt_count and future scheduled_at', async () => {
@@ -80,3 +66,5 @@ describe('EmbeddingWorkerService Backoff', () => {
         expect(sched).toBeGreaterThan(Date.now());
     });
 });
+
+export const config = { mode: 'serial' };

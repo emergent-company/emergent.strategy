@@ -4,7 +4,7 @@ BEGIN;
 
 -- Embedding versioned columns (initial v1)
 ALTER TABLE
-    graph_objects
+    kb.graph_objects
 ADD
     COLUMN IF NOT EXISTS embedding_v1 vector(1536),
 ADD
@@ -14,12 +14,12 @@ ADD
 
 -- Full text search tsvector column (composite weighting TBD)
 ALTER TABLE
-    graph_objects
+    kb.graph_objects
 ADD
     COLUMN IF NOT EXISTS tsv tsvector;
 
 -- Coverage metrics table
-CREATE TABLE IF NOT EXISTS graph_embedding_coverage (
+CREATE TABLE IF NOT EXISTS kb.graph_embedding_coverage (
     model_version int NOT NULL,
     org_id uuid NOT NULL,
     project_id uuid NULL,
@@ -30,10 +30,10 @@ CREATE TABLE IF NOT EXISTS graph_embedding_coverage (
 );
 
 -- Indexes
-CREATE INDEX IF NOT EXISTS idx_graph_objects_tsv ON graph_objects USING GIN (tsv);
+CREATE INDEX IF NOT EXISTS idx_graph_objects_tsv ON kb.graph_objects USING GIN (tsv);
 
-CREATE INDEX IF NOT EXISTS idx_graph_objects_embedding_v1 ON graph_objects USING HNSW (embedding_v1 vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_graph_objects_embedding_v1 ON kb.graph_objects USING HNSW (embedding_v1 vector_cosine_ops);
 
-CREATE INDEX IF NOT EXISTS idx_graph_objects_embedding_v2 ON graph_objects USING HNSW (embedding_v2 vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_graph_objects_embedding_v2 ON kb.graph_objects USING HNSW (embedding_v2 vector_cosine_ops);
 
 COMMIT;

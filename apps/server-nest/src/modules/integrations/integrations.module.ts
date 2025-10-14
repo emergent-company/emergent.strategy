@@ -28,7 +28,7 @@ import { AppConfigModule } from '../../common/config/config.module';
  * - IntegrationsService: Core CRUD operations and business logic
  * - EncryptionService: Credential encryption/decryption using PostgreSQL pgcrypto
  * - IntegrationRegistryService: Central registry for all integration plugins
- * - IntegrationsController: REST API endpoints (/api/v1/integrations)
+ * - IntegrationsController: REST API endpoints (/integrations)
  * 
  * Security:
  * - All endpoints require authentication

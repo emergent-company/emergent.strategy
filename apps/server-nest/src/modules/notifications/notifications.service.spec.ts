@@ -1,16 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsService } from './notifications.service';
 import { DatabaseService } from '../database/database.service';
+import { vi } from 'vitest';
 
 describe('NotificationsService - Auto-Extraction Features', () => {
     let service: NotificationsService;
     let databaseService: DatabaseService;
 
     const mockDatabaseService = {
-        query: jest.fn(),
-        insert: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
+        query: vi.fn(),
+        insert: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
     };
 
     beforeEach(async () => {
@@ -27,7 +28,7 @@ describe('NotificationsService - Auto-Extraction Features', () => {
         service = module.get<NotificationsService>(NotificationsService);
         databaseService = module.get<DatabaseService>(DatabaseService);
 
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('create - with new fields', () => {

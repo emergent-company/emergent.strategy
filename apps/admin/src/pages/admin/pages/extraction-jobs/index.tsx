@@ -87,11 +87,10 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
                 const client = createExtractionJobsClient(
                     apiBase,
                     fetchJson,
-                    config.activeProjectId,
-                    config.activeOrgId
+                    config.activeProjectId
                 );
 
-                const response = await client.listJobs(config.activeProjectId!, config.activeOrgId!, {
+                const response = await client.listJobs(undefined, {
                     status: statusFilter === 'all' ? undefined : statusFilter,
                     page: currentPage,
                     limit: pageSize,
@@ -158,7 +157,7 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
     }
 
     return (
-        <div className="mx-auto p-6 max-w-6xl container">
+        <div data-testid="page-extraction-jobs" className="mx-auto p-6 max-w-6xl container">
             {/* Page Header */}
             <div className="flex sm:flex-row flex-col justify-between items-start sm:items-center gap-4 mb-6">
                 <div>

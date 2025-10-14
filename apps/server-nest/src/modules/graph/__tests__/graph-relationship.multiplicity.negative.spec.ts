@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { describe, it, beforeAll, afterAll, expect } from 'vitest';
+import { describe, it, beforeAll, beforeEach, afterAll, expect } from 'vitest';
 import { GraphService } from '../graph.service';
 import { DatabaseService } from '../../../common/database/database.service';
 import { AppConfigService } from '../../../common/config/config.service';
@@ -16,10 +16,13 @@ async function seedProject(db: DatabaseService) {
 }
 
 let seedSeq = 0;
-async function seedObjects(graph: GraphService, orgId: string, projectId: string) {
+async function seedObjects(graph: GraphService, db: DatabaseService, orgId: string, projectId: string) {
+    await db.setTenantContext(orgId, projectId);
     const prefix = `n${seedSeq++}`;
     const a = await graph.createObject({ type: 'Node', key: `${prefix}-a`, properties: {}, org_id: orgId, project_id: projectId } as any);
+    await db.setTenantContext(orgId, projectId);
     const b = await graph.createObject({ type: 'Node', key: `${prefix}-b`, properties: {}, org_id: orgId, project_id: projectId } as any);
+    await db.setTenantContext(orgId, projectId);
     const c = await graph.createObject({ type: 'Node', key: `${prefix}-c`, properties: {}, org_id: orgId, project_id: projectId } as any);
     return { a, b, c };
 }
@@ -63,33 +66,44 @@ describe('Graph Relationship Multiplicity (negative via stub)', () => {
         projectId = seeded.projectId; orgId = seeded.orgId;
     });
 
+    beforeEach(async () => {
+        await db.setTenantContext(null, null);
+    });
+
     afterAll(async () => {
         // Close DB connections to ensure clean shutdown & release any remaining locks
         await db?.onModuleDestroy?.();
     });
 
     it('violates one-src multiplicity on second relationship from same src', async () => {
-        const { a, b, c } = await seedObjects(graph, orgId, projectId);
+        const { a, b, c } = await seedObjects(graph, db, orgId, projectId);
+        await db.setTenantContext(orgId, projectId);
         await graph.createRelationship({ type: 'ONE_SRC', src_id: a.id, dst_id: b.id, properties: {} }, orgId, projectId);
+        await db.setTenantContext(orgId, projectId);
         await expect(graph.createRelationship({ type: 'ONE_SRC', src_id: a.id, dst_id: c.id, properties: {} }, orgId, projectId))
             .rejects.toMatchObject({ response: { code: 'relationship_multiplicity_violation', side: 'src', type: 'ONE_SRC' } });
     });
 
     it('violates one-dst multiplicity on second relationship to same dst', async () => {
-        const { a, b, c } = await seedObjects(graph, orgId, projectId);
+        const { a, b, c } = await seedObjects(graph, db, orgId, projectId);
+        await db.setTenantContext(orgId, projectId);
         await graph.createRelationship({ type: 'ONE_DST', src_id: a.id, dst_id: b.id, properties: {} }, orgId, projectId);
+        await db.setTenantContext(orgId, projectId);
         await expect(graph.createRelationship({ type: 'ONE_DST', src_id: c.id, dst_id: b.id, properties: {} }, orgId, projectId))
             .rejects.toMatchObject({ response: { code: 'relationship_multiplicity_violation', side: 'dst', type: 'ONE_DST' } });
     });
 
     it('violates one-one multiplicity for src then dst sides separately', async () => {
-        const { a, b, c } = await seedObjects(graph, orgId, projectId);
+        const { a, b, c } = await seedObjects(graph, db, orgId, projectId);
+        await db.setTenantContext(orgId, projectId);
         await graph.createRelationship({ type: 'ONE_ONE', src_id: a.id, dst_id: b.id, properties: {} }, orgId, projectId);
         // src side violation
+        await db.setTenantContext(orgId, projectId);
         await expect(graph.createRelationship({ type: 'ONE_ONE', src_id: a.id, dst_id: c.id, properties: {} }, orgId, projectId))
             .rejects.toMatchObject({ response: { code: 'relationship_multiplicity_violation', side: 'src', type: 'ONE_ONE' } });
         // dst side violation (need new src since b already used as dst)
-        const { a: a2 } = await seedObjects(graph, orgId, projectId);
+        const { a: a2 } = await seedObjects(graph, db, orgId, projectId);
+        await db.setTenantContext(orgId, projectId);
         await expect(graph.createRelationship({ type: 'ONE_ONE', src_id: a2.id, dst_id: b.id, properties: {} }, orgId, projectId))
             .rejects.toMatchObject({ response: { code: 'relationship_multiplicity_violation', side: 'dst', type: 'ONE_ONE' } });
     });

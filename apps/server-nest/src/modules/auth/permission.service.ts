@@ -44,6 +44,7 @@ export class PermissionService {
         }
         // Membership tables assumed to exist (ensured during schema bootstrap / upgrade).
         // Lazy ensure a user profile row exists (idempotent). subject_id is canonical internal id.
+        this.logger.log(`Computing permissions for user ${userId} - ensuring profile exists`);
         try {
             await this.db.query(
                 `INSERT INTO core.user_profiles(subject_id)
@@ -51,8 +52,9 @@ export class PermissionService {
                              ON CONFLICT (subject_id) DO NOTHING`,
                 [userId],
             );
+            this.logger.log(`Successfully ensured user profile exists for ${userId}`);
         } catch (e) {
-            this.logger.warn('Failed ensuring user profile row', e as Error);
+            this.logger.error(`Failed ensuring user profile row for ${userId}`, e as Error);
         }
         // Fetch memberships. Ignore org/project name joins for performance (controllers will filter by ids supplied in headers).
         const orgRows = await this.db.query<{ org_id: string; role: string }>(

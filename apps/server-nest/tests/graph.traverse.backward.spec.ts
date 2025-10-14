@@ -34,10 +34,12 @@ class MockDb extends DatabaseService {
         } as any;
     }
     async query(sql: string, params: any[]) {
-        // Object fetch by id
-        if (/FROM kb\.graph_objects WHERE id=\$1/.test(sql)) {
+        // Object fetch by id (with optional branch_id, properties, and expires_at filter)
+        if (/FROM kb\.graph_objects/.test(sql) && /WHERE id=\$1/.test(sql)) {
             const row = this.objects.find(o => o.id === params[0]);
-            return { rowCount: row ? 1 : 0, rows: row ? [row] : [] } as any;
+            // Return full row with branch_id and properties if requested
+            const result: any = row ? { ...row, branch_id: null, properties: {} } : null;
+            return { rowCount: row ? 1 : 0, rows: result ? [result] : [] } as any;
         }
         // Relationship DISTINCT head selection used in traverse()
         if (/FROM kb\.graph_relationships/.test(sql) && /DISTINCT ON/.test(sql)) {

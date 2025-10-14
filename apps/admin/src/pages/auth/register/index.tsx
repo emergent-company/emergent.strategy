@@ -8,7 +8,7 @@ const RegisterPage = () => {
     const [showPassword, setShowPassword] = useState(false);
 
     return (
-        <>
+        <div data-testid="page-auth-register">
             <MetaData title="Register" />
 
             <div className="flex flex-col items-stretch p-8 lg:p-16">
@@ -106,7 +106,7 @@ const RegisterPage = () => {
                     </p>
                 </div>
             </div>
-        </>
+        </div>
     );
 };
 

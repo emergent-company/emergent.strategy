@@ -30,8 +30,21 @@ describe('RLS strict initialization', () => {
             ],
         }).compile();
         db = moduleRef.get(DatabaseService);
-        await db.onModuleInit();
-    });
+        const MAX_RETRIES = 3;
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                await db.onModuleInit();
+                break;
+            } catch (error: any) {
+                const message = typeof error?.message === 'string' ? error.message : '';
+                if (message.includes('tuple concurrently updated') && attempt < MAX_RETRIES) {
+                    await new Promise((resolve) => setTimeout(resolve, 50 * attempt));
+                    continue;
+                }
+                throw error;
+            }
+        }
+    }, 30000);
 
     it('comes online and reports canonical policies under strict mode', async () => {
         expect(db.isOnline()).toBe(true);
@@ -44,3 +57,5 @@ describe('RLS strict initialization', () => {
         expect(names).toEqual(expected);
     });
 });
+
+export const config = { mode: 'serial' };

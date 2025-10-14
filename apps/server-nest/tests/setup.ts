@@ -49,7 +49,7 @@ if (typeof afterAll === 'function') {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     afterAll(async () => {
         await closeTestApp();
-    });
+    }, 30000);
 }
 
 async function seedOrgProject() {

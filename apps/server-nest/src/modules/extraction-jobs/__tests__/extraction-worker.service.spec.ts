@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { vi } from 'vitest';
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import { TemplatePackService } from '../../template-packs/template-pack.service';
 import { ExtractionWorkerService } from '../extraction-worker.service';
 import { AppConfigService } from '../../../common/config/config.service';
 import { DatabaseService } from '../../../common/database/database.service';
@@ -12,7 +14,9 @@ import { DocumentsService } from '../../documents/documents.service';
 
 describe('ExtractionWorkerService - Quality Thresholds', () => {
     let service: ExtractionWorkerService;
-    let configService: AppConfigService;
+    let configService: AppConfigService & { extractionDefaultTemplatePackId: string | null };
+    let databaseService: { isOnline: ReturnType<typeof vi.fn>; query: ReturnType<typeof vi.fn> };
+    let templatePackService: { assignTemplatePackToProject: ReturnType<typeof vi.fn> };
 
     beforeEach(async () => {
         // Mock configuration service with threshold values
@@ -21,6 +25,18 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
             extractionConfidenceThresholdReview: 0.7,
             extractionConfidenceThresholdAuto: 0.85,
             extractionWorkerEnabled: false, // Prevent auto-start
+            extractionWorkerBatchSize: 1,
+            extractionWorkerPollIntervalMs: 1000,
+            extractionDefaultTemplatePackId: 'pack-default',
+        } as any;
+
+        const dbMock = {
+            isOnline: vi.fn().mockReturnValue(false),
+            query: vi.fn(),
+        };
+
+        const templatePackMock = {
+            assignTemplatePackToProject: vi.fn(),
         } as any;
 
         const module: TestingModule = await Test.createTestingModule({
@@ -32,9 +48,7 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
                 },
                 {
                     provide: DatabaseService,
-                    useValue: {
-                        isOnline: vi.fn().mockReturnValue(false), // Keep worker idle
-                    },
+                    useValue: dbMock,
                 },
                 {
                     provide: ExtractionJobService,
@@ -60,11 +74,27 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
                     provide: DocumentsService,
                     useValue: {},
                 },
+                {
+                    provide: TemplatePackService,
+                    useValue: templatePackMock,
+                },
             ],
         }).compile();
 
         service = module.get<ExtractionWorkerService>(ExtractionWorkerService);
-        configService = module.get(AppConfigService);
+        configService = module.get(AppConfigService) as typeof configService;
+        databaseService = module.get(DatabaseService) as typeof dbMock;
+        templatePackService = module.get(TemplatePackService) as typeof templatePackMock;
+
+        // Ensure private fields are populated in case Nest injection metadata is stripped during unit tests
+        (service as any).db = databaseService;
+        (service as any).templatePacks = templatePackService;
+        (service as any).config = configService;
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+        configService.extractionDefaultTemplatePackId = 'pack-default';
     });
 
     describe('applyQualityThresholds', () => {
@@ -137,6 +167,90 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
             expect(reviewResult1).toBe('review');
             expect(reviewResult2).toBe('review');
             expect(autoResult).toBe('auto');
+        });
+    });
+
+    describe('loadExtractionPrompt - default template pack fallback', () => {
+        const baseJob = {
+            id: 'job-1',
+            project_id: 'project-123',
+            org_id: 'org-123',
+            source_type: 'document',
+            extraction_config: {},
+            subject_id: 'user-999',
+        } as any;
+
+        it('auto-installs default template pack when missing and returns prompt', async () => {
+            expect((service as any).db).toBeDefined();
+            expect((service as any).db).toBe(databaseService);
+
+            databaseService.query
+                .mockResolvedValueOnce({ rowCount: 0, rows: [] })
+                .mockResolvedValueOnce({
+                    rowCount: 1,
+                    rows: [
+                        {
+                            extraction_prompts: { default: 'Prompt text' },
+                            default_prompt_key: null,
+                        },
+                    ],
+                });
+
+            templatePackService.assignTemplatePackToProject.mockResolvedValue({ success: true });
+
+            const prompt = await (service as any).loadExtractionPrompt(baseJob);
+
+            expect(templatePackService.assignTemplatePackToProject).toHaveBeenCalledWith(
+                baseJob.project_id,
+                baseJob.org_id,
+                baseJob.org_id,
+                baseJob.subject_id,
+                { template_pack_id: configService.extractionDefaultTemplatePackId }
+            );
+            expect(prompt).toBe('Prompt text');
+            expect(databaseService.query).toHaveBeenCalledTimes(2);
+        });
+
+        it('returns null when no default template pack is configured', async () => {
+            configService.extractionDefaultTemplatePackId = null;
+            databaseService.query.mockResolvedValue({ rowCount: 0, rows: [] });
+
+            const prompt = await (service as any).loadExtractionPrompt(baseJob);
+
+            expect(prompt).toBeNull();
+            expect(templatePackService.assignTemplatePackToProject).not.toHaveBeenCalled();
+        });
+
+        it('handles assignment failures gracefully', async () => {
+            databaseService.query.mockResolvedValue({ rowCount: 0, rows: [] });
+            templatePackService.assignTemplatePackToProject.mockRejectedValue(new NotFoundException('missing'));
+
+            const prompt = await (service as any).loadExtractionPrompt(baseJob);
+
+            expect(prompt).toBeNull();
+            expect(templatePackService.assignTemplatePackToProject).toHaveBeenCalledTimes(1);
+        });
+
+        it('retries after conflict without throwing', async () => {
+            databaseService.query
+                .mockResolvedValueOnce({ rowCount: 0, rows: [] })
+                .mockResolvedValueOnce({
+                    rowCount: 1,
+                    rows: [
+                        {
+                            extraction_prompts: { default: { system: 'sys', user: 'user' } },
+                            default_prompt_key: null,
+                        },
+                    ],
+                });
+
+            templatePackService.assignTemplatePackToProject.mockRejectedValueOnce(new ConflictException('already'));
+
+            const prompt = await (service as any).loadExtractionPrompt(baseJob);
+
+            expect(prompt).toBe('sys\nuser');
+            expect(templatePackService.assignTemplatePackToProject).toHaveBeenCalledTimes(1);
+            expect(databaseService.query).toHaveBeenCalledTimes(2);
         });
     });
 

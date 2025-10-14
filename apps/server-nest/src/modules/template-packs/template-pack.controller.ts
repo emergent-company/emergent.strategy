@@ -14,6 +14,7 @@ import {
     Req,
     BadRequestException,
 } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { AuthGuard } from '../auth/auth.guard';
 import { Scopes } from '../auth/scopes.decorator';
 import { ScopesGuard } from '../auth/scopes.guard';
@@ -31,6 +32,52 @@ export class TemplatePackController {
     private readonly logger = new Logger(TemplatePackController.name);
 
     constructor(private readonly templatePackService: TemplatePackService) { }
+
+    private normalizeUserId(value?: string | null): string | undefined {
+        if (!value) {
+            return undefined;
+        }
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return undefined;
+        }
+        if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(trimmed)) {
+            return trimmed;
+        }
+
+        try {
+            const hash = createHash('sha1').update(trimmed).digest();
+            const bytes = Buffer.from(hash.subarray(0, 16));
+            bytes[6] = (bytes[6] & 0x0f) | 0x50; // RFC4122 v5 style
+            bytes[8] = (bytes[8] & 0x3f) | 0x80;
+            const hex = bytes.toString('hex');
+            return `${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}`;
+        } catch {
+            return undefined;
+        }
+    }
+
+    private resolveUserId(req: any, queryUserId?: string): string {
+        const resolvedFromRequest = this.normalizeUserId(req?.user?.sub);
+        if (resolvedFromRequest) {
+            return resolvedFromRequest;
+        }
+
+        const resolvedFromQuery = this.normalizeUserId(queryUserId);
+        if (resolvedFromQuery) {
+            return resolvedFromQuery;
+        }
+
+        const authHeaderRaw = req?.headers?.['authorization'];
+        const authHeader = Array.isArray(authHeaderRaw) ? authHeaderRaw[0] : authHeaderRaw;
+        const token = typeof authHeader === 'string' ? authHeader.replace(/^Bearer\s+/i, '').trim() : undefined;
+        const resolvedFromToken = this.normalizeUserId(token);
+        if (resolvedFromToken) {
+            return resolvedFromToken;
+        }
+
+        return '00000000-0000-0000-0000-000000000001';
+    }
 
     /**
      * Create a new global template pack
@@ -110,7 +157,7 @@ export class TemplatePackController {
         // In E2E_MINIMAL_DB mode, context may come from query params instead of headers
         const orgId = (req.headers['x-org-id'] as string | undefined) || queryOrgId;
         const tenantId = (req.headers['x-tenant-id'] as string | undefined) || queryTenantId || orgId; // Use orgId as tenant for development
-        const userId = req.user?.sub || queryUserId;
+        const userId = this.resolveUserId(req, queryUserId);
 
         if (!orgId) {
             throw new BadRequestException('Organization context required');

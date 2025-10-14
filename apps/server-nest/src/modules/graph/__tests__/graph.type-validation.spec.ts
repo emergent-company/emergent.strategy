@@ -31,6 +31,7 @@ describe('GraphService - Type Registry Validation Integration', () => {
         mockDb = {
             query: vi.fn(),
             getClient: vi.fn().mockResolvedValue(mockClient),
+            setTenantContext: vi.fn().mockResolvedValue(undefined),
         };
 
         mockSchemaRegistry = {
@@ -70,7 +71,6 @@ describe('GraphService - Type Registry Validation Integration', () => {
         beforeEach(() => {
             // Mock successful object creation
             mockClient.query
-                .mockResolvedValueOnce({ rowCount: 0 }) // Branch check
                 .mockResolvedValueOnce({ rowCount: 0 }) // BEGIN
                 .mockResolvedValueOnce({ rowCount: 0 }) // Advisory lock
                 .mockResolvedValueOnce({ rowCount: 0 }) // Existing key check
@@ -167,10 +167,31 @@ describe('GraphService - Type Registry Validation Integration', () => {
                 project_id: undefined,
             };
 
-            // Mock GUC queries returning null
-            mockDb.query
-                .mockResolvedValueOnce({ rows: [{ org: null }] })
-                .mockResolvedValueOnce({ rows: [{ proj: null }] });
+            // Reset query plan to include GUC lookups before transactional steps
+            mockClient.query.mockReset();
+            mockClient.query
+                .mockResolvedValueOnce({ rows: [{ org: null }] }) // current_setting org
+                .mockResolvedValueOnce({ rows: [{ proj: null }] }) // current_setting project
+                .mockResolvedValueOnce({ rowCount: 0 }) // BEGIN
+                .mockResolvedValueOnce({ rowCount: 0 }) // Advisory lock
+                .mockResolvedValueOnce({ rowCount: 0 }) // Existing key check
+                .mockResolvedValueOnce({
+                    rowCount: 1,
+                    rows: [{
+                        id: mockObjectId,
+                        org_id: null,
+                        project_id: null,
+                        type: 'Application',
+                        key: 'my-app',
+                        properties: validCreateDto.properties,
+                        labels: ['production'],
+                        version: 1,
+                        canonical_id: 'canonical-123',
+                        created_at: new Date(),
+                        embedding: null,
+                    }],
+                })
+                .mockResolvedValueOnce({ rowCount: 0 }); // COMMIT
 
             await service.createObject(dtoWithoutOrgProject);
 
@@ -287,14 +308,24 @@ describe('GraphService - Type Registry Validation Integration', () => {
         };
 
         beforeEach(() => {
+            // Mock for createObject without key (no advisory lock or existing check)
             mockClient.query
-                .mockResolvedValueOnce({ rowCount: 0 }) // Branch check
                 .mockResolvedValueOnce({ rowCount: 0 }) // BEGIN
-                .mockResolvedValueOnce({ rowCount: 0 }) // Advisory lock
-                .mockResolvedValueOnce({ rowCount: 0 }) // Existing check
                 .mockResolvedValueOnce({
+                    // INSERT result
                     rowCount: 1,
-                    rows: [{ id: mockObjectId, embedding: null }],
+                    rows: [{
+                        id: mockObjectId,
+                        org_id: mockOrgId,
+                        project_id: mockProjectId,
+                        type: 'Application',
+                        properties: { name: 'Test' },
+                        labels: [],
+                        version: 1,
+                        canonical_id: 'canonical-123',
+                        created_at: new Date(),
+                        embedding: null,
+                    }],
                 })
                 .mockResolvedValueOnce({ rowCount: 0 }); // COMMIT
         });

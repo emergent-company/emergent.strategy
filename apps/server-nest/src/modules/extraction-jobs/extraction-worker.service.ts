@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { AppConfigService } from '../../common/config/config.service';
 import { DatabaseService } from '../../common/database/database.service';
 import { ExtractionJobService } from './extraction-job.service';
@@ -10,6 +10,7 @@ import { GraphService } from '../graph/graph.service';
 import { DocumentsService } from '../documents/documents.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ExtractionJobDto } from './dto/extraction-job.dto';
+import { TemplatePackService } from '../template-packs/template-pack.service';
 
 /**
  * Extraction Worker Service
@@ -45,7 +46,12 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         private readonly graphService: GraphService,
         private readonly documentsService: DocumentsService,
         private readonly notificationsService: NotificationsService,
+        private readonly templatePacks: TemplatePackService,
     ) { }
+
+    private getOrganizationId(job: ExtractionJobDto): string | null {
+        return job.organization_id ?? job.org_id ?? null;
+    }
 
     async onModuleInit() {
         // Only start if extraction worker is enabled and DB is online
@@ -225,6 +231,57 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 );
             }
 
+            const totalEntities = extractionResult.entities.length;
+            let processedEntities = 0;
+            let lastLoggedPercent = -1;
+
+            const recordProgress = async (progressOutcome: 'created' | 'merged' | 'skipped' | 'rejected' | 'failed') => {
+                if (totalEntities === 0) {
+                    return;
+                }
+
+                processedEntities += 1;
+
+                try {
+                    await this.jobService.updateProgress(job.id, processedEntities, totalEntities);
+                } catch (progressUpdateError) {
+                    this.logger.warn(
+                        `Failed to update progress for job ${job.id} at ${processedEntities}/${totalEntities}`,
+                        progressUpdateError as Error
+                    );
+                }
+
+                const percentComplete = Math.round((processedEntities / totalEntities) * 100);
+                const shouldLogProgress =
+                    totalEntities <= 10 ||
+                    processedEntities === 1 ||
+                    processedEntities === totalEntities ||
+                    percentComplete >= lastLoggedPercent + 10;
+
+                if (shouldLogProgress) {
+                    lastLoggedPercent = percentComplete;
+                    this.logger.log(
+                        `[PROGRESS] Job ${job.id}: ${processedEntities}/${totalEntities} (${percentComplete}%) entities processed (outcome=${progressOutcome})`
+                    );
+                }
+            };
+
+            if (totalEntities > 0) {
+                try {
+                    await this.jobService.updateProgress(job.id, 0, totalEntities);
+                    this.logger.log(
+                        `[PROGRESS] Job ${job.id}: initialized progress tracking for ${totalEntities} entity${totalEntities === 1 ? '' : 'ies'}`
+                    );
+                } catch (progressInitError) {
+                    this.logger.warn(
+                        `Failed to initialize progress tracking for job ${job.id}`,
+                        progressInitError as Error
+                    );
+                }
+            } else {
+                this.logger.log(`Extraction job ${job.id} produced no entities to process`);
+            }
+
             // 6. Create graph objects from extracted entities
             const createdObjectIds: string[] = [];
             const reviewRequiredObjectIds: string[] = [];
@@ -237,6 +294,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             const autoThreshold = this.config.extractionConfidenceThresholdAuto;
 
             for (const entity of extractionResult.entities) {
+                let outcome: 'created' | 'merged' | 'skipped' | 'rejected' | 'failed' = 'skipped';
+
                 try {
                     // Calculate confidence score using multi-factor algorithm
                     const calculatedConfidence = this.confidenceScorer.calculateConfidence(entity, allowedTypes);
@@ -263,6 +322,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                             `Rejected entity ${entity.name}: confidence ${finalConfidence.toFixed(3)} ` +
                             `below minimum threshold ${minThreshold}`
                         );
+                        outcome = 'rejected';
+                        await recordProgress(outcome);
                         continue; // Skip this entity
                     }
 
@@ -278,6 +339,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                         this.logger.debug(
                             `Skipped entity ${entity.name}: already exists as ${linkingDecision.existingObjectId}`
                         );
+                        outcome = 'skipped';
+                        await recordProgress(outcome);
                         continue;
                     }
 
@@ -299,6 +362,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                             `Merged entity ${entity.name} into existing object ${linkingDecision.existingObjectId} ` +
                             `(confidence: ${finalConfidence.toFixed(3)}, decision: ${qualityDecision})`
                         );
+                        outcome = 'merged';
+                        await recordProgress(outcome);
                         continue;
                     }
 
@@ -338,11 +403,15 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                             `Created object ${graphObject.id}: ${entity.type_name} - ${entity.name} ` +
                             `(confidence: ${finalConfidence.toFixed(3)}, decision: ${qualityDecision})`
                         );
+                        outcome = 'created';
                     }
                 } catch (error) {
+                    outcome = 'failed';
                     this.logger.warn(`Failed to create object for entity ${entity.name}`, error);
                     // Continue processing other entities
                 }
+
+                await recordProgress(outcome);
             }
 
             // 7. Mark job as completed or requires_review
@@ -488,32 +557,112 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
      * Load extraction prompt from project's template pack
      */
     private async loadExtractionPrompt(job: ExtractionJobDto): Promise<string | null> {
-        // Get project's assigned template pack
-        const result = await this.db.query<{
-            extraction_prompts: any;
-            default_prompt_key: string | null;
-        }>(
-            `SELECT tp.extraction_prompts, ptp.customizations->>'default_prompt_key' as default_prompt_key
+        const templatePackQuery = `SELECT tp.extraction_prompts, ptp.customizations->>'default_prompt_key' as default_prompt_key
              FROM kb.project_template_packs ptp
              JOIN kb.graph_template_packs tp ON tp.id = ptp.template_pack_id
              WHERE ptp.project_id = $1 AND ptp.active = true
-             LIMIT 1`,
-            [job.project_id]
-        );
+             LIMIT 1`;
+
+        // Get project's assigned template pack
+        let result = await this.db.query<{
+            extraction_prompts: any;
+            default_prompt_key: string | null;
+        }>(templatePackQuery, [job.project_id]);
 
         if (!result.rowCount) {
             this.logger.warn(`No active template pack found for project ${job.project_id}`);
-            return null;
+
+            const defaultTemplatePackId = this.config.extractionDefaultTemplatePackId;
+            if (!defaultTemplatePackId) {
+                this.logger.warn('No default extraction template pack configured; skipping auto-install');
+                return null;
+            }
+
+            const organizationId = this.getOrganizationId(job);
+            if (!organizationId) {
+                this.logger.warn(
+                    `Cannot auto-install default template pack ${defaultTemplatePackId}: missing organization ID on job ${job.id}`
+                );
+                return null;
+            }
+
+            const tenantId = (job as unknown as { tenant_id?: string }).tenant_id ?? organizationId;
+            const userId = job.subject_id || (job as unknown as { created_by?: string }).created_by || 'system';
+
+            try {
+                this.logger.log(
+                    `Auto-installing default template pack ${defaultTemplatePackId} for project ${job.project_id}`
+                );
+                await this.templatePacks.assignTemplatePackToProject(
+                    job.project_id,
+                    organizationId,
+                    tenantId,
+                    userId,
+                    { template_pack_id: defaultTemplatePackId }
+                );
+            } catch (error) {
+                if (error instanceof ConflictException) {
+                    this.logger.log(
+                        `Default template pack ${defaultTemplatePackId} already installed for project ${job.project_id}`
+                    );
+                } else {
+                    const err = error instanceof Error ? error : new Error(String(error));
+                    this.logger.warn(
+                        `Failed to auto-install default template pack ${defaultTemplatePackId} for project ${job.project_id}`,
+                        err
+                    );
+                    return null;
+                }
+            }
+
+            result = await this.db.query(templatePackQuery, [job.project_id]);
+
+            if (!result.rowCount) {
+                this.logger.warn(
+                    `Default template pack ${defaultTemplatePackId} available but prompts still missing for project ${job.project_id}`
+                );
+                return null;
+            }
         }
 
         const extractionPrompts = result.rows[0].extraction_prompts || {};
+        const defaultPromptKey = result.rows[0].default_prompt_key;
+
+        const renderPrompt = (raw: unknown): string | null => {
+            if (!raw) {
+                return null;
+            }
+
+            if (typeof raw === 'string') {
+                const trimmed = raw.trim();
+                return trimmed.length > 0 ? trimmed : null;
+            }
+
+            if (typeof raw === 'object') {
+                const value = raw as { system?: unknown; user?: unknown };
+                const system = typeof value.system === 'string' ? value.system.trim() : '';
+                const user = typeof value.user === 'string' ? value.user.trim() : '';
+                const parts = [system, user].filter(Boolean);
+                const combined = parts.join('\n').trim();
+                return combined.length > 0 ? combined : null;
+            }
+
+            return null;
+        };
+
+        if (defaultPromptKey) {
+            const prompt = renderPrompt(extractionPrompts[defaultPromptKey]);
+            if (prompt) {
+                this.logger.log(`Using extraction prompt with configured default key: ${defaultPromptKey}`);
+                return prompt;
+            }
+        }
 
         // Try to get a generic/default prompt first
-        if (extractionPrompts.default) {
+        const defaultPrompt = renderPrompt(extractionPrompts.default);
+        if (defaultPrompt) {
             this.logger.log(`Using default extraction prompt`);
-            return typeof extractionPrompts.default === 'string'
-                ? extractionPrompts.default
-                : (extractionPrompts.default.system || extractionPrompts.default.user);
+            return defaultPrompt;
         }
 
         // If specific entity types are requested, combine their prompts
@@ -523,10 +672,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
             for (const entityType of requestedTypes) {
                 if (extractionPrompts[entityType]) {
-                    const prompt = extractionPrompts[entityType];
-                    const promptText = typeof prompt === 'string'
-                        ? prompt
-                        : `${prompt.system || ''}\n${prompt.user || ''}`.trim();
+                    const promptText = renderPrompt(extractionPrompts[entityType]);
 
                     if (promptText) {
                         availablePrompts.push(`For ${entityType}: ${promptText}`);
@@ -544,14 +690,13 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         // Fallback: use the first available prompt
         const availableKeys = Object.keys(extractionPrompts);
         if (availableKeys.length > 0) {
-            const firstKey = availableKeys[0];
-            const firstPrompt = extractionPrompts[firstKey];
-            const promptText = typeof firstPrompt === 'string'
-                ? firstPrompt
-                : `${firstPrompt.system || ''}\n${firstPrompt.user || ''}`.trim();
-
-            this.logger.warn(`No matching prompts found, using fallback prompt key: ${firstKey}`);
-            return promptText;
+            for (const key of availableKeys) {
+                const promptText = renderPrompt(extractionPrompts[key]);
+                if (promptText) {
+                    this.logger.warn(`No matching prompts found, using fallback prompt key: ${key}`);
+                    return promptText;
+                }
+            }
         }
 
         this.logger.warn(`No extraction prompts available in template pack`);
@@ -651,6 +796,14 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 return;
             }
 
+            const organizationId = this.getOrganizationId(job);
+            if (!organizationId) {
+                this.logger.warn(
+                    `Skipping completion notification for job ${job.id} - missing organization context`
+                );
+                return;
+            }
+
             // Get document name from source metadata
             const documentName = job.source_metadata?.filename ||
                 job.source_metadata?.source_url ||
@@ -658,8 +811,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
             await this.notificationsService.notifyExtractionCompleted({
                 userId: job.subject_id,
-                tenantId: job.org_id, // Using org_id as tenant_id
-                organizationId: job.org_id,
+                tenantId: organizationId,
+                organizationId,
                 projectId: job.project_id,
                 documentId: job.source_id || '',
                 documentName,
@@ -696,6 +849,14 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 return;
             }
 
+            const organizationId = this.getOrganizationId(job);
+            if (!organizationId) {
+                this.logger.warn(
+                    `Skipping failure notification for job ${job.id} - missing organization context`
+                );
+                return;
+            }
+
             const documentName = job.source_metadata?.filename ||
                 job.source_metadata?.source_url ||
                 `Document ${job.source_id}`;
@@ -705,8 +866,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
             await this.notificationsService.notifyExtractionFailed({
                 userId: job.subject_id,
-                tenantId: job.org_id,
-                organizationId: job.org_id,
+                tenantId: organizationId,
+                organizationId,
                 projectId: job.project_id,
                 documentId: job.source_id || '',
                 documentName,

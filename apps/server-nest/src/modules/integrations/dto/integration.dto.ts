@@ -1,5 +1,4 @@
-import { IsString, IsBoolean, IsOptional, IsObject, IsUUID, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsBoolean, IsOptional, IsObject } from 'class-validator';
 
 /**
  * Base DTO for integration settings (will be encrypted)
@@ -61,13 +60,6 @@ export class CreateIntegrationDto {
     @IsBoolean()
     @IsOptional()
     enabled?: boolean;
-
-    @IsString()
-    org_id!: string;
-
-    @IsString()
-    @IsUUID()
-    project_id!: string;
 
     @IsObject()
     @IsOptional()

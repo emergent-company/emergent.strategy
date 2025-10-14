@@ -3,19 +3,24 @@ import { TemplatePackService } from '../template-pack.service';
 import { DatabaseService } from '../../../common/database/database.service';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { CreateTemplatePackDto, AssignTemplatePackDto } from '../dto/template-pack.dto';
+import { vi } from 'vitest';
 
 describe('TemplatePackService', () => {
     let service: TemplatePackService;
-    let mockDb: jest.Mocked<DatabaseService>;
+    let mockDb: any;
 
     beforeEach(async () => {
         // Create mock database service
         mockDb = {
-            query: jest.fn(),
-            getPool: jest.fn(() => ({
-                connect: jest.fn().mockResolvedValue({
-                    query: jest.fn(),
-                    release: jest.fn(),
+            query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+            getClient: vi.fn().mockResolvedValue({
+                query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+                release: vi.fn(),
+            }),
+            getPool: vi.fn(() => ({
+                connect: vi.fn().mockResolvedValue({
+                    query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+                    release: vi.fn(),
                 }),
             })),
         } as any;
@@ -31,10 +36,13 @@ describe('TemplatePackService', () => {
         }).compile();
 
         service = module.get<TemplatePackService>(TemplatePackService);
+
+        // WORKAROUND: Manually assign the mock to fix DI issue
+        (service as any).db = mockDb;
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('createTemplatePack', () => {
@@ -229,20 +237,32 @@ describe('TemplatePackService', () => {
 
             // Mock client for transaction
             const mockClient = {
-                query: jest.fn()
+                query: vi.fn()
                     .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // BEGIN
-                    .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // set org context
-                    .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // set project context
-                    .mockResolvedValueOnce({ rows: [{ id: 'assignment-1' }], rowCount: 1 }) // insert assignment
+                    .mockResolvedValueOnce({ rows: [{ set_config: orgId }], rowCount: 1 }) // set org context
+                    .mockResolvedValueOnce({ rows: [{ set_config: projectId }], rowCount: 1 }) // set project context
+                    .mockResolvedValueOnce({
+                        rows: [{
+                            id: 'assignment-1',
+                            tenant_id: tenantId,
+                            organization_id: orgId,
+                            project_id: projectId,
+                            template_pack_id: 'pack-1',
+                            installed_by: userId,
+                            active: true,
+                            customizations: {},
+                            created_at: new Date(),
+                            updated_at: new Date()
+                        }],
+                        rowCount: 1
+                    }) // insert assignment RETURNING *
                     .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // insert type 1
                     .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // insert type 2
                     .mockResolvedValueOnce({ rows: [], rowCount: 0 }), // COMMIT
-                release: jest.fn(),
+                release: vi.fn(),
             };
 
-            (mockDb.getPool as jest.Mock).mockReturnValueOnce({
-                connect: jest.fn().mockResolvedValue(mockClient),
-            });
+            mockDb.getClient.mockResolvedValueOnce(mockClient);
 
             const result = await service.assignTemplatePackToProject(
                 projectId,
@@ -310,19 +330,31 @@ describe('TemplatePackService', () => {
             } as any);
 
             const mockClient = {
-                query: jest.fn()
-                    .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-                    .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-                    .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-                    .mockResolvedValueOnce({ rows: [{ id: 'assignment-1' }], rowCount: 1 })
+                query: vi.fn()
+                    .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // BEGIN
+                    .mockResolvedValueOnce({ rows: [{ set_config: orgId }], rowCount: 1 }) // set org context
+                    .mockResolvedValueOnce({ rows: [{ set_config: projectId }], rowCount: 1 }) // set project context
+                    .mockResolvedValueOnce({
+                        rows: [{
+                            id: 'assignment-1',
+                            tenant_id: tenantId,
+                            organization_id: orgId,
+                            project_id: projectId,
+                            template_pack_id: 'pack-1',
+                            installed_by: userId,
+                            active: true,
+                            customizations: {},
+                            created_at: new Date(),
+                            updated_at: new Date()
+                        }],
+                        rowCount: 1
+                    }) // insert assignment RETURNING *
                     .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // Only Feature type inserted
-                    .mockResolvedValueOnce({ rows: [], rowCount: 0 }),
-                release: jest.fn(),
+                    .mockResolvedValueOnce({ rows: [], rowCount: 0 }), // COMMIT
+                release: vi.fn(),
             };
 
-            (mockDb.getPool as jest.Mock).mockReturnValueOnce({
-                connect: jest.fn().mockResolvedValue(mockClient),
-            });
+            mockDb.getClient.mockResolvedValueOnce(mockClient);
 
             const result = await service.assignTemplatePackToProject(
                 projectId,
@@ -369,14 +401,31 @@ describe('TemplatePackService', () => {
             mockDb.query.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
 
             const mockClient = {
-                query: jest.fn()
-                    .mockResolvedValue({ rows: [{ id: 'assignment-1' }], rowCount: 1 }),
-                release: jest.fn(),
+                query: vi.fn()
+                    .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // BEGIN
+                    .mockResolvedValueOnce({ rows: [{ set_config: orgId }], rowCount: 1 }) // set org context
+                    .mockResolvedValueOnce({ rows: [{ set_config: projectId }], rowCount: 1 }) // set project context
+                    .mockResolvedValueOnce({
+                        rows: [{
+                            id: 'assignment-1',
+                            tenant_id: tenantId,
+                            organization_id: orgId,
+                            project_id: projectId,
+                            template_pack_id: 'pack-1',
+                            installed_by: userId,
+                            active: true,
+                            customizations: { enabledTypes: ['Requirement'] },
+                            created_at: new Date(),
+                            updated_at: new Date()
+                        }],
+                        rowCount: 1
+                    }) // insert assignment RETURNING *
+                    .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // Only Requirement type inserted
+                    .mockResolvedValueOnce({ rows: [], rowCount: 0 }), // COMMIT
+                release: vi.fn(),
             };
 
-            (mockDb.getPool as jest.Mock).mockReturnValueOnce({
-                connect: jest.fn().mockResolvedValue(mockClient),
-            });
+            mockDb.getClient.mockResolvedValueOnce(mockClient);
 
             const result = await service.assignTemplatePackToProject(
                 projectId,
@@ -393,21 +442,31 @@ describe('TemplatePackService', () => {
     describe('uninstallTemplatePackFromProject', () => {
         it('should throw BadRequestException if objects exist', async () => {
             const mockClient = {
-                query: jest.fn()
+                query: vi.fn()
                     .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // BEGIN
-                    .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // set org context
-                    .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // set project context
+                    .mockResolvedValueOnce({ rows: [{ set_config: 'org-1' }], rowCount: 1 }) // set org context
+                    .mockResolvedValueOnce({ rows: [{ set_config: 'proj-1' }], rowCount: 1 }) // set project context
                     .mockResolvedValueOnce({
-                        rows: [{ template_pack_id: 'pack-1' }],
+                        rows: [{
+                            id: 'assignment-1',
+                            tenant_id: 'tenant-1',
+                            organization_id: 'org-1',
+                            project_id: 'proj-1',
+                            template_pack_id: 'pack-1',
+                            installed_by: 'user-1',
+                            active: true,
+                            customizations: {},
+                            created_at: new Date(),
+                            updated_at: new Date()
+                        }],
                         rowCount: 1,
                     }) // get assignment
-                    .mockResolvedValueOnce({ rows: [{ count: '5' }], rowCount: 1 }), // count objects
-                release: jest.fn(),
+                    .mockResolvedValueOnce({ rows: [{ count: '5' }], rowCount: 1 }) // count objects (> 0)
+                    .mockResolvedValueOnce({ rows: [], rowCount: 0 }), // ROLLBACK
+                release: vi.fn(),
             };
 
-            (mockDb.getPool as jest.Mock).mockReturnValueOnce({
-                connect: jest.fn().mockResolvedValue(mockClient),
-            });
+            mockDb.getClient.mockResolvedValueOnce(mockClient);
 
             await expect(
                 service.uninstallTemplatePackFromProject('assignment-1', 'proj-1', 'org-1')
@@ -418,24 +477,33 @@ describe('TemplatePackService', () => {
 
         it('should uninstall successfully if no objects exist', async () => {
             const mockClient = {
-                query: jest.fn()
+                query: vi.fn()
                     .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // BEGIN
-                    .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // set org context
-                    .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // set project context
+                    .mockResolvedValueOnce({ rows: [{ set_config: 'org-1' }], rowCount: 1 }) // set org context
+                    .mockResolvedValueOnce({ rows: [{ set_config: 'proj-1' }], rowCount: 1 }) // set project context
                     .mockResolvedValueOnce({
-                        rows: [{ id: 'assignment-1', template_pack_id: 'pack-1' }],
+                        rows: [{
+                            id: 'assignment-1',
+                            tenant_id: 'tenant-1',
+                            organization_id: 'org-1',
+                            project_id: 'proj-1',
+                            template_pack_id: 'pack-1',
+                            installed_by: 'user-1',
+                            active: true,
+                            customizations: {},
+                            created_at: new Date(),
+                            updated_at: new Date()
+                        }],
                         rowCount: 1,
                     }) // get assignment
                     .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 }) // count objects
                     .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // delete type registry
                     .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // delete assignment
                     .mockResolvedValueOnce({ rows: [], rowCount: 0 }), // COMMIT
-                release: jest.fn(),
+                release: vi.fn(),
             };
 
-            (mockDb.getPool as jest.Mock).mockReturnValueOnce({
-                connect: jest.fn().mockResolvedValue(mockClient),
-            });
+            mockDb.getClient.mockResolvedValueOnce(mockClient);
 
             await service.uninstallTemplatePackFromProject('assignment-1', 'proj-1', 'org-1');
 

@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { INestApplication, ValidationPipe, UnprocessableEntityException } from '@nestjs/common';
+import { INestApplication, ValidationPipe, BadRequestException, HttpStatus } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 // Import from compiled dist to ensure decorator metadata (esbuild used by Vitest strips it)
 // Tests should be run after a build step (see test:spec script)
@@ -74,6 +74,7 @@ export async function bootstrapTestApp(): Promise<BootstrappedApp> {
             forbidUnknownValues: false,
             transformOptions: { enableImplicitConversion: true },
             validateCustomDecorators: true,
+            errorHttpStatusCode: HttpStatus.BAD_REQUEST,
             exceptionFactory: (errors) => {
                 const details = errors.reduce<Record<string, string[]>>((acc, err) => {
                     if (err.constraints) {
@@ -83,7 +84,7 @@ export async function bootstrapTestApp(): Promise<BootstrappedApp> {
                     }
                     return acc;
                 }, {});
-                return new UnprocessableEntityException({ message: 'Validation failed', details });
+                return new BadRequestException({ message: 'Validation failed', details });
             },
         }),
     );

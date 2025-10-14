@@ -9,7 +9,7 @@ const ResetPasswordPage = () => {
     const [showPassword, setShowPassword] = useState(false);
 
     return (
-        <>
+        <div data-testid="page-auth-reset-password">
             <MetaData title="Reset Password" />
             <div className="flex flex-col items-stretch p-6 md:p-8 lg:p-16">
                 <div className="flex justify-between items-center">
@@ -94,7 +94,7 @@ const ResetPasswordPage = () => {
                     </p>
                 </div>
             </div>
-        </>
+        </div>
     );
 };
 

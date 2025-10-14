@@ -8,6 +8,7 @@ export interface IntegrationCardProps {
     onToggle?: () => void;
     onDelete?: () => void;
     onSync?: () => void;
+    'data-testid'?: string;
 }
 
 const integrationIcons: Record<string, string> = {
@@ -25,13 +26,14 @@ export function IntegrationCard({
     onToggle,
     onDelete,
     onSync,
+    'data-testid': dataTestId,
 }: IntegrationCardProps) {
     const isConfigured = !!configuredInstance;
     const isEnabled = configuredInstance?.enabled ?? false;
     const icon = integrationIcons[integration.name] || integrationIcons.default;
 
     return (
-        <div className="bg-base-100 border hover:border-primary/50 border-base-300 transition-colors card">
+        <div className="bg-base-100 border hover:border-primary/50 border-base-300 transition-colors card" data-testid={dataTestId}>
             <div className="card-body">
                 {/* Header */}
                 <div className="flex items-start gap-4">
@@ -87,8 +89,8 @@ export function IntegrationCard({
                         Last sync: {new Date(configuredInstance.last_sync_at).toLocaleString()}
                         {configuredInstance.last_sync_status && (
                             <span className={`ml-2 font-medium ${configuredInstance.last_sync_status === 'success' ? 'text-success' :
-                                    configuredInstance.last_sync_status === 'failed' ? 'text-error' :
-                                        'text-warning'
+                                configuredInstance.last_sync_status === 'failed' ? 'text-error' :
+                                    'text-warning'
                                 }`}>
                                 {configuredInstance.last_sync_status}
                             </span>

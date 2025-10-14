@@ -148,7 +148,7 @@ export function useChat(opts: UseChatOptions = {}) {
     // Optional: Fetch server-side grouped conversation metadata and merge by id
     const refreshConversationsFromServer = useCallback(async () => {
         try {
-            const res = await fetch(`${apiBase}/chat/conversations`, { headers: authHeaders() });
+            const res = await fetch(`${apiBase}/api/chat/conversations`, { headers: authHeaders() });
             if (!res.ok) return;
             const data = (await res.json()) as { shared: Array<any>; private: Array<any> };
             let serverList: Conversation[] = [...data.shared, ...data.private].map((c) => ({
@@ -212,7 +212,7 @@ export function useChat(opts: UseChatOptions = {}) {
         let aborted = false;
         (async () => {
             try {
-                const res = await fetch(`${apiBase}/chat/${id}`, { headers: authHeaders() });
+                const res = await fetch(`${apiBase}/api/chat/${id}`, { headers: authHeaders() });
                 if (!res.ok) return;
                 const payload = await res.json();
                 // Backend returns the conversation object directly (no { conversation } wrapper) – support both
@@ -386,7 +386,7 @@ export function useChat(opts: UseChatOptions = {}) {
             controllerRef.current = controller;
 
             // Use fetch with ReadableStream SSE proxy endpoint
-            const res = await fetch(`${apiBase}/chat/stream`, {
+            const res = await fetch(`${apiBase}/api/chat/stream`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", ...authHeaders() },
                 body: JSON.stringify({ message, conversationId: conv?.id && !/^c_/.test(conv.id) ? conv.id : undefined, history, topK, documentIds, stream: true, isPrivate: (conv?.isPrivate ?? input.isPrivate) as boolean } satisfies ChatRequest),
@@ -512,7 +512,7 @@ export function useChat(opts: UseChatOptions = {}) {
                             const id = serverConvId || currentConvId;
                             if (id && !/^c_/.test(id)) {
                                 try {
-                                    const refRes = await fetch(`${apiBase}/chat/${id}`, { headers: authHeaders() });
+                                    const refRes = await fetch(`${apiBase}/api/chat/${id}`, { headers: authHeaders() });
                                     if (refRes.ok) {
                                         const payload = await refRes.json();
                                         const raw: any = (payload as any)?.conversation ?? payload;
@@ -578,7 +578,7 @@ export function useChat(opts: UseChatOptions = {}) {
             return [...prev.slice(0, idx), conv, ...prev.slice(idx + 1)];
         });
         try {
-            await fetch(`${apiBase}/chat/${conversationId}`, {
+            await fetch(`${apiBase}/api/chat/${conversationId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', ...authHeaders() },
                 body: JSON.stringify({ title }),
@@ -594,7 +594,7 @@ export function useChat(opts: UseChatOptions = {}) {
         setConversationsPersisted((prev) => prev.filter((c) => c.id !== conversationId));
         setActiveId((prevId) => (prevId === conversationId ? null : prevId));
         try {
-            const res = await fetch(`${apiBase}/chat/${conversationId}`, { method: 'DELETE', headers: authHeaders() });
+            const res = await fetch(`${apiBase}/api/chat/${conversationId}`, { method: 'DELETE', headers: authHeaders() });
             if (!res.ok) {
                 // Roll back on authorization/server failure
                 setConversations(prevSnapshot);

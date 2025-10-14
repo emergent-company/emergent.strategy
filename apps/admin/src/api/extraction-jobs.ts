@@ -25,7 +25,7 @@ export type ExtractionSourceType = 'document' | 'api' | 'manual' | 'bulk_import'
  */
 export interface ExtractionJob {
     id: string;
-    org_id: string;
+    organization_id: string;
     project_id: string;
     source_type: ExtractionSourceType;
     source_id?: string;
@@ -52,8 +52,7 @@ export interface ExtractionJob {
  * Create extraction job payload
  */
 export interface CreateExtractionJobPayload {
-    org_id: string;
-    project_id: string;
+    project_id?: string;
     source_type: ExtractionSourceType;
     source_id?: string;
     source_metadata?: Record<string, any>;
@@ -130,7 +129,7 @@ export interface ExtractionJobStatistics {
  * const { apiBase, fetchJson } = useApi();
  * const client = createExtractionJobsClient(apiBase, fetchJson);
  * 
- * const jobs = await client.listJobs(projectId, orgId, { status: 'running' });
+ * const jobs = await client.listJobs(projectId, { status: 'running' });
  * const job = await client.getJob(jobId);
  * ```
  */
@@ -138,7 +137,7 @@ export interface ExtractionJobsClient {
     /**
      * List extraction jobs for a project
      */
-    listJobs(projectId: string, orgId: string, params?: ListExtractionJobsParams): Promise<ExtractionJobListResponse>;
+    listJobs(projectId?: string, params?: ListExtractionJobsParams): Promise<ExtractionJobListResponse>;
 
     /**
      * Get a single extraction job by ID
@@ -168,7 +167,7 @@ export interface ExtractionJobsClient {
     /**
      * Get extraction statistics for a project
      */
-    getStatistics(projectId: string, orgId: string): Promise<ExtractionJobStatistics>;
+    getStatistics(projectId?: string): Promise<ExtractionJobStatistics>;
 }
 
 /**
@@ -176,20 +175,23 @@ export interface ExtractionJobsClient {
  * 
  * @param apiBase - Base API URL from useApi hook
  * @param fetchJson - Fetch function from useApi hook
- * @param projectId - Current project ID
- * @param orgId - Current org ID
+ * @param defaultProjectId - Current project ID to use when a call omits one
  * @returns Extraction jobs client
  */
 export function createExtractionJobsClient(
     apiBase: string,
     fetchJson: <T, B = unknown>(url: string, init?: any) => Promise<T>,
-    projectId?: string,
-    orgId?: string
+    defaultProjectId?: string
 ): ExtractionJobsClient {
     return {
-        async listJobs(projectId: string, orgId: string, params: ListExtractionJobsParams = {}) {
+        async listJobs(projectId?: string, params: ListExtractionJobsParams = {}) {
+            const resolvedProjectId = projectId ?? defaultProjectId;
+
+            if (!resolvedProjectId) {
+                throw new Error('Project ID is required to list extraction jobs');
+            }
+
             const queryParams = new URLSearchParams();
-            queryParams.set('org_id', orgId); // Add org_id to query params
             if (params.status) queryParams.set('status', params.status);
             if (params.source_type) queryParams.set('source_type', params.source_type);
             if (params.source_id) queryParams.set('source_id', params.source_id);
@@ -197,50 +199,48 @@ export function createExtractionJobsClient(
             if (params.limit) queryParams.set('limit', params.limit.toString());
 
             const query = queryParams.toString();
-            const url = `${apiBase}/admin/extraction-jobs/projects/${projectId}?${query}`;
+            const url = `${apiBase}/api/admin/extraction-jobs/projects/${resolvedProjectId}?${query}`;
 
-            return fetchJson<ExtractionJobListResponse>(url);
+            const response = await fetchJson<ExtractionJobListResponseRaw>(url);
+            return {
+                ...response,
+                jobs: response.jobs.map(normalizeJob),
+            };
         },
 
         async getJob(jobId: string) {
-            const queryParams = new URLSearchParams();
-            if (projectId) queryParams.set('project_id', projectId);
-            if (orgId) queryParams.set('org_id', orgId);
+            const url = `${apiBase}/api/admin/extraction-jobs/${jobId}`;
 
-            const query = queryParams.toString();
-            const url = `${apiBase}/admin/extraction-jobs/${jobId}${query ? `?${query}` : ''}`;
-
-            return fetchJson<ExtractionJob>(url);
+            return fetchJson<ExtractionJobResponse>(url).then(normalizeJob);
         },
 
         async createJob(payload: CreateExtractionJobPayload) {
-            return fetchJson<ExtractionJob>(`${apiBase}/admin/extraction-jobs`, {
+            const resolvedProjectId = payload.project_id ?? defaultProjectId;
+
+            if (!resolvedProjectId) {
+                throw new Error('Project ID is required to create an extraction job');
+            }
+
+            return fetchJson<ExtractionJobResponse>(`${apiBase}/api/admin/extraction-jobs`, {
                 method: 'POST',
-                body: payload,
-            });
+                body: {
+                    ...payload,
+                    project_id: resolvedProjectId,
+                },
+            }).then(normalizeJob);
         },
 
         async updateJob(jobId: string, payload: UpdateExtractionJobPayload) {
-            const queryParams = new URLSearchParams();
-            if (projectId) queryParams.set('project_id', projectId);
-            if (orgId) queryParams.set('org_id', orgId);
+            const url = `${apiBase}/api/admin/extraction-jobs/${jobId}`;
 
-            const query = queryParams.toString();
-            const url = `${apiBase}/admin/extraction-jobs/${jobId}${query ? `?${query}` : ''}`;
-
-            return fetchJson<ExtractionJob>(url, {
+            return fetchJson<ExtractionJobResponse>(url, {
                 method: 'PATCH',
                 body: payload,
-            });
+            }).then(normalizeJob);
         },
 
         async deleteJob(jobId: string) {
-            const queryParams = new URLSearchParams();
-            if (projectId) queryParams.set('project_id', projectId);
-            if (orgId) queryParams.set('org_id', orgId);
-
-            const query = queryParams.toString();
-            const url = `${apiBase}/admin/extraction-jobs/${jobId}${query ? `?${query}` : ''}`;
+            const url = `${apiBase}/api/admin/extraction-jobs/${jobId}`;
 
             return fetchJson<void>(url, {
                 method: 'DELETE',
@@ -248,22 +248,40 @@ export function createExtractionJobsClient(
         },
 
         async cancelJob(jobId: string) {
-            const queryParams = new URLSearchParams();
-            if (projectId) queryParams.set('project_id', projectId);
-            if (orgId) queryParams.set('org_id', orgId);
+            const url = `${apiBase}/api/admin/extraction-jobs/${jobId}/cancel`;
 
-            const query = queryParams.toString();
-            const url = `${apiBase}/admin/extraction-jobs/${jobId}/cancel${query ? `?${query}` : ''}`;
-
-            return fetchJson<ExtractionJob>(url, {
+            return fetchJson<ExtractionJobResponse>(url, {
                 method: 'POST',
-            });
+            }).then(normalizeJob);
         },
 
-        async getStatistics(projectId: string, orgId: string) {
+        async getStatistics(projectId?: string) {
+            const resolvedProjectId = projectId ?? defaultProjectId;
+
+            if (!resolvedProjectId) {
+                throw new Error('Project ID is required to fetch extraction job statistics');
+            }
+
             return fetchJson<ExtractionJobStatistics>(
-                `${apiBase}/admin/extraction-jobs/projects/${projectId}/statistics?org_id=${orgId}`
+                `${apiBase}/api/admin/extraction-jobs/projects/${resolvedProjectId}/statistics`
             );
         },
+    };
+}
+
+type ExtractionJobResponse = ExtractionJob & { org_id?: string | null };
+type ExtractionJobListResponseRaw = Omit<ExtractionJobListResponse, 'jobs'> & { jobs: ExtractionJobResponse[] };
+
+function normalizeJob(job: ExtractionJobResponse): ExtractionJob {
+    const organizationId = job.organization_id ?? job.org_id;
+
+    if (!organizationId) {
+        throw new Error('Extraction job response missing organization ID');
+    }
+
+    const { org_id, ...rest } = job;
+    return {
+        ...rest,
+        organization_id: organizationId,
     };
 }

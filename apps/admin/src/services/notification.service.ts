@@ -31,7 +31,7 @@ export const createNotificationApi = (apiBase: string, fetchJson: FetchJsonFn) =
             params.append('search', filters.search);
         }
 
-        const result = await fetchJson<{ data?: Notification[] }>(`${apiBase}/notifications?${params.toString()}`, {
+        const result = await fetchJson<{ data?: Notification[] }>(`${apiBase}/api/notifications?${params.toString()}`, {
             credentials: 'include',
         });
         return result.data || [];
@@ -41,7 +41,7 @@ export const createNotificationApi = (apiBase: string, fetchJson: FetchJsonFn) =
      * Get unread counts for all tabs
      */
     async getUnreadCounts(): Promise<NotificationCounts> {
-        const result = await fetchJson<{ data?: NotificationCounts }>(`${apiBase}/notifications/counts`, {
+        const result = await fetchJson<{ data?: NotificationCounts }>(`${apiBase}/api/notifications/counts`, {
             credentials: 'include',
         });
         return result.data || { all: 0, important: 0, other: 0, snoozed: 0, cleared: 0 };
@@ -52,7 +52,7 @@ export const createNotificationApi = (apiBase: string, fetchJson: FetchJsonFn) =
      * New endpoint from migration 0005
      */
     async getStats(): Promise<NotificationStats> {
-        const result = await fetchJson<NotificationStats>(`${apiBase}/notifications/stats`, {
+        const result = await fetchJson<NotificationStats>(`${apiBase}/api/notifications/stats`, {
             credentials: 'include',
         });
         return result || { unread: 0, dismissed: 0, total: 0 };
@@ -62,7 +62,7 @@ export const createNotificationApi = (apiBase: string, fetchJson: FetchJsonFn) =
      * Mark notification as read
      */
     async markRead(notificationId: string): Promise<void> {
-        await fetchJson(`${apiBase}/notifications/${notificationId}/read`, {
+        await fetchJson(`${apiBase}/api/notifications/${notificationId}/read`, {
             method: 'POST',
             credentials: 'include',
         });
@@ -72,7 +72,7 @@ export const createNotificationApi = (apiBase: string, fetchJson: FetchJsonFn) =
      * Mark notification as unread
      */
     async markUnread(notificationId: string): Promise<void> {
-        await fetchJson(`${apiBase}/notifications/${notificationId}/unread`, {
+        await fetchJson(`${apiBase}/api/notifications/${notificationId}/unread`, {
             method: 'POST',
             credentials: 'include',
         });
@@ -82,7 +82,7 @@ export const createNotificationApi = (apiBase: string, fetchJson: FetchJsonFn) =
      * Clear notification (move to cleared tab)
      */
     async clear(notificationId: string): Promise<void> {
-        await fetchJson(`${apiBase}/notifications/${notificationId}`, {
+        await fetchJson(`${apiBase}/api/notifications/${notificationId}`, {
             method: 'DELETE',
             credentials: 'include',
         });
@@ -92,7 +92,7 @@ export const createNotificationApi = (apiBase: string, fetchJson: FetchJsonFn) =
      * Clear all notifications in a tab
      */
     async clearAll(tab: 'important' | 'other'): Promise<number> {
-        const result = await fetchJson<{ cleared?: number }>(`${apiBase}/notifications?tab=${tab}`, {
+        const result = await fetchJson<{ cleared?: number }>(`${apiBase}/api/notifications?tab=${tab}`, {
             method: 'DELETE',
             credentials: 'include',
         });
@@ -103,7 +103,7 @@ export const createNotificationApi = (apiBase: string, fetchJson: FetchJsonFn) =
      * Snooze notification until a specific time
      */
     async snooze(notificationId: string, until: string): Promise<void> {
-        await fetchJson(`${apiBase}/notifications/${notificationId}/snooze`, {
+        await fetchJson(`${apiBase}/api/notifications/${notificationId}/snooze`, {
             method: 'POST',
             body: { until },
             credentials: 'include',
@@ -114,7 +114,7 @@ export const createNotificationApi = (apiBase: string, fetchJson: FetchJsonFn) =
      * Unsnooze notification
      */
     async unsnooze(notificationId: string): Promise<void> {
-        await fetchJson(`${apiBase}/notifications/${notificationId}/unsnooze`, {
+        await fetchJson(`${apiBase}/api/notifications/${notificationId}/unsnooze`, {
             method: 'POST',
             credentials: 'include',
         });
@@ -125,7 +125,7 @@ export const createNotificationApi = (apiBase: string, fetchJson: FetchJsonFn) =
      * New endpoint from migration 0005
      */
     async dismiss(notificationId: string): Promise<void> {
-        await fetchJson(`${apiBase}/notifications/${notificationId}/dismiss`, {
+        await fetchJson(`${apiBase}/api/notifications/${notificationId}/dismiss`, {
             method: 'POST',
             credentials: 'include',
         });

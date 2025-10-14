@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { describe, it, beforeAll, expect } from 'vitest';
+import { describe, it, beforeAll, beforeEach, expect } from 'vitest';
 import { GraphService } from '../graph.service';
 import { DatabaseService } from '../../../common/database/database.service';
 import { SchemaRegistryService } from '../schema-registry.service';
@@ -64,6 +64,10 @@ describe('Graph Relationship Multiplicity', () => {
         graph = new GraphService(db as any, schemaRegistry as any);
         const seeded = await seedProject(db);
         projectId = seeded.projectId; orgId = seeded.orgId;
+    });
+
+    beforeEach(async () => {
+        await db.setTenantContext(orgId, projectId);
     });
 
     it('enforces src one multiplicity', async () => {

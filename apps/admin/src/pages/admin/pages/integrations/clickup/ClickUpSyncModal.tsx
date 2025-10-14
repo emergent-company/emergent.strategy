@@ -105,7 +105,7 @@ export function ClickUpSyncModal({ client, onClose, onSuccess }: ClickUpSyncModa
     };
 
     return (
-        <dialog open className="modal modal-open">
+        <dialog open className="modal modal-open" data-testid="clickup-sync-modal">
             <div className="max-w-4xl modal-box">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-4">
@@ -251,6 +251,7 @@ export function ClickUpSyncModal({ client, onClose, onSuccess }: ClickUpSyncModa
                                 className="btn btn-primary"
                                 onClick={handleNext}
                                 disabled={loading || selectedListIds.length === 0}
+                                data-testid="clickup-sync-next-button"
                             >
                                 Next
                                 <Icon icon="lucide--chevron-right" className="w-4 h-4" />
@@ -270,6 +271,7 @@ export function ClickUpSyncModal({ client, onClose, onSuccess }: ClickUpSyncModa
                             <button
                                 className="btn btn-primary"
                                 onClick={handleNext}
+                                data-testid="clickup-sync-start-button"
                             >
                                 Start Import
                                 <Icon icon="lucide--play" className="w-4 h-4" />

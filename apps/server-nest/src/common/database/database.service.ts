@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit, forwardRef } from '@nestjs/common';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { AppConfigService } from '../config/config.service';
 import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 
@@ -28,6 +29,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     // not being visible to policies (leading to test leakage across tenants).
     private currentOrgId: string | null | undefined;
     private currentProjectId: string | null | undefined;
+    // Async-local tenant context to prevent concurrent tests from clobbering
+    // the global fallback values. When set, this takes precedence over the
+    // shared currentOrgId/currentProjectId pair.
+    private readonly tenantContextStorage = new AsyncLocalStorage<{ orgId: string | null; projectId: string | null }>();
 
     constructor(@Inject(AppConfigService) private readonly config: AppConfigService) {
         // Temporary debug log to understand DI behavior in test harness.
@@ -35,6 +40,21 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             // eslint-disable-next-line no-console
             console.error('[DatabaseService] Constructor received undefined AppConfigService');
         }
+    }
+
+    private resolveAppRlsPassword(): string {
+        if (!this.config) {
+            return 'app_rls_pw';
+        }
+        try {
+            const raw = (this.config as unknown as { appRlsPassword?: unknown }).appRlsPassword;
+            if (typeof raw === 'string' && raw.length > 0) {
+                return raw;
+            }
+        } catch {
+            /* ignore */
+        }
+        return 'app_rls_pw';
     }
 
     async onModuleInit() {
@@ -75,7 +95,14 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             }
             this.online = true;
         } catch (err) {
-            this.logger.error('Database initialization failed: ' + (err as Error).message);
+            let details = '';
+            if (err instanceof AggregateError) {
+                const inner = err.errors?.map(e => (e instanceof Error ? `${e.message}${e.stack ? `\n${e.stack}` : ''}` : String(e))) ?? [];
+                details = inner.length ? `\nInner errors:\n- ${inner.join('\n- ')}` : '';
+            }
+            const message = err instanceof Error ? err.message : String(err);
+            const stack = err instanceof Error ? err.stack : undefined;
+            this.logger.error('Database initialization failed: ' + message + (stack ? `\n${stack}` : '') + details);
             this.online = false;
         }
     }
@@ -94,12 +121,16 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         // If tenant context has been set, ensure the executing session has the
         // correct GUCs before running the user query. We cannot rely on a prior
         // set_config call because the Pool may give us a different connection.
-        if (this.currentOrgId !== undefined || this.currentProjectId !== undefined) {
+        const store = this.tenantContextStorage.getStore();
+        const effectiveOrg = store?.orgId ?? this.currentOrgId ?? '';
+        const effectiveProject = store?.projectId ?? this.currentProjectId ?? '';
+        const hasContext = store !== undefined || this.currentOrgId !== undefined || this.currentProjectId !== undefined;
+        if (hasContext) {
             const client = await this.pool.connect();
             try {
                 await client.query(
                     'SELECT set_config($1,$2,false), set_config($3,$4,false), set_config($5,$6,false)',
-                    ['app.current_org_id', this.currentOrgId ?? '', 'app.current_project_id', this.currentProjectId ?? '', 'row_security', 'on']
+                    ['app.current_organization_id', effectiveOrg ?? '', 'app.current_project_id', effectiveProject ?? '', 'row_security', 'on']
                 );
                 return await client.query<T>(text, params);
             } finally {
@@ -122,7 +153,20 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         if (!this.online) {
             throw new Error('Database offline – cannot acquire client. Check connectivity or initialization logs.');
         }
-        return this.pool.connect();
+        const client = await this.pool.connect();
+        try {
+            const store = this.tenantContextStorage.getStore();
+            const orgId = store?.orgId ?? this.currentOrgId ?? '';
+            const projectId = store?.projectId ?? this.currentProjectId ?? '';
+            await client.query(
+                'SELECT set_config($1,$2,false), set_config($3,$4,false), set_config($5,$6,false)',
+                ['app.current_organization_id', orgId, 'app.current_project_id', projectId, 'row_security', 'on']
+            );
+        } catch (err) {
+            client.release();
+            throw err;
+        }
+        return client;
     }
 
     isOnline() { return this.online; }
@@ -294,7 +338,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     // Branches (minimal schema)
                     await exec(`CREATE TABLE IF NOT EXISTS kb.branches (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, name TEXT NOT NULL, parent_branch_id UUID NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(project_id, name))`);
                     // Graph objects (minimal schema - NO vector column since pgvector not installed in E2E)
-                    await exec(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+                    await exec(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, expires_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+                    await exec(`ALTER TABLE kb.graph_objects ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ NULL`);
 
                     // Phase 1 tables (minimal schema - needed for E2E tests, no RLS policies in E2E mode)
                     await exec(`CREATE TABLE IF NOT EXISTS kb.graph_template_packs (
@@ -368,7 +413,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                         source_id TEXT,
                         source_metadata JSONB DEFAULT '{}',
                         extraction_config JSONB DEFAULT '{}',
-                        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'requires_review', 'failed', 'cancelled')),
+                        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'processing', 'completed', 'requires_review', 'failed', 'cancelled')),
                         total_items INT DEFAULT 0,
                         processed_items INT DEFAULT 0,
                         successful_items INT DEFAULT 0,
@@ -385,6 +430,14 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     )`);
                     await exec('CREATE INDEX IF NOT EXISTS idx_extraction_jobs_project_status ON kb.object_extraction_jobs(project_id, status)');
                     await exec('CREATE INDEX IF NOT EXISTS idx_extraction_jobs_subject_id ON kb.object_extraction_jobs(subject_id) WHERE subject_id IS NOT NULL');
+
+                    // Ensure the status constraint matches application enum even on existing databases
+                    try {
+                        await exec(`ALTER TABLE kb.object_extraction_jobs DROP CONSTRAINT IF EXISTS object_extraction_jobs_status_check`);
+                        await exec(`ALTER TABLE kb.object_extraction_jobs ADD CONSTRAINT object_extraction_jobs_status_check CHECK (status IN ('pending','running','processing','completed','requires_review','failed','cancelled'))`);
+                    } catch (e) {
+                        this.logger.warn(`[minimal initial] object_extraction_jobs status constraint ensure failed: ${(e as Error).message}`);
+                    }
 
                     // Introduced after original minimal path: lineage & merge provenance tables must exist BEFORE any branch creation logic that writes to them.
                     try {
@@ -467,11 +520,18 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     await exec(`CREATE INDEX IF NOT EXISTS idx_embedding_policies_project ON kb.embedding_policies(project_id)`);
                 } catch (e) { this.logger.warn('[minimal upgrade] embedding_policies ensure failed: ' + (e as Error).message); }
                 // RLS policies (tightened) for minimal path
-                // SKIPPED in E2E mode: RLS not needed when AuthGuard is bypassed, and policy operations cause deadlocks in parallel test execution
-                if (process.env.E2E_MINIMAL_DB === 'true') {
-                    this.logger.log('[E2E mode] Skipping RLS setup - not needed when AuthGuard is bypassed');
+                const skipRls = process.env.E2E_DISABLE_RLS === 'true';
+                if (skipRls) {
+                    this.logger.log('[RLS|minimal] Skipping RLS setup (E2E_DISABLE_RLS=true)');
                 } else {
+                    let rlsPolicyLocked = false;
                     try {
+                        try {
+                            await this.pool.query('SELECT pg_advisory_lock(4815162344)');
+                            rlsPolicyLocked = true;
+                        } catch (lockErr) {
+                            this.logger.warn('[RLS|minimal] failed to acquire policy advisory lock: ' + (lockErr as Error).message);
+                        }
                         await exec(`DO $$ BEGIN
                             ALTER TABLE kb.graph_objects ENABLE ROW LEVEL SECURITY;
                             ALTER TABLE kb.graph_relationships ENABLE ROW LEVEL SECURITY;
@@ -483,15 +543,16 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                         for (const p of existing.rows) {
                             try { await exec(`DROP POLICY IF EXISTS ${p.policyname} ON kb.${p.tablename}`); } catch { /* ignore */ }
                         }
+                        const graphPolicyPredicate = "((COALESCE(current_setting('app.current_organization_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_organization_id', true),'') <> '' AND org_id::text = current_setting('app.current_organization_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true))) OR (COALESCE(current_setting('app.current_organization_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') <> '' AND project_id::text = current_setting('app.current_project_id', true)))";
                         const createPolicies: string[] = [
-                            `CREATE POLICY graph_objects_select ON kb.graph_objects FOR SELECT USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
-                            `CREATE POLICY graph_objects_insert ON kb.graph_objects FOR INSERT WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
-                            `CREATE POLICY graph_objects_update ON kb.graph_objects FOR UPDATE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true))))) WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
-                            `CREATE POLICY graph_objects_delete ON kb.graph_objects FOR DELETE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
-                            `CREATE POLICY graph_relationships_select ON kb.graph_relationships FOR SELECT USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
-                            `CREATE POLICY graph_relationships_insert ON kb.graph_relationships FOR INSERT WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
-                            `CREATE POLICY graph_relationships_update ON kb.graph_relationships FOR UPDATE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true))))) WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
-                            `CREATE POLICY graph_relationships_delete ON kb.graph_relationships FOR DELETE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`
+                            `CREATE POLICY graph_objects_select ON kb.graph_objects FOR SELECT USING (${graphPolicyPredicate})`,
+                            `CREATE POLICY graph_objects_insert ON kb.graph_objects FOR INSERT WITH CHECK (${graphPolicyPredicate})`,
+                            `CREATE POLICY graph_objects_update ON kb.graph_objects FOR UPDATE USING (${graphPolicyPredicate}) WITH CHECK (${graphPolicyPredicate})`,
+                            `CREATE POLICY graph_objects_delete ON kb.graph_objects FOR DELETE USING (${graphPolicyPredicate})`,
+                            `CREATE POLICY graph_relationships_select ON kb.graph_relationships FOR SELECT USING (${graphPolicyPredicate})`,
+                            `CREATE POLICY graph_relationships_insert ON kb.graph_relationships FOR INSERT WITH CHECK (${graphPolicyPredicate})`,
+                            `CREATE POLICY graph_relationships_update ON kb.graph_relationships FOR UPDATE USING (${graphPolicyPredicate}) WITH CHECK (${graphPolicyPredicate})`,
+                            `CREATE POLICY graph_relationships_delete ON kb.graph_relationships FOR DELETE USING (${graphPolicyPredicate})`
                         ];
                         for (const stmt of createPolicies) { await exec(stmt); }
                         try {
@@ -530,6 +591,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                             }
                         }
                     } catch (e) { this.logger.warn('[RLS|minimal] setup skipped or partial: ' + (e as Error).message); }
+                    finally {
+                        if (rlsPolicyLocked) {
+                            try { await this.pool.query('SELECT pg_advisory_unlock(4815162344)'); }
+                            catch { /* ignore */ }
+                        }
+                    }
                 }
             } finally { if (locked) { try { await exec('SELECT pg_advisory_unlock(4815162342)'); } catch { } } }
             const msMini = Date.now() - startMini; this.logger.log(`Minimal schema ensured in ${msMini}ms`); this.schemaEnsured = true; return;
@@ -607,7 +674,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_settings_key ON kb.settings(key);`);
             // Graph & schema registry (full path)
             await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.branches (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, name TEXT NOT NULL, parent_branch_id UUID NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(project_id, name))`);
-            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, embedding_vec vector(${this.config.embeddingDimension}) NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+            await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.graph_objects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NULL, project_id UUID NULL, branch_id UUID NULL REFERENCES kb.branches(id) ON DELETE SET NULL, type TEXT NOT NULL, key TEXT NULL, version INT NOT NULL DEFAULT 1, supersedes_id UUID NULL, canonical_id UUID NULL, properties JSONB NOT NULL DEFAULT '{}'::jsonb, labels TEXT[] NOT NULL DEFAULT '{}', deleted_at TIMESTAMPTZ NULL, expires_at TIMESTAMPTZ NULL, change_summary JSONB NULL, content_hash BYTEA NULL, fts tsvector NULL, embedding BYTEA NULL, embedding_updated_at TIMESTAMPTZ NULL, embedding_vec vector(${this.config.embeddingDimension}) NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+            await this.pool.query(`ALTER TABLE kb.graph_objects ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ NULL`);
             // Branch lineage table (full path)
             try {
                 await this.pool.query(`CREATE TABLE IF NOT EXISTS kb.branch_lineage (branch_id UUID NOT NULL REFERENCES kb.branches(id) ON DELETE CASCADE, ancestor_branch_id UUID NOT NULL REFERENCES kb.branches(id) ON DELETE CASCADE, depth INT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(branch_id, ancestor_branch_id))`);
@@ -706,7 +774,14 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             )`);
             await this.pool.query('CREATE INDEX IF NOT EXISTS idx_embedding_policies_project ON kb.embedding_policies(project_id);');
             // RLS policies (tightened) full path
+            let rlsPolicyLocked = false;
             try {
+                try {
+                    await this.pool.query('SELECT pg_advisory_lock(4815162344)');
+                    rlsPolicyLocked = true;
+                } catch (lockErr) {
+                    this.logger.warn('[RLS|full] failed to acquire policy advisory lock: ' + (lockErr as Error).message);
+                }
                 // Enable & force RLS (idempotent) first
                 await this.pool.query(`DO $$ BEGIN
                     ALTER TABLE kb.graph_objects ENABLE ROW LEVEL SECURITY;
@@ -719,15 +794,16 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                 for (const p of existingFull.rows) {
                     try { await this.pool.query(`DROP POLICY IF EXISTS ${p.policyname} ON kb.${p.tablename}`); } catch { /* ignore */ }
                 }
+                const graphPolicyPredicate = "((COALESCE(current_setting('app.current_organization_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_organization_id', true),'') <> '' AND org_id::text = current_setting('app.current_organization_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true))) OR (COALESCE(current_setting('app.current_organization_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') <> '' AND project_id::text = current_setting('app.current_project_id', true)))";
                 const createPoliciesFull: string[] = [
-                    `CREATE POLICY graph_objects_select ON kb.graph_objects FOR SELECT USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
-                    `CREATE POLICY graph_objects_insert ON kb.graph_objects FOR INSERT WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
-                    `CREATE POLICY graph_objects_update ON kb.graph_objects FOR UPDATE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true))))) WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
-                    `CREATE POLICY graph_objects_delete ON kb.graph_objects FOR DELETE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
-                    `CREATE POLICY graph_relationships_select ON kb.graph_relationships FOR SELECT USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
-                    `CREATE POLICY graph_relationships_insert ON kb.graph_relationships FOR INSERT WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
-                    `CREATE POLICY graph_relationships_update ON kb.graph_relationships FOR UPDATE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true))))) WITH CHECK (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`,
-                    `CREATE POLICY graph_relationships_delete ON kb.graph_relationships FOR DELETE USING (((COALESCE(current_setting('app.current_org_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_org_id', true),'') <> '' AND org_id::text = current_setting('app.current_org_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true)))))`
+                    `CREATE POLICY graph_objects_select ON kb.graph_objects FOR SELECT USING (${graphPolicyPredicate})`,
+                    `CREATE POLICY graph_objects_insert ON kb.graph_objects FOR INSERT WITH CHECK (${graphPolicyPredicate})`,
+                    `CREATE POLICY graph_objects_update ON kb.graph_objects FOR UPDATE USING (${graphPolicyPredicate}) WITH CHECK (${graphPolicyPredicate})`,
+                    `CREATE POLICY graph_objects_delete ON kb.graph_objects FOR DELETE USING (${graphPolicyPredicate})`,
+                    `CREATE POLICY graph_relationships_select ON kb.graph_relationships FOR SELECT USING (${graphPolicyPredicate})`,
+                    `CREATE POLICY graph_relationships_insert ON kb.graph_relationships FOR INSERT WITH CHECK (${graphPolicyPredicate})`,
+                    `CREATE POLICY graph_relationships_update ON kb.graph_relationships FOR UPDATE USING (${graphPolicyPredicate}) WITH CHECK (${graphPolicyPredicate})`,
+                    `CREATE POLICY graph_relationships_delete ON kb.graph_relationships FOR DELETE USING (${graphPolicyPredicate})`
                 ];
                 for (const stmt of createPoliciesFull) { await this.pool.query(stmt); }
                 // Lightweight verification (will be trimmed in later cleanup task)
@@ -772,6 +848,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                 } else {
                     this.logger.warn('[RLS] tightened setup skipped or partial: ' + (e as Error).message);
                 }
+            } finally {
+                if (rlsPolicyLocked) {
+                    try { await this.pool.query('SELECT pg_advisory_unlock(4815162344)'); }
+                    catch { /* ignore */ }
+                }
             }
             this.schemaEnsured = true;
             const ms = Date.now() - start; this.logger.log(`Schema ensured in ${ms}ms (full path)`);
@@ -795,26 +876,34 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         }
         this.logger.log(`[DatabaseService] Switching from bypass/superuser role '${row?.user}' (bypass=${row?.bypass}, super=${row?.super}) to dedicated 'app_rls' role for RLS enforcement`);
         // Create role if missing
-        await this.pool.query(`DO $$ BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='app_rls') THEN
-                -- Password sourced from application configuration (APP_RLS_PASSWORD) with fallback; rotate by updating secret & restarting.
-                EXECUTE format('CREATE ROLE app_rls LOGIN PASSWORD %L', $q$${this.config.appRlsPassword}$q$);
-            END IF;
-        END $$;`);
+        const appRlsPassword = this.resolveAppRlsPassword();
+        const roleExists = await this.pool.query<{ exists: boolean }>(`SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='app_rls')`);
+        if (!roleExists.rows[0]?.exists) {
+            const escapedPasswordForCreate = appRlsPassword.replace(/'/g, "''");
+            await this.pool.query(`CREATE ROLE app_rls LOGIN PASSWORD '${escapedPasswordForCreate}'`);
+        }
         // Grant privileges (idempotent)
         await this.pool.query(`GRANT USAGE ON SCHEMA kb TO app_rls`);
+        await this.pool.query(`GRANT CREATE ON SCHEMA kb TO app_rls`);
         await this.pool.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA kb TO app_rls`);
         await this.pool.query(`ALTER DEFAULT PRIVILEGES IN SCHEMA kb GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_rls`);
+        // Grant access to core.user_profiles for user profile creation during authentication
+        await this.pool.query(`GRANT USAGE ON SCHEMA core TO app_rls`);
+        await this.pool.query(`GRANT CREATE ON SCHEMA core TO app_rls`);
+        await this.pool.query(`GRANT SELECT, INSERT ON core.user_profiles TO app_rls`);
         // Rotate password each startup so updating APP_RLS_PASSWORD takes effect without manual intervention.
         try {
-            await this.pool.query('ALTER ROLE app_rls PASSWORD $1', [this.config.appRlsPassword]);
+            // ALTER ROLE doesn't support parameterized queries, so we must use string literal
+            // Escape single quotes in password by doubling them (SQL standard)
+            const escapedPassword = appRlsPassword.replace(/'/g, "''");
+            await this.pool.query(`ALTER ROLE app_rls PASSWORD '${escapedPassword}'`);
             this.logger.log('[DatabaseService] Rotated password for role app_rls');
         } catch (e) {
             this.logger.warn('[DatabaseService] Failed to rotate password for app_rls: ' + (e as Error).message);
         }
         // Recreate pool with app_rls
         await this.pool.end();
-        this.pool = new Pool({ host: this.config.dbHost, port: this.config.dbPort, user: 'app_rls', password: this.config.appRlsPassword, database: this.config.dbName });
+        this.pool = new Pool({ host: this.config.dbHost, port: this.config.dbPort, user: 'app_rls', password: appRlsPassword, database: this.config.dbName });
         await this.pool.query('SELECT 1');
         // Log confirmation of new role status
         try {
@@ -852,19 +941,41 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
      * Set per-session tenant context for RLS policies. Pass null/undefined to clear (wildcard access for bootstrap/testing).
      */
     async setTenantContext(orgId?: string | null, projectId?: string | null) {
-        // Persist for subsequent queries; actual set_config is applied within each query() call
-        this.currentOrgId = orgId ?? '';
-        this.currentProjectId = projectId ?? '';
-        if (!this.pool) { await this.lazyInit(); }
+        const normalizedOrg = orgId ?? null;
+        const normalizedProject = projectId ?? null;
+        this.tenantContextStorage.enterWith({ orgId: normalizedOrg, projectId: normalizedProject });
+        await this.applyTenantContext(normalizedOrg, normalizedProject);
+    }
+
+    private async applyTenantContext(orgId: string | null, projectId: string | null) {
+        this.currentOrgId = orgId;
+        this.currentProjectId = projectId;
+        if (!this.pool) {
+            await this.lazyInit();
+        }
         if (!this.pool) return; // DB disabled
-        // Opportunistically set on one connection so that an immediate getClient() caller benefits.
         try {
             await this.pool.query(
                 'SELECT set_config($1,$2,false), set_config($3,$4,false), set_config($5,$6,false)',
-                ['app.current_org_id', this.currentOrgId, 'app.current_project_id', this.currentProjectId, 'row_security', 'on']
+                ['app.current_organization_id', orgId ?? '', 'app.current_project_id', projectId ?? '', 'row_security', 'on']
             );
         } catch {
             /* ignore */
         }
+    }
+
+    async runWithTenantContext<T>(orgId: string | null | undefined, projectId: string | null | undefined, fn: () => Promise<T>): Promise<T> {
+        const normalizedOrg = orgId ?? null;
+        const normalizedProject = projectId ?? null;
+        const previousOrg = this.currentOrgId ?? null;
+        const previousProject = this.currentProjectId ?? null;
+        return this.tenantContextStorage.run({ orgId: normalizedOrg, projectId: normalizedProject }, async () => {
+            await this.applyTenantContext(normalizedOrg, normalizedProject);
+            try {
+                return await fn();
+            } finally {
+                await this.applyTenantContext(previousOrg, previousProject);
+            }
+        });
     }
 }

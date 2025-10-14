@@ -86,16 +86,22 @@ export class ClickUpIntegration extends BaseIntegration {
             throw new Error('Integration settings are required');
         }
 
+        this.logger.log(`Configuring ClickUp with settings: ${JSON.stringify(Object.keys(this.integration.settings))}`);
+
         this.clickupSettings = this.integration.settings as ClickUpSettings;
 
         // Validate required settings
         if (!this.clickupSettings.api_token) {
-            throw new Error('ClickUp API token is required');
+            this.logger.error(`ClickUp settings: ${JSON.stringify(this.clickupSettings)}`);
+            throw new Error('ClickUp API token is required in settings');
         }
 
         if (!this.clickupSettings.workspace_id) {
-            throw new Error('ClickUp workspace ID is required');
+            throw new Error('ClickUp workspace ID is required in settings');
         }
+
+        this.logger.log(`API token present: ${this.clickupSettings.api_token ? `Yes (${this.clickupSettings.api_token.substring(0, 10)}...)` : 'No'}`);
+        this.logger.log(`Workspace ID: ${this.clickupSettings.workspace_id}`);
 
         // Configure API client
         this.apiClient.configure(this.clickupSettings.api_token);
@@ -265,9 +271,11 @@ export class ClickUpIntegration extends BaseIntegration {
 
         this.logger.log(`Fetching workspace structure for ${this.clickupSettings.workspace_id}`);
 
+        // Always fetch non-archived spaces/folders/lists for the workspace structure UI
+        // The includeArchived parameter controls which spaces/folders/lists to show, not tasks
         return await this.importService.fetchWorkspaceStructure(
             this.clickupSettings.workspace_id,
-            this.clickupSettings.import_completed_tasks ?? false
+            false  // includeArchived - always false for the selection UI
         );
     }
 

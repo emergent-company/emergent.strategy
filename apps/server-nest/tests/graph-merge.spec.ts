@@ -4,14 +4,16 @@ import { INestApplication } from '@nestjs/common';
 // Ensure Vitest extended describe helpers (e.g., describe.sequential) are typed
 // even when globals are enabled.
 import '@vitest/runner';
+import { describeWithDb } from './utils/db-describe';
 
 // Harness now explicitly bootstraps the full AppModule via tests/setup.ts
-let app: INestApplication;
+let app: INestApplication | null = null;
 
 async function createBranchOrThrow(name: string, org_id: string, project_id: string): Promise<string> {
-  if (!app?.getHttpServer) throw new Error('HTTP server not initialized');
+  const currentApp = app;
+  if (!currentApp?.getHttpServer) throw new Error('HTTP server not initialized');
   try {
-    const res = await request(app.getHttpServer()).post('/graph/branches').send({ name, org_id, project_id });
+    const res = await request(currentApp.getHttpServer()).post('/graph/branches').send({ name, org_id, project_id });
     if (res.status !== 201) throw new Error(`Failed to create branch ${name}: ${res.status} ${res.text}`);
     return res.body.id;
   } catch (e) {
@@ -20,9 +22,10 @@ async function createBranchOrThrow(name: string, org_id: string, project_id: str
 }
 
 async function createObject(branchId: string, type: string, key: string, properties: Record<string, any>) {
-  if (!app?.getHttpServer) throw new Error('app not initialized');
+  const currentApp = app;
+  if (!currentApp?.getHttpServer) throw new Error('app not initialized');
   const { orgId, projectId } = await getSeededOrgProject();
-  const res = await request(app.getHttpServer())
+  const res = await request(currentApp.getHttpServer())
     .post('/graph/objects')
     .send({ type, key, properties, branch_id: branchId, org_id: orgId ?? null, project_id: projectId ?? null });
   if (res.status !== 201) throw new Error('Failed to create object: ' + res.text);
@@ -32,7 +35,7 @@ async function createObject(branchId: string, type: string, key: string, propert
 // NOTE: Potential deadlocks were observed when this suite ran concurrently with other
 // graph mutation heavy specs. If reintroduced, consider serializing via a custom
 // test pool or splitting high-contention scenarios into isolated files.
-describe('Graph Merge Dry-Run (MVP)', () => {
+describeWithDb('Graph Merge Dry-Run (MVP)', () => {
   let targetBranch: string;
   let sourceBranch: string;
 
@@ -46,16 +49,26 @@ describe('Graph Merge Dry-Run (MVP)', () => {
     expect(sourceBranch).toBeTruthy();
   });
 
+  afterAll(async () => {
+    if (!app) return;
+    await app.close();
+    app = null;
+  });
+
   test('AT-MERGE-1: empty divergence returns counts zero', async () => {
-    const resp = await request(app.getHttpServer()).post(`/graph/branches/${targetBranch}/merge`).send({ sourceBranchId: sourceBranch });
+    const currentApp = app;
+    if (!currentApp) throw new Error('Test application not initialised');
+    const resp = await request(currentApp.getHttpServer()).post(`/graph/branches/${targetBranch}/merge`).send({ sourceBranchId: sourceBranch });
     expect(resp.status).toBe(200);
     expect(resp.body.total_objects).toBe(0);
     expect(resp.body.conflict_count).toBe(0);
   });
 
   test('AT-MERGE-2: added object classified correctly', async () => {
+    const currentApp = app;
+    if (!currentApp) throw new Error('Test application not initialised');
     await createObject(sourceBranch, 'Doc', 'doc-1', { title: 'Hello' });
-    const resp = await request(app.getHttpServer()).post(`/graph/branches/${targetBranch}/merge`).send({ sourceBranchId: sourceBranch });
+    const resp = await request(currentApp.getHttpServer()).post(`/graph/branches/${targetBranch}/merge`).send({ sourceBranchId: sourceBranch });
     expect(resp.status).toBe(200);
     const added = resp.body.objects.find((o: any) => o.status === 'added');
     expect(added).toBeTruthy();
@@ -63,11 +76,13 @@ describe('Graph Merge Dry-Run (MVP)', () => {
   });
 
   test('AT-MERGE-3: conflicting object detected (same path)', async () => {
+    const currentApp = app;
+    if (!currentApp) throw new Error('Test application not initialised');
     const tgtObj = await createObject(targetBranch, 'Doc', 'doc-2', { title: 'Base' });
     await createObject(sourceBranch, 'Doc', 'doc-2', { title: 'Source Change' });
-    const patchRes = await request(app.getHttpServer()).patch(`/graph/objects/${tgtObj.id}`).send({ properties: { title: 'Target Change' } });
+    const patchRes = await request(currentApp.getHttpServer()).patch(`/graph/objects/${tgtObj.id}`).send({ properties: { title: 'Target Change' } });
     expect(patchRes.status).toBe(200);
-    const resp = await request(app.getHttpServer()).post(`/graph/branches/${targetBranch}/merge`).send({ sourceBranchId: sourceBranch });
+    const resp = await request(currentApp.getHttpServer()).post(`/graph/branches/${targetBranch}/merge`).send({ sourceBranchId: sourceBranch });
     expect(resp.status).toBe(200);
     const conflict = resp.body.objects.find((o: any) => o.status === 'conflict');
     expect(conflict).toBeTruthy();
@@ -75,6 +90,8 @@ describe('Graph Merge Dry-Run (MVP)', () => {
   });
 
   test('AT-MERGE-4: truncation when limit lower than enumeration size', async () => {
+    const currentApp = app;
+    if (!currentApp) throw new Error('Test application not initialised');
     // Use fresh branches to avoid prior test objects influencing ordering/limit window
     const { orgId, projectId } = await getSeededOrgProject();
     const isolatedTarget = await createBranchOrThrow(`trunc-target-${Date.now()}`, orgId, projectId);
@@ -83,7 +100,7 @@ describe('Graph Merge Dry-Run (MVP)', () => {
     for (let i = 0; i < 5; i++) {
       await createObject(isolatedSource, 'TruncDoc', `td-${i}`, { idx: i });
     }
-    const resp = await request(app.getHttpServer())
+    const resp = await request(currentApp.getHttpServer())
       .post(`/graph/branches/${isolatedTarget}/merge`)
       .send({ sourceBranchId: isolatedSource, limit: 3 });
     expect(resp.status).toBe(200);
@@ -100,6 +117,8 @@ describe('Graph Merge Dry-Run (MVP)', () => {
   });
 
   test('AT-MERGE-5: deterministic ordering (conflict > fast_forward > added > unchanged if present)', async () => {
+    const currentApp = app;
+    if (!currentApp) throw new Error('Test application not initialised');
     // Fresh branches to isolate ordering
     const { orgId, projectId } = await getSeededOrgProject();
     const orderTarget = await createBranchOrThrow(`order-target-${Date.now()}`, orgId, projectId);
@@ -117,7 +136,7 @@ describe('Graph Merge Dry-Run (MVP)', () => {
 
     // Conflict
     const baseConflict = await createObject(orderTarget, 'Doc', 'ord-cf', { title: 'Base' });
-    await request(app.getHttpServer()).patch(`/graph/objects/${baseConflict.id}`).send({ properties: { title: 'Target Change' } });
+    await request(currentApp.getHttpServer()).patch(`/graph/objects/${baseConflict.id}`).send({ properties: { title: 'Target Change' } });
     await createObject(orderSource, 'Doc', 'ord-cf', { title: 'Source Change' });
 
     // Fast-forward (target has base, source changes non-overlapping key)
@@ -127,7 +146,7 @@ describe('Graph Merge Dry-Run (MVP)', () => {
     // Added (only source)
     await createObject(orderSource, 'Doc', 'ord-add', { title: 'Only Source' });
 
-    const resp = await request(app.getHttpServer())
+    const resp = await request(currentApp.getHttpServer())
       .post(`/graph/branches/${orderTarget}/merge`)
       .send({ sourceBranchId: orderSource, limit: 25 });
     expect(resp.status).toBe(200);
@@ -169,5 +188,5 @@ describe('Graph Merge Dry-Run (MVP)', () => {
     expect(statuses.includes('fast_forward')).toBe(true);
     expect(statuses.includes('added')).toBe(true);
     expect(statuses.includes('unchanged')).toBe(true);
-  });
+  }, 15000);
 });

@@ -10,6 +10,7 @@ export interface ConfigureIntegrationModalProps {
     client: IntegrationsClient;
     orgId?: string;
     projectId?: string;
+    'data-testid'?: string;
 }
 
 export function ConfigureIntegrationModal({
@@ -20,6 +21,7 @@ export function ConfigureIntegrationModal({
     client,
     orgId,
     projectId,
+    'data-testid': dataTestId,
 }: ConfigureIntegrationModalProps) {
     const [settings, setSettings] = useState<Record<string, any>>({});
     const [loading, setLoading] = useState(false);
@@ -97,8 +99,6 @@ export function ConfigureIntegrationModal({
                 await client.createIntegration({
                     name: integration.name,
                     display_name: integration.displayName,
-                    org_id: orgId,
-                    project_id: projectId,
                     settings,
                     enabled: true,
                     description: integration.description,
@@ -120,7 +120,7 @@ export function ConfigureIntegrationModal({
     ];
 
     return (
-        <dialog className="modal modal-open">
+        <dialog className="modal modal-open" data-testid={dataTestId}>
             <div className="max-w-2xl modal-box">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
@@ -219,6 +219,7 @@ export function ConfigureIntegrationModal({
                                     placeholder={`Enter ${label.toLowerCase()}`}
                                     required={required}
                                     disabled={loading}
+                                    data-testid={`${integration.name}-${key}-input`}
                                 />
                             </div>
                         );
@@ -248,6 +249,7 @@ export function ConfigureIntegrationModal({
                         className="btn btn-primary"
                         onClick={handleSave}
                         disabled={loading || testing}
+                        data-testid={`${integration.name}-save-button`}
                     >
                         {loading && <span className="loading loading-spinner loading-sm" />}
                         {loading ? 'Saving...' : configuredInstance ? 'Save Changes' : 'Connect'}

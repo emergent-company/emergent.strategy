@@ -18,16 +18,6 @@
         "@modelcontextprotocol/server-postgres",
         "postgresql://spec:spec@localhost:5432/spec"
       ]
-    },
-    "dev-manager": {
-      "command": "node",
-      "args": [
-        "tools/mcp-dev-manager/dist/index.js"
-      ],
-      "env": {
-        "PROJECT_ROOT": "/Users/mcj/code/spec-server",
-        "E2E_FORCE_TOKEN": "1"
-      }
     }
   }
 }

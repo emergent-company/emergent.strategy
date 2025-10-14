@@ -22,6 +22,22 @@ export class FakeGraphDb {
     private lastRequestedOrg: string | null = null;
     constructor(private opts: FakeGraphDbOptions = {}) { }
 
+    async setTenantContext(orgId: string | null, projectId: string | null) {
+        this.lastRequestedOrg = orgId ?? null;
+        this.lastRequestedProject = projectId ?? null;
+    }
+
+    async runWithTenantContext<T>(orgId: string | null, projectId: string | null, callback: () => Promise<T>): Promise<T> {
+        const previousOrg = this.lastRequestedOrg;
+        const previousProject = this.lastRequestedProject;
+        try {
+            await this.setTenantContext(orgId, projectId);
+            return await callback();
+        } finally {
+            await this.setTenantContext(previousOrg, previousProject);
+        }
+    }
+
     // --- Utility helpers (used by benchmarks) ---
     _insertObject(partial: { id?: string; type: string; key?: string | null; labels?: string[]; properties?: any }) {
         const row: Row = {
@@ -79,11 +95,21 @@ export class FakeGraphDb {
             const r = this.objects.find(o => o.id === params?.[0]);
             return { rows: r ? [r] : [], rowCount: r ? 1 : 0 };
         }
-        // Object lightweight fetch used in traversal (includes branch_id)
-        if (/SELECT id, type, key, labels, deleted_at, branch_id FROM kb\.graph_objects WHERE id=\$1/i.test(sql)) {
+        // Object lightweight fetch used in traversal (includes branch_id and optionally properties)
+        if (/SELECT id, type, key, labels, deleted_at, branch_id(?:, properties)? FROM kb\.graph_objects/.test(sql) && /WHERE id=\$1/.test(sql)) {
             const r = this.objects.find(o => o.id === params?.[0]);
             if (!r) return { rows: [], rowCount: 0 };
-            return { rows: [{ id: r.id, type: r.type, key: r.key, labels: r.labels, deleted_at: r.deleted_at, branch_id: (r as any).branch_id ?? null }], rowCount: 1 };
+            const includesProperties = /properties/.test(sql);
+            const row: any = {
+                id: r.id,
+                type: r.type,
+                key: r.key,
+                labels: r.labels,
+                deleted_at: r.deleted_at,
+                branch_id: (r as any).branch_id ?? null
+            };
+            if (includesProperties) row.properties = r.properties || {};
+            return { rows: [row], rowCount: 1 };
         }
         // Batch object endpoint lookup (relationship validation)
         if (/SELECT id, project_id, deleted_at, branch_id FROM kb\.graph_objects WHERE id = ANY\(\$1::uuid\[\]\)/i.test(sql)) {
@@ -380,8 +406,8 @@ export class FakeGraphDb {
             return { rows: heads, rowCount: heads.length };
         }
         // Traversal DISTINCT ON pattern (objects perspective) - GraphService traverse builds similar query selecting edges
-        if (/SELECT \* FROM \(\s*SELECT DISTINCT ON \(canonical_id\) id, type, src_id, dst_id, deleted_at, version, branch_id\s+FROM kb\.graph_relationships/i.test(sql) ||
-            /SELECT \* FROM \(\s*SELECT DISTINCT ON \(canonical_id\) id, type, src_id, dst_id, deleted_at, version\s+FROM kb\.graph_relationships/i.test(sql)) {
+        if (/SELECT \* FROM \(\s*SELECT DISTINCT ON \(canonical_id\) id, type, src_id, dst_id, deleted_at, version, branch_id(?:, properties)?(?:, valid_from, valid_to, created_at, updated_at)?\s+FROM kb\.graph_relationships/i.test(sql) ||
+            /SELECT \* FROM \(\s*SELECT DISTINCT ON \(canonical_id\) id, type, src_id, dst_id, deleted_at, version(?:, properties)?\s+FROM kb\.graph_relationships/i.test(sql)) {
             if (!this.opts.enableTraversal) return { rows: [], rowCount: 0 };
             const objectId = params?.[0];
             const both = /\(src_id = \$1 OR dst_id = \$1\)/.test(sql);

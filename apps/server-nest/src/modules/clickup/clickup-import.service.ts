@@ -58,12 +58,14 @@ export class ClickUpImportService {
             const workspacesResponse = await this.apiClient.getWorkspaces();
             const workspace = workspacesResponse.teams.find(t => t.id === workspaceId);
             if (!workspace) {
-                throw new Error(`Workspace ${workspaceId} not found`);
+                const availableWorkspaces = workspacesResponse.teams.map(t => `${t.id} (${t.name})`).join(', ');
+                throw new Error(`Workspace ${workspaceId} not found. Available workspaces: ${availableWorkspaces}`);
             }
 
             // 2. Fetch all spaces
             const spacesResponse = await this.apiClient.getSpaces(workspaceId, includeArchived);
-            this.logger.log(`Found ${spacesResponse.spaces.length} spaces`);
+            this.logger.log(`Found ${spacesResponse.spaces.length} spaces: ${spacesResponse.spaces.map(s => s.name).join(', ')}`);
+            this.logger.debug(`Full spaces response: ${JSON.stringify(spacesResponse).substring(0, 1000)}`);
 
             // 3. Build hierarchical structure
             const spaces = await Promise.all(
@@ -71,12 +73,15 @@ export class ClickUpImportService {
                     try {
                         // Fetch folders in space
                         const foldersResponse = await this.apiClient.getFolders(space.id, includeArchived);
+                        this.logger.log(`Space "${space.name}": ${foldersResponse.folders.length} folders: ${foldersResponse.folders.map(f => f.name).join(', ') || '(none)'}`);
+                        this.logger.debug(`Space "${space.name}" folders response: ${JSON.stringify(foldersResponse).substring(0, 1000)}`);
 
                         // Build folder structure with lists and task counts
                         const folders = await Promise.all(
                             foldersResponse.folders.map(async (folder) => {
                                 try {
                                     const listsResponse = await this.apiClient.getListsInFolder(folder.id, includeArchived);
+                                    this.logger.log(`  Folder "${folder.name}": ${listsResponse.lists.length} lists: ${listsResponse.lists.map(l => l.name).join(', ') || '(none)'}`);
 
                                     // Get task counts for each list
                                     const lists = await Promise.all(
@@ -133,6 +138,8 @@ export class ClickUpImportService {
 
                         // Fetch folderless lists
                         const folderlessListsResponse = await this.apiClient.getFolderlessLists(space.id, includeArchived);
+                        this.logger.log(`Space "${space.name}": ${folderlessListsResponse.lists.length} folderless lists: ${folderlessListsResponse.lists.map(l => l.name).join(', ') || '(none)'}`);
+                        this.logger.debug(`Space "${space.name}" folderless lists response: ${JSON.stringify(folderlessListsResponse).substring(0, 1000)}`);
                         const folderlessLists = await Promise.all(
                             folderlessListsResponse.lists.map(async (list) => {
                                 try {

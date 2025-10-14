@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LLMProviderFactory } from '../llm/llm-provider.factory';
 import { VertexAIProvider } from '../llm/vertex-ai.provider';
+import { LangChainGeminiProvider } from '../llm/langchain-gemini.provider';
 import { AppConfigService } from '../../../common/config/config.service';
 
 describe('LLMProviderFactory', () => {
     let factory: LLMProviderFactory;
     let mockConfig: Partial<AppConfigService>;
-    let mockVertexProvider: VertexAIProvider;
+    let mockVertexProvider: any;
+    let mockLangChainProvider: any;
 
     beforeEach(() => {
         mockConfig = {
@@ -15,9 +17,21 @@ describe('LLMProviderFactory', () => {
             vertexAiModel: 'gemini-1.5-pro-002',
         };
 
-        mockVertexProvider = new VertexAIProvider(mockConfig as AppConfigService);
+        // Mock LangChainGeminiProvider with required methods
+        mockLangChainProvider = {
+            isConfigured: vi.fn().mockReturnValue(false),
+            getName: vi.fn().mockReturnValue('LangChain Gemini'),
+        };
+
+        // Mock VertexAIProvider with required methods
+        mockVertexProvider = {
+            isConfigured: vi.fn().mockReturnValue(false),
+            getName: vi.fn().mockReturnValue('VertexAI'),
+        };
+
         factory = new LLMProviderFactory(
             mockConfig as AppConfigService,
+            mockLangChainProvider,
             mockVertexProvider
         );
     });
@@ -48,12 +62,20 @@ describe('LLMProviderFactory', () => {
                 vertexAiLocation: 'us-central1',
                 vertexAiModel: 'gemini-1.5-flash-latest',
             };
-            const configuredVertex = new VertexAIProvider(configuredConfig as AppConfigService);
+            const configuredLangChain = {
+                isConfigured: vi.fn().mockReturnValue(true),
+                getName: vi.fn().mockReturnValue('LangChain Gemini'),
+            };
+            const configuredVertex = {
+                isConfigured: vi.fn().mockReturnValue(false),
+                getName: vi.fn().mockReturnValue('VertexAI'),
+            };
 
             // Since actual initialization requires credentials, we test the factory logic
             const testFactory = new LLMProviderFactory(
                 configuredConfig as AppConfigService,
-                configuredVertex
+                configuredLangChain as any,
+                configuredVertex as any
             );
 
             // Verify factory handles provider availability check

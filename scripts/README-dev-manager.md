@@ -1,4 +1,69 @@
-# Development Process Manager
+# Development Manager Scripts
+
+This directory contains utility scripts for development and debugging.
+
+## ClickUp API Debugging
+
+### Quick Start (Easiest)
+
+```bash
+# Debug with credentials from database (non-archived only)
+./scripts/debug-clickup.sh
+
+# Include archived items
+./scripts/debug-clickup.sh true
+```
+
+### Manual Method
+
+If the quick script doesn't work, use the manual method:
+
+```bash
+# Step 1: Get your credentials
+npx tsx scripts/get-clickup-credentials.ts
+
+# Step 2: Copy the command it outputs and run it
+npx tsx scripts/debug-clickup-api.ts "pk_YOUR_TOKEN" "YOUR_WORKSPACE_ID"
+
+# Or include archived items:
+npx tsx scripts/debug-clickup-api.ts "pk_YOUR_TOKEN" "YOUR_WORKSPACE_ID" true
+```
+
+### What the Debug Script Shows
+
+The script will make ClickUp API calls and show you:
+
+1. **All Workspaces** - Lists all workspaces your token has access to
+2. **All Spaces** - Shows spaces in your workspace
+3. **Folders per Space** - Shows folders within each space
+4. **Lists in Folders** - Shows lists within each folder
+5. **Folderless Lists** - Shows lists at the space level (not in folders)
+6. **Summary** - Total counts of everything
+
+The output is color-coded and pretty-printed JSON for easy reading.
+
+### Troubleshooting
+
+**Database connection error:**
+```bash
+# Make sure PostgreSQL is running
+docker compose up -d postgres
+```
+
+**Settings encrypted error:**
+```bash
+# If encryption is enabled, set the key:
+export ENCRYPTION_KEY="your-encryption-key"
+npx tsx scripts/get-clickup-credentials.ts
+```
+
+**Wrong workspace:**
+```bash
+# The script will show available workspaces if yours isn't found
+# Use the correct workspace ID from the list
+```
+
+## Dev Manager Script
 
 A robust process manager for running development servers with automatic cleanup.
 
@@ -39,6 +104,24 @@ node scripts/dev-manager.mjs restart
 npm run dev:status
 # or directly:
 node scripts/dev-manager.mjs status
+```
+
+### Capture recent service logs
+```bash
+npm run dev-manager:logs:snapshot
+```
+
+Optional flags:
+
+```bash
+# Increase the number of lines captured (default 100)
+npm run dev-manager:logs:snapshot -- --lines 200
+
+# Emit JSON for piping into other tooling
+npm run dev-manager:logs:snapshot -- --json
+
+# Limit to specific services (comma-separated keys: api,admin,app,errors,db)
+npm run dev-manager:logs:snapshot -- --services=api,errors
 ```
 
 ## Services
