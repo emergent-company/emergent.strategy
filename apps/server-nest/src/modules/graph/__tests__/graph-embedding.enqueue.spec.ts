@@ -38,9 +38,11 @@ describe('Graph Embedding Enqueue', () => {
         orgId = resOrg.rows[0].id;
         const resProj = await (service as any).db.query(`INSERT INTO kb.projects(org_id, name) VALUES ($1,'embedq_proj') RETURNING id`, [orgId]);
         projectId = resProj.rows[0].id;
+        await (service as any).db.setTenantContext(orgId, projectId);
     });
 
     it('does not enqueue when embeddings disabled', async () => {
+        await (service as any).db.setTenantContext(orgId, projectId);
         // Other test files may have created jobs; focus on absence of job for the new object we create.
         const o = await service.createObject({ org_id: orgId, project_id: projectId, type: 'article', key: 'noembed_' + Date.now(), properties: { body: 'lorem ipsum' }, labels: [] } as any);
         expect(o).toBeTruthy();
@@ -52,6 +54,7 @@ describe('Graph Embedding Enqueue', () => {
     it('enqueues on create when embeddings enabled', async () => {
         process.env.GOOGLE_API_KEY = 'fake-key'; // set before module re-init
         await initModule(); // reinitialize to pick up new config flag
+        await (service as any).db.setTenantContext(orgId, projectId);
         const o = await service.createObject({ org_id: orgId, project_id: projectId, type: 'article', key: 'with-embed', properties: { body: 'alpha beta gamma' }, labels: [] } as any);
         expect(o).toBeTruthy();
         const stats = await jobs.stats();
@@ -59,6 +62,7 @@ describe('Graph Embedding Enqueue', () => {
     });
 
     it('does not create duplicate pending job on patch', async () => {
+        await (service as any).db.setTenantContext(orgId, projectId);
         const before = await jobs.stats();
         const head = await (service as any).db.query(`SELECT id FROM kb.graph_objects WHERE key='with-embed' ORDER BY version DESC LIMIT 1`);
         const id = head.rows[0].id;

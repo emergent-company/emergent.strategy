@@ -9,6 +9,21 @@ export class InMemoryDatabaseService {
     objects: Row[] = [];
     relationships: Row[] = [];
 
+    async setTenantContext(orgId: string | null, projectId: string | null) {
+        // No-op for tests; expand specs rely on explicit context injection via service parameters.
+        // Method is provided to satisfy GraphService's tenant enforcement hook.
+        return;
+    }
+
+    async runWithTenantContext<T>(orgId: string | null, projectId: string | null, fn: () => Promise<T>): Promise<T> {
+        await this.setTenantContext(orgId, projectId);
+        try {
+            return await fn();
+        } finally {
+            await this.setTenantContext(null, null);
+        }
+    }
+
     async onModuleInit() { /* no-op */ }
 
     getClient() {

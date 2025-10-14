@@ -1,12 +1,22 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../../common/database/database.service';
 import { ProjectDto } from './dto/project.dto';
+import { TemplatePackService } from '../template-packs/template-pack.service';
+import { AppConfigService } from '../../common/config/config.service';
+
+const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 interface ProjectRow { id: string; name: string; org_id: string; created_at?: string; updated_at?: string; }
 
 @Injectable()
 export class ProjectsService {
-    constructor(private readonly db: DatabaseService) { }
+    private readonly logger = new Logger(ProjectsService.name);
+
+    constructor(
+        private readonly db: DatabaseService,
+        private readonly templatePacks: TemplatePackService,
+        private readonly config: AppConfigService,
+    ) { }
 
     async list(limit = 100, orgId?: string): Promise<ProjectDto[]> {
         if (orgId) {
@@ -43,6 +53,7 @@ export class ProjectsService {
         // This prevents a concurrent org deletion (cascade) from occurring between the pre-check and insert,
         // which could surface as a transient FK 23503 even though the org existed milliseconds earlier.
         const client = await this.db.getClient();
+        let project: ProjectDto | null = null;
         try {
             await client.query('BEGIN');
             const orgChk = await client.query('SELECT id FROM kb.orgs WHERE id = $1 LIMIT 1 FOR SHARE', [orgId]);
@@ -61,7 +72,7 @@ export class ProjectsService {
                 await client.query(`INSERT INTO kb.project_memberships(project_id, subject_id, role) VALUES($1,$2,'project_admin') ON CONFLICT (project_id, subject_id) DO NOTHING`, [p.id, userId]);
             }
             await client.query('COMMIT');
-            return { id: p.id, name: p.name, orgId: p.org_id };
+            project = { id: p.id, name: p.name, orgId: p.org_id };
         } catch (e) {
             try { await client.query('ROLLBACK'); } catch { /* ignore */ }
             const msg = (e as Error).message;
@@ -74,6 +85,14 @@ export class ProjectsService {
         } finally {
             client.release();
         }
+
+        if (!project) {
+            throw new BadRequestException({ error: { code: 'project-create-failed', message: 'Project creation failed unexpectedly' } });
+        }
+
+        await this.installDefaultTemplatePack(project, orgId, userId);
+
+        return project;
     }
 
     /**
@@ -87,5 +106,39 @@ export class ProjectsService {
         // FKs with ON DELETE CASCADE now remove dependent rows (documents -> chunks, chat_conversations -> chat_messages).
         const res = await this.db.query<{ id: string }>(`DELETE FROM kb.projects WHERE id = $1 RETURNING id`, [projectId]);
         return (res.rowCount ?? 0) > 0;
+    }
+
+    private async installDefaultTemplatePack(project: ProjectDto, orgId: string, userId?: string): Promise<void> {
+        const defaultPackId = this.config.extractionDefaultTemplatePackId;
+        if (!defaultPackId) {
+            this.logger.debug(`No default template pack configured; skipping auto-install for project ${project.id}`);
+            return;
+        }
+
+        try {
+            await this.templatePacks.assignTemplatePackToProject(
+                project.id,
+                orgId,
+                orgId,
+                userId ?? SYSTEM_USER_ID,
+                { template_pack_id: defaultPackId }
+            );
+            this.logger.log(`Installed default template pack ${defaultPackId} for project ${project.id}`);
+        } catch (error) {
+            if (error instanceof ConflictException) {
+                this.logger.debug(`Default template pack already installed for project ${project.id}`);
+                return;
+            }
+
+            if (error instanceof NotFoundException) {
+                this.logger.error(`Default template pack ${defaultPackId} not found; project ${project.id} will require manual assignment`);
+                return;
+            }
+
+            this.logger.error(
+                `Failed to install default template pack ${defaultPackId} for project ${project.id}: ${(error as Error).message}`,
+                error as Error,
+            );
+        }
     }
 }

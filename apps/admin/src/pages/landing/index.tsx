@@ -12,7 +12,7 @@ import { Topbar } from "./components/Topbar";
 
 const LandingPage = () => {
     return (
-        <>
+        <div data-testid="page-landing">
             <MetaData />
 
             <div>
@@ -26,7 +26,7 @@ const LandingPage = () => {
                 <BundleOffer />
                 <Footer />
             </div>
-        </>
+        </div>
     );
 };
 

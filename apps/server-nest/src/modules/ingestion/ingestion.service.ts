@@ -313,8 +313,9 @@ export class IngestionService {
             try {
                 this.logger.log(`Auto-extraction enabled for project ${projectId}, creating extraction job for document ${documentId}`);
 
+                const organizationId = derivedOrg || orgId || '';
                 const extractionJob = await this.extractionJobService.createJob({
-                    org_id: derivedOrg || orgId || '',
+                    organization_id: organizationId,
                     project_id: projectId,
                     source_type: ExtractionSourceType.DOCUMENT,
                     source_id: documentId,

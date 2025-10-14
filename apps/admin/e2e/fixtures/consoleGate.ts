@@ -1,7 +1,11 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 import { test as base } from '@playwright/test';
 
-export const test = base.extend<{ consoleErrors: string[]; pageErrors: string[] }>({
+export const test = base.extend<{
+    consoleErrors: string[];
+    pageErrors: string[];
+    apiErrors: string[];
+}>({
     consoleErrors: async ({ page }, use) => {
         const errors: string[] = [];
         page.on('console', (msg) => {
@@ -12,6 +16,18 @@ export const test = base.extend<{ consoleErrors: string[]; pageErrors: string[] 
     pageErrors: async ({ page }, use) => {
         const errors: string[] = [];
         page.on('pageerror', (err) => errors.push(err.message));
+        await use(errors);
+    },
+    apiErrors: async ({ page }, use) => {
+        const errors: string[] = [];
+        page.on('response', (response) => {
+            // Capture failed API requests (4xx, 5xx status codes)
+            const status = response.status();
+            const url = response.url();
+            if (status >= 400) {
+                errors.push(`${status} ${response.statusText()} - ${url}`);
+            }
+        });
         await use(errors);
     },
 });

@@ -34,13 +34,17 @@ export class IntegrationsService {
     /**
      * Create a new integration
      */
-    async createIntegration(dto: CreateIntegrationDto): Promise<IntegrationDto> {
-        this.logger.log(`Creating integration ${dto.name} for project ${dto.project_id}`);
+    async createIntegration(
+        projectId: string,
+        orgId: string,
+        dto: CreateIntegrationDto
+    ): Promise<IntegrationDto> {
+        this.logger.log(`Creating integration ${dto.name} for project ${projectId}`);
 
         // Check if integration already exists for this project
         const existing = await this.db.query(
             `SELECT id FROM kb.integrations WHERE name = $1 AND project_id = $2`,
-            [dto.name, dto.project_id]
+            [dto.name, projectId]
         );
 
         if (existing.rowCount && existing.rowCount > 0) {
@@ -90,8 +94,8 @@ export class IntegrationsService {
                 dto.display_name,
                 dto.description || null,
                 dto.enabled ?? false,
-                dto.org_id,
-                dto.project_id,
+                orgId,
+                projectId,
                 settingsBytes,
                 dto.logo_url || null,
                 webhookSecret,

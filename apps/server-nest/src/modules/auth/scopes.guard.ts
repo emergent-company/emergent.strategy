@@ -19,18 +19,24 @@ export class ScopesGuard implements CanActivate {
             context.getHandler(),
             context.getClass(),
         ]) || [];
-        if (!required.length) return true;
+
         const req = context.switchToHttp().getRequest<any>();
         const user: UserWithScopes | undefined = req.user;
         if (!user) return false;
-        // Feature flag: bypass enforcement when SCOPES_DISABLED=1 (legacy behavior)
-        if (process.env.SCOPES_DISABLED === '1') return true;
-        // Compute dynamic scopes from memberships (server-side authoritative)
-        if (!user.permissions) {
-            const computed = await this.perms.compute(user.sub);
-            user.permissions = { scopes: computed.scopes };
+
+        const computed = await this.perms.compute(user.sub);
+        req.effectivePermissions = computed;
+        const dynamicScopes = computed.scopes || [];
+        user.permissions = { ...(user.permissions || {}), scopes: dynamicScopes };
+
+        if (!required.length) {
+            return true;
         }
-        const effective = new Set([...(user.scopes || []), ...(user.permissions?.scopes || [])]);
+
+        const scopesDisabled = process.env.SCOPES_DISABLED === '1';
+        if (scopesDisabled) return true;
+
+        const effective = new Set([...(user.scopes || []), ...dynamicScopes]);
         const missing = required.filter(r => !effective.has(r));
         if (missing.length) {
             // Phase 3: Log authorization denial (6a)

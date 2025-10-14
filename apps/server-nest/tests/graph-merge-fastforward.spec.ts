@@ -1,6 +1,8 @@
 import request from 'supertest';
 import getTestApp, { getSeededOrgProject } from './setup';
 import { INestApplication } from '@nestjs/common';
+import { beforeAll, afterAll, expect, test } from 'vitest';
+import { describeWithDb } from './utils/db-describe';
 
 // This test targets the "fast_forward" classification heuristic. Given current implementation,
 // two independently created objects with same (type,key) have overlapping initial change paths
@@ -14,9 +16,10 @@ import { INestApplication } from '@nestjs/common';
 // all initial properties while source head (patched) has paths for just the newly added property plus diff logic
 // (diffProperties) records only modified path(s). Result: no overlap => fast_forward.
 
-let app: INestApplication;
+let app: INestApplication | null = null;
 
 async function createBranch(name: string, org_id: string, project_id: string) {
+    if (!app) throw new Error('Test application not initialised');
     const res = await request(app.getHttpServer()).post('/graph/branches').send({ name, org_id, project_id });
     if (res.status !== 201) throw new Error('Branch create failed: ' + res.text);
     return res.body.id as string;
@@ -24,6 +27,7 @@ async function createBranch(name: string, org_id: string, project_id: string) {
 
 async function createObject(branchId: string, type: string, key: string, properties: Record<string, any>) {
     const { orgId, projectId } = await getSeededOrgProject();
+    if (!app) throw new Error('Test application not initialised');
     const res = await request(app.getHttpServer())
         .post('/graph/objects')
         .send({ type, key, properties, branch_id: branchId, org_id: orgId, project_id: projectId });
@@ -32,12 +36,13 @@ async function createObject(branchId: string, type: string, key: string, propert
 }
 
 async function patchObject(id: string, properties: Record<string, any>) {
+    if (!app) throw new Error('Test application not initialised');
     const res = await request(app.getHttpServer()).patch(`/graph/objects/${id}`).send({ properties });
     if (res.status !== 200) throw new Error('Patch failed: ' + res.text);
     return res.body;
 }
 
-describe('Graph Merge Dry-Run – Fast Forward', () => {
+describeWithDb('Graph Merge Dry-Run – Fast Forward', () => {
     let targetBranch: string; let sourceBranch: string; let baseKey = 'doc-ff';
 
     beforeAll(async () => {
@@ -48,7 +53,15 @@ describe('Graph Merge Dry-Run – Fast Forward', () => {
         sourceBranch = await createBranch('ff-source-' + suffix, orgId, projectId);
     });
 
+    afterAll(async () => {
+        if (!app) return;
+        await app.close();
+        app = null;
+    });
+
     test('AT-MERGE-4: fast_forward object detected (non-overlapping change paths)', async () => {
+        const currentApp = app;
+        if (!currentApp) throw new Error('Test application not initialised');
         // Step 1: Create identical object on both branches
         const tgt = await createObject(targetBranch, 'Doc', baseKey, { title: 'Shared' });
         const src = await createObject(sourceBranch, 'Doc', baseKey, { title: 'Shared' });
@@ -58,7 +71,7 @@ describe('Graph Merge Dry-Run – Fast Forward', () => {
         await patchObject(src.id, { description: 'More detail on source' });
 
         // Merge dry-run
-        const resp = await request(app.getHttpServer()).post(`/graph/branches/${targetBranch}/merge`).send({ sourceBranchId: sourceBranch });
+        const resp = await request(currentApp.getHttpServer()).post(`/graph/branches/${targetBranch}/merge`).send({ sourceBranchId: sourceBranch });
         expect(resp.status).toBe(200);
         const ffObj = resp.body.objects.find((o: any) => o.status === 'fast_forward');
         expect(ffObj).toBeTruthy();

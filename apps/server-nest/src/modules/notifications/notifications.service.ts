@@ -209,7 +209,7 @@ export class NotificationsService {
         const result = await this.db.query(
             `
       UPDATE kb.notifications
-      SET read_at = NULL, read = false
+      SET read_at = NULL
       WHERE id = $1 AND subject_id = $2
       RETURNING id
     `,
@@ -222,13 +222,13 @@ export class NotificationsService {
     }
 
     /**
-     * Dismiss notification (mark as dismissed)
+     * Dismiss notification (mark as dismissed/cleared)
      */
     async dismiss(notificationId: string, userId: string): Promise<void> {
         const result = await this.db.query(
             `
       UPDATE kb.notifications
-      SET dismissed = true, dismissed_at = now()
+      SET cleared_at = now()
       WHERE id = $1 AND subject_id = $2
       RETURNING id
     `,
@@ -247,12 +247,11 @@ export class NotificationsService {
         const result = await this.db.query<any>(
             `
       SELECT 
-        COUNT(*) FILTER (WHERE read = false AND dismissed = false) as unread,
-        COUNT(*) FILTER (WHERE dismissed = true) as dismissed,
+        COUNT(*) FILTER (WHERE read_at IS NULL AND cleared_at IS NULL) as unread,
+        COUNT(*) FILTER (WHERE cleared_at IS NOT NULL) as dismissed,
         COUNT(*) as total
       FROM kb.notifications
       WHERE subject_id = $1
-        AND (expires_at IS NULL OR expires_at > now())
     `,
             [userId],
         );

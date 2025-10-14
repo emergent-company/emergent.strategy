@@ -7,9 +7,11 @@ import {
     Param,
     Body,
     Query,
-    UseGuards,
     HttpCode,
     HttpStatus,
+    BadRequestException,
+    ForbiddenException,
+    Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { ExtractionJobService } from './extraction-job.service';
@@ -20,6 +22,8 @@ import {
     ListExtractionJobsDto,
     ExtractionJobListDto,
 } from './dto/extraction-job.dto';
+import { Request } from 'express';
+import { isUUID } from 'class-validator';
 
 /**
  * Extraction Job Controller
@@ -33,6 +37,37 @@ import {
 export class ExtractionJobController {
     constructor(private readonly jobService: ExtractionJobService) { }
 
+    private getOrganizationId(req: Request): string {
+        const header = req.headers['x-org-id'];
+        const organizationId = Array.isArray(header) ? header[0] : header;
+
+        if (!organizationId) {
+            throw new BadRequestException('x-org-id header required for extraction job operations');
+        }
+
+        return organizationId;
+    }
+
+    private getProjectId(req: Request, routeProjectId?: string): string {
+        const header = req.headers['x-project-id'];
+        const headerProjectId = Array.isArray(header) ? header[0] : header;
+        const resolved = routeProjectId ?? headerProjectId;
+
+        if (!resolved) {
+            throw new BadRequestException('x-project-id header required for extraction job operations');
+        }
+
+        if (routeProjectId && headerProjectId && routeProjectId !== headerProjectId) {
+            throw new BadRequestException('Project ID mismatch between route parameter and x-project-id header');
+        }
+
+        if (!isUUID(resolved)) {
+            throw new ForbiddenException('Project access denied');
+        }
+
+        return resolved;
+    }
+
     /**
      * Create a new extraction job
      */
@@ -44,8 +79,26 @@ export class ExtractionJobController {
     @ApiResponse({ status: 201, description: 'Job created successfully', type: ExtractionJobDto })
     @ApiResponse({ status: 400, description: 'Invalid request data' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
-    async createJob(@Body() dto: CreateExtractionJobDto): Promise<ExtractionJobDto> {
-        return this.jobService.createJob(dto);
+    async createJob(
+        @Body() dto: CreateExtractionJobDto,
+        @Req() req: Request
+    ): Promise<ExtractionJobDto> {
+        const organizationId = this.getOrganizationId(req);
+        const projectId = this.getProjectId(req, dto.project_id);
+
+        if (dto.organization_id && dto.organization_id !== organizationId) {
+            throw new BadRequestException('Organization ID mismatch between body and x-org-id header');
+        }
+
+        if (dto.project_id && dto.project_id !== projectId) {
+            throw new BadRequestException('Project ID mismatch between body and x-project-id header');
+        }
+
+        return this.jobService.createJob({
+            ...dto,
+            organization_id: organizationId,
+            project_id: projectId,
+        });
     }
 
     /**
@@ -61,10 +114,13 @@ export class ExtractionJobController {
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async listJobs(
         @Param('projectId') projectId: string,
-        @Query('org_id') orgId: string,
-        @Query() query: ListExtractionJobsDto
+        @Query() query: ListExtractionJobsDto,
+        @Req() req: Request,
     ): Promise<ExtractionJobListDto> {
-        return this.jobService.listJobs(projectId, orgId, query);
+        const resolvedProjectId = this.getProjectId(req, projectId);
+        const organizationId = this.getOrganizationId(req);
+
+        return this.jobService.listJobs(resolvedProjectId, organizationId, query);
     }
 
     /**
@@ -81,10 +137,12 @@ export class ExtractionJobController {
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async getJob(
         @Param('jobId') jobId: string,
-        @Query('project_id') projectId: string,
-        @Query('org_id') orgId: string
+        @Req() req: Request
     ): Promise<ExtractionJobDto> {
-        return this.jobService.getJobById(jobId, projectId, orgId);
+        const projectId = this.getProjectId(req);
+        const organizationId = this.getOrganizationId(req);
+
+        return this.jobService.getJobById(jobId, projectId, organizationId);
     }
 
     /**
@@ -102,11 +160,13 @@ export class ExtractionJobController {
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async updateJob(
         @Param('jobId') jobId: string,
-        @Query('project_id') projectId: string,
-        @Query('org_id') orgId: string,
-        @Body() dto: UpdateExtractionJobDto
+        @Body() dto: UpdateExtractionJobDto,
+        @Req() req: Request
     ): Promise<ExtractionJobDto> {
-        return this.jobService.updateJob(jobId, projectId, orgId, dto);
+        const projectId = this.getProjectId(req);
+        const organizationId = this.getOrganizationId(req);
+
+        return this.jobService.updateJob(jobId, projectId, organizationId, dto);
     }
 
     /**
@@ -126,10 +186,12 @@ export class ExtractionJobController {
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async retryJob(
         @Param('jobId') jobId: string,
-        @Query('project_id') projectId: string,
-        @Query('org_id') orgId: string
+        @Req() req: Request
     ): Promise<ExtractionJobDto> {
-        return this.jobService.retryJob(jobId, projectId, orgId);
+        const projectId = this.getProjectId(req);
+        const organizationId = this.getOrganizationId(req);
+
+        return this.jobService.retryJob(jobId, projectId, organizationId);
     }
 
     /**
@@ -148,10 +210,12 @@ export class ExtractionJobController {
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async cancelJob(
         @Param('jobId') jobId: string,
-        @Query('project_id') projectId: string,
-        @Query('org_id') orgId: string
+        @Req() req: Request
     ): Promise<ExtractionJobDto> {
-        return this.jobService.cancelJob(jobId, projectId, orgId);
+        const projectId = this.getProjectId(req);
+        const organizationId = this.getOrganizationId(req);
+
+        return this.jobService.cancelJob(jobId, projectId, organizationId);
     }
 
     /**
@@ -170,10 +234,12 @@ export class ExtractionJobController {
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async deleteJob(
         @Param('jobId') jobId: string,
-        @Query('project_id') projectId: string,
-        @Query('org_id') orgId: string
+        @Req() req: Request
     ): Promise<void> {
-        return this.jobService.deleteJob(jobId, projectId, orgId);
+        const projectId = this.getProjectId(req);
+        const organizationId = this.getOrganizationId(req);
+
+        return this.jobService.deleteJob(jobId, projectId, organizationId);
     }
 
     /**
@@ -209,9 +275,12 @@ export class ExtractionJobController {
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async getStatistics(
         @Param('projectId') projectId: string,
-        @Query('org_id') orgId: string
+        @Req() req: Request
     ): Promise<any> {
-        return this.jobService.getJobStatistics(projectId, orgId);
+        const resolvedProjectId = this.getProjectId(req, projectId);
+        const organizationId = this.getOrganizationId(req);
+
+        return this.jobService.getJobStatistics(resolvedProjectId, organizationId);
     }
 
     /**

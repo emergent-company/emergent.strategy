@@ -169,7 +169,7 @@ async function stopAll() {
 }
 
 // Start a specific service
-async function startService(serviceKey) {
+async function startService(serviceKey, background = false) {
     const service = SERVICES[serviceKey];
 
     // First, ensure any existing process is stopped
@@ -177,59 +177,100 @@ async function startService(serviceKey) {
 
     console.log(`${service.color}▶  Starting ${service.name}...${RESET}`);
 
-    const child = spawn(service.command, service.args, {
-        cwd: ROOT_DIR,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        detached: false,
-        shell: true,
-    });
+    // Create log file path
+    const logFile = path.join(ROOT_DIR, 'logs', `${serviceKey}.log`);
 
-    // Save PID
-    await writePid(service.pidFile, child.pid);
+    // Ensure logs directory exists
+    await fs.mkdir(path.join(ROOT_DIR, 'logs'), { recursive: true });
 
-    // Prefix output with service name
-    const prefix = `${service.color}[${serviceKey}]${RESET} `;
+    if (background) {
+        // Background mode: spawn detached and redirect to log file
+        const logStream = await fs.open(logFile, 'a');
 
-    const formatOutput = (data) => {
-        const lines = data.toString().split('\n');
-        return lines
-            .map((line, i) => (i === lines.length - 1 && line === '') ? '' : prefix + line)
-            .join('\n');
-    };
+        const child = spawn(service.command, service.args, {
+            cwd: ROOT_DIR,
+            stdio: ['ignore', logStream.fd, logStream.fd],
+            detached: true,
+            shell: true,
+        });
 
-    child.stdout.on('data', (data) => {
-        process.stdout.write(formatOutput(data));
-    });
+        // Save PID
+        await writePid(service.pidFile, child.pid);
 
-    child.stderr.on('data', (data) => {
-        process.stderr.write(formatOutput(data));
-    });
+        // Unref so parent can exit
+        child.unref();
 
-    child.on('exit', async (code) => {
-        await deletePid(service.pidFile);
-        if (code !== 0 && code !== null) {
-            console.log(`${RED}✗ ${service.name} exited with code ${code}${RESET}`);
-        }
-    });
+        console.log(`${service.color}✓ ${service.name} started in background (PID: ${child.pid})${RESET}`);
+        console.log(`${service.color}  Logs: ${logFile}${RESET}`);
 
-    return child;
+        return child;
+    } else {
+        // Foreground mode: show output in console
+        const child = spawn(service.command, service.args, {
+            cwd: ROOT_DIR,
+            stdio: ['ignore', 'pipe', 'pipe'],
+            detached: false,
+            shell: true,
+        });
+
+        // Save PID
+        await writePid(service.pidFile, child.pid);
+
+        // Prefix output with service name
+        const prefix = `${service.color}[${serviceKey}]${RESET} `;
+
+        const formatOutput = (data) => {
+            const lines = data.toString().split('\n');
+            return lines
+                .map((line, i) => (i === lines.length - 1 && line === '') ? '' : prefix + line)
+                .join('\n');
+        };
+
+        child.stdout.on('data', (data) => {
+            process.stdout.write(formatOutput(data));
+        });
+
+        child.stderr.on('data', (data) => {
+            process.stderr.write(formatOutput(data));
+        });
+
+        child.on('exit', async (code) => {
+            await deletePid(service.pidFile);
+            if (code !== 0 && code !== null) {
+                console.log(`${RED}✗ ${service.name} exited with code ${code}${RESET}`);
+            }
+        });
+
+        return child;
+    }
 }
 
 // Start all services
-async function startAll() {
-    console.log(`${GREEN}Starting development servers...${RESET}\n`);
+async function startAll(background = false) {
+    console.log(`${GREEN}Starting development servers${background ? ' (background mode)' : ''}...${RESET}\n`);
     await ensurePidDir();
 
     const children = [];
 
     for (const [key] of Object.entries(SERVICES)) {
-        const child = await startService(key);
-        children.push(child);
+        const child = await startService(key, background);
+        if (!background) {
+            children.push(child);
+        }
         // Small delay between starts
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     console.log(`\n${GREEN}✓ All services started${RESET}`);
+
+    if (background) {
+        console.log(`${YELLOW}Use 'npm run dev:status' to check service status${RESET}`);
+        console.log(`${YELLOW}Use 'npm run dev:stop' to stop services${RESET}`);
+        console.log(`${YELLOW}Logs are in: logs/api.log and logs/admin.log${RESET}\n`);
+        // Exit cleanly in background mode
+        return;
+    }
+
     console.log(`${YELLOW}Press Ctrl+C to stop all services${RESET}\n`);
 
     // Handle graceful shutdown
@@ -272,11 +313,12 @@ async function status() {
 // Main CLI
 async function main() {
     const command = process.argv[2] || 'start';
+    const background = process.argv.includes('--background') || process.argv.includes('-b');
 
     try {
         switch (command) {
             case 'start':
-                await startAll();
+                await startAll(background);
                 break;
             case 'stop':
                 await stopAll();
@@ -284,17 +326,19 @@ async function main() {
             case 'restart':
                 await stopAll();
                 await new Promise(resolve => setTimeout(resolve, 1000));
-                await startAll();
+                await startAll(background);
                 break;
             case 'status':
                 await status();
                 break;
             default:
-                console.log(`${YELLOW}Usage: node scripts/dev-manager.mjs [start|stop|restart|status]${RESET}`);
+                console.log(`${YELLOW}Usage: node scripts/dev-manager.mjs [start|stop|restart|status] [--background|-b]${RESET}`);
                 console.log(`  start   - Start all development services (default)`);
                 console.log(`  stop    - Stop all development services`);
                 console.log(`  restart - Restart all development services`);
                 console.log(`  status  - Show status of all services`);
+                console.log(`\nOptions:`);
+                console.log(`  --background, -b  - Run services in background with logs to files`);
                 process.exit(1);
         }
     } catch (err) {

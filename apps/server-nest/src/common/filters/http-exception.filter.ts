@@ -1,6 +1,7 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import { appendFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { resolveLogDir } from '../logger/log-path.util';
 
 interface ErrorEnvelope {
     error: {
@@ -68,53 +69,103 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
                 default: code = status >= 500 ? 'internal' : code;
             }
         } else {
-            // Non-Http exceptions: log during tests for visibility; deterministic domain errors should be thrown as HttpExceptions earlier.
-            if (process.env.NODE_ENV === 'test') {
-                // eslint-disable-next-line no-console
-                console.error('Unhandled exception object:', exception);
-            }
+            // Non-Http exceptions: these should be rare, so always log them for visibility
+            // Deterministic domain errors should be thrown as HttpExceptions earlier
+            // eslint-disable-next-line no-console
+            console.error('\n[ERROR] Unhandled non-HTTP exception:', exception);
+            // eslint-disable-next-line no-console
+            console.error('  This error should ideally be caught and converted to an HttpException\n');
         }
 
         const envelope: ErrorEnvelope = { error: { code, message, ...(details ? { details } : {}) } };
 
-        // Append 5xx errors to a log file for later inspection (dev + production); skip known HttpExceptions below 500
-        try {
-            if (status >= 500) {
-                const logDir = process.env.ERROR_LOG_DIR || join(process.cwd(), 'logs');
+        // Log 5xx errors to console AND file for better debugging
+        if (status >= 500) {
+            // Gather error details
+            let stack: string | undefined;
+            if (exception && exception instanceof Error) {
+                stack = exception.stack || undefined;
+            } else if (typeof (exception as any)?.stack === 'string') {
+                stack = String((exception as any).stack);
+            }
+
+            const errorDetails = {
+                time: new Date().toISOString(),
+                status,
+                code,
+                message,
+                path: request?.url,
+                method: request?.method,
+                requestId: request?.headers?.['x-request-id'] || request?.id,
+                userId: request?.user?.sub,
+                orgId: request?.headers?.['x-org-id'],
+                projectId: request?.headers?.['x-project-id'],
+                details,
+                httpException: isHttp,
+                stack,
+            };
+
+            // Log to console (stderr) for immediate visibility
+            // eslint-disable-next-line no-console
+            console.error('\n[ERROR 500] Internal Server Error:');
+            // eslint-disable-next-line no-console
+            console.error(`  Time:      ${errorDetails.time}`);
+            // eslint-disable-next-line no-console
+            console.error(`  Method:    ${errorDetails.method}`);
+            // eslint-disable-next-line no-console
+            console.error(`  Path:      ${errorDetails.path}`);
+            if (errorDetails.userId) {
+                // eslint-disable-next-line no-console
+                console.error(`  User ID:   ${errorDetails.userId}`);
+            }
+            if (errorDetails.orgId) {
+                // eslint-disable-next-line no-console
+                console.error(`  Org ID:    ${errorDetails.orgId}`);
+            }
+            if (errorDetails.projectId) {
+                // eslint-disable-next-line no-console
+                console.error(`  Project:   ${errorDetails.projectId}`);
+            }
+            // eslint-disable-next-line no-console
+            console.error(`  Code:      ${errorDetails.code}`);
+            // eslint-disable-next-line no-console
+            console.error(`  Message:   ${errorDetails.message}`);
+            if (errorDetails.details) {
+                // eslint-disable-next-line no-console
+                console.error(`  Details:   ${JSON.stringify(errorDetails.details, null, 2)}`);
+            }
+            if (stack) {
+                // eslint-disable-next-line no-console
+                console.error('\n  Stack trace:');
+                // eslint-disable-next-line no-console
+                console.error(stack.split('\n').map(line => `    ${line}`).join('\n'));
+            }
+            // eslint-disable-next-line no-console
+            console.error('---\n');
+
+            // Append to log file for later inspection
+            try {
+                const logDir = resolveLogDir('ERROR_LOG_DIR');
                 if (!existsSync(logDir)) mkdirSync(logDir, { recursive: true });
                 const file = join(logDir, 'errors.log');
-                let stack: string | undefined;
-                if (exception && exception instanceof Error) {
-                    stack = exception.stack || undefined;
-                } else if (typeof (exception as any)?.stack === 'string') {
-                    stack = String((exception as any).stack);
-                }
-                if (stack) {
-                    // Optionally suppress full stack in production unless explicitly enabled
-                    const includeFull = process.env.ERROR_LOG_INCLUDE_STACK === '1' || process.env.NODE_ENV !== 'production';
-                    // Truncate very large stacks
+
+                // Optionally suppress full stack in production unless explicitly enabled
+                const includeFull = process.env.ERROR_LOG_INCLUDE_STACK === '1' || process.env.NODE_ENV !== 'production';
+                // Truncate very large stacks for file logging
+                let fileStack = stack;
+                if (fileStack) {
                     const maxLen = includeFull ? 12000 : 4000;
-                    if (stack.length > maxLen) stack = stack.slice(0, maxLen) + '…';
+                    if (fileStack.length > maxLen) fileStack = fileStack.slice(0, maxLen) + '…';
                 }
+
                 const line = JSON.stringify({
-                    time: new Date().toISOString(),
-                    status,
-                    code,
-                    message,
-                    path: request?.url,
-                    method: request?.method,
-                    requestId: request?.headers?.['x-request-id'] || request?.id,
-                    userId: request?.user?.sub,
-                    orgId: request?.headers?.['x-org-id'],
-                    projectId: request?.headers?.['x-project-id'],
-                    details,
-                    httpException: isHttp,
-                    stack,
+                    ...errorDetails,
+                    stack: fileStack,
                 }) + '\n';
                 appendFileSync(file, line, { encoding: 'utf-8' });
+            } catch {
+                // swallow file I/O errors
             }
-        } catch {
-            // swallow file I/O errors
         }
 
         response.status(status).json(envelope);

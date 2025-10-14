@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { Test } from '@nestjs/testing';
 import { GraphModule } from '../../graph/graph.module';
 import { DatabaseModule } from '../../../common/database/database.module';
@@ -10,6 +10,7 @@ import { GraphService } from '../../graph/graph.service';
 
 describe('Graph FTS Search', () => {
     let service: GraphService;
+    let db: any;
 
     let orgId: string; let projectId: string;
     beforeAll(async () => {
@@ -19,11 +20,17 @@ describe('Graph FTS Search', () => {
             imports: [AppConfigModule, DatabaseModule, GraphModule],
         }).compile();
         service = mod.get(GraphService);
+        db = (service as any).db;
         // Seed org + project (minimal schema path creates tables)
-        const resOrg = await (service as any).db.query(`INSERT INTO kb.orgs(name) VALUES ('fts_test_org') ON CONFLICT(name) DO UPDATE SET name=EXCLUDED.name RETURNING id`);
+        await db.setTenantContext(null, null);
+        const resOrg = await db.query(`INSERT INTO kb.orgs(name) VALUES ('fts_test_org') ON CONFLICT(name) DO UPDATE SET name=EXCLUDED.name RETURNING id`);
         orgId = resOrg.rows[0].id;
-        const resProj = await (service as any).db.query(`INSERT INTO kb.projects(org_id, name) VALUES ($1,'fts_test_project') ON CONFLICT(org_id, lower(name)) DO UPDATE SET name=EXCLUDED.name RETURNING id`, [orgId]);
+        const resProj = await db.query(`INSERT INTO kb.projects(org_id, name) VALUES ($1,'fts_test_project') ON CONFLICT(org_id, lower(name)) DO UPDATE SET name=EXCLUDED.name RETURNING id`, [orgId]);
         projectId = resProj.rows[0].id;
+    });
+
+    beforeEach(async () => {
+        await db.setTenantContext(null, null);
     });
 
     it('returns ranked matches for query term', async () => {

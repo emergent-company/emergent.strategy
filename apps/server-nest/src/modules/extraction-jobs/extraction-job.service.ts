@@ -10,6 +10,23 @@ import {
     ExtractionJobStatus,
 } from './dto/extraction-job.dto';
 
+interface ExtractionJobSchemaInfo {
+    orgColumn: 'org_id' | 'organization_id';
+    tenantColumn?: 'tenant_id';
+    projectColumn: 'project_id';
+    subjectColumn?: 'subject_id' | 'created_by';
+    totalItemsColumn?: 'total_items';
+    processedItemsColumn?: 'processed_items';
+    successfulItemsColumn?: 'successful_items';
+    failedItemsColumn?: 'failed_items';
+    discoveredTypesColumn?: 'discovered_types';
+    createdObjectsColumn?: 'created_objects' | 'objects_created';
+    createdObjectsIsArray: boolean;
+    errorDetailsColumn?: 'error_details';
+    debugInfoColumn?: 'debug_info';
+    extraColumns: Set<string>;
+}
+
 /**
  * Extraction Job Service
  * 
@@ -20,11 +37,73 @@ import {
 @Injectable()
 export class ExtractionJobService {
     private readonly logger = new Logger(ExtractionJobService.name);
+    private schemaInfo: ExtractionJobSchemaInfo | null = null;
+    private schemaInfoPromise: Promise<ExtractionJobSchemaInfo> | null = null;
 
     constructor(
         private readonly db: DatabaseService,
         private readonly config: AppConfigService
     ) { }
+
+    private async getSchemaInfo(): Promise<ExtractionJobSchemaInfo> {
+        if (this.schemaInfo) {
+            return this.schemaInfo;
+        }
+
+        if (!this.schemaInfoPromise) {
+            this.schemaInfoPromise = (async () => {
+                const result = await this.db.query<{ column_name: string; data_type: string }>(
+                    `SELECT column_name, data_type
+                     FROM information_schema.columns
+                     WHERE table_schema = 'kb' AND table_name = 'object_extraction_jobs'`
+                );
+
+                const columns = new Map<string, string>();
+                for (const row of result.rows) {
+                    columns.set(row.column_name, row.data_type);
+                }
+
+                const orgColumn = columns.has('organization_id') ? 'organization_id' : 'org_id';
+                if (!orgColumn) {
+                    throw new Error('object_extraction_jobs missing organization column');
+                }
+
+                if (!columns.has('project_id')) {
+                    throw new Error('object_extraction_jobs missing project_id column');
+                }
+
+                const createdObjectsColumn = columns.has('created_objects')
+                    ? 'created_objects'
+                    : (columns.has('objects_created') ? 'objects_created' : undefined);
+
+                const schema: ExtractionJobSchemaInfo = {
+                    orgColumn,
+                    tenantColumn: columns.has('tenant_id') ? 'tenant_id' : undefined,
+                    projectColumn: 'project_id',
+                    subjectColumn: columns.has('subject_id')
+                        ? 'subject_id'
+                        : (columns.has('created_by') ? 'created_by' : undefined),
+                    totalItemsColumn: columns.has('total_items') ? 'total_items' : undefined,
+                    processedItemsColumn: columns.has('processed_items') ? 'processed_items' : undefined,
+                    successfulItemsColumn: columns.has('successful_items') ? 'successful_items' : undefined,
+                    failedItemsColumn: columns.has('failed_items') ? 'failed_items' : undefined,
+                    discoveredTypesColumn: columns.has('discovered_types') ? 'discovered_types' : undefined,
+                    createdObjectsColumn,
+                    createdObjectsIsArray: createdObjectsColumn === 'created_objects',
+                    errorDetailsColumn: columns.has('error_details') ? 'error_details' : undefined,
+                    debugInfoColumn: columns.has('debug_info') ? 'debug_info' : undefined,
+                    extraColumns: new Set(columns.keys()),
+                };
+
+                this.schemaInfo = schema;
+                return schema;
+            })().finally(() => {
+                this.schemaInfoPromise = null;
+            });
+        }
+
+        return this.schemaInfoPromise;
+    }
 
     /**
      * Create a new extraction job
@@ -33,41 +112,66 @@ export class ExtractionJobService {
      * Phase 2: Will enqueue job to Bull queue for processing
      */
     async createJob(dto: CreateExtractionJobDto): Promise<ExtractionJobDto> {
-        this.logger.log(`Creating extraction job for project ${dto.project_id}, source: ${dto.source_type}`);
+        const schema = await this.getSchemaInfo();
+        const organizationId = dto.organization_id ?? (dto as unknown as { org_id?: string }).org_id ?? null;
+        const projectId = dto.project_id ?? null;
+
+        if (!organizationId) {
+            throw new BadRequestException('organization_id is required to create an extraction job');
+        }
+
+        if (!projectId) {
+            throw new BadRequestException('project_id is required to create an extraction job');
+        }
+
+        await this.db.setTenantContext(organizationId, projectId);
+        this.logger.log(`Creating extraction job for project ${projectId}, source: ${dto.source_type}`);
+
+        const columns: string[] = [
+            schema.orgColumn,
+            schema.projectColumn,
+            'source_type',
+            'status',
+            'extraction_config',
+            'source_metadata',
+            'source_id',
+        ];
+        const values: any[] = [
+            organizationId,
+            projectId,
+            dto.source_type,
+            ExtractionJobStatus.PENDING,
+            JSON.stringify(dto.extraction_config ?? {}),
+            JSON.stringify(dto.source_metadata ?? {}),
+            dto.source_id ?? null,
+        ];
+
+        if (schema.subjectColumn) {
+            columns.push(schema.subjectColumn);
+            values.push(dto.subject_id ?? null);
+        }
+
+        if (schema.tenantColumn) {
+            columns.push(schema.tenantColumn);
+            // Default tenant alignment with organization for single-tenant minimal setups
+            values.push(organizationId);
+        }
+
+        const placeholders = columns.map((_, index) => `$${index + 1}`);
 
         const result = await this.db.query<ExtractionJobDto>(
-            `INSERT INTO kb.object_extraction_jobs (
-                org_id,
-                project_id,
-                source_type,
-                source_id,
-                source_metadata,
-                extraction_config,
-                subject_id,
-                status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING *`,
-            [
-                dto.org_id,
-                dto.project_id,
-                dto.source_type,
-                dto.source_id || null,
-                JSON.stringify(dto.source_metadata || {}),
-                JSON.stringify(dto.extraction_config),
-                dto.subject_id || null,
-                ExtractionJobStatus.PENDING,
-            ]
+            `INSERT INTO kb.object_extraction_jobs (${columns.join(', ')})
+             VALUES (${placeholders.join(', ')})
+             RETURNING *`,
+            values
         );
 
         if (!result.rowCount) {
             throw new BadRequestException('Failed to create extraction job');
         }
 
-        const job = this.mapRowToDto(result.rows[0]);
+        const job = this.mapRowToDto(result.rows[0], schema);
         this.logger.log(`Created extraction job ${job.id} with status ${job.status}`);
-
-        // Phase 2: Enqueue job to Bull queue here
-        // await this.queueService.enqueueExtractionJob(job.id);
 
         return job;
     }
@@ -76,9 +180,12 @@ export class ExtractionJobService {
      * Get extraction job by ID
      */
     async getJobById(jobId: string, projectId: string, orgId: string): Promise<ExtractionJobDto> {
+        const schema = await this.getSchemaInfo();
+        await this.db.setTenantContext(orgId, projectId);
+
         const result = await this.db.query<ExtractionJobDto>(
             `SELECT * FROM kb.object_extraction_jobs 
-             WHERE id = $1 AND project_id = $2 AND org_id = $3`,
+             WHERE id = $1 AND ${schema.projectColumn} = $2 AND ${schema.orgColumn} = $3`,
             [jobId, projectId, orgId]
         );
 
@@ -86,7 +193,7 @@ export class ExtractionJobService {
             throw new NotFoundException(`Extraction job ${jobId} not found`);
         }
 
-        return this.mapRowToDto(result.rows[0]);
+        return this.mapRowToDto(result.rows[0], schema);
     }
 
     /**
@@ -97,11 +204,13 @@ export class ExtractionJobService {
         orgId: string,
         query: ListExtractionJobsDto
     ): Promise<ExtractionJobListDto> {
+        const schema = await this.getSchemaInfo();
+        await this.db.setTenantContext(orgId, projectId);
+
         const { status, source_type, source_id, page = 1, limit = 20 } = query;
         const offset = (page - 1) * limit;
 
-        // Build WHERE clause dynamically
-        const conditions: string[] = ['project_id = $1', 'org_id = $2'];
+        const conditions: string[] = [`${schema.projectColumn} = $1`, `${schema.orgColumn} = $2`];
         const params: any[] = [projectId, orgId];
         let paramIndex = 3;
 
@@ -138,7 +247,7 @@ export class ExtractionJobService {
             [...params, limit, offset]
         );
 
-        const jobs = dataResult.rows.map((row) => this.mapRowToDto(row));
+        const jobs = dataResult.rows.map((row) => this.mapRowToDto(row, schema));
         const total_pages = Math.ceil(total / limit);
 
         return {
@@ -161,84 +270,91 @@ export class ExtractionJobService {
         orgId: string,
         dto: UpdateExtractionJobDto
     ): Promise<ExtractionJobDto> {
-        // Build UPDATE statement dynamically based on provided fields
+        const schema = await this.getSchemaInfo();
+        await this.db.setTenantContext(orgId, projectId);
+
         const updates: string[] = [];
         const params: any[] = [];
         let paramIndex = 1;
 
+        const pushUpdate = (column: string, value: any) => {
+            updates.push(`${column} = $${paramIndex}`);
+            params.push(value);
+            paramIndex += 1;
+        };
+
         if (dto.status !== undefined) {
-            updates.push(`status = $${paramIndex++}`);
-            params.push(dto.status);
+            pushUpdate('status', dto.status);
         }
 
-        if (dto.total_items !== undefined) {
-            updates.push(`total_items = $${paramIndex++}`);
-            params.push(dto.total_items);
+        if (schema.totalItemsColumn && dto.total_items !== undefined) {
+            pushUpdate(schema.totalItemsColumn, dto.total_items);
         }
 
-        if (dto.processed_items !== undefined) {
-            updates.push(`processed_items = $${paramIndex++}`);
-            params.push(dto.processed_items);
+        if (schema.processedItemsColumn && dto.processed_items !== undefined) {
+            pushUpdate(schema.processedItemsColumn, dto.processed_items);
         }
 
-        if (dto.successful_items !== undefined) {
-            updates.push(`successful_items = $${paramIndex++}`);
-            params.push(dto.successful_items);
+        if (schema.successfulItemsColumn && dto.successful_items !== undefined) {
+            pushUpdate(schema.successfulItemsColumn, dto.successful_items);
         }
 
-        if (dto.failed_items !== undefined) {
-            updates.push(`failed_items = $${paramIndex++}`);
-            params.push(dto.failed_items);
+        if (schema.failedItemsColumn && dto.failed_items !== undefined) {
+            pushUpdate(schema.failedItemsColumn, dto.failed_items);
         }
 
-        if (dto.discovered_types !== undefined) {
-            updates.push(`discovered_types = $${paramIndex++}`);
-            params.push(dto.discovered_types);
+        if (schema.discoveredTypesColumn && dto.discovered_types !== undefined) {
+            pushUpdate(schema.discoveredTypesColumn, dto.discovered_types);
         }
 
-        if (dto.created_objects !== undefined) {
-            updates.push(`created_objects = $${paramIndex++}`);
-            params.push(dto.created_objects);
+        if (schema.createdObjectsColumn && dto.created_objects !== undefined) {
+            if (schema.createdObjectsIsArray) {
+                pushUpdate(schema.createdObjectsColumn, dto.created_objects);
+            } else {
+                const count = Array.isArray(dto.created_objects) ? dto.created_objects.length : Number(dto.created_objects) || 0;
+                pushUpdate(schema.createdObjectsColumn, count);
+            }
         }
 
         if (dto.error_message !== undefined) {
-            updates.push(`error_message = $${paramIndex++}`);
-            params.push(dto.error_message);
+            pushUpdate('error_message', dto.error_message);
         }
 
-        if (dto.error_details !== undefined) {
-            updates.push(`error_details = $${paramIndex++}`);
-            params.push(JSON.stringify(dto.error_details));
+        const errorDetailsColumn = schema.errorDetailsColumn ?? 'error_details';
+        if (dto.error_details !== undefined && schema.extraColumns.has(errorDetailsColumn)) {
+            pushUpdate(errorDetailsColumn, dto.error_details ? JSON.stringify(dto.error_details) : null);
         }
 
-        if (dto.debug_info !== undefined) {
-            updates.push(`debug_info = $${paramIndex++}`);
-            params.push(JSON.stringify(dto.debug_info));
+        const debugInfoColumn = schema.debugInfoColumn ?? 'debug_info';
+        if (dto.debug_info !== undefined && schema.extraColumns.has(debugInfoColumn)) {
+            pushUpdate(debugInfoColumn, dto.debug_info ? JSON.stringify(dto.debug_info) : null);
         }
 
         if (updates.length === 0) {
             throw new BadRequestException('No fields to update');
         }
 
-        // Add WHERE clause parameters
-        params.push(jobId, projectId, orgId);
-        const whereParams = `$${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}`;
+        updates.push('updated_at = NOW()');
+
+        const whereJobIndex = paramIndex;
+        const whereProjectIndex = paramIndex + 1;
+        const whereOrgIndex = paramIndex + 2;
 
         const result = await this.db.query<ExtractionJobDto>(
             `UPDATE kb.object_extraction_jobs 
              SET ${updates.join(', ')}
-             WHERE id = ${whereParams.split(',')[0]} 
-               AND project_id = ${whereParams.split(',')[1]} 
-               AND org_id = ${whereParams.split(',')[2]}
+             WHERE id = $${whereJobIndex}
+               AND ${schema.projectColumn} = $${whereProjectIndex}
+               AND ${schema.orgColumn} = $${whereOrgIndex}
              RETURNING *`,
-            params
+            [...params, jobId, projectId, orgId]
         );
 
         if (!result.rowCount) {
             throw new NotFoundException(`Extraction job ${jobId} not found`);
         }
 
-        const job = this.mapRowToDto(result.rows[0]);
+        const job = this.mapRowToDto(result.rows[0], schema);
         this.logger.log(`Updated extraction job ${jobId}, status: ${job.status}`);
 
         return job;
@@ -253,7 +369,9 @@ export class ExtractionJobService {
      * @returns Array of claimed jobs
      */
     async dequeueJobs(batchSize: number = 1): Promise<ExtractionJobDto[]> {
-        this.logger.log(`[DEQUEUE] Attempting to dequeue ${batchSize} pending jobs`);
+        this.logger.debug(`[DEQUEUE] Attempting to dequeue ${batchSize} pending jobs`);
+
+        const schema = await this.getSchemaInfo();
 
         const result = await this.db.query<ExtractionJobDto>(
             `UPDATE kb.object_extraction_jobs
@@ -271,12 +389,13 @@ export class ExtractionJobService {
             [ExtractionJobStatus.RUNNING, ExtractionJobStatus.PENDING, batchSize]
         );
 
-        const jobs = result.rows.map((row) => this.mapRowToDto(row));
-
-        this.logger.log(`[DEQUEUE] Found ${jobs.length} jobs (rowCount=${result.rowCount})`);
+        const jobs = result.rows.map((row) => this.mapRowToDto(row, schema));
 
         if (jobs.length > 0) {
+            this.logger.log(`[DEQUEUE] Found ${jobs.length} jobs (rowCount=${result.rowCount})`);
             this.logger.log(`Dequeued ${jobs.length} jobs for processing: ${jobs.map(j => j.id).join(', ')}`);
+        } else {
+            this.logger.debug(`[DEQUEUE] Found 0 jobs (rowCount=${result.rowCount})`);
         }
 
         return jobs;
@@ -313,31 +432,66 @@ export class ExtractionJobService {
         },
         finalStatus: 'completed' | 'requires_review' = 'completed'
     ): Promise<void> {
+        const schema = await this.getSchemaInfo();
         const status = finalStatus === 'requires_review'
             ? ExtractionJobStatus.REQUIRES_REVIEW
             : ExtractionJobStatus.COMPLETED;
 
+        const assignments: string[] = [
+            'status = $1',
+            'completed_at = NOW()',
+            'updated_at = NOW()',
+        ];
+        const params: any[] = [status];
+        let idx = 2;
+
+        if (schema.createdObjectsColumn) {
+            const value = schema.createdObjectsIsArray
+                ? (results.created_objects ?? null)
+                : (results.created_objects ? results.created_objects.length : null);
+            assignments.push(`${schema.createdObjectsColumn} = COALESCE($${idx}, ${schema.createdObjectsColumn})`);
+            params.push(value);
+            idx += 1;
+        }
+
+        if (schema.discoveredTypesColumn) {
+            assignments.push(`${schema.discoveredTypesColumn} = COALESCE($${idx}, ${schema.discoveredTypesColumn})`);
+            params.push(results.discovered_types ?? null);
+            idx += 1;
+        }
+
+        if (schema.successfulItemsColumn) {
+            assignments.push(`${schema.successfulItemsColumn} = COALESCE($${idx}, ${schema.successfulItemsColumn})`);
+            params.push(results.successful_items ?? null);
+            idx += 1;
+        }
+
+        if (schema.totalItemsColumn) {
+            assignments.push(`${schema.totalItemsColumn} = COALESCE($${idx}, ${schema.totalItemsColumn})`);
+            params.push(results.total_items ?? null);
+            idx += 1;
+        }
+
+        if (schema.processedItemsColumn) {
+            assignments.push(`${schema.processedItemsColumn} = COALESCE($${idx}, ${schema.processedItemsColumn})`);
+            params.push(results.total_items ?? null);
+            idx += 1;
+        }
+
+        const debugInfoColumn = schema.debugInfoColumn ?? 'debug_info';
+        if (schema.extraColumns.has(debugInfoColumn)) {
+            assignments.push(`${debugInfoColumn} = COALESCE($${idx}, ${debugInfoColumn})`);
+            params.push(results.debug_info ? JSON.stringify(results.debug_info) : null);
+            idx += 1;
+        }
+
+        params.push(jobId);
+
         await this.db.query(
             `UPDATE kb.object_extraction_jobs
-             SET status = $1,
-                 completed_at = NOW(),
-                 updated_at = NOW(),
-                 created_objects = COALESCE($2, created_objects),
-                 discovered_types = COALESCE($3, discovered_types),
-                 successful_items = COALESCE($4, successful_items),
-                 total_items = COALESCE($5, total_items),
-                 processed_items = COALESCE($5, processed_items),
-                 debug_info = COALESCE($7, debug_info)
-             WHERE id = $6`,
-            [
-                status,
-                results.created_objects || null,
-                results.discovered_types || null,
-                results.successful_items || null,
-                results.total_items || null,
-                jobId,
-                results.debug_info ? JSON.stringify(results.debug_info) : null,
-            ]
+             SET ${assignments.join(', ')}
+             WHERE id = $${idx}`,
+            params
         );
 
         if (finalStatus === 'requires_review') {
@@ -366,20 +520,31 @@ export class ExtractionJobService {
         errorMessage: string,
         errorDetails?: any
     ): Promise<void> {
+        const schema = await this.getSchemaInfo();
+        const errorDetailsColumn = schema.errorDetailsColumn ?? 'error_details';
+
+        const assignments: string[] = [
+            'status = $1',
+            'completed_at = NOW()',
+            'error_message = $2',
+            'updated_at = NOW()',
+        ];
+        const params: any[] = [ExtractionJobStatus.FAILED, errorMessage];
+        let idx = 3;
+
+        if (schema.extraColumns.has(errorDetailsColumn)) {
+            assignments.push(`${errorDetailsColumn} = $${idx}`);
+            params.push(JSON.stringify(errorDetails || {}));
+            idx += 1;
+        }
+
+        params.push(jobId);
+
         await this.db.query(
             `UPDATE kb.object_extraction_jobs
-             SET status = $1,
-                 completed_at = NOW(),
-                 error_message = $2,
-                 error_details = $3,
-                 updated_at = NOW()
-             WHERE id = $4`,
-            [
-                ExtractionJobStatus.FAILED,
-                errorMessage,
-                JSON.stringify(errorDetails || {}),
-                jobId,
-            ]
+             SET ${assignments.join(', ')}
+             WHERE id = $${idx}`,
+            params
         );
 
         this.logger.error(`Job ${jobId} marked as failed: ${errorMessage}`);
@@ -393,13 +558,30 @@ export class ExtractionJobService {
         processed: number,
         total: number
     ): Promise<void> {
+        const schema = await this.getSchemaInfo();
+        const assignments: string[] = [];
+        const params: any[] = [];
+        let idx = 1;
+
+        if (schema.processedItemsColumn) {
+            assignments.push(`${schema.processedItemsColumn} = $${idx}`);
+            params.push(processed);
+            idx += 1;
+        }
+
+        if (schema.totalItemsColumn) {
+            assignments.push(`${schema.totalItemsColumn} = $${idx}`);
+            params.push(total);
+            idx += 1;
+        }
+
+        assignments.push('updated_at = NOW()');
+
         await this.db.query(
             `UPDATE kb.object_extraction_jobs
-             SET processed_items = $1,
-                 total_items = $2,
-                 updated_at = NOW()
-             WHERE id = $3`,
-            [processed, total, jobId]
+             SET ${assignments.join(', ')}
+             WHERE id = $${idx}`,
+            [...params, jobId]
         );
     }
 
@@ -468,9 +650,12 @@ export class ExtractionJobService {
             throw new BadRequestException(`Cannot delete job with status: ${job.status}. Cancel it first.`);
         }
 
+        const schema = await this.getSchemaInfo();
+        await this.db.setTenantContext(orgId, projectId);
+
         const result = await this.db.query(
             `DELETE FROM kb.object_extraction_jobs 
-             WHERE id = $1 AND project_id = $2 AND org_id = $3`,
+             WHERE id = $1 AND ${schema.projectColumn} = $2 AND ${schema.orgColumn} = $3`,
             [jobId, projectId, orgId]
         );
 
@@ -492,26 +677,33 @@ export class ExtractionJobService {
         total_objects_created: number;
         total_types_discovered: number;
     }> {
+        const schema = await this.getSchemaInfo();
+        await this.db.setTenantContext(orgId, projectId);
+
+        const totalObjectsExpression = schema.createdObjectsColumn
+            ? (schema.createdObjectsIsArray
+                ? `SUM(COALESCE(array_length(${schema.createdObjectsColumn}, 1), 0))`
+                : `SUM(COALESCE(${schema.createdObjectsColumn}, 0))`)
+            : '0';
+
         const result = await this.db.query<{
             status: ExtractionJobStatus;
             source_type: string;
             count: string;
             avg_duration_ms: string | null;
             total_objects: string;
-            unique_types: string;
         }>(
             `SELECT 
                 status,
                 source_type,
                 COUNT(*) as count,
                 AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000)::INTEGER as avg_duration_ms,
-                SUM(COALESCE(array_length(created_objects, 1), 0)) as total_objects,
-                0 as unique_types
+                ${totalObjectsExpression} as total_objects
              FROM kb.object_extraction_jobs
-             WHERE project_id = $1 AND org_id = $2
+             WHERE ${schema.projectColumn} = $1 AND ${schema.orgColumn} = $2
              GROUP BY status, source_type`,
             [projectId, orgId]
-        );        // Aggregate statistics
+        );
         let total = 0;
         const by_status: Record<string, number> = {};
         const by_source_type: Record<string, number> = {};
@@ -536,12 +728,16 @@ export class ExtractionJobService {
         }
 
         // Get unique discovered types separately
-        const typesResult = await this.db.query<{ type_name: string }>(
-            `SELECT DISTINCT unnest(discovered_types) as type_name
-             FROM kb.object_extraction_jobs
-             WHERE project_id = $1 AND org_id = $2 AND array_length(discovered_types, 1) > 0`,
-            [projectId, orgId]
-        );
+        let total_types_discovered = 0;
+        if (schema.discoveredTypesColumn) {
+            const typesResult = await this.db.query<{ type_name: string }>(
+                `SELECT DISTINCT unnest(${schema.discoveredTypesColumn}) as type_name
+                 FROM kb.object_extraction_jobs
+                 WHERE ${schema.projectColumn} = $1 AND ${schema.orgColumn} = $2 AND array_length(${schema.discoveredTypesColumn}, 1) > 0`,
+                [projectId, orgId]
+            );
+            total_types_discovered = typesResult.rowCount || 0;
+        }
 
         return {
             total,
@@ -549,36 +745,67 @@ export class ExtractionJobService {
             by_source_type,
             avg_duration_ms: completed_jobs > 0 ? Math.round(total_duration / completed_jobs) : null,
             total_objects_created,
-            total_types_discovered: typesResult.rowCount || 0,
+            total_types_discovered,
         };
     }
 
     /**
      * Map database row to DTO
      */
-    private mapRowToDto(row: any): ExtractionJobDto {
+    private mapRowToDto(row: any, schema?: ExtractionJobSchemaInfo): ExtractionJobDto {
+        const info = schema ?? this.schemaInfo;
+        if (!info) {
+            throw new Error('Extraction job schema info not initialized');
+        }
+
+        const organizationId = row[info.orgColumn] ?? row.organization_id ?? row.org_id;
+        if (!organizationId) {
+            throw new Error('Extraction job row missing organization identifier');
+        }
+
+        const totalItems = info.totalItemsColumn ? Number(row[info.totalItemsColumn] ?? 0) : 0;
+        const processedItems = info.processedItemsColumn ? Number(row[info.processedItemsColumn] ?? 0) : 0;
+        const successfulItems = info.successfulItemsColumn ? Number(row[info.successfulItemsColumn] ?? 0) : 0;
+        const failedItems = info.failedItemsColumn ? Number(row[info.failedItemsColumn] ?? 0) : 0;
+        const discoveredTypes = info.discoveredTypesColumn ? (row[info.discoveredTypesColumn] || []) : (row.discovered_types || []);
+
+        let createdObjects: string[] = [];
+        if (info.createdObjectsColumn) {
+            if (info.createdObjectsIsArray) {
+                createdObjects = row[info.createdObjectsColumn] || [];
+            } else {
+                const count = Number(row[info.createdObjectsColumn] ?? 0);
+                createdObjects = count > 0 ? Array.from({ length: count }, () => '') : [];
+            }
+        } else if (Array.isArray(row.created_objects)) {
+            createdObjects = row.created_objects;
+        }
+
+        const subjectIdColumn = info.subjectColumn ?? 'subject_id';
+
         return {
             id: row.id,
-            org_id: row.org_id,
+            organization_id: organizationId,
+            org_id: row.org_id ?? row.organization_id ?? organizationId,
             project_id: row.project_id,
             source_type: row.source_type,
-            source_id: row.source_id,
+            source_id: row.source_id ?? undefined,
             source_metadata: row.source_metadata || {},
             extraction_config: row.extraction_config || {},
             status: row.status,
-            total_items: row.total_items || 0,
-            processed_items: row.processed_items || 0,
-            successful_items: row.successful_items || 0,
-            failed_items: row.failed_items || 0,
-            discovered_types: row.discovered_types || [],
-            created_objects: row.created_objects || [],
-            error_message: row.error_message,
-            error_details: row.error_details,
-            debug_info: row.debug_info,
-            started_at: row.started_at,
-            completed_at: row.completed_at,
+            total_items: totalItems,
+            processed_items: processedItems,
+            successful_items: successfulItems,
+            failed_items: failedItems,
+            discovered_types: discoveredTypes,
+            created_objects: createdObjects,
+            error_message: row.error_message ?? undefined,
+            error_details: (info.errorDetailsColumn ? row[info.errorDetailsColumn] : row.error_details) || undefined,
+            debug_info: (info.debugInfoColumn ? row[info.debugInfoColumn] : row.debug_info) || undefined,
+            started_at: row.started_at ?? undefined,
+            completed_at: row.completed_at ?? undefined,
             created_at: row.created_at,
-            subject_id: row.subject_id,
+            subject_id: row[subjectIdColumn] ?? undefined,
             updated_at: row.updated_at,
         };
     }

@@ -66,10 +66,10 @@ export default function ProjectTemplatesSettingsPage() {
             // Load available and installed packs in parallel
             const [available, installed] = await Promise.all([
                 fetchJson<TemplatePack[]>(
-                    `${apiBase}/template-packs/projects/${config.activeProjectId}/available`
+                    `${apiBase}/api/template-packs/projects/${config.activeProjectId}/available`
                 ),
                 fetchJson<InstalledPack[]>(
-                    `${apiBase}/template-packs/projects/${config.activeProjectId}/installed`
+                    `${apiBase}/api/template-packs/projects/${config.activeProjectId}/installed`
                 ),
             ]);
 
@@ -94,7 +94,7 @@ export default function ProjectTemplatesSettingsPage() {
         setError(null);
 
         try {
-            await fetchJson(`${apiBase}/template-packs/projects/${config.activeProjectId}/assign`, {
+            await fetchJson(`${apiBase}/api/template-packs/projects/${config.activeProjectId}/assign`, {
                 method: 'POST',
                 body: {
                     template_pack_id: packId,
@@ -123,7 +123,7 @@ export default function ProjectTemplatesSettingsPage() {
         setError(null);
 
         try {
-            await fetchJson(`${apiBase}/template-packs/projects/${config.activeProjectId}/assignments/${assignmentId}`, {
+            await fetchJson(`${apiBase}/api/template-packs/projects/${config.activeProjectId}/assignments/${assignmentId}`, {
                 method: 'DELETE',
             });
 
@@ -138,7 +138,7 @@ export default function ProjectTemplatesSettingsPage() {
         if (!config.activeProjectId) return;
 
         try {
-            await fetchJson(`${apiBase}/template-packs/projects/${config.activeProjectId}/assignments/${assignmentId}`, {
+            await fetchJson(`${apiBase}/api/template-packs/projects/${config.activeProjectId}/assignments/${assignmentId}`, {
                 method: 'PATCH',
                 body: {
                     active: !currentActive,
@@ -164,7 +164,7 @@ export default function ProjectTemplatesSettingsPage() {
     }
 
     return (
-        <div className="mx-auto p-6 max-w-6xl container">
+        <div data-testid="page-settings-project-templates" className="mx-auto p-6 max-w-6xl container">
             {/* Settings Navigation */}
             <SettingsNav />
 

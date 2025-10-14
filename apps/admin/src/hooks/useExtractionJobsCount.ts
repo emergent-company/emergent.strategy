@@ -30,15 +30,15 @@ export function useExtractionJobsCount() {
             return;
         }
 
-        const client = createExtractionJobsClient(apiBase, fetchJson);
+        const client = createExtractionJobsClient(apiBase, fetchJson, config.activeProjectId);
 
         const fetchCounts = async () => {
             setLoading(true);
             try {
                 // Fetch pending and running jobs in parallel
                 const [pendingResult, runningResult] = await Promise.all([
-                    client.listJobs(config.activeProjectId!, config.activeOrgId!, { status: 'pending', limit: 1 }),
-                    client.listJobs(config.activeProjectId!, config.activeOrgId!, { status: 'running', limit: 1 }),
+                    client.listJobs(undefined, { status: 'pending', limit: 1 }),
+                    client.listJobs(undefined, { status: 'running', limit: 1 }),
                 ]);
 
                 setCounts({

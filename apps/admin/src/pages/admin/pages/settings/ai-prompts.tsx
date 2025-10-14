@@ -13,7 +13,7 @@ function useSettingString(key: string, initial: string) {
         let cancelled = false;
         (async () => {
             try {
-                const data = await fetchJson<{ key: string; value: unknown }>(`${apiBase}/settings/${encodeURIComponent(key)}`);
+                const data = await fetchJson<{ key: string; value: unknown }>(`${apiBase}/api/settings/${encodeURIComponent(key)}`);
                 const v = data?.value as unknown;
                 const text = typeof v === 'string' ? v : (v as any)?.text || (v as any)?.template || '';
                 if (!cancelled) setValue(text || initial);
@@ -30,7 +30,7 @@ function useSettingString(key: string, initial: string) {
         setLoading(true);
         setError(null);
         try {
-            await fetchJson<void, { value: string }>(`${apiBase}/settings/${encodeURIComponent(key)}`, { method: 'PUT', body: { value: next } });
+            await fetchJson<void, { value: string }>(`${apiBase}/api/settings/${encodeURIComponent(key)}`, { method: 'PUT', body: { value: next } });
             setValue(next);
         } catch (e: any) {
             setError(e?.message || 'failed');
@@ -50,7 +50,7 @@ export default function AiPromptsSettingsPage() {
     const user = useSettingString('chat.userTemplate', humanDefault);
 
     return (
-        <div className="min-sm:container">
+        <div data-testid="page-settings-ai-prompts" className="min-sm:container">
             <div className="text-sm breadcrumbs">
                 <ul>
                     <li><Link to="/admin">Admin</Link></li>

@@ -51,8 +51,6 @@ export interface Integration {
 export interface CreateIntegrationPayload {
     name: string;
     display_name: string;
-    org_id: string;
-    project_id: string;
     settings: Record<string, any>;
     enabled?: boolean;
     description?: string;
@@ -193,10 +191,14 @@ export interface IntegrationsClient {
 export function createIntegrationsClient(
     apiBase: string,
     fetchJson: <T, B = unknown>(url: string, init?: any) => Promise<T>,
-    projectId?: string,
-    orgId?: string
+    _projectId?: string,
+    _orgId?: string
 ): IntegrationsClient {
-    const baseUrl = `${apiBase}/api/v1/integrations`;
+    // Intentionally unused parameters: ensure client remounts when context changes
+    void _projectId;
+    void _orgId;
+
+    const baseUrl = `${apiBase}/api/integrations`;
 
     return {
         async listAvailable() {

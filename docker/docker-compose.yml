@@ -11,6 +11,20 @@ services:
     volumes:
       - spec_pg_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+      - ../logs:/logs
+    command: >
+      postgres
+      -c log_destination=stderr
+      -c logging_collector=on
+      -c log_directory=/logs
+      -c log_filename=db.log
+      -c log_rotation_age=0
+      -c log_truncate_on_rotation=on
+      -c log_statement=all
+      -c log_connections=on
+      -c log_disconnections=on
+      -c log_duration=off
+      -c log_line_prefix='%t [%p] %u@%d '
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U spec -d spec"]
       interval: 5s
@@ -28,8 +42,8 @@ services:
       - ./zitadel.env
     command: ["start-from-init", "--masterkeyFromEnv"]
     ports:
-      - "8080:8080" # Zitadel HTTP (API)
-      - "3000:3000" # Zitadel Login v2 (Next.js)
+      - "8100:8080" # Zitadel HTTP (API) - mapped to 8100 to avoid conflicts
+      - "8101:3000" # Zitadel Login v2 (Next.js) - mapped to 8101
     healthcheck:
       test: ["CMD", "/app/zitadel", "ready"]
       interval: 10s
@@ -44,7 +58,7 @@ services:
     image: ghcr.io/zitadel/zitadel-login:latest
     restart: unless-stopped
     environment:
-      - ZITADEL_API_URL=http://localhost:8080
+      - ZITADEL_API_URL=http://localhost:8100
       - NEXT_PUBLIC_BASE_PATH=/ui/v2/login
       - ZITADEL_SERVICE_USER_TOKEN_FILE=/current-dir/login-client.pat
     volumes:

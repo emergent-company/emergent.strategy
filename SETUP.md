@@ -122,6 +122,7 @@ Or via HTTP:
 | Variable | Default | Scope | Description |
 |----------|---------|-------|-------------|
 | `GRAPH_MERGE_ENUM_HARD_LIMIT` | `500` | Server (merge dry-run) | Hard cap on the number of divergent canonical objects enumerated during a branch merge dry-run. If more objects exist, the response sets `truncated=true` and only the first `limit` are returned. Lower this to reduce DB load on very large branches. |
+| `EXTRACTION_DEFAULT_TEMPLATE_PACK_ID` | `1f6f6267-0d2c-4e2f-9fdb-7f0481219775` (fallback) | Server (extraction) | Template pack that installs automatically on new projects and is used as a fallback when extraction jobs run without a configured prompt. Set this to the UUID of the template pack you want to auto-install in each environment. |
 
 Notes:
 - The branch merge feature is currently dry-run only; execution (writing merged versions) is not yet enabled.

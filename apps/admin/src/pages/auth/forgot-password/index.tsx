@@ -5,7 +5,7 @@ import { MetaData } from "@/components";
 
 const ForgotPasswordPage = () => {
     return (
-        <>
+        <div data-testid="page-auth-forgot-password">
             <MetaData title="Forgot Password" />
 
             <div className="flex flex-col items-stretch p-8 lg:p-16">
@@ -55,7 +55,7 @@ const ForgotPasswordPage = () => {
                     </p>
                 </div>
             </div>
-        </>
+        </div>
     );
 };
 

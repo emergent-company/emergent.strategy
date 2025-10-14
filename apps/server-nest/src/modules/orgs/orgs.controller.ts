@@ -5,6 +5,7 @@ import { OrgDto } from './dto/org.dto';
 import { CachingInterceptor } from '../../common/interceptors/caching.interceptor';
 import { OrgsService } from './orgs.service';
 import { AuthGuard } from '../auth/auth.guard';
+import { ScopesGuard } from '../auth/scopes.guard';
 import { IsDefined, IsNotEmpty, IsString, MaxLength } from 'class-validator';
 import { ValidationPipe } from '@nestjs/common';
 
@@ -22,12 +23,14 @@ export class OrgsController {
     constructor(private readonly orgs: OrgsService) { }
 
     @Get()
+    @UseGuards(AuthGuard)
     @UseInterceptors(CachingInterceptor)
     @ApiOkResponse({ description: 'List organizations', type: OrgDto, isArray: true })
     @ApiBadRequestResponse({ description: 'Bad request', schema: { example: { error: { code: 'bad-request', message: 'Invalid filter' } } } })
     @ApiStandardErrors()
-    async list(): Promise<OrgDto[]> {
-        return this.orgs.list();
+    async list(@Req() req: any): Promise<OrgDto[]> {
+        const userId: string | undefined = req?.user?.sub;
+        return this.orgs.list(userId);
     }
 
     @Get(':id')
@@ -41,8 +44,8 @@ export class OrgsController {
     }
 
     @Post()
-    // Apply AuthGuard so req.user is populated; creator will be auto-added as org_admin in service layer
-    @UseGuards(AuthGuard)
+    // Apply AuthGuard + ScopesGuard: ensures req.user is populated AND user profile exists in DB
+    @UseGuards(AuthGuard, ScopesGuard)
     @HttpCode(201)
     @ApiCreatedResponse({ description: 'Organization created (users may have at most 10 orgs)', type: OrgDto })
     @ApiConflictResponse({ description: 'Organization limit reached or duplicate name', schema: { oneOf: [{ example: { error: { code: 'conflict', message: 'Organization limit reached (10)' } } }, { example: { error: { code: 'conflict', message: 'Organization name already exists', details: { name: ['already exists'] } } } }] } })

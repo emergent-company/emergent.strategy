@@ -45,6 +45,57 @@ describe('Extraction Worker E2E', () => {
         process.env.EXTRACTION_CONFIDENCE_THRESHOLD_AUTO_CREATE = '0.85';
     });
 
+    const makeHeaders = (options?: {
+        contentType?: boolean;
+        userSuffix?: string;
+        projectId?: string;
+        orgId?: string;
+        extra?: Record<string, string>;
+    }) => {
+        const {
+            contentType = false,
+            userSuffix = 'extraction-worker',
+            projectId = ctx.projectId,
+            orgId = ctx.orgId,
+            extra = {},
+        } = options ?? {};
+
+        const base: Record<string, string> = {
+            ...authHeader('all', userSuffix),
+            'x-org-id': orgId,
+            'x-project-id': projectId,
+        };
+
+        if (contentType) {
+            base['Content-Type'] = 'application/json';
+        }
+
+        return { ...base, ...extra };
+    };
+
+    const defaultExtractionConfig = (allowedTypes: string[]) => ({
+        allowed_types: allowedTypes,
+        target_types: allowedTypes,
+        auto_create_types: true,
+    });
+
+    const buildJobRequest = (overrides: Record<string, any> = {}) => {
+        const allowedTypes = overrides.allowed_types ?? overrides.allowedTypes ?? ['Person'];
+        const extractionConfig = overrides.extraction_config ?? defaultExtractionConfig(Array.isArray(allowedTypes) ? allowedTypes : ['Person']);
+
+        const base: Record<string, any> = {
+            project_id: ctx.projectId,
+            source_type: ExtractionSourceType.DOCUMENT,
+            extraction_config: extractionConfig,
+            ...overrides,
+        };
+
+        delete base.allowed_types;
+        delete base.allowedTypes;
+
+        return base;
+    };
+
     beforeEach(async () => {
         await ctx.cleanup();
     });
@@ -55,12 +106,12 @@ describe('Extraction Worker E2E', () => {
 
     describe('Job Creation and Lifecycle', () => {
         it('should create an extraction job via API', async () => {
-            const headers = authHeader('all', 'extraction-worker');
+            const jsonHeaders = makeHeaders({ contentType: true });
 
             // Create a test document first
             const docRes = await fetch(`${ctx.baseUrl}/documents`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+                headers: jsonHeaders,
                 body: JSON.stringify({
                     project_id: ctx.projectId,
                     name: 'Test Document for Extraction',
@@ -75,35 +126,35 @@ describe('Extraction Worker E2E', () => {
             const documentId = doc.id;
 
             // Create extraction job
-            const jobRes = await fetch(`${ctx.baseUrl}/admin/admin/extraction-jobs`, {
+            const jobRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    project_id: ctx.projectId,
-                    source_type: ExtractionSourceType.DOCUMENT,
-                    source_id: documentId,
-                    allowed_types: ['Person', 'Organization', 'Location']
-                })
+                headers: jsonHeaders,
+                body: JSON.stringify(
+                    buildJobRequest({
+                        source_id: documentId,
+                        extraction_config: defaultExtractionConfig(['Person', 'Organization', 'Location']),
+                    })
+                )
             });
 
             expect(jobRes.status).toBe(201);
             const job = await jobRes.json();
 
-            expect(job.job_id).toBeDefined();
+            expect(job.id).toBeDefined();
             expect(job.project_id).toBe(ctx.projectId);
             expect(job.status).toBe('pending');
-            expect(job.source_type).toBe('DOCUMENT');
+            expect(job.source_type).toBe('document');
             expect(job.source_id).toBe(documentId);
-            expect(job.allowed_types).toEqual(['Person', 'Organization', 'Location']);
+            expect(job.extraction_config.allowed_types).toEqual(['Person', 'Organization', 'Location']);
         });
 
         it('should list extraction jobs for a project', async () => {
-            const headers = authHeader('all', 'extraction-worker');
+            const jsonHeaders = makeHeaders({ contentType: true });
 
             // Create a test document
             const docRes = await fetch(`${ctx.baseUrl}/documents`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+                headers: jsonHeaders,
                 body: JSON.stringify({
                     project_id: ctx.projectId,
                     name: 'Test Doc',
@@ -116,19 +167,19 @@ describe('Extraction Worker E2E', () => {
             // Create extraction job
             const jobRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    project_id: ctx.projectId,
-                    source_type: ExtractionSourceType.DOCUMENT,
-                    source_id: doc.id,
-                    allowed_types: ['Person']
-                })
+                headers: jsonHeaders,
+                body: JSON.stringify(
+                    buildJobRequest({
+                        source_id: doc.id,
+                        extraction_config: defaultExtractionConfig(['Person'])
+                    })
+                )
             });
             expect(jobRes.status).toBe(201);
 
             // List jobs
-            const listRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs?project_id=${ctx.projectId}`, {
-                headers
+            const listRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/projects/${ctx.projectId}?page=1&limit=50`, {
+                headers: makeHeaders()
             });
 
             expect(listRes.status).toBe(200);
@@ -143,28 +194,26 @@ describe('Extraction Worker E2E', () => {
         });
 
         it('should get extraction job statistics', async () => {
-            const headers = authHeader('all', 'extraction-worker');
-
             // Get statistics (should work even with no jobs)
-            const statsRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/stats?project_id=${ctx.projectId}`, {
-                headers
+            const statsRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/projects/${ctx.projectId}/statistics`, {
+                headers: makeHeaders()
             });
 
             expect(statsRes.status).toBe(200);
             const stats = await statsRes.json();
 
-            expect(stats.total_jobs).toBeDefined();
-            expect(typeof stats.total_jobs).toBe('number');
+            expect(stats.total).toBeDefined();
+            expect(typeof stats.total).toBe('number');
             expect(stats.by_status).toBeDefined();
         });
 
         it('should cancel a pending extraction job', async () => {
-            const headers = authHeader('all', 'extraction-worker');
+            const jsonHeaders = makeHeaders({ contentType: true });
 
             // Create a document
             const docRes = await fetch(`${ctx.baseUrl}/documents`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+                headers: jsonHeaders,
                 body: JSON.stringify({
                     project_id: ctx.projectId,
                     name: 'Cancel Test Doc',
@@ -177,20 +226,20 @@ describe('Extraction Worker E2E', () => {
             // Create job
             const jobRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    project_id: ctx.projectId,
-                    source_type: ExtractionSourceType.DOCUMENT,
-                    source_id: doc.id,
-                    allowed_types: ['Person']
-                })
+                headers: jsonHeaders,
+                body: JSON.stringify(
+                    buildJobRequest({
+                        source_id: doc.id,
+                        extraction_config: defaultExtractionConfig(['Person'])
+                    })
+                )
             });
             const job = await jobRes.json();
 
             // Cancel job
-            const cancelRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.job_id}/cancel`, {
+            const cancelRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}/cancel`, {
                 method: 'POST',
-                headers
+                headers: makeHeaders()
             });
 
             expect(cancelRes.status).toBe(200);
@@ -205,12 +254,10 @@ describe('Extraction Worker E2E', () => {
             // For now, we test the job creation and status transitions
             // Full LLM integration testing should be done in staging/manual testing
 
-            const headers = authHeader('all', 'extraction-worker');
-
             // Create document
             const docRes = await fetch(`${ctx.baseUrl}/documents`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+                headers: makeHeaders({ contentType: true }),
                 body: JSON.stringify({
                     project_id: ctx.projectId,
                     name: 'Worker Test Doc',
@@ -223,39 +270,37 @@ describe('Extraction Worker E2E', () => {
             // Create extraction job
             const jobRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    project_id: ctx.projectId,
-                    source_type: ExtractionSourceType.DOCUMENT,
-                    source_id: doc.id,
-                    allowed_types: ['Person', 'Organization', 'Location']
-                })
+                headers: makeHeaders({ contentType: true }),
+                body: JSON.stringify(
+                    buildJobRequest({
+                        source_id: doc.id,
+                        extraction_config: defaultExtractionConfig(['Person', 'Organization', 'Location'])
+                    })
+                )
             });
             expect(jobRes.status).toBe(201);
             const job = await jobRes.json();
 
             // Poll for job status (in real scenario, worker would process it)
             // For this E2E test, we verify the job is in pending state
-            const checkRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.job_id}`, {
-                headers
+            const checkRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}`, {
+                headers: makeHeaders()
             });
             expect(checkRes.status).toBe(200);
             const checked = await checkRes.json();
 
             expect(checked.status).toBe('pending');
-            expect(checked.source_type).toBe('DOCUMENT');
+            expect(checked.source_type).toBe('document');
             expect(checked.source_id).toBe(doc.id);
         });
     });
 
     describe('Template Pack Integration', () => {
         it('should use extraction prompt from template pack', async () => {
-            const headers = authHeader('all', 'extraction-worker');
-
             // Step 1: Create a template pack with extraction prompt
             const packRes = await fetch(`${ctx.baseUrl}/template-packs`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+                headers: makeHeaders({ contentType: true }),
                 body: JSON.stringify({
                     name: 'E2E Extraction Test Pack',
                     version: '1.0.0',
@@ -270,7 +315,7 @@ describe('Extraction Worker E2E', () => {
                             }
                         }
                     },
-                    prompts: {
+                    extraction_prompts: {
                         extraction: 'Extract all persons and organizations from the text.'
                     }
                 })
@@ -279,19 +324,19 @@ describe('Extraction Worker E2E', () => {
             const pack = await packRes.json();
 
             // Step 2: Install pack on project
-            const installRes = await fetch(`${ctx.baseUrl}/projects/${ctx.projectId}/template-pack`, {
-                method: 'PUT',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+            const installRes = await fetch(`${ctx.baseUrl}/template-packs/projects/${ctx.projectId}/assign`, {
+                method: 'POST',
+                headers: makeHeaders({ contentType: true }),
                 body: JSON.stringify({
                     template_pack_id: pack.id
                 })
             });
-            expect(installRes.status).toBe(200);
+            expect(installRes.status).toBe(201);
 
             // Step 3: Create document
             const docRes = await fetch(`${ctx.baseUrl}/documents`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+                headers: makeHeaders({ contentType: true }),
                 body: JSON.stringify({
                     project_id: ctx.projectId,
                     name: 'Template Test Doc',
@@ -304,13 +349,13 @@ describe('Extraction Worker E2E', () => {
             // Step 4: Create extraction job
             const jobRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    project_id: ctx.projectId,
-                    source_type: ExtractionSourceType.DOCUMENT,
-                    source_id: doc.id,
-                    allowed_types: ['TestPerson']
-                })
+                headers: makeHeaders({ contentType: true }),
+                body: JSON.stringify(
+                    buildJobRequest({
+                        source_id: doc.id,
+                        extraction_config: defaultExtractionConfig(['TestPerson'])
+                    })
+                )
             });
             expect(jobRes.status).toBe(201);
             const job = await jobRes.json();
@@ -323,50 +368,45 @@ describe('Extraction Worker E2E', () => {
 
     describe('Error Handling', () => {
         it('should reject job creation with invalid source type', async () => {
-            const headers = authHeader('all', 'extraction-worker');
-
             const jobRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    project_id: ctx.projectId,
-                    source_type: 'INVALID_TYPE',
-                    source_id: 'doc_123',
-                    allowed_types: ['Person']
-                })
+                headers: makeHeaders({ contentType: true }),
+                body: JSON.stringify(
+                    buildJobRequest({
+                        source_type: 'INVALID_TYPE',
+                        source_id: '00000000-0000-0000-0000-000000000001'
+                    })
+                )
             });
 
             expect(jobRes.status).toBe(400);
         });
 
         it('should reject job creation without project_id', async () => {
-            const headers = authHeader('all', 'extraction-worker');
+            const payload = buildJobRequest({
+                source_id: '00000000-0000-0000-0000-000000000002'
+            });
+            delete payload.project_id;
 
             const jobRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    source_type: ExtractionSourceType.DOCUMENT,
-                    source_id: 'doc_123',
-                    allowed_types: ['Person']
-                })
+                headers: makeHeaders({ contentType: true }),
+                body: JSON.stringify(payload)
             });
 
             expect(jobRes.status).toBe(400);
         });
 
-        it('should reject job creation with empty allowed_types', async () => {
-            const headers = authHeader('all', 'extraction-worker');
+        it('should reject job creation without extraction_config', async () => {
+            const payload = buildJobRequest({
+                source_id: '00000000-0000-0000-0000-000000000003'
+            });
+            delete payload.extraction_config;
 
             const jobRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    project_id: ctx.projectId,
-                    source_type: ExtractionSourceType.DOCUMENT,
-                    source_id: 'doc_123',
-                    allowed_types: []
-                })
+                headers: makeHeaders({ contentType: true }),
+                body: JSON.stringify(payload)
             });
 
             expect(jobRes.status).toBe(400);
@@ -375,12 +415,10 @@ describe('Extraction Worker E2E', () => {
 
     describe('Authorization and RLS', () => {
         it('should enforce project-level authorization', async () => {
-            const headers = authHeader('all', 'extraction-worker');
-
             // Create a document
             const docRes = await fetch(`${ctx.baseUrl}/documents`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+                headers: makeHeaders({ contentType: true }),
                 body: JSON.stringify({
                     project_id: ctx.projectId,
                     name: 'Auth Test Doc',
@@ -390,44 +428,39 @@ describe('Extraction Worker E2E', () => {
             });
             const doc = await docRes.json();
 
-            // Create job with correct project
+            // Create job with correct project context
             const jobRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    project_id: ctx.projectId,
-                    source_type: ExtractionSourceType.DOCUMENT,
-                    source_id: doc.id,
-                    allowed_types: ['Person']
-                })
+                headers: makeHeaders({ contentType: true }),
+                body: JSON.stringify(
+                    buildJobRequest({
+                        source_id: doc.id,
+                        extraction_config: defaultExtractionConfig(['Person'])
+                    })
+                )
             });
             expect(jobRes.status).toBe(201);
             const job = await jobRes.json();
 
-            // Try to access with different project context (should fail or return empty)
-            const wrongProjectHeaders = {
-                ...headers,
-                'x-project-id': 'wrong-project-id'
-            };
+            // Try to access with a different project header (should be rejected or filtered)
+            const wrongProjectHeaders = makeHeaders({ projectId: 'wrong-project-id' });
 
-            const accessRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.job_id}`, {
+            const accessRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}`, {
                 headers: wrongProjectHeaders
             });
 
-            // Should either be 404, 403, or return filtered results
-            // Exact behavior depends on RLS implementation
             expect([403, 404].includes(accessRes.status) || accessRes.status === 200).toBe(true);
         });
     });
 
     describe('Job Filtering and Pagination', () => {
         it('should filter jobs by status', async () => {
-            const headers = authHeader('all', 'extraction-worker');
+            const jsonHeaders = makeHeaders({ contentType: true });
 
             // Create multiple jobs
             const docRes1 = await fetch(`${ctx.baseUrl}/documents`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+                headers: jsonHeaders,
                 body: JSON.stringify({
                     project_id: ctx.projectId,
                     name: 'Doc 1',
@@ -439,7 +472,7 @@ describe('Extraction Worker E2E', () => {
 
             const docRes2 = await fetch(`${ctx.baseUrl}/documents`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+                headers: jsonHeaders,
                 body: JSON.stringify({
                     project_id: ctx.projectId,
                     name: 'Doc 2',
@@ -452,13 +485,13 @@ describe('Extraction Worker E2E', () => {
             // Create first job
             const job1Res = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    project_id: ctx.projectId,
-                    source_type: ExtractionSourceType.DOCUMENT,
-                    source_id: doc1.id,
-                    allowed_types: ['Person']
-                })
+                headers: jsonHeaders,
+                body: JSON.stringify(
+                    buildJobRequest({
+                        source_id: doc1.id,
+                        extraction_config: defaultExtractionConfig(['Person'])
+                    })
+                )
             });
             expect(job1Res.status).toBe(201);
             const job1 = await job1Res.json();
@@ -466,53 +499,53 @@ describe('Extraction Worker E2E', () => {
             // Create second job
             const job2Res = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    project_id: ctx.projectId,
-                    source_type: ExtractionSourceType.DOCUMENT,
-                    source_id: doc2.id,
-                    allowed_types: ['Organization']
-                })
+                headers: jsonHeaders,
+                body: JSON.stringify(
+                    buildJobRequest({
+                        source_id: doc2.id,
+                        extraction_config: defaultExtractionConfig(['Organization'])
+                    })
+                )
             });
             expect(job2Res.status).toBe(201);
 
             // Cancel one job to have different statuses
-            await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job1.job_id}/cancel`, {
+            await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job1.id}/cancel`, {
                 method: 'POST',
-                headers
+                headers: makeHeaders()
             });
 
             // Filter by pending status
             const pendingRes = await fetch(
-                `${ctx.baseUrl}/admin/extraction-jobs?project_id=${ctx.projectId}&status=pending`,
-                { headers }
+                `${ctx.baseUrl}/admin/extraction-jobs/projects/${ctx.projectId}?status=pending`,
+                { headers: makeHeaders() }
             );
             expect(pendingRes.status).toBe(200);
             const pending = await pendingRes.json();
             expect(pending.jobs).toBeDefined();
             // Should have job2 but not job1 (which is cancelled)
-            const pendingIds = pending.jobs.map((j: any) => j.job_id);
-            expect(pendingIds).not.toContain(job1.job_id);
+            const pendingIds = pending.jobs.map((j: any) => j.id);
+            expect(pendingIds).not.toContain(job1.id);
 
             // Filter by cancelled status
             const cancelledRes = await fetch(
-                `${ctx.baseUrl}/admin/extraction-jobs?project_id=${ctx.projectId}&status=cancelled`,
-                { headers }
+                `${ctx.baseUrl}/admin/extraction-jobs/projects/${ctx.projectId}?status=cancelled`,
+                { headers: makeHeaders() }
             );
             expect(cancelledRes.status).toBe(200);
             const cancelled = await cancelledRes.json();
             expect(cancelled.jobs).toBeDefined();
-            const cancelledIds = cancelled.jobs.map((j: any) => j.job_id);
-            expect(cancelledIds).toContain(job1.job_id);
+            const cancelledIds = cancelled.jobs.map((j: any) => j.id);
+            expect(cancelledIds).toContain(job1.id);
         });
 
         it('should paginate job results', async () => {
-            const headers = authHeader('all', 'extraction-worker');
+            const jsonHeaders = makeHeaders({ contentType: true });
 
             // Create document
             const docRes = await fetch(`${ctx.baseUrl}/documents`, {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+                headers: jsonHeaders,
                 body: JSON.stringify({
                     project_id: ctx.projectId,
                     name: 'Pagination Test Doc',
@@ -526,28 +559,28 @@ describe('Extraction Worker E2E', () => {
             for (let i = 0; i < 3; i++) {
                 await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
                     method: 'POST',
-                    headers: { ...headers, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        project_id: ctx.projectId,
-                        source_type: ExtractionSourceType.DOCUMENT,
-                        source_id: doc.id,
-                        allowed_types: ['Person']
-                    })
+                    headers: jsonHeaders,
+                    body: JSON.stringify(
+                        buildJobRequest({
+                            source_id: doc.id,
+                            extraction_config: defaultExtractionConfig(['Person'])
+                        })
+                    )
                 });
             }
 
             // Test pagination
             const page1Res = await fetch(
-                `${ctx.baseUrl}/admin/extraction-jobs?project_id=${ctx.projectId}&limit=2&offset=0`,
-                { headers }
+                `${ctx.baseUrl}/admin/extraction-jobs/projects/${ctx.projectId}?limit=2&page=1`,
+                { headers: makeHeaders() }
             );
             expect(page1Res.status).toBe(200);
             const page1 = await page1Res.json();
             expect(page1.jobs.length).toBeLessThanOrEqual(2);
 
             const page2Res = await fetch(
-                `${ctx.baseUrl}/admin/extraction-jobs?project_id=${ctx.projectId}&limit=2&offset=2`,
-                { headers }
+                `${ctx.baseUrl}/admin/extraction-jobs/projects/${ctx.projectId}?limit=2&page=2`,
+                { headers: makeHeaders() }
             );
             expect(page2Res.status).toBe(200);
             const page2 = await page2Res.json();

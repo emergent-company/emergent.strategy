@@ -22,6 +22,13 @@ export class CreateGraphObjectDto {
 
     @IsOptional()
     @IsUUID()
+    organization_id?: string;
+
+    /**
+     * @deprecated Use organization_id instead. Retained temporarily for backward compatibility.
+     */
+    @IsOptional()
+    @IsUUID()
     org_id?: string;
 
     @IsOptional()

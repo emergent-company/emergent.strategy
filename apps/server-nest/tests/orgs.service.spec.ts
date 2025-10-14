@@ -44,18 +44,34 @@ describe('OrgsService', () => {
         expect(res).toEqual([]);
     });
 
-    it('list() online maps rows', async () => {
-        const client = new FakeClient([
-            { text: /SELECT id, name, created_at, updated_at FROM kb\.orgs ORDER BY/, result: { rows: [{ id: uuid(1), name: 'Acme', created_at: '', updated_at: '' }], rowCount: 1 } },
-        ]);
-        const svc = new OrgsService(new FakeDb(true, () => client) as any, {} as any);
-        const res = await svc.list();
+    it('list() online maps rows for supplied user membership', async () => {
+        const svc = new OrgsService(
+            new FakeDb(
+                true,
+                () => new FakeClient([]),
+                [
+                    {
+                        text: /SELECT o.id, o.name, o.created_at, o.updated_at[\s\S]*FROM kb\.orgs o[\s\S]*WHERE om.subject_id = \$1[\s\S]*ORDER BY o.created_at DESC/,
+                        result: { rows: [{ id: uuid(1), name: 'Acme', created_at: '', updated_at: '' }], rowCount: 1 }
+                    },
+                ]
+            ) as any,
+            {} as any
+        );
+        const res = await svc.list('user-123');
         expect(res).toEqual([{ id: uuid(1), name: 'Acme' }]);
     });
 
     it('list() online table missing falls back to memory', async () => {
-        const svc = new OrgsService(new FakeDb(true, () => new FakeClient([]), [{ text: /SELECT id, name, created_at, updated_at FROM kb\.orgs ORDER BY/, throw: pgError('42P01') }]) as any, {} as any);
-        const res = await svc.list();
+        const svc = new OrgsService(
+            new FakeDb(
+                true,
+                () => new FakeClient([]),
+                [{ text: /SELECT o.id, o.name, o.created_at, o.updated_at[\s\S]*FROM kb\.orgs o[\s\S]*WHERE om.subject_id = \$1/, throw: pgError('42P01') }]
+            ) as any,
+            {} as any
+        );
+        const res = await svc.list('user-123');
         expect(res).toEqual([]); // fallback copy
     });
 
@@ -87,9 +103,21 @@ describe('OrgsService', () => {
         await expect(svc.create('Overflow')).rejects.toThrow(/Organization limit reached/);
     });
 
-    it('create() online limit check (count >=100) rejects', async () => {
-        const svc = new OrgsService(new FakeDb(true, () => new FakeClient([]), [{ text: /SELECT COUNT\(\*\)::text as count FROM kb\.orgs/, result: { rows: [{ count: '100' }], rowCount: 1 } }]) as any, {} as any);
-        await expect(svc.create('AcmeOnline')).rejects.toThrow(/Organization limit reached/);
+    it('create() online limit check (count >=100) rejects for user', async () => {
+        const svc = new OrgsService(
+            new FakeDb(
+                true,
+                () => new FakeClient([]),
+                [
+                    {
+                        text: /SELECT COUNT\(\*\)::text as count[\s\S]*FROM kb\.orgs o[\s\S]*INNER JOIN kb\.organization_memberships om ON o.id = om.org_id[\s\S]*WHERE om.subject_id = \$1/,
+                        result: { rows: [{ count: '100' }], rowCount: 1 }
+                    }
+                ]
+            ) as any,
+            {} as any
+        );
+        await expect(svc.create('AcmeOnline', 'user-123')).rejects.toThrow(/Organization limit reached/);
     });
 
     it('create() online success without userId', async () => {
@@ -104,18 +132,28 @@ describe('OrgsService', () => {
         expect(client.queries.some(q => /organization_memberships/.test(q.text))).toBe(false);
     });
 
-    it('create() online success with userId inserts profile + membership', async () => {
+    it('create() online success with userId inserts membership record', async () => {
         const client = new FakeClient([
             { text: /BEGIN/ },
             { text: /INSERT INTO kb\.orgs/, result: { rows: [{ id: uuid(8), name: 'WithUser', created_at: '', updated_at: '' }], rowCount: 1 } },
-            { text: /INSERT INTO core\.user_profiles/ },
             { text: /INSERT INTO kb\.organization_memberships/ },
             { text: /COMMIT/ },
         ]);
-        const svc = new OrgsService(new FakeDb(true, () => client, [{ text: /SELECT COUNT\(\*\)::text as count FROM kb\.orgs/, result: { rows: [{ count: '1' }], rowCount: 1 } }]) as any, {} as any);
+        const svc = new OrgsService(
+            new FakeDb(
+                true,
+                () => client,
+                [
+                    {
+                        text: /SELECT COUNT\(\*\)::text as count[\s\S]*FROM kb\.orgs o[\s\S]*INNER JOIN kb\.organization_memberships om ON o.id = om.org_id[\s\S]*WHERE om.subject_id = \$1/,
+                        result: { rows: [{ count: '1' }], rowCount: 1 }
+                    }
+                ]
+            ) as any,
+            {} as any
+        );
         const res = await svc.create('WithUser', 'user-123');
         expect(res).toEqual({ id: uuid(8), name: 'WithUser' });
-        expect(client.queries.some(q => /user_profiles/.test(q.text))).toBe(true);
         expect(client.queries.some(q => /organization_memberships/.test(q.text))).toBe(true);
     });
 
@@ -133,10 +171,11 @@ describe('OrgsService', () => {
         const svc = new OrgsService(
             new FakeDb(
                 true,
-                () => new FakeClient([]),
+                () => new FakeClient([
+                    { text: /INSERT INTO kb\.orgs/, throw: pgError('42P01') },
+                ]),
                 [
-                    { text: /SELECT COUNT\(\*\)::text as count FROM kb\.orgs/, throw: pgError('42P01') },
-                    { text: /SELECT id, name, created_at, updated_at FROM kb\.orgs ORDER BY/, throw: pgError('42P01') }
+                    { text: /SELECT o.id, o.name, o.created_at, o.updated_at FROM kb\.orgs o[\s\S]*WHERE om.subject_id = \$1/, throw: pgError('42P01') }
                 ]
             ) as any,
             {} as any
@@ -144,7 +183,7 @@ describe('OrgsService', () => {
         const created = await svc.create('Fallback');
         expect(created.name).toBe('Fallback');
         // After fallback DB still "online" but subsequent list() should read in-memory because first query again throws 42P01
-        const list = await svc.list();
+        const list = await svc.list('user-123');
         expect(list.find(o => o.name === 'Fallback')).toBeTruthy();
     });
 

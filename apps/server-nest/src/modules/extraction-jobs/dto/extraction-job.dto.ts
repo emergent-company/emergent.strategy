@@ -28,12 +28,14 @@ export enum ExtractionSourceType {
  */
 export class CreateExtractionJobDto {
     @ApiProperty({ description: 'Organization ID', example: '550e8400-e29b-41d4-a716-446655440000' })
+    @IsOptional()
     @IsUUID()
-    org_id!: string;
+    organization_id?: string;
 
     @ApiProperty({ description: 'Project ID', example: '550e8400-e29b-41d4-a716-446655440001' })
+    @IsOptional()
     @IsUUID()
-    project_id!: string;
+    project_id?: string;
 
     @ApiProperty({
         description: 'Source type for extraction',
@@ -146,7 +148,7 @@ export class ExtractionJobDto {
     id!: string;
 
     @ApiProperty({ description: 'Organization ID' })
-    org_id!: string;
+    organization_id!: string;
 
     @ApiProperty({ description: 'Project ID' })
     project_id!: string;
@@ -219,6 +221,12 @@ export class ExtractionJobDto {
 
     @ApiProperty({ description: 'Last update timestamp' })
     updated_at!: Date;
+
+    /**
+     * @deprecated Use organization_id instead. Retained for legacy job records.
+     */
+    @ApiPropertyOptional({ description: 'Legacy organization ID (deprecated)' })
+    org_id?: string;
 }
 
 /**

@@ -7,6 +7,7 @@ import { GraphService } from '../graph.service';
 import { EmbeddingJobsService } from '../embedding-jobs.service';
 import { EmbeddingWorkerService } from '../embedding-worker.service';
 import { DatabaseService } from '../../../common/database/database.service';
+import { ensureEmbeddingJobsTable } from '../../../test-utils/ensure-embedding-jobs-table';
 
 // Integration test: enqueue job -> worker processes -> embedding populated.
 
@@ -29,23 +30,9 @@ describe('EmbeddingWorkerService', () => {
         worker = mod.get(EmbeddingWorkerService);
         // Prevent background interval races; we'll invoke processBatch manually.
         worker.stop();
+        await db.query('DELETE FROM kb.graph_embedding_jobs');
         // Defensive: ensure embedding jobs table exists (some other tests may rely on minimal schema path ordering)
-        await db.query(`CREATE TABLE IF NOT EXISTS kb.graph_embedding_jobs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    object_id UUID NOT NULL REFERENCES kb.graph_objects(id) ON DELETE CASCADE,
-    status TEXT NOT NULL CHECK (status IN ('pending','processing','failed','completed')),
-    attempt_count INT NOT NULL DEFAULT 0,
-    last_error TEXT NULL,
-    priority INT NOT NULL DEFAULT 0,
-    scheduled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    started_at TIMESTAMPTZ NULL,
-    completed_at TIMESTAMPTZ NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-  )`);
-        await db.query(`CREATE INDEX IF NOT EXISTS idx_graph_embedding_jobs_status_sched ON kb.graph_embedding_jobs(status, scheduled_at)`);
-        await db.query(`CREATE INDEX IF NOT EXISTS idx_graph_embedding_jobs_object ON kb.graph_embedding_jobs(object_id)`);
-        await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_embedding_jobs_object_pending ON kb.graph_embedding_jobs(object_id) WHERE status IN ('pending','processing')`);
+        await ensureEmbeddingJobsTable(db);
         const uniqueOrg = 'embed_worker_org_' + Math.random().toString(36).slice(2, 8);
         const org = await db.query(`INSERT INTO kb.orgs(name) VALUES ($1) RETURNING id`, [uniqueOrg]);
         const orgId = org.rows[0].id;
@@ -78,3 +65,5 @@ describe('EmbeddingWorkerService', () => {
         expect(lastProbe.rows[0].embedding).toBeTruthy();
     });
 });
+
+export const config = { mode: 'serial' };

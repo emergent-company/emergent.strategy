@@ -134,7 +134,7 @@ export default function ChatConversationPage() {
     const allPrivate = privateConversations;
 
     return (
-        <div className="drawer drawer-open">
+        <div data-testid="page-chat-conversation" className="drawer drawer-open">
             <input id="chat-drawer" type="checkbox" className="drawer-toggle" />
             <div className="drawer-content">
                 <div className="mx-auto p-4 container">

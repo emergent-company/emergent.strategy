@@ -88,14 +88,14 @@ Use the shared dev Zitadel stack for OAuth/OIDC during development.
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d db zitadel login
-open http://localhost:8080/.well-known/openid-configuration
-open http://localhost:3000/ui/v2/login
+open http://localhost:8100/.well-known/openid-configuration
+open http://localhost:8101/ui/v2/login
 ```
 
 2) Configure Admin app issuer
 
 - Copy `apps/admin/.env.example` to `apps/admin/.env` and set the issuer to:
-	- `http://localhost:8080`
+	- `http://localhost:8100`
 
 3) Run Admin app
 

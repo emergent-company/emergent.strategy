@@ -14,9 +14,12 @@ type TreeState = {
 };
 
 export function WorkspaceTree({ structure, selectedListIds, onSelectionChange }: WorkspaceTreeProps) {
+    // Collect all folder IDs for initial expansion
+    const allFolderIds = structure.spaces.flatMap(space => space.folders.map(folder => folder.id));
+
     const [treeState, setTreeState] = useState<TreeState>({
         expandedSpaces: new Set(structure.spaces.map(s => s.id)),
-        expandedFolders: new Set(),
+        expandedFolders: new Set(allFolderIds), // Expand all folders by default
     });
 
     const toggleSpaceExpansion = (spaceId: string) => {
@@ -135,6 +138,21 @@ export function WorkspaceTree({ structure, selectedListIds, onSelectionChange }:
         onSelectionChange([]);
     };
 
+    const handleExpandAll = () => {
+        const allFolderIds = structure.spaces.flatMap(space => space.folders.map(folder => folder.id));
+        setTreeState({
+            expandedSpaces: new Set(structure.spaces.map(s => s.id)),
+            expandedFolders: new Set(allFolderIds),
+        });
+    };
+
+    const handleCollapseAll = () => {
+        setTreeState({
+            expandedSpaces: new Set(),
+            expandedFolders: new Set(),
+        });
+    };
+
     const renderCheckbox = (isChecked: boolean, isPartial: boolean, onClick: () => void) => (
         <input
             type="checkbox"
@@ -244,13 +262,14 @@ export function WorkspaceTree({ structure, selectedListIds, onSelectionChange }:
     };
 
     return (
-        <div className="p-4 border border-base-300 rounded-lg max-h-[500px] overflow-y-auto">
+        <div className="p-4 border border-base-300 rounded-lg max-h-[500px] overflow-y-auto" data-testid="clickup-workspace-tree">
             <div className="flex justify-between items-center mb-4 pb-2 border-b border-base-300">
                 <div className="font-semibold text-sm">Spaces & Lists</div>
                 <div className="flex gap-2">
                     <button
                         className="btn btn-xs btn-ghost"
                         onClick={handleSelectAll}
+                        data-testid="clickup-sync-select-all-button"
                     >
                         Select All
                     </button>
@@ -258,6 +277,7 @@ export function WorkspaceTree({ structure, selectedListIds, onSelectionChange }:
                         className="btn btn-xs btn-ghost"
                         onClick={handleDeselectAll}
                         disabled={selectedListIds.length === 0}
+                        data-testid="clickup-sync-deselect-all-button"
                     >
                         Deselect All
                     </button>

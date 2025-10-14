@@ -99,6 +99,10 @@ export class ClickUpApiClient {
      * Initialize the API client with an API token
      */
     configure(apiToken: string): void {
+        if (!apiToken) {
+            throw new Error('ClickUp API token is required');
+        }
+
         this.apiToken = apiToken;
         this.client = axios.create({
             baseURL: 'https://api.clickup.com/api/v2',
@@ -109,7 +113,7 @@ export class ClickUpApiClient {
             timeout: 30000, // 30 seconds
         });
 
-        this.logger.log('ClickUp API client configured');
+        this.logger.log(`ClickUp API client configured with token: ${apiToken.substring(0, 10)}...`);
     }
 
     /**
@@ -136,6 +140,12 @@ export class ClickUpApiClient {
                 data,
                 params,
             });
+
+            // Log API responses for debugging (redact sensitive data)
+            if (process.env.NODE_ENV !== 'production') {
+                this.logger.debug(`API Response: ${method} ${path}`);
+                this.logger.debug(`Response data: ${JSON.stringify(response.data).substring(0, 500)}...`);
+            }
 
             return response.data;
         } catch (error) {
@@ -195,6 +205,7 @@ export class ClickUpApiClient {
 
     /**
      * Get spaces in a workspace
+     * Note: ClickUp API may paginate results, but doesn't document pagination for spaces endpoint
      */
     async getSpaces(workspaceId: string, archived: boolean = false): Promise<ClickUpSpacesResponse> {
         return this.request<ClickUpSpacesResponse>('GET', `/team/${workspaceId}/space`, undefined, {
@@ -204,6 +215,7 @@ export class ClickUpApiClient {
 
     /**
      * Get folders in a space
+     * Note: ClickUp API may paginate results, but doesn't document pagination for folders endpoint
      */
     async getFolders(spaceId: string, archived: boolean = false): Promise<ClickUpFoldersResponse> {
         return this.request<ClickUpFoldersResponse>('GET', `/space/${spaceId}/folder`, undefined, {
@@ -213,6 +225,7 @@ export class ClickUpApiClient {
 
     /**
      * Get lists in a folder
+     * Note: ClickUp API may paginate results, but doesn't document pagination for lists endpoint
      */
     async getListsInFolder(folderId: string, archived: boolean = false): Promise<ClickUpListsResponse> {
         return this.request<ClickUpListsResponse>('GET', `/folder/${folderId}/list`, undefined, {
@@ -222,6 +235,7 @@ export class ClickUpApiClient {
 
     /**
      * Get folderless lists in a space
+     * Note: ClickUp API may paginate results, but doesn't document pagination for lists endpoint
      */
     async getFolderlessLists(spaceId: string, archived: boolean = false): Promise<ClickUpListsResponse> {
         return this.request<ClickUpListsResponse>('GET', `/space/${spaceId}/list`, undefined, {

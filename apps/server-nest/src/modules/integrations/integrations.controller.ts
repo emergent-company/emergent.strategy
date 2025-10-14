@@ -7,10 +7,16 @@ import {
     Body,
     Param,
     Query,
+    Req,
     HttpCode,
-    HttpStatus
+    HttpStatus,
+    BadRequestException,
+    UnauthorizedException,
+    ForbiddenException,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { isUUID } from 'class-validator';
 import { IntegrationsService } from './integrations.service';
 import { IntegrationRegistryService } from './integration-registry.service';
 import {
@@ -27,14 +33,19 @@ import { ImportConfig, ImportResult } from './base-integration';
  * 
  * API endpoints for managing third-party integrations
  * 
- * Base path: /api/v1/integrations
+ * Base path: /integrations (proxied from /api/integrations)
+ * 
+ * Architecture:
+ * - Frontend calls: ${apiBase}/api/integrations
+ * - Vite proxy strips /api prefix
+ * - Backend receives: /integrations
  * 
  * Security:
  * - All endpoints require authentication
- * - Project and org context provided via query parameters
+ * - Org and project context provided via HTTP headers (X-Org-ID, X-Project-ID)
  */
 @ApiTags('Integrations')
-@Controller('api/v1/integrations')
+@Controller('integrations')
 @ApiBearerAuth()
 export class IntegrationsController {
     constructor(
@@ -67,7 +78,8 @@ export class IntegrationsController {
     /**
      * Get all integrations for the current project
      * 
-     * GET /api/v1/integrations?project_id=xxx&org_id=yyy
+     * GET /integrations
+     * Headers: X-Project-ID, X-Org-ID
      */
     @Get()
     @ApiOperation({
@@ -77,17 +89,19 @@ export class IntegrationsController {
     @ApiResponse({ status: 200, description: 'Integrations retrieved successfully' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async listIntegrations(
-        @Query('project_id') projectId: string,
-        @Query('org_id') orgId: string,
+        @Req() req: Request,
         @Query() filters: ListIntegrationsDto
     ): Promise<IntegrationDto[]> {
+        const projectId = req.headers['x-project-id'] as string;
+        const orgId = req.headers['x-org-id'] as string;
         return this.integrationsService.listIntegrations(projectId, orgId, filters);
     }
 
     /**
      * Get a specific integration by name
      * 
-     * GET /api/v1/integrations/:name?project_id=xxx&org_id=yyy
+     * GET /integrations/:name
+     * Headers: X-Project-ID, X-Org-ID
      */
     @Get(':name')
     @ApiOperation({
@@ -99,17 +113,19 @@ export class IntegrationsController {
     @ApiResponse({ status: 404, description: 'Integration not found' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async getIntegration(
-        @Param('name') name: string,
-        @Query('project_id') projectId: string,
-        @Query('org_id') orgId: string
+        @Req() req: Request,
+        @Param('name') name: string
     ): Promise<IntegrationDto> {
+        const projectId = req.headers['x-project-id'] as string;
+        const orgId = req.headers['x-org-id'] as string;
         return this.integrationsService.getIntegration(name, projectId, orgId);
     }
 
     /**
      * Get public information about an integration (without sensitive settings)
      * 
-     * GET /api/v1/integrations/:name/public?project_id=xxx&org_id=yyy
+     * GET /integrations/:name/public
+     * Headers: X-Project-ID, X-Org-ID
      */
     @Get(':name/public')
     @ApiOperation({
@@ -121,10 +137,11 @@ export class IntegrationsController {
     @ApiResponse({ status: 404, description: 'Integration not found' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async getPublicIntegrationInfo(
-        @Param('name') name: string,
-        @Query('project_id') projectId: string,
-        @Query('org_id') orgId: string
+        @Req() req: Request,
+        @Param('name') name: string
     ): Promise<PublicIntegrationDto> {
+        const projectId = req.headers['x-project-id'] as string;
+        const orgId = req.headers['x-org-id'] as string;
         return this.integrationsService.getPublicIntegrationInfo(name, projectId, orgId);
     }
 
@@ -143,15 +160,42 @@ export class IntegrationsController {
     @ApiResponse({ status: 409, description: 'Integration already exists for this project' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async createIntegration(
+        @Req() req: Request,
         @Body() dto: CreateIntegrationDto
     ): Promise<IntegrationDto> {
-        return this.integrationsService.createIntegration(dto);
+        const projectIdHeader = req.headers['x-project-id'];
+        const orgIdHeader = req.headers['x-org-id'];
+        const projectId = Array.isArray(projectIdHeader) ? projectIdHeader[0] : projectIdHeader;
+        const orgId = Array.isArray(orgIdHeader) ? orgIdHeader[0] : orgIdHeader;
+
+        if (!projectId || typeof projectId !== 'string' || !isUUID(projectId)) {
+            throw new BadRequestException({
+                error: {
+                    code: 'missing-project-id',
+                    message: 'Project context is required to create an integration.',
+                    details: 'Include a valid project ID in the X-Project-ID header when creating integrations.',
+                },
+            });
+        }
+
+        if (!orgId || typeof orgId !== 'string') {
+            throw new BadRequestException({
+                error: {
+                    code: 'missing-org-id',
+                    message: 'Organization context is required to create an integration.',
+                    details: 'Include the X-Org-ID header when creating integrations.',
+                },
+            });
+        }
+
+        return this.integrationsService.createIntegration(projectId, orgId, dto);
     }
 
     /**
      * Update an integration
      * 
-     * PUT /api/v1/integrations/:name?project_id=xxx&org_id=yyy
+     * PUT /integrations/:name
+     * Headers: X-Project-ID, X-Org-ID
      */
     @Put(':name')
     @ApiOperation({
@@ -164,18 +208,20 @@ export class IntegrationsController {
     @ApiResponse({ status: 400, description: 'Invalid update data' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async updateIntegration(
+        @Req() req: Request,
         @Param('name') name: string,
-        @Query('project_id') projectId: string,
-        @Query('org_id') orgId: string,
         @Body() dto: UpdateIntegrationDto
     ): Promise<IntegrationDto> {
+        const projectId = req.headers['x-project-id'] as string;
+        const orgId = req.headers['x-org-id'] as string;
         return this.integrationsService.updateIntegration(name, projectId, orgId, dto);
     }
 
     /**
      * Test integration connection
      * 
-     * POST /api/v1/integrations/:name/test?project_id=xxx&org_id=yyy
+     * POST /integrations/:name/test
+     * Headers: X-Project-ID, X-Org-ID
      */
     @Post(':name/test')
     @ApiOperation({
@@ -187,17 +233,30 @@ export class IntegrationsController {
     @ApiResponse({ status: 404, description: 'Integration not found' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async testConnection(
-        @Param('name') name: string,
-        @Query('project_id') projectId: string,
-        @Query('org_id') orgId: string
+        @Req() req: Request,
+        @Param('name') name: string
     ): Promise<{ success: boolean; error?: string }> {
-        return this.integrationsService.testConnection(name, projectId, orgId);
+        const projectId = req.headers['x-project-id'] as string;
+        const orgId = req.headers['x-org-id'] as string;
+
+        try {
+            return this.integrationsService.testConnection(name, projectId, orgId);
+        } catch (error) {
+            // For test connection, we want to return the result rather than throw
+            // This allows the frontend to display test results appropriately
+            const errorMessage = error instanceof Error ? error.message : 'Connection test failed';
+            return {
+                success: false,
+                error: errorMessage
+            };
+        }
     }
 
     /**
      * Trigger integration sync/import
      * 
-     * POST /api/v1/integrations/:name/sync?project_id=xxx&org_id=yyy
+     * POST /integrations/:name/sync
+     * Headers: X-Project-ID, X-Org-ID
      */
     @Post(':name/sync')
     @ApiOperation({
@@ -210,18 +269,60 @@ export class IntegrationsController {
     @ApiResponse({ status: 400, description: 'Integration does not support import' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async triggerSync(
+        @Req() req: Request,
         @Param('name') name: string,
-        @Query('project_id') projectId: string,
-        @Query('org_id') orgId: string,
         @Body() config?: ImportConfig
     ): Promise<ImportResult> {
-        return this.integrationsService.triggerSync(name, projectId, orgId, config);
+        const projectId = req.headers['x-project-id'] as string;
+        const orgId = req.headers['x-org-id'] as string;
+
+        try {
+            return this.integrationsService.triggerSync(name, projectId, orgId, config);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+
+            if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+                throw new BadRequestException({
+                    error: {
+                        code: 'integration-not-found',
+                        message: `Integration '${name}' is not configured for this project.`,
+                        details: 'Please configure the integration first before attempting to sync.'
+                    }
+                });
+            }
+            if (errorMessage.includes('401') || errorMessage.includes('authentication')) {
+                throw new UnauthorizedException({
+                    error: {
+                        code: 'integration-auth-failed',
+                        message: `Authentication failed for ${name} integration.`,
+                        details: 'Please check your API credentials and ensure they are valid and have not expired.'
+                    }
+                });
+            }
+            if (errorMessage.includes('403') || errorMessage.includes('permissions')) {
+                throw new ForbiddenException({
+                    error: {
+                        code: 'integration-permissions',
+                        message: `Insufficient permissions for ${name} integration.`,
+                        details: 'Ensure your API token has the required permissions to read and import data.'
+                    }
+                });
+            }
+            throw new BadRequestException({
+                error: {
+                    code: 'sync-failed',
+                    message: `Failed to start sync for ${name} integration.`,
+                    details: errorMessage || 'Unknown sync error'
+                }
+            });
+        }
     }
 
     /**
      * Get ClickUp workspace structure for list selection
      * 
-     * GET /api/v1/integrations/clickup/structure?project_id=xxx&org_id=yyy
+     * GET /integrations/clickup/structure
+     * Headers: X-Project-ID, X-Org-ID
      */
     @Get('clickup/structure')
     @ApiOperation({
@@ -232,16 +333,58 @@ export class IntegrationsController {
     @ApiResponse({ status: 404, description: 'ClickUp integration not found or not configured' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async getClickUpWorkspaceStructure(
-        @Query('project_id') projectId: string,
-        @Query('org_id') orgId: string
+        @Req() req: Request
     ): Promise<any> {
-        return this.integrationsService.getClickUpWorkspaceStructure(projectId, orgId);
+        const projectId = req.headers['x-project-id'] as string;
+        const orgId = req.headers['x-org-id'] as string;
+
+        try {
+            return this.integrationsService.getClickUpWorkspaceStructure(projectId, orgId);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+
+            if (errorMessage.includes('workspace not found')) {
+                throw new BadRequestException({
+                    error: {
+                        code: 'invalid-workspace-id',
+                        message: 'The configured workspace ID is invalid or you do not have access to it.',
+                        details: 'Check your ClickUp integration settings and ensure the workspace ID is correct. The error response includes available workspaces you can access.'
+                    }
+                });
+            }
+            if (errorMessage.includes('401') || errorMessage.includes('Oauth token not found')) {
+                throw new UnauthorizedException({
+                    error: {
+                        code: 'invalid-api-token',
+                        message: 'Your ClickUp API token is invalid or expired.',
+                        details: 'Please check your ClickUp integration settings and ensure you are using a valid personal API token (starts with pk_).'
+                    }
+                });
+            }
+            if (errorMessage.includes('403') || errorMessage.includes('insufficient permissions')) {
+                throw new ForbiddenException({
+                    error: {
+                        code: 'insufficient-permissions',
+                        message: 'Your ClickUp API token does not have sufficient permissions.',
+                        details: 'Ensure your ClickUp token has access to read workspaces, spaces, folders, and lists.'
+                    }
+                });
+            }
+            throw new BadRequestException({
+                error: {
+                    code: 'clickup-api-error',
+                    message: 'Failed to fetch ClickUp workspace structure. Please check your configuration.',
+                    details: errorMessage || 'Unknown ClickUp API error'
+                }
+            });
+        }
     }
 
     /**
      * Delete an integration
      * 
-     * DELETE /api/v1/integrations/:name?project_id=xxx&org_id=yyy
+     * DELETE /integrations/:name
+     * Headers: X-Project-ID, X-Org-ID
      */
     @Delete(':name')
     @ApiOperation({
@@ -254,10 +397,11 @@ export class IntegrationsController {
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     @HttpCode(HttpStatus.NO_CONTENT)
     async deleteIntegration(
-        @Param('name') name: string,
-        @Query('project_id') projectId: string,
-        @Query('org_id') orgId: string
+        @Req() req: Request,
+        @Param('name') name: string
     ): Promise<void> {
+        const projectId = req.headers['x-project-id'] as string;
+        const orgId = req.headers['x-org-id'] as string;
         return this.integrationsService.deleteIntegration(name, projectId, orgId);
     }
 }

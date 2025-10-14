@@ -19,6 +19,50 @@ The MCP Dev Manager uses a **script-based approach** where all common developmen
 3. **Self-Documenting**: Run `list_scripts` to see all available commands
 4. **Maintainable**: When paths or flags change, only package.json needs updating
 
+### CRITICAL: Always Run Tests Via MCP
+
+**🚫 DO NOT run tests directly via `run_in_terminal`:**
+- ❌ `npx playwright test ...`
+- ❌ `npm run test`
+- ❌ `jest ...`
+- ❌ Any test command manually typed in terminal
+
+**✅ ALWAYS use MCP tools for running tests:**
+- `mcp_dev-manager_run_script({ app: "admin", action: "e2e:clickup" })`
+- `mcp_dev-manager_run_script({ app: "admin", action: "test" })`
+- `mcp_dev-manager_run_script({ app: "server", action: "test:e2e" })`
+
+**Why?**
+- MCP scripts ensure all dependencies are checked and started (via `ensure-e2e-deps.mjs`)
+- Proper environment variables are set automatically
+- Consistent execution across different environments
+- Better error reporting and debugging context
+
+### If Scripts Don't Match Your Needs - Improve Them!
+
+**DO NOT work around the scripts by using `run_in_terminal`. Instead:**
+
+1. **Identify what's missing** - What flag, option, or behavior do you need?
+2. **Update `package.json`** - Add a new script or modify existing one with the proper configuration
+3. **Test the new script** - Verify it works via MCP tools
+4. **Document the change** - Update relevant docs if it's a significant addition
+
+**Example: Adding a new test script**
+```json
+{
+  "scripts": {
+    "dev-manager:admin:e2e:debug": "node scripts/ensure-e2e-deps.mjs && cd apps/admin && E2E_FORCE_TOKEN=1 npx playwright test --debug",
+    "dev-manager:admin:e2e:specific": "node scripts/ensure-e2e-deps.mjs && cd apps/admin && E2E_FORCE_TOKEN=1 npx playwright test ${SPEC_FILE}"
+  }
+}
+```
+
+**When you improve scripts:**
+- Keep the `dev-manager:` prefix for MCP discovery
+- Include dependency checks (e.g., `node scripts/ensure-e2e-deps.mjs &&`)
+- Set required environment variables
+- Add to the "Available Scripts" documentation in this file
+
 ### Primary Tools (Use These)
 
 #### 1. `run_script` - Run ANY Development Task
@@ -198,15 +242,31 @@ The MCP tools are named with the prefix `mcp_dev-manager_`:
 2. `mcp_dev-manager_check_status` - Check ports and processes
 3. `mcp_dev-manager_browse_logs` - Search for specific issues
 
+## CRITICAL: Never Start Services Manually via Terminal
+
+**🚫 DO NOT start development services using `run_in_terminal`:**
+- ❌ `npm run dev` / `npm start`
+- ❌ `docker compose up`
+- ❌ `vite` / `nest start`
+- ❌ Any background process that serves HTTP traffic
+
+**✅ ALWAYS use MCP tools for service management:**
+- `mcp_dev-manager_run_script({ app: "admin", action: "dev" })`
+- `mcp_dev-manager_run_script({ app: "docker", action: "up" })`
+- `mcp_dev-manager_run_script({ app: "server", action: "start" })`
+
+**Why?** Services started via `run_in_terminal` with `isBackground: true` cannot be properly managed, monitored, or stopped. The MCP dev-manager provides proper lifecycle management, health checks, and graceful shutdown.
+
 ## When NOT to Use MCP Tools
 
 Only use `run_in_terminal` or other tools when:
 - Installing dependencies (npm install, etc.)
 - Git operations
 - File operations (creating, editing files)
-- Database migrations
-- Building the project
+- Database migrations (one-time scripts)
 - Complex shell pipelines that MCP tools don't support
+- **NEVER for starting services** (see above)
+- **NEVER for running tests** (see above - always improve scripts instead)
 
 ## Benefits of Using MCP Tools
 
@@ -246,6 +306,33 @@ mcp_dev-manager_run_script({
 run_in_terminal({
   command: "E2E_FORCE_TOKEN=1 npx playwright test ...",
   ...
+})
+```
+
+### Starting Services
+```typescript
+// ✅ CORRECT: Use MCP script tool
+mcp_dev-manager_run_script({
+  app: "admin",
+  action: "dev"
+})
+
+// ✅ CORRECT: Use MCP script tool for Docker
+mcp_dev-manager_run_script({
+  app: "docker",
+  action: "up"
+})
+
+// ❌ WRONG: Don't start services via terminal
+run_in_terminal({
+  command: "npm run dev",
+  isBackground: true
+})
+
+// ❌ WRONG: Don't start Docker manually
+run_in_terminal({
+  command: "docker compose up -d",
+  isBackground: false
 })
 ```
 

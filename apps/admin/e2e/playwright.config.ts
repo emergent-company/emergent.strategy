@@ -27,13 +27,23 @@ dotenv.config();
 
 export default defineConfig({
     testDir: './specs',
-    timeout: 30_000, // 30 seconds per test (reduced from 90s)
-    expect: { timeout: 10_000 }, // 10 seconds for assertions (reduced from 15s)
+    timeout: 30_000, // 30 seconds per test (whole test duration)
+    expect: { timeout: 15_000 }, // 15 seconds for assertions
     fullyParallel: true,
     retries: process.env.CI ? 2 : 0,
-    reporter: process.env.CI ? [['dot'], ['junit', { outputFile: 'results/junit.xml' }]] : 'html',
+    // Output all test results to dedicated folder: test-results/
+    outputDir: 'test-results',
+    // Reporter: list for console + json file for detailed logs
+    reporter: process.env.CI
+        ? [['dot'], ['junit', { outputFile: 'test-results/junit.xml' }]]
+        : [
+            ['list'],
+            ['html', { outputFolder: 'test-results/html-report', open: 'never' }],
+            ['json', { outputFile: 'test-results/test-results.json' }]
+        ],
     use: {
         baseURL,
+        actionTimeout: 5_000, // 5 seconds for individual actions (click, fill, etc.)
         trace: 'on-first-retry',
         screenshot: 'only-on-failure',
         video: 'retain-on-failure',
@@ -47,7 +57,7 @@ export default defineConfig({
             // If another project already runs on this port, Playwright would reuse it and tests could hit the wrong app.
             // Set E2E_FORCE_START=1 to always start a fresh server and avoid cross-repo leakage.
             reuseExistingServer: !process.env.CI && !process.env.E2E_FORCE_START,
-            timeout: 30_000, // 30 seconds to start server (reduced from 180s)
+            timeout: 30_000, // 30 seconds to start server
         }
         : undefined,
     projects: [

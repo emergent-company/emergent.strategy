@@ -1,6 +1,8 @@
 # Dev Runbook
 
-This project provides a minimal ingestion server aligned with the spec. It stores documents and chunks in Postgres (pgvector + FTS) and uses Google Gemini for embeddings.
+This project provides a minimal ingestion server aligned with the spec. It stores docuSPA/server integration
+- Frontend issuer: set to `http://localhost:8100` (see `apps/admin/.env.example`).
+- Server-side validation: set the same issuer and fetch JWKS from `http://localhost:8100` (see `apps/server-nest/.env.example`).ts and chunks in Postgres (pgvector + FTS) and uses Google Gemini for embeddings.
 
 Prereqs
 - Node.js >= 20.19
@@ -55,14 +57,14 @@ Quick start (from repo root):
 ```bash
 docker compose -f docker/docker-compose.yml up -d db zitadel login
 # Open issuer (OIDC):
-open http://localhost:8080/.well-known/openid-configuration
+open http://localhost:8100/.well-known/openid-configuration
 # Open Login v2 UI:
-open http://localhost:3000/ui/v2/login
+open http://localhost:8101/ui/v2/login
 ```
 
 Ports & endpoints
-- OIDC issuer (API): http://localhost:8080
-- Login v2 UI: http://localhost:3000/ui/v2/login
+- OIDC issuer (API): http://localhost:8100
+- Login v2 UI: http://localhost:8101/ui/v2/login
 
 Admin account (dev)
 - Email: admin@example.com
@@ -79,7 +81,7 @@ Environment keys to verify (`docker/zitadel.env`)
 	- `ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME=spec`, `..._PASSWORD=spec`
 	- `ZITADEL_DATABASE_POSTGRES_ADMIN_HOST=db`, `..._PORT=5432`, `..._SSL_MODE=disable`
 - External/tls (dev): `ZITADEL_EXTERNALDOMAIN=localhost`, `ZITADEL_EXTERNALSECURE=false`, `ZITADEL_TLS_ENABLED=false`
-- Login v2 (dev): `ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED=true` and base URLs pointing to port 3000
+- Login v2 (dev): `ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED=true` and base URLs pointing to port 8101
 
 Reset/recover (stale volume or init failures)
 - To fully reset dev data: `docker compose -f docker/docker-compose.yml down -v`

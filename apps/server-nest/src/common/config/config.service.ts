@@ -89,4 +89,13 @@ export class AppConfigService {
     get extractionConfidenceThresholdAuto() {
         return this.env.EXTRACTION_CONFIDENCE_THRESHOLD_AUTO || 0.85;
     }
+
+    get extractionDefaultTemplatePackId(): string | null {
+        const id = this.env.EXTRACTION_DEFAULT_TEMPLATE_PACK_ID;
+        if (!id) {
+            return null;
+        }
+        const trimmed = id.trim();
+        return trimmed.length > 0 ? trimmed : null;
+    }
 }

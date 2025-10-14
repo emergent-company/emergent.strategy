@@ -25,11 +25,10 @@ const authDir = path.resolve(__dirname, '..', '.auth');
 const storageFile = path.join(authDir, 'state.json');
 
 function generateDevToken(email: string): string {
-    // Mirror logic from credentials mode: unsigned JWT (alg none) with 1h expiry
-    const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
-    const nowSec = Math.floor(Date.now() / 1000);
-    const payload = Buffer.from(JSON.stringify({ sub: email, email, name: email.split('@')[0], iat: nowSec, exp: nowSec + 3600 })).toString('base64url');
-    return `${header}.${payload}.`;
+    // Use static test token that backend explicitly supports (e2e-all)
+    // This bypasses JWT validation and provides all scopes for E2E testing
+    // The backend converts this to a deterministic UUID via SHA-1 hash
+    return 'e2e-all';
 }
 
 // Centralised selectors grounded in the Login page implementation.
@@ -101,7 +100,10 @@ setup('auth: login (or inject) and save storage state', async ({ page, context }
     const includeIdToken = (process.env.E2E_INCLUDE_IDTOKEN || '').toLowerCase() === '1';
     const useTokenInjection = forceToken || !email || !password;
 
-    console.log(`Auth setup: mode=${useTokenInjection ? 'token-injection' : 'ui-login'} force=${forceToken}`);
+    // Log auth mode without exposing credentials
+    const authMode = useTokenInjection ? 'token-injection' : 'ui-login';
+    const hasCredentials = !!(email && password);
+    console.log(`[auth.setup] mode=${authMode} force=${forceToken} credentials=${hasCredentials ? 'present' : 'missing'}`);
 
     if (useTokenInjection) {
         const token = tokenOverride || generateDevToken(email || 'dev@example.com');
@@ -154,23 +156,86 @@ setup('auth: login (or inject) and save storage state', async ({ page, context }
         await btn.click();
     });
 
-    // After clicking login, a redirect to /auth/callback then /admin is expected (OIDC). We wait until an admin route loads
-    // or until auth storage appears (in case of rapid local token issuance).
+    let sawCallback = false;
+    let sawAdmin = false;
+
+    await testStep('Wait for auth callback redirect', async () => {
+        const navListener = (frame: import('@playwright/test').Frame) => {
+            if (frame !== page.mainFrame()) return;
+            try {
+                const url = new URL(frame.url());
+                if (url.pathname.startsWith('/auth/callback')) {
+                    sawCallback = true;
+                }
+                if (url.pathname.startsWith('/admin')) {
+                    sawAdmin = true;
+                }
+            } catch {
+                // Ignore invalid URLs during transient navigations
+            }
+        };
+
+        page.on('framenavigated', navListener);
+
+        try {
+            await page.waitForNavigation({
+                url: (currentUrl) => {
+                    try {
+                        const parsed = new URL(currentUrl);
+                        if (parsed.pathname.startsWith('/auth/callback')) {
+                            sawCallback = true;
+                            return true;
+                        }
+                        if (parsed.pathname.startsWith('/admin')) {
+                            sawAdmin = true;
+                            return true;
+                        }
+                    } catch {
+                        return false;
+                    }
+                    return false;
+                },
+                timeout: 30_000,
+                waitUntil: 'domcontentloaded',
+            });
+        } catch (error) {
+            throw new Error('No redirect observed after submitting login. Check IdP configuration.');
+        } finally {
+            page.off('framenavigated', navListener);
+        }
+
+        if (!sawCallback) {
+            try {
+                await page.waitForURL(/\/auth\/callback(\/|$)/, {
+                    timeout: 5_000,
+                    waitUntil: 'domcontentloaded',
+                });
+                sawCallback = true;
+            } catch {
+                console.warn('[auth.setup] /auth/callback was not observed; continuing based on direct admin redirect.');
+            }
+        }
+    });
+
+    // After the callback, we expect a redirect into the admin surface. Confirm the redirect before
+    // validating stored auth state to avoid false positives when stale tokens linger in storage.
     await testStep('Wait for authenticated landing', async () => {
-        // Race between admin URL, localStorage token availability, or presence of an admin nav element.
-        await Promise.race([
-            page.waitForURL(/\/admin(\/|$)/, { timeout: 30_000 }).catch(() => null),
-            page.waitForFunction(() => {
-                try {
-                    const raw = localStorage.getItem('__nexus_auth_v1__');
-                    if (!raw) return false;
-                    const parsed = JSON.parse(raw);
-                    return !!parsed?.accessToken; // idToken now optional
-                } catch { return false; }
-            }, {}, { timeout: 30_000 }).catch(() => null),
-            page.locator('text=Documents').first().waitFor({ timeout: 30_000 }).catch(() => null),
-        ]);
-        // Sanity assertion
+        if (!sawAdmin) {
+            sawAdmin = await page
+                .waitForURL(/\/admin(\/|$)/, {
+                    timeout: 30_000,
+                    waitUntil: 'domcontentloaded',
+                })
+                .then(() => true)
+                .catch(() => false);
+        }
+
+        expect(sawAdmin, 'Admin area should load after authentication').toBe(true);
+
+        if (!sawCallback) {
+            console.warn('[auth.setup] Proceeding without observing /auth/callback.');
+        }
+
         const authState = await page.evaluate(() => {
             try { return JSON.parse(localStorage.getItem('__nexus_auth_v1__') || 'null'); } catch { return null; }
         });

@@ -132,10 +132,10 @@ describe('RateLimiterService', () => {
     });
 
     describe('waitForCapacity', () => {
-        it('should wait and succeed when capacity becomes available', async () => {
+        it.skip('should wait and succeed when capacity becomes available', async () => {
             // This test is complex with fake timers and async waits
             // Skip for now - tested in integration
-        }, { skip: true });
+        });
 
         it('should timeout if capacity not available', async () => {
             // This test verifies timeout behavior

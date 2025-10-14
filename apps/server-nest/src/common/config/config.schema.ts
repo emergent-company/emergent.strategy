@@ -1,6 +1,8 @@
 import { plainToInstance } from 'class-transformer';
 import { IsBoolean, IsNumber, IsOptional, IsString, validateSync } from 'class-validator';
 
+const FALLBACK_EXTRACTION_TEMPLATE_PACK_ID = '1f6f6267-0d2c-4e2f-9fdb-7f0481219775';
+
 export class EnvVariables {
     @IsString()
     @IsOptional()
@@ -98,6 +100,10 @@ export class EnvVariables {
     @IsOptional()
     EXTRACTION_CONFIDENCE_THRESHOLD_AUTO?: number; // Auto-create above this (0.0-1.0)
 
+    @IsString()
+    @IsOptional()
+    EXTRACTION_DEFAULT_TEMPLATE_PACK_ID?: string;
+
 }
 
 export function validate(config: Record<string, unknown>): EnvVariables {
@@ -127,6 +133,13 @@ export function validate(config: Record<string, unknown>): EnvVariables {
         EXTRACTION_CONFIDENCE_THRESHOLD_MIN: process.env.EXTRACTION_CONFIDENCE_THRESHOLD_MIN || '0.0',
         EXTRACTION_CONFIDENCE_THRESHOLD_REVIEW: process.env.EXTRACTION_CONFIDENCE_THRESHOLD_REVIEW || '0.7',
         EXTRACTION_CONFIDENCE_THRESHOLD_AUTO: process.env.EXTRACTION_CONFIDENCE_THRESHOLD_AUTO || '0.85',
+        EXTRACTION_DEFAULT_TEMPLATE_PACK_ID: (() => {
+            const raw = process.env.EXTRACTION_DEFAULT_TEMPLATE_PACK_ID;
+            if (raw && raw.trim().length > 0) {
+                return raw.trim();
+            }
+            return FALLBACK_EXTRACTION_TEMPLATE_PACK_ID;
+        })(),
         ...config,
     };
     const transformed = plainToInstance(EnvVariables, {

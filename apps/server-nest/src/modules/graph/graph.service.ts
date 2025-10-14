@@ -3,7 +3,7 @@ import { createHash } from 'crypto';
 import { pairIndependentHeads, pairIndependentRelationshipHeads } from './merge.util';
 import { DatabaseService } from '../../common/database/database.service';
 import { diffProperties } from '../../graph/change-summary';
-import { generateDiff, computeContentHash } from './diff.util';
+import { generateDiff, computeContentHash, isNoOpChange } from './diff.util';
 import { TypeRegistryService } from '../type-registry/type-registry.service';
 import { CreateGraphObjectDto } from './dto/create-graph-object.dto';
 import { PatchGraphObjectDto } from './dto/patch-graph-object.dto';
@@ -85,128 +85,192 @@ export class GraphService {
         return Object.fromEntries(entries);
     }
 
-    async createObject(input: CreateGraphObjectDto & { branch_id?: string | null }): Promise<GraphObjectDto> {
-        const client = await this.db.getClient();
-        let { type, key, properties = {}, labels = [], org_id = null, project_id = null, branch_id = null } = input as any;
-        // Fallback: if caller did not supply org/project, derive from session GUCs (tenant context) so rows are scoped and RLS isolation holds.
-        if (!org_id) {
-            try {
-                const guc = await this.db.query<{ org: string | null }>("SELECT current_setting('app.current_org_id', true) as org");
-                org_id = guc.rows[0].org || null;
-            } catch { /* ignore */ }
+    private async withTenantContext<T>(orgId: string | null | undefined, projectId: string | null | undefined, fn: () => Promise<T>): Promise<T> {
+        const candidate = (this.db as any)?.runWithTenantContext;
+        const normalizedOrg = orgId ?? null;
+        const normalizedProject = projectId ?? null;
+        if (typeof candidate === 'function') {
+            return candidate.call(this.db, normalizedOrg, normalizedProject, fn);
         }
-        if (!project_id) {
-            try {
-                const guc = await this.db.query<{ proj: string | null }>("SELECT current_setting('app.current_project_id', true) as proj");
-                project_id = guc.rows[0].proj || null;
-            } catch { /* ignore */ }
+
+        const setContext = (this.db as any)?.setTenantContext;
+        const getContext = (this.db as any)?.getCurrentTenantContext;
+        let reset: (() => Promise<void>) | null = null;
+
+        if (typeof setContext === 'function') {
+            let previousOrg: string | null = null;
+            let previousProject: string | null = null;
+            if (typeof getContext === 'function') {
+                try {
+                    const current = await getContext.call(this.db);
+                    previousOrg = current?.orgId ?? null;
+                    previousProject = current?.projectId ?? null;
+                } catch { /* ignore */ }
+            }
+            await setContext.call(this.db, normalizedOrg, normalizedProject);
+            reset = async () => {
+                await setContext.call(this.db, previousOrg ?? null, previousProject ?? null);
+            };
         }
+
         try {
-            // Branch existence validation (if provided)
-            if (branch_id) {
-                const b = await this.db.query<{ id: string }>(`SELECT id FROM kb.branches WHERE id=$1`, [branch_id]);
-                if (!b.rowCount) throw new NotFoundException('branch_not_found');
+            return await fn();
+        } finally {
+            if (reset) {
+                try { await reset(); } catch { /* ignore */ }
             }
-            // Schema validation (if schema exists for type)
-            const validator = await this.schemaRegistry.getObjectValidator(project_id ?? null, type);
-            if (validator) {
-                const valid = validator(properties || {});
-                if (!valid) {
-                    throw new BadRequestException({ code: 'object_schema_validation_failed', errors: validator.errors });
-                }
-            }
+        }
+    }
 
-            // Type Registry validation (Phase 1 dynamic type system)
-            if (this.typeRegistry && project_id && org_id) {
-                try {
-                    const validationResult = await this.typeRegistry.validateObjectData(
-                        project_id,
-                        org_id,
-                        { type, properties: properties || {} }
-                    );
-                    if (!validationResult.valid && validationResult.errors) {
-                        throw new BadRequestException({
-                            code: 'type_registry_validation_failed',
-                            message: 'Object properties do not match type schema',
-                            errors: validationResult.errors,
-                        });
-                    }
-                } catch (error) {
-                    // If type not found in registry, allow creation (type registry is optional)
-                    if (error instanceof NotFoundException) {
-                        // Type not registered yet - allow creation
-                    } else if (error instanceof BadRequestException) {
-                        // Type is disabled or validation failed - propagate error
-                        throw error;
-                    }
-                    // Other errors (e.g., DB connection) - log but don't block
+    async createObject(input: CreateGraphObjectDto & { branch_id?: string | null }): Promise<GraphObjectDto> {
+        let {
+            type,
+            key,
+            properties = {},
+            labels = [],
+            organization_id = null,
+            org_id = null,
+            project_id = null,
+            branch_id = null,
+        } = input as any;
+
+        if (!org_id && organization_id) {
+            org_id = organization_id;
+        }
+
+        const contextOrg = org_id ?? null;
+        const contextProject = project_id ?? null;
+
+        return this.withTenantContext(contextOrg, contextProject, async () => {
+            const client = await this.db.getClient();
+            try {
+                // Fallback: if caller did not supply org/project, derive from session GUCs (tenant context) on the same connection.
+                if (!org_id) {
+                    try {
+                        const guc = await client.query<{ org: string | null }>("SELECT current_setting('app.current_organization_id', true) as org");
+                        org_id = guc.rows[0]?.org || null;
+                    } catch { /* ignore */ }
                 }
-            }
-            await client.query('BEGIN');
-            if (key) {
-                // Transaction-scoped advisory lock to serialize creation by logical identity
-                await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`obj|${project_id}|${type}|${key}`]);
-                // Head = max(version) for (project_id,type,key)
-                const existing = await client.query<GraphObjectRow>(
-                    `SELECT id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, created_at
-                     FROM kb.graph_objects
-                     WHERE project_id IS NOT DISTINCT FROM $1 AND branch_id IS NOT DISTINCT FROM $2 AND type=$3 AND key=$4
-                     ORDER BY version DESC
-                     LIMIT 1`, [project_id, branch_id, type, key]
-                );
-                if (existing.rowCount) {
-                    throw new BadRequestException('object_key_exists');
+                if (!project_id) {
+                    try {
+                        const guc = await client.query<{ proj: string | null }>("SELECT current_setting('app.current_project_id', true) as proj");
+                        project_id = guc.rows[0]?.proj || null;
+                    } catch { /* ignore */ }
                 }
-            }
-            // Deduplicate labels (prevent duplicates on insert)
-            const dedupedLabels = Array.from(new Set(labels));
-            // Compute content hash using new utility (returns Buffer, convert to base64)
-            const hashBuffer = computeContentHash(properties);
-            const hash = hashBuffer.toString('base64');
-            // Compute rich change summary (treat prior state as empty object). Empty previous state ensures all provided
-            // properties register as added paths with proper meta counters and path union.
-            const changeSummary = generateDiff({}, properties);
-            // Inline FTS population (basic lexical vector) over type, key, and serialized properties.
-            // IMPORTANT: Do NOT reuse the JSON properties parameter ($3) inside the FTS expression because
-            // PostgreSQL will attempt to infer a single type for $3 across JSONB and text concatenation usages,
-            // yielding "inconsistent types deduced" errors. Instead, we duplicate the serialized properties
-            // string as a later parameter ($11) that is explicitly text.
-            const ftsVectorSql = `to_tsvector('simple', coalesce($1,'') || ' ' || coalesce($2,'') || ' ' || coalesce($10,'') )`;
-            const row = await client.query<GraphObjectRow>(
-                `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, org_id, project_id, branch_id, change_summary, content_hash, fts, embedding, embedding_updated_at)
-                 VALUES ($1,$2,$3,$4,1,gen_random_uuid(),$5,$6,$7,$8,$9, ${ftsVectorSql}, NULL, NULL)
-                 RETURNING id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
-                [type, key ?? null, properties, dedupedLabels, org_id, project_id, branch_id, changeSummary, hash, JSON.stringify(properties)]
-            );
-            await client.query('COMMIT');
-            const created = row.rows[0];
-            // Policy-aware embedding job enqueueing (Phase 3: selective embedding)
-            if (this.config?.embeddingsEnabled && (created as any).embedding == null) {
-                try {
-                    // Check policies before queueing
-                    if (this.embeddingPolicy && project_id) {
-                        const policies = await this.embeddingPolicy.findByProject(project_id);
-                        const evaluation = this.embeddingPolicy.shouldEmbed(
-                            created.type,
-                            created.properties,
-                            created.labels,
-                            policies
+
+                // Branch existence validation (if provided)
+                if (branch_id) {
+                    const branch = await client.query<{ id: string }>(`SELECT id FROM kb.branches WHERE id=$1`, [branch_id]);
+                    if (!branch.rowCount) throw new NotFoundException('branch_not_found');
+                }
+
+                // Schema validation (if schema exists for type)
+                const validator = await this.schemaRegistry.getObjectValidator(project_id ?? null, type);
+                if (validator) {
+                    const valid = validator(properties || {});
+                    if (!valid) {
+                        throw new BadRequestException({ code: 'object_schema_validation_failed', errors: validator.errors });
+                    }
+                }
+
+                // Type Registry validation (Phase 1 dynamic type system)
+                if (this.typeRegistry && project_id && org_id) {
+                    try {
+                        const validationResult = await this.typeRegistry.validateObjectData(
+                            project_id,
+                            org_id,
+                            { type, properties: properties || {} }
                         );
+                        if (!validationResult.valid && validationResult.errors) {
+                            throw new BadRequestException({
+                                code: 'type_registry_validation_failed',
+                                message: 'Object properties do not match type schema',
+                                errors: validationResult.errors,
+                            });
+                        }
+                    } catch (error) {
+                        // If type not found in registry, allow creation (type registry is optional)
+                        if (error instanceof NotFoundException) {
+                            // Type not registered yet - allow creation
+                        } else if (error instanceof BadRequestException) {
+                            // Type is disabled or validation failed - propagate error
+                            throw error;
+                        }
+                        // Other errors (e.g., DB connection) - log but don't block
+                    }
+                }
 
-                        if (evaluation.shouldEmbed) {
+                await client.query('BEGIN');
+                if (key) {
+                    // Transaction-scoped advisory lock to serialize creation by logical identity
+                    await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`obj|${project_id}|${type}|${key}`]);
+                    // Head = max(version) for (project_id,type,key)
+                    const existing = await client.query<GraphObjectRow>(
+                        `SELECT id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, created_at
+                         FROM kb.graph_objects
+                         WHERE project_id IS NOT DISTINCT FROM $1 AND branch_id IS NOT DISTINCT FROM $2 AND type=$3 AND key=$4
+                         ORDER BY version DESC
+                         LIMIT 1`, [project_id, branch_id, type, key]
+                    );
+                    if (existing.rowCount) {
+                        throw new BadRequestException('object_key_exists');
+                    }
+                }
+                // Deduplicate labels (prevent duplicates on insert)
+                const dedupedLabels = Array.from(new Set(labels));
+                // Compute content hash using new utility (returns Buffer, convert to base64)
+                const hashBuffer = computeContentHash(properties);
+                const hash = hashBuffer.toString('base64');
+                // Compute rich change summary (treat prior state as empty object). Empty previous state ensures all provided
+                // properties register as added paths with proper meta counters and path union.
+                const changeSummary = generateDiff({}, properties);
+                // Inline FTS population (basic lexical vector) over type, key, and serialized properties.
+                // IMPORTANT: Do NOT reuse the JSON properties parameter ($3) inside the FTS expression because
+                // PostgreSQL will attempt to infer a single type for $3 across JSONB and text concatenation usages,
+                // yielding "inconsistent types deduced" errors. Instead, we duplicate the serialized properties
+                // string as a later parameter ($11) that is explicitly text.
+                const ftsVectorSql = `to_tsvector('simple', coalesce($1,'') || ' ' || coalesce($2,'') || ' ' || coalesce($10,'') )`;
+                const row = await client.query<GraphObjectRow>(
+                    `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, org_id, project_id, branch_id, change_summary, content_hash, fts, embedding, embedding_updated_at)
+                     VALUES ($1,$2,$3,$4,1,gen_random_uuid(),$5,$6,$7,$8,$9, ${ftsVectorSql}, NULL, NULL)
+                     RETURNING id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
+                    [type, key ?? null, properties, dedupedLabels, org_id, project_id, branch_id, changeSummary, hash, JSON.stringify(properties)]
+                );
+                await client.query('COMMIT');
+                const created = row.rows[0];
+
+                // Policy-aware embedding job enqueueing (Phase 3: selective embedding)
+                if (this.isEmbeddingsEnabled() && (created as any).embedding == null) {
+                    try {
+                        // Check policies before queueing
+                        if (this.embeddingPolicy && project_id) {
+                            const policies = await this.embeddingPolicy.findByProject(project_id);
+                            const evaluation = this.embeddingPolicy.shouldEmbed(
+                                created.type,
+                                created.properties,
+                                created.labels,
+                                policies
+                            );
+
+                            if (evaluation.shouldEmbed) {
+                                await this.embeddingJobs?.enqueue(created.id);
+                            }
+                        } else {
+                            // No policy service or project context: default to enqueueing (backward compatible)
                             await this.embeddingJobs?.enqueue(created.id);
                         }
-                    } else {
-                        // No policy service or project context: default to enqueueing (backward compatible)
-                        await this.embeddingJobs?.enqueue(created.id);
-                    }
-                } catch { /* swallow embedding queue errors */ }
+                    } catch { /* swallow embedding queue errors */ }
+                }
+
+                return created;
+            } catch (e) {
+                try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+                throw e;
+            } finally {
+                client.release();
             }
-            return created;
-        } catch (e) {
-            try { await client.query('ROLLBACK'); } catch { /* ignore */ }
-            throw e;
-        } finally { client.release(); }
+        });
+
     }
 
     async getObject(id: string): Promise<GraphObjectDto> {
@@ -308,7 +372,7 @@ export class GraphService {
             }
             const diff = generateDiff(current.properties, nextProps);
             const labelsChanged = JSON.stringify(current.labels) !== JSON.stringify(nextLabels);
-            if (!diff && !labelsChanged) throw new BadRequestException('no_effective_change');
+            if (isNoOpChange(diff) && !labelsChanged) throw new BadRequestException('no_effective_change');
             // Compute content hash using new utility
             const hashBuffer = computeContentHash(nextProps);
             const hash = hashBuffer.toString('base64');
@@ -322,7 +386,7 @@ export class GraphService {
             );
             await client.query('COMMIT');
             const updated = { ...inserted.rows[0], diff } as any;
-            if (this.config?.embeddingsEnabled && updated.embedding == null) {
+            if (this.isEmbeddingsEnabled() && updated.embedding == null) {
                 try { await this.embeddingJobs?.enqueue(updated.id); } catch { /* ignore */ }
             }
             return updated;
@@ -359,126 +423,132 @@ export class GraphService {
     async createRelationship(input: CreateGraphRelationshipDto & { branch_id?: string | null }, orgId: string, projectId: string): Promise<GraphRelationshipDto> {
         const { type, src_id, dst_id, properties = {}, branch_id = null } = input as any;
         if (src_id === dst_id) throw new BadRequestException('self_loop_not_allowed');
-        const client = await this.db.getClient();
-        try {
-            await client.query('BEGIN');
-            // Validate endpoints exist & not deleted
-            const objs = await client.query<{ id: string; project_id: string | null; deleted_at: string | null; branch_id: string | null }>(
-                `SELECT id, project_id, deleted_at, branch_id FROM kb.graph_objects WHERE id = ANY($1::uuid[])`,
-                [[src_id, dst_id]]
-            );
-            if (objs.rowCount !== 2) {
-                const missingSrc = !objs.rows.find(r => r.id === src_id);
-                const missingDst = !objs.rows.find(r => r.id === dst_id);
-                if (missingSrc) throw new NotFoundException('src_object_not_found');
-                if (missingDst) throw new NotFoundException('dst_object_not_found');
-            }
-            const srcObj = objs.rows.find(r => r.id === src_id)!;
-            const dstObj = objs.rows.find(r => r.id === dst_id)!;
-            if (srcObj.deleted_at) throw new BadRequestException('src_object_deleted');
-            if (dstObj.deleted_at) throw new BadRequestException('dst_object_deleted');
-            // Enforce same project
-            if ((srcObj.project_id ?? null) !== (projectId ?? null) || (dstObj.project_id ?? null) !== (projectId ?? null)) {
-                throw new BadRequestException('relationship_project_mismatch');
-            }
-            // Branch existence & consistency
-            if (branch_id) {
-                const b = await client.query<{ id: string }>(`SELECT id FROM kb.branches WHERE id=$1`, [branch_id]);
-                if (!b.rowCount) throw new NotFoundException('branch_not_found');
-                if ((srcObj.branch_id ?? null) !== (branch_id ?? null) || (dstObj.branch_id ?? null) !== (branch_id ?? null)) {
-                    throw new BadRequestException('relationship_branch_mismatch');
+
+        const contextOrg = orgId ?? null;
+        const contextProject = projectId ?? null;
+
+        return this.withTenantContext(contextOrg, contextProject, async () => {
+            const client = await this.db.getClient();
+            try {
+                await client.query('BEGIN');
+                // Validate endpoints exist & not deleted
+                const objs = await client.query<{ id: string; project_id: string | null; deleted_at: string | null; branch_id: string | null }>(
+                    `SELECT id, project_id, deleted_at, branch_id FROM kb.graph_objects WHERE id = ANY($1::uuid[])`,
+                    [[src_id, dst_id]]
+                );
+                if (objs.rowCount !== 2) {
+                    const missingSrc = !objs.rows.find(r => r.id === src_id);
+                    const missingDst = !objs.rows.find(r => r.id === dst_id);
+                    if (missingSrc) throw new NotFoundException('src_object_not_found');
+                    if (missingDst) throw new NotFoundException('dst_object_not_found');
                 }
-            } else {
-                // If no branch specified, require both endpoints in same (null) branch or identical branch id
-                if ((srcObj.branch_id ?? null) !== (dstObj.branch_id ?? null)) {
-                    throw new BadRequestException('relationship_branch_mismatch');
+                const srcObj = objs.rows.find(r => r.id === src_id)!;
+                const dstObj = objs.rows.find(r => r.id === dst_id)!;
+                if (srcObj.deleted_at) throw new BadRequestException('src_object_deleted');
+                if (dstObj.deleted_at) throw new BadRequestException('dst_object_deleted');
+                // Enforce same project
+                if ((srcObj.project_id ?? null) !== (projectId ?? null) || (dstObj.project_id ?? null) !== (projectId ?? null)) {
+                    throw new BadRequestException('relationship_project_mismatch');
                 }
-            }
-            const effectiveBranchId = branch_id !== undefined && branch_id !== null ? branch_id : (srcObj.branch_id ?? null);
-            // Fetch multiplicity (default many-many) and enforce BEFORE identity lock to surface side-specific errors early.
-            const multiplicity = await this.schemaRegistry.getRelationshipMultiplicity(projectId, type);
-            // For 'one' sides we serialize creation across all relationships sharing that endpoint & type to avoid race duplicates.
-            if (multiplicity.src === 'one') {
-                await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`rel|src|${projectId}|${type}|${src_id}`]);
-                const existingSrc = await client.query<{ id: string }>(
-                    `SELECT id FROM kb.graph_relationships
+                // Branch existence & consistency
+                if (branch_id) {
+                    const b = await client.query<{ id: string }>(`SELECT id FROM kb.branches WHERE id=$1`, [branch_id]);
+                    if (!b.rowCount) throw new NotFoundException('branch_not_found');
+                    if ((srcObj.branch_id ?? null) !== (branch_id ?? null) || (dstObj.branch_id ?? null) !== (branch_id ?? null)) {
+                        throw new BadRequestException('relationship_branch_mismatch');
+                    }
+                } else {
+                    // If no branch specified, require both endpoints in same (null) branch or identical branch id
+                    if ((srcObj.branch_id ?? null) !== (dstObj.branch_id ?? null)) {
+                        throw new BadRequestException('relationship_branch_mismatch');
+                    }
+                }
+                const effectiveBranchId = branch_id !== undefined && branch_id !== null ? branch_id : (srcObj.branch_id ?? null);
+                // Fetch multiplicity (default many-many) and enforce BEFORE identity lock to surface side-specific errors early.
+                const multiplicity = await this.schemaRegistry.getRelationshipMultiplicity(projectId, type);
+                // For 'one' sides we serialize creation across all relationships sharing that endpoint & type to avoid race duplicates.
+                if (multiplicity.src === 'one') {
+                    await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`rel|src|${projectId}|${type}|${src_id}`]);
+                    const existingSrc = await client.query<{ id: string }>(
+                        `SELECT id FROM kb.graph_relationships
                      WHERE project_id=$1 AND type=$2 AND src_id=$3 AND supersedes_id IS NULL AND deleted_at IS NULL
                      LIMIT 1`, [projectId, type, src_id]
-                );
-                if (existingSrc.rowCount) {
-                    await client.query('ROLLBACK');
-                    throw new BadRequestException({ code: 'relationship_multiplicity_violation', side: 'src', type });
+                    );
+                    if (existingSrc.rowCount) {
+                        await client.query('ROLLBACK');
+                        throw new BadRequestException({ code: 'relationship_multiplicity_violation', side: 'src', type });
+                    }
                 }
-            }
-            if (multiplicity.dst === 'one') {
-                await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`rel|dst|${projectId}|${type}|${dst_id}`]);
-                const existingDst = await client.query<{ id: string }>(
-                    `SELECT id FROM kb.graph_relationships
+                if (multiplicity.dst === 'one') {
+                    await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`rel|dst|${projectId}|${type}|${dst_id}`]);
+                    const existingDst = await client.query<{ id: string }>(
+                        `SELECT id FROM kb.graph_relationships
                      WHERE project_id=$1 AND type=$2 AND dst_id=$3 AND supersedes_id IS NULL AND deleted_at IS NULL
                      LIMIT 1`, [projectId, type, dst_id]
-                );
-                if (existingDst.rowCount) {
-                    await client.query('ROLLBACK');
-                    throw new BadRequestException({ code: 'relationship_multiplicity_violation', side: 'dst', type });
+                    );
+                    if (existingDst.rowCount) {
+                        await client.query('ROLLBACK');
+                        throw new BadRequestException({ code: 'relationship_multiplicity_violation', side: 'dst', type });
+                    }
                 }
-            }
-            // Serialize relationship creation/upsert on logical identity
-            await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`rel|${projectId}|${type}|${src_id}|${dst_id}`]);
-            const head = await client.query<GraphRelationshipRow>(
-                `SELECT * FROM kb.graph_relationships
+                // Serialize relationship creation/upsert on logical identity
+                await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`rel|${projectId}|${type}|${src_id}|${dst_id}`]);
+                const head = await client.query<GraphRelationshipRow>(
+                    `SELECT * FROM kb.graph_relationships
                  WHERE project_id=$1 AND branch_id IS NOT DISTINCT FROM $2 AND type=$3 AND src_id=$4 AND dst_id=$5
                  ORDER BY version DESC LIMIT 1`,
-                [projectId, effectiveBranchId, type, src_id, dst_id]
-            );
-            if (!head.rowCount) {
-                // Validate relationship properties if schema exists
-                const validator = await this.schemaRegistry.getRelationshipValidator(projectId, type);
+                    [projectId, effectiveBranchId, type, src_id, dst_id]
+                );
+                if (!head.rowCount) {
+                    // Validate relationship properties if schema exists
+                    const validator = await this.schemaRegistry.getRelationshipValidator(projectId, type);
+                    if (validator) {
+                        const valid = validator(properties || {});
+                        if (!valid) throw new BadRequestException({ code: 'relationship_schema_validation_failed', errors: validator.errors });
+                    }
+                    try { await client.query('DROP INDEX IF EXISTS kb.idx_graph_rel_unique'); } catch { /* ignore */ }
+                    const stable = JSON.stringify(this.sortObject(properties));
+                    const hash = createHash('sha256').update(stable).digest('base64');
+                    const changeSummary = diffProperties({}, properties) || null;
+                    const inserted = await client.query<GraphRelationshipRow>(
+                        `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, change_summary, content_hash)
+                     VALUES ($1,$2,$3,$4,$5,$6,$7,1,gen_random_uuid(),$8,$9)
+                     RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, change_summary, content_hash, deleted_at, created_at`,
+                        [orgId, projectId, effectiveBranchId, type, src_id, dst_id, properties, changeSummary, hash]
+                    );
+                    await client.query('COMMIT');
+                    return inserted.rows[0];
+                }
+                const current = head.rows[0];
+                const diff = diffProperties(current.properties, properties);
+                if (!diff) {
+                    await client.query('ROLLBACK');
+                    return current; // no-op
+                }
+                const nextVersion = (current.version || 1) + 1;
+                // Validate updated relationship properties if schema exists
+                const validator = await this.schemaRegistry.getRelationshipValidator(current.project_id, current.type);
                 if (validator) {
                     const valid = validator(properties || {});
                     if (!valid) throw new BadRequestException({ code: 'relationship_schema_validation_failed', errors: validator.errors });
                 }
-                try { await client.query('DROP INDEX IF EXISTS kb.idx_graph_rel_unique'); } catch { /* ignore */ }
                 const stable = JSON.stringify(this.sortObject(properties));
                 const hash = createHash('sha256').update(stable).digest('base64');
-                const changeSummary = diffProperties({}, properties) || null;
                 const inserted = await client.query<GraphRelationshipRow>(
-                    `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, change_summary, content_hash)
-                     VALUES ($1,$2,$3,$4,$5,$6,$7,1,gen_random_uuid(),$8,$9)
-                     RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, change_summary, content_hash, created_at`,
-                    [orgId, projectId, effectiveBranchId, type, src_id, dst_id, properties, changeSummary, hash]
+                    `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, change_summary, content_hash)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+                 RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, change_summary, content_hash, deleted_at, created_at`,
+                    [orgId, projectId, (current as any).branch_id ?? null, type, src_id, dst_id, properties, nextVersion, current.canonical_id, current.id, diff, hash]
                 );
                 await client.query('COMMIT');
-                return inserted.rows[0];
+                return { ...inserted.rows[0], diff };
+            } catch (e) {
+                try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+                throw e;
+            } finally {
+                client.release();
             }
-            const current = head.rows[0];
-            const diff = diffProperties(current.properties, properties);
-            if (!diff) {
-                await client.query('ROLLBACK');
-                return current; // no-op
-            }
-            const nextVersion = (current.version || 1) + 1;
-            // Validate updated relationship properties if schema exists
-            const validator = await this.schemaRegistry.getRelationshipValidator(current.project_id, current.type);
-            if (validator) {
-                const valid = validator(properties || {});
-                if (!valid) throw new BadRequestException({ code: 'relationship_schema_validation_failed', errors: validator.errors });
-            }
-            const stable = JSON.stringify(this.sortObject(properties));
-            const hash = createHash('sha256').update(stable).digest('base64');
-            const inserted = await client.query<GraphRelationshipRow>(
-                `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, change_summary, content_hash)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-                 RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, change_summary, content_hash, created_at`,
-                [orgId, projectId, (current as any).branch_id ?? null, type, src_id, dst_id, properties, nextVersion, current.canonical_id, current.id, diff, hash]
-            );
-            await client.query('COMMIT');
-            return { ...inserted.rows[0], diff };
-        } catch (e) {
-            try { await client.query('ROLLBACK'); } catch { /* ignore */ }
-            throw e;
-        } finally {
-            client.release();
-        }
+        });
     }
 
     async getRelationship(id: string): Promise<GraphRelationshipDto> {
@@ -511,7 +581,7 @@ export class GraphService {
             const inserted = await client.query<GraphRelationshipRow>(
                 `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at, change_summary, content_hash)
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL,$11,$12)
-                 RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, deleted_at, change_summary, content_hash, created_at`,
+                 RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, deleted_at, change_summary, content_hash, created_at`,
                 [current.org_id, current.project_id, (current as any).branch_id ?? null, current.type, current.src_id, current.dst_id, nextProps, nextVersion, current.canonical_id, current.id, diff, hash]
             );
             await client.query('COMMIT');
@@ -575,9 +645,11 @@ export class GraphService {
             await client.query('COMMIT');
             return restored.rows[0];
         } catch (e) {
-            try { await client.query('ROLLBACK'); } catch {/* ignore */ }
+            try { await client.query('ROLLBACK'); } catch { /* ignore */ }
             throw e;
-        } finally { client.release(); }
+        } finally {
+            client.release();
+        }
     }
 
     async deleteRelationship(id: string): Promise<GraphRelationshipDto> {
@@ -595,7 +667,7 @@ export class GraphService {
             const tombstone = await client.query<GraphRelationshipRow>(
                 `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at)
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now())
-                 RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, deleted_at, created_at`,
+                 RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, deleted_at, created_at`,
                 [head.org_id, head.project_id, (head as any).branch_id ?? null, head.type, head.src_id, head.dst_id, head.properties, (head.version || 1) + 1, head.canonical_id, head.id]
             );
             await client.query('COMMIT');
@@ -625,7 +697,7 @@ export class GraphService {
             const restored = await client.query<GraphRelationshipRow>(
                 `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at)
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL)
-                 RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, deleted_at, created_at`,
+                 RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, deleted_at, created_at`,
                 [prev.org_id, prev.project_id, (prev as any).branch_id ?? null, prev.type, prev.src_id, prev.dst_id, prev.properties, (head.version || 1) + 1, canonicalId, head.id]
             );
             await client.query('COMMIT');
@@ -735,18 +807,32 @@ export class GraphService {
         if (opts.label) { params.push(opts.label); idx++; filters.push(`$${idx} = ANY(h.labels)`); }
         if (opts.branch_id !== undefined) { params.push(opts.branch_id ?? null); idx++; filters.push(`h.branch_id IS NOT DISTINCT FROM $${idx}`); }
         // Head selection restricted to FTS matches first, then filter deleted heads; rank computed on head row's fts vector.
-        const sql = `WITH heads AS (
-              SELECT DISTINCT ON (o.canonical_id) o.id, o.org_id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.properties, o.labels, o.deleted_at, o.created_at, o.fts, o.expires_at
+        const expirationClause = buildExpirationFilterClause('h');
+        const buildSql = (expirationFilter: string, includeExpirationColumn: boolean) => {
+            const columnList = `o.id, o.org_id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.properties, o.labels, o.deleted_at, o.created_at, o.fts${includeExpirationColumn ? ', o.expires_at' : ''}`;
+            return `WITH heads AS (
+              SELECT DISTINCT ON (o.canonical_id) ${columnList}
               FROM kb.graph_objects o
               WHERE o.fts @@ websearch_to_tsquery('simple', $1)
               ORDER BY o.canonical_id, o.version DESC
           )
           SELECT *, ts_rank(fts, websearch_to_tsquery('simple', $1)) AS rank
           FROM heads h
-          WHERE h.deleted_at IS NULL AND ${buildExpirationFilterClause('h')} ${filters.length ? 'AND ' + filters.join(' AND ') : ''}
+          WHERE h.deleted_at IS NULL AND ${expirationFilter} ${filters.length ? 'AND ' + filters.join(' AND ') : ''}
           ORDER BY rank DESC, created_at DESC
           LIMIT ${limit}`;
-        const res = await this.db.query<any>(sql, params);
+        };
+        let res;
+        try {
+            res = await this.db.query<any>(buildSql(expirationClause, true), params);
+        } catch (error: any) {
+            if (error?.code === '42703' && typeof error?.message === 'string' && error.message.includes('expires_at')) {
+                // Backward compatibility: older minimal schemas may lack expires_at. Retry without expiration filter.
+                res = await this.db.query<any>(buildSql('TRUE', false), params);
+            } else {
+                throw error;
+            }
+        }
         const items = res.rows.map(r => {
             const { rank, fts: _fts, ...rest } = r; // strip internal vector
             return { ...rest, rank } as GraphObjectDto & { rank: number };
@@ -875,8 +961,8 @@ export class GraphService {
             const row = objRes.rows[0];
             if (dto.branch_id !== undefined && row.branch_id !== dto.branch_id && (row.branch_id ?? null) !== (dto.branch_id ?? null)) continue;
             if (row.deleted_at) continue;
-            // Apply node predicate filter
-            if (dto.nodeFilter && !evaluatePredicates(row, [dto.nodeFilter])) continue;
+            // Apply node predicate filter (pass properties object for JSON Pointer resolution)
+            if (dto.nodeFilter && !evaluatePredicates(row.properties || {}, [dto.nodeFilter])) continue;
             seen.add(row.id);
             const node = { id: row.id, depth: 0, type: row.type, key: row.key, labels: row.labels, phaseIndex: 0 };
             rootNodes.push(node);
@@ -956,8 +1042,8 @@ export class GraphService {
                 const edgeRes = await this.db.query<GraphRelationshipRow>(edgeSql, params);
 
                 for (const e of edgeRes.rows) {
-                    // Apply edge predicate filter
-                    if (dto.edgeFilter && !evaluatePredicates(e, [dto.edgeFilter])) continue;
+                    // Apply edge predicate filter (pass properties object for JSON Pointer resolution)
+                    if (dto.edgeFilter && !evaluatePredicates(e.properties || {}, [dto.edgeFilter])) continue;
                     if (edges.length >= maxEdges) {
                         truncated = true;
                         break;
@@ -990,47 +1076,55 @@ export class GraphService {
                     if (dto.branch_id !== undefined && nextRow.branch_id !== dto.branch_id && (nextRow.branch_id ?? null) !== (dto.branch_id ?? null)) continue;
                     if (nextRow.deleted_at) continue;
 
-                    // Apply phase-specific node filters
-                    if (objTypeFilter && !objTypeFilter.has(nextRow.type)) continue;
-                    if (labelFilter && !nextRow.labels.some(l => labelFilter.has(l))) continue;
-                    // Apply node predicate filter
-                    if (dto.nodeFilter && !evaluatePredicates(nextRow, [dto.nodeFilter])) continue;
-
                     // Track path to this node
                     const newPath = trackPaths && current.path ? [...current.path, nextId] : undefined;
                     const alreadySeen = seen.has(nextId);
 
                     // If node already seen, add alternate path (up to limit)
                     if (alreadySeen && trackPaths && newPath) {
-                        const existingPaths = pathMap.get(nextId) ?? [];
-                        if (existingPaths.length < maxPathsPerNode) {
-                            existingPaths.push(newPath);
-                            pathMap.set(nextId, existingPaths);
+                        // Prevent circular paths: check if nextId already exists in the path
+                        const isCircular = current.path && current.path.includes(nextId);
+                        if (!isCircular) {
+                            const existingPaths = pathMap.get(nextId) ?? [];
+                            if (existingPaths.length < maxPathsPerNode) {
+                                existingPaths.push(newPath);
+                                pathMap.set(nextId, existingPaths);
+                            }
                         }
                         continue; // Don't re-add to results or queue
                     }
 
                     if (alreadySeen) continue; // Skip already seen nodes (path tracking disabled)
 
-                    // Add to results
+                    // Mark as seen and add to queue (always traverse, even if filtered from results)
                     seen.add(nextId);
                     const nextDepth = current.depth + 1;
-                    const node = { id: nextRow.id, depth: nextDepth, type: nextRow.type, key: nextRow.key, labels: nextRow.labels, phaseIndex: phaseNum };
-                    phaseNodes.push(node);
-                    gathered.push(node);
-                    maxDepthReached = Math.max(maxDepthReached, nextDepth);
 
-                    // Store path for this node
-                    if (trackPaths && newPath) {
-                        pathMap.set(nextId, [newPath]);
+                    // Apply phase-specific node filters (for results, but still traverse)
+                    const passesFilters =
+                        (!objTypeFilter || objTypeFilter.has(nextRow.type)) &&
+                        (!labelFilter || nextRow.labels.some(l => labelFilter.has(l))) &&
+                        (!dto.nodeFilter || evaluatePredicates(nextRow.properties || {}, [dto.nodeFilter]));
+
+                    // Add to results only if passes filters
+                    if (passesFilters) {
+                        const node = { id: nextRow.id, depth: nextDepth, type: nextRow.type, key: nextRow.key, labels: nextRow.labels, phaseIndex: phaseNum };
+                        phaseNodes.push(node);
+                        gathered.push(node);
+                        maxDepthReached = Math.max(maxDepthReached, nextDepth);
+
+                        // Store path for this node
+                        if (trackPaths && newPath) {
+                            pathMap.set(nextId, [newPath]);
+                        }
+
+                        if (gathered.length >= maxNodes) {
+                            truncated = true;
+                            break;
+                        }
                     }
 
-                    if (gathered.length >= maxNodes) {
-                        truncated = true;
-                        break;
-                    }
-
-                    // Add to queue for further exploration
+                    // Add to queue for further exploration (regardless of filters)
                     if (nextDepth < phase.maxDepth) {
                         queue.push({ id: nextId, depth: nextDepth, path: newPath });
                     }
@@ -1139,6 +1233,7 @@ export class GraphService {
         // Perform traversal first (unpaged) honoring expansion limits
         const queue: { id: string; depth: number; path?: string[] }[] = dto.root_ids.map(id => ({ id, depth: 0, path: trackPaths ? [id] : undefined }));
         const seen = new Set<string>();
+        const queued = new Set<string>(dto.root_ids); // Track nodes already in queue
         const gathered: { id: string; depth: number; type: string; key?: string | null; labels: string[] }[] = [];
         const edges: { id: string; type: string; src_id: string; dst_id: string }[] = [];
         let truncated = false;
@@ -1148,8 +1243,16 @@ export class GraphService {
             const current = queue.shift()!;
 
             // Track path to current node
-            if (trackPaths && current.path && !pathMap.has(current.id)) {
-                pathMap.set(current.id, [current.path]);
+            if (trackPaths && current.path) {
+                const existingPaths = pathMap.get(current.id) ?? [];
+                // Add this path if it's not already present (avoid duplicates) and under limit
+                if (existingPaths.length < maxPathsPerNode) {
+                    const pathExists = existingPaths.some(p => p.length === current.path!.length && p.every((id, i) => id === current.path![i]));
+                    if (!pathExists) {
+                        existingPaths.push(current.path);
+                        pathMap.set(current.id, existingPaths);
+                    }
+                }
             }
 
             if (seen.has(current.id)) continue;
@@ -1174,8 +1277,8 @@ export class GraphService {
             if (row.deleted_at) continue;
             if (objTypeFilter && !objTypeFilter.has(row.type)) continue;
             if (labelFilter && !row.labels.some(l => labelFilter.has(l))) continue;
-            // Apply node predicate filter
-            if (dto.nodeFilter && !evaluatePredicates(row, [dto.nodeFilter])) continue;
+            // Apply node predicate filter (pass properties object for JSON Pointer resolution)
+            if (dto.nodeFilter && !evaluatePredicates(row.properties || {}, [dto.nodeFilter])) continue;
             gathered.push({ id: row.id, depth: current.depth, type: row.type, key: row.key, labels: row.labels });
             maxDepthReached = Math.max(maxDepthReached, current.depth);
             if (gathered.length >= maxNodes) { truncated = true; break; }
@@ -1219,25 +1322,35 @@ export class GraphService {
 
             const edgeRes = await this.db.query<GraphRelationshipRow>(edgeSql, params);
             for (const e of edgeRes.rows) {
-                // Apply edge predicate filter
-                if (dto.edgeFilter && !evaluatePredicates(e, [dto.edgeFilter])) continue;
+                // Apply edge predicate filter (pass properties object for JSON Pointer resolution)
+                if (dto.edgeFilter && !evaluatePredicates(e.properties || {}, [dto.edgeFilter])) continue;
                 if (edges.length >= maxEdges) { truncated = true; break; }
                 edges.push({ id: e.id, type: e.type, src_id: e.src_id, dst_id: e.dst_id });
                 const nextId = e.src_id === current.id ? e.dst_id : e.src_id;
 
                 // Track path or handle multiple paths
                 const newPath = trackPaths && current.path ? [...current.path, nextId] : undefined;
-                if (seen.has(nextId)) {
-                    // Node already seen - add alternate path (up to limit)
+
+                // Check if node is already queued or seen
+                const alreadyQueued = queued.has(nextId);
+                const alreadySeen = seen.has(nextId);
+
+                if (alreadyQueued || alreadySeen) {
+                    // Node already queued or seen - add alternate path (up to limit)
                     if (trackPaths && newPath) {
-                        const existingPaths = pathMap.get(nextId) ?? [];
-                        if (existingPaths.length < maxPathsPerNode) {
-                            existingPaths.push(newPath);
-                            pathMap.set(nextId, existingPaths);
+                        // Prevent circular paths: check if nextId already exists in the path
+                        const isCircular = current.path && current.path.includes(nextId);
+                        if (!isCircular) {
+                            const existingPaths = pathMap.get(nextId) ?? [];
+                            if (existingPaths.length < maxPathsPerNode) {
+                                existingPaths.push(newPath);
+                                pathMap.set(nextId, existingPaths);
+                            }
                         }
                     }
                 } else {
                     // New node - add to queue
+                    queued.add(nextId);
                     queue.push({ id: nextId, depth: current.depth + 1, path: newPath });
                 }
             }
@@ -1974,5 +2087,12 @@ export class GraphService {
         } catch { /* swallow */ }
 
         return summary;
+    }
+
+    private isEmbeddingsEnabled(): boolean {
+        const envKeyPresent = !!process.env.GOOGLE_API_KEY && process.env.GOOGLE_API_KEY.trim().length > 0;
+        const configured = this.config?.embeddingsEnabled ?? envKeyPresent;
+        const networkDisabled = this.config?.embeddingsNetworkDisabled ?? Boolean(process.env.EMBEDDINGS_NETWORK_DISABLED);
+        return !networkDisabled && (configured || envKeyPresent);
     }
 }

@@ -10,7 +10,7 @@ describe('EmbeddingPolicyService', () => {
     let databaseService: DatabaseService;
 
     const mockDatabaseService = {
-        query: vi.fn(),
+        query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
     };
 
     beforeEach(async () => {
@@ -26,6 +26,9 @@ describe('EmbeddingPolicyService', () => {
 
         service = module.get<EmbeddingPolicyService>(EmbeddingPolicyService);
         databaseService = module.get<DatabaseService>(DatabaseService);
+
+        // WORKAROUND: Manually assign the mock to fix DI issue
+        (service as any).db = mockDatabaseService;
 
         // Reset mocks
         vi.clearAllMocks();

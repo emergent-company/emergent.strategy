@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS kb.notifications (
     organization_id UUID,
     project_id UUID,
     -- Recipient
-    user_id UUID NOT NULL REFERENCES kb.users(id) ON DELETE CASCADE,
+    subject_id UUID NOT NULL REFERENCES core.user_profiles(subject_id) ON DELETE CASCADE,
     -- Notification classification
     category TEXT NOT NULL,
     -- 'import.completed', 'extraction.failed', etc.
@@ -43,13 +43,13 @@ CREATE TABLE IF NOT EXISTS kb.notifications (
 );
 
 -- Performance indexes
-CREATE INDEX IF NOT EXISTS idx_notifications_user ON kb.notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON kb.notifications(subject_id, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_notifications_unread ON kb.notifications(user_id)
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON kb.notifications(subject_id)
 WHERE
     read_at IS NULL;
 
-CREATE INDEX IF NOT EXISTS idx_notifications_important ON kb.notifications(user_id, importance)
+CREATE INDEX IF NOT EXISTS idx_notifications_important ON kb.notifications(subject_id, importance)
 WHERE
     cleared_at IS NULL;
 
@@ -59,18 +59,18 @@ WHERE
 
 CREATE INDEX IF NOT EXISTS idx_notifications_group ON kb.notifications(group_key, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_notifications_cleared ON kb.notifications(user_id, cleared_at)
+CREATE INDEX IF NOT EXISTS idx_notifications_cleared ON kb.notifications(subject_id, cleared_at)
 WHERE
     cleared_at IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_notifications_category ON kb.notifications(user_id, category);
+CREATE INDEX IF NOT EXISTS idx_notifications_category ON kb.notifications(subject_id, category);
 
 -- =====================================================
 -- User Notification Preferences Table
 -- =====================================================
 CREATE TABLE IF NOT EXISTS kb.user_notification_preferences (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES kb.users(id) ON DELETE CASCADE,
+    subject_id UUID NOT NULL REFERENCES core.user_profiles(subject_id) ON DELETE CASCADE,
     -- Category-specific preferences
     category TEXT NOT NULL,
     -- 'import', 'extraction', 'mention', etc.
@@ -88,10 +88,10 @@ CREATE TABLE IF NOT EXISTS kb.user_notification_preferences (
     -- Auto-clear after X days
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE(user_id, category)
+    UNIQUE(subject_id, category)
 );
 
-CREATE INDEX IF NOT EXISTS idx_notif_prefs_user ON kb.user_notification_preferences(user_id);
+CREATE INDEX IF NOT EXISTS idx_notif_prefs_user ON kb.user_notification_preferences(subject_id);
 
 -- =====================================================
 -- Cleanup Function

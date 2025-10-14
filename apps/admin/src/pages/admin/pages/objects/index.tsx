@@ -52,7 +52,7 @@ export default function ObjectsPage() {
                     items: GraphObjectResponse[];
                     total: number;
                     limit: number;
-                }>(`${apiBase}/graph/objects/fts?${params}`);
+                }>(`${apiBase}/api/graph/objects/fts?${params}`);
 
                 // Transform API response to component format
                 const transformedObjects: GraphObject[] = response.items.map(obj => ({
@@ -78,7 +78,7 @@ export default function ObjectsPage() {
                 const response = await fetchJson<{
                     items: GraphObjectResponse[];
                     next_cursor?: string;
-                }>(`${apiBase}/graph/objects/search?${params}`);
+                }>(`${apiBase}/api/graph/objects/search?${params}`);
 
                 // Transform API response to component format
                 const transformedObjects: GraphObject[] = response.items.map(obj => ({
@@ -106,7 +106,7 @@ export default function ObjectsPage() {
 
         try {
             const types = await fetchJson<Array<{ type: string; source: string }>>(
-                `${apiBase}/type-registry/projects/${config.activeProjectId}`
+                `${apiBase}/api/type-registry/projects/${config.activeProjectId}`
             );
             // Extract unique type names
             const typeNames = [...new Set(types.map(t => t.type))];
@@ -143,7 +143,7 @@ export default function ObjectsPage() {
         }
 
         try {
-            await fetchJson(`${apiBase}/graph/objects/${objectId}`, {
+            await fetchJson(`${apiBase}/api/graph/objects/${objectId}`, {
                 method: 'DELETE',
             });
 
@@ -171,7 +171,7 @@ export default function ObjectsPage() {
             // Delete in parallel
             await Promise.all(
                 selectedIds.map(id =>
-                    fetchJson(`${apiBase}/graph/objects/${id}`, {
+                    fetchJson(`${apiBase}/api/graph/objects/${id}`, {
                         method: 'DELETE',
                     })
                 )
@@ -211,7 +211,7 @@ export default function ObjectsPage() {
     }
 
     return (
-        <div className="mx-auto p-6 max-w-7xl container">
+        <div data-testid="page-objects" className="mx-auto p-6 max-w-7xl container">
             {/* Header */}
             <div className="mb-6">
                 <h1 className="font-bold text-2xl">Objects</h1>

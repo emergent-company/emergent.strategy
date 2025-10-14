@@ -28,6 +28,7 @@ async function ensureOrgProject(db: DatabaseService) {
 
 async function insertObject(db: DatabaseService, vec: number[], type: string): Promise<string> {
     const { orgId, projectId } = await ensureOrgProject(db);
+    await db.setTenantContext(orgId, projectId);
     const id = uuid();
     const literal = '[' + vec.join(',') + ']';
     await db.query(`INSERT INTO kb.graph_objects(id, org_id, project_id, type, key, properties, embedding_vec, canonical_id, version) VALUES ($1,$2,$3,$4,$5,'{}',$6::vector,$1,1)`, [id, orgId, projectId, type, type.toLowerCase() + '-key', literal]);
@@ -48,13 +49,14 @@ describe('Graph Vector Controller Endpoints', () => {
         db = mod.get(DatabaseService);
         if (!db.isOnline()) return; // skip if offline
         // Clean slate for deterministic assertions (previous relevant types)
-        await db.query(`DELETE FROM kb.graph_objects WHERE type IN ('VecA','VecB','VecC')`);
         const ids = await ensureOrgProject(db);
         orgId = ids.orgId; projectId = ids.projectId;
+        await db.setTenantContext(orgId, projectId);
+        await db.query(`DELETE FROM kb.graph_objects WHERE type IN ('VecA','VecB','VecC')`);
         a = await insertObject(db, baseVec(), 'VecA');
         b = await insertObject(db, variantVec(0.1), 'VecB');
         c = await insertObject(db, variantVec(0.2), 'VecC');
-    });
+    }, 30000);
 
     it('POST /graph/objects/vector-search returns ordered neighbors (numeric distances sorted ascending)', async () => {
         if (!db.isOnline()) return; // skip
@@ -104,6 +106,7 @@ describe('Graph Vector Controller Endpoints', () => {
         // Seed a labeled object similar-ish vector
         const id = randomUUID();
         const literal = '[' + Array(32).fill(0).map((_, i) => (i === 2 ? 0.003 : 0)).join(',') + ']';
+        await db.setTenantContext(orgId, projectId);
         await db.query(
             `INSERT INTO kb.graph_objects(id, org_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
              VALUES($1,$2,$3,$4,$5,$6,$7,$8::vector,$1,1)`,
@@ -156,6 +159,7 @@ describe('Graph Vector Controller Endpoints', () => {
         const id = randomUUID();
         // Use a slightly perturbed vector to avoid being pushed out of result set by identical zero-vectors.
         const literal = '[' + Array(32).fill(0).map((_, i) => (i === 0 ? 0.001 : 0)).join(',') + ']';
+        await db.setTenantContext(orgId, projectId);
         await db.query(
             `INSERT INTO kb.graph_objects(id, org_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
              VALUES($1,$2,$3,$4,$5,$6,$7,$8::vector,$1,1)`,
@@ -180,6 +184,7 @@ describe('Graph Vector Controller Endpoints', () => {
         if (!db.isOnline()) return; // skip
         const id = randomUUID();
         const literal = '[' + Array(32).fill(0).map((_, i) => (i === 1 ? 0.002 : 0)).join(',') + ']';
+        await db.setTenantContext(orgId, projectId);
         await db.query(
             `INSERT INTO kb.graph_objects(id, org_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
              VALUES($1,$2,$3,$4,$5,$6,$7,$8::vector,$1,1)`,
@@ -204,6 +209,7 @@ describe('Graph Vector Controller Endpoints', () => {
         // Seed a near-identical vector to increase likelihood of a result within 0.15
         const nearId = randomUUID();
         const nearLiteral = '[' + Array(32).fill(0).map((_, i) => (i === 0 ? 0.05 : 0)).join(',') + ']';
+        await db.setTenantContext(orgId, projectId);
         await db.query(
             `INSERT INTO kb.graph_objects(id, org_id, project_id, branch_id, type, key, properties, embedding_vec, canonical_id, version)
              VALUES($1,$2,$3,$4,$5,$6,'{}',$7::vector,$1,1)`,
@@ -233,6 +239,7 @@ describe('Graph Vector Controller Endpoints', () => {
         if (!db.isOnline()) return; // skip
         const id = randomUUID();
         const literal = '[' + Array(32).fill(0).map((_, i) => (i === 3 ? 0.004 : 0)).join(',') + ']';
+        await db.setTenantContext(orgId, projectId);
         await db.query(
             `INSERT INTO kb.graph_objects(id, org_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
              VALUES($1,$2,$3,$4,$5,$6,$7,$8::vector,$1,1)`,

@@ -161,26 +161,30 @@ export class RateLimiterService {
 
         // Refill request bucket (RPM)
         const requestElapsedMs = now - this.lastRequestRefill;
-        const requestRefillAmount = (requestElapsedMs / 60000) * this.maxRequestTokens;
+        const requestTokensPerMs = this.maxRequestTokens > 0 ? this.maxRequestTokens / 60000 : 0;
+        const requestRefillTokens = requestTokensPerMs > 0 ? Math.floor(requestElapsedMs * requestTokensPerMs) : 0;
 
-        if (requestRefillAmount >= 1) {
+        if (requestRefillTokens >= 1) {
             this.requestTokens = Math.min(
-                this.requestTokens + requestRefillAmount,
+                this.requestTokens + requestRefillTokens,
                 this.maxRequestTokens
             );
-            this.lastRequestRefill = now;
+            const consumedMs = requestTokensPerMs > 0 ? requestRefillTokens / requestTokensPerMs : 0;
+            this.lastRequestRefill = Math.min(now, this.lastRequestRefill + consumedMs);
         }
 
         // Refill LLM token bucket (TPM)
         const llmElapsedMs = now - this.lastLlmTokenRefill;
-        const llmRefillAmount = (llmElapsedMs / 60000) * this.maxLlmTokens;
+        const llmTokensPerMs = this.maxLlmTokens > 0 ? this.maxLlmTokens / 60000 : 0;
+        const llmRefillTokens = llmTokensPerMs > 0 ? Math.floor(llmElapsedMs * llmTokensPerMs) : 0;
 
-        if (llmRefillAmount >= 1) {
+        if (llmRefillTokens >= 1) {
             this.llmTokens = Math.min(
-                this.llmTokens + llmRefillAmount,
+                this.llmTokens + llmRefillTokens,
                 this.maxLlmTokens
             );
-            this.lastLlmTokenRefill = now;
+            const consumedMs = llmTokensPerMs > 0 ? llmRefillTokens / llmTokensPerMs : 0;
+            this.lastLlmTokenRefill = Math.min(now, this.lastLlmTokenRefill + consumedMs);
         }
     }
 

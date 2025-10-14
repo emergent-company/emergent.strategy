@@ -143,7 +143,7 @@ export default function IntegrationsPage() {
 
     return (
         <OrgAndProjectGate>
-            <div className="flex flex-col gap-6">
+            <div data-testid="page-integrations" className="flex flex-col gap-6">
                 {/* Page Header */}
                 <div className="flex justify-between items-center">
                     <div>
@@ -192,6 +192,7 @@ export default function IntegrationsPage() {
                                     onToggle={configured ? () => handleToggle(configured) : undefined}
                                     onDelete={configured ? () => handleDelete(configured) : undefined}
                                     onSync={configured ? () => handleSync(integration) : undefined}
+                                    data-testid={integration.name === 'clickup' ? 'integration-card-clickup' : undefined}
                                 />
                             );
                         })}
@@ -224,6 +225,7 @@ export default function IntegrationsPage() {
                         client={integrationsClient}
                         orgId={config.activeOrgId}
                         projectId={config.activeProjectId}
+                        data-testid={selectedIntegration.name === 'clickup' ? 'clickup-config-modal' : undefined}
                     />
                 )}
 
