@@ -1,4 +1,5 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import type { QueryResultRow } from 'pg';
 import { DatabaseService } from '../../common/database/database.service';
 import { ChunkerService } from '../../common/utils/chunker.service';
 import { HashService } from '../../common/utils/hash.service';
@@ -165,184 +166,225 @@ export class IngestionService {
             }
         }
         const tenantOrgId = derivedOrg || orgId || null;
+        const chunks = this.chunker.chunk(text);
+        let vectors: number[][] = [];
+        if (this.config.embeddingsEnabled) {
+            try {
+                vectors = await this.embeddings.embedDocuments(chunks);
+            } catch (e) {
+                this.logger.warn(`Embedding generation failed, proceeding with NULL embeddings: ${(e as Error).message}`);
+                vectors = [];
+            }
+        }
+
         return this.withTenantContext(tenantOrgId, projectId, async () => {
+            type ClientType = Awaited<ReturnType<DatabaseService['getClient']>>;
+            const getClientCandidate = (this.db as DatabaseService & { getClient?: () => Promise<ClientType> }).getClient;
+            const client: ClientType | null = typeof getClientCandidate === 'function' ? await getClientCandidate.call(this.db) : null;
+            const query = <T extends QueryResultRow = QueryResultRow>(sql: string, params?: any[]) => client ? client.query<T>(sql, params) : this.db.query<T>(sql, params);
             let documentId: string | undefined;
-            if (this.hasContentHashColumn) {
-                const hash = this.hash.sha256(text);
-                // Project-scoped unique index ensures race-safe upsert semantics.
-                const existing = await this.db.query<{ id: string }>(
-                    'SELECT id FROM kb.documents WHERE project_id = $1 AND content_hash = $2 LIMIT 1',
-                    [projectId, hash],
-                );
-                if (existing.rowCount) {
-                    return { documentId: existing.rows[0].id, chunks: 0, alreadyExists: true };
+            let transactionActive = false;
+            try {
+                if (client) {
+                    await client.query('BEGIN');
+                    transactionActive = true;
                 }
-                try {
-                    // Atomic existence + insert to avoid FK race (project may be deleted concurrently)
-                    const insertDoc = await this.db.query<{ id: string }>(
+
+                if (this.hasContentHashColumn) {
+                    const hash = this.hash.sha256(text);
+                    const existing = await query<{ id: string }>(
+                        'SELECT id FROM kb.documents WHERE project_id = $1 AND content_hash = $2 LIMIT 1',
+                        [projectId, hash],
+                    );
+                    if (existing.rowCount) {
+                        if (transactionActive && client) {
+                            await client.query('ROLLBACK');
+                            transactionActive = false;
+                        }
+                        return { documentId: existing.rows[0].id, chunks: 0, alreadyExists: true };
+                    }
+                    try {
+                        const insertDoc = await query<{ id: string }>(
+                            `WITH target AS (
+                                SELECT p.id AS project_id, $1::uuid AS org_id
+                                FROM kb.projects p
+                                WHERE p.id = $2
+                                LIMIT 1
+                            )
+                            INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content, content_hash)
+                            SELECT target.org_id, target.project_id, $3, $4, $5, $6, $7 FROM target
+                            RETURNING id`,
+                            [tenantOrgId, projectId, sourceUrl || null, filename || null, mimeType || 'text/plain', text, hash],
+                        );
+                        if (!insertDoc.rowCount) {
+                            throw new BadRequestException({ error: { code: 'project-not-found', message: 'Project not found (ingestion)' } });
+                        }
+                        documentId = insertDoc.rows[0]?.id;
+                    } catch (e: any) {
+                        if (e?.code === '23505') {
+                            this.metrics.uniqueViolationRaces++;
+                            const again = await query<{ id: string }>('SELECT id FROM kb.documents WHERE project_id = $1 AND content_hash = $2 LIMIT 1', [projectId, hash]);
+                            if (again.rowCount) {
+                                if (transactionActive && client) {
+                                    await client.query('ROLLBACK');
+                                    transactionActive = false;
+                                }
+                                return { documentId: again.rows[0].id, chunks: 0, alreadyExists: true };
+                            }
+                            throw e;
+                        }
+                        if (e?.code === '42703') {
+                            this.hasContentHashColumn = false;
+                            this.metrics.contentHashMissing++;
+                        } else {
+                            throw e;
+                        }
+                    }
+                }
+                if (!documentId) {
+                    const existingByContent = await query<{ id: string }>('SELECT id FROM kb.documents WHERE project_id = $1 AND content = $2 LIMIT 1', [projectId, text]);
+                    if (existingByContent.rowCount) {
+                        if (transactionActive && client) {
+                            await client.query('ROLLBACK');
+                            transactionActive = false;
+                        }
+                        return { documentId: existingByContent.rows[0].id, chunks: 0, alreadyExists: true };
+                    }
+                    const insertDoc = await query<{ id: string }>(
                         `WITH target AS (
                             SELECT p.id AS project_id, $1::uuid AS org_id
                             FROM kb.projects p
                             WHERE p.id = $2
                             LIMIT 1
                         )
-                        INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content, content_hash)
-                        SELECT target.org_id, target.project_id, $3, $4, $5, $6, $7 FROM target
+                        INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content)
+                        SELECT target.org_id, target.project_id, $3, $4, $5, $6 FROM target
                         RETURNING id`,
-                        [tenantOrgId, projectId, sourceUrl || null, filename || null, mimeType || 'text/plain', text, hash],
+                        [tenantOrgId, projectId, sourceUrl || null, filename || null, mimeType || 'text/plain', text],
                     );
                     if (!insertDoc.rowCount) {
                         throw new BadRequestException({ error: { code: 'project-not-found', message: 'Project not found (ingestion)' } });
                     }
                     documentId = insertDoc.rows[0]?.id;
-                } catch (e: any) {
-                    if (e?.code === '23505') { // unique violation -> doc already ingested concurrently
-                        this.metrics.uniqueViolationRaces++;
-                        const again = await this.db.query<{ id: string }>('SELECT id FROM kb.documents WHERE project_id = $1 AND content_hash = $2 LIMIT 1', [projectId, hash]);
-                        if (again.rowCount) return { documentId: again.rows[0].id, chunks: 0, alreadyExists: true };
-                        throw e;
-                    }
-                    if (e?.code === '42703') { // column appeared missing mid-flight (unexpected)
-                        this.hasContentHashColumn = false; // downgrade and retry equality path
-                        this.metrics.contentHashMissing++;
-                    } else {
-                        throw e;
-                    }
                 }
-            }
-            if (!documentId) {
-                // Fallback: content equality (legacy schema path)
-                const existingByContent = await this.db.query<{ id: string }>('SELECT id FROM kb.documents WHERE project_id = $1 AND content = $2 LIMIT 1', [projectId, text]);
-                if (existingByContent.rowCount) return { documentId: existingByContent.rows[0].id, chunks: 0, alreadyExists: true };
-                const insertDoc = await this.db.query<{ id: string }>(
-                    `WITH target AS (
-                        SELECT p.id AS project_id, $1::uuid AS org_id
-                        FROM kb.projects p
-                        WHERE p.id = $2
-                        LIMIT 1
-                    )
-                    INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content)
-                    SELECT target.org_id, target.project_id, $3, $4, $5, $6 FROM target
-                    RETURNING id`,
-                    [tenantOrgId, projectId, sourceUrl || null, filename || null, mimeType || 'text/plain', text],
-                );
-                if (!insertDoc.rowCount) {
-                    throw new BadRequestException({ error: { code: 'project-not-found', message: 'Project not found (ingestion)' } });
+                if (!documentId) {
+                    throw new BadRequestException({ error: { code: 'document-insert-failed', message: 'Failed to insert document (database offline or schema mismatch)' } });
                 }
-                documentId = insertDoc.rows[0]?.id;
-            }
-            if (!documentId) {
-                // If DB offline or insert failed silently, return graceful error
-                throw new BadRequestException({ error: { code: 'document-insert-failed', message: 'Failed to insert document (database offline or schema mismatch)' } });
-            }
-            // documentId already set above within insert branches
-            const chunks = this.chunker.chunk(text);
-            let vectors: number[][] = [];
-            if (this.config.embeddingsEnabled) {
-                try {
-                    vectors = await this.embeddings.embedDocuments(chunks);
-                } catch (e) {
-                    this.logger.warn(`Embedding generation failed, proceeding with NULL embeddings: ${(e as Error).message}`);
-                    vectors = [];
-                }
-            }
-            let hasEmbeddingColumn: boolean | undefined;
-            let hasChunkUpsertConstraint = true; // (document_id, chunk_index) unique key
-            for (let i = 0; i < chunks.length; i++) {
-                const vec = vectors[i];
-                const vecLiteral = vec ? '[' + vec.map(n => (Number.isFinite(n) ? String(n) : '0')).join(',') + ']' : null;
-                if (hasEmbeddingColumn === false) {
-                    if (hasChunkUpsertConstraint) {
-                        try {
-                            await this.db.query(
-                                `INSERT INTO kb.chunks(document_id, chunk_index, text)
-                                 VALUES ($1,$2,$3)
-                                 ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text`,
-                                [documentId, i, chunks[i]],
-                            );
-                        } catch (e) {
-                            if ((e as any)?.code === '42P10') { // no inferable unique index
-                                hasChunkUpsertConstraint = false;
-                                await this.db.query(
-                                    `INSERT INTO kb.chunks(document_id, chunk_index, text)
-                                     VALUES ($1,$2,$3)`,
-                                    [documentId, i, chunks[i]],
-                                );
-                            } else throw e;
-                        }
-                    } else {
-                        await this.db.query(
-                            `INSERT INTO kb.chunks(document_id, chunk_index, text)
-                             VALUES ($1,$2,$3)`,
-                            [documentId, i, chunks[i]],
-                        );
-                    }
-                    continue;
-                }
-                try {
-                    if (hasChunkUpsertConstraint) {
-                        await this.db.query(
-                            `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
-                             VALUES ($1,$2,$3,${vecLiteral ? '$4::vector' : 'NULL'})
-                             ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text, embedding = EXCLUDED.embedding`,
-                            vecLiteral ? [documentId, i, chunks[i], vecLiteral] : [documentId, i, chunks[i]],
-                        );
-                    } else {
-                        await this.db.query(
-                            `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
-                             VALUES ($1,$2,$3,${vecLiteral ? '$4::vector' : 'NULL'})`,
-                            vecLiteral ? [documentId, i, chunks[i], vecLiteral] : [documentId, i, chunks[i]],
-                        );
-                    }
-                    hasEmbeddingColumn = true;
-                } catch (e) {
-                    if ((e as any)?.code === '42703') { // embedding column missing; fallback
-                        this.metrics.embeddingColumnMissing++;
-                        if (process.env.E2E_DEBUG_VERBOSE === 'true') {
-                            this.logger.warn('kb.chunks.embedding column missing; continuing without embeddings');
-                        }
-                        hasEmbeddingColumn = false;
+
+                let hasEmbeddingColumn: boolean | undefined;
+                let hasChunkUpsertConstraint = true;
+                for (let i = 0; i < chunks.length; i++) {
+                    const vec = vectors[i];
+                    const vecLiteral = vec ? '[' + vec.map(n => (Number.isFinite(n) ? String(n) : '0')).join(',') + ']' : null;
+                    if (hasEmbeddingColumn === false) {
                         if (hasChunkUpsertConstraint) {
                             try {
-                                await this.db.query(
+                                await query(
                                     `INSERT INTO kb.chunks(document_id, chunk_index, text)
                                      VALUES ($1,$2,$3)
                                      ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text`,
                                     [documentId, i, chunks[i]],
                                 );
-                            } catch (e2) {
-                                if ((e2 as any)?.code === '42P10') {
+                            } catch (e) {
+                                if ((e as any)?.code === '42P10') {
                                     hasChunkUpsertConstraint = false;
-                                    await this.db.query(
+                                    await query(
                                         `INSERT INTO kb.chunks(document_id, chunk_index, text)
                                          VALUES ($1,$2,$3)`,
                                         [documentId, i, chunks[i]],
                                     );
-                                } else throw e2;
+                                } else throw e;
                             }
                         } else {
-                            await this.db.query(
+                            await query(
                                 `INSERT INTO kb.chunks(document_id, chunk_index, text)
                                  VALUES ($1,$2,$3)`,
                                 [documentId, i, chunks[i]],
                             );
                         }
-                    } else if ((e as any)?.code === '42P10') { // missing unique constraint
-                        hasChunkUpsertConstraint = false;
-                        // Retry without ON CONFLICT
-                        await this.db.query(
-                            `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
-                             VALUES ($1,$2,$3,${vecLiteral ? '$4::vector' : 'NULL'})`,
-                            vecLiteral ? [documentId, i, chunks[i], vecLiteral] : [documentId, i, chunks[i]],
-                        );
-                    } else {
-                        throw e;
+                        continue;
                     }
+                    try {
+                        if (hasChunkUpsertConstraint) {
+                            await query(
+                                `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
+                                 VALUES ($1,$2,$3,${vecLiteral ? '$4::vector' : 'NULL'})
+                                 ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text, embedding = EXCLUDED.embedding`,
+                                vecLiteral ? [documentId, i, chunks[i], vecLiteral] : [documentId, i, chunks[i]],
+                            );
+                        } else {
+                            await query(
+                                `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
+                                 VALUES ($1,$2,$3,${vecLiteral ? '$4::vector' : 'NULL'})`,
+                                vecLiteral ? [documentId, i, chunks[i], vecLiteral] : [documentId, i, chunks[i]],
+                            );
+                        }
+                        hasEmbeddingColumn = true;
+                    } catch (e) {
+                        if ((e as any)?.code === '42703') {
+                            this.metrics.embeddingColumnMissing++;
+                            if (process.env.E2E_DEBUG_VERBOSE === 'true') {
+                                this.logger.warn('kb.chunks.embedding column missing; continuing without embeddings');
+                            }
+                            hasEmbeddingColumn = false;
+                            if (hasChunkUpsertConstraint) {
+                                try {
+                                    await query(
+                                        `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                         VALUES ($1,$2,$3)
+                                         ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text`,
+                                        [documentId, i, chunks[i]],
+                                    );
+                                } catch (e2) {
+                                    if ((e2 as any)?.code === '42P10') {
+                                        hasChunkUpsertConstraint = false;
+                                        await query(
+                                            `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                             VALUES ($1,$2,$3)`,
+                                            [documentId, i, chunks[i]],
+                                        );
+                                    } else throw e2;
+                                }
+                            } else {
+                                await query(
+                                    `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                     VALUES ($1,$2,$3)`,
+                                    [documentId, i, chunks[i]],
+                                );
+                            }
+                        } else if ((e as any)?.code === '42P10') {
+                            hasChunkUpsertConstraint = false;
+                            await query(
+                                `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
+                                 VALUES ($1,$2,$3,${vecLiteral ? '$4::vector' : 'NULL'})`,
+                                vecLiteral ? [documentId, i, chunks[i], vecLiteral] : [documentId, i, chunks[i]],
+                            );
+                        } else {
+                            throw e;
+                        }
+                    }
+                }
+
+                if (transactionActive && client) {
+                    await client.query('COMMIT');
+                    transactionActive = false;
+                }
+            } catch (error) {
+                if (transactionActive) {
+                    try {
+                        if (client) {
+                            await client.query('ROLLBACK');
+                        }
+                    } catch { /* ignore */ }
+                    transactionActive = false;
+                }
+                throw error;
+            } finally {
+                if (client) {
+                    client.release();
                 }
             }
 
-            // Check if auto-extraction is enabled and create extraction job
-            // Note: We only reach this point for new documents (not alreadyExists)
             let extractionJobId: string | undefined;
             const autoExtractSettings = await this.shouldAutoExtract(projectId);
 
@@ -355,7 +397,7 @@ export class IngestionService {
                         organization_id: organizationId,
                         project_id: projectId,
                         source_type: ExtractionSourceType.DOCUMENT,
-                        source_id: documentId,
+                        source_id: documentId!,
                         source_metadata: {
                             filename: filename || null,
                             source_url: sourceUrl || null,
@@ -364,7 +406,6 @@ export class IngestionService {
                         },
                         extraction_config: {
                             ...autoExtractSettings.config,
-                            // Merge project config with any overrides
                             enabled_types: autoExtractSettings.config.enabled_types || null,
                             min_confidence: autoExtractSettings.config.min_confidence || 0.7,
                             require_review: autoExtractSettings.config.require_review || false,
@@ -374,7 +415,6 @@ export class IngestionService {
                     extractionJobId = extractionJob.id;
                     this.logger.log(`Created extraction job ${extractionJobId} for document ${documentId}`);
                 } catch (e) {
-                    // Log error but don't fail ingestion if extraction job creation fails
                     this.logger.error(
                         `Failed to create auto-extraction job for document ${documentId}: ${(e as Error).message}`,
                         (e as Error).stack
@@ -383,10 +423,10 @@ export class IngestionService {
             }
 
             return {
-                documentId,
+                documentId: documentId!,
                 chunks: chunks.length,
                 alreadyExists: false,
-                extractionJobId
+                extractionJobId,
             };
         });
     }
