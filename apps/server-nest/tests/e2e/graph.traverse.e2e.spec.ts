@@ -10,7 +10,11 @@ import { authHeader } from './auth-helpers';
 describe('Graph Traversal (E2E)', () => {
     let ctx: Awaited<ReturnType<typeof createE2EContext>>;
     let request: supertest.SuperTest<supertest.Test>;
-    const headers = () => authHeader('default');
+    const contextHeaders = () => ({
+        ...authHeader('default'),
+        'x-org-id': ctx.orgId,
+        'x-project-id': ctx.projectId,
+    });
 
     beforeAll(async () => {
         ctx = await createE2EContext('graph-traverse');
@@ -24,7 +28,7 @@ describe('Graph Traversal (E2E)', () => {
     async function createObj(type: string, key: string, labels: string[] = []): Promise<any> {
         const res = await request
             .post('/graph/objects')
-            .set(headers())
+            .set(contextHeaders())
             .send({ type, key, properties: {}, labels, org_id: ctx.orgId, project_id: ctx.projectId })
             .expect(201);
         return res.body;
@@ -33,7 +37,7 @@ describe('Graph Traversal (E2E)', () => {
     async function relate(type: string, src: string, dst: string): Promise<any> {
         const res = await request
             .post('/graph/relationships')
-            .set(headers())
+            .set(contextHeaders())
             .send({ type, src_id: src, dst_id: dst, properties: {}, org_id: ctx.orgId, project_id: ctx.projectId })
             .expect(201);
         return res.body;
@@ -53,7 +57,7 @@ describe('Graph Traversal (E2E)', () => {
 
         const res = await request
             .post('/graph/traverse')
-            .set(headers())
+            .set(contextHeaders())
             .send({ root_ids: [A.id], max_depth: 2 })
             .expect(200);
 
@@ -77,7 +81,7 @@ describe('Graph Traversal (E2E)', () => {
 
         const res = await request
             .post('/graph/traverse')
-            .set(headers())
+            .set(contextHeaders())
             .send({ root_ids: [R1.id], relationship_types: ['runs'], object_types: ['Device', 'Software'], labels: ['alpha'] })
             .expect(200);
 
@@ -103,7 +107,7 @@ describe('Graph Traversal (E2E)', () => {
         }
         const res = await request
             .post('/graph/traverse')
-            .set(headers())
+            .set(contextHeaders())
             .send({ root_ids: [center.id], max_nodes: 5 })
             .expect(200);
         expect(res.body.truncated).toBe(true);
@@ -121,7 +125,7 @@ describe('Graph Traversal (E2E)', () => {
         // Outbound from X only sees Y
         const outRes = await request
             .post('/graph/traverse')
-            .set(headers())
+            .set(contextHeaders())
             .send({ root_ids: [X.id], direction: 'out', max_depth: 1 })
             .expect(200);
         const outIds = outRes.body.nodes.map((n: any) => n.id);
@@ -132,7 +136,7 @@ describe('Graph Traversal (E2E)', () => {
         // Inbound from X only sees Z
         const inRes = await request
             .post('/graph/traverse')
-            .set(headers())
+            .set(contextHeaders())
             .send({ root_ids: [X.id], direction: 'in', max_depth: 1 })
             .expect(200);
         const inIds = inRes.body.nodes.map((n: any) => n.id);
@@ -143,7 +147,7 @@ describe('Graph Traversal (E2E)', () => {
         // Both sees Z and Y
         const bothRes = await request
             .post('/graph/traverse')
-            .set(headers())
+            .set(contextHeaders())
             .send({ root_ids: [X.id], direction: 'both', max_depth: 1 })
             .expect(200);
         const bothIds = bothRes.body.nodes.map((n: any) => n.id);
@@ -162,7 +166,7 @@ describe('Graph Traversal (E2E)', () => {
 
         const res = await request
             .post('/graph/traverse')
-            .set(headers())
+            .set(contextHeaders())
             .send({ root_ids: [A.id, B.id], direction: 'out', max_depth: 1 })
             .expect(200);
         const ids: string[] = res.body.nodes.map((n: any) => n.id);

@@ -26,7 +26,11 @@ describe('Graph Soft Delete (E2E)', () => {
     let ctx: Awaited<ReturnType<typeof createE2EContext>>;
     let request: supertest.SuperTest<supertest.Test>;
     // Use standard 'default' scope variant; differentiate user via suffix passed to createE2EContext
-    const headers = () => authHeader('default');
+    const contextHeaders = () => ({
+        ...authHeader('default'),
+        'x-org-id': ctx.orgId,
+        'x-project-id': ctx.projectId,
+    });
 
     beforeAll(async () => {
         ctx = await createE2EContext('graph-soft-delete');
@@ -39,63 +43,63 @@ describe('Graph Soft Delete (E2E)', () => {
     });
 
     test('object delete -> excluded from search & restore reappears', async () => {
-        const obj = await createObject(request, headers(), ctx, { labels: ['alpha'] });
+        const obj = await createObject(request, contextHeaders(), ctx, { labels: ['alpha'] });
 
-        const search1 = await request.get('/graph/objects/search?label=alpha').set(headers()).expect(200);
+        const search1 = await request.get('/graph/objects/search?label=alpha').set(contextHeaders()).expect(200);
         expect(search1.body.items.find((o: any) => o.id === obj.id)).toBeTruthy();
 
-        const del = await request.delete(`/graph/objects/${obj.id}`).set(headers()).expect(200);
+        const del = await request.delete(`/graph/objects/${obj.id}`).set(contextHeaders()).expect(200);
         expect(del.body.deleted_at).toBeTruthy();
 
-        const search2 = await request.get('/graph/objects/search?label=alpha').set(headers()).expect(200);
+        const search2 = await request.get('/graph/objects/search?label=alpha').set(contextHeaders()).expect(200);
         expect(search2.body.items.find((o: any) => o.id === obj.id)).toBeFalsy();
 
-        const hist1 = await request.get(`/graph/objects/${obj.id}/history`).set(headers()).expect(200);
+        const hist1 = await request.get(`/graph/objects/${obj.id}/history`).set(contextHeaders()).expect(200);
         expect(hist1.body.items[0].deleted_at).toBeTruthy();
 
-        const restored = await request.post(`/graph/objects/${del.body.id}/restore`).set(headers()).expect(201); // restore returns new head
+        const restored = await request.post(`/graph/objects/${del.body.id}/restore`).set(contextHeaders()).expect(201); // restore returns new head
         expect(restored.body.deleted_at).toBeFalsy();
         expect(restored.body.version).toBe(hist1.body.items[0].version + 1);
 
-        const search3 = await request.get('/graph/objects/search?label=alpha').set(headers()).expect(200);
+        const search3 = await request.get('/graph/objects/search?label=alpha').set(contextHeaders()).expect(200);
         expect(search3.body.items.find((o: any) => o.key === obj.key)).toBeTruthy();
 
-        const hist2 = await request.get(`/graph/objects/${obj.id}/history`).set(headers()).expect(200);
+        const hist2 = await request.get(`/graph/objects/${obj.id}/history`).set(contextHeaders()).expect(200);
         expect(hist2.body.items[0].deleted_at).toBeFalsy();
     });
 
     test('relationship delete -> excluded from edges & restore reappears', async () => {
-        const a = await createObject(request, headers(), ctx);
-        const b = await createObject(request, headers(), ctx);
-        const rel = await createRelationship(request, headers(), ctx, a.id, b.id);
+        const a = await createObject(request, contextHeaders(), ctx);
+        const b = await createObject(request, contextHeaders(), ctx);
+        const rel = await createRelationship(request, contextHeaders(), ctx, a.id, b.id);
 
-        const edges1 = await request.get(`/graph/objects/${a.id}/edges`).set(headers()).expect(200);
+        const edges1 = await request.get(`/graph/objects/${a.id}/edges`).set(contextHeaders()).expect(200);
         expect(edges1.body.find((r: any) => r.id === rel.id)).toBeTruthy();
 
-        const delRel = await request.delete(`/graph/relationships/${rel.id}`).set(headers()).expect(200);
+        const delRel = await request.delete(`/graph/relationships/${rel.id}`).set(contextHeaders()).expect(200);
         expect(delRel.body.deleted_at).toBeTruthy();
 
-        const edges2 = await request.get(`/graph/objects/${a.id}/edges`).set(headers()).expect(200);
+        const edges2 = await request.get(`/graph/objects/${a.id}/edges`).set(contextHeaders()).expect(200);
         expect(edges2.body.find((r: any) => r.id === rel.id)).toBeFalsy();
 
-        const restoredRel = await request.post(`/graph/relationships/${delRel.body.id}/restore`).set(headers()).expect(201);
+        const restoredRel = await request.post(`/graph/relationships/${delRel.body.id}/restore`).set(contextHeaders()).expect(201);
         expect(restoredRel.body.deleted_at).toBeFalsy();
         expect(restoredRel.body.version).toBe(delRel.body.version + 1);
 
-        const edges3 = await request.get(`/graph/objects/${a.id}/edges`).set(headers()).expect(200);
+        const edges3 = await request.get(`/graph/objects/${a.id}/edges`).set(contextHeaders()).expect(200);
         // New head relationship should match src/dst/type
         expect(edges3.body.find((r: any) => r.src_id === a.id && r.dst_id === b.id && r.type === rel.type)).toBeTruthy();
     });
 
     test('double delete & invalid restore errors', async () => {
-        const obj = await createObject(request, headers(), ctx);
-        await request.delete(`/graph/objects/${obj.id}`).set(headers()).expect(200);
-        await request.delete(`/graph/objects/${obj.id}`).set(headers()).expect(400); // second delete rejected
+        const obj = await createObject(request, contextHeaders(), ctx);
+        await request.delete(`/graph/objects/${obj.id}`).set(contextHeaders()).expect(200);
+        await request.delete(`/graph/objects/${obj.id}`).set(contextHeaders()).expect(400); // second delete rejected
 
-        const hist = await request.get(`/graph/objects/${obj.id}/history`).set(headers()).expect(200);
+        const hist = await request.get(`/graph/objects/${obj.id}/history`).set(contextHeaders()).expect(200);
         const tombstoneId = hist.body.items[0].id; // current head (deleted)
-        const restored = await request.post(`/graph/objects/${tombstoneId}/restore`).set(headers()).expect(201);
+        const restored = await request.post(`/graph/objects/${tombstoneId}/restore`).set(contextHeaders()).expect(201);
         expect(restored.body.deleted_at).toBeFalsy();
-        await request.post(`/graph/objects/${tombstoneId}/restore`).set(headers()).expect(400); // cannot restore non-deleted head
+        await request.post(`/graph/objects/${tombstoneId}/restore`).set(contextHeaders()).expect(400); // cannot restore non-deleted head
     });
 });

@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, describe, test, expect } from 'vitest';
+import { beforeAll, afterAll, afterEach, describe, test, expect } from 'vitest';
 import supertest from 'supertest';
 import { createE2EContext } from './e2e-context';
 import { authHeader } from './auth-helpers';
@@ -15,7 +15,11 @@ import { authHeader } from './auth-helpers';
 describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
     let ctx: Awaited<ReturnType<typeof createE2EContext>>;
     let request: supertest.SuperTest<supertest.Test>;
-    const headers = () => authHeader('default');
+    const contextHeaders = () => ({
+        ...authHeader('default'),
+        'x-org-id': ctx.orgId,
+        'x-project-id': ctx.projectId,
+    });
 
     beforeAll(async () => {
         ctx = await createE2EContext('graph-traverse-advanced');
@@ -26,10 +30,16 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
         await ctx.close();
     });
 
+    afterEach(async () => {
+        if (ctx) {
+            await ctx.cleanupProjectArtifacts(ctx.projectId);
+        }
+    });
+
     async function createObj(type: string, key: string, properties: any = {}, labels: string[] = []): Promise<any> {
         const res = await request
             .post('/graph/objects')
-            .set(headers())
+            .set(contextHeaders())
             .send({ type, key, properties, labels, org_id: ctx.orgId, project_id: ctx.projectId })
             .expect(201);
         return res.body;
@@ -38,7 +48,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
     async function relate(type: string, src: string, dst: string, properties: any = {}): Promise<any> {
         const res = await request
             .post('/graph/relationships')
-            .set(headers())
+            .set(contextHeaders())
             .send({ type, src_id: src, dst_id: dst, properties, org_id: ctx.orgId, project_id: ctx.projectId })
             .expect(201);
         return res.body;
@@ -59,7 +69,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [req1.id],
                     edgePhases: [
@@ -98,7 +108,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [doc.id],
                     edgePhases: [
@@ -145,7 +155,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [b.id],
                     edgePhases: [
@@ -174,7 +184,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [nodes[0].id],
                     edgePhases: [
@@ -205,7 +215,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [active1.id, active2.id, inactive.id],
                     nodeFilter: {
@@ -232,7 +242,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [high.id, med.id, low.id],
                     nodeFilter: {
@@ -260,7 +270,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [tech.id, biz.id, sci.id, art.id],
                     nodeFilter: {
@@ -288,7 +298,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [js.id, py.id, ts.id],
                     nodeFilter: {
@@ -315,7 +325,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [email1.id, email2.id, email3.id],
                     nodeFilter: {
@@ -341,7 +351,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [withDesc.id, withoutDesc.id],
                     nodeFilter: {
@@ -370,7 +380,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [verified.id, unverified.id],
                     nodeFilter: {
@@ -400,7 +410,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [a.id],
                     edgeFilter: {
@@ -435,7 +445,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [high.id],
                     nodeFilter: {
@@ -473,7 +483,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [a.id],
                     returnPaths: true,
@@ -503,7 +513,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [a.id],
                     returnPaths: true,
@@ -539,7 +549,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [a.id],
                     returnPaths: true,
@@ -562,7 +572,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [a.id],
                     returnPaths: false,
@@ -588,7 +598,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [a.id],
                     returnPaths: true,
@@ -621,7 +631,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [a.id],
                     returnPaths: true,
@@ -667,7 +677,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [req1.id, req2.id],
                     edgePhases: [
@@ -711,7 +721,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [concept1.id],
                     returnPaths: true,
@@ -755,11 +765,11 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
 
             await relate('USES', service.id, db.id, { criticality: 'high' });
             await relate('USES', service.id, cache.id, { criticality: 'low' });
-            await relate('DEPENDS_ON', api.id, service.id, { criticality: 'high' });
+            await relate('DEPENDS_ON', api.id, db.id, { criticality: 'high' });
 
             const res = await request
                 .post('/graph/traverse')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     root_ids: [service.id],
                     edgePhases: [
@@ -781,7 +791,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
             expect(nodeIds).toContain(service.id);
             expect(nodeIds).toContain(db.id); // high criticality
             expect(nodeIds).not.toContain(cache.id); // low criticality filtered
-            expect(nodeIds).toContain(api.id); // high criticality incoming
+            expect(nodeIds).toContain(api.id); // high criticality dependent via database
         });
     });
 });

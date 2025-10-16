@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 const EXPECTED: Record<string, string[]> = {
     'delete /chat/{id}': ['chat:admin'],
     'delete /documents/{id}': ['documents:delete'],
+    'delete /integrations/{name}': ['integrations:write'],
     'delete /graph/embedding-policies/{id}': ['graph:write'],
     'delete /graph/objects/{id}': ['graph:write'],
     'delete /graph/relationships/{id}': ['graph:write'],
@@ -36,6 +37,11 @@ const EXPECTED: Record<string, string[]> = {
     'get /graph/relationships/search': ['graph:read'],
     'get /graph/relationships/{id}': ['graph:read'],
     'get /graph/relationships/{id}/history': ['graph:read'],
+    'get /integrations': ['integrations:read'],
+    'get /integrations/available': ['integrations:read'],
+    'get /integrations/clickup/structure': ['integrations:read'],
+    'get /integrations/{name}': ['integrations:read'],
+    'get /integrations/{name}/public': ['integrations:read'],
     'get /product-versions': ['graph:read'],
     'get /product-versions/{id}': ['graph:read'],
     'get /product-versions/{id}/diff/{otherId}': ['graph:read'],
@@ -72,6 +78,9 @@ const EXPECTED: Record<string, string[]> = {
     'post /graph/relationships/{id}/restore': ['graph:write'],
     'post /graph/search': ['graph:search:read'],
     'post /graph/traverse': ['graph:read'],
+    'post /integrations': ['integrations:write'],
+    'post /integrations/{name}/sync': ['integrations:write'],
+    'post /integrations/{name}/test': ['integrations:write'],
     'post /ingest/upload': ['documents:write'],
     'post /ingest/url': ['documents:write'],
     'post /invites': ['org:invite:create', 'project:invite:create'],
@@ -83,6 +92,7 @@ const EXPECTED: Record<string, string[]> = {
     'post /template-packs/projects/{projectId}/assign': ['graph:write'],
     'post /type-registry/projects/{projectId}/types': ['graph:write'],
     'post /type-registry/projects/{projectId}/validate': ['graph:read'],
+    'put /integrations/{name}': ['integrations:write'],
     'put /tags/{id}': ['graph:write'],
 };
 
