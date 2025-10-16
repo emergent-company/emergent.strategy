@@ -460,7 +460,7 @@ CREATE INDEX idx_embedding_policies_project ON kb.embedding_policies(project_id)
 
 ## Related Documentation
 
-- [Graph Phase 3 Roadmap](../../spec/GRAPH_PHASE3_ROADMAP.md) - Priority #2: Policy-Driven Selective Embedding
+- [Graph Phase 3 Roadmap](../../docs/spec/GRAPH_PHASE3_ROADMAP.md) - Priority #2: Policy-Driven Selective Embedding
 - [Embedding Jobs](./EMBEDDING_JOBS.md) - Queue system for processing embeddings
 - [Graph Objects API](./GRAPH_OBJECTS.md) - Object creation and management
 

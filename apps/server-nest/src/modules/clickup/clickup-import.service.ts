@@ -565,7 +565,7 @@ export class ClickUpImportService {
      * For now, this is a placeholder. In the full implementation,
      * this would call the graph service to create nodes and edges.
      * 
-     * Source Tracking (spec/22-clickup-integration.md section 3.3.1):
+    * Source Tracking (docs/spec/22-clickup-integration.md section 3.3.1):
      * - external_source: "clickup"
      * - external_id: ClickUp object ID
      * - external_url: Direct link to ClickUp

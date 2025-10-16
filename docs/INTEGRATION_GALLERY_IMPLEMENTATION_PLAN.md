@@ -2,7 +2,7 @@
 
 **Status**: Ready for Implementation  
 **Created**: 2025-10-05  
-**Specifications**: spec/22-clickup-integration.md, spec/23-integration-gallery.md
+**Specifications**: docs/spec/22-clickup-integration.md, docs/spec/23-integration-gallery.md
 
 ---
 
@@ -1529,8 +1529,8 @@ npm run openapi:generate
 ## 12. References
 
 - **ClickUp API Docs**: https://clickup.com/api/
-- **Spec 22**: `spec/22-clickup-integration.md`
-- **Spec 23**: `spec/23-integration-gallery.md`
+- **Spec 22**: `docs/spec/22-clickup-integration.md`
+- **Spec 23**: `docs/spec/23-integration-gallery.md`
 - **Existing Patterns**:
   - Extraction jobs: `apps/server-nest/src/modules/extraction-jobs/`
   - Auth guards: `apps/server-nest/src/modules/auth/`

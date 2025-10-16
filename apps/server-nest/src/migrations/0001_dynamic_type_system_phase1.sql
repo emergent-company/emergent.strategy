@@ -1,5 +1,5 @@
 -- Phase 1: Dynamic Type Discovery & Smart Ingestion - Foundation
--- Related: spec/24-dynamic-type-discovery-and-ingestion.md
+-- Related: docs/spec/24-dynamic-type-discovery-and-ingestion.md
 -- Description: Adds template packs, project type registry, extraction jobs, and type suggestions
 BEGIN;
 

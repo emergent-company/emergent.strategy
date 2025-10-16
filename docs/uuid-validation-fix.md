@@ -69,7 +69,7 @@ Breaking down the corrected UUID:
    - Reseeded with corrected UUID
 
 3. **Documentation:**
-   - Updated `spec/39-meeting-decision-template-pack-implementation.md` with correct UUID
+   - Updated `docs/spec/39-meeting-decision-template-pack-implementation.md` with correct UUID
 
 ## Validation
 
@@ -106,5 +106,5 @@ When generating UUIDs manually for seeds/fixtures:
 - DTO: `apps/server-nest/src/modules/template-packs/dto/template-pack.dto.ts`
 - Controller: `apps/server-nest/src/modules/template-packs/template-pack.controller.ts`
 - Frontend: `apps/admin/src/pages/admin/pages/settings/project/templates.tsx`
-- Spec: `spec/39-meeting-decision-template-pack.md`
-- Implementation Doc: `spec/39-meeting-decision-template-pack-implementation.md`
+- Spec: `docs/spec/39-meeting-decision-template-pack.md`
+- Implementation Doc: `docs/spec/39-meeting-decision-template-pack-implementation.md`

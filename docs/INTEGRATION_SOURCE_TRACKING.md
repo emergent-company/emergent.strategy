@@ -4,7 +4,7 @@
 
 This document describes the implementation of source tracking metadata for imported objects from external integrations (ClickUp, Jira, etc.).
 
-**Related Specification:** `spec/22-clickup-integration.md` section 3.3.1
+**Related Specification:** `docs/spec/22-clickup-integration.md` section 3.3.1
 
 **Date Implemented:** October 5, 2025
 
@@ -109,7 +109,7 @@ File: `apps/server-nest/src/modules/graph/graph.types.ts`
 export interface GraphObjectRow {
     // ... existing fields ...
     
-    // Integration source tracking (spec/22-clickup-integration.md section 3.3.1)
+  // Integration source tracking (docs/spec/22-clickup-integration.md section 3.3.1)
     external_source?: string | null; // Integration name (e.g., "clickup", "jira")
     external_id?: string | null; // Unique ID from source system (e.g., "9hz")
     external_url?: string | null; // Direct link to source (e.g., "https://app.clickup.com/t/9hz")

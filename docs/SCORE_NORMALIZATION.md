@@ -109,7 +109,7 @@ GET /search?q=explain+vector+embeddings&mode=hybrid&lexicalWeight=0.3&vectorWeig
 
 ## Related Documentation
 
-- **Roadmap**: `spec/GRAPH_PHASE3_ROADMAP.md` - Priority #4a
+- **Roadmap**: `docs/spec/GRAPH_PHASE3_ROADMAP.md` - Priority #4a
 - **Tests**: `apps/server-nest/tests/score-normalization.spec.ts`
 - **Utility**: `apps/server-nest/src/modules/search/score-normalization.util.ts`
 - **Service**: `apps/server-nest/src/modules/search/search.service.ts`

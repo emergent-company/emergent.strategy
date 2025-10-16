@@ -1,6 +1,6 @@
 -- Notification System Migration
 -- Implements centralized notification inbox for admin users
--- See spec/35-admin-notification-inbox.md for complete specification
+-- See docs/spec/35-admin-notification-inbox.md for complete specification
 BEGIN;
 
 -- =====================================================

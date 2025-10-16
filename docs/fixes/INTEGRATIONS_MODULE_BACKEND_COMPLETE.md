@@ -353,8 +353,8 @@ DELETE /api/v1/integrations/clickup?project_id=uuid&org_id=org_123
 
 ## References
 
-- **Spec 22:** `/Users/mcj/code/spec-server/spec/22-clickup-integration.md`
-- **Spec 23:** `/Users/mcj/code/spec-server/spec/23-integration-gallery.md`
+- **Spec 22:** `/Users/mcj/code/spec-server/docs/spec/22-clickup-integration.md`
+- **Spec 23:** `/Users/mcj/code/spec-server/docs/spec/23-integration-gallery.md`
 - **Implementation Plan:** `/Users/mcj/code/spec-server/docs/INTEGRATION_GALLERY_IMPLEMENTATION_PLAN.md`
 - **Migration Doc:** `/Users/mcj/code/spec-server/docs/fixes/INTEGRATION_MIGRATION_COMPLETE.md`
 

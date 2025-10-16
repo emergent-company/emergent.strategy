@@ -314,7 +314,7 @@ For 100k objects with avg 500 characters each:
 
 - [pgvector Documentation](https://github.com/pgvector/pgvector)
 - [Google Vertex AI Embeddings](https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings)
-- [Phase 3 Roadmap](../spec/GRAPH_PHASE3_ROADMAP.md)
+- [docs/spec/GRAPH_PHASE3_ROADMAP.md](spec/GRAPH_PHASE3_ROADMAP.md)
 - [Migration Guide](./EMBEDDING_MIGRATION.md)
 
 ## Change Log

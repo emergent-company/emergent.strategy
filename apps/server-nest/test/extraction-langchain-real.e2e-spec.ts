@@ -13,7 +13,7 @@ import { ExtractionSourceType } from '../src/modules/extraction-jobs/dto/extract
  * E2E Test: LangChain Extraction with Real Meeting Transcript
  * 
  * This test verifies the complete extraction pipeline using:
- * - Real unstructured meeting transcript (spec/test_data/meeting_1.md)
+ * - Real unstructured meeting transcript (docs/spec/test_data/meeting_1.md)
  * - Real Google Gemini API via LangChain
  * - All 8 entity types (Requirement, Decision, Feature, Task, Risk, Issue, Stakeholder, Constraint)
  * 
@@ -40,7 +40,7 @@ describe('LangChain Extraction - Real Meeting (E2E)', () => {
     const TEST_USER_ID = 'test-user-langchain-e2e';
 
     // Meeting document path
-    const MEETING_FILE_PATH = path.join(__dirname, '../../../spec/test_data/meeting_1.md');
+    const MEETING_FILE_PATH = path.join(__dirname, '../../../docs/spec/test_data/meeting_1.md');
 
     beforeAll(async () => {
         // Verify GOOGLE_API_KEY is set
@@ -100,7 +100,7 @@ describe('LangChain Extraction - Real Meeting (E2E)', () => {
 
         console.log('\n🤖 Step 3: Creating extraction job...');
         const job = await extractionJobService.createJob({
-            org_id: TEST_ORG_ID,
+            organization_id: TEST_ORG_ID,
             project_id: TEST_PROJECT_ID,
             source_type: ExtractionSourceType.DOCUMENT,
             source_id: documentId,
@@ -118,7 +118,7 @@ describe('LangChain Extraction - Real Meeting (E2E)', () => {
                 entity_linking_strategy: 'always_new', // Create new entities for test clarity
                 min_confidence: 0.5,
             },
-            created_by: TEST_USER_ID,
+            subject_id: TEST_USER_ID,
         });
         expect(job.id).toBeDefined();
         expect(job.status).toBe('pending');

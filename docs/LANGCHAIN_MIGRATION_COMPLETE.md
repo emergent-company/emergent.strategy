@@ -22,7 +22,7 @@ Created comprehensive end-to-end test with realistic meeting transcript:
 
 **Key Features:**
 - Uses real Google Gemini API (not mocked)
-- Processes actual meeting transcript (`spec/test_data/meeting_1.md` - 680 lines)
+- Processes actual meeting transcript (`docs/spec/test_data/meeting_1.md` - 680 lines)
 - Tests all 8 entity types (Requirement, Decision, Feature, Task, Risk, Issue, Stakeholder, Constraint)
 - Validates extraction quality and confidence scores
 - Includes detailed logging and verification steps
@@ -63,7 +63,7 @@ Created comprehensive guides:
    - Troubleshooting section
    - Cost considerations
 
-4. **Updated Specification** (`spec/25-extraction-worker.md`)
+4. **Updated Specification** (`docs/spec/25-extraction-worker.md`)
    - Added LLM Integration Strategy section
    - Documented framework comparison
    - Updated environment variables
@@ -95,7 +95,7 @@ Created comprehensive guides:
 1. `docs/LANGCHAIN_MIGRATION_SUMMARY.md`
 2. `docs/TESTING_LANGCHAIN_EXTRACTION.md`
 3. `apps/server-nest/test/README-LANGCHAIN-E2E.md`
-4. `spec/25-extraction-worker.md` (updated)
+4. `docs/spec/25-extraction-worker.md` (updated)
 
 ## Technical Details
 
@@ -135,7 +135,7 @@ LLMProviderFactory
 ## Test Data
 
 ### Meeting Transcript Used
-**File:** `spec/test_data/meeting_1.md`
+**File:** `docs/spec/test_data/meeting_1.md`
 
 **Characteristics:**
 - 680 lines of unstructured conversation
@@ -267,7 +267,7 @@ For questions or issues:
 - **Migration Guide**: `docs/LANGCHAIN_MIGRATION_SUMMARY.md`
 - **Testing Guide**: `docs/TESTING_LANGCHAIN_EXTRACTION.md`
 - **E2E Test README**: `apps/server-nest/test/README-LANGCHAIN-E2E.md`
-- **Specification**: `spec/25-extraction-worker.md`
+- **Specification**: `docs/spec/25-extraction-worker.md`
 
 ---
 

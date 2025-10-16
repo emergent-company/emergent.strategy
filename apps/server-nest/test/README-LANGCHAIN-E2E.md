@@ -69,7 +69,7 @@ The test performs a complete end-to-end extraction flow:
 - Confirms it's using `LangChain-Gemini` provider
 
 ### 2. **Document Ingestion**
-- Loads the real meeting transcript from `spec/test_data/meeting_1.md`
+- Loads the real meeting transcript from `docs/spec/test_data/meeting_1.md`
 - Creates a document record in the database
 - Meeting contains 680 lines of unstructured conversation
 
@@ -276,5 +276,5 @@ After successful test:
 
 - **Migration Summary**: `docs/LANGCHAIN_MIGRATION_SUMMARY.md`
 - **Testing Guide**: `docs/TESTING_LANGCHAIN_EXTRACTION.md`
-- **Specification**: `spec/25-extraction-worker.md`
-- **Meeting Transcript**: `spec/test_data/meeting_1.md`
+- **Specification**: `docs/spec/25-extraction-worker.md`
+- **Meeting Transcript**: `docs/spec/test_data/meeting_1.md`

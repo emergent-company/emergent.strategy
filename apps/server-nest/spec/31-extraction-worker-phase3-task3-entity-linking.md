@@ -302,7 +302,7 @@ Stops at first match to minimize database queries.
 
 ## References
 
-- **Specification**: `spec/19-dynamic-object-graph.md` (Entity Linking section)
+- **Specification**: `docs/spec/19-dynamic-object-graph.md` (Entity Linking section)
 - **Related Tasks**:
   - Task 3.1: Confidence Scoring (completed)
   - Task 3.2: Quality Thresholds (completed)

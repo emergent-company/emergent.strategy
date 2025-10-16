@@ -337,9 +337,9 @@ Test all stories:
 
 ## Related Documentation
 
-- [Extraction System Overview](../../spec/05-ingestion-workflows.md)
+- [Extraction System Overview](../spec/05-ingestion-workflows.md)
 - [Gemini Extraction Fixes](./2025-10-05-gemini-extraction-fixes.md)
-- [Graph Data Model](../../spec/04-data-model.md)
+- [Graph Data Model](../spec/04-data-model.md)
 - [Object Browser Component](../../apps/admin/src/components/organisms/ObjectBrowser/README.md) (if exists)
 
 ---
