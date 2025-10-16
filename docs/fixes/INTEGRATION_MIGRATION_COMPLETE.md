@@ -160,6 +160,6 @@ ORDER BY s.last_error_at DESC;
 ## References
 
 - Implementation Plan: `/docs/INTEGRATION_GALLERY_IMPLEMENTATION_PLAN.md`
-- Spec 22: `/spec/22-clickup-integration.md`
-- Spec 23: `/spec/23-integration-gallery.md`
+- Spec 22: `/docs/spec/22-clickup-integration.md`
+- Spec 23: `/docs/spec/23-integration-gallery.md`
 - Migration File: `/apps/server-nest/migrations/0003_integrations_system.sql`

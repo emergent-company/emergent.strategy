@@ -2,7 +2,7 @@
 
 **Status**: ✅ Partially Complete (Core Foundation)  
 **Date**: 2025-10-02  
-**Related Spec**: `spec/24-dynamic-type-discovery-and-ingestion.md`
+**Related Spec**: `docs/spec/24-dynamic-type-discovery-and-ingestion.md`
 
 ---
 

@@ -1,6 +1,6 @@
 /**
  * Notification types for Admin Inbox
- * Based on spec/35-admin-notification-inbox.md
+ * Based on docs/spec/35-admin-notification-inbox.md
  */
 
 export enum NotificationCategory {

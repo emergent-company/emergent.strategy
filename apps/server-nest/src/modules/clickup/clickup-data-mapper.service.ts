@@ -11,7 +11,7 @@ import {
  * Internal Document Type
  * 
  * Simplified representation for mapping external data
- * Includes source tracking metadata per spec/22-clickup-integration.md section 3.3.1
+ * Includes source tracking metadata per docs/spec/22-clickup-integration.md section 3.3.1
  */
 interface InternalDocument {
     external_id: string;
@@ -60,7 +60,7 @@ export class ClickUpDataMapper {
 
     /**
      * Build ClickUp URL for an object
-     * Based on patterns from spec/22-clickup-integration.md section 3.3.1
+    * Based on patterns from docs/spec/22-clickup-integration.md section 3.3.1
      */
     private buildClickUpUrl(type: string, id: string): string | undefined {
         if (!this.workspaceId) return undefined;

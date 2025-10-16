@@ -5,7 +5,7 @@
 This document describes the selective import feature for the ClickUp integration. This feature allows users to import tasks from specific ClickUp lists instead of syncing the entire workspace, providing more granular control and faster sync times.
 
 **Date Implemented:** October 5, 2025  
-**Related Spec:** `spec/22-clickup-integration.md` section 3.5  
+**Related Spec:** `docs/spec/22-clickup-integration.md` section 3.5  
 **Task:** #6 - Update sync endpoint for selective import
 
 ## Feature Description
@@ -497,7 +497,7 @@ Users must explicitly provide `list_ids` in sync config to use selective import.
 
 ## Related Documentation
 
-- `spec/22-clickup-integration.md` - Main ClickUp integration specification
+- `docs/spec/22-clickup-integration.md` - Main ClickUp integration specification
 - `docs/CLICKUP_WORKSPACE_STRUCTURE_ENDPOINT.md` - Structure endpoint for tree UI
 - `docs/INTEGRATION_SOURCE_TRACKING.md` - Source tracking implementation
 - `docs/CLICKUP_INTEGRATION_PROGRESS.md` - Overall progress tracking

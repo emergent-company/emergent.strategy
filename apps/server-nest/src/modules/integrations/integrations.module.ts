@@ -36,7 +36,7 @@ import { AppConfigModule } from '../../common/config/config.module';
  * - Credentials encrypted with INTEGRATION_ENCRYPTION_KEY env var
  * - Webhook secrets auto-generated (32-byte hex)
  * 
- * @see spec/23-integration-gallery.md
+ * @see docs/spec/23-integration-gallery.md
  * @see docs/INTEGRATION_GALLERY_IMPLEMENTATION_PLAN.md
  */
 @Module({

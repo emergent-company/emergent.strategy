@@ -1,5 +1,5 @@
 -- Migration: Add integration source tracking metadata
--- Related: spec/22-clickup-integration.md section 3.3.1
+-- Related: docs/spec/22-clickup-integration.md section 3.3.1
 -- Description: Adds fields to track external source, ID, URL, and sync status for imported objects
 BEGIN;
 

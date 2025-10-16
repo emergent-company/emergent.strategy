@@ -236,8 +236,8 @@ git revert <commit-hash>
 
 ## Related Documentation
 
-- [Extraction Jobs Feature Spec](../../spec/05-ingestion-workflows.md)
-- [LLM Provider Architecture](../../spec/extraction-llm-providers.md)
+- [docs/spec/05-ingestion-workflows.md](../spec/05-ingestion-workflows.md)
+- [docs/spec/extraction-llm-providers.md](../spec/extraction-llm-providers.md)
 - [Google Gemini API Documentation](https://ai.google.dev/gemini-api/docs)
 
 ---

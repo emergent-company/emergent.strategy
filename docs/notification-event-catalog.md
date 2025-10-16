@@ -3,9 +3,9 @@
 **Purpose:** Complete reference of all notification events produced by the spec-server system  
 **Last Updated:** October 3, 2025  
 **Related Specs:** 
-- [spec/35-admin-notification-inbox.md](../spec/35-admin-notification-inbox.md)
-- [spec/34-clickup-integration-refined-design.md](../spec/34-clickup-integration-refined-design.md)
-- [spec/25-extraction-worker.md](../spec/25-extraction-worker.md)
+- [docs/spec/35-admin-notification-inbox.md](spec/35-admin-notification-inbox.md)
+- [docs/spec/34-clickup-integration-refined-design.md](spec/34-clickup-integration-refined-design.md)
+- [docs/spec/25-extraction-worker.md](spec/25-extraction-worker.md)
 
 ---
 
@@ -656,6 +656,6 @@ When implementing a new feature that should produce notifications:
 
 ## Related Resources
 
-- [spec/35-admin-notification-inbox.md](../spec/35-admin-notification-inbox.md) - Full notification system design
-- [spec/34-clickup-integration-refined-design.md](../spec/34-clickup-integration-refined-design.md) - ClickUp integration notifications
-- [spec/25-extraction-worker.md](../spec/25-extraction-worker.md) - Extraction worker notifications
+- [docs/spec/35-admin-notification-inbox.md](spec/35-admin-notification-inbox.md) - Full notification system design
+- [docs/spec/34-clickup-integration-refined-design.md](spec/34-clickup-integration-refined-design.md) - ClickUp integration notifications
+- [docs/spec/25-extraction-worker.md](spec/25-extraction-worker.md) - Extraction worker notifications

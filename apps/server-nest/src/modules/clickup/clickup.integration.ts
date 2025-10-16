@@ -50,7 +50,7 @@ export interface ClickUpSettings extends IntegrationSettings {
  * - ClickUp Task → Document
  * - ClickUp Comment → Document chunk (comment type)
  * 
- * @see spec/22-clickup-integration.md
+ * @see docs/spec/22-clickup-integration.md
  */
 @Injectable()
 export class ClickUpIntegration extends BaseIntegration {

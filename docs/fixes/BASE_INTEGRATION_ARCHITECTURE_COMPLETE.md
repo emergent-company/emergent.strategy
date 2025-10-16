@@ -387,8 +387,8 @@ Request → waitForSlot() → Check window → Available? → Make request
 
 ## References
 
-- **Spec 22:** `/Users/mcj/code/spec-server/spec/22-clickup-integration.md`
-- **Spec 23:** `/Users/mcj/code/spec-server/spec/23-integration-gallery.md`
+- **Spec 22:** `/Users/mcj/code/spec-server/docs/spec/22-clickup-integration.md`
+- **Spec 23:** `/Users/mcj/code/spec-server/docs/spec/23-integration-gallery.md`
 - **ClickUp API Docs:** https://clickup.com/api
 - **Rate Limits:** https://clickup.com/api#rate-limits
 

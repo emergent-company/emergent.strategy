@@ -123,7 +123,7 @@ get extractionWorkerEnabled() {
 
 ### 7. ✅ Updated Documentation
 
-**File**: `spec/25-extraction-worker.md`
+**File**: `docs/spec/25-extraction-worker.md`
 
 **Additions:**
 - Section 3: "LLM Integration Strategy"

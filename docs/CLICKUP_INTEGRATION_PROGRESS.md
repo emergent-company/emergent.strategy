@@ -470,7 +470,7 @@ docs/
 ```
 
 ```
-spec/
+docs/spec/
 └── 22-clickup-integration.md           ✅ Updated (sync UI spec, source tracking)
 ```
 
@@ -737,8 +737,8 @@ A: Stored in `properties` JSONB on graph objects. The data mapper extracts them 
 
 ### Internal Docs
 - `docs/INTEGRATION_SOURCE_TRACKING.md` - Technical implementation details
-- `spec/22-clickup-integration.md` - Feature specification
-- `spec/23-integration-gallery.md` - Integration system architecture
+- `docs/spec/22-clickup-integration.md` - Feature specification
+- `docs/spec/23-integration-gallery.md` - Integration system architecture
 
 ### Related Files
 - Backend: `apps/server-nest/src/modules/clickup/`

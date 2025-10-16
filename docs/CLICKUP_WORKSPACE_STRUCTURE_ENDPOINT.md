@@ -5,7 +5,7 @@
 This document describes the new workspace structure endpoint implemented for the ClickUp integration. This endpoint provides the hierarchical workspace structure needed for the list selection UI in the sync modal.
 
 **Date Implemented:** October 5, 2025  
-**Related Spec:** `spec/22-clickup-integration.md` section 3.5.2  
+**Related Spec:** `docs/spec/22-clickup-integration.md` section 3.5.2  
 **Task:** #5 - Add backend endpoint for ClickUp workspace structure
 
 ## Endpoint Details
@@ -411,7 +411,7 @@ describe('getClickUpWorkspaceStructure', () => {
 
 ## Related Documentation
 
-- `spec/22-clickup-integration.md` - Main ClickUp integration specification
+- `docs/spec/22-clickup-integration.md` - Main ClickUp integration specification
 - `docs/INTEGRATION_SOURCE_TRACKING.md` - Source tracking implementation
 - `docs/CLICKUP_INTEGRATION_PROGRESS.md` - Overall progress tracking
 - ClickUp API Documentation: https://clickup.com/api

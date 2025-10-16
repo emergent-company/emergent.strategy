@@ -302,4 +302,4 @@ Backward (`direction=backward`):
 ### Testing Notes
 Internal tests only assert stable invariants (no overlap in forward windows; absence of cursor item in backward window; direction echo; cursor flag consistency). This keeps tests resilient to benign ordering perturbations caused by floating normalization changes.
 
-Full standalone spec: `spec/graph-search-pagination.md`.
+Full standalone spec: `docs/spec/graph-search-pagination.md`.

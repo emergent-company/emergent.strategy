@@ -423,7 +423,7 @@ ORDER BY date DESC;
 
 - [pgvector Documentation](https://github.com/pgvector/pgvector)
 - [Google Vertex AI Embeddings](https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings)
-- [Phase 3 Roadmap](../spec/GRAPH_PHASE3_ROADMAP.md) - Embedding production readiness section
+- [Phase 3 Roadmap](spec/GRAPH_PHASE3_ROADMAP.md) - Embedding production readiness section
 
 ## Change Log
 

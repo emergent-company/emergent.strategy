@@ -2,7 +2,7 @@
 -- Description: Add auto-extraction configuration to projects and notifications system
 -- Purpose: Enable automatic extraction job creation on document upload and user notifications
 -- Date: 2025-10-04
--- Related: spec/28-automatic-extraction-and-notifications.md
+-- Related: docs/spec/28-automatic-extraction-and-notifications.md
 -- ============================================================================
 -- Part 1: Auto-Extraction Configuration
 -- ============================================================================

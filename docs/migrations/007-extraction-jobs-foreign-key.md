@@ -145,6 +145,6 @@ Other tables that correctly use `subject_id`:
 
 ## References
 
-- Spec: `/spec/16-user-profile.md` - User profile system architecture
+- Spec: `/docs/spec/16-user-profile.md` - User profile system architecture
 - Auth: `/apps/server-nest/src/modules/auth/auth.service.ts` - JWT claim mapping
 - Migration: `/apps/server-nest/src/common/database/migrations/007-extraction-jobs-subject-id-fk.sql`

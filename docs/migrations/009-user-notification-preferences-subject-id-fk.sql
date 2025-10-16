@@ -4,7 +4,7 @@
 -- to using canonical internal subject_id UUID with proper foreign key
 --
 -- Date: 2025-10-05
--- Related: spec/24-user-identity-references.md
+-- Related: docs/spec/24-user-identity-references.md
 -- Status: READY TO EXECUTE
 BEGIN;
 

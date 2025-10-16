@@ -279,7 +279,7 @@ tail -f /tmp/backend.log | grep "JSON parsing error"
 ## Related Documentation
 
 - [Gemini 2.5 Upgrade](../extraction/gemini-2.5-upgrade.md) - Model upgrade notes
-- [Extraction System Overview](../../spec/05-ingestion-workflows.md) - Architecture
+- [Extraction System Overview](../spec/05-ingestion-workflows.md) - Architecture
 - [Entity Schemas](../../apps/server-nest/src/modules/extraction-jobs/schemas/) - All entity type definitions
 
 ---

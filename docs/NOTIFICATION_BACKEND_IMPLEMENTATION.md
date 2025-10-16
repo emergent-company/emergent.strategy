@@ -325,7 +325,7 @@ WHERE user_id = 'YOUR_USER_ID' AND cleared_at IS NULL;
 1. **WebSocket Gateway Not Implemented**
    - Real-time notification delivery requires WebSocket implementation
    - Currently notifications only appear on page refresh or polling
-   - See spec/35-admin-notification-inbox.md Section 7 for WebSocket design
+  - See docs/spec/35-admin-notification-inbox.md Section 7 for WebSocket design
 
 2. **Email Notifications Not Implemented**
    - Email delivery commented out in service
@@ -367,7 +367,7 @@ WHERE user_id = 'YOUR_USER_ID' AND cleared_at IS NULL;
 
 ## 📚 References
 
-- **Spec:** `spec/35-admin-notification-inbox.md`
+- **Spec:** `docs/spec/35-admin-notification-inbox.md`
 - **Event Catalog:** `docs/notification-event-catalog.md`
 - **Frontend Implementation:** `apps/admin/src/components/organisms/NotificationInbox/`
 - **Backend Implementation:** `apps/server-nest/src/modules/notifications/`

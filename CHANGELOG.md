@@ -79,7 +79,7 @@
 - Conflict detection currently treats any overlapping changed path between source and target with differing final content hash as conflict (no LCA path reduction yet). Future iteration will incorporate ancestor-aware diff narrowing.
 ### Added
 - Graph traversal: expanded E2E coverage (direction in/out/both, multi-root dedupe, truncation, filtering) for `POST /graph/traverse`.
-- Documentation: Updated `spec/19-dynamic-object-graph.md` with current minimal traversal API (`/graph/traverse`) vs planned `/graph/expand` comparison.
+- Documentation: Updated `docs/spec/19-dynamic-object-graph.md` with current minimal traversal API (`/graph/traverse`) vs planned `/graph/expand` comparison.
 
 
 ### Added
@@ -102,7 +102,7 @@
 ### 2025-09-07
 - Removed Passkey / WebAuthn custom flow (frontend helpers, backend routes, env vars). Consolidated on Zitadel hosted OIDC only.
 - Stubbed then scheduled deletion of legacy `src/zitadel/passwordless.ts` (no runtime imports remain).
-- Added tombstone note in `spec/15-passkey-auth.md`.
+- Added tombstone note in `docs/spec/15-passkey-auth.md`.
 
 ### 2025-08 (Earlier)
 - Initial ingestion server, embeddings, Zitadel OIDC integration.
