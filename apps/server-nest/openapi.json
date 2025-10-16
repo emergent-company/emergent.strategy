@@ -1481,7 +1481,7 @@
                       "code": "forbidden",
                       "message": "Insufficient permissions",
                       "missing_scopes": [
-                        "documents:read"
+                        "search:read"
                       ]
                     }
                   }
@@ -1514,7 +1514,7 @@
           }
         ],
         "x-required-scopes": [
-          "documents:read"
+          "search:read"
         ]
       }
     },
@@ -1951,7 +1951,7 @@
                       "code": "forbidden",
                       "message": "Insufficient permissions",
                       "missing_scopes": [
-                        "documents:read"
+                        "chunks:read"
                       ]
                     }
                   }
@@ -1984,7 +1984,7 @@
           }
         ],
         "x-required-scopes": [
-          "documents:read"
+          "chunks:read"
         ]
       }
     },
@@ -2062,7 +2062,7 @@
                       "code": "forbidden",
                       "message": "Insufficient permissions",
                       "missing_scopes": [
-                        "documents:write"
+                        "ingest:write"
                       ]
                     }
                   }
@@ -2095,7 +2095,7 @@
           }
         ],
         "x-required-scopes": [
-          "documents:write"
+          "ingest:write"
         ]
       }
     },
@@ -2173,7 +2173,7 @@
                       "code": "forbidden",
                       "message": "Insufficient permissions",
                       "missing_scopes": [
-                        "documents:write"
+                        "ingest:write"
                       ]
                     }
                   }
@@ -2206,7 +2206,7 @@
           }
         ],
         "x-required-scopes": [
-          "documents:write"
+          "ingest:write"
         ]
       }
     },
@@ -2241,7 +2241,19 @@
             "description": "Invalid request data"
           },
           "401": {
-            "description": "Unauthorized"
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2251,6 +2263,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "extraction:write"
         ]
       }
     },
@@ -2345,7 +2360,19 @@
             }
           },
           "401": {
-            "description": "Unauthorized"
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2355,6 +2382,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "extraction:read"
         ]
       }
     },
@@ -2386,7 +2416,19 @@
             }
           },
           "401": {
-            "description": "Unauthorized"
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
           },
           "404": {
             "description": "Job not found"
@@ -2399,6 +2441,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "extraction:read"
         ]
       },
       "patch": {
@@ -2441,7 +2486,19 @@
             "description": "Invalid update data"
           },
           "401": {
-            "description": "Unauthorized"
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
           },
           "404": {
             "description": "Job not found"
@@ -2454,6 +2511,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "extraction:write"
         ]
       },
       "delete": {
@@ -2479,7 +2539,19 @@
             "description": "Cannot delete running/pending job"
           },
           "401": {
-            "description": "Unauthorized"
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
           },
           "404": {
             "description": "Job not found"
@@ -2492,6 +2564,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "extraction:write"
         ]
       }
     },
@@ -2526,7 +2601,19 @@
             "description": "Cannot retry job with current status (only running/failed jobs)"
           },
           "401": {
-            "description": "Unauthorized"
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
           },
           "404": {
             "description": "Job not found"
@@ -2539,6 +2626,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "extraction:write"
         ]
       }
     },
@@ -2573,7 +2663,19 @@
             "description": "Job cannot be cancelled (already completed/failed)"
           },
           "401": {
-            "description": "Unauthorized"
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
           },
           "404": {
             "description": "Job not found"
@@ -2586,6 +2688,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "extraction:write"
         ]
       }
     },
@@ -2654,7 +2759,19 @@
             }
           },
           "401": {
-            "description": "Unauthorized"
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2664,6 +2781,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "extraction:read"
         ]
       }
     },
@@ -2732,6 +2852,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "extraction:read"
         ]
       }
     },
@@ -4891,7 +5014,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "notifications:read"
+                      ]
                     }
                   }
                 }
@@ -4921,6 +5047,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "notifications:read"
         ]
       },
       "delete": {
@@ -4983,7 +5112,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "notifications:write"
+                      ]
                     }
                   }
                 }
@@ -5013,6 +5145,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "notifications:write"
         ]
       }
     },
@@ -5063,7 +5198,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "notifications:read"
+                      ]
                     }
                   }
                 }
@@ -5093,6 +5231,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "notifications:read"
         ]
       }
     },
@@ -5143,7 +5284,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "notifications:read"
+                      ]
                     }
                   }
                 }
@@ -5173,6 +5317,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "notifications:read"
         ]
       }
     },
@@ -5233,7 +5380,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "notifications:write"
+                      ]
                     }
                   }
                 }
@@ -5263,6 +5413,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "notifications:write"
         ]
       }
     },
@@ -5323,7 +5476,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "notifications:write"
+                      ]
                     }
                   }
                 }
@@ -5353,6 +5509,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "notifications:write"
         ]
       }
     },
@@ -5413,7 +5572,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "notifications:write"
+                      ]
                     }
                   }
                 }
@@ -5443,6 +5605,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "notifications:write"
         ]
       }
     },
@@ -5503,7 +5668,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "notifications:write"
+                      ]
                     }
                   }
                 }
@@ -5533,6 +5701,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "notifications:write"
         ]
       }
     },
@@ -5593,7 +5764,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "notifications:write"
+                      ]
                     }
                   }
                 }
@@ -5623,6 +5797,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "notifications:write"
         ]
       }
     },
@@ -5693,7 +5870,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "notifications:write"
+                      ]
                     }
                   }
                 }
@@ -5723,6 +5903,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "notifications:write"
         ]
       }
     },
@@ -5783,7 +5966,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "notifications:write"
+                      ]
                     }
                   }
                 }
@@ -5813,6 +5999,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "notifications:write"
         ]
       }
     },

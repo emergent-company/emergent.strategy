@@ -60,7 +60,7 @@ export class NotificationsController {
         description: 'Search in title and message',
     })
     @ApiStandardErrors()
-    // @Scopes('notifications:read') // TODO: Configure in Zitadel
+    @Scopes('notifications:read')
     async getNotifications(
         @Req() req: any,
         @Query('tab', new DefaultValuePipe('important'))
@@ -88,7 +88,7 @@ export class NotificationsController {
     @ApiOperation({ summary: 'Get unread notification counts' })
     @ApiOkResponse({ description: 'Notification counts by tab' })
     @ApiStandardErrors()
-    // @Scopes('notifications:read') // TODO: Configure in Zitadel
+    @Scopes('notifications:read')
     async getUnreadCounts(@Req() req: any) {
         const userId = req.user?.sub;
         const counts = await this.notificationsService.getUnreadCounts(userId);
@@ -99,7 +99,7 @@ export class NotificationsController {
     @ApiOperation({ summary: 'Get notification statistics (unread, dismissed, total)' })
     @ApiOkResponse({ description: 'Notification statistics' })
     @ApiStandardErrors()
-    // @Scopes('notifications:read') // TODO: Configure in Zitadel
+    @Scopes('notifications:read')
     async getStats(@Req() req: any) {
         const userId = req.user?.sub;
         const stats = await this.notificationsService.getCounts(userId);
@@ -111,7 +111,7 @@ export class NotificationsController {
     @ApiParam({ name: 'id', description: 'Notification ID' })
     @ApiOkResponse({ description: 'Notification marked as read' })
     @ApiStandardErrors()
-    // @Scopes('notifications:write') // TODO: Configure in Zitadel
+    @Scopes('notifications:write')
     async markRead(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
         const userId = req.user?.sub;
         await this.notificationsService.markRead(id, userId);
@@ -123,7 +123,7 @@ export class NotificationsController {
     @ApiParam({ name: 'id', description: 'Notification ID' })
     @ApiOkResponse({ description: 'Notification marked as unread' })
     @ApiStandardErrors()
-    // @Scopes('notifications:write') // TODO: Configure in Zitadel
+    @Scopes('notifications:write')
     async markUnread(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
         const userId = req.user?.sub;
         await this.notificationsService.markUnread(id, userId);
@@ -135,7 +135,7 @@ export class NotificationsController {
     @ApiParam({ name: 'id', description: 'Notification ID' })
     @ApiOkResponse({ description: 'Notification dismissed' })
     @ApiStandardErrors()
-    // @Scopes('notifications:write') // TODO: Configure in Zitadel
+    @Scopes('notifications:write')
     async dismiss(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
         const userId = req.user?.sub;
         await this.notificationsService.dismiss(id, userId);
@@ -147,7 +147,7 @@ export class NotificationsController {
     @ApiParam({ name: 'id', description: 'Notification ID' })
     @ApiOkResponse({ description: 'Notification cleared' })
     @ApiStandardErrors()
-    // @Scopes('notifications:write') // TODO: Configure in Zitadel
+    @Scopes('notifications:write')
     async clear(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
         const userId = req.user?.sub;
         await this.notificationsService.clear(id, userId);
@@ -159,7 +159,7 @@ export class NotificationsController {
     @ApiParam({ name: 'id', description: 'Notification ID' })
     @ApiOkResponse({ description: 'Notification restored' })
     @ApiStandardErrors()
-    // @Scopes('notifications:write') // TODO: Configure in Zitadel
+    @Scopes('notifications:write')
     async unclear(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
         const userId = req.user?.sub;
         await this.notificationsService.unclear(id, userId);
@@ -176,7 +176,7 @@ export class NotificationsController {
     })
     @ApiOkResponse({ description: 'All notifications cleared' })
     @ApiStandardErrors()
-    // @Scopes('notifications:write') // TODO: Configure in Zitadel
+    @Scopes('notifications:write')
     async clearAll(
         @Req() req: any,
         @Query('tab', new DefaultValuePipe('important'))
@@ -192,7 +192,7 @@ export class NotificationsController {
     @ApiParam({ name: 'id', description: 'Notification ID' })
     @ApiOkResponse({ description: 'Notification snoozed' })
     @ApiStandardErrors()
-    // @Scopes('notifications:write') // TODO: Configure in Zitadel
+    @Scopes('notifications:write')
     async snooze(
         @Req() req: any,
         @Param('id', ParseUUIDPipe) id: string,
@@ -209,7 +209,7 @@ export class NotificationsController {
     @ApiParam({ name: 'id', description: 'Notification ID' })
     @ApiOkResponse({ description: 'Notification unsnoozed' })
     @ApiStandardErrors()
-    // @Scopes('notifications:write') // TODO: Configure in Zitadel
+    @Scopes('notifications:write')
     async unsnooze(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
         const userId = req.user?.sub;
         await this.notificationsService.unsnooze(id, userId);
