@@ -8,19 +8,27 @@ const ROLE_SCOPE_MAP: Record<string, string[]> = {
         'org:project:create', 'org:project:delete', 'org:invite:create',
         'project:read', 'project:invite:create',
         'documents:read', 'documents:write', 'documents:delete',
-        'chat:use', 'chat:admin'
+        'ingest:write', 'search:read', 'chunks:read',
+        'chat:use', 'chat:admin',
+        'notifications:read', 'notifications:write',
+        'extraction:read', 'extraction:write'
     ],
     project_admin: [
         'org:read',
         'project:read', 'project:invite:create',
         'documents:read', 'documents:write', 'documents:delete',
-        'chat:use'
+        'ingest:write', 'search:read', 'chunks:read',
+        'chat:use',
+        'notifications:read', 'notifications:write',
+        'extraction:read', 'extraction:write'
     ],
     project_user: [
         'org:read',
         'project:read',
-        'documents:read',
-        'chat:use'
+        'documents:read', 'search:read', 'chunks:read',
+        'chat:use',
+        'notifications:read', 'notifications:write',
+        'extraction:read'
     ],
 };
 

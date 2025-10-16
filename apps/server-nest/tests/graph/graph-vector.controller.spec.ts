@@ -52,7 +52,7 @@ describe('Graph Vector Controller Endpoints', () => {
         const ids = await ensureOrgProject(db);
         orgId = ids.orgId; projectId = ids.projectId;
         await db.setTenantContext(orgId, projectId);
-        await db.query(`DELETE FROM kb.graph_objects WHERE type IN ('VecA','VecB','VecC')`);
+        await db.query(`DELETE FROM kb.graph_objects WHERE type IN ('VecA','VecB','VecC','VecX','VecY','VecZ','VecL','VecAlias')`);
         a = await insertObject(db, baseVec(), 'VecA');
         b = await insertObject(db, variantVec(0.1), 'VecB');
         c = await insertObject(db, variantVec(0.2), 'VecC');
@@ -238,12 +238,13 @@ describe('Graph Vector Controller Endpoints', () => {
     it('POST /graph/objects/vector-search supports combined labelsAll + labelsAny', async () => {
         if (!db.isOnline()) return; // skip
         const id = randomUUID();
+        const uniqueLabel = `both-unique-${randomUUID()}`;
         const literal = '[' + Array(32).fill(0).map((_, i) => (i === 3 ? 0.004 : 0)).join(',') + ']';
         await db.setTenantContext(orgId, projectId);
         await db.query(
             `INSERT INTO kb.graph_objects(id, org_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
              VALUES($1,$2,$3,$4,$5,$6,$7,$8::vector,$1,1)`,
-            [id, orgId, projectId, branchId, 'VecZ', 'vec.z', ['both-all-one', 'both-all-two', 'both-any-alpha'], literal],
+            [id, orgId, projectId, branchId, 'VecZ', 'vec.z', ['both-all-one', 'both-all-two', 'both-any-alpha', uniqueLabel], literal],
         );
         // labelsAll requires two, labelsAny requires overlap with any-alpha or any-beta
         const res = await request(app.getHttpServer())
@@ -251,7 +252,7 @@ describe('Graph Vector Controller Endpoints', () => {
             .send({
                 vector: baseVec(),
                 limit: 50,
-                labelsAll: ['both-all-one', 'both-all-two'],
+                labelsAll: ['both-all-one', 'both-all-two', uniqueLabel],
                 labelsAny: ['both-any-alpha', 'non-existent']
             })
             .expect(200);
@@ -263,11 +264,23 @@ describe('Graph Vector Controller Endpoints', () => {
             .send({
                 vector: baseVec(),
                 limit: 50,
-                labelsAll: ['both-all-one', 'missing-label'],
+                labelsAll: ['both-all-one', 'missing-label', uniqueLabel],
                 labelsAny: ['both-any-alpha']
             })
             .expect(200);
         const idsNeg: string[] = resNeg.body.map((r: any) => r.id);
         expect(idsNeg).not.toContain(id);
+        // Negative case: require any-label that is absent to ensure labelsAny is enforced
+        const resNegAny = await request(app.getHttpServer())
+            .post('/graph/objects/vector-search')
+            .send({
+                vector: baseVec(),
+                limit: 50,
+                labelsAll: ['both-all-one', 'both-all-two', uniqueLabel],
+                labelsAny: ['non-existent']
+            })
+            .expect(200);
+        const idsNegAny: string[] = resNegAny.body.map((r: any) => r.id);
+        expect(idsNegAny).not.toContain(id);
     });
 });

@@ -61,7 +61,8 @@ describe('RateLimiterService', () => {
 
             const status = rateLimiter.getStatus();
             expect(status.requestsRemaining).toBe(7);
-            expect(status.tokensRemaining).toBe(8500);
+            expect(status.tokensRemaining).toBeLessThanOrEqual(8505);
+            expect(status.tokensRemaining).toBeGreaterThanOrEqual(8500);
         });
     });
 

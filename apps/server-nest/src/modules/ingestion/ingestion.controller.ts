@@ -73,8 +73,8 @@ export class IngestionController {
     @ApiStandardErrors()
     @ApiConsumes('multipart/form-data')
     @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
-    // Ingestion results in document creation; reuse documents:write scope
-    @Scopes('documents:write')
+    // Ingestion requires explicit ingest:write scope
+    @Scopes('ingest:write')
     // NOTE: Using Express.Multer.File can error if global augmentation not picked; rely on MulterFile alias.
     upload(@Body() dto: IngestionUploadDto, @UploadedFile() file?: UploadedMulterFile): Promise<IngestResult> {
         if (!file) throw new BadRequestException({ error: { code: 'file-required', message: 'file is required' } });
@@ -105,8 +105,8 @@ export class IngestionController {
     @ApiOkResponse({ description: 'Ingest a remote URL', schema: { example: { documentId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', chunks: 8, alreadyExists: false } } })
     @ApiBadRequestResponse({ description: 'Invalid URL payload', schema: { example: { error: { code: 'validation-failed', message: 'Validation failed', details: { url: ['must be an URL address'] } } } } })
     @ApiStandardErrors()
-    // URL ingestion also requires documents:write
-    @Scopes('documents:write')
+    // URL ingestion also requires ingest:write
+    @Scopes('ingest:write')
     ingestUrl(@Body() dto: IngestionUrlDto): Promise<IngestResult> {
         return this.ingestion.ingestUrl(dto.url, dto.orgId, dto.projectId);
     }

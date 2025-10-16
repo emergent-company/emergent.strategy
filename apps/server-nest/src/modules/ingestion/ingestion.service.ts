@@ -34,6 +34,41 @@ export class IngestionService {
         private readonly extractionJobService: ExtractionJobService,
     ) { }
 
+    private async withTenantContext<T>(orgId: string | null | undefined, projectId: string | null | undefined, fn: () => Promise<T>): Promise<T> {
+        const candidate = (this.db as any)?.runWithTenantContext;
+        if (typeof candidate === 'function') {
+            return candidate.call(this.db, orgId ?? null, projectId ?? null, fn);
+        }
+
+        const setContext = (this.db as any)?.setTenantContext;
+        const getContext = (this.db as any)?.getCurrentTenantContext;
+        let reset: (() => Promise<void>) | null = null;
+
+        if (typeof setContext === 'function') {
+            let previousOrg: string | null = null;
+            let previousProject: string | null = null;
+            if (typeof getContext === 'function') {
+                try {
+                    const current = await getContext.call(this.db);
+                    previousOrg = current?.orgId ?? null;
+                    previousProject = current?.projectId ?? null;
+                } catch { /* ignore */ }
+            }
+            await setContext.call(this.db, orgId ?? null, projectId ?? null);
+            reset = async () => {
+                await setContext.call(this.db, previousOrg ?? null, previousProject ?? null);
+            };
+        }
+
+        try {
+            return await fn();
+        } finally {
+            if (reset) {
+                try { await reset(); } catch { /* ignore */ }
+            }
+        }
+    }
+
     async ingestUrl(url: string, orgId: string | undefined, projectId: string): Promise<IngestResult> {
         // Early validation: avoid outbound fetch if project already deleted / invalid
         if (this.db.isOnline()) {
@@ -129,19 +164,56 @@ export class IngestionService {
                 throw new BadRequestException({ error: { code: 'org-project-mismatch', message: 'Provided orgId does not match project org' } });
             }
         }
-        let documentId: string | undefined;
-        if (this.hasContentHashColumn) {
-            const hash = this.hash.sha256(text);
-            // Project-scoped unique index ensures race-safe upsert semantics.
-            const existing = await this.db.query<{ id: string }>(
-                'SELECT id FROM kb.documents WHERE project_id = $1 AND content_hash = $2 LIMIT 1',
-                [projectId, hash],
-            );
-            if (existing.rowCount) {
-                return { documentId: existing.rows[0].id, chunks: 0, alreadyExists: true };
+        const tenantOrgId = derivedOrg || orgId || null;
+        return this.withTenantContext(tenantOrgId, projectId, async () => {
+            let documentId: string | undefined;
+            if (this.hasContentHashColumn) {
+                const hash = this.hash.sha256(text);
+                // Project-scoped unique index ensures race-safe upsert semantics.
+                const existing = await this.db.query<{ id: string }>(
+                    'SELECT id FROM kb.documents WHERE project_id = $1 AND content_hash = $2 LIMIT 1',
+                    [projectId, hash],
+                );
+                if (existing.rowCount) {
+                    return { documentId: existing.rows[0].id, chunks: 0, alreadyExists: true };
+                }
+                try {
+                    // Atomic existence + insert to avoid FK race (project may be deleted concurrently)
+                    const insertDoc = await this.db.query<{ id: string }>(
+                        `WITH target AS (
+                            SELECT p.id AS project_id, $1::uuid AS org_id
+                            FROM kb.projects p
+                            WHERE p.id = $2
+                            LIMIT 1
+                        )
+                        INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content, content_hash)
+                        SELECT target.org_id, target.project_id, $3, $4, $5, $6, $7 FROM target
+                        RETURNING id`,
+                        [tenantOrgId, projectId, sourceUrl || null, filename || null, mimeType || 'text/plain', text, hash],
+                    );
+                    if (!insertDoc.rowCount) {
+                        throw new BadRequestException({ error: { code: 'project-not-found', message: 'Project not found (ingestion)' } });
+                    }
+                    documentId = insertDoc.rows[0]?.id;
+                } catch (e: any) {
+                    if (e?.code === '23505') { // unique violation -> doc already ingested concurrently
+                        this.metrics.uniqueViolationRaces++;
+                        const again = await this.db.query<{ id: string }>('SELECT id FROM kb.documents WHERE project_id = $1 AND content_hash = $2 LIMIT 1', [projectId, hash]);
+                        if (again.rowCount) return { documentId: again.rows[0].id, chunks: 0, alreadyExists: true };
+                        throw e;
+                    }
+                    if (e?.code === '42703') { // column appeared missing mid-flight (unexpected)
+                        this.hasContentHashColumn = false; // downgrade and retry equality path
+                        this.metrics.contentHashMissing++;
+                    } else {
+                        throw e;
+                    }
+                }
             }
-            try {
-                // Atomic existence + insert to avoid FK race (project may be deleted concurrently)
+            if (!documentId) {
+                // Fallback: content equality (legacy schema path)
+                const existingByContent = await this.db.query<{ id: string }>('SELECT id FROM kb.documents WHERE project_id = $1 AND content = $2 LIMIT 1', [projectId, text]);
+                if (existingByContent.rowCount) return { documentId: existingByContent.rows[0].id, chunks: 0, alreadyExists: true };
                 const insertDoc = await this.db.query<{ id: string }>(
                     `WITH target AS (
                         SELECT p.id AS project_id, $1::uuid AS org_id
@@ -149,122 +221,37 @@ export class IngestionService {
                         WHERE p.id = $2
                         LIMIT 1
                     )
-                    INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content, content_hash)
-                    SELECT target.org_id, target.project_id, $3, $4, $5, $6, $7 FROM target
+                    INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content)
+                    SELECT target.org_id, target.project_id, $3, $4, $5, $6 FROM target
                     RETURNING id`,
-                    [derivedOrg || orgId || null, projectId, sourceUrl || null, filename || null, mimeType || 'text/plain', text, hash],
+                    [tenantOrgId, projectId, sourceUrl || null, filename || null, mimeType || 'text/plain', text],
                 );
                 if (!insertDoc.rowCount) {
                     throw new BadRequestException({ error: { code: 'project-not-found', message: 'Project not found (ingestion)' } });
                 }
                 documentId = insertDoc.rows[0]?.id;
-            } catch (e: any) {
-                if (e?.code === '23505') { // unique violation -> doc already ingested concurrently
-                    this.metrics.uniqueViolationRaces++;
-                    const again = await this.db.query<{ id: string }>('SELECT id FROM kb.documents WHERE project_id = $1 AND content_hash = $2 LIMIT 1', [projectId, hash]);
-                    if (again.rowCount) return { documentId: again.rows[0].id, chunks: 0, alreadyExists: true };
-                    throw e;
-                }
-                if (e?.code === '42703') { // column appeared missing mid-flight (unexpected)
-                    this.hasContentHashColumn = false; // downgrade and retry equality path
-                    this.metrics.contentHashMissing++;
-                } else {
-                    throw e;
+            }
+            if (!documentId) {
+                // If DB offline or insert failed silently, return graceful error
+                throw new BadRequestException({ error: { code: 'document-insert-failed', message: 'Failed to insert document (database offline or schema mismatch)' } });
+            }
+            // documentId already set above within insert branches
+            const chunks = this.chunker.chunk(text);
+            let vectors: number[][] = [];
+            if (this.config.embeddingsEnabled) {
+                try {
+                    vectors = await this.embeddings.embedDocuments(chunks);
+                } catch (e) {
+                    this.logger.warn(`Embedding generation failed, proceeding with NULL embeddings: ${(e as Error).message}`);
+                    vectors = [];
                 }
             }
-        }
-        if (!documentId) {
-            // Fallback: content equality (legacy schema path)
-            const existingByContent = await this.db.query<{ id: string }>('SELECT id FROM kb.documents WHERE project_id = $1 AND content = $2 LIMIT 1', [projectId, text]);
-            if (existingByContent.rowCount) return { documentId: existingByContent.rows[0].id, chunks: 0, alreadyExists: true };
-            const insertDoc = await this.db.query<{ id: string }>(
-                `WITH target AS (
-                    SELECT p.id AS project_id, $1::uuid AS org_id
-                    FROM kb.projects p
-                    WHERE p.id = $2
-                    LIMIT 1
-                )
-                INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content)
-                SELECT target.org_id, target.project_id, $3, $4, $5, $6 FROM target
-                RETURNING id`,
-                [derivedOrg || orgId || null, projectId, sourceUrl || null, filename || null, mimeType || 'text/plain', text],
-            );
-            if (!insertDoc.rowCount) {
-                throw new BadRequestException({ error: { code: 'project-not-found', message: 'Project not found (ingestion)' } });
-            }
-            documentId = insertDoc.rows[0]?.id;
-        }
-        if (!documentId) {
-            // If DB offline or insert failed silently, return graceful error
-            throw new BadRequestException({ error: { code: 'document-insert-failed', message: 'Failed to insert document (database offline or schema mismatch)' } });
-        }
-        // documentId already set above within insert branches
-        const chunks = this.chunker.chunk(text);
-        let vectors: number[][] = [];
-        if (this.config.embeddingsEnabled) {
-            try {
-                vectors = await this.embeddings.embedDocuments(chunks);
-            } catch (e) {
-                this.logger.warn(`Embedding generation failed, proceeding with NULL embeddings: ${(e as Error).message}`);
-                vectors = [];
-            }
-        }
-        let hasEmbeddingColumn: boolean | undefined;
-        let hasChunkUpsertConstraint = true; // (document_id, chunk_index) unique key
-        for (let i = 0; i < chunks.length; i++) {
-            const vec = vectors[i];
-            const vecLiteral = vec ? '[' + vec.map(n => (Number.isFinite(n) ? String(n) : '0')).join(',') + ']' : null;
-            if (hasEmbeddingColumn === false) {
-                if (hasChunkUpsertConstraint) {
-                    try {
-                        await this.db.query(
-                            `INSERT INTO kb.chunks(document_id, chunk_index, text)
-                             VALUES ($1,$2,$3)
-                             ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text`,
-                            [documentId, i, chunks[i]],
-                        );
-                    } catch (e) {
-                        if ((e as any)?.code === '42P10') { // no inferable unique index
-                            hasChunkUpsertConstraint = false;
-                            await this.db.query(
-                                `INSERT INTO kb.chunks(document_id, chunk_index, text)
-                                 VALUES ($1,$2,$3)`,
-                                [documentId, i, chunks[i]],
-                            );
-                        } else throw e;
-                    }
-                } else {
-                    await this.db.query(
-                        `INSERT INTO kb.chunks(document_id, chunk_index, text)
-                         VALUES ($1,$2,$3)`,
-                        [documentId, i, chunks[i]],
-                    );
-                }
-                continue;
-            }
-            try {
-                if (hasChunkUpsertConstraint) {
-                    await this.db.query(
-                        `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
-                         VALUES ($1,$2,$3,${vecLiteral ? '$4::vector' : 'NULL'})
-                         ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text, embedding = EXCLUDED.embedding`,
-                        vecLiteral ? [documentId, i, chunks[i], vecLiteral] : [documentId, i, chunks[i]],
-                    );
-                } else {
-                    await this.db.query(
-                        `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
-                         VALUES ($1,$2,$3,${vecLiteral ? '$4::vector' : 'NULL'})`,
-                        vecLiteral ? [documentId, i, chunks[i], vecLiteral] : [documentId, i, chunks[i]],
-                    );
-                }
-                hasEmbeddingColumn = true;
-            } catch (e) {
-                if ((e as any)?.code === '42703') { // embedding column missing; fallback
-                    this.metrics.embeddingColumnMissing++;
-                    if (process.env.E2E_DEBUG_VERBOSE === 'true') {
-                        this.logger.warn('kb.chunks.embedding column missing; continuing without embeddings');
-                    }
-                    hasEmbeddingColumn = false;
+            let hasEmbeddingColumn: boolean | undefined;
+            let hasChunkUpsertConstraint = true; // (document_id, chunk_index) unique key
+            for (let i = 0; i < chunks.length; i++) {
+                const vec = vectors[i];
+                const vecLiteral = vec ? '[' + vec.map(n => (Number.isFinite(n) ? String(n) : '0')).join(',') + ']' : null;
+                if (hasEmbeddingColumn === false) {
                     if (hasChunkUpsertConstraint) {
                         try {
                             await this.db.query(
@@ -273,15 +260,15 @@ export class IngestionService {
                                  ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text`,
                                 [documentId, i, chunks[i]],
                             );
-                        } catch (e2) {
-                            if ((e2 as any)?.code === '42P10') {
+                        } catch (e) {
+                            if ((e as any)?.code === '42P10') { // no inferable unique index
                                 hasChunkUpsertConstraint = false;
                                 await this.db.query(
                                     `INSERT INTO kb.chunks(document_id, chunk_index, text)
                                      VALUES ($1,$2,$3)`,
                                     [documentId, i, chunks[i]],
                                 );
-                            } else throw e2;
+                            } else throw e;
                         }
                     } else {
                         await this.db.query(
@@ -290,67 +277,118 @@ export class IngestionService {
                             [documentId, i, chunks[i]],
                         );
                     }
-                } else if ((e as any)?.code === '42P10') { // missing unique constraint
-                    hasChunkUpsertConstraint = false;
-                    // Retry without ON CONFLICT
-                    await this.db.query(
-                        `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
-                         VALUES ($1,$2,$3,${vecLiteral ? '$4::vector' : 'NULL'})`,
-                        vecLiteral ? [documentId, i, chunks[i], vecLiteral] : [documentId, i, chunks[i]],
-                    );
-                } else {
-                    throw e;
+                    continue;
+                }
+                try {
+                    if (hasChunkUpsertConstraint) {
+                        await this.db.query(
+                            `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
+                             VALUES ($1,$2,$3,${vecLiteral ? '$4::vector' : 'NULL'})
+                             ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text, embedding = EXCLUDED.embedding`,
+                            vecLiteral ? [documentId, i, chunks[i], vecLiteral] : [documentId, i, chunks[i]],
+                        );
+                    } else {
+                        await this.db.query(
+                            `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
+                             VALUES ($1,$2,$3,${vecLiteral ? '$4::vector' : 'NULL'})`,
+                            vecLiteral ? [documentId, i, chunks[i], vecLiteral] : [documentId, i, chunks[i]],
+                        );
+                    }
+                    hasEmbeddingColumn = true;
+                } catch (e) {
+                    if ((e as any)?.code === '42703') { // embedding column missing; fallback
+                        this.metrics.embeddingColumnMissing++;
+                        if (process.env.E2E_DEBUG_VERBOSE === 'true') {
+                            this.logger.warn('kb.chunks.embedding column missing; continuing without embeddings');
+                        }
+                        hasEmbeddingColumn = false;
+                        if (hasChunkUpsertConstraint) {
+                            try {
+                                await this.db.query(
+                                    `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                     VALUES ($1,$2,$3)
+                                     ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text`,
+                                    [documentId, i, chunks[i]],
+                                );
+                            } catch (e2) {
+                                if ((e2 as any)?.code === '42P10') {
+                                    hasChunkUpsertConstraint = false;
+                                    await this.db.query(
+                                        `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                         VALUES ($1,$2,$3)`,
+                                        [documentId, i, chunks[i]],
+                                    );
+                                } else throw e2;
+                            }
+                        } else {
+                            await this.db.query(
+                                `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                 VALUES ($1,$2,$3)`,
+                                [documentId, i, chunks[i]],
+                            );
+                        }
+                    } else if ((e as any)?.code === '42P10') { // missing unique constraint
+                        hasChunkUpsertConstraint = false;
+                        // Retry without ON CONFLICT
+                        await this.db.query(
+                            `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
+                             VALUES ($1,$2,$3,${vecLiteral ? '$4::vector' : 'NULL'})`,
+                            vecLiteral ? [documentId, i, chunks[i], vecLiteral] : [documentId, i, chunks[i]],
+                        );
+                    } else {
+                        throw e;
+                    }
                 }
             }
-        }
 
-        // Check if auto-extraction is enabled and create extraction job
-        // Note: We only reach this point for new documents (not alreadyExists)
-        let extractionJobId: string | undefined;
-        const autoExtractSettings = await this.shouldAutoExtract(projectId);
+            // Check if auto-extraction is enabled and create extraction job
+            // Note: We only reach this point for new documents (not alreadyExists)
+            let extractionJobId: string | undefined;
+            const autoExtractSettings = await this.shouldAutoExtract(projectId);
 
-        if (autoExtractSettings?.enabled) {
-            try {
-                this.logger.log(`Auto-extraction enabled for project ${projectId}, creating extraction job for document ${documentId}`);
+            if (autoExtractSettings?.enabled) {
+                try {
+                    this.logger.log(`Auto-extraction enabled for project ${projectId}, creating extraction job for document ${documentId}`);
 
-                const organizationId = derivedOrg || orgId || '';
-                const extractionJob = await this.extractionJobService.createJob({
-                    organization_id: organizationId,
-                    project_id: projectId,
-                    source_type: ExtractionSourceType.DOCUMENT,
-                    source_id: documentId,
-                    source_metadata: {
-                        filename: filename || null,
-                        source_url: sourceUrl || null,
-                        mime_type: mimeType || 'text/plain',
-                        chunks: chunks.length,
-                    },
-                    extraction_config: {
-                        ...autoExtractSettings.config,
-                        // Merge project config with any overrides
-                        enabled_types: autoExtractSettings.config.enabled_types || null,
-                        min_confidence: autoExtractSettings.config.min_confidence || 0.7,
-                        require_review: autoExtractSettings.config.require_review || false,
-                    },
-                });
+                    const organizationId = tenantOrgId || '';
+                    const extractionJob = await this.extractionJobService.createJob({
+                        organization_id: organizationId,
+                        project_id: projectId,
+                        source_type: ExtractionSourceType.DOCUMENT,
+                        source_id: documentId,
+                        source_metadata: {
+                            filename: filename || null,
+                            source_url: sourceUrl || null,
+                            mime_type: mimeType || 'text/plain',
+                            chunks: chunks.length,
+                        },
+                        extraction_config: {
+                            ...autoExtractSettings.config,
+                            // Merge project config with any overrides
+                            enabled_types: autoExtractSettings.config.enabled_types || null,
+                            min_confidence: autoExtractSettings.config.min_confidence || 0.7,
+                            require_review: autoExtractSettings.config.require_review || false,
+                        },
+                    });
 
-                extractionJobId = extractionJob.id;
-                this.logger.log(`Created extraction job ${extractionJobId} for document ${documentId}`);
-            } catch (e) {
-                // Log error but don't fail ingestion if extraction job creation fails
-                this.logger.error(
-                    `Failed to create auto-extraction job for document ${documentId}: ${(e as Error).message}`,
-                    (e as Error).stack
-                );
+                    extractionJobId = extractionJob.id;
+                    this.logger.log(`Created extraction job ${extractionJobId} for document ${documentId}`);
+                } catch (e) {
+                    // Log error but don't fail ingestion if extraction job creation fails
+                    this.logger.error(
+                        `Failed to create auto-extraction job for document ${documentId}: ${(e as Error).message}`,
+                        (e as Error).stack
+                    );
+                }
             }
-        }
 
-        return {
-            documentId,
-            chunks: chunks.length,
-            alreadyExists: false,
-            extractionJobId
-        };
+            return {
+                documentId,
+                chunks: chunks.length,
+                alreadyExists: false,
+                extractionJobId
+            };
+        });
     }
 }
 

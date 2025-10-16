@@ -21,6 +21,9 @@ export const MOCK_SCOPES = {
     documentsRead: 'documents:read',
     documentsWrite: 'documents:write',
     documentsDelete: 'documents:delete',
+    ingestWrite: 'ingest:write',
+    searchRead: 'search:read',
+    chunksRead: 'chunks:read',
     chatUse: 'chat:use',
     chatAdmin: 'chat:admin',
     // Graph search prototype scopes
@@ -29,6 +32,9 @@ export const MOCK_SCOPES = {
     // Notification scopes
     notificationsRead: 'notifications:read',
     notificationsWrite: 'notifications:write',
+    // Extraction job scopes
+    extractionRead: 'extraction:read',
+    extractionWrite: 'extraction:write',
 };
 
 @Injectable()

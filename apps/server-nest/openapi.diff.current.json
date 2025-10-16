@@ -8727,7 +8727,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "documents:read"
+                          "chunks:read"
                         ]
                       }
                     }
@@ -8761,7 +8761,7 @@
             "Chunks"
           ],
           "x-required-scopes": [
-            "documents:read"
+            "chunks:read"
           ]
         }
       },
@@ -10619,7 +10619,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "documents:write"
+                          "ingest:write"
                         ]
                       }
                     }
@@ -10653,7 +10653,7 @@
             "Ingestion"
           ],
           "x-required-scopes": [
-            "documents:write"
+            "ingest:write"
           ]
         }
       },
@@ -10730,7 +10730,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "documents:write"
+                          "ingest:write"
                         ]
                       }
                     }
@@ -10764,7 +10764,7 @@
             "Ingestion"
           ],
           "x-required-scopes": [
-            "documents:write"
+            "ingest:write"
           ]
         }
       },
@@ -13406,7 +13406,7 @@
                         "code": "forbidden",
                         "message": "Insufficient permissions",
                         "missing_scopes": [
-                          "documents:read"
+                          "search:read"
                         ]
                       }
                     }
@@ -13440,7 +13440,7 @@
             "Search"
           ],
           "x-required-scopes": [
-            "documents:read"
+            "search:read"
           ]
         }
       },

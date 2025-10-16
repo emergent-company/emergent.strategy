@@ -130,7 +130,16 @@ async function cleanupUserData(pool: Pool, projectId: string, userSub: string) {
     }
     // Template packs don't have project_id, but we can delete test packs by name pattern
     if (await tableCheck('kb.graph_template_packs')) {
-        await pool.query(`DELETE FROM kb.graph_template_packs WHERE name LIKE 'E2E%' OR name LIKE 'Test%' OR name LIKE '%Test%' OR name LIKE 'TOGAF%'`);
+        const packs = await pool.query<{ id: string }>(
+            `SELECT id FROM kb.graph_template_packs WHERE name LIKE 'E2E%' OR name LIKE 'Test%' OR name LIKE '%Test%' OR name LIKE 'TOGAF%'`
+        );
+        if (packs.rowCount) {
+            const ids = packs.rows.map(row => row.id);
+            if (await tableCheck('kb.project_template_packs')) {
+                await pool.query(`DELETE FROM kb.project_template_packs WHERE template_pack_id = ANY($1::uuid[])`, [ids]);
+            }
+            await pool.query(`DELETE FROM kb.graph_template_packs WHERE id = ANY($1::uuid[])`, [ids]);
+        }
     }
 }
 
@@ -161,6 +170,7 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
     if (process.env.SKIP_DB) delete process.env.SKIP_DB;
     // Enable static test tokens mode explicitly (Option 3) so fixtures like e2e-* are accepted
     process.env.AUTH_TEST_STATIC_TOKENS = process.env.AUTH_TEST_STATIC_TOKENS || '1';
+    process.env.SCOPES_DISABLED = '0';
     process.env.PGHOST = process.env.PGHOST || 'localhost';
     process.env.PGPORT = process.env.PGPORT || '5432';
     process.env.PGUSER = process.env.PGUSER || 'spec';
@@ -181,7 +191,19 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
     const online = await waitForConnectivity(pool);
     if (!online) throw new Error('Database connectivity failed for E2E tests');
     // Wait until minimal schema bootstrap (another worker may still be holding advisory lock rebuilding schema)
-    for (const rel of ['kb.orgs', 'kb.projects', 'kb.documents', 'kb.chunks', 'kb.chat_conversations', 'kb.chat_messages', 'kb.embedding_policies']) {
+    for (const rel of [
+        'core.user_profiles',
+        'core.user_emails',
+        'kb.orgs',
+        'kb.projects',
+        'kb.organization_memberships',
+        'kb.project_memberships',
+        'kb.documents',
+        'kb.chunks',
+        'kb.chat_conversations',
+        'kb.chat_messages',
+        'kb.embedding_policies',
+    ]) {
         const ready = await waitForRelation(pool, rel);
         if (!ready) throw new Error(`Timed out waiting for ${rel} to be created`);
     }
@@ -225,15 +247,63 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
     }
     // Derive per-context synthetic user sub to avoid cross-test interference when specs run in parallel.
     // Default remains the historical fixed UUID-like suffix for backward compatibility.
-    const userSub = userSuffix ? `e2e-user-${userSuffix}` : 'e2e-user-00000000-0000-0000-0000-000000000001';
+    const tokenSeed = userSuffix ? `e2e-${userSuffix}` : 'e2e-all';
+    const contextUserLabel = userSuffix ?? 'all';
+    const mappedUserId = mapUserSubToUuid(tokenSeed);
+    const legacyWithScopeUserId = mapUserSubToUuid('with-scope');
+
+    // Ensure deterministic test user has a profile + memberships so org/project listings respect RLS policies.
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const displayName = userSuffix ? `E2E User ${userSuffix}` : 'E2E User';
+        const emailLocal = tokenSeed.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
+        const email = `${emailLocal || 'e2e-user'}@example.test`;
+        await client.query(
+            `INSERT INTO core.user_profiles(subject_id, display_name)
+             VALUES($1,$2)
+             ON CONFLICT (subject_id) DO UPDATE SET display_name = EXCLUDED.display_name`,
+            [mappedUserId, displayName],
+        );
+        await client.query(
+            `INSERT INTO core.user_emails(subject_id, email, verified)
+             VALUES($1,$2,true)
+             ON CONFLICT (subject_id, email) DO NOTHING`,
+            [mappedUserId, email],
+        );
+        await client.query(
+            `INSERT INTO kb.organization_memberships(org_id, subject_id, role)
+             VALUES($1,$2,'org_admin')
+             ON CONFLICT (org_id, subject_id) DO NOTHING`,
+            [orgId, mappedUserId],
+        );
+        await client.query(
+            `INSERT INTO kb.project_memberships(project_id, subject_id, role)
+             VALUES($1,$2,'project_admin')
+             ON CONFLICT (project_id, subject_id) DO NOTHING`,
+            [projectId, mappedUserId],
+        );
+        await client.query('COMMIT');
+    } catch (error) {
+        try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+        throw error;
+    } finally {
+        client.release();
+    }
+
+    // Ensure legacy static token users (e.g. "with-scope") do not retain elevated memberships from prior runs.
+    // Scope denial specs rely on that subject having no org/project roles so ScopesGuard enforces properly.
+    await pool.query(`DELETE FROM kb.organization_memberships WHERE subject_id = $1`, [legacyWithScopeUserId]).catch(() => { /* ignore */ });
+    await pool.query(`DELETE FROM kb.project_memberships WHERE subject_id = $1`, [legacyWithScopeUserId]).catch(() => { /* ignore */ });
+
     return {
         app: boot.app,
         baseUrl: boot.baseUrl,
         orgId,
         projectId,
-        userSub,
-        cleanup: async () => cleanupUserData(pool, projectId, userSub),
-        cleanupProjectArtifacts: async (extraProjectId: string) => cleanupUserData(pool, extraProjectId, userSub),
+        userSub: contextUserLabel,
+        cleanup: async () => cleanupUserData(pool, projectId, tokenSeed),
+        cleanupProjectArtifacts: async (extraProjectId: string) => cleanupUserData(pool, extraProjectId, tokenSeed),
         cleanupExternalOrg: async (externalOrgId: string, options?: { allowPrimary?: boolean }) => {
             if (!options?.allowPrimary && externalOrgId === orgId) return; // guard
             try { await pool.query('DELETE FROM kb.orgs WHERE id = $1', [externalOrgId]); } catch { /* ignore */ }

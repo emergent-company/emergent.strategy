@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './modules/app.module';
 import { AppConfigService } from './common/config/config.service';
-import { ValidationPipe, BadRequestException, HttpStatus } from '@nestjs/common';
+import { ValidationPipe, HttpStatus, UnprocessableEntityException } from '@nestjs/common';
 import { DatabaseReadinessInterceptor } from './common/interceptors/database-readiness.interceptor';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { FileLogger } from './common/logger/file-logger.service';
@@ -48,10 +48,19 @@ async function bootstrap() {
         forbidUnknownValues: false,
         transformOptions: { enableImplicitConversion: true },
         validateCustomDecorators: true,
-        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+        errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
         exceptionFactory: (errors) => {
             const messages = errors.flatMap(e => Object.values(e.constraints || {}));
-            return new BadRequestException({ message: messages[0] || 'Validation failed', errors: messages });
+            if (!messages.length) {
+                return new UnprocessableEntityException({ message: 'Validation failed', code: 'validation-failed' });
+            }
+            return new UnprocessableEntityException({
+                error: {
+                    code: 'validation-failed',
+                    message: messages[0],
+                    details: { messages },
+                },
+            });
         }
     }));
 

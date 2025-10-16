@@ -12,6 +12,7 @@ import {
     BadRequestException,
     ForbiddenException,
     Req,
+    UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { ExtractionJobService } from './extraction-job.service';
@@ -24,6 +25,9 @@ import {
 } from './dto/extraction-job.dto';
 import { Request } from 'express';
 import { isUUID } from 'class-validator';
+import { AuthGuard } from '../auth/auth.guard';
+import { ScopesGuard } from '../auth/scopes.guard';
+import { Scopes } from '../auth/scopes.decorator';
 
 /**
  * Extraction Job Controller
@@ -34,6 +38,7 @@ import { isUUID } from 'class-validator';
 @ApiTags('Extraction Jobs')
 @Controller('admin/extraction-jobs')
 @ApiBearerAuth()
+@UseGuards(AuthGuard, ScopesGuard)
 export class ExtractionJobController {
     constructor(private readonly jobService: ExtractionJobService) { }
 
@@ -79,6 +84,7 @@ export class ExtractionJobController {
     @ApiResponse({ status: 201, description: 'Job created successfully', type: ExtractionJobDto })
     @ApiResponse({ status: 400, description: 'Invalid request data' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @Scopes('extraction:write')
     async createJob(
         @Body() dto: CreateExtractionJobDto,
         @Req() req: Request
@@ -112,6 +118,7 @@ export class ExtractionJobController {
     @ApiParam({ name: 'projectId', description: 'Project ID' })
     @ApiResponse({ status: 200, description: 'Jobs retrieved successfully', type: ExtractionJobListDto })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @Scopes('extraction:read')
     async listJobs(
         @Param('projectId') projectId: string,
         @Query() query: ListExtractionJobsDto,
@@ -135,6 +142,7 @@ export class ExtractionJobController {
     @ApiResponse({ status: 200, description: 'Job retrieved successfully', type: ExtractionJobDto })
     @ApiResponse({ status: 404, description: 'Job not found' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @Scopes('extraction:read')
     async getJob(
         @Param('jobId') jobId: string,
         @Req() req: Request
@@ -158,6 +166,7 @@ export class ExtractionJobController {
     @ApiResponse({ status: 404, description: 'Job not found' })
     @ApiResponse({ status: 400, description: 'Invalid update data' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @Scopes('extraction:write')
     async updateJob(
         @Param('jobId') jobId: string,
         @Body() dto: UpdateExtractionJobDto,
@@ -184,6 +193,7 @@ export class ExtractionJobController {
     @ApiResponse({ status: 404, description: 'Job not found' })
     @ApiResponse({ status: 400, description: 'Cannot retry job with current status (only running/failed jobs)' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @Scopes('extraction:write')
     async retryJob(
         @Param('jobId') jobId: string,
         @Req() req: Request
@@ -208,6 +218,7 @@ export class ExtractionJobController {
     @ApiResponse({ status: 404, description: 'Job not found' })
     @ApiResponse({ status: 400, description: 'Job cannot be cancelled (already completed/failed)' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @Scopes('extraction:write')
     async cancelJob(
         @Param('jobId') jobId: string,
         @Req() req: Request
@@ -232,6 +243,7 @@ export class ExtractionJobController {
     @ApiResponse({ status: 404, description: 'Job not found' })
     @ApiResponse({ status: 400, description: 'Cannot delete running/pending job' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @Scopes('extraction:write')
     async deleteJob(
         @Param('jobId') jobId: string,
         @Req() req: Request
@@ -273,6 +285,7 @@ export class ExtractionJobController {
         }
     })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @Scopes('extraction:read')
     async getStatistics(
         @Param('projectId') projectId: string,
         @Req() req: Request
@@ -316,6 +329,7 @@ export class ExtractionJobController {
         }
     })
     @ApiResponse({ status: 500, description: 'Failed to fetch models from API' })
+    @Scopes('extraction:read')
     async listAvailableModels(): Promise<any> {
         return this.jobService.listAvailableGeminiModels();
     }

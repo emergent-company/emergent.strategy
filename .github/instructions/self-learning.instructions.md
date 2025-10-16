@@ -399,6 +399,26 @@ Both should return 200 status code.
 - `apps/admin/src/hooks/use-api.ts` (lines 29-30: header construction)
 - `apps/server-nest/src/modules/documents/documents.controller.ts` (correct pattern)
 - `apps/server-nest/src/modules/template-packs/template-pack.controller.ts` (correct pattern)
+
+### 2025-10-16 - Forgot to Re-enable Scope Enforcement in E2E Contexts
+
+**Context**: Restoring the security scopes E2E suite for ingestion/search/chunks while reactivating ScopesGuard enforcement.
+
+**Mistake**: Re-enabled the tests and controller scope annotations without turning off the `SCOPES_DISABLED` flag that defaults to `1` in the environment, so the guard continued to bypass checks and tests kept passing with 200 responses instead of 403.
+
+**Why It Was Wrong**: The suite relies on ScopesGuard actually enforcing required scopes. Leaving `SCOPES_DISABLED=1` meant tokens missing `ingest:write`, `search:read`, or `chunks:read` were still authorized, hiding regressions and producing false positives.
+
+**Correct Approach**: Explicitly force `process.env.SCOPES_DISABLED = '0'` inside the E2E context bootstrap so every spec runs with enforcement active, regardless of global env defaults.
+
+**Prevention**:
+- Whenever re-enabling authorization tests, confirm relevant feature flags or bypass env vars are disabled (log or assert in tests if needed).
+- Set required auth flags inside shared test bootstrap (`createE2EContext`) so specs cannot silently inherit permissive defaults.
+- Keep regression tests that assert the flag is disabled when scope-related suites run.
+
+**Related Files/Conventions**:
+- `apps/server-nest/tests/e2e/e2e-context.ts`
+- `apps/server-nest/src/modules/auth/scopes.guard.ts`
+- `docs/TEST_FIX_SESSION_4_FINAL.md` (records impact of `SCOPES_DISABLED=1`)
 - `apps/server-nest/src/modules/integrations/integrations.controller.ts` (was wrong, now fixed)
 
 **System Pattern**:
