@@ -21,8 +21,16 @@ describe('Graph Search - Debug Meta', () => {
     afterAll(async () => { await ctx.close(); });
 
     // Use full-scope token for both calls so read scope satisfied; absence of debug flag should still suppress timing.
-    const headers = () => authHeader('all', 'graph-search-debug');
-    const debugHeaders = () => authHeader('all', 'graph-search-debug');
+    const headers = () => ({
+        ...authHeader('all', 'graph-search-debug'),
+        'x-org-id': ctx.orgId,
+        'x-project-id': ctx.projectId,
+    });
+    const debugHeaders = () => ({
+        ...authHeader('all', 'graph-search-debug'),
+        'x-org-id': ctx.orgId,
+        'x-project-id': ctx.projectId,
+    });
 
     test('baseline search returns meta without debug timing fields', async () => {
         const res = await request
@@ -63,7 +71,11 @@ describe('Graph Search - Debug Meta', () => {
     test('debug=true forbidden with graph-read token lacking debug scope', async () => {
         const res = await request
             .post('/graph/search?debug=true')
-            .set(authHeader('graph-read', 'graph-search-debug'))
+            .set({
+                ...authHeader('graph-read', 'graph-search-debug'),
+                'x-org-id': ctx.orgId,
+                'x-project-id': ctx.projectId,
+            })
             .send({ query: 'epsilon zeta', limit: 2 })
             .expect(403);
         expect(res.body?.error?.code).toBe('insufficient_scope');

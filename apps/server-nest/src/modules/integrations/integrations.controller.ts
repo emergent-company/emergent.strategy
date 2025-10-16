@@ -19,6 +19,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@ne
 import { isUUID } from 'class-validator';
 import { IntegrationsService } from './integrations.service';
 import { IntegrationRegistryService } from './integration-registry.service';
+import { Scopes } from '../auth/scopes.decorator';
 import {
     CreateIntegrationDto,
     UpdateIntegrationDto,
@@ -59,6 +60,7 @@ export class IntegrationsController {
      * GET /api/v1/integrations/available
      */
     @Get('available')
+    @Scopes('integrations:read')
     @ApiOperation({
         summary: 'List available integration types',
         description: 'Get a list of all integration types that can be configured (ClickUp, GitHub, etc.)'
@@ -82,6 +84,7 @@ export class IntegrationsController {
      * Headers: X-Project-ID, X-Org-ID
      */
     @Get()
+    @Scopes('integrations:read')
     @ApiOperation({
         summary: 'List integrations',
         description: 'List all integrations for a project with optional filters'
@@ -104,6 +107,7 @@ export class IntegrationsController {
      * Headers: X-Project-ID, X-Org-ID
      */
     @Get(':name')
+    @Scopes('integrations:read')
     @ApiOperation({
         summary: 'Get integration',
         description: 'Get detailed information about a specific integration'
@@ -128,6 +132,7 @@ export class IntegrationsController {
      * Headers: X-Project-ID, X-Org-ID
      */
     @Get(':name/public')
+    @Scopes('integrations:read')
     @ApiOperation({
         summary: 'Get public integration info',
         description: 'Get non-sensitive information about an integration'
@@ -151,6 +156,7 @@ export class IntegrationsController {
      * POST /api/v1/integrations
      */
     @Post()
+    @Scopes('integrations:write')
     @ApiOperation({
         summary: 'Create integration',
         description: 'Create a new integration configuration with encrypted credentials'
@@ -198,6 +204,7 @@ export class IntegrationsController {
      * Headers: X-Project-ID, X-Org-ID
      */
     @Put(':name')
+    @Scopes('integrations:write')
     @ApiOperation({
         summary: 'Update integration',
         description: 'Update an existing integration configuration'
@@ -224,6 +231,7 @@ export class IntegrationsController {
      * Headers: X-Project-ID, X-Org-ID
      */
     @Post(':name/test')
+    @Scopes('integrations:write')
     @ApiOperation({
         summary: 'Test integration connection',
         description: 'Test if the integration credentials are valid and the connection works'
@@ -259,6 +267,7 @@ export class IntegrationsController {
      * Headers: X-Project-ID, X-Org-ID
      */
     @Post(':name/sync')
+    @Scopes('integrations:write')
     @ApiOperation({
         summary: 'Trigger integration sync',
         description: 'Manually trigger a full import/sync from the integration'
@@ -325,6 +334,7 @@ export class IntegrationsController {
      * Headers: X-Project-ID, X-Org-ID
      */
     @Get('clickup/structure')
+    @Scopes('integrations:read')
     @ApiOperation({
         summary: 'Get ClickUp workspace structure',
         description: 'Fetch hierarchical workspace structure (spaces, folders, lists) with task counts for list selection UI'
@@ -387,6 +397,7 @@ export class IntegrationsController {
      * Headers: X-Project-ID, X-Org-ID
      */
     @Delete(':name')
+    @Scopes('integrations:write')
     @ApiOperation({
         summary: 'Delete integration',
         description: 'Delete an integration and all its associated data'

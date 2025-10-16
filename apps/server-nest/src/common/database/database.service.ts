@@ -7,6 +7,25 @@ export interface PgConfig {
     host?: string; port?: number; user?: string; password?: string; database?: string;
 }
 
+interface TenantContextFrame {
+    orgId: string | null;
+    projectId: string | null;
+}
+
+interface TenantStore extends TenantContextFrame {
+    base: TenantContextFrame | null;
+    frames: TenantContextFrame[];
+}
+
+type GraphPolicyDefinition = {
+    table: 'graph_objects' | 'graph_relationships';
+    name: string;
+    command: 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE';
+    using: string | null;
+    withCheck: string | null;
+    sql: string;
+};
+
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     private pool!: Pool;
@@ -32,7 +51,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     // Async-local tenant context to prevent concurrent tests from clobbering
     // the global fallback values. When set, this takes precedence over the
     // shared currentOrgId/currentProjectId pair.
-    private readonly tenantContextStorage = new AsyncLocalStorage<{ orgId: string | null; projectId: string | null }>();
+    private readonly tenantContextStorage = new AsyncLocalStorage<TenantStore>();
 
     constructor(@Inject(AppConfigService) private readonly config: AppConfigService) {
         // Temporary debug log to understand DI behavior in test harness.
@@ -122,16 +141,36 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         // correct GUCs before running the user query. We cannot rely on a prior
         // set_config call because the Pool may give us a different connection.
         const store = this.tenantContextStorage.getStore();
-        const effectiveOrg = store?.orgId ?? this.currentOrgId ?? '';
-        const effectiveProject = store?.projectId ?? this.currentProjectId ?? '';
+        const effectiveOrgRaw = store?.orgId ?? this.currentOrgId ?? null;
+        const effectiveProjectRaw = store?.projectId ?? this.currentProjectId ?? null;
         const hasContext = store !== undefined || this.currentOrgId !== undefined || this.currentProjectId !== undefined;
         if (hasContext) {
             const client = await this.pool.connect();
             try {
+                const effectiveOrg = effectiveOrgRaw ?? '';
+                const effectiveProject = effectiveProjectRaw ?? '';
+                const wildcard = effectiveOrg === '' && effectiveProject === '';
+                if (process.env.DEBUG_TENANT === 'true') {
+                    // eslint-disable-next-line no-console
+                    console.log('[db.query][set_config]', {
+                        org: effectiveOrg,
+                        project: effectiveProject,
+                        rowSecurity: wildcard ? 'on (wildcard)' : 'on (scoped)'
+                    });
+                }
                 await client.query(
                     'SELECT set_config($1,$2,false), set_config($3,$4,false), set_config($5,$6,false)',
-                    ['app.current_organization_id', effectiveOrg ?? '', 'app.current_project_id', effectiveProject ?? '', 'row_security', 'on']
+                    ['app.current_organization_id', effectiveOrg, 'app.current_project_id', effectiveProject, 'row_security', 'on']
                 );
+                if (process.env.DEBUG_TENANT === 'true') {
+                    // eslint-disable-next-line no-console
+                    console.log('[db.query][execute]', {
+                        text,
+                        org: effectiveOrg,
+                        project: effectiveProject,
+                        rowSecurity: wildcard ? 'on (wildcard)' : 'on (scoped)'
+                    });
+                }
                 return await client.query<T>(text, params);
             } finally {
                 client.release();
@@ -156,8 +195,19 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         const client = await this.pool.connect();
         try {
             const store = this.tenantContextStorage.getStore();
-            const orgId = store?.orgId ?? this.currentOrgId ?? '';
-            const projectId = store?.projectId ?? this.currentProjectId ?? '';
+            const orgRaw = store?.orgId ?? this.currentOrgId ?? null;
+            const projectRaw = store?.projectId ?? this.currentProjectId ?? null;
+            const orgId = orgRaw ?? '';
+            const projectId = projectRaw ?? '';
+            const wildcard = orgId === '' && projectId === '';
+            if (process.env.DEBUG_TENANT === 'true') {
+                // eslint-disable-next-line no-console
+                console.log('[db.getClient][set_config]', {
+                    org: orgId,
+                    project: projectId,
+                    rowSecurity: wildcard ? 'on (wildcard)' : 'on (scoped)'
+                });
+            }
             await client.query(
                 'SELECT set_config($1,$2,false), set_config($3,$4,false), set_config($5,$6,false)',
                 ['app.current_organization_id', orgId, 'app.current_project_id', projectId, 'row_security', 'on']
@@ -538,23 +588,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                             BEGIN EXECUTE 'ALTER TABLE kb.graph_objects FORCE ROW LEVEL SECURITY'; EXCEPTION WHEN others THEN END;
                             BEGIN EXECUTE 'ALTER TABLE kb.graph_relationships FORCE ROW LEVEL SECURITY'; EXCEPTION WHEN others THEN END;
                         END $$;`);
-                        // Drop any existing policies (legacy permissive ones) using application-side loop for reliability
-                        const existing = await this.pool.query<{ policyname: string; tablename: string }>(`SELECT policyname, tablename FROM pg_policies WHERE schemaname='kb' AND tablename IN ('graph_objects','graph_relationships')`);
-                        for (const p of existing.rows) {
-                            try { await exec(`DROP POLICY IF EXISTS ${p.policyname} ON kb.${p.tablename}`); } catch { /* ignore */ }
-                        }
                         const graphPolicyPredicate = "((COALESCE(current_setting('app.current_organization_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_organization_id', true),'') <> '' AND org_id::text = current_setting('app.current_organization_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true))) OR (COALESCE(current_setting('app.current_organization_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') <> '' AND project_id::text = current_setting('app.current_project_id', true)))";
-                        const createPolicies: string[] = [
-                            `CREATE POLICY graph_objects_select ON kb.graph_objects FOR SELECT USING (${graphPolicyPredicate})`,
-                            `CREATE POLICY graph_objects_insert ON kb.graph_objects FOR INSERT WITH CHECK (${graphPolicyPredicate})`,
-                            `CREATE POLICY graph_objects_update ON kb.graph_objects FOR UPDATE USING (${graphPolicyPredicate}) WITH CHECK (${graphPolicyPredicate})`,
-                            `CREATE POLICY graph_objects_delete ON kb.graph_objects FOR DELETE USING (${graphPolicyPredicate})`,
-                            `CREATE POLICY graph_relationships_select ON kb.graph_relationships FOR SELECT USING (${graphPolicyPredicate})`,
-                            `CREATE POLICY graph_relationships_insert ON kb.graph_relationships FOR INSERT WITH CHECK (${graphPolicyPredicate})`,
-                            `CREATE POLICY graph_relationships_update ON kb.graph_relationships FOR UPDATE USING (${graphPolicyPredicate}) WITH CHECK (${graphPolicyPredicate})`,
-                            `CREATE POLICY graph_relationships_delete ON kb.graph_relationships FOR DELETE USING (${graphPolicyPredicate})`
-                        ];
-                        for (const stmt of createPolicies) { await exec(stmt); }
+                        await this.ensureCanonicalGraphPolicies(exec, '[RLS|minimal]', graphPolicyPredicate);
                         try {
                             const flags = await this.pool.query<{ relrowsecurity: boolean; relforcerowsecurity: boolean }>(`SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname='graph_objects' AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname='kb')`);
                             this.logger.log('[RLS|minimal] graph_objects RLS enabled (force=' + flags.rows[0].relforcerowsecurity + ')');
@@ -789,23 +824,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                     BEGIN EXECUTE 'ALTER TABLE kb.graph_objects FORCE ROW LEVEL SECURITY'; EXCEPTION WHEN others THEN END;
                     BEGIN EXECUTE 'ALTER TABLE kb.graph_relationships FORCE ROW LEVEL SECURITY'; EXCEPTION WHEN others THEN END;
                 END $$;`);
-                // Enumerate & drop any existing policies (legacy or stale) using host-side logic for reliability
-                const existingFull = await this.pool.query<{ policyname: string; tablename: string }>(`SELECT policyname, tablename FROM pg_policies WHERE schemaname='kb' AND tablename IN ('graph_objects','graph_relationships')`);
-                for (const p of existingFull.rows) {
-                    try { await this.pool.query(`DROP POLICY IF EXISTS ${p.policyname} ON kb.${p.tablename}`); } catch { /* ignore */ }
-                }
                 const graphPolicyPredicate = "((COALESCE(current_setting('app.current_organization_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') = '') OR (COALESCE(current_setting('app.current_organization_id', true),'') <> '' AND org_id::text = current_setting('app.current_organization_id', true) AND (COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true))) OR (COALESCE(current_setting('app.current_organization_id', true),'') = '' AND COALESCE(current_setting('app.current_project_id', true),'') <> '' AND project_id::text = current_setting('app.current_project_id', true)))";
-                const createPoliciesFull: string[] = [
-                    `CREATE POLICY graph_objects_select ON kb.graph_objects FOR SELECT USING (${graphPolicyPredicate})`,
-                    `CREATE POLICY graph_objects_insert ON kb.graph_objects FOR INSERT WITH CHECK (${graphPolicyPredicate})`,
-                    `CREATE POLICY graph_objects_update ON kb.graph_objects FOR UPDATE USING (${graphPolicyPredicate}) WITH CHECK (${graphPolicyPredicate})`,
-                    `CREATE POLICY graph_objects_delete ON kb.graph_objects FOR DELETE USING (${graphPolicyPredicate})`,
-                    `CREATE POLICY graph_relationships_select ON kb.graph_relationships FOR SELECT USING (${graphPolicyPredicate})`,
-                    `CREATE POLICY graph_relationships_insert ON kb.graph_relationships FOR INSERT WITH CHECK (${graphPolicyPredicate})`,
-                    `CREATE POLICY graph_relationships_update ON kb.graph_relationships FOR UPDATE USING (${graphPolicyPredicate}) WITH CHECK (${graphPolicyPredicate})`,
-                    `CREATE POLICY graph_relationships_delete ON kb.graph_relationships FOR DELETE USING (${graphPolicyPredicate})`
-                ];
-                for (const stmt of createPoliciesFull) { await this.pool.query(stmt); }
+                await this.ensureCanonicalGraphPolicies((sql: string) => this.pool!.query(sql), '[RLS|full]', graphPolicyPredicate);
                 // Lightweight verification (will be trimmed in later cleanup task)
                 try {
                     const flagsFull = await this.pool.query<{ relrowsecurity: boolean; relforcerowsecurity: boolean }>(`SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname='graph_objects' AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname='kb')`);
@@ -943,7 +963,22 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     async setTenantContext(orgId?: string | null, projectId?: string | null) {
         const normalizedOrg = orgId ?? null;
         const normalizedProject = projectId ?? null;
-        this.tenantContextStorage.enterWith({ orgId: normalizedOrg, projectId: normalizedProject });
+        const existingStore = this.tenantContextStorage.getStore();
+        if (existingStore) {
+            existingStore.base = { orgId: normalizedOrg, projectId: normalizedProject };
+            existingStore.orgId = normalizedOrg;
+            existingStore.projectId = normalizedProject;
+            if (!existingStore.frames) {
+                existingStore.frames = [];
+            }
+        } else {
+            this.tenantContextStorage.enterWith({
+                base: { orgId: normalizedOrg, projectId: normalizedProject },
+                frames: [],
+                orgId: normalizedOrg,
+                projectId: normalizedProject,
+            });
+        }
         await this.applyTenantContext(normalizedOrg, normalizedProject);
     }
 
@@ -955,26 +990,236 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         }
         if (!this.pool) return; // DB disabled
         try {
+            const orgSetting = orgId ?? '';
+            const projectSetting = projectId ?? '';
             await this.pool.query(
                 'SELECT set_config($1,$2,false), set_config($3,$4,false), set_config($5,$6,false)',
-                ['app.current_organization_id', orgId ?? '', 'app.current_project_id', projectId ?? '', 'row_security', 'on']
+                ['app.current_organization_id', orgSetting, 'app.current_project_id', projectSetting, 'row_security', 'on']
             );
         } catch {
             /* ignore */
         }
     }
 
+    private getCanonicalGraphPolicies(graphPolicyPredicate: string): readonly GraphPolicyDefinition[] {
+        return [
+            {
+                table: 'graph_objects',
+                name: 'graph_objects_select',
+                command: 'SELECT',
+                using: graphPolicyPredicate,
+                withCheck: null,
+                sql: `CREATE POLICY graph_objects_select ON kb.graph_objects FOR SELECT USING (${graphPolicyPredicate})`,
+            },
+            {
+                table: 'graph_objects',
+                name: 'graph_objects_insert',
+                command: 'INSERT',
+                using: null,
+                withCheck: graphPolicyPredicate,
+                sql: `CREATE POLICY graph_objects_insert ON kb.graph_objects FOR INSERT WITH CHECK (${graphPolicyPredicate})`,
+            },
+            {
+                table: 'graph_objects',
+                name: 'graph_objects_update',
+                command: 'UPDATE',
+                using: graphPolicyPredicate,
+                withCheck: graphPolicyPredicate,
+                sql: `CREATE POLICY graph_objects_update ON kb.graph_objects FOR UPDATE USING (${graphPolicyPredicate}) WITH CHECK (${graphPolicyPredicate})`,
+            },
+            {
+                table: 'graph_objects',
+                name: 'graph_objects_delete',
+                command: 'DELETE',
+                using: graphPolicyPredicate,
+                withCheck: null,
+                sql: `CREATE POLICY graph_objects_delete ON kb.graph_objects FOR DELETE USING (${graphPolicyPredicate})`,
+            },
+            {
+                table: 'graph_relationships',
+                name: 'graph_relationships_select',
+                command: 'SELECT',
+                using: graphPolicyPredicate,
+                withCheck: null,
+                sql: `CREATE POLICY graph_relationships_select ON kb.graph_relationships FOR SELECT USING (${graphPolicyPredicate})`,
+            },
+            {
+                table: 'graph_relationships',
+                name: 'graph_relationships_insert',
+                command: 'INSERT',
+                using: null,
+                withCheck: graphPolicyPredicate,
+                sql: `CREATE POLICY graph_relationships_insert ON kb.graph_relationships FOR INSERT WITH CHECK (${graphPolicyPredicate})`,
+            },
+            {
+                table: 'graph_relationships',
+                name: 'graph_relationships_update',
+                command: 'UPDATE',
+                using: graphPolicyPredicate,
+                withCheck: graphPolicyPredicate,
+                sql: `CREATE POLICY graph_relationships_update ON kb.graph_relationships FOR UPDATE USING (${graphPolicyPredicate}) WITH CHECK (${graphPolicyPredicate})`,
+            },
+            {
+                table: 'graph_relationships',
+                name: 'graph_relationships_delete',
+                command: 'DELETE',
+                using: graphPolicyPredicate,
+                withCheck: null,
+                sql: `CREATE POLICY graph_relationships_delete ON kb.graph_relationships FOR DELETE USING (${graphPolicyPredicate})`,
+            },
+        ] as const;
+    }
+
+    private async ensureCanonicalGraphPolicies(executeSql: (sql: string) => Promise<unknown>, scopeLabel: string, graphPolicyPredicate: string) {
+        if (!this.pool) return;
+        const canonical = this.getCanonicalGraphPolicies(graphPolicyPredicate);
+        const canonicalKeys = new Set(canonical.map(p => `${p.table}:${p.name}`));
+        const normalizePredicate = (expr: string | null | undefined) => {
+            const compact = (expr ?? '').replace(/\s+/g, '').toLowerCase();
+            return compact === 'true' ? '' : compact;
+        };
+        const mapCommand = (value: string | null | undefined): 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | null => {
+            if (!value) return null;
+            switch (value.toLowerCase()) {
+                case 'r':
+                case 'select':
+                    return 'SELECT';
+                case 'a':
+                case 'insert':
+                    return 'INSERT';
+                case 'w':
+                case 'update':
+                    return 'UPDATE';
+                case 'd':
+                case 'delete':
+                    return 'DELETE';
+                default:
+                    return null;
+            }
+        };
+        const fetchPolicies = async () => this.pool!.query<{
+            policyname: string;
+            tablename: string;
+            command: string | null;
+            qual: string | null;
+            with_check: string | null;
+        }>(
+            "SELECT policyname, tablename, cmd AS command, qual, with_check FROM pg_policies WHERE schemaname='kb' AND tablename IN ('graph_objects','graph_relationships')"
+        );
+
+        // Drop any legacy policies that are no longer part of the canonical set
+        const existingRes = await fetchPolicies();
+        const existingMap = new Map(existingRes.rows.map(row => [`${row.tablename}:${row.policyname}`, row]));
+        for (const row of existingRes.rows) {
+            const key = `${row.tablename}:${row.policyname}`;
+            if (!canonicalKeys.has(key)) {
+                try {
+                    await executeSql(`DROP POLICY IF EXISTS ${row.policyname} ON kb.${row.tablename}`);
+                    existingMap.delete(key);
+                } catch (dropErr) {
+                    this.logger.warn(`${scopeLabel} drop legacy policy '${row.policyname}' failed: ${(dropErr as Error).message}`);
+                }
+            }
+        }
+
+        // Ensure each canonical policy exists with expected definition
+        for (const policy of canonical) {
+            const key = `${policy.table}:${policy.name}`;
+            const existing = existingMap.get(key);
+            if (!existing) {
+                try {
+                    await executeSql(policy.sql);
+                } catch (createErr) {
+                    this.logger.error(`${scopeLabel} failed to create policy ${policy.name}: ${(createErr as Error).message}`);
+                    throw createErr;
+                }
+                continue;
+            }
+            const existingCommand = mapCommand(existing.command);
+            if (existingCommand !== policy.command) {
+                try {
+                    await executeSql(`DROP POLICY IF EXISTS ${policy.name} ON kb.${policy.table}`);
+                    await executeSql(policy.sql);
+                } catch (recreateErr) {
+                    this.logger.error(`${scopeLabel} failed to recreate policy ${policy.name}: ${(recreateErr as Error).message}`);
+                    throw recreateErr;
+                }
+                continue;
+            }
+            const expectedUsing = normalizePredicate(policy.using);
+            const expectedCheck = normalizePredicate(policy.withCheck);
+            const actualUsing = normalizePredicate(existing.qual);
+            const actualCheck = normalizePredicate(existing.with_check);
+            const requiresDrop = (!policy.using && actualUsing) || (!policy.withCheck && actualCheck);
+            if (requiresDrop) {
+                try {
+                    await executeSql(`DROP POLICY IF EXISTS ${policy.name} ON kb.${policy.table}`);
+                    await executeSql(policy.sql);
+                } catch (resetErr) {
+                    this.logger.error(`${scopeLabel} failed to reset policy ${policy.name}: ${(resetErr as Error).message}`);
+                    throw resetErr;
+                }
+                continue;
+            }
+            const needsUsingUpdate = policy.using !== null && actualUsing !== expectedUsing;
+            const needsCheckUpdate = policy.withCheck !== null && actualCheck !== expectedCheck;
+            if (needsUsingUpdate || needsCheckUpdate) {
+                const clauses: string[] = [];
+                if (policy.using !== null) {
+                    clauses.push(`USING (${policy.using})`);
+                }
+                if (policy.withCheck !== null) {
+                    clauses.push(`WITH CHECK (${policy.withCheck})`);
+                }
+                try {
+                    await executeSql(`ALTER POLICY ${policy.name} ON kb.${policy.table} ${clauses.join(' ')}`);
+                } catch (alterErr) {
+                    this.logger.error(`${scopeLabel} failed to alter policy ${policy.name}: ${(alterErr as Error).message}`);
+                    throw alterErr;
+                }
+            }
+        }
+
+        // Final verification pass to ensure canonical set is present
+        const postEnsure = await fetchPolicies();
+        const finalKeys = new Set(postEnsure.rows.map(r => `${r.tablename}:${r.policyname}`));
+        for (const policy of canonical) {
+            const key = `${policy.table}:${policy.name}`;
+            if (!finalKeys.has(key)) {
+                const detail = `${policy.table}:${policy.name}`;
+                const message = `${scopeLabel} canonical policy missing after ensure: ${detail}`;
+                if (this.config?.rlsPolicyStrict) {
+                    throw new Error(message);
+                }
+                this.logger.warn(message);
+            }
+        }
+    }
+
     async runWithTenantContext<T>(orgId: string | null | undefined, projectId: string | null | undefined, fn: () => Promise<T>): Promise<T> {
         const normalizedOrg = orgId ?? null;
         const normalizedProject = projectId ?? null;
-        const previousOrg = this.currentOrgId ?? null;
-        const previousProject = this.currentProjectId ?? null;
-        return this.tenantContextStorage.run({ orgId: normalizedOrg, projectId: normalizedProject }, async () => {
+        const parentStore = this.tenantContextStorage.getStore();
+        const parentFrames = parentStore?.frames ?? [];
+        const originalOrg = this.currentOrgId;
+        const originalProject = this.currentProjectId;
+        const nextStore: TenantStore = {
+            base: parentStore?.base ?? null,
+            frames: [...parentFrames, { orgId: normalizedOrg, projectId: normalizedProject }],
+            orgId: normalizedOrg,
+            projectId: normalizedProject,
+        };
+
+        return this.tenantContextStorage.run(nextStore, async () => {
             await this.applyTenantContext(normalizedOrg, normalizedProject);
             try {
                 return await fn();
             } finally {
-                await this.applyTenantContext(previousOrg, previousProject);
+                const fallbackOrg = parentStore?.orgId ?? parentStore?.base?.orgId ?? (originalOrg !== undefined ? originalOrg : null);
+                const fallbackProject = parentStore?.projectId ?? parentStore?.base?.projectId ?? (originalProject !== undefined ? originalProject : null);
+                if (this.currentOrgId !== fallbackOrg || this.currentProjectId !== fallbackProject) {
+                    await this.applyTenantContext(fallbackOrg, fallbackProject);
+                }
             }
         });
     }

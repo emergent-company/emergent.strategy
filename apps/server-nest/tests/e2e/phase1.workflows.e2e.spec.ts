@@ -15,6 +15,12 @@ import { authHeader } from './auth-helpers';
  */
 
 let ctx: E2EContext;
+const contextHeaders = (extra: Record<string, string> = {}) => ({
+    ...authHeader('all', 'phase1-workflow'),
+    'x-org-id': ctx.orgId,
+    'x-project-id': ctx.projectId,
+    ...extra,
+});
 
 describe('Phase 1: Complete Workflow Integration (E2E)', () => {
     beforeAll(async () => {
@@ -31,7 +37,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
 
     describe('Template Pack Workflow', () => {
         it('should create, list, get, and verify immutability of template pack', async () => {
-            const headers = authHeader('all', 'phase1-workflow');
+            const headers = contextHeaders();
 
             // Step 1: Create template pack
             const createRes = await fetch(`${ctx.baseUrl}/template-packs`, {
@@ -128,7 +134,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
         });
 
         it('should install template pack to project', async () => {
-            const headers = authHeader('all', 'phase1-workflow');
+            const headers = contextHeaders();
 
             // Create template pack
             const createRes = await fetch(`${ctx.baseUrl}/template-packs`, {
@@ -200,7 +206,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
 
     describe('Type Registry Workflow', () => {
         it('should create, update, enable/disable, and delete custom types', async () => {
-            const headers = authHeader('all', 'phase1-workflow');
+            const headers = contextHeaders();
 
             // Step 1: Create custom type
             const createRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
@@ -311,7 +317,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             // SKIPPED: Field management endpoints don't exist
             // Fields should be managed by updating the type's json_schema via PATCH /type-registry/projects/:projectId/types/:typeName
             // TODO: Rewrite this test to use schema PATCH approach
-            const headers = authHeader('all', 'phase1-workflow');
+            const headers = contextHeaders();
 
             // Create type
             const createTypeRes = await fetch(`${ctx.baseUrl}/type-registry`, {
@@ -384,7 +390,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
 
     describe('Graph Object Validation with Type Registry', () => {
         it('should validate graph objects against type schemas', async () => {
-            const headers = authHeader('all', 'phase1-workflow');
+            const headers = contextHeaders();
 
             // Create custom type with strict schema
             const createTypeRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
@@ -531,7 +537,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
         });
 
         it('should allow objects when type is disabled but validation still applies', async () => {
-            const headers = authHeader('all', 'phase1-workflow');
+            const headers = contextHeaders();
 
             // Create type
             const createTypeRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
@@ -588,7 +594,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
 
     describe('Extraction Job Lifecycle', () => {
         it('should create, update, complete, and delete extraction job', async () => {
-            const headers = authHeader('all', 'phase1-workflow');
+            const headers = contextHeaders();
 
             // Step 1: Create extraction job
             const createRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
@@ -728,7 +734,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
         });
 
         it('should cancel running job', async () => {
-            const headers = authHeader('all', 'phase1-workflow');
+            const headers = contextHeaders();
 
             // Create and start job
             const createRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
@@ -766,7 +772,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
         });
 
         it('should not allow deletion of running jobs', async () => {
-            const headers = authHeader('all', 'phase1-workflow');
+            const headers = contextHeaders();
 
             // Create running job
             const createRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
@@ -809,7 +815,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
         });
 
         it('should handle failed jobs', async () => {
-            const headers = authHeader('all', 'phase1-workflow');
+            const headers = contextHeaders();
 
             // Create job
             const createRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {
@@ -862,7 +868,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
 
     describe('Integration: Full Phase 1 Workflow', () => {
         it('should execute complete Phase 1 flow: Template Pack → Type Registry → Graph Object → Extraction Job', async () => {
-            const headers = authHeader('all', 'phase1-workflow');
+            const headers = contextHeaders();
 
             // === Part 1: Create and Install Template Pack ===
 
@@ -1076,7 +1082,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             // NOTE: Skipped in E2E_MINIMAL_DB mode - RLS policies are intentionally disabled
             // when AuthGuard is bypassed (see database.service.ts line 464-466)
             // This test would pass in full integration mode with RLS enabled
-            const headers = authHeader('all', 'phase1-workflow');
+            const headers = contextHeaders();
 
             // Create template pack in context project
             const createRes = await fetch(`${ctx.baseUrl}/template-packs`, {
@@ -1117,7 +1123,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
         });
 
         it('should enforce project-level isolation for type registry', async () => {
-            const headers = authHeader('all', 'phase1-workflow');
+            const headers = contextHeaders();
 
             // Create type
             const createRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
@@ -1145,7 +1151,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
         });
 
         it('should enforce project-level isolation for extraction jobs', async () => {
-            const headers = authHeader('all', 'phase1-workflow');
+            const headers = contextHeaders();
 
             // Create job
             const createRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs`, {

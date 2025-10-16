@@ -30,7 +30,7 @@
     "dev-manager:admin:e2e:headed": "echo 'Headed mode requires user interaction - use run_in_terminal instead' && exit 1",
     "dev-manager:admin:e2e:debug": "echo 'Debug mode requires user interaction - use run_in_terminal instead' && exit 1",
     "dev-manager:admin:build": "npm --prefix apps/admin run build",
-    "dev-manager:admin:test": "npm --prefix apps/admin run test",
+    "dev-manager:admin:test": "npm --prefix apps/admin run test -- --run",
     "dev-manager:admin:test:coverage": "npm --prefix apps/admin run test:coverage",
     "dev-manager:admin:storybook": "npm --prefix apps/admin run storybook",
     "dev-manager:server:test": "npm --prefix apps/server-nest run test",

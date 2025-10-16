@@ -35,12 +35,31 @@ export class GraphObjectsController {
     private _warnedSimilarLegacy = false;
     private readonly logger = new Logger(GraphObjectsController.name);
 
+    private extractContext(req?: any) {
+        if (!req?.headers) return undefined;
+        const normalize = (value?: string) => {
+            if (!value) return undefined;
+            const trimmed = value.trim();
+            if (!trimmed || trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined') {
+                return undefined;
+            }
+            return trimmed;
+        };
+        const orgId = normalize(req.headers['x-org-id'] as string | undefined);
+        const projectId = normalize(req.headers['x-project-id'] as string | undefined);
+        if (!orgId && !projectId) return undefined;
+        return { orgId: orgId ?? null, projectId: projectId ?? null };
+    }
+
     @Post('objects')
     @Scopes('graph:write')
     @ApiOperation({ summary: 'Create a graph object (initial version)' })
     @ApiResponse({ status: 201, description: 'Created' })
     @ApiResponse({ status: 400, description: 'Validation error' })
-    create(@Body() dto: CreateGraphObjectDto) { return this.service.createObject(dto); }
+    create(@Body() dto: CreateGraphObjectDto, @Req() req: any) {
+        const ctx = this.extractContext(req);
+        return this.service.createObject({ ...dto, org_id: dto.org_id ?? ctx?.orgId ?? undefined, project_id: dto.project_id ?? ctx?.projectId ?? undefined }, ctx);
+    }
 
     @Get('objects/search')
     @Scopes('graph:read')
@@ -59,9 +78,7 @@ export class GraphObjectsController {
         const ord = (order && (order.toLowerCase() === 'asc' || order.toLowerCase() === 'desc')) ? order.toLowerCase() as 'asc' | 'desc' : undefined;
         const orgId = (req?.headers['x-org-id'] as string | undefined) || undefined;
         const projectId = (req?.headers['x-project-id'] as string | undefined) || undefined;
-        console.log('[GraphController.searchObjects] Headers:', { 'x-org-id': req?.headers['x-org-id'], 'x-project-id': req?.headers['x-project-id'] });
-        console.log('[GraphController.searchObjects] Parsed:', { orgId, projectId, type, limit: parsedLimit, order: ord });
-        return this.service.searchObjects({ type, key, label, limit: parsedLimit, cursor, order: ord, org_id: orgId, project_id: projectId });
+        return this.service.searchObjects({ type, key, label, limit: parsedLimit, cursor, order: ord, org_id: orgId, project_id: projectId }, { orgId, projectId });
     }
 
     @Get('objects/fts')
@@ -79,7 +96,7 @@ export class GraphObjectsController {
         const parsedLimit = limit ? parseInt(limit, 10) : 20;
         const orgId = (req?.headers['x-org-id'] as string | undefined) || undefined;
         const projectId = (req?.headers['x-project-id'] as string | undefined) || undefined;
-        return this.service.searchObjectsFts({ q, limit: parsedLimit, type, label, branch_id, org_id: orgId, project_id: projectId });
+        return this.service.searchObjectsFts({ q, limit: parsedLimit, type, label, branch_id, org_id: orgId, project_id: projectId }, { orgId, projectId });
     }
 
     @Get('objects/:id')
@@ -87,7 +104,7 @@ export class GraphObjectsController {
     @ApiOperation({ summary: 'Get latest version of a graph object' })
     @ApiResponse({ status: 200 })
     @ApiResponse({ status: 404, description: 'Not found' })
-    get(@Param('id') id: string) { return this.service.getObject(id); }
+    get(@Param('id') id: string, @Req() req: any) { return this.service.getObject(id, this.extractContext(req)); }
 
     @Patch('objects/:id')
     @Scopes('graph:write')
@@ -95,27 +112,27 @@ export class GraphObjectsController {
     @ApiResponse({ status: 200, description: 'Version created' })
     @ApiResponse({ status: 400, description: 'No effective change' })
     @ApiResponse({ status: 404, description: 'Not found' })
-    patch(@Param('id') id: string, @Body() dto: PatchGraphObjectDto) { return this.service.patchObject(id, dto); }
+    patch(@Param('id') id: string, @Body() dto: PatchGraphObjectDto, @Req() req: any) { return this.service.patchObject(id, dto, this.extractContext(req)); }
 
     @Delete('objects/:id')
     @Scopes('graph:write')
     @ApiOperation({ summary: 'Soft delete (tombstone) an object (creates new version with deleted_at)' })
-    deleteObject(@Param('id') id: string) { return this.service.deleteObject(id); }
+    deleteObject(@Param('id') id: string, @Req() req: any) { return this.service.deleteObject(id, this.extractContext(req)); }
 
     @Post('objects/:id/restore')
     @Scopes('graph:write')
     @ApiOperation({ summary: 'Restore a soft-deleted object (creates new version clearing deleted_at)' })
     @ApiResponse({ status: 201, description: 'Restored (new version created)' })
-    restoreObject(@Param('id') id: string) { return this.service.restoreObject(id); }
+    restoreObject(@Param('id') id: string, @Req() req: any) { return this.service.restoreObject(id, this.extractContext(req)); }
 
     @Get('objects/:id/history')
     @Scopes('graph:read')
     @ApiOperation({ summary: 'List version history for a graph object' })
     @ApiOkResponse({ type: ObjectHistoryResponseDto })
     @ApiResponse({ status: 404, description: 'Not found' })
-    history(@Param('id') id: string, @Query('limit') limit?: string, @Query('cursor') cursor?: string) {
+    history(@Param('id') id: string, @Query('limit') limit?: string, @Query('cursor') cursor?: string, @Req() req?: any) {
         const parsed = limit ? parseInt(limit, 10) : 20;
-        return this.service.listHistory(id, parsed, cursor);
+        return this.service.listHistory(id, parsed, cursor, this.extractContext(req));
     }
 
 
@@ -124,9 +141,10 @@ export class GraphObjectsController {
     @Scopes('graph:write')
     @ApiOperation({ summary: 'Create a relationship (initial version) or new version if properties changed' })
     @ApiResponse({ status: 201 })
-    async createRel(@Body() dto: CreateGraphRelationshipDto) {
+    async createRel(@Body() dto: CreateGraphRelationshipDto, @Req() req: any) {
+        const ctx = this.extractContext(req);
         // Derive org/project from src object (authoritative) to avoid requiring client-supplied IDs
-        const src = await this.service.getObject(dto.src_id);
+        const src = await this.service.getObject(dto.src_id, ctx);
         const orgId = (src as any).org_id || '00000000-0000-0000-0000-000000000000';
         const projectId = (src as any).project_id || '00000000-0000-0000-0000-000000000000';
         return this.service.createRelationship(dto, orgId, projectId);
@@ -135,68 +153,68 @@ export class GraphObjectsController {
     @Get('relationships/:id')
     @Scopes('graph:read')
     @ApiOperation({ summary: 'Get relationship by id' })
-    getRel(@Param('id') id: string) { return this.service.getRelationship(id); }
+    getRel(@Param('id') id: string, @Req() req: any) { return this.service.getRelationship(id, this.extractContext(req)); }
 
     @Get('relationships/search')
     @Scopes('graph:read')
     @ApiOperation({ summary: 'Search relationships (basic filters)', description: 'Supports pagination via created_at cursor. Optional order param (asc|desc) for chronological direction (default asc).' })
     @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'], description: 'Chronological direction (asc=oldest→newest, desc=newest→oldest). Default asc.' })
-    searchRels(@Query('type') type?: string, @Query('src_id') src_id?: string, @Query('dst_id') dst_id?: string, @Query('limit') limit?: string, @Query('cursor') cursor?: string, @Query('order') order?: string) {
+    searchRels(@Query('type') type?: string, @Query('src_id') src_id?: string, @Query('dst_id') dst_id?: string, @Query('limit') limit?: string, @Query('cursor') cursor?: string, @Query('order') order?: string, @Req() req?: any) {
         const parsedLimit = limit ? parseInt(limit, 10) : 20;
         const ord = (order && (order.toLowerCase() === 'asc' || order.toLowerCase() === 'desc')) ? order.toLowerCase() as 'asc' | 'desc' : undefined;
-        return this.service.searchRelationships({ type, src_id, dst_id, limit: parsedLimit, cursor, order: ord });
+        return this.service.searchRelationships({ type, src_id, dst_id, limit: parsedLimit, cursor, order: ord }, this.extractContext(req));
     }
 
     @Patch('relationships/:id')
     @Scopes('graph:write')
     @ApiOperation({ summary: 'Patch (create new version) of a relationship (only head version allowed)' })
-    patchRel(@Param('id') id: string, @Body() dto: PatchGraphRelationshipDto) { return this.service.patchRelationship(id, dto); }
+    patchRel(@Param('id') id: string, @Body() dto: PatchGraphRelationshipDto, @Req() req: any) { return this.service.patchRelationship(id, dto, this.extractContext(req)); }
 
     @Delete('relationships/:id')
     @Scopes('graph:write')
     @ApiOperation({ summary: 'Soft delete a relationship (tombstone version)' })
-    deleteRel(@Param('id') id: string) { return this.service.deleteRelationship(id); }
+    deleteRel(@Param('id') id: string, @Req() req: any) { return this.service.deleteRelationship(id, this.extractContext(req)); }
 
     @Post('relationships/:id/restore')
     @Scopes('graph:write')
     @ApiOperation({ summary: 'Restore a soft-deleted relationship' })
     @ApiResponse({ status: 201, description: 'Restored (new version created)' })
-    restoreRel(@Param('id') id: string) { return this.service.restoreRelationship(id); }
+    restoreRel(@Param('id') id: string, @Req() req: any) { return this.service.restoreRelationship(id, this.extractContext(req)); }
 
     @Get('relationships/:id/history')
     @Scopes('graph:read')
     @ApiOperation({ summary: 'List version history for a relationship' })
     @ApiOkResponse({ type: RelationshipHistoryResponseDto })
-    historyRel(@Param('id') id: string, @Query('limit') limit?: string, @Query('cursor') cursor?: string) {
+    historyRel(@Param('id') id: string, @Query('limit') limit?: string, @Query('cursor') cursor?: string, @Req() req?: any) {
         const parsed = limit ? parseInt(limit, 10) : 20;
-        return this.service.listRelationshipHistory(id, parsed, cursor);
+        return this.service.listRelationshipHistory(id, parsed, cursor, this.extractContext(req));
     }
 
     @Get('objects/:id/edges')
     @Scopes('graph:read')
     @ApiOperation({ summary: 'List relationships adjacent to an object' })
-    edges(@Param('id') id: string, @Query('direction') direction?: string, @Query('limit') limit?: string) {
+    edges(@Param('id') id: string, @Query('direction') direction?: string, @Query('limit') limit?: string, @Req() req?: any) {
         const dir: 'out' | 'in' | 'both' = (direction === 'out' || direction === 'in' || direction === 'both') ? direction : 'both';
-        return this.service.listEdges(id, dir, limit ? parseInt(limit, 10) : 50);
+        return this.service.listEdges(id, dir, limit ? parseInt(limit, 10) : 50, this.extractContext(req));
     }
 
     @Post('traverse')
     @Scopes('graph:read')
     @ApiOperation({ summary: 'Traverse the graph from one or more root object ids (bounded BFS)' })
     @HttpCode(200)
-    traverse(@Body() dto: TraverseGraphDto) {
-        return this.service.traverse(dto);
+    traverse(@Body() dto: TraverseGraphDto, @Req() req: any) {
+        return this.service.traverse(dto, this.extractContext(req));
     }
 
     @Post('expand')
     @Scopes('graph:read')
     @ApiOperation({ summary: 'Expand graph (single-pass bounded traversal with projection & edge property option)' })
     @HttpCode(200)
-    expand(@Body() dto: GraphExpandDto) {
+    expand(@Body() dto: GraphExpandDto, @Req() req: any) {
         if (process.env.GRAPH_EXPAND_DISABLED === '1') {
             return { error: 'expand_disabled' };
         }
-        return this.service.expand(dto as any);
+        return this.service.expand(dto as any, this.extractContext(req));
     }
 
     // ---------------- Vector Similarity ----------------
@@ -357,11 +375,12 @@ export class GraphObjectsController {
     async mergeDryRun(
         @Param('targetBranchId') targetBranchId: string,
         @Body() dto: BranchMergeRequestDto,
+        @Req() req: any,
     ): Promise<BranchMergeSummaryDto> {
         if (!dto.sourceBranchId) {
             throw new BadRequestException('source_branch_required');
         }
-        return this.service.mergeBranchDryRun(targetBranchId, dto);
+        return this.service.mergeBranchDryRun(targetBranchId, dto, this.extractContext(req));
     }
 }
 

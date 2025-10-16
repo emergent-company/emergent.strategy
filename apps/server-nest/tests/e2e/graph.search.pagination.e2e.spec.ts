@@ -14,13 +14,17 @@ describe('Graph Search - Cursor Pagination', () => {
 
     afterAll(async () => { await ctx.close(); });
 
-    const headers = () => authHeader('all', 'graph-search-page');
+    const contextHeaders = () => ({
+        ...authHeader('all', 'graph-search-page'),
+        'x-org-id': ctx.orgId,
+        'x-project-id': ctx.projectId,
+    });
 
     it('paginates forward with stable, non-overlapping windows until exhaustion', async () => {
         const limit = 2;
         const first = await request
             .post('/graph/search')
-            .set(headers())
+            .set(contextHeaders())
             .send({ query: 'pagination test', pagination: { limit } })
             .expect(200);
         expect(Array.isArray(first.body.items)).toBe(true);
@@ -35,7 +39,7 @@ describe('Graph Search - Cursor Pagination', () => {
         while (cursor) {
             const page = await request
                 .post('/graph/search')
-                .set(headers())
+                .set(contextHeaders())
                 .send({ query: 'pagination test', pagination: { limit, cursor } })
                 .expect(200);
             pageCount++;
@@ -61,14 +65,14 @@ describe('Graph Search - Cursor Pagination', () => {
         const limit = 1;
         let res = await request
             .post('/graph/search')
-            .set(headers())
+            .set(contextHeaders())
             .send({ query: 'pagination test', pagination: { limit } })
             .expect(200);
         let cursor: string | null = res.body.meta.nextCursor;
         while (cursor) {
             res = await request
                 .post('/graph/search')
-                .set(headers())
+                .set(contextHeaders())
                 .send({ query: 'pagination test', pagination: { limit, cursor } })
                 .expect(200);
             cursor = res.body.meta.nextCursor;
@@ -78,13 +82,13 @@ describe('Graph Search - Cursor Pagination', () => {
         const lastItemCursor = res.body.items.length ? res.body.items[res.body.items.length - 1].cursor : res.body.meta.prevCursor;
         const beyond = await request
             .post('/graph/search')
-            .set(headers())
+            .set(contextHeaders())
             .send({ query: 'pagination test', pagination: { limit, cursor: lastItemCursor } })
             .expect(200);
         // Now calling again with same cursor should advance past pool and be empty
         const empty = await request
             .post('/graph/search')
-            .set(headers())
+            .set(contextHeaders())
             .send({ query: 'pagination test', pagination: { limit, cursor: beyond.body.meta.nextCursor ?? lastItemCursor } })
             .expect(200);
         if (empty.body.items.length === 0) {
@@ -95,7 +99,7 @@ describe('Graph Search - Cursor Pagination', () => {
     it('caps overly large limit request to 50', async () => {
         const res = await request
             .post('/graph/search')
-            .set(headers())
+            .set(contextHeaders())
             // 100 is max allowed by validator; service should clamp to 50 effective
             .send({ query: 'pagination test', pagination: { limit: 100 } })
             .expect(200);
@@ -108,20 +112,20 @@ describe('Graph Search - Cursor Pagination', () => {
         const limit = 2;
         const first = await request
             .post('/graph/search')
-            .set(headers())
+            .set(contextHeaders())
             .send({ query: 'pagination test', pagination: { limit } })
             .expect(200);
         if (!first.body.meta.nextCursor) return; // not enough data for multi-page
         const second = await request
             .post('/graph/search')
-            .set(headers())
+            .set(contextHeaders())
             .send({ query: 'pagination test', pagination: { limit, cursor: first.body.meta.nextCursor } })
             .expect(200);
         if (!second.body.items.length) return; // no second page
         const cursorAtSecondFirst = second.body.items[0].cursor;
         const backward = await request
             .post('/graph/search')
-            .set(headers())
+            .set(contextHeaders())
             .send({ query: 'pagination test', pagination: { limit, cursor: cursorAtSecondFirst, direction: 'backward' } })
             .expect(200);
         // Backward page, if present, should surface items that appeared on earlier (first) page, not the cursor item itself.

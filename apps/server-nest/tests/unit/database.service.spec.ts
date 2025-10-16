@@ -113,4 +113,40 @@ describe('DatabaseService extended behaviour', () => {
         expect(db.isOnline()).toBe(false);
         await expect(db.getClient()).rejects.toThrow(/Database offline/);
     });
+
+    it('restores base tenant context after overlapping runWithTenantContext calls', async () => {
+        const { db } = buildServices();
+        const originalApply = (db as any).applyTenantContext.bind(db);
+        const applied: Array<{ org: string | null; project: string | null }> = [];
+        vi.spyOn(db as any, 'applyTenantContext').mockImplementation(async (org: unknown, project: unknown) => {
+            const normalizedOrg = (org ?? null) as string | null;
+            const normalizedProject = (project ?? null) as string | null;
+            applied.push({ org: normalizedOrg, project: normalizedProject });
+            return await originalApply(normalizedOrg, normalizedProject);
+        });
+
+        await db.setTenantContext('base-org', 'base-project');
+
+        const first = db.runWithTenantContext('org-1', 'proj-1', async () => {
+            await new Promise(resolve => setTimeout(resolve, 0));
+        });
+
+        const second = db.runWithTenantContext('org-2', 'proj-2', async () => {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        });
+
+        await first;
+        await second;
+
+        expect((db as any).currentOrgId).toBe('base-org');
+        expect((db as any).currentProjectId).toBe('base-project');
+        const storage = (db as any).tenantContextStorage;
+        const store = storage?.getStore();
+        expect(store).toBeDefined();
+        expect(store?.frames?.length ?? 0).toBe(0);
+        expect(store?.orgId ?? null).toBe('base-org');
+        expect(store?.projectId ?? null).toBe('base-project');
+        const lastCall = applied[applied.length - 1];
+        expect(lastCall).toEqual({ org: 'base-org', project: 'base-project' });
+    });
 });

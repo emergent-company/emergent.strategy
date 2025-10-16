@@ -11,7 +11,11 @@ import { authHeader } from './auth-helpers';
 describe('Graph Embedding Policies (E2E)', () => {
     let ctx: Awaited<ReturnType<typeof createE2EContext>>;
     let request: supertest.SuperTest<supertest.Test>;
-    const headers = () => authHeader('default');
+    const contextHeaders = () => ({
+        ...authHeader('default'),
+        'x-org-id': ctx.orgId,
+        'x-project-id': ctx.projectId,
+    });
 
     beforeAll(async () => {
         ctx = await createE2EContext('graph-embedding-policies');
@@ -36,7 +40,7 @@ describe('Graph Embedding Policies (E2E)', () => {
 
             const res = await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send(policy)
                 .expect(201);
 
@@ -62,7 +66,7 @@ describe('Graph Embedding Policies (E2E)', () => {
 
             const res = await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send(policy)
                 .expect(201);
 
@@ -87,14 +91,14 @@ describe('Graph Embedding Policies (E2E)', () => {
             // First creation succeeds
             await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send(policy)
                 .expect(201);
 
             // Second creation fails with 500 (unique constraint violation from database)
             await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send(policy)
                 .expect(500);
         });
@@ -103,7 +107,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create multiple policies
             await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'Asset',
@@ -113,7 +117,7 @@ describe('Graph Embedding Policies (E2E)', () => {
 
             await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'Component',
@@ -123,7 +127,7 @@ describe('Graph Embedding Policies (E2E)', () => {
 
             const res = await request
                 .get(`/graph/embedding-policies?project_id=${ctx.projectId}`)
-                .set(headers())
+                .set(contextHeaders())
                 .expect(200);
 
             expect(Array.isArray(res.body)).toBe(true);
@@ -137,7 +141,7 @@ describe('Graph Embedding Policies (E2E)', () => {
         test('filter policies by object type', async () => {
             const res = await request
                 .get(`/graph/embedding-policies?project_id=${ctx.projectId}&object_type=Document`)
-                .set(headers())
+                .set(contextHeaders())
                 .expect(200);
 
             expect(Array.isArray(res.body)).toBe(true);
@@ -148,14 +152,14 @@ describe('Graph Embedding Policies (E2E)', () => {
         test('require project_id query parameter', async () => {
             await request
                 .get('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .expect(400);
         });
 
         test('get single policy by id', async () => {
             const created = await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'SingleGetTest',
@@ -165,7 +169,7 @@ describe('Graph Embedding Policies (E2E)', () => {
 
             const res = await request
                 .get(`/graph/embedding-policies/${created.body.id}?project_id=${ctx.projectId}`)
-                .set(headers())
+                .set(contextHeaders())
                 .expect(200);
 
             expect(res.body.id).toBe(created.body.id);
@@ -175,14 +179,14 @@ describe('Graph Embedding Policies (E2E)', () => {
         test('404 for non-existent policy id', async () => {
             await request
                 .get(`/graph/embedding-policies/00000000-0000-0000-0000-000000000000?project_id=${ctx.projectId}`)
-                .set(headers())
+                .set(contextHeaders())
                 .expect(404);
         });
 
         test('update policy fields', async () => {
             const created = await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'UpdateTest',
@@ -193,7 +197,7 @@ describe('Graph Embedding Policies (E2E)', () => {
 
             const updated = await request
                 .patch(`/graph/embedding-policies/${created.body.id}?project_id=${ctx.projectId}`)
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     enabled: false,
                     maxPropertySize: 10000,
@@ -210,7 +214,7 @@ describe('Graph Embedding Policies (E2E)', () => {
         test('404 when updating non-existent policy', async () => {
             await request
                 .patch(`/graph/embedding-policies/00000000-0000-0000-0000-000000000000?project_id=${ctx.projectId}`)
-                .set(headers())
+                .set(contextHeaders())
                 .send({ enabled: false })
                 .expect(404);
         });
@@ -218,7 +222,7 @@ describe('Graph Embedding Policies (E2E)', () => {
         test('delete policy', async () => {
             const created = await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'DeleteTest',
@@ -228,20 +232,20 @@ describe('Graph Embedding Policies (E2E)', () => {
 
             await request
                 .delete(`/graph/embedding-policies/${created.body.id}?project_id=${ctx.projectId}`)
-                .set(headers())
+                .set(contextHeaders())
                 .expect(204);
 
             // Verify deletion
             await request
                 .get(`/graph/embedding-policies/${created.body.id}?project_id=${ctx.projectId}`)
-                .set(headers())
+                .set(contextHeaders())
                 .expect(404);
         });
 
         test('404 when deleting non-existent policy', async () => {
             await request
                 .delete(`/graph/embedding-policies/00000000-0000-0000-0000-000000000000?project_id=${ctx.projectId}`)
-                .set(headers())
+                .set(contextHeaders())
                 .expect(404);
         });
     });
@@ -251,7 +255,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create a policy that disables embedding for DisabledType
             await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'DisabledType',
@@ -262,7 +266,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create an object of that type
             const obj = await request
                 .post('/graph/objects')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     type: 'DisabledType',
                     key: 'test-disabled',
@@ -281,7 +285,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create a policy that enables embedding for EnabledType
             await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'EnabledType',
@@ -292,7 +296,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create an object of that type
             const obj = await request
                 .post('/graph/objects')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     type: 'EnabledType',
                     key: 'test-enabled',
@@ -309,7 +313,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create a policy requiring specific labels
             await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'RequiredLabelType',
@@ -321,7 +325,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create object without required labels
             const obj = await request
                 .post('/graph/objects')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     type: 'RequiredLabelType',
                     key: 'missing-labels',
@@ -339,7 +343,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create object WITH required labels
             const obj = await request
                 .post('/graph/objects')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     type: 'RequiredLabelType',
                     key: 'has-labels',
@@ -357,7 +361,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create a policy excluding specific labels
             await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'ExcludedLabelType',
@@ -369,7 +373,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create object with excluded label
             const obj = await request
                 .post('/graph/objects')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     type: 'ExcludedLabelType',
                     key: 'has-excluded',
@@ -387,7 +391,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create a policy with small size limit
             await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'SizeLimitType',
@@ -400,7 +404,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             const largeContent = 'x'.repeat(500); // Much larger than 100 bytes
             const obj = await request
                 .post('/graph/objects')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     type: 'SizeLimitType',
                     key: 'large-object',
@@ -417,7 +421,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create object for type without any policy
             const obj = await request
                 .post('/graph/objects')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     type: 'UnpolicedType',
                     key: 'no-policy',
@@ -434,7 +438,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create a policy with multiple filters
             await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'CombinedFilterType',
@@ -449,7 +453,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create object that passes all filters
             const obj = await request
                 .post('/graph/objects')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     type: 'CombinedFilterType',
                     key: 'passes-filters',
@@ -473,7 +477,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create initial policy (enabled)
             const policy = await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'DynamicType',
@@ -484,7 +488,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create object (should be embedded)
             const obj1 = await request
                 .post('/graph/objects')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     type: 'DynamicType',
                     key: 'before-update',
@@ -499,14 +503,14 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Update policy (disable)
             await request
                 .patch(`/graph/embedding-policies/${policy.body.id}?project_id=${ctx.projectId}`)
-                .set(headers())
+                .set(contextHeaders())
                 .send({ enabled: false })
                 .expect(200);
 
             // Create another object (should NOT be embedded)
             const obj2 = await request
                 .post('/graph/objects')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     type: 'DynamicType',
                     key: 'after-update',
@@ -523,7 +527,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create policy that disables embedding
             const policy = await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'DeletableType',
@@ -534,7 +538,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create object (should NOT be embedded)
             const obj1 = await request
                 .post('/graph/objects')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     type: 'DeletableType',
                     key: 'before-delete',
@@ -549,13 +553,13 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Delete policy
             await request
                 .delete(`/graph/embedding-policies/${policy.body.id}?project_id=${ctx.projectId}`)
-                .set(headers())
+                .set(contextHeaders())
                 .expect(204);
 
             // Create another object (should be embedded - no policy = permissive)
             const obj2 = await request
                 .post('/graph/objects')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     type: 'DeletableType',
                     key: 'after-delete',
@@ -574,7 +578,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Create policy for ctx.projectId
             await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'IsolatedType',
@@ -589,7 +593,7 @@ describe('Graph Embedding Policies (E2E)', () => {
             // Verify policy list is filtered by project
             const policies = await request
                 .get(`/graph/embedding-policies?project_id=${ctx.projectId}`)
-                .set(headers())
+                .set(contextHeaders())
                 .expect(200);
 
             const isolatedPolicy = policies.body.find((p: any) => p.objectType === 'IsolatedType');
@@ -602,7 +606,7 @@ describe('Graph Embedding Policies (E2E)', () => {
         test('reject invalid maxPropertySize (negative)', async () => {
             await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'InvalidSize',
@@ -615,7 +619,7 @@ describe('Graph Embedding Policies (E2E)', () => {
         test('reject missing required fields', async () => {
             await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     // Missing projectId and objectType
                     enabled: true,
@@ -626,7 +630,7 @@ describe('Graph Embedding Policies (E2E)', () => {
         test('handle empty arrays gracefully', async () => {
             const policy = await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'EmptyArrays',
@@ -645,7 +649,7 @@ describe('Graph Embedding Policies (E2E)', () => {
         test('handle JSON pointer paths correctly', async () => {
             const policy = await request
                 .post('/graph/embedding-policies')
-                .set(headers())
+                .set(contextHeaders())
                 .send({
                     projectId: ctx.projectId,
                     objectType: 'PathFilterType',
