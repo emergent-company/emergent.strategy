@@ -567,7 +567,6 @@ export class GraphService {
                         const valid = validator(properties || {});
                         if (!valid) throw new BadRequestException({ code: 'relationship_schema_validation_failed', errors: validator.errors });
                     }
-                    try { await client.query('DROP INDEX IF EXISTS kb.idx_graph_rel_unique'); } catch { /* ignore */ }
                     const stable = JSON.stringify(this.sortObject(properties));
                     const hash = createHash('sha256').update(stable).digest('base64');
                     const changeSummary = diffProperties({}, properties) || null;
@@ -639,7 +638,6 @@ export class GraphService {
                 const diff = diffProperties(current.properties, nextProps);
                 if (!diff) throw new BadRequestException('no_effective_change');
                 const nextVersion = (current.version || 1) + 1;
-                try { await client.query('DROP INDEX IF EXISTS kb.idx_graph_rel_unique'); } catch { /* ignore */ }
                 const stable = JSON.stringify(this.sortObject(nextProps));
                 const hash = createHash('sha256').update(stable).digest('base64');
                 const inserted = await client.query<GraphRelationshipRow>(

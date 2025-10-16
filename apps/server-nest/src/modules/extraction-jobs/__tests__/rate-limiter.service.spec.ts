@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { RateLimiterService } from '../rate-limiter.service';
 import { AppConfigService } from '../../../common/config/config.service';
 
@@ -7,11 +7,17 @@ describe('RateLimiterService', () => {
     let mockConfig: Partial<AppConfigService>;
 
     beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
         mockConfig = {
             extractionRateLimitRpm: 10,
             extractionRateLimitTpm: 10000,
         };
         rateLimiter = new RateLimiterService(mockConfig as AppConfigService);
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
     describe('initialization', () => {
@@ -119,7 +125,6 @@ describe('RateLimiterService', () => {
             await rateLimiter.tryConsume(5000);
 
             // Mock time passage (fast-forward 30 seconds = half a minute)
-            vi.useFakeTimers();
             vi.advanceTimersByTime(30000);
 
             const status = rateLimiter.getStatus();
@@ -127,8 +132,6 @@ describe('RateLimiterService', () => {
             // Should have refilled approximately half the capacity
             expect(status.requestsRemaining).toBeGreaterThan(9);
             expect(status.tokensRemaining).toBeGreaterThan(5000);
-
-            vi.useRealTimers();
         });
     });
 
