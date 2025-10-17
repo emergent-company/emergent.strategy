@@ -14,6 +14,8 @@ nx run workspace-cli:workspace:logs
 nx run workspace-cli:workspace:logs -- --lines 200 --json
 ```
 
+> ℹ️ If the `nx` binary is not on your `PATH`, invoke the target with `npx nx` or use the npm wrapper (`npm run workspace:logs`). All examples below assume the command is executed from the repository root.
+
 Behind the scenes the Nx target invokes:
 
 ```bash
@@ -43,6 +45,24 @@ nx run workspace-cli:workspace:logs -- --service=server --dependencies
 
 Additional `.log` files found under `apps/logs/` or the legacy `logs/` directory are
 reported in an "Additional log files" section so rotated archives remain visible.
+
+## Realtime Streaming (`--follow`)
+
+- Append `--follow` to receive a live stream after the initial snapshot:
+
+	```bash
+	npx nx run workspace-cli:workspace:logs -- --follow
+	```
+
+- The command prints the current snapshot first, then begins streaming with color-coded
+	prefixes (timestamp, process name, channel). Use `Ctrl+C` to disconnect.
+- Streaming implicitly includes default dependencies unless you explicitly scope the
+	selection with `--service` / `--dependency` flags.
+- JSON output and the "Additional log files" section are disabled in follow mode to keep
+	the stream readable.
+- Log lines such as `auth request cache disabled (must provide a positive size)` from
+	Zitadel or `Failed to extract ServerMetadata from context` are expected in the default
+	local setup and do not require action.
 
 ## Log Locations
 
@@ -81,10 +101,12 @@ command (the settings are applied on each invocation).
 
 | Symptom | Resolution |
 | --- | --- |
+| `nx: command not found` | Run the target with `npx nx run workspace-cli:workspace:logs ...` or use `npm run workspace:logs` so that Nx is resolved from `node_modules`. |
 | `pm2` executable not found | Install PM2 globally (`npm install -g pm2`) or ensure `node_modules/.bin` is on your `PATH`. |
 | Log file missing | Start the service at least once (`nx run workspace-cli:workspace:start`). Empty services report "log file not found." |
 | JSON output missing a service | Confirm the service ID exists in the application/dependency profiles and that it was selected via flags. |
 | Log rotation not applied | Run any workspace CLI command to reapply logrotate settings, or inspect `pm2 conf pm2-logrotate` for current values. |
+| Zitadel logs emit `auth request cache disabled` or `Failed to extract ServerMetadata` | These are informational warnings caused by the development cache configuration and can be ignored unless accompanied by authentication failures. |
 
 The legacy script still exists as a thin wrapper that forwards to the workspace
 CLI, but all new workflows should call `nx run workspace-cli:workspace:logs`
