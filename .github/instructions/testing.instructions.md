@@ -6,463 +6,228 @@ applyTo: "**"
 
 ## Overview
 
-This project uses a comprehensive testing strategy across multiple applications and frameworks. Understanding how to run tests correctly is critical for maintaining code quality and ensuring CI/CD pipeline success.
+Testing spans multiple applications (React admin SPA, NestJS API, automation tooling). Use the Workspace CLI and Nx runners as the primary interfaces for orchestrating builds, dependency lifecycles, and test suites. This document replaces all legacy MCP dev manager guidance.
+
+## Automation Entry Points
+
+- **Workspace CLI:** `npm run workspace:<action>` (wraps `tools/workspace-cli`) controls Docker dependencies, PM2 services, and consolidated logs/status reports.
+- **Nx Targets:** `nx run <project>:<target>` mirrors the npm shortcuts and is safe for scripted usage. Examples: `nx run admin:test`, `nx run server-nest:test`.
+- **Direct npm scripts:** Use `npm --prefix apps/<project> run <script>` when you need the underlying tool binary (Vitest, Playwright, Jest) or interactive flags.
+
+Always ensure dependencies are running (
+`npm run workspace:deps:start`
+) before launching E2E suites.
 
 ## Project Structure & Test Types
 
-### 1. Admin Frontend (React + Vite)
-**Location:** `apps/admin/`
-**Framework:** Vitest (unit), Playwright (E2E)
+### Admin Frontend (`apps/admin`)
+- **Unit & integration tests:** Vitest + React Testing Library (`npm --prefix apps/admin run test`)
+- **Coverage:** `npm --prefix apps/admin run test:coverage`
+- **Playwright E2E:** `npm --prefix apps/admin run e2e`
+- **Storybook smoke:** `npm --prefix apps/admin run storybook` (manual review)
 
-#### Test Types:
-- **Unit Tests**: Component and hook testing with React Testing Library
-- **E2E Tests**: Browser automation tests with Playwright
-- **Storybook**: Component visual testing and documentation
+Nx equivalents:
+- `nx run admin:test`
+- `nx run admin:test -- --coverage`
 
-#### Running Admin Tests:
+### Server Backend (`apps/server-nest`)
+- **Unit tests:** Jest (`npm --prefix apps/server-nest run test`)
+- **E2E integration:** `npm --prefix apps/server-nest run test:e2e`
+- **Coverage:** `npm --prefix apps/server-nest run test:coverage`
+- **Type check / build:** `npm --prefix apps/server-nest run build`
 
-**Unit Tests:**
+Nx equivalents:
+- `nx run server-nest:test`
+- `nx run server-nest:test -- --testNamePattern="GraphService"`
+
+### Workspace CLI (`tools/workspace-cli`)
+Keeps build/test scripts thin. Rarely needs direct testing during feature work, but full verification is available through its own package scripts (`npm --prefix tools/workspace-cli run verify`).
+
+### Utility Scripts (`scripts/`)
+Helpers such as smoke tests (`npm run test:smoke`) or OpenAPI diff (`npm run spec:diff`) live at the repo root.
+
+## Running Tests
+
+### Admin (Vitest)
 ```bash
-# Run all unit tests
-mcp_dev-manager_run_script({ app: "admin", action: "test" })
+# All specs
+nx run admin:test
 
-# Run with coverage
-mcp_dev-manager_run_script({ app: "admin", action: "test:coverage" })
+# Focused file
+npm --prefix apps/admin run test -- src/components/atoms/Button/Button.test.tsx
 
-# Or using npm directly
-npm --prefix apps/admin run test
-npm --prefix apps/admin run test:coverage
+# Single test name
+npm --prefix apps/admin run test -- -t "renders loading state"
 ```
 
-**E2E Tests (Playwright):**
+### Admin (Playwright)
+```bash
+# Headless chromium suite (uses storage state)
+E2E_FORCE_TOKEN=1 npm --prefix apps/admin run e2e
 
-⚠️ **CRITICAL**: Always use MCP tools for E2E tests, never `run_in_terminal`:
+# Specific spec
+E2E_FORCE_TOKEN=1 npm --prefix apps/admin run e2e -- e2e/specs/integrations.clickup.spec.ts
 
-```typescript
-// ✅ CORRECT: Run all E2E tests
-mcp_dev-manager_run_script({ app: "admin", action: "e2e" })
-
-// ✅ Run specific test suite
-mcp_dev-manager_run_script({ app: "admin", action: "e2e:clickup" })
-mcp_dev-manager_run_script({ app: "admin", action: "e2e:chat" })
-
-// ❌ WRONG: Never run manually
-run_in_terminal({ command: "npx playwright test ..." })
+# Interactive debug UI
+E2E_FORCE_TOKEN=1 npm --prefix apps/admin run e2e:ui
 ```
 
-**Available E2E Scripts:**
-- `admin:e2e` - Run all E2E tests (non-interactive, chromium only)
-- `admin:e2e:clickup` - Run ClickUp integration tests
-- `admin:e2e:chat` - Run chat feature tests
-- `admin:e2e:ui` - ⚠️ Interactive UI mode (use `run_in_terminal` with `isBackground: false`)
-- `admin:e2e:headed` - ⚠️ Interactive headed mode (use `run_in_terminal`)
-- `admin:e2e:debug` - ⚠️ Interactive debug mode (use `run_in_terminal`)
-
-**Storybook:**
+Ensure dependencies are up before Playwright:
 ```bash
-# Start Storybook dev server (background)
-mcp_dev-manager_run_script({ app: "admin", action: "storybook" })
-
-# Build static Storybook
-npm --prefix apps/admin run build-storybook
+npm run workspace:deps:start
+npm run workspace:start        # Launch API + Admin services under PM2
 ```
 
-**Type Checking:**
+### Server (Jest)
 ```bash
-# Type check without building
-npm --prefix apps/admin run build
+# Unit tests
+nx run server-nest:test
 
-# Or use VS Code task
-run_task({ workspaceFolder: "/Users/mcj/code/spec-server", id: "Typecheck admin" })
-```
+# E2E tests
+npm --prefix apps/server-nest run test:e2e
 
-### 2. Server Backend (NestJS)
-**Location:** `apps/server-nest/`
-**Framework:** Jest (unit & E2E)
-
-#### Test Types:
-- **Unit Tests**: Service, controller, and utility tests with mocks
-- **E2E Tests**: Integration tests hitting actual API endpoints
-- **Coverage Reports**: Full code coverage metrics
-
-#### Database-dependent Suites
-- Use `describeWithDb` from `apps/server-nest/tests/utils/db-describe.ts` for any spec that boots the full Nest application or requires a live PostgreSQL connection.
-- Treat shared application handles as nullable and guard each request: capture `const currentApp = app; if (!currentApp) throw new Error(...)` before using `getHttpServer()`.
-- Always close the Nest app (or context) in `afterAll`, setting locals back to `null` to avoid leaking handles.
-- The helper automatically skips suites when the database is unavailable or when `SKIP_DB_TESTS=1` is set, so tests remain green in environments without Postgres.
-
-#### Running Server Tests:
-
-**Unit Tests:**
-```bash
-# Run all unit tests
-mcp_dev-manager_run_script({ app: "server", action: "test" })
-
-# Run with coverage
-mcp_dev-manager_run_script({ app: "server", action: "test:coverage" })
-
-# Watch mode (for development)
+# Continuous watch (local only)
 npm --prefix apps/server-nest run test:watch
-
-# Or using npm directly
-npm --prefix apps/server-nest run test
 ```
 
-**E2E Tests:**
+### Combined Regression Loop
 ```bash
-# Run all E2E integration tests
-mcp_dev-manager_run_script({ app: "server", action: "test:e2e" })
-
-# Or using npm directly
+nx run server-nest:test
 npm --prefix apps/server-nest run test:e2e
+nx run admin:test
+E2E_FORCE_TOKEN=1 npm --prefix apps/admin run e2e
 ```
 
-**Test Specific Files:**
-```bash
-# Run specific test file
-npm --prefix apps/server-nest run test -- path/to/test.spec.ts
+## Coverage Reports
 
-# Run tests matching pattern
-npm --prefix apps/server-nest run test -- --testNamePattern="pattern"
-```
+- **Admin:** `npm --prefix apps/admin run test:coverage` → `apps/admin/coverage/`
+- **Server:** `npm --prefix apps/server-nest run test:coverage` → `apps/server-nest/coverage/`
+- **Aggregate helper:** `npm run test:coverage:all`
 
-**Type Checking:**
-```bash
-# Build to verify types
-mcp_dev-manager_run_script({ app: "server", action: "build" })
+Open coverage locally with `open apps/<project>/coverage/lcov-report/index.html` (macOS).
 
-# Or
-npm --prefix apps/server-nest run build
-```
+## CI Alignment
 
-### 3. MCP Dev Manager
-**Location:** `mcp-dev-manager/`
-**Framework:** Vitest
+GitHub Actions under `.github/workflows/` use the same npm/Nx commands described above. Keep interactive flags (Playwright UI/headed) out of CI scripts.
 
-#### Running MCP Tests:
-```bash
-# Run MCP dev manager tests
-npm --prefix mcp-dev-manager run test
+## Dependency Management for Tests
 
-# With coverage
-npm --prefix mcp-dev-manager run test:coverage
-```
+1. **Start Docker services:** `npm run workspace:deps:start`
+2. **Start application services:** `npm run workspace:start`
+3. **Check health:** `npm run workspace:status`
+4. **Tail logs when debugging:** `npm run workspace:logs`
 
-### 4. Utility Scripts
-**Location:** `scripts/`
-
-Some scripts have associated tests:
-```bash
-# Run script validation
-npm run validate:scripts
-```
-
-## Complete Test Suite Execution
-
-### Run ALL Tests Across Entire Project
-
-**Sequential Execution (Recommended):**
-```bash
-# 1. Server unit tests
-mcp_dev-manager_run_script({ app: "server", action: "test" })
-
-# 2. Server E2E tests
-mcp_dev-manager_run_script({ app: "server", action: "test:e2e" })
-
-# 3. Admin unit tests
-mcp_dev-manager_run_script({ app: "admin", action: "test" })
-
-# 4. Admin E2E tests
-mcp_dev-manager_run_script({ app: "admin", action: "e2e" })
-
-# 5. MCP Dev Manager tests
-npm --prefix mcp-dev-manager run test
-```
-
-**Manual Script for Complete Run:**
-```bash
-#!/bin/bash
-# Run all tests in the project
-
-set -e  # Exit on first failure
-
-echo "🧪 Running Server Unit Tests..."
-npm --prefix apps/server-nest run test
-
-echo "🧪 Running Server E2E Tests..."
-npm --prefix apps/server-nest run test:e2e
-
-echo "🧪 Running Admin Unit Tests..."
-npm --prefix apps/admin run test
-
-echo "🧪 Running Admin E2E Tests..."
-cd apps/admin && E2E_FORCE_TOKEN=1 npx playwright test --config=e2e/playwright.config.ts --project=chromium
-
-echo "🧪 Running MCP Dev Manager Tests..."
-npm --prefix mcp-dev-manager run test
-
-echo "✅ All tests passed!"
-```
-
-## Test Coverage Reports
-
-### Generate Coverage for All Apps
-
-**Server Coverage:**
-```bash
-mcp_dev-manager_run_script({ app: "server", action: "test:coverage" })
-# Report: apps/server-nest/coverage/
-```
-
-**Admin Coverage:**
-```bash
-mcp_dev-manager_run_script({ app: "admin", action: "test:coverage" })
-# Report: apps/admin/coverage/
-```
-
-**View HTML Coverage Reports:**
-```bash
-# Server
-open apps/server-nest/coverage/lcov-report/index.html
-
-# Admin
-open apps/admin/coverage/lcov-report/index.html
-```
-
-## CI/CD Pipeline
-
-The project uses GitHub Actions for automated testing. Configuration in `.github/workflows/`:
-
-**Key Workflows:**
-- `test-server.yml` - Server unit & E2E tests
-- `test-admin.yml` - Admin unit tests & E2E tests
-- `build.yml` - Type checking and builds
-
-**CI Test Commands:**
-All CI tests use the same MCP scripts to ensure consistency between local and CI environments.
-
-## Test Dependencies
-
-### Prerequisites for E2E Tests
-
-**Admin E2E (Playwright):**
-- PostgreSQL database running (port 5432)
-- Zitadel auth server running (port 8080)
-- Backend server running (port 3001)
-- Admin dev server running (port 5175)
-
-**Auto-Dependency Management:**
-The `scripts/ensure-e2e-deps.mjs` script automatically checks and starts required services when using MCP tools.
-
-**Manual Dependency Check:**
-```bash
-# Check all service status
-mcp_dev-manager_check_status()
-
-# Start required services
-mcp_dev-manager_run_script({ app: "docker", action: "up" })
-mcp_dev-manager_run_script({ app: "server", action: "start" })
-mcp_dev-manager_run_script({ app: "admin", action: "dev" })
-```
+Ports: Postgres 5432, Zitadel 8080, API 3001, Admin 5175. Stop everything with `npm run workspace:stop` and `npm run workspace:deps:stop`.
 
 ### Environment Variables
+- `E2E_FORCE_TOKEN=1` — bypasses interactive login for Playwright
+- Database env defaults come from `docker/.env`; override via shell when needed
 
-**Required for E2E Tests:**
-```bash
-E2E_FORCE_TOKEN=1  # Force token-based auth (no browser flow)
-```
+## Debugging Failures
 
-**Database Connection:**
-```bash
-PGHOST=localhost
-PGPORT=5432
-PGUSER=spec
-PGPASSWORD=spec
-PGDATABASE=spec
-```
+### Playwright
+Artifacts are written under `apps/admin/test-results/<slug>/<browser>/`:
+1. `error-context.md` — first stop (URL, console, snapshot)
+2. `test-failed-*.png` — final frame screenshot
+3. `video.webm` — execution recording
 
-## Debugging Failed Tests
+When triaging:
+- Rerun focused spec with `E2E_FORCE_TOKEN=1 npm --prefix apps/admin run e2e -- e2e/specs/<file>.spec.ts`
+- Use `e2e:ui` for interactive debugging only (never in CI)
 
-### Playwright Test Failures
-
-**When tests fail, check:**
-1. `apps/admin/test-results/<test-name>/error-context.md` - Contains page snapshot, console errors, URL
-2. `apps/admin/test-results/<test-name>/test-failed-*.png` - Screenshots
-3. `apps/admin/test-results/<test-name>/video.webm` - Video recording
-
-**Common Issues:**
-- **Selectors not found**: Check `error-context.md` for current page state
-- **Timing issues**: Review video for race conditions
-- **Auth failures**: Verify E2E_FORCE_TOKEN=1 is set
-- **Missing dependencies**: Run `node scripts/ensure-e2e-deps.mjs`
-
-**Debug Mode:**
-```bash
-# Run single test with debug UI (interactive - use run_in_terminal)
-npm --prefix apps/admin run e2e:debug -- tests/example.spec.ts
-```
-
-### Jest/Vitest Test Failures
-
-**Run with verbose output:**
-```bash
-npm --prefix apps/server-nest run test -- --verbose
-
-# Show full error stack
-npm --prefix apps/server-nest run test -- --no-coverage --maxWorkers=1
-```
-
-**Debug single test:**
-```bash
-# Jest (server)
-npm --prefix apps/server-nest run test -- --testNamePattern="test name" --runInBand
-
-# Vitest (admin)
-npm --prefix apps/admin run test -- -t "test name"
-```
+### Jest/Vitest
+- Add `--runInBand` if parallelism hides logs
+- Use `--testNamePattern` / `-t` for targeted reruns
+- Check `.spec.ts` files for lingering database handles; close connections in `afterAll`
 
 ## Best Practices
 
-### For AI Assistants
+### AI Assistants
+1. Default to Workspace CLI and Nx commands; avoid legacy MCP language.
+2. Confirm dependencies are running before advising Playwright runs.
+3. Never parallelize Playwright specs unless suites are explicitly isolated.
+4. Point users to artifact folders instead of guessing failure causes.
+5. For Nest specs touching the database, require `describeWithDb` and explicit teardown.
 
-1. **Always Use MCP Tools First**: Use `mcp_dev-manager_run_script` for all non-interactive test runs
-2. **Check Dependencies**: Verify services are running before E2E tests
-3. **Sequential Execution**: Don't run E2E tests in parallel (they share database state)
-4. **Read Error Context**: Always check `error-context.md` files before suggesting fixes
-5. **Respect Test Boundaries**: Don't mock what should be tested (e.g., database queries in E2E tests)
-6. **Use DB Helpers**: When adding or updating Nest specs that need the real database, wrap them with `describeWithDb` and ensure all shared state is null-guarded.
+### Developers
+1. Run unit tests + type checks before every commit.
+2. Keep E2E runs deterministic: seed data or stub network responses inside tests.
+3. Enforce ≥80% coverage on new modules; update thresholds if deliberate.
+4. Use `scripts/validate-story-duplicates.mjs` via npm hook before Storybook work.
+5. Document non-trivial test data builders in `docs/` for future contributors.
 
-### For Developers
+## Locating Tests
 
-1. **Run Tests Before Commit**: Ensure at least unit tests pass
-2. **Watch Mode for Development**: Use `test:watch` during active development
-3. **Full E2E Before PR**: Run complete E2E suite before opening pull requests
-4. **Check Coverage**: Aim for >80% coverage on new code
-5. **Update Tests First**: Follow TDD when adding new features
+| Area | Pattern |
+| --- | --- |
+| Server unit | `apps/server-nest/src/**/*.spec.ts` |
+| Server e2e | `apps/server-nest/test/**/*.e2e-spec.ts` |
+| Admin unit | `apps/admin/src/**/*.{test.ts,test.tsx}` |
+| Admin e2e | `apps/admin/e2e/specs/**/*.spec.ts` |
 
-## Test File Patterns
-
-### Finding Test Files
-
-**Server (Jest):**
-- Unit tests: `**/*.spec.ts` (next to source files)
-- E2E tests: `test/**/*.e2e-spec.ts`
-
-**Admin (Vitest):**
-- Unit tests: `**/*.test.tsx` or `**/*.test.ts`
-- E2E tests: `e2e/specs/**/*.spec.ts`
-
-**Search Commands:**
+Search helpers:
 ```bash
-# Find all test files
 find apps/server-nest -name "*.spec.ts" -o -name "*.e2e-spec.ts"
 find apps/admin/src -name "*.test.ts" -o -name "*.test.tsx"
-find apps/admin/e2e/specs -name "*.spec.ts"
 ```
 
 ## Quick Reference
 
-### Test Command Matrix
+| Task | Primary Command | Alt Command | Notes |
+| --- | --- | --- | --- |
+| Admin unit tests | `nx run admin:test` | `npm --prefix apps/admin run test` | Append `-- -t "name"` for focused run |
+| Admin coverage | `nx run admin:test -- --coverage` | `npm --prefix apps/admin run test:coverage` | Coverage report under `apps/admin/coverage/` |
+| Admin E2E | `E2E_FORCE_TOKEN=1 npm --prefix apps/admin run e2e` | `E2E_FORCE_TOKEN=1 npx playwright test -c apps/admin/e2e/playwright.config.ts` | Start deps/services first |
+| Server unit tests | `nx run server-nest:test` | `npm --prefix apps/server-nest run test` | Use `-- --testNamePattern` to filter |
+| Server E2E | `npm --prefix apps/server-nest run test:e2e` |  | Requires Postgres + Zitadel running |
+| Server coverage | `npm --prefix apps/server-nest run test:coverage` |  | Generates `apps/server-nest/coverage/` |
+| Workspace status | `npm run workspace:status` | `nx run workspace-cli:workspace:status` | Reports Docker + PM2 health |
 
-| App | Test Type | Command | Interactive? | Use MCP? |
-|-----|-----------|---------|--------------|----------|
-| Server | Unit | `server:test` | ❌ | ✅ |
-| Server | E2E | `server:test:e2e` | ❌ | ✅ |
-| Server | Coverage | `server:test:coverage` | ❌ | ✅ |
-| Admin | Unit | `admin:test` | ❌ | ✅ |
-| Admin | E2E | `admin:e2e` | ❌ | ✅ |
-| Admin | E2E (ClickUp) | `admin:e2e:clickup` | ❌ | ✅ |
-| Admin | E2E (Chat) | `admin:e2e:chat` | ❌ | ✅ |
-| Admin | E2E UI | `admin:e2e:ui` | ✅ | Use `run_in_terminal` |
-| Admin | E2E Debug | `admin:e2e:debug` | ✅ | Use `run_in_terminal` |
-| Admin | Coverage | `admin:test:coverage` | ❌ | ✅ |
-| MCP | Unit | N/A (use npm) | ❌ | ❌ |
-
-### Common Test Scenarios
-
-**Scenario: Running tests after code change**
-```typescript
-// 1. Run affected unit tests
-mcp_dev-manager_run_script({ app: "server", action: "test" })
-
-// 2. Run specific E2E test if integration affected
-mcp_dev-manager_run_script({ app: "admin", action: "e2e:clickup" })
-
-// 3. Check coverage if new code added
-mcp_dev-manager_run_script({ app: "server", action: "test:coverage" })
-```
-
-**Scenario: Debugging E2E test failure**
-```typescript
-// 1. Check error context
-mcp_dev-manager_browse_logs({
-  action: "cat",
-  logFile: "apps/admin/test-results/<test-name>/error-context.md"
-})
-
-// 2. Re-run specific test with headed browser (interactive)
-run_in_terminal({
-  command: "cd apps/admin && E2E_FORCE_TOKEN=1 npx playwright test tests/integrations.clickup.spec.ts --headed",
-  isBackground: false
-})
-
-// 3. Fix and verify
-mcp_dev-manager_run_script({ app: "admin", action: "e2e:clickup" })
-```
-
-**Scenario: Pre-commit validation**
+Common loop:
 ```bash
-# Quick validation (unit tests + type check)
-npm --prefix apps/server-nest run test && npm --prefix apps/server-nest run build
-npm --prefix apps/admin run test && npm --prefix apps/admin run build
+npm run workspace:deps:start
+npm run workspace:start
+nx run server-nest:test
+npm --prefix apps/server-nest run test:e2e
+nx run admin:test
+E2E_FORCE_TOKEN=1 npm --prefix apps/admin run e2e
+npm run workspace:stop
+npm run workspace:deps:stop
 ```
 
 ## Troubleshooting
 
-### "Port already in use"
+### Ports Busy
 ```bash
-# Check what's using ports
-lsof -ti:3001,5175,5432,8080
-
-# Kill processes if needed
-mcp_dev-manager_run_script({ app: "docker", action: "down" })
-pkill -f "node.*vite"
-pkill -f "node.*nest"
+lsof -ti:3001,5175,5432,8080 | xargs kill -9
+npm run workspace:deps:restart
 ```
 
-### "Database connection failed"
+### Database Connection Errors
 ```bash
-# Restart PostgreSQL
-mcp_dev-manager_run_script({ app: "docker", action: "restart" })
-
-# Check database status
-mcp_dev-manager_check_status()
+npm run workspace:deps:restart
+npm run workspace:status
 ```
 
-### "Playwright browser not installed"
+### Playwright Browser Missing
 ```bash
-# Install Playwright browsers
 npx playwright install chromium
 npx playwright install-deps
 ```
 
-### "Test timeout"
-- Increase timeout in test config
-- Check for hanging async operations
-- Verify dependencies are healthy (database, auth server)
+### Long-Running Tests / Timeouts
+- Prefer Playwright web-first assertions (`await expect(locator).toHaveText(...)`).
+- Inspect network stubs for hanging promises.
+- For Jest, confirm `done()` callbacks are not left dangling.
 
 ## Related Documentation
-
-- `.github/instructions/admin.instructions.md` - Admin build & test loop
-- `.github/instructions/mcp-dev-manager.instructions.md` - MCP tool usage
-- `docs/CLICKUP_E2E_TESTING_STATUS.md` - ClickUp E2E test documentation
-- `docs/CLICKUP_E2E_TESTS.md` - Detailed ClickUp test scenarios
-- `scripts/README-dev-manager.md` - Development manager documentation
+- `.github/instructions/admin.instructions.md`
+- `docs/DEV_PROCESS_MANAGER.md`
+- `docs/CLICKUP_E2E_TESTS.md`
+- `QUICK_START_DEV.md`
 
 ## Remember
-
-- **Never skip tests** - They catch bugs before production
-- **Use MCP tools** - They ensure proper setup and consistency
-- **Read error context** - Test failures provide detailed debugging info
-- **Keep tests fast** - Slow tests won't be run regularly
-- **Test behavior, not implementation** - Focus on user-facing functionality
+- Keep automation consistent: Workspace CLI → Nx → npm.
+- Capture artifacts before re-running failing suites.
+- Never assume services are running—check via `npm run workspace:status`.
+- Tests should reflect user behavior; avoid mocking core integrations in E2E suites.

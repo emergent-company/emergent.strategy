@@ -49,22 +49,27 @@ window.__errorLogs.downloadLogs()
 
 See `docs/ERROR_LOGGING.md` for complete guide or `docs/ERROR_LOGGING_QUICKREF.md` for quick reference.
 
-## MCP Dev Manager (AI Development Assistant)
+## Workspace CLI (Automation)
 
-The project includes a reusable MCP (Model Context Protocol) server for AI-assisted development. This tool integrates with Claude Desktop to help with:
+Local automation is handled by the Workspace CLI (`workspace:*` npm scripts) that wraps Nx targets and PM2 process supervision. The CLI provides:
 
-- 🧪 Running tests (Playwright, npm, vitest, jest)
-- 🔄 Managing services (docker-compose, pm2, npm scripts)
-- 📋 Browsing and searching logs
-- 📊 Checking service status and port usage
+- 🧪 Test orchestration for admin (Vitest, Playwright) and server (Jest)
+- 🔄 Lifecycle management for dependencies (Docker stack) and app services (API/Admin)
+- 📋 Log aggregation under `apps/logs/`
+- 📊 Health/status snapshots combining Docker, PM2, and port checks
 
 **Quick Start:**
 
-1. The MCP server is located in `mcp-dev-manager/` as a git submodule
-2. Configure Claude Desktop (see `docs/MCP_DEV_MANAGER.md`)
-3. Ask Claude: "Check the status of all development services" or "Run the playwright tests"
+```bash
+npm run workspace:deps:start   # Start Postgres, Zitadel, login portal
+npm run workspace:start        # Launch API + Admin under PM2
+npm run workspace:status       # Inspect service + dependency health
+npm run workspace:logs         # Tail aggregated logs
+npm run workspace:stop         # Stop app services
+npm run workspace:deps:stop    # Stop Docker dependencies
+```
 
-See `docs/MCP_DEV_MANAGER.md` for complete setup and usage instructions. The MCP server can be reused in other projects as a git submodule.
+See `docs/DEV_PROCESS_MANAGER.md`, `QUICK_START_DEV.md`, and `.github/instructions/admin.instructions.md` for a deeper walkthrough of the automation workflow.
 
 ## Reference projects
 

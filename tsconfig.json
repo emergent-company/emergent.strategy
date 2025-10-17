@@ -15,7 +15,8 @@
     },
     "include": [
         "src",
-        "scripts"
+        "scripts",
+        "tools/workspace-cli/src"
     ],
     "exclude": [
         "node_modules",

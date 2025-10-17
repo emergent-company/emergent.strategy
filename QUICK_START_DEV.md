@@ -1,168 +1,129 @@
-# Quick Start - Development Process Manager
+# Quick Start – Workspace Orchestration CLI
+
+The workspace CLI wraps PM2 with preflight checks, health monitoring, and log collection. Use these commands for a clean local dev workflow.
 
 ## TL;DR
 
 ```bash
-# Start everything (auto-cleans old processes)
-npm run dev
+# Start dockerized dependencies (Postgres + Zitadel + Login v2)
+npm run workspace:deps:start
 
-# Stop everything
-npm run dev:stop
+# Start API + Admin services
+npm run workspace:start
 
-# Check what's running
-npm run dev:status
+# Inspect status for everything
+npm run workspace:status
 
-# Full restart
-npm run dev:restart
+# Tail aggregated logs (adjust --lines as needed)
+npm run workspace:logs -- --lines 200
+
+# Stop services when you are done
+npm run workspace:stop
+npm run workspace:deps:stop
 ```
 
-## What Changed?
+## Starting Services
 
-**Before:**
 ```bash
-npm run dev
-# Error: Port 3001 already in use
-# Manual fix: lsof -ti:3001 | xargs kill -9
+$ npm run workspace:start
+
+🚀 Starting services [admin, server] with profile development
+∙ Starting admin
+∙ Starting server
+✅ admin reached healthy state
+✅ server reached healthy state
 ```
 
-**Now:**
+Services run under the `workspace-cli` PM2 namespace with health checks:
+- **admin** → http://localhost:5175
+- **server** → http://localhost:3001
+
+Use `--service` to scope a command:
+
 ```bash
-npm run dev
-# ✓ Automatically detects and stops old processes
-# ✓ Starts fresh
-# ✓ Tracks PIDs in .dev-pids/
-# ✓ Graceful shutdown with Ctrl+C
+npm run workspace:start -- --service server   # API only
+npm run workspace:start -- --service admin    # Admin SPA only
 ```
 
-## Visual Guide
+## Managing Dependencies
 
-### Starting Services
-```
-$ npm run dev
-
-Starting development servers...
-
-▶  Starting Backend API...
-[api] [Nest] Starting Nest application...
-▶  Starting Admin Frontend...
-[admin] VITE v7.1.5  ready in 322 ms
-
-✓ All services started
-Press Ctrl+C to stop all services
-```
-
-### Checking Status
-```
-$ npm run dev:status
-
-Development Services Status:
-
-● Backend API          running (PID: 7396)
-● Admin Frontend       running (PID: 7519)
-```
-
-### Stopping Services
-```
-$ npm run dev:stop
-
-Stopping all services...
-
-⏹  Stopping Backend API (PID: 7396)...
-✓ Backend API stopped gracefully
-
-✓ All services stopped
-```
-
-### Handling Port Conflicts
-```
-$ npm run dev:status
-
-○ Backend API          stopped (port 3001 in use by PID: 776)
-○ Admin Frontend       stopped
-
-$ npm run dev:stop
-✓ All services stopped  ← Automatically cleans up
-
-$ npm run dev
-✓ All services started  ← Now works!
-```
-
-## Common Scenarios
-
-### Daily Development
 ```bash
-# Morning: Start work
-npm run dev
+$ npm run workspace:deps:start
 
-# During day: Check if running
-npm run dev:status
-
-# Evening: Stop work
-npm run dev:stop
+🛢️  Starting dependencies [postgres, zitadel] with profile development
+∙ Starting postgres-dependency
+∙ Starting zitadel-dependency
+✅ postgres-dependency reached healthy state
+✅ zitadel-dependency reached healthy state
 ```
 
-### After Crash/Hang
+Dependencies live in the `workspace-cli-deps` namespace. Health checks wait for Docker to report "healthy" before returning.
+
+Stop or restart just the dependencies when needed:
+
 ```bash
-# Services not responding?
-npm run dev:restart
-
-# Or manually:
-npm run dev:stop
-npm run dev
+npm run workspace:deps:stop
+npm run workspace:deps:restart
 ```
 
-### Troubleshooting
+## Status & Logs
+
 ```bash
-# Something wrong? Check first:
-npm run dev:status
+$ npm run workspace:status
 
-# Then restart:
-npm run dev:restart
+Workspace Status (development profile)
+
+Dependencies:
+  • postgres-dependency    online (since 2m)
+  • zitadel-dependency     online (since 2m)
+
+Services:
+  • server                 online (port 3001)
+  • admin                  online (port 5175)
 ```
 
-## Under the Hood
+Tail logs across apps and dependencies:
 
-### PID Files
-```
-.dev-pids/
-├── api.pid    ← Backend process ID
-└── admin.pid  ← Frontend process ID
-```
-
-These files:
-- Auto-created on start
-- Auto-deleted on stop
-- Used to track processes
-- Gitignored
-
-### Port Detection
-The manager checks:
-1. Do PID files exist?
-2. Are those processes still running?
-3. Is something else on the ports (3001, 5175)?
-4. If yes → stop it gracefully
-
-### Graceful Shutdown
-1. **SIGTERM** sent (polite "please stop")
-2. Wait up to 5 seconds
-3. **SIGKILL** if needed (force stop)
-4. Clean up PID files
-
-## Benefits
-
-✅ **No more manual killing** - Automatic cleanup
-✅ **Port conflicts solved** - Detects and resolves
-✅ **Clean logs** - Color-coded by service
-✅ **Safe restarts** - Handles crashes gracefully
-✅ **Status visibility** - Know what's running
-
-## Need Help?
-
-See full docs: `scripts/README-dev-manager.md`
-
-## Old Behavior
-
-If you need the old `concurrently` approach:
 ```bash
-npm run dev:legacy
+npm run workspace:logs -- --lines 150
+npm run workspace:logs -- --service server
+npm run workspace:logs -- --deps-only
 ```
+
+Use `--json` for machine-readable status or log metadata.
+
+## Daily Flow
+
+```bash
+# Morning
+npm run workspace:deps:start
+npm run workspace:start
+
+# Check during the day
+npm run workspace:status
+
+# Evening shutdown
+npm run workspace:stop
+npm run workspace:deps:stop
+```
+
+## Graceful Recovery
+
+```bash
+# Something feels off? Restart services.
+npm run workspace:restart
+
+# Reset the entire stack (including dependencies)
+npm run workspace:deps:restart
+```
+
+## Need Raw Docker?
+
+The CLI wraps Docker Compose, but you can still run it manually:
+
+```bash
+cd docker
+docker compose up -d db zitadel login
+```
+
+However, the workspace CLI is recommended—it enforces preflight checks, health probes, and consistent logging.

@@ -1,23 +1,6 @@
-# MCP Dev Manager - Quick Reference
-
-## 🚀 Installation (Pick One)
-
-### Automated
-```bash
-curl -fsSL https://raw.githubusercontent.com/eyedea-io/mcp-dev-manager/main/install.sh | bash
-```
-
-### Git Submodule
-```bash
-git submodule add https://github.com/eyedea-io/mcp-dev-manager.git
-cd mcp-dev-manager && npm install && npm run build
-```
-
-### Direct Clone
-```bash
-git clone https://github.com/eyedea-io/mcp-dev-manager.git
-cd mcp-dev-manager && npm install && npm run build
-```
+git pull origin main
+git pull
+# MCP Dev Manager – Quick Reference (Workspace CLI Edition)
 
 ## ⚙️ Configuration
 
@@ -36,134 +19,76 @@ cd mcp-dev-manager && npm install && npm run build
 }
 ```
 
-### package.json Scripts
+### package.json (snippet)
 ```json
 {
   "scripts": {
-    "dev-manager:build": "npm run build",
-    "dev-manager:test": "npm run test",
-    "dev-manager:dev": "npm run dev",
-    "dev-manager:docker:up": "docker compose up -d"
+    "workspace:start": "nx run workspace-cli:workspace:start",
+    "workspace:stop": "nx run workspace-cli:workspace:stop",
+    "test:e2e:server": "npm --prefix apps/server-nest run test:e2e",
+    "e2e:admin:real": ". ./.env && E2E_REAL_LOGIN=1 npm --prefix apps/admin run e2e"
   }
 }
 ```
 
-### .github/instructions/
-```bash
-mkdir -p .github/instructions
-cp mcp-dev-manager/docs/mcp-dev-manager.instructions.md .github/instructions/
-```
+> Legacy `dev-manager:*` scripts are no longer required. Keep workflows in the workspace CLI script family.
 
-## 💬 Usage with GitHub Copilot
+## 💬 Copilot Usage Examples
 
-### Discover Scripts
-```
-@workspace list available dev-manager scripts
-```
+- "List all workspace scripts" → `mcp_dev-manager_list_scripts()`
+- "Run the workspace stack" → `mcp_dev-manager_run_script({ script: "workspace:start" })`
+- "Restart dependencies" → `mcp_dev-manager_run_script({ script: "workspace:deps:restart" })`
+- "Tail API logs" → `mcp_dev-manager_browse_logs({ action: "tail", logFile: "logs/workspace/server-nest/out.log", lines: 200 })`
+- "Check running ports" → `mcp_dev-manager_check_status({ services: ["ports"], detailed: true })`
 
-### Run Scripts
-```
-@workspace run the build
-@workspace run e2e tests
-@workspace start docker services
-```
+## 🛠️ MCP Tools Cheat Sheet
 
-### Check Status
-```
-@workspace check service status
-@workspace what ports are in use
-@workspace is docker running
-```
+| Tool | Sample Call | Use Case |
+| --- | --- | --- |
+| `run_script` | `{ script: "workspace:status" }` | Lifecycle commands, tests, builds |
+| `list_scripts` | `()` | Discover managed scripts grouped by prefix |
+| `browse_logs` | `{ action: "tail", logFile: "logs/workspace/pm2.log" }` | Inspect PM2/Docker/app logs |
+| `check_status` | `{ services: ["docker-compose", "ports"], detailed: true }` | Verify services and port usage |
+| `run_tests` (legacy) | — | Prefer `run_script` instead |
+| `manage_service` (legacy) | — | Prefer `workspace:*` scripts |
 
-### Browse Logs
-```
-@workspace list all log files
-@workspace show last 50 lines of errors.log
-@workspace search for ERROR in logs
-```
+## ✅ Recommended Script Map
 
-## 🛠️ MCP Tools
+- **Workspace lifecycle**: `workspace:start`, `workspace:stop`, `workspace:restart`, `workspace:status`, `workspace:logs`
+- **Dependencies**: `workspace:deps:start`, `workspace:deps:restart`, `workspace:deps:stop`
+- **Testing**: `test:smoke`, `test:e2e:server`, `test:coverage:admin`, `e2e:admin:real`
+- **Builds**: `build`, `build:admin`, `build:server-nest`
+- **Database**: `db:init`, `db:reset`, `db:full-reset`
+- **Utilities**: `spec:diff`, `mcp:db`, `check:stories`
 
-### run_script
-```typescript
-mcp_dev-manager_run_script({
-  app: "admin",
-  action: "build"
-})
-```
+Run `list_scripts` regularly—new scripts automatically appear.
 
-### list_scripts
-```typescript
-mcp_dev-manager_list_scripts()
-```
+## 🚫 When to Use `run_in_terminal`
 
-### check_status
-```typescript
-mcp_dev-manager_check_status({
-  services: ["docker-compose", "ports"]
-})
-```
+- Headed Playwright (`e2e:admin:ui`, `--debug`)
+- Storybook UI (`npm run dev:storybook`)
+- Log streaming (`pm2 logs --follow`)
+- Ad-hoc shell pipelines or exploratory commands
 
-### browse_logs
-```typescript
-mcp_dev-manager_browse_logs({
-  action: "tail",
-  logFile: "logs/errors.log",
-  lines: 50
-})
-```
+For everything else, prefer `run_script` to benefit from preflight checks and consistent environments.
 
-## 📝 Script Naming Convention
+## 🔄 Updating the MCP Server
 
-Pattern: `dev-manager:{app}:{action}`
-
-Examples:
-- `dev-manager:admin:build`
-- `dev-manager:server:test`
-- `dev-manager:docker:up`
-
-## 🔄 Updates
-
-### Submodule
 ```bash
 cd mcp-dev-manager
-git pull origin main
-npm install && npm run build
+npm install
+npm run build
 ```
 
-### Clone
-```bash
-cd mcp-dev-manager
-git pull
-npm install && npm run build
-```
+## 🐛 Troubleshooting Tips
 
-## 🐛 Troubleshooting
+1. **Script not found** → Re-run `list_scripts`; confirm it exists in `package.json`.
+2. **Interactive script blocked** → Execute via `run_in_terminal` in a foreground terminal.
+3. **Preflight failure** → Use `workspace:status` or `mcp_dev-manager_check_status` for diagnostics.
+4. **Logs missing** → Call `mcp_dev-manager_browse_logs({ action: "list" })` to enumerate available files.
 
-### MCP Not Loading
-1. Check `.vscode/mcp.json` syntax
-2. Verify `PROJECT_ROOT` is absolute path
-3. Restart VS Code
+## � Helpful Docs
 
-### Build Fails
-```bash
-cd mcp-dev-manager
-rm -rf node_modules dist
-npm install && npm run build
-```
-
-### Scripts Not Found
-1. Check `package.json` has `dev-manager:` prefix
-2. Run `list_scripts` to see available scripts
-
-## 📚 Documentation
-
-- [README.md](../mcp-dev-manager/README.md) - Complete guide
-- [REPO_SETUP.md](../mcp-dev-manager/REPO_SETUP.md) - Setup instructions
-- [EXAMPLES.md](../mcp-dev-manager/EXAMPLES.md) - Usage examples
-
-## 🔗 Links
-
-- **GitHub**: https://github.com/eyedea-io/mcp-dev-manager
-- **Issues**: https://github.com/eyedea-io/mcp-dev-manager/issues
-- **Email**: support@eyedea.io
+- `.github/instructions/mcp-dev-manager.instructions.md` – full guidance
+- `RUNBOOK.md` – day-to-day operations
+- `QUICK_START_DEV.md` – onboarding workflow

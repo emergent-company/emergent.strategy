@@ -1,0 +1,98 @@
+{
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "name": "workspace-cli",
+    "projectType": "library",
+    "sourceRoot": "tools/workspace-cli/src",
+    "targets": {
+        "build": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npm run build",
+                "cwd": "tools/workspace-cli"
+            },
+            "outputs": [
+                "{projectRoot}/dist"
+            ]
+        },
+        "lint": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npm run lint",
+                "cwd": "tools/workspace-cli"
+            }
+        },
+        "verify": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npm run verify",
+                "cwd": "tools/workspace-cli"
+            }
+        },
+        "workspace:start": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts start --workspace",
+                "forwardAllArgs": true
+            }
+        },
+        "workspace:start-all": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts start --all",
+                "forwardAllArgs": true
+            }
+        },
+        "workspace:restart": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts restart --workspace",
+                "forwardAllArgs": true
+            }
+        },
+        "workspace:stop": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts stop --workspace",
+                "forwardAllArgs": true
+            }
+        },
+        "workspace:deps:start": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts start --deps-only",
+                "forwardAllArgs": true
+            }
+        },
+        "workspace:deps:restart": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts restart --deps-only",
+                "forwardAllArgs": true
+            }
+        },
+        "workspace:deps:stop": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts stop --deps-only",
+                "forwardAllArgs": true
+            }
+        },
+        "workspace:logs": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts logs --workspace --dependencies",
+                "forwardAllArgs": true
+            }
+        },
+        "workspace:status": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts status --workspace --dependencies",
+                "forwardAllArgs": true
+            }
+        }
+    },
+    "tags": [
+        "scope:workspace"
+    ]
+}

@@ -1,0 +1,41 @@
+name: Workspace CLI Verify
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'nx.json'
+      - 'workspace.json'
+      - 'tools/workspace-cli/**'
+  pull_request:
+    paths:
+      - 'nx.json'
+      - 'workspace.json'
+      - 'tools/workspace-cli/**'
+
+jobs:
+  verify:
+    name: Build & Verify Workspace CLI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build workspace CLI
+        run: npx nx run workspace-cli:build
+
+      - name: Lint workspace CLI
+        run: npx nx run workspace-cli:lint
+
+      - name: Verify workspace CLI catalog
+        run: npx nx run workspace-cli:verify

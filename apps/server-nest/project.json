@@ -1,0 +1,46 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "server-nest",
+  "projectType": "application",
+  "sourceRoot": "apps/server-nest/src",
+  "targets": {
+    "setup": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsx tools/workspace-cli/src/cli.ts setup --service=server",
+        "forwardAllArgs": true
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsx tools/workspace-cli/src/cli.ts start --service=server",
+        "forwardAllArgs": true
+      }
+    },
+    "restart": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsx tools/workspace-cli/src/cli.ts restart --service=server",
+        "forwardAllArgs": true
+      }
+    },
+    "stop": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsx tools/workspace-cli/src/cli.ts stop --service=server",
+        "forwardAllArgs": true
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm --prefix apps/server-nest run test",
+        "forwardAllArgs": true
+      }
+    }
+  },
+  "tags": [
+    "scope:server"
+  ]
+}

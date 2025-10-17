@@ -31,28 +31,28 @@ if (!PROJECT_ROOT) {
 const TOOLS: Tool[] = [
     {
         name: 'run_script',
-        description: 'Run npm scripts defined in package.json with dev-manager: prefix. This is the PREFERRED way to run tests and builds. Use app + action pattern (e.g., app="admin", action="e2e:clickup") or full script name.',
+        description: 'Run managed npm scripts (workspace lifecycle, tests, builds) defined in package.json. Provide the exact script name (e.g., "workspace:start") or use app + action for a best-effort match.',
         inputSchema: {
             type: 'object',
             properties: {
                 script: {
                     type: 'string',
-                    description: 'Full script name (e.g., "dev-manager:admin:e2e" or just "admin:e2e")',
+                    description: 'Full script name (e.g., "workspace:start" or "test:coverage:admin")',
                 },
                 app: {
                     type: 'string',
-                    description: 'App name (admin, server, docker) - used with action',
+                    description: 'App name (workspace, admin, server, etc.) - used with action for legacy matching',
                 },
                 action: {
                     type: 'string',
-                    description: 'Action to perform (e2e, e2e:clickup, build, test, etc.) - used with app',
+                    description: 'Action to perform (e.g., start, status, e2e:real, test) - used with app for legacy matching',
                 },
             },
         },
     },
     {
         name: 'list_scripts',
-        description: 'List all available dev-manager scripts from package.json. Use this to discover what scripts are available before running them.',
+        description: 'List all managed workspace scripts from package.json. Use this to discover available lifecycle, test, and tooling commands.',
         inputSchema: {
             type: 'object',
             properties: {},
@@ -253,10 +253,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     } catch (error) {
         // Log error to stderr for debugging
         console.error(`Error executing tool ${name}:`, error);
-        
+
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
-        
+
         return {
             content: [
                 {

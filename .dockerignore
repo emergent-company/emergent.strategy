@@ -1,0 +1,39 @@
+# Exclude VCS metadata and local tooling
+.git
+.gitignore
+.specify/
+.vscode/
+.dev-pids/
+
+# Node workspace artifacts
+node_modules/
+dist/
+**/dist/
+**/build/
+*.tsbuildinfo
+*.log
+coverage/
+**/coverage/
+
+# Environment files and secrets
+.env
+.env.*
+*.local
+
+# Playwright and test output
+playwright-report/
+**/playwright-report/
+test-results/
+**/test-results/
+
+# PM2 / application logs
+apps/logs/
+logs/
+**/*.log
+
+# Docker build context noise
+Dockerfile*
+.dockerignore
+
+# Misc
+.DS_Store
