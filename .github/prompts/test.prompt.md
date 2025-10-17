@@ -1,51 +1,39 @@
 ---
 description: Run chosen test
 mode: agent
-tools:
-  - mcp_dev-manager
 ---
 
 
 # Test Execution & Analysis Prompt
 
 ## Objective
-Run tests using MCP Dev Manager, analyze results, suggest fixes, and document findings in the dev journal.
+Run the scripted test targets (npm/Nx), analyze the results, suggest fixes, and document findings in the dev journal.
 
-## Step 1: Run Tests via MCP Dev Manager
+## Step 1: Run Tests Using Workspace Scripts
 
-**ALWAYS use MCP tools for running tests** - never use `run_in_terminal` for test execution.
+Always use the checked-in npm targets so that required environment setup and logging hooks run consistently. Prefer `run_in_terminal` for execution (or Nx MCP utilities when available) instead of ad-hoc commands.
 
-### Available Test Commands:
+### Admin (Frontend)
 
-**Admin (Frontend):**
-```typescript
-// Unit tests
-mcp_dev-manager_run_script({ app: "admin", action: "test" })
-mcp_dev-manager_run_script({ app: "admin", action: "test:coverage" })
-
-// E2E tests (non-interactive)
-mcp_dev-manager_run_script({ app: "admin", action: "e2e" })
-mcp_dev-manager_run_script({ app: "admin", action: "e2e:clickup" })
-mcp_dev-manager_run_script({ app: "admin", action: "e2e:chat" })
-
-// E2E with comprehensive logging
-mcp_dev-manager_run_script({ app: "admin", action: "e2e:console-errors:with-logs" })
-```
-
-**Server (Backend):**
-```typescript
-// Unit tests
-mcp_dev-manager_run_script({ app: "server", action: "test" })
-mcp_dev-manager_run_script({ app: "server", action: "test:coverage" })
-
-// E2E tests
-mcp_dev-manager_run_script({ app: "server", action: "test:e2e" })
-```
-
-**MCP Dev Manager:**
 ```bash
-npm --prefix mcp-dev-manager run test
+npm --prefix apps/admin run test
+npm --prefix apps/admin run test:coverage
+npm --prefix apps/admin run e2e
+npm --prefix apps/admin run e2e:clickup
+npm --prefix apps/admin run e2e:chat
 ```
+
+> For Playwright runs that rely on token seeding, export `E2E_FORCE_TOKEN=1` before invoking the command.
+
+### Server (Backend)
+
+```bash
+npm --prefix apps/server-nest run test
+npm --prefix apps/server-nest run test:coverage
+npm --prefix apps/server-nest run test:e2e
+```
+
+Use headed/debug E2E flows only when triaging failures and note any manual steps performed.
 
 ## Step 2: Analyze Test Results
 
@@ -172,7 +160,7 @@ After completing the test cycle, create or append to the dev journal:
 ```markdown
 ### [YYYY-MM-DD HH:MM] - [Test Type] Test Run
 
-**Command**: [Exact MCP command used]
+**Command**: [Exact command used]
 
 **Results**:
 - Total Tests: [X]
@@ -209,7 +197,7 @@ After completing the test cycle, create or append to the dev journal:
 ```markdown
 ### [2025-10-08 11:43] - Admin E2E Console Errors Test Run
 
-**Command**: `mcp_dev-manager_run_script({ app: "admin", action: "e2e:console-errors:with-logs" })`
+**Command**: `npm --prefix apps/admin run e2e`
 
 **Results**:
 - Total Tests: 21
@@ -247,11 +235,10 @@ After completing the test cycle, create or append to the dev journal:
 
 ## Quick Reference
 
-### MCP Tools Cheat Sheet:
-- `mcp_dev-manager_run_script()` - Run ANY test (primary)
-- `mcp_dev-manager_list_scripts()` - List available scripts
-- `mcp_dev-manager_browse_logs()` - View/search logs
-- `mcp_dev-manager_check_status()` - Check service status
+### Preferred Command Patterns
+- `npm --prefix apps/admin run <script>` for frontend unit/E2E targets
+- `npm --prefix apps/server-nest run <script>` for backend unit/E2E targets
+- `npm run workspace:<target>` for cross-cutting orchestration (deps, status, logs)
 
 ### Log File Priority:
 1. **First**: `test-results/<test-name>/error-context.md` (Playwright)
@@ -260,24 +247,24 @@ After completing the test cycle, create or append to the dev journal:
 4. **Fourth**: `logs/app.log` (Full backend trace)
 
 ### Never Do:
-- ❌ Use `run_in_terminal` for running tests
-- ❌ Start services manually via terminal
-- ❌ Skip checking error-context.md files
-- ❌ Work around scripts - improve them instead
-- ❌ Forget to document in dev journal
+- ❌ Bypass the scripted commands with manual binary invocations
+- ❌ Start services with ad-hoc shell pipelines
+- ❌ Skip checking `error-context.md` files
+- ❌ Ignore logging output when diagnosing failures
+- ❌ Forget to document test runs in the dev journal
 
 ### Always Do:
-- ✅ Use MCP tools for test execution
+- ✅ Use the provided npm/Nx scripts for repeatability
 - ✅ Read error context files before suggesting fixes
-- ✅ Provide specific, actionable fixes
-- ✅ Document test results in dev journal
-- ✅ Check backend logs for 500 errors
-- ✅ Verify fixes with follow-up test run
+- ✅ Provide specific, actionable remediation steps
+- ✅ Document test results in the dev journal
+- ✅ Check backend logs for 5xx errors
+- ✅ Verify fixes with a follow-up test run
 
 ## Success Criteria
 
 A successful test cycle includes:
-1. ✅ Tests executed via MCP tools
+1. ✅ Tests executed via the documented npm/Nx scripts
 2. ✅ All logs reviewed and analyzed
 3. ✅ Root causes identified with evidence
 4. ✅ Specific fixes suggested or applied

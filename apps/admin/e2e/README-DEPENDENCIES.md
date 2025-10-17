@@ -6,150 +6,142 @@
 
 Playwright's `webServer` configuration (in `playwright.config.ts`) automatically:
 
-1. **Checks if server is running** on the configured port (5175)
-2. **Starts server if needed** using `npm run dev`
-3. **Waits for server to be ready** (up to 30 seconds)
-4. **Reuses existing server** if `reuseExistingServer: true` (default for local dev)
-5. **Keeps server running** after tests complete (for faster subsequent runs)
+1. **Checks if the Admin SPA is running** on port 5175
+2. **Starts the dev server** with `npm run dev` (scoped to `apps/admin`) when needed
+3. **Waits for readiness** (30 s timeout)
+4. **Reuses the existing server** when `reuseExistingServer: true` (default for local dev)
+5. **Leaves the server running** after test execution for faster follow-up runs
 
 ### Configuration
 
 ```typescript
 webServer: {
-    command: 'npm run dev',
-    cwd: ADMIN_DIR,
-    port: DEV_PORT, // 5175
-    reuseExistingServer: !process.env.CI && !process.env.E2E_FORCE_START,
-    timeout: 30_000, // 30 seconds to start
+  command: 'npm run dev',
+  cwd: ADMIN_DIR,
+  port: DEV_PORT, // 5175
+  reuseExistingServer: !process.env.CI && !process.env.E2E_FORCE_START,
+  timeout: 30_000
 }
 ```
 
-### Timeouts
-
-All timeouts have been reduced for faster feedback:
-
-- **Test timeout**: 30 seconds (was 90s)
-- **Assertion timeout**: 10 seconds (was 15s)
-- **Server start timeout**: 30 seconds (was 180s)
-
-These shorter timeouts ensure:
-- Tests fail fast when something is wrong
-- No long waits for hung tests
-- Better developer experience
+Timeout defaults:
+- **Test**: 30 s
+- **Assertion**: 10 s
+- **Server start**: 30 s
 
 ## Running Tests
 
-### Via npm scripts (recommended)
+### Recommended workflow
 
 ```bash
-# Playwright handles server automatically
-npm run dev-manager:admin:e2e:clickup
+# Ensure Docker dependencies are healthy (Postgres + Zitadel)
+npm run workspace:deps:start
+
+# Optionally start the admin service under PM2 supervision
+npm run workspace:start -- --service admin
+
+# Execute Playwright tests from the admin app
+npm --prefix apps/admin run e2e            # full suite
+npm --prefix apps/admin run e2e:chat       # example subset
+npx --yes playwright test \
+  -c e2e/playwright.config.ts e2e/specs/integrations.clickup.spec.ts
 ```
 
-**What happens:**
-1. Playwright checks if server is on port 5175
-2. If not running, starts `npm run dev` in apps/admin
-3. Waits up to 30s for server to respond
-4. Runs tests
-5. Leaves server running for next test run
+The workspace CLI is optional for local loops, but it guarantees preflight checks and consolidated logs.
 
-### Force fresh server
+### Force a fresh dev server
 
 ```bash
-# Kill existing server and start fresh
-E2E_FORCE_START=1 npm run dev-manager:admin:e2e:clickup
+E2E_FORCE_START=1 npx --yes playwright test -c e2e/playwright.config.ts
 ```
 
-### With external server
+### Point at an existing server
 
 ```bash
-# Use already-running server on different URL
-E2E_BASE_URL=http://localhost:3000 npm run dev-manager:admin:e2e:clickup
+E2E_BASE_URL=http://localhost:5175 npx --yes playwright test -c e2e/playwright.config.ts
 ```
 
 ## Script Dependencies
 
-### Implicit Dependencies
+### Playwright project dependencies
 
-The scripts leverage Playwright's built-in dependency management:
+1. **Setup project** (`auth.setup.ts`) runs first and persists storage state
+2. **Spec projects** depend on setup via `dependencies: ['setup']`
 
-1. **Setup project** runs first (auth.setup.ts)
-   - Creates authenticated storage state
-   - Dependency declared in playwright.config.ts
+### Environment variables
 
-2. **Test projects** run after setup
-   - Uses saved storage state
-   - `dependencies: ['setup']`
-
-### Environment Variables
-
-- `E2E_FORCE_TOKEN=1` - Always set, forces token injection auth
-- `E2E_FORCE_START=1` - Optional, force fresh server start
-- `E2E_BASE_URL` - Optional, use external server
-- `ADMIN_PORT` - Optional, change dev server port (default: 5175)
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `E2E_FORCE_TOKEN` | Injects auth token instead of interactive login | `1` (set by run scripts) |
+| `E2E_FORCE_START` | Forces Playwright to launch a fresh dev server | unset |
+| `E2E_BASE_URL` | Overrides target URL when reusing an external server | unset |
+| `ADMIN_PORT` | Custom dev port when not using 5175 | unset |
 
 ## Troubleshooting
 
-### Server won't start
+### Server will not start
 
 ```bash
-# Check if port is in use
+npm run workspace:status
 lsof -ti:5175
-
-# Kill existing process
 kill $(lsof -ti:5175)
-
-# Try again with force start
-E2E_FORCE_START=1 npm run dev-manager:admin:e2e:clickup
+E2E_FORCE_START=1 npx --yes playwright test -c e2e/playwright.config.ts
 ```
 
-### Tests timeout
+### Tests timing out
 
-```bash
-# Increase timeouts in playwright.config.ts
-timeout: 60_000,  # 60 seconds
-expect: { timeout: 20_000 },  # 20 seconds
-webServer: { timeout: 60_000 }  # 60 seconds
+Increase Playwright timeouts cautiously:
+
+```ts
+export default defineConfig({
+  timeout: 60_000,
+  expect: { timeout: 20_000 },
+  webServer: { timeout: 60_000 }
+});
 ```
 
-### Server keeps restarting
+### Need clean dependencies
 
-Check if another process is using port 5175:
 ```bash
-lsof -ti:5175
-ps aux | grep "vite\|npm run dev"
+npm run workspace:deps:restart
+```
+
+### Investigate logs
+
+```bash
+npm run workspace:logs -- --service admin
+npm run workspace:logs -- --deps-only --lines 200
 ```
 
 ## Benefits
 
-1. **No manual setup** - Just run tests, server starts automatically
-2. **Fast iteration** - Server stays running between test runs
-3. **CI-friendly** - Fresh server for each CI run
-4. **Fail-fast** - Short timeouts catch issues quickly
-5. **Flexible** - Override with environment variables
+1. **Minimal setup** – Playwright handles the dev server lifecycle
+2. **Faster iteration** – Server remains running between test runs
+3. **CI-friendly** – Fresh server launch per run in CI/forced mode
+4. **Fail-fast** – Tight timeouts highlight issues quickly
+5. **Consistent orchestration** – Workspace CLI provides health checks and logging
 
-## Architecture
+## Execution Flow
 
 ```
-npm run dev-manager:admin:e2e:clickup
+npx playwright test …
     ↓
 Playwright Test Runner
     ↓
-Check webServer config
+Check webServer (port 5175)
     ↓
-Is port 5175 open?
-    ↓ No
-Start `npm run dev` (30s timeout)
-    ↓ Yes
+Is dev server alive?
+    ↓  no → start `npm run dev` in apps/admin
+    ↓  yes
 Run setup project (auth.setup.ts)
     ↓
-Run test project (integrations.clickup.spec.ts)
+Run spec projects
     ↓
-Leave server running (reuse for next run)
+Leave dev server running (unless FORCE_START enabled)
 ```
 
 ## See Also
 
 - [Playwright WebServer Docs](https://playwright.dev/docs/test-webserver)
-- [Playwright Test Config](https://playwright.dev/docs/test-configuration)
-- [Playwright Projects & Dependencies](https://playwright.dev/docs/test-projects)
+- [Playwright Test Configuration](https://playwright.dev/docs/test-configuration)
+- [Workspace CLI Quick Start](../../QUICK_START_DEV.md)

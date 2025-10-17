@@ -12,5 +12,3 @@
 	url = https://github.com/Zipstack/unstract.git
 	branch = main
 [submodule "tools/mcp-dev-manager"]
-	path = tools/mcp-dev-manager
-	url = git@github.com:eyedea-io/mcp-dev-manager.git

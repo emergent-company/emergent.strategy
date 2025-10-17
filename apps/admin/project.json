@@ -1,0 +1,46 @@
+{
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "name": "admin",
+    "projectType": "application",
+    "sourceRoot": "apps/admin/src",
+    "targets": {
+        "setup": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts setup --service=admin",
+                "forwardAllArgs": true
+            }
+        },
+        "start": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts start --service=admin",
+                "forwardAllArgs": true
+            }
+        },
+        "restart": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts restart --service=admin",
+                "forwardAllArgs": true
+            }
+        },
+        "stop": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts stop --service=admin",
+                "forwardAllArgs": true
+            }
+        },
+        "test": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npm --prefix apps/admin run test -- --run",
+                "forwardAllArgs": true
+            }
+        }
+    },
+    "tags": [
+        "scope:admin"
+    ]
+}

@@ -1,0 +1,307 @@
+openapi: 3.1.0
+info:
+  title: Workspace Command API (Local-Only)
+  version: 0.1.0
+  description: >-
+    Internal API surface used by Nx/PM2 workspace commands to control application
+    services and foundational Docker dependencies, retrieve health information, and
+    access aggregated logs.
+servers:
+  - url: http://localhost:4100
+    description: Local workspace daemon (invoked by Nx targets via `@nx/workspace:run-commands` wrappers)
+
+paths:
+  /services/{serviceId}/start:
+    post:
+      summary: Start an application service via supervised process manager
+      tags: [Services]
+      parameters:
+        - $ref: "#/components/parameters/serviceId"
+        - $ref: "#/components/parameters/envProfile"
+      responses:
+        "202":
+          description: Start command accepted and forwarded to local PM2 process manager
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestrationResult"
+        "409":
+          description: Service already running or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /services/{serviceId}/restart:
+    post:
+      summary: Restart an application service with graceful reload semantics
+      tags: [Services]
+      parameters:
+        - $ref: "#/components/parameters/serviceId"
+        - $ref: "#/components/parameters/envProfile"
+      responses:
+        "202":
+          description: Restart initiated against PM2-controlled process
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestrationResult"
+        "424":
+          description: Restart refused because restart policy threshold reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /services/{serviceId}/stop:
+    post:
+      summary: Stop a supervised application service
+      tags: [Services]
+      parameters:
+        - $ref: "#/components/parameters/serviceId"
+        - $ref: "#/components/parameters/envProfile"
+      responses:
+        "202":
+          description: Stop command accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestrationResult"
+
+  /dependencies/{dependencyId}/start:
+    post:
+      summary: Start a docker-backed foundational dependency
+      tags: [Dependencies]
+      parameters:
+        - $ref: "#/components/parameters/dependencyId"
+        - $ref: "#/components/parameters/envProfile"
+      responses:
+        "202":
+          description: Dependency startup triggered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestrationResult"
+        "409":
+          description: Dependency already running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /dependencies/{dependencyId}/restart:
+    post:
+      summary: Restart a docker-backed dependency with health verification
+      tags: [Dependencies]
+      parameters:
+        - $ref: "#/components/parameters/dependencyId"
+        - $ref: "#/components/parameters/envProfile"
+      responses:
+        "202":
+          description: Restart initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestrationResult"
+        "424":
+          description: Restart aborted due to restart threshold or missing image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /status:
+    get:
+      summary: Retrieve consolidated health snapshot for all managed services
+      tags: [Observability]
+      parameters:
+        - in: query
+          name: includeHistory
+          schema:
+            type: boolean
+            default: false
+          description: When true, include recent restart history
+      responses:
+        "200":
+          description: Consolidated status payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusSnapshot"
+
+  /logs/{serviceId}:
+    get:
+      summary: Fetch logs for a given service or dependency
+      tags: [Observability]
+      parameters:
+        - $ref: "#/components/parameters/serviceId"
+        - in: query
+          name: from
+          description: ISO timestamp lower bound for log retrieval
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: to
+          description: ISO timestamp upper bound for log retrieval
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: tail
+          description: Number of most-recent lines if time range not provided
+          schema:
+            type: integer
+            minimum: 1
+            default: 200
+      responses:
+        "200":
+          description: Structured log entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogEnvelope"
+        "404":
+          description: Service not registered or no logs found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  parameters:
+    serviceId:
+      name: serviceId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Identifier defined in Application Process Profile
+    dependencyId:
+      name: dependencyId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Identifier defined in Docker Dependency Profile
+    envProfile:
+      name: env
+      in: query
+      required: false
+      schema:
+        type: string
+        default: dev
+      description: Environment profile, defaults to development
+
+  schemas:
+    OrchestrationResult:
+      type: object
+      required: [serviceId, state, message]
+      properties:
+        serviceId:
+          type: string
+        state:
+          type: string
+          enum: [pending, running, stopped]
+        message:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+        trackingId:
+          type: string
+          description: Correlates async status updates
+    StatusSnapshot:
+      type: object
+      properties:
+        capturedAt:
+          type: string
+          format: date-time
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceStatus"
+    ServiceStatus:
+      type: object
+      required: [serviceId, type, status]
+      properties:
+        serviceId:
+          type: string
+        type:
+          type: string
+          enum: [application, dependency]
+        status:
+          type: string
+          enum: [online, stopped, starting, failing, degraded]
+        uptimeSec:
+          type: integer
+          minimum: 0
+        restartCount:
+          type: integer
+          minimum: 0
+        lastExitCode:
+          type: integer
+          nullable: true
+        healthDetail:
+          type: string
+        dependencyState:
+          type: array
+          description: Only for applications; includes dependent dependency statuses
+          items:
+            $ref: "#/components/schemas/DependencyStatus"
+    DependencyStatus:
+      type: object
+      required: [dependencyId, status]
+      properties:
+        dependencyId:
+          type: string
+        status:
+          type: string
+          enum: [online, stopped, starting, failing, degraded]
+        healthDetail:
+          type: string
+    LogEnvelope:
+      type: object
+      properties:
+        serviceId:
+          type: string
+        range:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LogEntry"
+    LogEntry:
+      type: object
+      required: [timestamp, level, message]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        level:
+          type: string
+          enum: [info, warn, error, debug]
+        message:
+          type: string
+        source:
+          type: string
+          description: stdout | stderr | docker
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: string

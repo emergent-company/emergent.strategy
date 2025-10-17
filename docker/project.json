@@ -1,0 +1,39 @@
+{
+    "$schema": "../node_modules/nx/schemas/project-schema.json",
+    "name": "docker",
+    "projectType": "library",
+    "sourceRoot": "docker",
+    "targets": {
+        "setup": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "docker compose pull postgres zitadel",
+                "cwd": "docker"
+            }
+        },
+        "start": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts start --deps-only",
+                "forwardAllArgs": true
+            }
+        },
+        "restart": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts restart --deps-only",
+                "forwardAllArgs": true
+            }
+        },
+        "stop": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx tsx tools/workspace-cli/src/cli.ts stop --deps-only",
+                "forwardAllArgs": true
+            }
+        }
+    },
+    "tags": [
+        "scope:dependency"
+    ]
+}

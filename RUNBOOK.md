@@ -8,12 +8,25 @@ Prereqs
 - Node.js >= 20.19
 - Docker
 
-1) Start Postgres with pgvector
-- From the `docker/` directory, start the DB:
+1) Start foundational services with the Workspace CLI
+- From the repository root, launch Docker dependencies under PM2 supervision:
+
+```bash
+npm run workspace:deps:start
+```
+
+- Check dependency health and tail logs when needed:
+
+```bash
+npm run workspace:status -- --deps-only
+npm run workspace:logs -- --deps-only --lines 200
+```
+
+- Prefer the workspace CLI for consistent preflight checks, health probes, and logrotate wiring. The manual docker-compose flow remains available for emergencies:
 
 ```bash
 cd docker
-docker compose up -d
+docker compose up -d db zitadel login
 ```
 
 2) Configure environment
@@ -27,10 +40,22 @@ docker compose up -d
 cp .env.example .env   # then edit GOOGLE_API_KEY
 npm install
 npm run db:init
-npm run dev
+npm run workspace:start
 ```
 
 - Health check: http://localhost:3001/health
+- Admin SPA: http://localhost:5175
+
+- Useful lifecycle commands:
+
+```bash
+npm run workspace:status          # consolidated health
+npm run workspace:logs            # tail logs for apps + deps
+npm run workspace:restart         # restart API + Admin
+npm run workspace:stop            # stop API + Admin
+npm run workspace:deps:restart    # restart Docker dependencies
+npm run workspace:deps:stop       # stop Docker dependencies
+```
 
 4) Ingest
 - POST http://localhost:3001/ingest/url with JSON `{ "url": "https://example.com" }`

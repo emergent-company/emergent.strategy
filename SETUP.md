@@ -47,12 +47,24 @@ Note: If Vite picks a different port than 5175, update the redirect URIs accordi
 
 ```bash
 # from repo root
-cd docker
-docker compose up -d db zitadel login
-open http://localhost:8080/.well-known/openid-configuration
-open http://localhost:3000/ui/v2/login
+npm run workspace:deps:start
 ```
 
+This starts the Docker dependencies (Postgres, Zitadel, Login v2) under PM2 supervision with health checks and log capture. To inspect their status or tail logs:
+
+```bash
+npm run workspace:status
+npm run workspace:logs -- --deps-only --lines 200
+```
+
+If you prefer to run Docker manually, the legacy commands still work:
+
+```bash
+cd docker
+docker compose up -d db zitadel login
+```
+
+Key endpoints once the stack is healthy:
 - Postgres: 5432 (user/pass/db: spec/spec/spec)
 - Zitadel issuer (API): http://localhost:8080
 - Login v2 UI: http://localhost:3000/ui/v2/login
@@ -77,14 +89,30 @@ If you add Google/GitHub as IdPs, configure their callbacks in Zitadel and enabl
 
 ```bash
 # from repo root
-npm run dev:all
+npm run workspace:start
 # server: http://localhost:3001
 # admin:  http://localhost:5175
 ```
 
-If you run them separately:
-- Server only: `npm run dev:server`
-- Admin only:  `npm run dev:admin`
+The workspace CLI handles preflight checks, dependency verification, and PM2 process management. Useful follow-up commands:
+
+- Stop services: `npm run workspace:stop`
+- Restart services: `npm run workspace:restart`
+- Check status (apps + deps): `npm run workspace:status`
+- Tail recent logs: `npm run workspace:logs`
+
+To target just one service, pass `--service`:
+
+```bash
+npm run workspace:start -- --service server   # API only
+npm run workspace:start -- --service admin    # Admin SPA only
+```
+
+If you need to stop dependencies when you're done:
+
+```bash
+npm run workspace:deps:stop
+```
 
 ## 6) Log in and test
 

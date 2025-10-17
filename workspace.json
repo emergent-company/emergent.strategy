@@ -1,0 +1,43 @@
+{
+  "$schema": "./node_modules/nx/schemas/workspace-schema.json",
+  "version": 2,
+  "projects": {
+    "admin": {
+      "root": "apps/admin",
+      "projectType": "application",
+      "tags": [
+        "scope:admin"
+      ],
+      "implicitDependencies": [
+        "workspace-cli"
+      ]
+    },
+    "server-nest": {
+      "root": "apps/server-nest",
+      "projectType": "application",
+      "tags": [
+        "scope:server"
+      ],
+      "implicitDependencies": [
+        "workspace-cli"
+      ]
+    },
+    "workspace-cli": {
+      "root": "tools/workspace-cli",
+      "projectType": "library",
+      "tags": [
+        "scope:workspace"
+      ],
+      "implicitDependencies": [
+        "docker"
+      ]
+    },
+    "docker": {
+      "root": "docker",
+      "projectType": "library",
+      "tags": [
+        "scope:dependency"
+      ]
+    }
+  }
+}

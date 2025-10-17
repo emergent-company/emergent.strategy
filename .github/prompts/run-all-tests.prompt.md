@@ -1,9 +1,6 @@
 ---
 description: Run all implemented tests in the project (unit, E2E, and coverage)
 mode: agent
-tools:
-  - mcp_dev-manager
-  - terminal
 ---
 
 # Run All Tests in Spec Server Project
@@ -16,7 +13,6 @@ This is a monorepo with the following testable applications:
 
 1. **Admin Frontend** (`apps/admin/`) - React + Vite + Vitest (unit) + Playwright (E2E)
 2. **Server Backend** (`apps/server-nest/`) - NestJS + Jest (unit & E2E)
-3. **MCP Dev Manager** (`mcp-dev-manager/`) - Vitest
 
 ## Test Execution Order
 
@@ -25,58 +21,38 @@ Follow this sequence to run all tests:
 ### 1. Server Backend Tests
 
 #### Unit Tests
-```typescript
-// Run all backend unit tests
-mcp_dev-manager_run_script({ app: "server", action: "test" })
+```bash
+npm --prefix apps/server-nest run test
 ```
 
 #### E2E Tests
-```typescript
-// Run backend API integration tests
-mcp_dev-manager_run_script({ app: "server", action: "test:e2e" })
+```bash
+npm --prefix apps/server-nest run test:e2e
 ```
 
 #### Coverage Report
-```typescript
-// Generate backend coverage report
-mcp_dev-manager_run_script({ app: "server", action: "test:coverage" })
+```bash
+npm --prefix apps/server-nest run test:coverage
 ```
 
 ### 2. Admin Frontend Tests
 
 #### Unit Tests
-```typescript
-// Run all frontend component and hook tests
-mcp_dev-manager_run_script({ app: "admin", action: "test" })
+```bash
+npm --prefix apps/admin run test
 ```
 
 #### E2E Tests
-```typescript
-// Run all Playwright E2E tests
-mcp_dev-manager_run_script({ app: "admin", action: "e2e" })
-
-// Or run specific test suites:
-// ClickUp integration tests
-mcp_dev-manager_run_script({ app: "admin", action: "e2e:clickup" })
-
-// Chat feature tests
-mcp_dev-manager_run_script({ app: "admin", action: "e2e:chat" })
+```bash
+npm --prefix apps/admin run e2e
+# Or target specific suites
+npm --prefix apps/admin run e2e:clickup
+npm --prefix apps/admin run e2e:chat
 ```
 
 #### Coverage Report
-```typescript
-// Generate frontend coverage report
-mcp_dev-manager_run_script({ app: "admin", action: "test:coverage" })
-```
-
-### 3. MCP Dev Manager Tests
-
 ```bash
-# Run MCP dev manager tests
-npm --prefix mcp-dev-manager run test
-
-# With coverage
-npm --prefix mcp-dev-manager run test:coverage
+npm --prefix apps/admin run test:coverage
 ```
 
 ## Prerequisites
@@ -90,43 +66,32 @@ Before running E2E tests, ensure these services are running:
 
 ### Check Service Status
 
-Use the MCP dev-manager tool to check all service status:
-
-```typescript
-mcp_dev-manager_check_status({
-  services: ["docker-compose", "npm", "ports"],
-  detailed: true
-})
+```bash
+npm run workspace:status
 ```
 
-This will show:
-- Docker containers status (PostgreSQL, Zitadel)
-- Running npm processes (backend server, frontend dev server)
-- Port usage (5432, 8080, 3001, 5175)
+This command aggregates Docker, PM2-managed processes, and port usage for the API, Admin SPA, and shared dependencies.
 
 ### Start Required Services
 
-If services are not running, start them using MCP tools:
-
-```typescript
-// Start Docker services (PostgreSQL + Zitadel)
-mcp_dev-manager_run_script({ app: "docker", action: "up" })
-
-// Start backend server (runs in background)
-mcp_dev-manager_run_script({ app: "server", action: "start" })
-
-// Start admin dev server (runs in background)
-mcp_dev-manager_run_script({ app: "admin", action: "dev" })
+```bash
+npm run workspace:deps:start   # Postgres + Zitadel + login portal
+npm run workspace:start        # API + Admin SPA under PM2
 ```
 
-**Note:** The `ensure-e2e-deps.mjs` script automatically checks and starts required services when running E2E tests through MCP tools.
+To validate dependencies manually (or before ad-hoc Playwright runs), execute:
+
+```bash
+node scripts/ensure-e2e-deps.mjs
+```
+
+It checks container health, verifies ports, and seeds auth tokens expected by the E2E suites.
 
 ## Full Test Suite Script
 
 Here's a complete bash script that runs all tests sequentially:
 
 ```bash
-#!/bin/bash
 set -e  # Exit on first failure
 
 echo "🧪 Starting Complete Test Suite..."
@@ -145,17 +110,15 @@ echo ""
 echo "3️⃣ Running Admin Unit Tests..."
 npm --prefix apps/admin run test
 echo "✅ Admin unit tests passed"
-echo ""
-
-echo "4️⃣ Running Admin E2E Tests..."
 cd apps/admin && E2E_FORCE_TOKEN=1 npx playwright test --config=e2e/playwright.config.ts --project=chromium
 cd ../..
 echo "✅ Admin E2E tests passed"
 echo ""
 
-echo "5️⃣ Running MCP Dev Manager Tests..."
-npm --prefix mcp-dev-manager run test
-echo "✅ MCP tests passed"
+echo "5️⃣ Running Coverage Reports..."
+npm --prefix apps/server-nest run test:coverage
+npm --prefix apps/admin run test:coverage
+echo "✅ Coverage reports generated"
 echo ""
 
 echo "🎉 All tests passed successfully!"
@@ -199,31 +162,27 @@ npm --prefix apps/admin run test -- -t "failing test name"
 
 ## Quick Commands
 
-### Run Only Fast Tests (Unit Tests)
-```typescript
-// Skip E2E, run only unit tests
-mcp_dev-manager_run_script({ app: "server", action: "test" })
-mcp_dev-manager_run_script({ app: "admin", action: "test" })
+### Run Only Unit Tests
+```bash
+npm --prefix apps/server-nest run test
+npm --prefix apps/admin run test
 ```
 
 ### Run Only E2E Tests
-```typescript
-// Server API tests
-mcp_dev-manager_run_script({ app: "server", action: "test:e2e" })
-
-// Admin browser tests
-mcp_dev-manager_run_script({ app: "admin", action: "e2e" })
+```bash
+npm --prefix apps/server-nest run test:e2e
+npm --prefix apps/admin run e2e
 ```
 
 ### Generate All Coverage Reports
-```typescript
-mcp_dev-manager_run_script({ app: "server", action: "test:coverage" })
-mcp_dev-manager_run_script({ app: "admin", action: "test:coverage" })
+```bash
+npm --prefix apps/server-nest run test:coverage
+npm --prefix apps/admin run test:coverage
 ```
 
 ## Important Notes
 
-⚠️ **Always use MCP tools for non-interactive tests** - The `ensure-e2e-deps.mjs` script automatically checks and starts required services.
+⚠️ **Always use the scripted npm/Nx targets** – they wrap dependency checks and invoke shared tooling like `ensure-e2e-deps.mjs`.
 
 ⚠️ **Don't run E2E tests in parallel** - They share database state and can interfere with each other.
 
@@ -235,5 +194,5 @@ mcp_dev-manager_run_script({ app: "admin", action: "test:coverage" })
 
 For more details, see:
 - [Testing Infrastructure Instructions](../../.github/instructions/testing.instructions.md)
-- [MCP Dev Manager Instructions](../../.github/instructions/mcp-dev-manager.instructions.md)
 - [Admin Build & Test Loop](../../.github/instructions/admin.instructions.md)
+- [E2E Dependency Checker](../../docs/E2E_DEPENDENCY_CHECKER.md)

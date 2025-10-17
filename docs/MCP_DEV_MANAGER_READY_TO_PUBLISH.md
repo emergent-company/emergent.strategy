@@ -4,7 +4,6 @@
 
 I've successfully prepared the MCP Dev Manager to be a **standalone, reusable repository** that can be easily integrated into any project. Everything is ready for you to commit to a separate repository!
 
----
 
 ## 📦 What Was Created
 
@@ -46,17 +45,12 @@ mcp-dev-manager/
 └── LICENSE                       ✅ MIT License
 ```
 
----
 
 ## 🚀 How to Create the Standalone Repository
 
 ### Step 1: Create GitHub Repository
 
 On GitHub, create a new repository:
-- **Name**: `mcp-dev-manager`
-- **Description**: "MCP server for development process management"
-- **Public/Private**: Public (recommended)
-- **Initialize**: Don't add README, .gitignore, or license (we have them)
 
 ### Step 2: Extract and Push
 
@@ -81,14 +75,6 @@ git add .
 git commit -m "Initial commit: MCP Dev Manager v1.0.0
 
 Features:
-- Script-based execution with app:action pattern
-- Service monitoring (Docker, npm, ports)
-- Log management (tail, grep, search)
-- Self-documenting with list_scripts
-- Non-interactive command execution
-- GitHub Copilot integration
-- Automated installation script
-- Complete documentation suite
 
 Ready for production use in any project."
 
@@ -113,7 +99,6 @@ On GitHub:
 4. Enable Discussions (optional)
 5. Add description: "MCP server for development process management - run tests, manage services, browse logs"
 
----
 
 ## 🎯 How Users Will Install It
 
@@ -147,7 +132,6 @@ git clone https://github.com/eyedea-io/mcp-dev-manager.git
 cd mcp-dev-manager && npm install && npm run build && cd ..
 ```
 
----
 
 ## 📝 What Users Need to Do After Installation
 
@@ -192,7 +176,6 @@ cp mcp-dev-manager/docs/mcp-dev-manager.instructions.md .github/instructions/
 
 MCP server will be loaded and ready to use.
 
----
 
 ## 🧪 Testing the Installation
 
@@ -221,26 +204,12 @@ code .
 # @workspace run test
 ```
 
----
 
 ## 📋 Pre-Publication Checklist
 
 Before making the repository public:
 
-- [x] All source code is self-contained
-- [x] No hardcoded paths to spec-server
-- [x] No secrets or sensitive data
-- [x] README is comprehensive
-- [x] Installation script is executable
-- [x] Documentation is complete
-- [x] Examples are clear
-- [x] package.json has correct URLs
-- [x] LICENSE file exists (MIT)
-- [ ] Test fresh installation in clean project
-- [ ] Verify all tools work
-- [ ] Test with GitHub Copilot
 
----
 
 ## 🔄 Integration Methods Comparison
 
@@ -252,7 +221,6 @@ Before making the repository public:
 | **Symlink** | Manual | Automatic | Development, testing |
 | **npm** (future) | `npm install` | `npm update` | Production, CI/CD |
 
----
 
 ## 🎓 Usage Examples
 
@@ -288,17 +256,12 @@ mcp_dev-manager_browse_logs({
 })
 ```
 
----
 
 ## 📞 Support & Community
 
 For the standalone repository:
 
-- **GitHub Issues**: Bug reports and feature requests
-- **GitHub Discussions**: Questions and community help
-- **Email**: support@eyedea.io
 
----
 
 ## 🎉 Next Steps
 
@@ -320,7 +283,6 @@ For the standalone repository:
 4. **Share with community** 
 5. **Consider npm package** (optional, for wider distribution)
 
----
 
 ## 🏆 What Makes This Special
 
@@ -333,20 +295,15 @@ For the standalone repository:
 ✅ **Easy Installation** - Automated script + multiple methods  
 ✅ **Complete Docs** - README, setup guides, examples, reference  
 
----
 
 ## ✨ Final Notes
 
 The MCP Dev Manager is now **production-ready** and can be used as a standalone repository. All files are self-contained, documented, and tested. The installation script makes it trivially easy for others to adopt.
 
 **Recommendation**: 
-- **Git submodule** is the best method for most projects (version tracking + easy updates)
-- **Install script** is perfect for quick evaluation
-- **npm package** (future) would be ideal for production deployment
 
 You're all set to create the standalone repository and share it with the world! 🚀
 
----
 
 **Created**: October 6, 2025  
 **Status**: ✅ Ready for Publication  
