@@ -671,7 +671,8 @@ if (require.main === module) {
         port: parseInt(process.env.DB_PORT || '5432'),
         database: process.env.DB_NAME || 'spec',
         user: process.env.DB_USER || 'mcj',
-        password: process.env.DB_PASSWORD || '',
+        // Don't include password if not set - will use peer authentication
+        ...(process.env.DB_PASSWORD && { password: process.env.DB_PASSWORD }),
     });
 
     seedMeetingDecisionPack(pool)
