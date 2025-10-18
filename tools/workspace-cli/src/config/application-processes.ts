@@ -39,6 +39,7 @@ const APPLICATION_PROFILES: readonly ApplicationProcessProfile[] = [
     namespace: WORKSPACE_NAMESPACE,
     defaultEnabled: true,
     setupCommands: ['npm install'],
+    exposedPorts: ['5175'],
     environmentOverrides: {
       staging: {
         VITE_APP_ENV: 'staging'
@@ -64,6 +65,7 @@ const APPLICATION_PROFILES: readonly ApplicationProcessProfile[] = [
     namespace: WORKSPACE_NAMESPACE,
     defaultEnabled: true,
     setupCommands: ['npm install'],
+    exposedPorts: ['3001'],
     environmentOverrides: {
       staging: {
         NODE_ENV: 'staging'

@@ -63,6 +63,16 @@ function formatDetail(entry: HealthSnapshotEntry): string {
   return detailParts.length > 0 ? detailParts.join(' | ') : DEFAULT_PLACEHOLDER;
 }
 
+function formatPorts(entry: HealthSnapshotEntry): string {
+  const ports = entry.exposedPorts ?? [];
+
+  if (!ports || ports.length === 0) {
+    return DEFAULT_PLACEHOLDER;
+  }
+
+  return ports.join(', ');
+}
+
 function buildTableRows(snapshot: UnifiedHealthSnapshot): string[][] {
   return snapshot.services.map((entry) => [
     entry.serviceId,
@@ -70,6 +80,7 @@ function buildTableRows(snapshot: UnifiedHealthSnapshot): string[][] {
     entry.status,
     formatDuration(entry.uptimeSec),
     String(entry.restartCount ?? 0),
+    formatPorts(entry),
     formatDetail(entry)
   ]);
 }
@@ -119,7 +130,7 @@ export async function runStatusCommand(argv: readonly string[]): Promise<void> {
     return;
   }
 
-  const headers = ['Service', 'Type', 'Status', 'Uptime', 'Restarts', 'Detail'] as const;
+  const headers = ['Service', 'Type', 'Status', 'Uptime', 'Restarts', 'Ports', 'Detail'] as const;
   const tableRows = buildTableRows(snapshot);
   const tableOutput = renderTable(headers, tableRows);
 

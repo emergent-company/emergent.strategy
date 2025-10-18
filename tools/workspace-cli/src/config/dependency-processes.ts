@@ -36,7 +36,8 @@ const DEPENDENCY_PROFILES: readonly DependencyProcessProfile[] = [
       timeoutSec: 120
     },
     logs: buildLogConfig('postgres'),
-    restartPolicy: DEFAULT_RESTART_POLICY
+    restartPolicy: DEFAULT_RESTART_POLICY,
+    exposedPorts: ['5432']
   },
   {
     dependencyId: 'zitadel',
@@ -49,7 +50,8 @@ const DEPENDENCY_PROFILES: readonly DependencyProcessProfile[] = [
       timeoutSec: 180
     },
     logs: buildLogConfig('zitadel'),
-    restartPolicy: DEFAULT_RESTART_POLICY
+    restartPolicy: DEFAULT_RESTART_POLICY,
+    exposedPorts: ['8100->8080', '8101->3000']
   }
 ] satisfies readonly DependencyProcessProfile[];
 

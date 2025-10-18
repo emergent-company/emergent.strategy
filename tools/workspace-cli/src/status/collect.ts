@@ -250,7 +250,8 @@ function buildApplicationEntry(
     restartCount: pm2Env?.restart_time ?? 0,
     lastExitCode: pm2Env?.exit_code ?? undefined,
     healthDetail: pm2Env?.status,
-    dependencyState
+    dependencyState,
+    exposedPorts: profile.exposedPorts
   } satisfies HealthSnapshotEntry;
 }
 
@@ -289,7 +290,8 @@ function buildDependencyEntry(
     uptimeSec: computeUptime(pm2Env),
     restartCount: pm2Env?.restart_time ?? 0,
     lastExitCode: pm2Env?.exit_code ?? undefined,
-    healthDetail: detailParts.join(' | ') || undefined
+    healthDetail: detailParts.join(' | ') || undefined,
+    exposedPorts: profile.exposedPorts
   } satisfies HealthSnapshotEntry;
 }
 

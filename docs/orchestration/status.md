@@ -39,6 +39,7 @@ Each row in the table (and element in JSON) includes:
 | `status` | Normalized status (`online`, `starting`, `stopped`, `failing`, `degraded`). |
 | `uptimeSec` | Seconds since PM2 reported the process online. |
 | `restartCount` | PM2 restart counter. |
+| `ports` | Accessible host ports advertised by the service or dependency. |
 | `detail` | Summary of PM2 state plus Docker status for dependencies. |
 | `dependencyState` | (Applications only) Compact status view for each declared dependency. |
 
@@ -46,12 +47,12 @@ Example table output:
 
 ```
 Captured at: 2025-10-17T12:34:56.789Z
-Service   Type         Status   Uptime   Restarts  Detail
---------  -----------  -------  -------  --------  ---------------------------------------
-admin     application  online   15m      0         online | deps=postgres:online
-server    application  online   14m      0         online | deps=postgres:online
-postgres  dependency   online   20m      0         online | docker=running (healthy)
-zitadel   dependency   degraded 2m       1         online | docker=running (starting)
+Service   Type         Status   Uptime   Restarts  Ports                   Detail
+--------  -----------  -------  -------  --------  ----------------------  ---------------------------------------
+admin     application  online   15m      0         5175                    online | deps=postgres:online
+server    application  online   14m      0         3001                    online | deps=postgres:online
+postgres  dependency   online   20m      0         5432                    online | docker=running (healthy)
+zitadel   dependency   degraded 2m       1         8100->8080, 8101->3000  online | docker=running (starting)
 ```
 
 ### JSON Output Structure
