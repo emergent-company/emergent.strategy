@@ -15,7 +15,11 @@ import { DocumentsService } from '../../documents/documents.service';
 describe('ExtractionWorkerService - Quality Thresholds', () => {
     let service: ExtractionWorkerService;
     let configService: AppConfigService & { extractionDefaultTemplatePackId: string | null };
-    let databaseService: { isOnline: ReturnType<typeof vi.fn>; query: ReturnType<typeof vi.fn> };
+    let databaseService: {
+        isOnline: ReturnType<typeof vi.fn>;
+        query: ReturnType<typeof vi.fn>;
+        runWithTenantContext: ReturnType<typeof vi.fn>;
+    };
     let templatePackService: { assignTemplatePackToProject: ReturnType<typeof vi.fn> };
 
     beforeEach(async () => {
@@ -33,7 +37,10 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
         const dbMock = {
             isOnline: vi.fn().mockReturnValue(false),
             query: vi.fn(),
-        };
+            runWithTenantContext: vi.fn(async (_org: string | null, _project: string | null, fn: () => Promise<any>) => {
+                return fn();
+            }),
+        } as any;
 
         const templatePackMock = {
             assignTemplatePackToProject: vi.fn(),
@@ -95,6 +102,89 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
     afterEach(() => {
         vi.clearAllMocks();
         configService.extractionDefaultTemplatePackId = 'pack-default';
+    });
+
+    describe('recoverOrphanedJobs', () => {
+        it('resets orphaned jobs using tenant context', async () => {
+            const orphanJob = {
+                id: 'job-orphan-1',
+                source_type: 'document',
+                started_at: '2025-10-16T15:59:53.465Z',
+                organization_id: 'org-123',
+                tenant_id: 'org-123',
+                project_id: 'project-123',
+            };
+
+            databaseService.query
+                .mockResolvedValueOnce({ rowCount: 1, rows: [orphanJob] })
+                .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: orphanJob.id }] });
+
+            databaseService.runWithTenantContext.mockImplementation(async (_org, _project, fn) => fn());
+
+            await (service as any).recoverOrphanedJobs();
+
+            expect(databaseService.runWithTenantContext).toHaveBeenCalledWith(
+                orphanJob.organization_id,
+                orphanJob.project_id,
+                expect.any(Function)
+            );
+
+            expect(databaseService.query).toHaveBeenCalledTimes(2);
+            const updateQuery = databaseService.query.mock.calls[1][0];
+            const updateParams = databaseService.query.mock.calls[1][1];
+
+            expect(updateQuery).toContain('UPDATE kb.object_extraction_jobs');
+            expect(updateQuery).toContain('started_at = NULL');
+            expect(updateQuery).toContain('error_message = CASE');
+            expect(updateQuery).toContain("ILIKE '%has been reset to pending.%'");
+            expect(updateParams).toEqual([orphanJob.id]);
+        });
+
+        it('skips orphaned jobs without tenant context', async () => {
+            databaseService.query.mockResolvedValueOnce({
+                rowCount: 1,
+                rows: [
+                    {
+                        id: 'job-orphan-2',
+                        source_type: 'document',
+                        started_at: null,
+                        organization_id: null,
+                        tenant_id: null,
+                        project_id: null,
+                    },
+                ],
+            });
+
+            await (service as any).recoverOrphanedJobs();
+
+            expect(databaseService.runWithTenantContext).not.toHaveBeenCalled();
+            expect(databaseService.query).toHaveBeenCalledTimes(1);
+        });
+
+        it('falls back to tenant_id when organization_id is null', async () => {
+            const orphanJob = {
+                id: 'job-orphan-3',
+                source_type: 'document',
+                started_at: '2025-10-16T15:59:53.465Z',
+                organization_id: null,
+                tenant_id: 'tenant-789',
+                project_id: 'project-789',
+            };
+
+            databaseService.query
+                .mockResolvedValueOnce({ rowCount: 1, rows: [orphanJob] })
+                .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: orphanJob.id }] });
+
+            databaseService.runWithTenantContext.mockImplementation(async (_org, _project, fn) => fn());
+
+            await (service as any).recoverOrphanedJobs();
+
+            expect(databaseService.runWithTenantContext).toHaveBeenCalledWith(
+                orphanJob.tenant_id,
+                orphanJob.project_id,
+                expect.any(Function)
+            );
+        });
     });
 
     describe('applyQualityThresholds', () => {
