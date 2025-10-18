@@ -40,11 +40,112 @@ const defaultJob: ExtractionJob = {
     error_message: undefined,
     error_details: undefined,
     debug_info: {
-        llm: {
-            prompt_template: 'Extract company + contact entities',
-            temperature: 0.2,
-            model: 'gpt-4.1-mini',
+        provider: 'LangChain-Gemini',
+        job_duration_ms: 4200,
+        total_entities: 24,
+        types_processed: 3,
+        entity_outcomes: {
+            created: 18,
+            merged: 3,
+            skipped: 1,
+            rejected: 2,
+            failed: 0,
         },
+        llm_calls: [
+            {
+                type: 'company',
+                input: {
+                    prompt: 'Extract company entities from the provided document.',
+                    allowed_types: ['company'],
+                },
+                output: {
+                    entities: [{ name: 'Acme Corp', confidence: 0.92 }],
+                },
+                entities_found: 12,
+                duration_ms: 1380,
+                timestamp: new Date(Date.now() - 4000).toISOString(),
+                model: 'gemini-2.5-flash',
+                status: 'success',
+            },
+            {
+                type: 'contact',
+                input: {
+                    prompt: 'Extract contact entities from the provided document.',
+                    allowed_types: ['contact'],
+                },
+                output: {
+                    entities: [{ name: 'Jordan Lee', confidence: 0.88 }],
+                },
+                entities_found: 8,
+                duration_ms: 980,
+                timestamp: new Date(Date.now() - 3500).toISOString(),
+                model: 'gemini-2.5-flash',
+                status: 'success',
+            },
+            {
+                type: 'opportunity',
+                input: {
+                    prompt: 'Extract opportunity entities from the provided document.',
+                    allowed_types: ['opportunity'],
+                },
+                error: 'LLM schema validation failed',
+                duration_ms: 450,
+                timestamp: new Date(Date.now() - 3000).toISOString(),
+                model: 'gemini-2.5-flash',
+                status: 'error',
+            },
+        ],
+        timeline: [
+            {
+                step: 'job_started',
+                status: 'info',
+                timestamp: new Date(Date.now() - 5000).toISOString(),
+                metadata: {
+                    project_id: 'proj-demo',
+                    source_type: 'document',
+                },
+            },
+            {
+                step: 'load_document',
+                status: 'success',
+                timestamp: new Date(Date.now() - 4800).toISOString(),
+                duration_ms: 120,
+                metadata: {
+                    character_count: 58213,
+                },
+            },
+            {
+                step: 'llm_extract',
+                status: 'success',
+                timestamp: new Date(Date.now() - 4200).toISOString(),
+                duration_ms: 2100,
+                metadata: {
+                    provider: 'LangChain-Gemini',
+                    entities: 24,
+                },
+            },
+            {
+                step: 'graph_upsert',
+                status: 'success',
+                timestamp: new Date(Date.now() - 1800).toISOString(),
+                duration_ms: 800,
+                metadata: {
+                    created: 18,
+                    merged: 3,
+                    review_required: 2,
+                },
+            },
+            {
+                step: 'job_completed',
+                status: 'success',
+                timestamp: new Date(Date.now() - 200).toISOString(),
+                duration_ms: 200,
+                metadata: {
+                    created_objects: 18,
+                    rejected: 2,
+                },
+            },
+        ],
     },
     started_at: new Date(Date.now() - 7 * 60 * 1000).toISOString(),
     completed_at: undefined,
@@ -129,8 +230,8 @@ type ExtractionJobRef = MutableRefObject<ExtractionJob>;
 const extractionJobFetchMock = (() => {
     if (typeof window === 'undefined') {
         return {
-            register: () => () => {},
-            update: () => {},
+            register: () => () => { },
+            update: () => { },
         } as const;
     }
 

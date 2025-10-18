@@ -1,36 +1,39 @@
 {
-  "servers": {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
     "figma": {
-      "type": "http",
+      "type": "remote",
       "url": "http://127.0.0.1:3845/mcp"
     },
     "playwright": {
-      "command": "npx",
-      "args": [
+      "type": "local",
+      "command": [
+        "npx",
         "@playwright/mcp@latest",
         "--timeout-action=10000"
       ]
     },
     "postgres": {
-      "command": "npx",
-      "args": [
+      "type": "local",
+      "command": [
+        "npx",
         "-y",
         "@modelcontextprotocol/server-postgres",
         "postgresql://spec:spec@localhost:5432/spec"
       ]
     },
     "context7": {
-      "type": "stdio",
-      "command": "npx",
-      "args": [
+      "type": "local",
+      "command": [
+        "npx",
         "-y",
         "@upstash/context7-mcp",
         "--api-key",
-        "ctx7sk-04743fb8-074d-4868-bf5e-9d2e3cc3dc4b"
+        "ctx7sk-77ad3f0a-32a5-4b23-8b82-1431d078b1c6"
       ]
-     },
+    },
     "gh_grep": {
-      "type": "http",
+      "type": "remote",
       "url": "https://mcp.grep.app"
     }
   }

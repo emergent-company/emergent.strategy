@@ -32,16 +32,25 @@ export class LangChainGeminiProvider implements ILLMProvider {
             return;
         }
 
+        // Debug: Log the API key being used (masked for security)
+        const maskedKey = apiKey ? `${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)}` : 'undefined';
+        const modelName = this.config.vertexAiModel || 'gemini-2.5-flash';
+
+        // Force console.log to ensure we see this
+        // eslint-disable-next-line no-console
+        console.log(`[LangChainGeminiProvider] Initializing with API key: ${maskedKey} (length: ${apiKey?.length || 0}), model: ${modelName}`);
+        this.logger.log(`Using API key: ${maskedKey} (length: ${apiKey?.length || 0}), model: ${modelName}`);
+
         try {
             // Use same model configuration as chat service for consistency
             this.model = new ChatGoogleGenerativeAI({
                 apiKey: apiKey,
-                model: this.config.vertexAiModel || 'gemini-2.5-flash',
+                model: modelName,
                 temperature: 0, // Deterministic for extraction
                 maxOutputTokens: 8192,
             });
 
-            this.logger.log(`LangChain Gemini initialized: model=${this.config.vertexAiModel || 'gemini-2.5-flash'}`);
+            this.logger.log(`LangChain Gemini initialized: model=${modelName}`);
         } catch (error) {
             this.logger.error('Failed to initialize LangChain Gemini', error);
             this.model = null;
@@ -225,13 +234,10 @@ export class LangChainGeminiProvider implements ILLMProvider {
                 };
             }
 
-            // For other errors, log and return empty (graceful degradation)
+            // For other errors, log and throw (so outer catch can detect failures)
             this.logger.error(`LLM extraction failed for type ${typeName}:`, error);
-            return {
-                entities: [],
-                prompt: typePrompt,
-                rawResponse: { error: 'Extraction failed', message: errorMessage }
-            };
+            // Re-throw the error so the outer catch block can detect it
+            throw error;
         }
     }
 

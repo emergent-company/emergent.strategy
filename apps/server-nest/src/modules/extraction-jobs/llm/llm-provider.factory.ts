@@ -7,9 +7,9 @@ import { LangChainGeminiProvider } from './langchain-gemini.provider';
 /**
  * Factory for creating LLM providers
  * 
- * Currently supports:
- * - LangChain + Google Gemini (primary, consistent with chat service)
- * - Google Vertex AI (legacy, fallback)
+ * Priority order:
+ * 1. Google Vertex AI (production-grade GCP service, requires VERTEX_AI_PROJECT_ID)
+ * 2. LangChain + Google Gemini (fallback, uses public API with GOOGLE_API_KEY)
  * 
  * Future providers can be added here (OpenAI, Anthropic, etc.)
  */
@@ -27,18 +27,18 @@ export class LLMProviderFactory {
     }
 
     private initializeProvider() {
-        // Prefer LangChain provider (consistent with chat service)
-        if (this.langChainProvider.isConfigured()) {
-            this.provider = this.langChainProvider;
+        // Prefer Vertex AI provider when configured (production-grade GCP service)
+        if (this.vertexAIProvider.isConfigured()) {
+            this.provider = this.vertexAIProvider;
             this.logger.log(`Using LLM provider: ${this.provider.getName()}`);
         }
-        // Fallback to legacy Vertex AI provider
-        else if (this.vertexAIProvider.isConfigured()) {
-            this.provider = this.vertexAIProvider;
-            this.logger.log(`Using LLM provider: ${this.provider.getName()} (legacy)`);
+        // Fallback to LangChain provider (uses public Generative AI API)
+        else if (this.langChainProvider.isConfigured()) {
+            this.provider = this.langChainProvider;
+            this.logger.log(`Using LLM provider: ${this.provider.getName()} (fallback)`);
         }
         else {
-            this.logger.warn('No LLM provider configured. Set GOOGLE_GENERATIVE_AI_API_KEY or VERTEX_AI_PROJECT_ID');
+            this.logger.warn('No LLM provider configured. Set VERTEX_AI_PROJECT_ID or GOOGLE_API_KEY');
         }
     }
 

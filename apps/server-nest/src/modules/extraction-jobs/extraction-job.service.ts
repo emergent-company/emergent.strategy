@@ -365,6 +365,10 @@ export class ExtractionJobService {
      * 
      * Uses FOR UPDATE SKIP LOCKED for safe concurrent access
      * 
+     * Unlike most service methods, this runs at the system level (no tenant context)
+     * to find pending jobs across all tenants. Each job is then updated with its
+     * own tenant context using runWithTenantContext().
+     * 
      * @param batchSize - Number of jobs to claim
      * @returns Array of claimed jobs
      */
@@ -373,32 +377,79 @@ export class ExtractionJobService {
 
         const schema = await this.getSchemaInfo();
 
-        const result = await this.db.query<ExtractionJobDto>(
-            `UPDATE kb.object_extraction_jobs
-             SET status = $1, 
-                 started_at = NOW(),
-                 updated_at = NOW()
-             WHERE id IN (
-                 SELECT id FROM kb.object_extraction_jobs
-                 WHERE status = $2
-                 ORDER BY created_at ASC
-                 LIMIT $3
-                 FOR UPDATE SKIP LOCKED
-             )
-             RETURNING *`,
-            [ExtractionJobStatus.RUNNING, ExtractionJobStatus.PENDING, batchSize]
+        // Step 1: Find pending jobs across all tenants (no tenant context needed for read)
+        // Clear any existing tenant context so RLS allows system-level SELECT
+        await this.db.setTenantContext(null, null);
+
+        const candidatesResult = await this.db.query<{
+            id: string;
+            organization_id: string | null;
+            tenant_id: string | null;
+            project_id: string | null;
+        }>(
+            `SELECT id, organization_id, tenant_id, project_id
+             FROM kb.object_extraction_jobs
+             WHERE status = $1
+             ORDER BY created_at ASC
+             LIMIT $2
+             FOR UPDATE SKIP LOCKED`,
+            [ExtractionJobStatus.PENDING, batchSize]
         );
 
-        const jobs = result.rows.map((row) => this.mapRowToDto(row, schema));
-
-        if (jobs.length > 0) {
-            this.logger.log(`[DEQUEUE] Found ${jobs.length} jobs (rowCount=${result.rowCount})`);
-            this.logger.log(`Dequeued ${jobs.length} jobs for processing: ${jobs.map(j => j.id).join(', ')}`);
-        } else {
-            this.logger.debug(`[DEQUEUE] Found 0 jobs (rowCount=${result.rowCount})`);
+        if (!candidatesResult.rowCount || candidatesResult.rowCount === 0) {
+            this.logger.debug(`[DEQUEUE] Found 0 jobs (rowCount=${candidatesResult.rowCount})`);
+            return [];
         }
 
-        return jobs;
+        // Step 2: Claim each job by updating it within its tenant context
+        const claimedJobs: ExtractionJobDto[] = [];
+        for (const candidate of candidatesResult.rows) {
+            const orgId = candidate.organization_id ?? candidate.tenant_id ?? null;
+            const projectId = candidate.project_id ?? null;
+
+            if (!orgId || !projectId) {
+                this.logger.warn(
+                    `Skipping job ${candidate.id} - missing tenant context (org=${orgId}, project=${projectId})`
+                );
+                continue;
+            }
+
+            try {
+                // Update job status within its tenant context (RLS enforced)
+                const updateResult = await this.db.runWithTenantContext(orgId, projectId, async () =>
+                    this.db.query<ExtractionJobDto>(
+                        `UPDATE kb.object_extraction_jobs
+                         SET status = $1, 
+                             started_at = NOW(),
+                             updated_at = NOW()
+                         WHERE id = $2
+                           AND status = $3
+                         RETURNING *`,
+                        [ExtractionJobStatus.RUNNING, candidate.id, ExtractionJobStatus.PENDING]
+                    )
+                );
+
+                if (updateResult.rowCount && updateResult.rowCount > 0) {
+                    const job = this.mapRowToDto(updateResult.rows[0], schema);
+                    claimedJobs.push(job);
+                } else {
+                    this.logger.warn(
+                        `Failed to claim job ${candidate.id} - may have been claimed by another worker`
+                    );
+                }
+            } catch (error) {
+                this.logger.error(`Error claiming job ${candidate.id}`, error);
+                // Continue to next job
+            }
+        }
+
+        if (claimedJobs.length > 0) {
+            this.logger.log(`[DEQUEUE] Claimed ${claimedJobs.length} jobs: ${claimedJobs.map(j => j.id).join(', ')}`);
+        } else {
+            this.logger.debug('[DEQUEUE] Claimed 0 jobs');
+        }
+
+        return claimedJobs;
     }
 
     /**
@@ -518,10 +569,12 @@ export class ExtractionJobService {
     async markFailed(
         jobId: string,
         errorMessage: string,
-        errorDetails?: any
+        errorDetails?: any,
+        debugInfo?: Record<string, any>
     ): Promise<void> {
         const schema = await this.getSchemaInfo();
         const errorDetailsColumn = schema.errorDetailsColumn ?? 'error_details';
+        const debugInfoColumn = schema.debugInfoColumn ?? 'debug_info';
 
         const assignments: string[] = [
             'status = $1',
@@ -535,6 +588,12 @@ export class ExtractionJobService {
         if (schema.extraColumns.has(errorDetailsColumn)) {
             assignments.push(`${errorDetailsColumn} = $${idx}`);
             params.push(JSON.stringify(errorDetails || {}));
+            idx += 1;
+        }
+
+        if (debugInfo !== undefined && schema.extraColumns.has(debugInfoColumn)) {
+            assignments.push(`${debugInfoColumn} = $${idx}`);
+            params.push(debugInfo ? JSON.stringify(debugInfo) : null);
             idx += 1;
         }
 
