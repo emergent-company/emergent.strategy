@@ -1,151 +1,144 @@
 {
-    "$schema": "./node_modules/nx/schemas/nx-schema.json",
-    "npmScope": "spec",
-    "defaultBase": "master",
-    "namedInputs": {
-        "sharedGlobals": [
-            "{workspaceRoot}/package.json",
-            "{workspaceRoot}/nx.json",
-            "{workspaceRoot}/tsconfig.json"
-        ],
-        "default": [
-            "{projectRoot}/**/*",
-            "sharedGlobals"
-        ],
-        "production": [
-            "default",
-            "!{projectRoot}/**/*.test.*",
-            "!{projectRoot}/**/*.spec.*",
-            "!{projectRoot}/**/*.stories.*"
-        ],
-        "envFiles": [
-            "{projectRoot}/.env",
-            "{projectRoot}/.env.*"
-        ]
-    },
-    "targetDefaults": {
-        "nx:run-commands": {
-            "cache": false,
-            "inputs": [
-                "default",
-                "^default"
-            ],
-            "outputs": []
-        },
-        "setup": {
-            "defaultConfiguration": "development",
-            "configurations": {
-                "development": {
-                    "env": "development"
-                },
-                "staging": {
-                    "env": "staging"
-                },
-                "production": {
-                    "env": "production"
-                }
-            }
-        },
-        "start": {
-            "defaultConfiguration": "development",
-            "configurations": {
-                "development": {
-                    "env": "development"
-                },
-                "staging": {
-                    "env": "staging"
-                },
-                "production": {
-                    "env": "production"
-                }
-            }
-        },
-        "restart": {
-            "defaultConfiguration": "development",
-            "configurations": {
-                "development": {
-                    "env": "development"
-                },
-                "staging": {
-                    "env": "staging"
-                },
-                "production": {
-                    "env": "production"
-                }
-            }
-        },
-        "stop": {
-            "defaultConfiguration": "development",
-            "configurations": {
-                "development": {
-                    "env": "development"
-                },
-                "staging": {
-                    "env": "staging"
-                },
-                "production": {
-                    "env": "production"
-                }
-            }
-        },
-        "status": {
-            "defaultConfiguration": "development",
-            "configurations": {
-                "development": {
-                    "env": "development"
-                },
-                "staging": {
-                    "env": "staging"
-                },
-                "production": {
-                    "env": "production"
-                }
-            }
-        },
-        "logs": {
-            "defaultConfiguration": "development",
-            "configurations": {
-                "development": {
-                    "env": "development"
-                },
-                "staging": {
-                    "env": "staging"
-                },
-                "production": {
-                    "env": "production"
-                }
-            }
-        },
-        "build": {
-            "dependsOn": [
-                "^build"
-            ]
-        },
-        "test": {
-            "inputs": [
-                "default",
-                "envFiles",
-                "^default"
-            ]
-        }
-    },
-    "plugins": [
-        "@nx/workspace"
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "npmScope": "spec",
+  "defaultBase": "master",
+  "namedInputs": {
+    "sharedGlobals": [
+      "{workspaceRoot}/package.json",
+      "{workspaceRoot}/nx.json",
+      "{workspaceRoot}/tsconfig.json"
     ],
-    "workspaceLayout": {
-        "appsDir": "apps",
-        "libsDir": "libs"
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "production": [
+      "default",
+      "!{projectRoot}/**/*.test.*",
+      "!{projectRoot}/**/*.spec.*",
+      "!{projectRoot}/**/*.stories.*",
+      "!{projectRoot}/**/*.stories.@(js|jsx|ts|tsx|mdx)",
+      "!{projectRoot}/.storybook/**/*",
+      "!{projectRoot}/tsconfig.storybook.json"
+    ],
+    "envFiles": ["{projectRoot}/.env", "{projectRoot}/.env.*"]
+  },
+  "targetDefaults": {
+    "nx:run-commands": {
+      "cache": false,
+      "inputs": ["default", "^default"],
+      "outputs": []
     },
-    "tasksRunnerOptions": {
-        "default": {
-            "runner": "nx/tasks-runners/default",
-            "options": {
-                "cacheableOperations": [
-                    "build",
-                    "test",
-                    "lint"
-                ]
-            }
+    "setup": {
+      "defaultConfiguration": "development",
+      "configurations": {
+        "development": {
+          "env": "development"
+        },
+        "staging": {
+          "env": "staging"
+        },
+        "production": {
+          "env": "production"
         }
+      }
+    },
+    "start": {
+      "defaultConfiguration": "development",
+      "configurations": {
+        "development": {
+          "env": "development"
+        },
+        "staging": {
+          "env": "staging"
+        },
+        "production": {
+          "env": "production"
+        }
+      }
+    },
+    "restart": {
+      "defaultConfiguration": "development",
+      "configurations": {
+        "development": {
+          "env": "development"
+        },
+        "staging": {
+          "env": "staging"
+        },
+        "production": {
+          "env": "production"
+        }
+      }
+    },
+    "stop": {
+      "defaultConfiguration": "development",
+      "configurations": {
+        "development": {
+          "env": "development"
+        },
+        "staging": {
+          "env": "staging"
+        },
+        "production": {
+          "env": "production"
+        }
+      }
+    },
+    "status": {
+      "defaultConfiguration": "development",
+      "configurations": {
+        "development": {
+          "env": "development"
+        },
+        "staging": {
+          "env": "staging"
+        },
+        "production": {
+          "env": "production"
+        }
+      }
+    },
+    "logs": {
+      "defaultConfiguration": "development",
+      "configurations": {
+        "development": {
+          "env": "development"
+        },
+        "staging": {
+          "env": "staging"
+        },
+        "production": {
+          "env": "production"
+        }
+      }
+    },
+    "build": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "inputs": ["default", "envFiles", "^default"]
     }
+  },
+  "plugins": [
+    "@nx/workspace",
+    {
+      "plugin": "@nx/storybook/plugin",
+      "options": {
+        "serveStorybookTargetName": "serve:storybook",
+        "buildStorybookTargetName": "build:storybook",
+        "testStorybookTargetName": "test-storybook",
+        "staticStorybookTargetName": "static-storybook"
+      }
+    }
+  ],
+  "workspaceLayout": {
+    "appsDir": "apps",
+    "libsDir": "libs"
+  },
+  "tasksRunnerOptions": {
+    "default": {
+      "runner": "nx/tasks-runners/default",
+      "options": {
+        "cacheableOperations": ["build", "test", "lint", "build-storybook"]
+      }
+    }
+  }
 }

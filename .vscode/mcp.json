@@ -18,6 +18,16 @@
         "@modelcontextprotocol/server-postgres",
         "postgresql://spec:spec@localhost:5432/spec"
       ]
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp",
+        "--api-key",
+        "ctx7sk-04743fb8-074d-4868-bf5e-9d2e3cc3dc4b"
+      ]
     }
   }
 }

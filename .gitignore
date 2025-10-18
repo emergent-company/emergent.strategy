@@ -47,3 +47,4 @@ apps/server-nest/logs/
 # Misc
 *.log
 
+storybook-static
