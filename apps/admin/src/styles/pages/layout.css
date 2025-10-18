@@ -63,7 +63,8 @@
     background: var(--layout-sidebar-background, oklch(var(--b1)));
     max-height: 100vh;
 
-    @apply _top, top-0 bottom-0 z-10 relative flex flex-col bg-base-100 _border-radius] transition-[margin, duration-300 _max-height,;
+    @apply top-0 bottom-0 z-10 relative flex flex-col bg-base-100;
+    transition: margin 0.3s, max-height 0.3s;
 
     &.hide {
         margin-inline-start: calc(var(--layout-sidebar-width) * -1);
@@ -74,7 +75,8 @@
 
 #layout-topbar {
     background: var(--layout-topbar-background);
-    @apply top-0 z-10 sticky _border-radius] min-h-16 max-h-16 transition-[top, duration-300 _margin,;
+    @apply top-0 z-10 sticky min-h-16 max-h-16;
+    transition: top 0.3s, margin 0.3s;
 }
 
 /* == Layout: Content == */
@@ -104,7 +106,7 @@
 
 #layout-sidebar-hover:hover~#layout-sidebar,
 #layout-sidebar-hover-trigger:checked~#layout-sidebar:hover {
-    @apply z-12 !ms-0 lg:;
+    @apply z-12 !ms-0;
 }
 
 /* == Layout: Monochrome Layer == */
