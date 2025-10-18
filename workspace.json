@@ -32,6 +32,13 @@
         "docker"
       ]
     },
+    "repo-scripts": {
+      "root": "scripts",
+      "projectType": "library",
+      "tags": [
+        "scope:scripts"
+      ]
+    },
     "docker": {
       "root": "docker",
       "projectType": "library",

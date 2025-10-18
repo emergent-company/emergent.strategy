@@ -1,0 +1,36 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "name": "repo-scripts",
+  "projectType": "library",
+  "root": "scripts",
+  "sourceRoot": "scripts",
+  "targets": {
+    "spec-diff": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node scripts/diff-openapi.js",
+        "cwd": ".",
+        "forwardAllArgs": true
+      }
+    },
+    "test-smoke": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsx scripts/smoke-test.ts",
+        "cwd": ".",
+        "forwardAllArgs": true
+      }
+    },
+    "test-coverage-all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx nx run server-nest:test-coverage && npx nx run admin:test-coverage",
+        "cwd": ".",
+        "forwardAllArgs": false
+      }
+    }
+  },
+  "tags": [
+    "scope:scripts"
+  ]
+}

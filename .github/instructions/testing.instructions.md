@@ -10,41 +10,42 @@ Testing spans multiple applications (React admin SPA, NestJS API, automation too
 
 ## Automation Entry Points
 
-- **Workspace CLI:** `npm run workspace:<action>` (wraps `tools/workspace-cli`) controls Docker dependencies, PM2 services, and consolidated logs/status reports.
-- **Nx Targets:** `nx run <project>:<target>` mirrors the npm shortcuts and is safe for scripted usage. Examples: `nx run admin:test`, `nx run server-nest:test`.
-- **Direct npm scripts:** Use `npm --prefix apps/<project> run <script>` when you need the underlying tool binary (Vitest, Playwright, Jest) or interactive flags.
+- **Nx Targets (canonical):** Always prefer `nx run <project>:<target>` to execute tasks. Examples: `nx run admin:test`, `nx run server-nest:test`, `nx run workspace-cli:workspace:start`.
+- **Workspace CLI shorthands:** The `npm run workspace:<action>` aliases still exist but simply call the Nx targets above. Use them only when automation requires npm scripts specifically.
+- **Direct npm scripts:** Only fall back to `npm --prefix apps/<project> run <script>` when no Nx target exists yet (track any gaps and add a target).
 
 Always ensure dependencies are running (
-`npm run workspace:deps:start`
+`nx run workspace-cli:workspace:deps:start`
 ) before launching E2E suites.
 
 ## Project Structure & Test Types
 
 ### Admin Frontend (`apps/admin`)
-- **Unit & integration tests:** Vitest + React Testing Library (`npm --prefix apps/admin run test`)
-- **Coverage:** `npm --prefix apps/admin run test:coverage`
-- **Playwright E2E:** `npm --prefix apps/admin run e2e`
-- **Storybook smoke:** `npm --prefix apps/admin run storybook` (manual review)
+- **Unit & integration tests:** `nx run admin:test`
+- **Coverage:** `nx run admin:test-coverage`
+- **Type check / build:** `nx run admin:build`
+- **Playwright E2E:** `nx run admin:e2e`
+- **Storybook smoke:** `nx run admin:storybook` (manual review)
+- **Interactive Playwright UI:** `nx run admin:e2e-ui`
 
-Nx equivalents:
-- `nx run admin:test`
-- `nx run admin:test -- --coverage`
+Fallback aliases: `npm --prefix apps/admin run <script>` remain available if you need to bypass Nx caching or run community scripts without targets.
 
 ### Server Backend (`apps/server-nest`)
-- **Unit tests:** Jest (`npm --prefix apps/server-nest run test`)
-- **E2E integration:** `npm --prefix apps/server-nest run test:e2e`
-- **Coverage:** `npm --prefix apps/server-nest run test:coverage`
-- **Type check / build:** `npm --prefix apps/server-nest run build`
+- **Unit tests:** `nx run server-nest:test`
+- **E2E integration:** `nx run server-nest:test-e2e`
+- **Coverage:** `nx run server-nest:test-coverage`
+- **Type check / build:** `nx run server-nest:build`
+- **Watch mode:** `nx run server-nest:test-watch`
+- **Scenario suite:** `nx run server-nest:test-scenarios`
+- **E2E coverage:** `nx run server-nest:test-coverage-e2e`
 
-Nx equivalents:
-- `nx run server-nest:test`
-- `nx run server-nest:test -- --testNamePattern="GraphService"`
+Fallback aliases: `npm --prefix apps/server-nest run <script>` should only be used when introducing new scripts and before wiring an Nx target.
 
 ### Workspace CLI (`tools/workspace-cli`)
-Keeps build/test scripts thin. Rarely needs direct testing during feature work, but full verification is available through its own package scripts (`npm --prefix tools/workspace-cli run verify`).
+Keeps build/test scripts thin. Rarely needs direct testing during feature work, but full verification is available through `nx run workspace-cli:verify` (still wraps the underlying npm script).
 
 ### Utility Scripts (`scripts/`)
-Helpers such as smoke tests (`npm run test:smoke`) or OpenAPI diff (`npm run spec:diff`) live at the repo root.
+Helpers such as smoke tests (`nx run repo-scripts:test-smoke`) or OpenAPI diff (`nx run repo-scripts:spec-diff`) live under the `repo-scripts` project. Aggregate coverage is `nx run repo-scripts:test-coverage-all`.
 
 ## Running Tests
 
@@ -54,28 +55,28 @@ Helpers such as smoke tests (`npm run test:smoke`) or OpenAPI diff (`npm run spe
 nx run admin:test
 
 # Focused file
-npm --prefix apps/admin run test -- src/components/atoms/Button/Button.test.tsx
+nx run admin:test -- src/components/atoms/Button/Button.test.tsx
 
 # Single test name
-npm --prefix apps/admin run test -- -t "renders loading state"
+nx run admin:test -- -t "renders loading state"
 ```
 
 ### Admin (Playwright)
 ```bash
 # Headless chromium suite (uses storage state)
-E2E_FORCE_TOKEN=1 npm --prefix apps/admin run e2e
+E2E_FORCE_TOKEN=1 nx run admin:e2e
 
 # Specific spec
-E2E_FORCE_TOKEN=1 npm --prefix apps/admin run e2e -- e2e/specs/integrations.clickup.spec.ts
+E2E_FORCE_TOKEN=1 nx run admin:e2e -- e2e/specs/integrations.clickup.spec.ts
 
 # Interactive debug UI
-E2E_FORCE_TOKEN=1 npm --prefix apps/admin run e2e:ui
+E2E_FORCE_TOKEN=1 nx run admin:e2e-ui
 ```
 
 Ensure dependencies are up before Playwright:
 ```bash
-npm run workspace:deps:start
-npm run workspace:start        # Launch API + Admin services under PM2
+nx run workspace-cli:workspace:deps:start
+nx run workspace-cli:workspace:start        # Launch API + Admin services under PM2
 ```
 
 ### Server (Jest)
@@ -84,25 +85,25 @@ npm run workspace:start        # Launch API + Admin services under PM2
 nx run server-nest:test
 
 # E2E tests
-npm --prefix apps/server-nest run test:e2e
+nx run server-nest:test-e2e
 
 # Continuous watch (local only)
-npm --prefix apps/server-nest run test:watch
+nx run server-nest:test-watch
 ```
 
 ### Combined Regression Loop
 ```bash
 nx run server-nest:test
-npm --prefix apps/server-nest run test:e2e
+nx run server-nest:test-e2e
 nx run admin:test
-E2E_FORCE_TOKEN=1 npm --prefix apps/admin run e2e
+E2E_FORCE_TOKEN=1 nx run admin:e2e
 ```
 
 ## Coverage Reports
 
-- **Admin:** `npm --prefix apps/admin run test:coverage` → `apps/admin/coverage/`
-- **Server:** `npm --prefix apps/server-nest run test:coverage` → `apps/server-nest/coverage/`
-- **Aggregate helper:** `npm run test:coverage:all`
+- **Admin:** `nx run admin:test-coverage` → `apps/admin/coverage/`
+- **Server:** `nx run server-nest:test-coverage` → `apps/server-nest/coverage/`
+- **Aggregate helper:** `nx run repo-scripts:test-coverage-all`
 
 Open coverage locally with `open apps/<project>/coverage/lcov-report/index.html` (macOS).
 
@@ -112,12 +113,12 @@ GitHub Actions under `.github/workflows/` use the same npm/Nx commands described
 
 ## Dependency Management for Tests
 
-1. **Start Docker services:** `npm run workspace:deps:start`
-2. **Start application services:** `npm run workspace:start`
-3. **Check health:** `npm run workspace:status`
-4. **Tail logs when debugging:** `npm run workspace:logs`
+1. **Start Docker services:** `nx run workspace-cli:workspace:deps:start`
+2. **Start application services:** `nx run workspace-cli:workspace:start`
+3. **Check health:** `nx run workspace-cli:workspace:status`
+4. **Tail logs when debugging:** `nx run workspace-cli:workspace:logs`
 
-Ports: Postgres 5432, Zitadel 8080, API 3001, Admin 5175. Stop everything with `npm run workspace:stop` and `npm run workspace:deps:stop`.
+Ports: Postgres 5432, Zitadel 8080, API 3001, Admin 5175. Stop everything with `nx run workspace-cli:workspace:stop` and `nx run workspace-cli:workspace:deps:stop`.
 
 ### Environment Variables
 - `E2E_FORCE_TOKEN=1` — bypasses interactive login for Playwright
@@ -132,8 +133,8 @@ Artifacts are written under `apps/admin/test-results/<slug>/<browser>/`:
 3. `video.webm` — execution recording
 
 When triaging:
-- Rerun focused spec with `E2E_FORCE_TOKEN=1 npm --prefix apps/admin run e2e -- e2e/specs/<file>.spec.ts`
-- Use `e2e:ui` for interactive debugging only (never in CI)
+- Rerun focused spec with `E2E_FORCE_TOKEN=1 nx run admin:e2e -- e2e/specs/<file>.spec.ts`
+- Use `nx run admin:e2e-ui` for interactive debugging only (never in CI)
 
 ### Jest/Vitest
 - Add `--runInBand` if parallelism hides logs
@@ -176,23 +177,23 @@ find apps/admin/src -name "*.test.ts" -o -name "*.test.tsx"
 | Task | Primary Command | Alt Command | Notes |
 | --- | --- | --- | --- |
 | Admin unit tests | `nx run admin:test` | `npm --prefix apps/admin run test` | Append `-- -t "name"` for focused run |
-| Admin coverage | `nx run admin:test -- --coverage` | `npm --prefix apps/admin run test:coverage` | Coverage report under `apps/admin/coverage/` |
-| Admin E2E | `E2E_FORCE_TOKEN=1 npm --prefix apps/admin run e2e` | `E2E_FORCE_TOKEN=1 npx playwright test -c apps/admin/e2e/playwright.config.ts` | Start deps/services first |
+| Admin coverage | `nx run admin:test-coverage` | `npm --prefix apps/admin run test:coverage` | Coverage report under `apps/admin/coverage/` |
+| Admin E2E | `E2E_FORCE_TOKEN=1 nx run admin:e2e` | `E2E_FORCE_TOKEN=1 npx playwright test -c apps/admin/e2e/playwright.config.ts` | Start deps/services first |
 | Server unit tests | `nx run server-nest:test` | `npm --prefix apps/server-nest run test` | Use `-- --testNamePattern` to filter |
-| Server E2E | `npm --prefix apps/server-nest run test:e2e` |  | Requires Postgres + Zitadel running |
-| Server coverage | `npm --prefix apps/server-nest run test:coverage` |  | Generates `apps/server-nest/coverage/` |
-| Workspace status | `npm run workspace:status` | `nx run workspace-cli:workspace:status` | Reports Docker + PM2 health |
+| Server E2E | `nx run server-nest:test-e2e` | `npm --prefix apps/server-nest run test:e2e` | Requires Postgres + Zitadel running |
+| Server coverage | `nx run server-nest:test-coverage` | `npm --prefix apps/server-nest run test:coverage` | Generates `apps/server-nest/coverage/` |
+| Workspace status | `nx run workspace-cli:workspace:status` | `npm run workspace:status` | Reports Docker + PM2 health |
 
 Common loop:
 ```bash
-npm run workspace:deps:start
-npm run workspace:start
+nx run workspace-cli:workspace:deps:start
+nx run workspace-cli:workspace:start
 nx run server-nest:test
-npm --prefix apps/server-nest run test:e2e
+nx run server-nest:test-e2e
 nx run admin:test
-E2E_FORCE_TOKEN=1 npm --prefix apps/admin run e2e
-npm run workspace:stop
-npm run workspace:deps:stop
+E2E_FORCE_TOKEN=1 nx run admin:e2e
+nx run workspace-cli:workspace:stop
+nx run workspace-cli:workspace:deps:stop
 ```
 
 ## Troubleshooting
@@ -200,13 +201,13 @@ npm run workspace:deps:stop
 ### Ports Busy
 ```bash
 lsof -ti:3001,5175,5432,8080 | xargs kill -9
-npm run workspace:deps:restart
+nx run workspace-cli:workspace:deps:restart
 ```
 
 ### Database Connection Errors
 ```bash
-npm run workspace:deps:restart
-npm run workspace:status
+nx run workspace-cli:workspace:deps:restart
+nx run workspace-cli:workspace:status
 ```
 
 ### Playwright Browser Missing
@@ -229,5 +230,5 @@ npx playwright install-deps
 ## Remember
 - Keep automation consistent: Workspace CLI → Nx → npm.
 - Capture artifacts before re-running failing suites.
-- Never assume services are running—check via `npm run workspace:status`.
+- Never assume services are running—check via `nx run workspace-cli:workspace:status`.
 - Tests should reflect user behavior; avoid mocking core integrations in E2E suites.

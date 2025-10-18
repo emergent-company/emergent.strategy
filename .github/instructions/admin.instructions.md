@@ -19,13 +19,13 @@ Whenever you add a new feature OR make any fix/refactor that can affect runtime 
 - Update / create unit tests (Vitest) for pure logic (helpers, hooks) if present.
 
 ### 3. Build (ALWAYS before committing)
-- Run Admin type check/build: `npm --prefix apps/admin run build`.
+- Run Admin type check/build: `nx run admin:build`.
 	- Treat any TypeScript error as a blocker.
-- If shared types changed (used by server) re-run server build too.
+- If shared types changed (used by server) re-run server build too (`nx run server-nest:build`).
 
 ### 4. Playwright E2E Tests
-- Run targeted spec you touched first: `npx playwright test e2e/specs/<spec>.spec.ts --config=e2e/playwright.config.ts --project=chromium`.
-- For full regression (pre-PR): `npx playwright test --config=e2e/playwright.config.ts`.
+- Run targeted spec you touched first: `nx run admin:e2e -- e2e/specs/<spec>.spec.ts --project=chromium`.
+- For full regression (pre-PR): `nx run admin:e2e` (append `-- --project=chromium` for a specific browser).
 - Always ensure auth setup project passes first (it generates storage state).
 
 ### 5. Analyzing Failures (Playwright)
@@ -65,7 +65,7 @@ Seed:
 4. Navigate to `/admin/apps/chat/c/new` then wait for either heading `Ask your knowledge base` OR breadcrumb `AI Chat` plus a composer placeholder (`Let us know what you need...` or `Ask a question`).
 
 ### 9. Fast Reproduce Script (Optional)
-Add an npm script alias for tight loop, e.g.: `"e2e:chat:new": "cd apps/admin && playwright test e2e/specs/chat.new-conversation.spec.ts --config=e2e/playwright.config.ts --project=chromium"`
+Add a shell alias or custom Nx target for tight loops, e.g.: `nx run admin:e2e -- e2e/specs/chat.new-conversation.spec.ts --project=chromium`
 
 ### 10. Do Not Skip Build/Test
 Every feature or fix MUST end with admin build + relevant tests green. Do not rely on CI for basic type or selector validation.
