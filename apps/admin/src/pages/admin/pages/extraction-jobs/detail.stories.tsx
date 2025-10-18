@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { Route, Routes } from 'react-router';
 import { ExtractionJobDetailPage } from './detail';
 
 /**
@@ -13,19 +13,14 @@ const meta: Meta<typeof ExtractionJobDetailPage> = {
     component: ExtractionJobDetailPage,
     parameters: {
         layout: 'fullscreen',
+        location: '/admin/extraction-jobs/test-job-1',
     },
     decorators: [
-        (Story, { parameters }) => {
-            // Use a test job ID - you'll need to create jobs in your test backend
-            const jobId = parameters.jobId || 'test-job-id';
-            return (
-                <MemoryRouter initialEntries={[`/admin/extraction-jobs/${jobId}`]}>
-                    <Routes>
-                        <Route path="/admin/extraction-jobs/:jobId" element={<Story />} />
-                    </Routes>
-                </MemoryRouter>
-            );
-        },
+        (Story) => (
+            <Routes>
+                <Route path="/admin/extraction-jobs/:jobId" element={<Story />} />
+            </Routes>
+        ),
     ],
 };
 
@@ -38,6 +33,6 @@ type Story = StoryObj<typeof meta>;
  */
 export const Default: Story = {
     parameters: {
-        jobId: 'test-job-1',
+        location: '/admin/extraction-jobs/test-job-1',
     },
 };
