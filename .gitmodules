@@ -11,4 +11,3 @@
 	path = apps/server-nest/reference/unstract
 	url = https://github.com/Zipstack/unstract.git
 	branch = main
-[submodule "tools/mcp-dev-manager"]
