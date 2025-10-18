@@ -1,1 +1,0 @@
-const e={title:"__deprecated/ui/Tooltip",parameters:{docs:{description:{component:"Deprecated legacy UI story. Use atoms/Tooltip instead."}}},tags:["hidden","deprecated"]},t=[];export{t as __namedExportsOrder,e as default};

@@ -1,7 +1,0 @@
-import{j as e}from"./iframe-BQqEPkXj.js";import"./preload-helper-D9Z9MdNV.js";const o={title:"Forms/Overview",parameters:{docs:{page:()=>e.jsxs(e.Fragment,{children:[e.jsx("h1",{children:"Form Components"}),e.jsx("p",{children:"Form utilities and wrappers for consistent input surfaces."}),e.jsx("h2",{children:"Current Components"}),e.jsxs("ul",{children:[e.jsx("li",{children:"FileUploader"}),e.jsx("li",{children:"(Future) Selects, Date pickers, Validation helpers"})]}),e.jsx("h2",{children:"Guidelines"}),e.jsxs("ul",{children:[e.jsxs("li",{children:["Always label inputs (visible label or ",e.jsx("code",{children:"aria-label"}),")."]}),e.jsx("li",{children:"Compose small pieces instead of monolith form widgets."}),e.jsx("li",{children:"Use semantic colors (daisyUI) for error / success states."})]}),e.jsx("h2",{children:"Adding a Form Component"}),e.jsxs("ol",{children:[e.jsxs("li",{children:["Implement under ",e.jsx("code",{children:"src/components/forms/"}),"."]}),e.jsx("li",{children:"Add a story file with description + minimal example."}),e.jsx("li",{children:"Document validation expectations in description or a second story."})]}),e.jsx("pre",{children:e.jsx("code",{children:`const meta: Meta<typeof Component> = {
-  title: 'Forms/Component',
-  component: Component,
-  parameters: { docs: { description: { component: 'Short description.' } } },
-  tags: ['autodocs']
-};
-export default meta;`})})]})}},tags:["autodocs"]},r=[];export{r as __namedExportsOrder,o as default};
