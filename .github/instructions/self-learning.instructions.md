@@ -447,7 +447,7 @@ Backend Controller → Reads req.headers['x-org-id'], req.headers['x-project-id'
 
 **Why It Was Wrong**: Missing the method-level `}` meant the compiler flagged unrelated code, slowing diagnosis. The root cause was a simple structural omission hidden by a large diff.
 
-**Correct Approach**: After wrapping in `runWithTenantContext`, explicitly add both `});` and the method's closing `}` before moving on. Immediately run `npm --prefix apps/server-nest run build` (or targeted tests) to confirm the file still parses.
+**Correct Approach**: After wrapping in `runWithTenantContext`, explicitly add both `});` and the method's closing `}` before moving on. Immediately run `nx run server-nest:build` (or targeted tests) to confirm the file still parses.
 
 **Prevention**:
 - Use editor bracket matching or run Prettier/TS compiler after structural edits.
