@@ -25,7 +25,7 @@ Always ensure dependencies are running (
 - **Coverage:** `nx run admin:test-coverage`
 - **Type check / build:** `nx run admin:build`
 - **Playwright E2E:** `nx run admin:e2e`
-- **Storybook smoke:** `nx run admin:storybook` (manual review)
+- **Storybook smoke:** `nx run admin:serve:storybook -- --port=6006` (manual review)
 - **Interactive Playwright UI:** `nx run admin:e2e-ui`
 
 Fallback aliases: `npm --prefix apps/admin run <script>` remain available if you need to bypass Nx caching or run community scripts without targets.
