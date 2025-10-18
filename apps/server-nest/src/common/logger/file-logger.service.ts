@@ -63,16 +63,16 @@ export class FileLogger implements LoggerService {
         }
 
         const lines = stack.split('\n');
-        
+
         // Find the first stack frame that's NOT from this logger file
         for (let i = 2; i < lines.length; i++) {
             const line = lines[i];
-            
+
             // Skip logger internal calls
             if (line.includes('file-logger.service')) {
                 continue;
             }
-            
+
             // Skip node internal calls
             if (line.includes('node:internal') || line.includes('node_modules')) {
                 continue;
@@ -81,16 +81,16 @@ export class FileLogger implements LoggerService {
             // Extract file path, line, and column from stack frame
             // Format: "    at ClassName.methodName (/path/to/file.ts:123:45)"
             const match = line.match(/at\s+(?:(.+?)\s+\()?(.+?):(\d+):(\d+)\)?/);
-            
+
             if (match) {
                 const method = match[1]?.trim();
                 const filePath = match[2];
                 const lineNum = parseInt(match[3], 10);
                 const colNum = parseInt(match[4], 10);
-                
+
                 // Make path relative to project root for readability
                 const relativePath = relative(this.projectRoot, filePath);
-                
+
                 return {
                     file: relativePath.startsWith('..') ? filePath : relativePath,
                     line: lineNum,
@@ -110,9 +110,9 @@ export class FileLogger implements LoggerService {
         const timestamp = new Date().toISOString();
         const caller = this.getCallerInfo();
         const contextStr = context ? `[${context}]` : '[App]';
-        
+
         // Build location string: file:line or file:line (method) if method is available
-        const locationStr = caller.method 
+        const locationStr = caller.method
             ? `${caller.file}:${caller.line} (${caller.method})`
             : `${caller.file}:${caller.line}`;
 
