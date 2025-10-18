@@ -672,11 +672,15 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                             labels.push('requires_review');
                         }
 
+                        // Generate a valid key if business_key is missing
+                        // graph_objects.key is NOT NULL so we must provide a value
+                        const objectKey = entity.business_key || this.generateKeyFromName(entity.name, entity.type_name);
+
                         const graphObject = await this.graphService.createObject({
                             org_id: job.org_id,
                             project_id: job.project_id,
                             type: entity.type_name,
-                            key: entity.business_key || undefined,
+                            key: objectKey,
                             properties: {
                                 name: entity.name,
                                 description: entity.description,
@@ -1364,5 +1368,35 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             this.logger.warn(`Failed to get retry count for job ${jobId}`, error);
             return 0;
         }
+    }
+
+    /**
+     * Generate a valid key from an entity name
+     * Required because graph_objects.key is NOT NULL
+     * 
+     * @param name - The entity name (e.g., "Sweden", "John Doe")
+     * @param typeName - The entity type (e.g., "Location", "Person")
+     * @returns A normalized key suitable for graph_objects.key column
+     */
+    private generateKeyFromName(name: string, typeName: string): string {
+        // Normalize: lowercase, replace spaces/special chars with hyphens
+        const normalized = name
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9]+/g, '-')  // Replace non-alphanumeric with hyphens
+            .replace(/^-+|-+$/g, '')      // Remove leading/trailing hyphens
+            .substring(0, 64);             // Respect max key length
+
+        // Add type prefix to avoid collisions across types
+        const typePrefix = typeName.toLowerCase().substring(0, 16);
+
+        // Generate short hash suffix to handle potential duplicates
+        const hash = require('crypto')
+            .createHash('md5')
+            .update(`${typeName}:${name}`)
+            .digest('hex')
+            .substring(0, 8);
+
+        return `${typePrefix}-${normalized}-${hash}`.substring(0, 128);
     }
 }

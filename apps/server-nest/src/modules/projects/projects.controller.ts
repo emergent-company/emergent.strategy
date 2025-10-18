@@ -28,6 +28,21 @@ export class ProjectsController {
         return this.projects.list(n, orgId);
     }
 
+    @Get(':id')
+    @UseInterceptors(CachingInterceptor)
+    @ApiOkResponse({ description: 'Get project by ID', type: ProjectDto })
+    @ApiBadRequestResponse({ description: 'Invalid id', schema: { example: { error: { code: 'bad-request', message: 'Invalid id' } } } })
+    @ApiStandardErrors()
+    // Reading a single project requires project:read
+    @Scopes('project:read')
+    async getById(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+        const project = await this.projects.getById(id);
+        if (!project) {
+            throw new NotFoundException({ error: { code: 'not-found', message: 'Project not found' } });
+        }
+        return project;
+    }
+
     @Post()
     @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
     @ApiCreatedResponse({ description: 'Project created', type: ProjectDto })

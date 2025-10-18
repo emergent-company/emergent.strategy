@@ -6,6 +6,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Icon } from '@/components/atoms/Icon';
+import { useConfig } from '@/contexts/config';
+import { useApi } from '@/hooks/use-api';
+import { createTypeRegistryClient } from '@/api/type-registry';
 
 export interface ExtractionConfig {
     entity_types: string[];
@@ -28,17 +31,11 @@ export interface ExtractionConfigModalProps {
     documentName?: string;
 }
 
-// Available entity types for extraction
-const ENTITY_TYPES = [
-    { value: 'Requirement', label: 'Requirements', description: 'Functional and non-functional requirements' },
-    { value: 'Decision', label: 'Decisions', description: 'Architecture and design decisions' },
-    { value: 'Feature', label: 'Features', description: 'Product features and capabilities' },
-    { value: 'Task', label: 'Tasks', description: 'Action items and todos' },
-    { value: 'Bug', label: 'Bugs', description: 'Defects and issues' },
-    { value: 'Risk', label: 'Risks', description: 'Project risks and concerns' },
-    { value: 'Actor', label: 'Actors', description: 'Users, roles, and stakeholders' },
-    { value: 'UseCase', label: 'Use Cases', description: 'System use cases' },
-];
+interface EntityType {
+    value: string;
+    label: string;
+    description: string;
+}
 
 export function ExtractionConfigModal({
     isOpen,
@@ -48,15 +45,61 @@ export function ExtractionConfigModal({
     documentName,
 }: ExtractionConfigModalProps) {
     const dialogRef = useRef<HTMLDialogElement>(null);
+    const config_context = useConfig();
+    const { apiBase, fetchJson } = useApi();
+
+    // Available entity types from type registry
+    const [availableTypes, setAvailableTypes] = useState<EntityType[]>([]);
+    const [isLoadingTypes, setIsLoadingTypes] = useState(true);
 
     // Default configuration
     const [config, setConfig] = useState<ExtractionConfig>({
-        entity_types: ['Requirement', 'Decision', 'Feature', 'Task'],
+        entity_types: [],
         confidence_threshold: 0.7,
         entity_linking_strategy: 'fuzzy',
         require_review: false,
         send_notification: true,
     });
+
+    // Fetch available object types from the type registry
+    useEffect(() => {
+        const projectId = config_context.config.activeProjectId;
+        if (!projectId) return;
+
+        const fetchTypes = async () => {
+            try {
+                setIsLoadingTypes(true);
+                const typeRegistryClient = createTypeRegistryClient(apiBase, fetchJson as any);
+                const entries = await typeRegistryClient.getProjectTypes(projectId);
+
+                // Transform TypeRegistryEntryDto[] into EntityType format
+                // Only include enabled types from template packs or custom types
+                const types: EntityType[] = entries
+                    .filter(entry => entry.enabled)
+                    .map(entry => ({
+                        value: entry.type,
+                        label: entry.ui_config?.label || entry.type,
+                        description: entry.description || `Extract ${entry.type} entities from documents`,
+                    }));
+
+                setAvailableTypes(types);
+
+                // Set default selected types (first 4)
+                if (types.length > 0) {
+                    const defaultTypes = types.slice(0, Math.min(4, types.length)).map(t => t.value);
+                    setConfig(prev => ({ ...prev, entity_types: defaultTypes }));
+                }
+            } catch (error) {
+                console.error('Failed to fetch object types:', error);
+                // Fallback to empty array - user can't extract if no types available
+                setAvailableTypes([]);
+            } finally {
+                setIsLoadingTypes(false);
+            }
+        };
+
+        fetchTypes();
+    }, [config_context.config.activeProjectId, apiBase, fetchJson]);
 
     // Control dialog visibility using showModal/close methods
     useEffect(() => {
@@ -127,29 +170,45 @@ export function ExtractionConfigModal({
                     <label className="label">
                         <span className="font-semibold label-text">Entity Types to Extract</span>
                     </label>
-                    <div className="gap-2 grid grid-cols-1 sm:grid-cols-2">
-                        {ENTITY_TYPES.map((entityType) => (
-                            <label
-                                key={entityType.value}
-                                className="flex items-start gap-3 p-3 border hover:border-primary border-base-300 rounded-box transition-colors cursor-pointer"
-                            >
-                                <input
-                                    type="checkbox"
-                                    className="mt-0.5 checkbox checkbox-primary"
-                                    checked={config.entity_types.includes(entityType.value)}
-                                    onChange={() => handleEntityTypeToggle(entityType.value)}
-                                    disabled={isLoading}
-                                />
-                                <div className="flex-1 min-w-0">
-                                    <div className="font-medium">{entityType.label}</div>
-                                    <div className="text-xs text-base-content/60">
-                                        {entityType.description}
-                                    </div>
+                    {isLoadingTypes ? (
+                        <div className="flex justify-center items-center py-8">
+                            <span className="loading loading-spinner loading-md" />
+                        </div>
+                    ) : availableTypes.length === 0 ? (
+                        <div className="alert alert-warning">
+                            <Icon icon="lucide--triangle-alert" />
+                            <div>
+                                <div className="font-semibold">No Object Types Available</div>
+                                <div className="text-sm">
+                                    Install a template pack from Settings → Templates to enable extraction
                                 </div>
-                            </label>
-                        ))}
-                    </div>
-                    {config.entity_types.length === 0 && (
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="gap-2 grid grid-cols-1 sm:grid-cols-2">
+                            {availableTypes.map((entityType) => (
+                                <label
+                                    key={entityType.value}
+                                    className="flex items-start gap-3 p-3 border hover:border-primary border-base-300 rounded-box transition-colors cursor-pointer"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        className="mt-0.5 checkbox checkbox-primary"
+                                        checked={config.entity_types.includes(entityType.value)}
+                                        onChange={() => handleEntityTypeToggle(entityType.value)}
+                                        disabled={isLoading}
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-medium">{entityType.label}</div>
+                                        <div className="text-xs text-base-content/60">
+                                            {entityType.description}
+                                        </div>
+                                    </div>
+                                </label>
+                            ))}
+                        </div>
+                    )}
+                    {!isLoadingTypes && availableTypes.length > 0 && config.entity_types.length === 0 && (
                         <div className="label">
                             <span className="label-text-alt text-warning">
                                 Select at least one entity type
@@ -298,7 +357,7 @@ export function ExtractionConfigModal({
                     <button
                         className="btn btn-primary"
                         onClick={handleSubmit}
-                        disabled={isLoading || config.entity_types.length === 0}
+                        disabled={isLoading || isLoadingTypes || config.entity_types.length === 0 || availableTypes.length === 0}
                     >
                         {isLoading ? (
                             <>

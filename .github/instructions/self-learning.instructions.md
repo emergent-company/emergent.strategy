@@ -482,6 +482,271 @@ Backend Controller → Reads req.headers['x-org-id'], req.headers['x-project-id'
 
 ---
 
+### 2025-10-18 - User Asked For Feature That Already Existed (Hot Reload)
+
+**Context**: User asked "can you add option for hot reload for admin and api to scripts?" after completing extraction modal fix. This seemed like a reasonable feature request.
+
+**Mistake**: Started investigating how to add hot reload as a new feature, looking at command catalog and workspace CLI structure, when I should have first verified if hot reload was already configured.
+
+**Why It Was Wrong**: 
+- Wasted time investigating implementation approach before checking existing configuration
+- Could have added unnecessary/duplicate commands
+- Missing documentation led to user confusion about existing features
+- This was a documentation problem, not a missing feature problem
+
+**Correct Approach**:
+1. **First**: Check PM2 ecosystem config to see what scripts are actually running
+2. **Second**: Check package.json scripts to see if dev/watch modes exist
+3. **Third**: If already configured, document it clearly rather than add new commands
+4. **Finally**: Add to Copilot instructions so future AI sessions know about it
+
+**What I Discovered**:
+- Admin: PM2 runs `npm run dev` → Vite dev server with HMR (instant updates)
+- Server: PM2 runs `npm run start:dev` → ts-node-dev with `--respawn` flag (auto-restart)
+- Both have `autorestart: true` for crash recovery
+- Hot reload has been working by default all along!
+
+**Prevention**:
+- When user requests a feature, first check if similar functionality exists
+- Search for: PM2 config, package.json scripts, existing commands
+- Look for evidence of watch mode: `vite`, `nodemon`, `ts-node-dev`, `--watch`, `--respawn`
+- If feature exists but undocumented, documentation is the fix, not new code
+- Add to central docs (copilot-instructions.md) to prevent future confusion
+
+**Related Files/Conventions**:
+- `tools/workspace-cli/pm2/ecosystem.apps.cjs` - PM2 process configuration (check `args` array)
+- `apps/admin/package.json` - "dev": "vite" (Vite HMR built-in)
+- `apps/server-nest/package.json` - "start:dev": "ts-node-dev --respawn" (watch mode)
+- `.github/copilot-instructions.md` - Added "Development Environment" section with hot reload info
+- `docs/HOT_RELOAD.md` - Created comprehensive hot reload documentation
+
+**Documentation Added**:
+- Added to `.github/copilot-instructions.md` so future AI sessions know hot reload is default
+- Created `docs/HOT_RELOAD.md` with full details on how it works, troubleshooting, customization
+- Prevents future AI assistants from trying to "add" something that already exists
+
+**User Impact**:
+- User was likely editing files and seeing changes but wasn't sure if hot reload was working
+- Lack of explicit documentation created uncertainty
+- Now clearly documented that `workspace:start` = hot reload enabled
+
+---
+
+### 2025-10-18 - Progress UI Not Working Due To Missing Database Columns
+
+**Context**: User reported extraction progress metrics showing "0 / 0" and "Calculating..." despite extractions running
+
+**Mistake**: Assumed the database schema matched the code expectations without verifying column existence
+
+**Why It Was Wrong**:
+- Backend code referenced `total_items`, `processed_items`, `successful_items`, `failed_items` columns
+- Frontend calculated progress from these fields
+- Database table `kb.object_extraction_jobs` didn't have these columns
+- Result: All progress metrics showed 0 or "Calculating..." because reading undefined/null values
+
+**Correct Approach**:
+1. When investigating UI issues showing "0" or null values, check database schema first
+2. Query `information_schema.columns` to verify columns exist
+3. Compare backend DTO/service code with actual table structure
+4. Create migration to add missing columns with appropriate defaults
+
+**Root Cause Discovery**:
+```sql
+-- Expected columns in code
+total_items, processed_items, successful_items, failed_items
+
+-- Actual table only had
+objects_created, relationships_created, suggestions_created
+```
+
+**Solution Applied**:
+- Created migration: `20251018_add_extraction_progress_columns.sql`
+- Added 4 integer columns with default 0
+- Added check constraints for data consistency
+- Added index for efficient progress queries
+- Applied migration successfully
+
+**Prevention**:
+- When adding progress tracking, ensure database schema is updated FIRST
+- Add schema validation tests that compare DTO types to actual columns
+- Document column requirements in service layer comments
+- Use TypeScript database schema libraries (e.g., Kysely, Drizzle) for type-safe schema management
+
+**Related Files/Conventions**:
+- `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts` (updateProgress method)
+- `apps/admin/src/pages/admin/pages/extraction-jobs/detail.tsx` (progress calculations)
+- `docs/EXTRACTION_PROGRESS_TRACKING_ISSUES.md` (full analysis)
+
+---
+
+### 2025-10-18 - Graph Objects Failing Due To Null Keys
+
+**Context**: All extracted entities (5/5) failed with "null value in column 'key' violates not-null constraint"
+
+**Mistake**: Passed `key: entity.business_key || undefined` assuming LLM would always provide business_key
+
+**Why It Was Wrong**:
+- LLM extraction returned `business_key: null` for all entities
+- The `graph_objects.key` column is NOT NULL (no default)
+- Code passed `null` which violated constraint
+- Result: 0 objects created, extraction appeared to fail
+
+**Root Cause Analysis**:
+```typescript
+// Worker code
+key: entity.business_key || undefined  // becomes null in DB
+
+// LLM response
+{
+  "type_name": "Location",
+  "name": "Sweden",
+  "business_key": null,  // ← Problem
+  ...
+}
+
+// Database constraint
+graph_objects.key TEXT NOT NULL  // Rejects null
+```
+
+**Correct Approach**:
+1. Always provide fallback for required database columns
+2. Generate reasonable default from available data
+3. Document that business_key is optional for LLM but key is required for storage
+4. Add key generation logic that creates valid identifiers
+
+**Solution Applied**:
+Added `generateKeyFromName()` method:
+```typescript
+private generateKeyFromName(name: string, typeName: string): string {
+    const normalized = name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .substring(0, 64);
+    
+    const typePrefix = typeName.toLowerCase().substring(0, 16);
+    const hash = crypto.createHash('md5')
+        .update(`${typeName}:${name}`)
+        .digest('hex')
+        .substring(0, 8);
+    
+    return `${typePrefix}-${normalized}-${hash}`.substring(0, 128);
+}
+```
+
+Then updated creation:
+```typescript
+// Before
+key: entity.business_key || undefined
+
+// After
+const objectKey = entity.business_key || this.generateKeyFromName(entity.name, entity.type_name);
+```
+
+**Prevention**:
+- For any required NOT NULL column, ensure fallback logic exists
+- Test with edge cases: null, undefined, empty string
+- Document where auto-generation happens vs user-provided values
+- Add validation tests that try to create objects with missing fields
+- Consider making business_key required in LLM prompt if it's important
+
+**Related Files/Conventions**:
+- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` (key generation)
+- `apps/server-nest/src/modules/graph/graph.service.ts` (object creation, key constraint)
+- Key pattern: `{type}-{normalized-name}-{hash}` (e.g., `location-sweden-a1b2c3d4`)
+
+---
+
+### 2025-10-18 - Manual Migration Application Without Automation
+
+**Context**: After fixing extraction progress columns issue, user pointed out I spent time figuring out Docker credentials and psql commands manually
+
+**Mistake**: Applied migration via manual docker exec commands instead of creating a reusable automation script first
+
+**Why It Was Wrong**:
+- Manual process wastes time on every migration (find container, check credentials, construct command)
+- Error-prone: easy to use wrong container, database, or credentials
+- No tracking: database doesn't know which migrations were applied
+- Not repeatable: next developer has to rediscover the same steps
+- No validation: can't easily check migration status before/after
+- Missing in CI/CD: can't automate deployments without migration script
+
+**Correct Approach**:
+1. **First**: Create migration automation script before applying any migration:
+   - Read migration files from `apps/server-nest/migrations/` directory
+   - Track applied migrations in database table (`kb.schema_migrations`)
+   - Auto-detect connection method (Docker container or direct psql)
+   - Handle credentials from environment variables
+   - Provide dry-run and list modes for safety
+   - Record execution time and errors
+   
+2. **Then**: Use the script for all future migrations:
+   ```bash
+   npx nx run server-nest:migrate -- --list      # Check status
+   npx nx run server-nest:migrate -- --dry-run   # Preview changes
+   npx nx run server-nest:migrate                # Apply pending
+   ```
+
+3. **Benefits**:
+   - One command applies all pending migrations in order
+   - Database tracks what's been applied (prevents duplicates)
+   - Safe to run multiple times (idempotent)
+   - Works in CI/CD without manual intervention
+   - Performance metrics for each migration
+   - Error tracking and debugging
+
+**Solution Implemented**:
+- Created `apps/server-nest/scripts/migrate.mjs`:
+  * Node.js script that reads SQL files from migrations directory
+  * Creates `kb.schema_migrations` table to track applied migrations
+  * Compares filesystem migrations with database records
+  * Applies pending migrations in alphabetical order
+  * Records checksums, execution time, success/failure
+  * Supports `--list`, `--dry-run` modes
+  * Works with Docker or direct database connection
+  
+- Added Nx target: `nx run server-nest:migrate`
+  * Easy to remember command
+  * Forwards all arguments (--dry-run, --list)
+  * Integrates with existing Nx workflow
+
+- Created comprehensive documentation: `docs/DATABASE_MIGRATIONS.md`
+  * Usage examples for all modes
+  * Migration naming conventions
+  * Best practices and troubleshooting
+  * CI/CD integration guide
+  * Rollback strategy
+
+**Prevention**:
+- When a manual command needs credentials/container discovery, ask: "Will I need this again?"
+- If yes, create automation FIRST, then use it
+- For database operations, always prefer tracked migrations over ad-hoc SQL
+- Add documentation alongside automation so next developer finds it easily
+- Think about CI/CD: if you can't automate it, you can't deploy it reliably
+
+**Related Files/Conventions**:
+- `apps/server-nest/scripts/migrate.mjs` (migration runner)
+- `apps/server-nest/project.json` (Nx target definition)
+- `docs/DATABASE_MIGRATIONS.md` (comprehensive guide)
+- `kb.schema_migrations` table (tracks applied migrations)
+
+**Migration System Features**:
+- Automatic tracking in database table
+- Alphabetical ordering (use numbered prefixes: `0002_`, `20251018_`)
+- Checksum validation (detects file modifications)
+- Error handling with detailed messages
+- Performance metrics (execution time per migration)
+- Flexible connection (Docker container or direct)
+- Safe modes: `--list` (status), `--dry-run` (preview)
+
+**Real-World Impact**:
+- Future migrations: single command instead of manual docker exec
+- CI/CD ready: can run in deployment pipeline
+- Team collaboration: everyone uses same process
+- Debugging: can query migration history in database
+- Confidence: dry-run mode prevents mistakes
+
+---
+
 ## Meta-Lessons
 
 ### Pattern Recognition

@@ -87,6 +87,21 @@
         "command": "npm --prefix apps/server-nest run test:watch",
         "forwardAllArgs": true
       }
+    },
+    "migrate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node apps/server-nest/scripts/migrate.mjs",
+        "forwardAllArgs": true
+      },
+      "configurations": {
+        "dry-run": {
+          "command": "node apps/server-nest/scripts/migrate.mjs --dry-run"
+        },
+        "list": {
+          "command": "node apps/server-nest/scripts/migrate.mjs --list"
+        }
+      }
     }
   },
   "tags": [
