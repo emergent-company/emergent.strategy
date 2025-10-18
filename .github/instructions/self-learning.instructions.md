@@ -460,6 +460,28 @@ Backend Controller → Reads req.headers['x-org-id'], req.headers['x-project-id'
 
 ---
 
+### 2025-10-18 - Assumed org_id Column Existed In Extraction Jobs Table
+
+**Context**: Updating `recoverOrphanedJobs` in `ExtractionWorkerService` to run updates inside `runWithTenantContext`.
+
+**Mistake**: Selected `org_id` in the SQL query even though `kb.object_extraction_jobs` only exposes `organization_id` (and `tenant_id`). This would have thrown at runtime, preventing recovery from running.
+
+**Why It Was Wrong**: I assumed legacy naming carried over without confirming the schema. The table definition clearly lacks `org_id`, so the query would error before any rows could be processed.
+
+**Correct Approach**: Query `organization_id` and fall back to `tenant_id` when organization is null, matching the actual schema. Verify column names via `information_schema.columns` before coding.
+
+**Prevention**:
+- Inspect table schemas before referencing column names.
+- Run lightweight SQL to validate assumptions before wiring logic.
+- Reflect schema differences (org vs tenant) directly in TypeScript typings and tests.
+
+**Related Files/Conventions**:
+- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+- `apps/server-nest/src/modules/extraction-jobs/__tests__/extraction-worker.service.spec.ts`
+- `information_schema.columns` checks for `kb.object_extraction_jobs`
+
+---
+
 ## Meta-Lessons
 
 ### Pattern Recognition

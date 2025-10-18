@@ -10,7 +10,39 @@ import { GraphService } from '../graph/graph.service';
 import { DocumentsService } from '../documents/documents.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ExtractionJobDto } from './dto/extraction-job.dto';
+import type { ExtractionResult } from './llm/llm-provider.interface';
 import { TemplatePackService } from '../template-packs/template-pack.service';
+
+const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
+
+type TimelineEventStatus = 'success' | 'error' | 'info' | 'warning';
+
+interface TimelineEvent {
+    step: string;
+    status: TimelineEventStatus;
+    timestamp: string;
+    duration_ms?: number;
+    message?: string;
+    metadata?: Record<string, any>;
+}
+
+type EntityOutcome = 'created' | 'merged' | 'skipped' | 'rejected' | 'failed';
+
+interface BuildDebugInfoArgs {
+    job: ExtractionJobDto;
+    startTime: number;
+    durationMs: number;
+    timeline: TimelineEvent[];
+    providerName: string;
+    extractionResult?: ExtractionResult | null;
+    outcomeCounts?: Record<EntityOutcome, number>;
+    createdObjectIds?: string[];
+    rejectedCount?: number;
+    reviewRequiredCount?: number;
+    errorMessage?: string;
+}
+
+const toErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 /**
  * Extraction Worker Service
@@ -93,31 +125,84 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         try {
             const orphanThresholdMinutes = 5;
 
-            const result = await this.db.query<{ id: string; source_type: string; started_at: string }>(
-                `UPDATE kb.object_extraction_jobs
-                 SET status = 'pending',
-                     error_message = COALESCE(error_message || E'\n\n', '') || 
-                                     'Job was interrupted by server restart and has been reset to pending.',
-                     updated_at = NOW()
+            const result = await this.db.query<{
+                id: string;
+                source_type: string;
+                started_at: string | null;
+                organization_id: string | null;
+                tenant_id: string | null;
+                project_id: string | null;
+            }>(
+                `SELECT id,
+                        source_type,
+                        started_at,
+                        organization_id,
+                        tenant_id,
+                        project_id
+                 FROM kb.object_extraction_jobs
                  WHERE status = 'running'
-                   AND updated_at < NOW() - INTERVAL '${orphanThresholdMinutes} minutes'
-                 RETURNING id, source_type, started_at`,
-                []
+                   AND updated_at < NOW() - INTERVAL '${orphanThresholdMinutes} minutes'`
             );
 
-            if (result.rowCount && result.rowCount > 0) {
-                this.logger.warn(
-                    `Recovered ${result.rowCount} orphaned extraction job(s) from 'running' to 'pending': ` +
-                    result.rows.map(r => r.id).join(', ')
-                );
-
-                for (const row of result.rows) {
-                    this.logger.log(
-                        `  - Job ${row.id} (${row.source_type}) was running since ${row.started_at}`
-                    );
-                }
-            } else {
+            if (!result.rowCount) {
                 this.logger.log('No orphaned extraction jobs found - all clear');
+                return;
+            }
+
+            const recovered: string[] = [];
+
+            for (const row of result.rows) {
+                const orgId = row.organization_id ?? row.tenant_id ?? null;
+                const projectId = row.project_id ?? null;
+
+                if (!orgId || !projectId) {
+                    this.logger.warn(
+                        `Skipping orphaned job ${row.id} (${row.source_type}) - missing organization/project context (org=${orgId}, tenant=${row.tenant_id}, project=${projectId})`
+                    );
+                    continue;
+                }
+
+                try {
+                    const updateResult = await this.db.runWithTenantContext(orgId, projectId, async () =>
+                        this.db.query<{ id: string }>(
+                            `UPDATE kb.object_extraction_jobs
+                             SET status = 'pending',
+                                 started_at = NULL,
+                                 updated_at = NOW(),
+                                 error_message = CASE
+                                     WHEN error_message ILIKE '%has been reset to pending.%' THEN error_message
+                                     ELSE COALESCE(error_message || E'\n\n', '') ||
+                                         'Job was interrupted by server restart and has been reset to pending.'
+                                 END
+                             WHERE id = $1
+                               AND status = 'running'
+                             RETURNING id`,
+                            [row.id]
+                        )
+                    );
+
+                    if (updateResult.rowCount && updateResult.rowCount > 0) {
+                        recovered.push(row.id);
+                        const startedAt = row.started_at ? ` (started ${row.started_at})` : '';
+                        this.logger.warn(
+                            `Recovered orphaned extraction job ${row.id} (${row.source_type})${startedAt}`
+                        );
+                    } else {
+                        this.logger.warn(
+                            `Recover attempt skipped job ${row.id} (${row.source_type}) - no rows updated`
+                        );
+                    }
+                } catch (error) {
+                    this.logger.error(`Failed to recover orphaned job ${row.id}`, error);
+                }
+            }
+
+            if (recovered.length > 0) {
+                this.logger.warn(
+                    `Recovered ${recovered.length} orphaned extraction job(s) from 'running' to 'pending': ${recovered.join(', ')}`
+                );
+            } else {
+                this.logger.log('No orphaned extraction jobs required updates - all clear');
             }
         } catch (error) {
             this.logger.error('Failed to recover orphaned jobs', error);
@@ -192,55 +277,253 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         const startTime = Date.now();
         this.logger.log(`Processing extraction job ${job.id} (source: ${job.source_type})`);
 
-        try {
-            // 1. Load document content
-            const documentContent = await this.loadDocumentContent(job);
-            if (!documentContent) {
-                throw new Error('Failed to load document content');
+        const timeline: TimelineEvent[] = [];
+        let providerName = this.llmFactory.getProviderName();
+        let extractionResult: ExtractionResult | null = null;
+
+        const pushTimelineEvent = (
+            step: string,
+            status: TimelineEventStatus,
+            details?: { message?: string; metadata?: Record<string, any>; durationMs?: number }
+        ) => {
+            const event: TimelineEvent = {
+                step,
+                status,
+                timestamp: new Date().toISOString(),
+            };
+
+            if (details?.durationMs !== undefined) {
+                event.duration_ms = Math.max(details.durationMs, 0);
             }
 
-            // 2. Load extraction prompt from template pack
-            const extractionPrompt = await this.loadExtractionPrompt(job);
-            if (!extractionPrompt) {
-                throw new Error('No extraction prompt configured for this project');
+            if (details?.message) {
+                event.message = details.message;
             }
+
+            if (details?.metadata && Object.keys(details.metadata).length > 0) {
+                event.metadata = details.metadata;
+            }
+
+            timeline.push(event);
+
+            const durationText = details?.durationMs !== undefined ? ` duration=${details.durationMs}ms` : '';
+            const messageText = details?.message ? ` message=${details.message}` : '';
+            const metadataText = details?.metadata && Object.keys(details.metadata).length > 0
+                ? ` metadata=${JSON.stringify(details.metadata)}`
+                : '';
+
+            this.logger.debug(
+                `[TIMELINE] Job ${job.id} step=${step} status=${status}${durationText}${messageText}${metadataText}`
+            );
+        };
+
+        const beginTimelineStep = (
+            step: string,
+            metadata?: Record<string, any>
+        ) => {
+            const startedAt = Date.now();
+            return (
+                status: TimelineEventStatus,
+                details?: { message?: string; metadata?: Record<string, any> }
+            ) => {
+                pushTimelineEvent(step, status, {
+                    durationMs: Date.now() - startedAt,
+                    message: details?.message,
+                    metadata: {
+                        ...(metadata ?? {}),
+                        ...(details?.metadata ?? {}),
+                    },
+                });
+            };
+        };
+
+        pushTimelineEvent('job_started', 'info', {
+            metadata: {
+                source_type: job.source_type,
+                project_id: job.project_id,
+                organization_id: job.organization_id ?? job.org_id ?? null,
+            },
+        });
+
+        try {
+            // 1. Load document content
+            const documentStep = beginTimelineStep('load_document', {
+                source_id: job.source_id ?? null,
+                source_type: job.source_type,
+            });
+
+            const documentContent = await this.loadDocumentContent(job).catch((error) => {
+                const message = toErrorMessage(error);
+                documentStep('error', { message });
+                throw error;
+            });
+
+            if (!documentContent) {
+                const message = 'Failed to load document content';
+                documentStep('error', { message });
+                throw new Error(message);
+            }
+
+            documentStep('success', {
+                metadata: {
+                    character_count: documentContent.length,
+                },
+            });
+
+            // 2. Load extraction prompt from template pack
+            const promptStep = beginTimelineStep('load_prompt', {
+                template_pack_strategy: this.config.extractionEntityLinkingStrategy,
+            });
+
+            const extractionPrompt = await this.loadExtractionPrompt(job).catch((error) => {
+                const message = toErrorMessage(error);
+                promptStep('error', { message });
+                throw error;
+            });
+
+            if (!extractionPrompt) {
+                const message = 'No extraction prompt configured for this project';
+                promptStep('error', { message });
+                throw new Error(message);
+            }
+
+            promptStep('success', {
+                metadata: {
+                    prompt_length: extractionPrompt.length,
+                },
+            });
 
             // 3. Wait for rate limit capacity
             const estimatedTokens = this.estimateTokens(documentContent, extractionPrompt);
+            const rateLimitStep = beginTimelineStep('rate_limit', {
+                estimated_tokens: estimatedTokens,
+            });
+
             const allowed = await this.rateLimiter.waitForCapacity(estimatedTokens, 60000);
 
             if (!allowed) {
-                throw new Error('Rate limit exceeded, job will retry later');
+                const message = 'Rate limit exceeded, job will retry later';
+                rateLimitStep('warning', {
+                    message,
+                });
+                throw new Error(message);
             }
 
+            rateLimitStep('success', {
+                metadata: {
+                    estimated_tokens: estimatedTokens,
+                },
+            });
+
             // 4. Call LLM provider to extract entities
-            const llmProvider = this.llmFactory.getProvider();
+            const resolveProviderStep = beginTimelineStep('resolve_llm_provider');
+            const llmProvider = (() => {
+                try {
+                    const provider = this.llmFactory.getProvider();
+                    providerName = provider.getName();
+                    resolveProviderStep('success', {
+                        metadata: { provider: providerName },
+                    });
+                    return provider;
+                } catch (error) {
+                    const message = toErrorMessage(error);
+                    resolveProviderStep('error', { message });
+                    throw error;
+                }
+            })();
             const allowedTypes = this.extractAllowedTypes(job);
 
-            const extractionResult = await llmProvider.extractEntities(
-                documentContent,
-                extractionPrompt,
-                allowedTypes
-            );
+            const llmStep = beginTimelineStep('llm_extract', {
+                provider: providerName,
+                allowed_types: allowedTypes ?? null,
+            });
+
+            try {
+                const result = await llmProvider.extractEntities(
+                    documentContent,
+                    extractionPrompt,
+                    allowedTypes
+                );
+
+                const llmCalls = Array.isArray(result.raw_response?.llm_calls)
+                    ? result.raw_response.llm_calls
+                    : null;
+
+                const allCallsFailed =
+                    !!llmCalls &&
+                    llmCalls.length > 0 &&
+                    llmCalls.every((call: any) => call?.status === 'error');
+
+                if (allCallsFailed) {
+                    const firstError = llmCalls.find((call: any) => call?.error) as
+                        | { error?: string; message?: string }
+                        | undefined;
+                    const errorMessage = firstError?.error || firstError?.message || 'All LLM extraction calls failed';
+
+                    const fatalError = new Error(errorMessage);
+                    (fatalError as Error & { llmStepMetadata?: Record<string, any> }).llmStepMetadata = {
+                        failed_calls: llmCalls.length,
+                    };
+                    throw fatalError;
+                }
+
+                extractionResult = result;
+
+                llmStep('success', {
+                    metadata: {
+                        entities: result.entities.length,
+                        discovered_types: result.discovered_types?.length ?? 0,
+                    },
+                });
+            } catch (error) {
+                const message = toErrorMessage(error);
+                const metadata = (error as Error & { llmStepMetadata?: Record<string, any> })?.llmStepMetadata;
+                llmStep('error', {
+                    message,
+                    metadata,
+                });
+                throw error;
+            }
 
             // 5. Report actual token usage
-            if (extractionResult.usage) {
+            if (extractionResult && extractionResult.usage) {
                 this.rateLimiter.reportActualUsage(
                     estimatedTokens,
                     extractionResult.usage.total_tokens
                 );
+                pushTimelineEvent('rate_limit_usage_reported', 'info', {
+                    metadata: {
+                        estimated_tokens: estimatedTokens,
+                        actual_tokens: extractionResult.usage.total_tokens,
+                    },
+                });
+            }
+
+            if (!extractionResult) {
+                throw new Error('LLM extraction produced no result');
             }
 
             const totalEntities = extractionResult.entities.length;
             let processedEntities = 0;
             let lastLoggedPercent = -1;
 
-            const recordProgress = async (progressOutcome: 'created' | 'merged' | 'skipped' | 'rejected' | 'failed') => {
+            const outcomeCounts: Record<EntityOutcome, number> = {
+                created: 0,
+                merged: 0,
+                skipped: 0,
+                rejected: 0,
+                failed: 0,
+            };
+
+            let rejectedCount = 0;
+
+            const recordProgress = async (progressOutcome: EntityOutcome) => {
                 if (totalEntities === 0) {
                     return;
                 }
 
                 processedEntities += 1;
+                outcomeCounts[progressOutcome] += 1;
 
                 try {
                     await this.jobService.updateProgress(job.id, processedEntities, totalEntities);
@@ -272,26 +555,40 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                     this.logger.log(
                         `[PROGRESS] Job ${job.id}: initialized progress tracking for ${totalEntities} entity${totalEntities === 1 ? '' : 'ies'}`
                     );
+                    pushTimelineEvent('progress_initialized', 'success', {
+                        metadata: {
+                            total_entities: totalEntities,
+                        },
+                    });
                 } catch (progressInitError) {
                     this.logger.warn(
                         `Failed to initialize progress tracking for job ${job.id}`,
                         progressInitError as Error
                     );
+                    pushTimelineEvent('progress_initialized', 'warning', {
+                        message: toErrorMessage(progressInitError),
+                    });
                 }
             } else {
                 this.logger.log(`Extraction job ${job.id} produced no entities to process`);
+                pushTimelineEvent('progress_skipped', 'info', {
+                    message: 'No entities returned from extraction',
+                });
             }
 
             // 6. Create graph objects from extracted entities
             const createdObjectIds: string[] = [];
             const reviewRequiredObjectIds: string[] = [];
-            const rejectedCount = { value: 0 };
             const strategy = this.config.extractionEntityLinkingStrategy;
 
             // Get confidence thresholds
             const minThreshold = this.config.extractionConfidenceThresholdMin;
             const reviewThreshold = this.config.extractionConfidenceThresholdReview;
             const autoThreshold = this.config.extractionConfidenceThresholdAuto;
+
+            const graphStep = beginTimelineStep('graph_upsert', {
+                strategy,
+            });
 
             for (const entity of extractionResult.entities) {
                 let outcome: 'created' | 'merged' | 'skipped' | 'rejected' | 'failed' = 'skipped';
@@ -317,7 +614,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                     );
 
                     if (qualityDecision === 'reject') {
-                        rejectedCount.value++;
+                        rejectedCount += 1;
                         this.logger.debug(
                             `Rejected entity ${entity.name}: confidence ${finalConfidence.toFixed(3)} ` +
                             `below minimum threshold ${minThreshold}`
@@ -407,27 +704,52 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                     }
                 } catch (error) {
                     outcome = 'failed';
-                    this.logger.warn(`Failed to create object for entity ${entity.name}`, error);
+                    const err = error instanceof Error ? error : new Error(String(error));
+                    this.logger.error(
+                        `Failed to create object for entity ${entity.name}: ${err.message}`,
+                        err.stack
+                    );
                     // Continue processing other entities
                 }
 
                 await recordProgress(outcome);
             }
 
+            graphStep('success', {
+                metadata: {
+                    created: outcomeCounts.created,
+                    merged: outcomeCounts.merged,
+                    skipped: outcomeCounts.skipped,
+                    rejected: outcomeCounts.rejected,
+                    failed: outcomeCounts.failed,
+                    review_required: reviewRequiredObjectIds.length,
+                },
+            });
+
             // 7. Mark job as completed or requires_review
             const requiresReview = reviewRequiredObjectIds.length > 0;
-
-            // Prepare debug info from LLM response
-            const debugInfo = extractionResult.raw_response || null;
+            const duration = Date.now() - startTime;
+            const debugInfo = this.buildDebugInfo({
+                job,
+                startTime,
+                durationMs: duration,
+                timeline,
+                providerName,
+                extractionResult,
+                outcomeCounts,
+                createdObjectIds,
+                rejectedCount,
+                reviewRequiredCount: reviewRequiredObjectIds.length,
+            });
 
             if (requiresReview) {
                 // Job needs human review
                 await this.jobService.markCompleted(job.id, {
                     created_objects: createdObjectIds,
                     discovered_types: extractionResult.discovered_types,
-                    successful_items: extractionResult.entities.length - rejectedCount.value,
+                    successful_items: extractionResult.entities.length - rejectedCount,
                     total_items: extractionResult.entities.length,
-                    rejected_items: rejectedCount.value,
+                    rejected_items: rejectedCount,
                     review_required_count: reviewRequiredObjectIds.length,
                     debug_info: debugInfo,
                 }, 'requires_review');
@@ -435,7 +757,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 this.logger.log(
                     `Extraction job ${job.id} requires review: ` +
                     `${reviewRequiredObjectIds.length} objects need human validation, ` +
-                    `${rejectedCount.value} rejected`
+                    `${rejectedCount} rejected`
                 );
 
                 // Create notification about extraction completion (with review needed)
@@ -452,9 +774,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 await this.jobService.markCompleted(job.id, {
                     created_objects: createdObjectIds,
                     discovered_types: extractionResult.discovered_types,
-                    successful_items: extractionResult.entities.length - rejectedCount.value,
+                    successful_items: extractionResult.entities.length - rejectedCount,
                     total_items: extractionResult.entities.length,
-                    rejected_items: rejectedCount.value,
+                    rejected_items: rejectedCount,
                     debug_info: debugInfo,
                 });
 
@@ -467,15 +789,23 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 });
             }
 
-            const duration = Date.now() - startTime;
             this.logger.log(
                 `Completed extraction job ${job.id}: ` +
                 `${createdObjectIds.length} objects created, ` +
-                `${rejectedCount.value} rejected, ` +
+                `${rejectedCount} rejected, ` +
                 `${reviewRequiredObjectIds.length} need review, ` +
                 `${extractionResult.discovered_types?.length || 0} types discovered, ` +
                 `${duration}ms`
             );
+
+            pushTimelineEvent('job_completed', 'success', {
+                durationMs: duration,
+                metadata: {
+                    created_objects: createdObjectIds.length,
+                    rejected: rejectedCount,
+                    review_required: reviewRequiredObjectIds.length,
+                },
+            });
 
             this.processedCount++;
             this.successCount++;
@@ -486,13 +816,32 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             const willRetry = await this.willRetryJob(job.id);
 
+            pushTimelineEvent('job_failed', 'error', {
+                message: errorMessage,
+                metadata: {
+                    will_retry: willRetry,
+                },
+                durationMs: Date.now() - startTime,
+            });
+
+            const debugInfo = this.buildDebugInfo({
+                job,
+                startTime,
+                durationMs: Date.now() - startTime,
+                timeline,
+                providerName,
+                extractionResult,
+                errorMessage,
+            });
+
             await this.jobService.markFailed(
                 job.id,
                 errorMessage,
                 {
                     error: errorMessage,
                     stack: error instanceof Error ? error.stack : undefined,
-                }
+                },
+                debugInfo
             );
 
             // Create failure notification
@@ -504,6 +853,74 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             this.processedCount++;
             this.failureCount++;
         }
+    }
+
+    private buildDebugInfo(args: BuildDebugInfoArgs): Record<string, any> {
+        const {
+            job,
+            startTime,
+            durationMs,
+            timeline,
+            providerName,
+            extractionResult,
+            outcomeCounts,
+            createdObjectIds,
+            rejectedCount,
+            reviewRequiredCount,
+            errorMessage,
+        } = args;
+
+        const debugInfo: Record<string, any> =
+            extractionResult?.raw_response && typeof extractionResult.raw_response === 'object'
+                ? { ...extractionResult.raw_response }
+                : {};
+
+        if (extractionResult?.raw_response !== undefined && typeof extractionResult.raw_response !== 'object') {
+            debugInfo.raw_response = extractionResult.raw_response;
+        }
+
+        debugInfo.timeline = timeline;
+        debugInfo.provider = providerName;
+        debugInfo.job_id = job.id;
+        debugInfo.project_id = job.project_id;
+        debugInfo.organization_id = job.organization_id ?? job.org_id ?? null;
+        debugInfo.job_started_at = new Date(startTime).toISOString();
+        debugInfo.job_completed_at = new Date(startTime + durationMs).toISOString();
+        debugInfo.job_duration_ms = durationMs;
+
+        if (typeof debugInfo.total_entities !== 'number' && extractionResult) {
+            debugInfo.total_entities = extractionResult.entities.length;
+        }
+
+        if (typeof debugInfo.types_processed !== 'number' && extractionResult?.discovered_types) {
+            debugInfo.types_processed = extractionResult.discovered_types.length;
+        }
+
+        if (extractionResult?.usage) {
+            debugInfo.usage = extractionResult.usage;
+        }
+
+        if (outcomeCounts) {
+            debugInfo.entity_outcomes = outcomeCounts;
+        }
+
+        if (createdObjectIds) {
+            debugInfo.created_object_count = createdObjectIds.length;
+        }
+
+        if (typeof rejectedCount === 'number') {
+            debugInfo.rejected_count = rejectedCount;
+        }
+
+        if (typeof reviewRequiredCount === 'number') {
+            debugInfo.review_required_count = reviewRequiredCount;
+        }
+
+        if (errorMessage) {
+            debugInfo.error_message = errorMessage;
+        }
+
+        return debugInfo;
     }
 
     /**
@@ -558,18 +975,24 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
      */
     private async loadExtractionPrompt(job: ExtractionJobDto): Promise<string | null> {
         const templatePackQuery = `SELECT tp.extraction_prompts, ptp.customizations->>'default_prompt_key' as default_prompt_key
-             FROM kb.project_template_packs ptp
+            FROM kb.project_template_packs ptp
              JOIN kb.graph_template_packs tp ON tp.id = ptp.template_pack_id
              WHERE ptp.project_id = $1 AND ptp.active = true
              LIMIT 1`;
 
         // Get project's assigned template pack
-        let result = await this.db.query<{
-            extraction_prompts: any;
-            default_prompt_key: string | null;
-        }>(templatePackQuery, [job.project_id]);
-
-        if (!result.rowCount) {
+        let result;
+        try {
+            this.logger.debug(`[loadExtractionPrompt] Querying template pack for project: ${job.project_id}`);
+            result = await this.db.query<{
+                extraction_prompts: any;
+                default_prompt_key: string | null;
+            }>(templatePackQuery, [job.project_id]);
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error(String(error));
+            this.logger.error(`[loadExtractionPrompt] Query failed: ${err.message}`, err.stack);
+            throw err;
+        } if (!result.rowCount) {
             this.logger.warn(`No active template pack found for project ${job.project_id}`);
 
             const defaultTemplatePackId = this.config.extractionDefaultTemplatePackId;
@@ -587,7 +1010,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             }
 
             const tenantId = (job as unknown as { tenant_id?: string }).tenant_id ?? organizationId;
-            const userId = job.subject_id || (job as unknown as { created_by?: string }).created_by || 'system';
+            const userId = job.subject_id || (job as unknown as { created_by?: string }).created_by || SYSTEM_USER_ID;
+
+            this.logger.debug(`[loadExtractionPrompt] Auto-install params: projectId=${job.project_id}, orgId=${organizationId}, tenantId=${tenantId}, userId=${userId}, templatePackId=${defaultTemplatePackId}`);
 
             try {
                 this.logger.log(
