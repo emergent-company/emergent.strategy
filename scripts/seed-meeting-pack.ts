@@ -1,32 +1,50 @@
 #!/usr/bin/env tsx
-import { Pool } from 'pg';
+import { Client, Pool } from 'pg';
+import { config } from 'dotenv';
+
+// Load environment variables
+config();
 
 const PACK_ID = '9f8d7e6c-5b4a-3c2d-1e0f-9a8b7c6d5e4f';
 
 // Import the schemas directly - simplified for script execution
-async function seedMeetingDecisionPack(pool: Pool): Promise<void> {
+async function seedMeetingDecisionPack(): Promise<void> {
+    const pool = new Pool({
+        host: process.env.PGHOST || 'localhost',
+        port: parseInt(process.env.PGPORT || '5432'),
+        database: process.env.PGDATABASE || 'spec',
+        user: process.env.PGUSER || 'spec',
+        password: process.env.PGPASSWORD || 'spec',
+        ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    });
+
     const { seedMeetingDecisionPack: seedFn } = await import('../apps/server-nest/src/modules/template-packs/seeds/meeting-decision-pack.seed.js');
-    return seedFn(pool);
+    await seedFn(pool);
+    await pool.end();
 }
 
-const pool = new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    database: process.env.DB_NAME || 'spec',
-    user: process.env.DB_USER || 'mcj',
-    password: process.env.DB_PASSWORD || '',
-});
+async function createDbClient() {
+    const client = new Client({
+        host: process.env.PGHOST || 'localhost',
+        port: parseInt(process.env.PGPORT || '5432'),
+        database: process.env.PGDATABASE || 'spec',
+        user: process.env.PGUSER || 'spec',
+        password: process.env.PGPASSWORD || 'spec',
+        ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    });
+
+    await client.connect();
+    return client;
+}
 
 async function main() {
     try {
         console.log('🌱 Seeding Meeting & Decision Management Template Pack...\n');
-        await seedMeetingDecisionPack(pool);
+        await seedMeetingDecisionPack();
         console.log('\n✅ Seed completed successfully');
     } catch (error) {
         console.error('\n❌ Seed failed:', error);
         process.exit(1);
-    } finally {
-        await pool.end();
     }
 }
 

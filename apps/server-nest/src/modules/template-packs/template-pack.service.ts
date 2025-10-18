@@ -298,7 +298,16 @@ export class TemplatePackService {
             [projectId, orgId]
         );
 
-        return result.rows;
+        // Transform object_type_schemas object into object_types array for frontend
+        return result.rows.map(row => ({
+            ...row,
+            template_pack: {
+                ...row.template_pack,
+                object_types: row.template_pack.object_type_schemas
+                    ? Object.keys(row.template_pack.object_type_schemas)
+                    : []
+            }
+        }));
     }
 
     /**

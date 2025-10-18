@@ -42,3 +42,33 @@ Add a new entry to `.github/instructions/self-learning.instructions.md` followin
 ## Priority
 
 This is a **high-priority meta-task**. Before ending a conversation where you learned something significant, ensure it's documented in the self-learning file.
+
+## Development Environment
+
+### Hot Reload (Auto-Restart on File Changes)
+
+**Hot reload is ENABLED BY DEFAULT** when running services via workspace CLI:
+
+- **Admin (Frontend)**: Vite dev server with HMR (Hot Module Replacement)
+  - Command: `npm run workspace:start` → launches `npm run dev` → `vite`
+  - Updates: **Instant** (< 100ms) - no page reload needed
+  - Watches: `apps/admin/src/**/*`, `apps/admin/index.html`
+  - Browser console shows: `[vite] connected.` and `[vite] hmr update ...`
+
+- **Server (Backend)**: ts-node-dev with auto-restart
+  - Command: `npm run workspace:start` → launches `npm run start:dev` → `ts-node-dev --respawn`
+  - Updates: **2-5 seconds** (recompile + restart)
+  - Watches: `apps/server-nest/src/**/*.ts` (excludes node_modules)
+  - Terminal logs show: `[ts-node-dev] restarting due to changes...`
+
+**When users ask about hot reload or watch mode:**
+- Inform them it's already working by default
+- No configuration changes needed
+- Point them to `docs/HOT_RELOAD.md` for troubleshooting
+- Only production builds (`npm run build` + `npm run start`) disable hot reload
+
+**PM2 Configuration:**
+- Located: `tools/workspace-cli/pm2/ecosystem.apps.cjs`
+- Admin uses: `args: ['run', 'dev']` (Vite HMR)
+- Server uses: `args: ['run', 'start:dev']` (ts-node-dev watch)
+- Both have `autorestart: true` for crash recovery

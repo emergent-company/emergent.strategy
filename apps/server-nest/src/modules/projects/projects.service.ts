@@ -37,6 +37,18 @@ export class ProjectsService {
         return res.rows.map(r => ({ id: r.id, name: r.name, orgId: r.org_id }));
     }
 
+    async getById(id: string): Promise<ProjectDto | null> {
+        const res = await this.db.query<ProjectRow>(
+            `SELECT id, name, org_id FROM kb.projects WHERE id = $1`,
+            [id],
+        );
+        if (res.rows.length === 0) {
+            return null;
+        }
+        const r = res.rows[0];
+        return { id: r.id, name: r.name, orgId: r.org_id };
+    }
+
     async create(name: string, orgId?: string, userId?: string): Promise<ProjectDto> {
         if (!name || !name.trim()) {
             throw new BadRequestException({
