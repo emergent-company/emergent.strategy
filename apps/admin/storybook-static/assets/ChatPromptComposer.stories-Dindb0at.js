@@ -1,5 +1,0 @@
-import{C as r}from"./index-083O14Ds.js";import{a}from"./storyAction-BfVmMc05.js";import"./iframe-BQqEPkXj.js";import"./preload-helper-D9Z9MdNV.js";import"./index-CDOSlDlo.js";import"./index-CqALXU3L.js";import"./index-C2vI11oT.js";import"./index-wSADcztn.js";const d={title:"Chat/ChatPromptComposer",component:r,args:{defaultPrivate:!1,placeholder:"Let us know what you need...",onSubmit:a("onSubmit")},parameters:{docs:{description:{component:"Rich chat input with multiline textarea, privacy toggle and submit shortcut (Enter). Provide `onSubmit` handler; when `defaultPrivate` is true the composer initializes in private mode."}}},tags:["autodocs"]},t={},e={args:{defaultPrivate:!0}};t.parameters={...t.parameters,docs:{...t.parameters?.docs,source:{originalSource:"{}",...t.parameters?.docs?.source}}};e.parameters={...e.parameters,docs:{...e.parameters?.docs,source:{originalSource:`{
-  args: {
-    defaultPrivate: true
-  }
-}`,...e.parameters?.docs?.source}}};const l=["Default","PrivateByDefault"];export{t as Default,e as PrivateByDefault,l as __namedExportsOrder,d as default};

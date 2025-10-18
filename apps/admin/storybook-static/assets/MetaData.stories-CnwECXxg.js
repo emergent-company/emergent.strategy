@@ -1,5 +1,0 @@
-import{j as e}from"./iframe-BQqEPkXj.js";import"./preload-helper-D9Z9MdNV.js";const s=({title:r,noIndex:o})=>e.jsxs(e.Fragment,{children:[e.jsx("title",{children:`${r?r+" |":""} Nexus - Admin & Client Dashboard`}),o&&e.jsx("meta",{name:"robots",content:"noindex","data-rh":"true"})]});s.__docgenInfo={description:"",methods:[],displayName:"MetaData",props:{title:{required:!1,tsType:{name:"string"},description:""},noIndex:{required:!1,tsType:{name:"boolean"},description:""}}};const i={title:"SEO/MetaData",component:s,args:{title:"Sample Page",noIndex:!1},parameters:{docs:{description:{component:"Injects head metadata (title, robots). Use within routed pages; values override defaults."}}},tags:["autodocs"]},t={},a={args:{noIndex:!0}};t.parameters={...t.parameters,docs:{...t.parameters?.docs,source:{originalSource:"{}",...t.parameters?.docs?.source}}};a.parameters={...a.parameters,docs:{...a.parameters?.docs,source:{originalSource:`{
-  args: {
-    noIndex: true
-  }
-}`,...a.parameters?.docs?.source}}};const c=["Default","NoIndex"];export{t as Default,a as NoIndex,c as __namedExportsOrder,i as default};

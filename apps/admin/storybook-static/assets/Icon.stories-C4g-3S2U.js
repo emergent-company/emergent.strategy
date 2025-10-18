@@ -1,7 +1,0 @@
-import{j as e}from"./iframe-BQqEPkXj.js";import{I as i}from"./index-CqALXU3L.js";import"./preload-helper-D9Z9MdNV.js";const n={title:"Atoms/Icon",component:i,args:{icon:"lucide--sparkles",ariaLabel:"sparkles",className:"size-6 text-primary"},parameters:{docs:{description:{component:"Atom wrapper around an Iconify span. Provide a lucide icon class (e.g., lucide--home). If ariaLabel omitted, icon is aria-hidden."}}}},s={},a={render:r=>e.jsxs("div",{className:"flex items-end gap-4",children:[e.jsx(i,{...r,className:"size-4 text-primary"}),e.jsx(i,{...r,className:"size-6 text-secondary",icon:"lucide--settings",ariaLabel:"settings"}),e.jsx(i,{...r,className:"size-8 text-accent",icon:"lucide--bell",ariaLabel:"notifications"})]})};s.parameters={...s.parameters,docs:{...s.parameters?.docs,source:{originalSource:"{}",...s.parameters?.docs?.source}}};a.parameters={...a.parameters,docs:{...a.parameters?.docs,source:{originalSource:`{
-  render: (args: IconProps) => <div className="flex items-end gap-4">
-      <Icon {...args} className="size-4 text-primary" />
-      <Icon {...args} className="size-6 text-secondary" icon="lucide--settings" ariaLabel="settings" />
-      <Icon {...args} className="size-8 text-accent" icon="lucide--bell" ariaLabel="notifications" />
-    </div>
-}`,...a.parameters?.docs?.source}}};const m=["Basic","Sizes"];export{s as Basic,a as Sizes,m as __namedExportsOrder,n as default};

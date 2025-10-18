@@ -1,1 +1,0 @@
-const e={title:"__deprecated/ui/Button",parameters:{docs:{description:{component:"Deprecated legacy UI story. Use atoms/Button instead."}}},tags:["hidden","deprecated"]},t=[];export{t as __namedExportsOrder,e as default};
