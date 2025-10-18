@@ -61,6 +61,7 @@ export interface ApplicationProcessProfile {
   readonly namespace: string;
   readonly defaultEnabled: boolean;
   readonly setupCommands: readonly string[];
+  readonly exposedPorts?: readonly string[];
   readonly environmentOverrides?: Partial<Record<EnvironmentProfileId, Readonly<Record<string, string>>>>;
 }
 
@@ -81,6 +82,7 @@ export interface DependencyProcessProfile {
   readonly healthCheck: DependencyHealthCheckConfig;
   readonly logs: LogFileConfig;
   readonly restartPolicy: RestartPolicy;
+  readonly exposedPorts?: readonly string[];
 }
 
 export type ManagedServiceType = 'application' | 'dependency';
@@ -93,6 +95,7 @@ export interface HealthSnapshotEntry {
   readonly restartCount: number;
   readonly lastExitCode?: number;
   readonly healthDetail?: string;
+  readonly exposedPorts?: readonly string[];
   readonly dependencyState?: readonly DependencyStateEntry[];
 }
 
