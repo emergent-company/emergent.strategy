@@ -1613,6 +1613,106 @@ paths:
           description: Failed to fetch models from API
       tags: *ref_5
       security: *ref_6
+  /admin/extraction-jobs/{jobId}/logs:
+    get:
+      operationId: getExtractionLogs
+      summary: Get detailed extraction logs
+      description: >-
+        Retrieve step-by-step logs for an extraction job including LLM
+        interactions, errors, and performance metrics
+      parameters:
+        - name: jobId
+          required: true
+          in: path
+          description: Extraction job UUID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        logged_at:
+                          type: string
+                          format: date-time
+                        step_index:
+                          type: number
+                        operation_type:
+                          type: string
+                          enum:
+                            - llm_call
+                            - chunk_processing
+                            - object_creation
+                            - relationship_creation
+                            - suggestion_creation
+                            - validation
+                            - error
+                        operation_name:
+                          type: string
+                          nullable: true
+                        status:
+                          type: string
+                          enum:
+                            - success
+                            - error
+                            - warning
+                        input_data:
+                          type: object
+                          nullable: true
+                        output_data:
+                          type: object
+                          nullable: true
+                        error_message:
+                          type: string
+                          nullable: true
+                        error_stack:
+                          type: string
+                          nullable: true
+                        duration_ms:
+                          type: number
+                          nullable: true
+                        tokens_used:
+                          type: number
+                          nullable: true
+                        metadata:
+                          type: object
+                          nullable: true
+                  summary:
+                    type: object
+                    properties:
+                      totalSteps:
+                        type: number
+                      successSteps:
+                        type: number
+                      errorSteps:
+                        type: number
+                      warningSteps:
+                        type: number
+                      totalDurationMs:
+                        type: number
+                      totalTokensUsed:
+                        type: number
+                      operationCounts:
+                        type: object
+        '400':
+          description: Invalid job ID format
+        '403':
+          description: Access denied to this extraction job
+        '404':
+          description: Extraction job not found
+      tags: *ref_5
+      security: *ref_6
   /graph/objects:
     post:
       operationId: create

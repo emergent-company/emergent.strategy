@@ -98,4 +98,12 @@ export class AppConfigService {
         const trimmed = id.trim();
         return trimmed.length > 0 ? trimmed : null;
     }
+
+    get extractionChunkSize() {
+        return this.env.EXTRACTION_CHUNK_SIZE || 100000;
+    }
+
+    get extractionChunkOverlap() {
+        return this.env.EXTRACTION_CHUNK_OVERLAP || 2000;
+    }
 }

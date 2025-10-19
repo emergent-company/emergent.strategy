@@ -9,6 +9,7 @@ import { useParams, useNavigate, Link } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
 import { ExtractionJobStatusBadge } from '@/components/molecules/ExtractionJobStatusBadge';
 import { DebugInfoPanel } from '@/components/molecules/DebugInfoPanel';
+import { ExtractionLogsModal } from '@/components/organisms/ExtractionLogsModal';
 import { useApi } from '@/hooks/use-api';
 import { useConfig } from '@/contexts/config';
 import { createExtractionJobsClient, type ExtractionJob } from '@/api/extraction-jobs';
@@ -29,6 +30,7 @@ export function ExtractionJobDetailPage() {
     const [error, setError] = useState<string | null>(null);
     const [isCancelling, setIsCancelling] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
 
     // Fetch job details
     useEffect(() => {
@@ -196,6 +198,13 @@ export function ExtractionJobDetailPage() {
                     </div>
                 </div>
                 <div className="flex gap-2">
+                    <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => setIsLogsModalOpen(true)}
+                    >
+                        <Icon icon="lucide--file-text" />
+                        View Detailed Logs
+                    </button>
                     {canCancel && (
                         <button
                             className="btn btn-warning btn-sm"
@@ -367,11 +376,13 @@ export function ExtractionJobDetailPage() {
                     <div className="card-body">
                         <h2 className="card-title">Discovered Entity Types</h2>
                         <div className="flex flex-wrap gap-2">
-                            {job.discovered_types.map((type) => (
-                                <div key={type} className="badge-outline badge badge-lg badge-primary">
-                                    {type}
-                                </div>
-                            ))}
+                            {job.discovered_types
+                                .filter((type) => type && type.trim().length > 0)
+                                .map((type, index) => (
+                                    <div key={`${type}-${index}`} className="badge-outline badge badge-lg badge-primary">
+                                        {type}
+                                    </div>
+                                ))}
                         </div>
                     </div>
                 </div>
@@ -386,16 +397,19 @@ export function ExtractionJobDetailPage() {
                             Objects extracted and created in the knowledge graph
                         </p>
                         <div className="flex flex-wrap gap-2">
-                            {job.created_objects.slice(0, 20).map((objId) => (
-                                <Link
-                                    key={objId}
-                                    to={`/admin/objects?id=${objId}`}
-                                    className="badge-outline transition-colors badge hover:badge-primary"
-                                >
-                                    <Icon icon="lucide--external-link" className="mr-1" />
-                                    {objId.slice(0, 8)}
-                                </Link>
-                            ))}
+                            {job.created_objects
+                                .filter((objId) => objId && objId.trim().length > 0)
+                                .slice(0, 20)
+                                .map((objId, index) => (
+                                    <Link
+                                        key={`${objId}-${index}`}
+                                        to={`/admin/objects?id=${objId}`}
+                                        className="badge-outline transition-colors badge hover:badge-primary"
+                                    >
+                                        <Icon icon="lucide--external-link" className="mr-1" />
+                                        {objId.slice(0, 8)}
+                                    </Link>
+                                ))}
                             {job.created_objects.length > 20 && (
                                 <span className="badge badge-ghost">
                                     +{job.created_objects.length - 20} more
@@ -459,6 +473,13 @@ export function ExtractionJobDetailPage() {
                     </pre>
                 </div>
             </div>
+
+            {/* Extraction Logs Modal */}
+            <ExtractionLogsModal
+                open={isLogsModalOpen}
+                onOpenChange={setIsLogsModalOpen}
+                jobId={jobId!}
+            />
         </div>
     );
 }

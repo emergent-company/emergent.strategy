@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ExtractionJobService } from './extraction-job.service';
 import { ExtractionJobController } from './extraction-job.controller';
 import { ExtractionWorkerService } from './extraction-worker.service';
+import { ExtractionLoggerService } from './extraction-logger.service';
 import { RateLimiterService } from './rate-limiter.service';
 import { ConfidenceScorerService } from './confidence-scorer.service';
 import { EntityLinkingService } from './entity-linking.service';
@@ -50,6 +51,7 @@ import { AuthModule } from '../auth/auth.module';
     providers: [
         ExtractionJobService,
         ExtractionWorkerService,
+        ExtractionLoggerService,
         RateLimiterService,
         ConfidenceScorerService,
         EntityLinkingService,
@@ -58,6 +60,6 @@ import { AuthModule } from '../auth/auth.module';
         LLMProviderFactory,
     ],
     controllers: [ExtractionJobController],
-    exports: [ExtractionJobService, ExtractionWorkerService],
+    exports: [ExtractionJobService, ExtractionWorkerService, ExtractionLoggerService],
 })
 export class ExtractionJobModule { }
