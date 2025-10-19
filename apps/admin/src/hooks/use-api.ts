@@ -137,8 +137,22 @@ export function useApi() {
             if (!res.ok) {
                 let message = `Request failed (${res.status})`;
                 try {
-                    const j = (await res.json()) as { error?: string; message?: string };
-                    message = j.error || j.message || message;
+                    const j = await res.json();
+                    // Handle nested error structures like { error: { message, code } }
+                    const nested = (j as any).error;
+                    if (typeof nested === "string") {
+                        message = nested;
+                    } else if (nested && typeof nested === "object") {
+                        // Extract message from nested error object
+                        if (nested.message) message = nested.message;
+                        else if (nested.code) message = nested.code;
+                    } else if ((j as any).message) {
+                        message = (j as any).message;
+                    }
+                    // Ensure message is a string
+                    if (message && typeof message !== "string") {
+                        message = JSON.stringify(message);
+                    }
                 } catch {
                     try {
                         message = (await res.text()) || message;
