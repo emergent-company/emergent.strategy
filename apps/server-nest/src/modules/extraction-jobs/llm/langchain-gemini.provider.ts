@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { z } from 'zod';
 import { AppConfigService } from '../../../common/config/config.service';
 import {
@@ -79,60 +80,89 @@ export class LangChainGeminiProvider implements ILLMProvider {
         const discoveredTypes = new Set<string>();
         const debugCalls: any[] = []; // Collect debug info for each LLM call
 
+        // Split document into chunks if it's large
+        const chunks = await this.splitDocumentIntoChunks(documentContent);
+        
+        if (chunks.length > 1) {
+            this.logger.log(`Document split into ${chunks.length} chunks for processing`);
+        }
+
         // Process each type separately with its specific schema
         const typesToExtract = allowedTypes || this.getAvailableSchemas();
 
         this.logger.debug(`Extracting ${typesToExtract.length} types: ${typesToExtract.join(', ')}`);
 
+        // Process each chunk for each type
         for (const typeName of typesToExtract) {
-            const callStart = Date.now();
-            try {
-                const { entities, prompt, rawResponse } = await this.extractEntitiesForType(
-                    typeName,
-                    documentContent,
-                    extractionPrompt
-                );
+            const typeStartTime = Date.now();
+            const typeEntities: ExtractedEntity[] = [];
+            
+            for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+                const chunk = chunks[chunkIndex];
+                const callStart = Date.now();
+                
+                try {
+                    const { entities, prompt, rawResponse } = await this.extractEntitiesForType(
+                        typeName,
+                        chunk,
+                        extractionPrompt
+                    );
 
-                // Store debug information for this call
-                debugCalls.push({
-                    type: typeName,
-                    input: {
-                        document: documentContent.substring(0, 500) + (documentContent.length > 500 ? '...' : ''), // Truncate for storage
-                        prompt: prompt,
-                        allowed_types: [typeName]
-                    },
-                    output: rawResponse,
-                    entities_found: entities.length,
-                    duration_ms: Date.now() - callStart,
-                    timestamp: new Date().toISOString(),
-                    model: this.config.vertexAiModel || 'gemini-2.5-flash',
-                    status: 'success'
-                });
+                    // Store debug information for this call
+                    debugCalls.push({
+                        type: typeName,
+                        chunk_index: chunkIndex,
+                        chunk_count: chunks.length,
+                        input: {
+                            document: chunk.substring(0, 500) + (chunk.length > 500 ? '...' : ''), // Truncate for storage
+                            prompt: prompt,
+                            allowed_types: [typeName]
+                        },
+                        output: rawResponse,
+                        entities_found: entities.length,
+                        duration_ms: Date.now() - callStart,
+                        timestamp: new Date().toISOString(),
+                        model: this.config.vertexAiModel || 'gemini-2.5-flash',
+                        status: 'success'
+                    });
 
-                if (entities.length > 0) {
-                    allEntities.push(...entities);
-                    discoveredTypes.add(typeName);
-                    this.logger.debug(`Extracted ${entities.length} ${typeName} entities`);
+                    if (entities.length > 0) {
+                        typeEntities.push(...entities);
+                    }
+                } catch (error) {
+                    this.logger.error(`Failed to extract ${typeName} from chunk ${chunkIndex + 1}/${chunks.length}:`, error);
+
+                    // Store error debug information
+                    debugCalls.push({
+                        type: typeName,
+                        chunk_index: chunkIndex,
+                        chunk_count: chunks.length,
+                        input: {
+                            document: chunk.substring(0, 500) + (chunk.length > 500 ? '...' : ''),
+                            prompt: extractionPrompt,
+                            allowed_types: [typeName]
+                        },
+                        error: error instanceof Error ? error.message : String(error),
+                        duration_ms: Date.now() - callStart,
+                        timestamp: new Date().toISOString(),
+                        model: this.config.vertexAiModel || 'gemini-2.5-flash',
+                        status: 'error'
+                    });
+
+                    // Continue with other chunks even if one fails
                 }
-            } catch (error) {
-                this.logger.error(`Failed to extract ${typeName}:`, error);
+            }
 
-                // Store error debug information
-                debugCalls.push({
-                    type: typeName,
-                    input: {
-                        document: documentContent.substring(0, 500) + (documentContent.length > 500 ? '...' : ''),
-                        prompt: extractionPrompt,
-                        allowed_types: [typeName]
-                    },
-                    error: error instanceof Error ? error.message : String(error),
-                    duration_ms: Date.now() - callStart,
-                    timestamp: new Date().toISOString(),
-                    model: this.config.vertexAiModel || 'gemini-2.5-flash',
-                    status: 'error'
-                });
-
-                // Continue with other types even if one fails
+            // Deduplicate entities by name within the type
+            const deduplicatedEntities = this.deduplicateEntities(typeEntities);
+            
+            if (deduplicatedEntities.length > 0) {
+                allEntities.push(...deduplicatedEntities);
+                discoveredTypes.add(typeName);
+                this.logger.debug(
+                    `Extracted ${deduplicatedEntities.length} unique ${typeName} entities ` +
+                    `(${typeEntities.length} total before deduplication) in ${Date.now() - typeStartTime}ms`
+                );
             }
         }
 
@@ -154,9 +184,61 @@ export class LangChainGeminiProvider implements ILLMProvider {
                 llm_calls: debugCalls,
                 total_duration_ms: duration,
                 total_entities: allEntities.length,
-                types_processed: typesToExtract.length
+                types_processed: typesToExtract.length,
+                chunks_processed: chunks.length
             }
         };
+    }
+
+    /**
+     * Split document into chunks using LangChain text splitter
+     */
+    private async splitDocumentIntoChunks(documentContent: string): Promise<string[]> {
+        const chunkSize = this.config.extractionChunkSize;
+        const chunkOverlap = this.config.extractionChunkOverlap;
+
+        // If document is smaller than chunk size, return as single chunk
+        if (documentContent.length <= chunkSize) {
+            return [documentContent];
+        }
+
+        this.logger.debug(
+            `Splitting document (${documentContent.length} chars) into chunks ` +
+            `(size: ${chunkSize}, overlap: ${chunkOverlap})`
+        );
+
+        const splitter = new RecursiveCharacterTextSplitter({
+            chunkSize,
+            chunkOverlap,
+            separators: ['\n\n', '\n', '. ', ' ', ''],
+        });
+
+        const chunks = await splitter.splitText(documentContent);
+        
+        this.logger.debug(`Created ${chunks.length} chunks`);
+        
+        return chunks;
+    }
+
+    /**
+     * Deduplicate entities by name (case-insensitive)
+     * Keeps the entity with highest confidence when duplicates found
+     */
+    private deduplicateEntities(entities: ExtractedEntity[]): ExtractedEntity[] {
+        const entityMap = new Map<string, ExtractedEntity>();
+
+        for (const entity of entities) {
+            const key = entity.name.toLowerCase();
+            const existing = entityMap.get(key);
+            const entityConfidence = entity.confidence || 0;
+            const existingConfidence = existing?.confidence || 0;
+
+            if (!existing || entityConfidence > existingConfidence) {
+                entityMap.set(key, entity);
+            }
+        }
+
+        return Array.from(entityMap.values());
     }
 
     /**

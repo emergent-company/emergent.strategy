@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@langchain/textsplitters": "^1.0.0"
+  }
+}

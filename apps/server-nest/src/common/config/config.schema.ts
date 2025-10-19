@@ -104,6 +104,14 @@ export class EnvVariables {
     @IsOptional()
     EXTRACTION_DEFAULT_TEMPLATE_PACK_ID?: string;
 
+    @IsNumber()
+    @IsOptional()
+    EXTRACTION_CHUNK_SIZE?: number; // Maximum characters per chunk (default: 100000 for Gemini 2.5 Flash)
+
+    @IsNumber()
+    @IsOptional()
+    EXTRACTION_CHUNK_OVERLAP?: number; // Overlap between chunks in characters (default: 2000)
+
 }
 
 export function validate(config: Record<string, unknown>): EnvVariables {
@@ -140,6 +148,8 @@ export function validate(config: Record<string, unknown>): EnvVariables {
             }
             return FALLBACK_EXTRACTION_TEMPLATE_PACK_ID;
         })(),
+        EXTRACTION_CHUNK_SIZE: process.env.EXTRACTION_CHUNK_SIZE || '100000',
+        EXTRACTION_CHUNK_OVERLAP: process.env.EXTRACTION_CHUNK_OVERLAP || '2000',
         ...config,
     };
     const transformed = plainToInstance(EnvVariables, {
@@ -159,6 +169,8 @@ export function validate(config: Record<string, unknown>): EnvVariables {
         EXTRACTION_CONFIDENCE_THRESHOLD_MIN: Number(withDefaults.EXTRACTION_CONFIDENCE_THRESHOLD_MIN),
         EXTRACTION_CONFIDENCE_THRESHOLD_REVIEW: Number(withDefaults.EXTRACTION_CONFIDENCE_THRESHOLD_REVIEW),
         EXTRACTION_CONFIDENCE_THRESHOLD_AUTO: Number(withDefaults.EXTRACTION_CONFIDENCE_THRESHOLD_AUTO),
+        EXTRACTION_CHUNK_SIZE: Number(withDefaults.EXTRACTION_CHUNK_SIZE),
+        EXTRACTION_CHUNK_OVERLAP: Number(withDefaults.EXTRACTION_CHUNK_OVERLAP),
     });
     const errors = validateSync(transformed, { skipMissingProperties: false });
     if (errors.length) {

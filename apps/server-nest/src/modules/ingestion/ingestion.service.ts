@@ -275,7 +275,8 @@ export class IngestionService {
                 let hasChunkUpsertConstraint = true;
                 for (let i = 0; i < chunks.length; i++) {
                     const vec = vectors[i];
-                    const vecLiteral = vec ? '[' + vec.map(n => (Number.isFinite(n) ? String(n) : '0')).join(',') + ']' : null;
+                    // Fix: Check if vec exists AND has length > 0 to avoid "vector must have at least 1 dimension" error
+                    const vecLiteral = (vec && vec.length > 0) ? '[' + vec.map(n => (Number.isFinite(n) ? String(n) : '0')).join(',') + ']' : null;
                     if (hasEmbeddingColumn === false) {
                         if (hasChunkUpsertConstraint) {
                             try {

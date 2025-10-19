@@ -183,9 +183,8 @@ export default function DocumentsPage() {
             if (config.activeProjectId) fd.append("projectId", config.activeProjectId);
             const t = getAccessToken();
             await fetchForm<void>(`${apiBase}/api/ingest/upload`, fd, { method: "POST", headers: t ? buildHeaders({ json: false }) : {} });
-            setUploadSuccess("Upload successful. Updating list...");
-            // Reload documents
-            setLoading(true);
+            setUploadSuccess("Upload successful. Refreshing list...");
+            // Reload documents WITHOUT hiding the table (no setLoading(true))
             try {
                 const t2 = getAccessToken();
                 const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/api/documents`, {
@@ -323,6 +322,13 @@ export default function DocumentsPage() {
 
                 <div className="mt-4 card">
                     <div className="card-body">
+                        {/* Show subtle info alert when uploading/refreshing */}
+                        {uploading && (
+                            <div role="alert" className="alert alert-info mb-4">
+                                <span className="loading loading-spinner loading-sm" />
+                                <span>Uploading document and refreshing list...</span>
+                            </div>
+                        )}
                         {loading && (
                             <div className="space-y-2">
                                 <LoadingEffect height={36} />
@@ -337,7 +343,7 @@ export default function DocumentsPage() {
                             </div>
                         )}
                         {!loading && !error && (
-                            <div className="overflow-x-auto">
+                            <div className={`overflow-x-auto relative ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
                                 <table className="table">
                                     <thead>
                                         <tr>

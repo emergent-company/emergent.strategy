@@ -2,6 +2,7 @@ import { ConflictException, Injectable, Logger, OnModuleDestroy, OnModuleInit } 
 import { AppConfigService } from '../../common/config/config.service';
 import { DatabaseService } from '../../common/database/database.service';
 import { ExtractionJobService } from './extraction-job.service';
+import { ExtractionLoggerService } from './extraction-logger.service';
 import { LLMProviderFactory } from './llm/llm-provider.factory';
 import { RateLimiterService } from './rate-limiter.service';
 import { ConfidenceScorerService } from './confidence-scorer.service';
@@ -71,6 +72,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         private readonly config: AppConfigService,
         private readonly db: DatabaseService,
         private readonly jobService: ExtractionJobService,
+        private readonly extractionLogger: ExtractionLoggerService,
         private readonly llmFactory: LLMProviderFactory,
         private readonly rateLimiter: RateLimiterService,
         private readonly confidenceScorer: ConfidenceScorerService,
@@ -80,6 +82,12 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         private readonly notificationsService: NotificationsService,
         private readonly templatePacks: TemplatePackService,
     ) { }
+
+    /**
+     * Counter for step indexing within a job
+     * Reset for each job processing
+     */
+    private stepCounter = 0;
 
     private getOrganizationId(job: ExtractionJobDto): string | null {
         return job.organization_id ?? job.org_id ?? null;
@@ -277,6 +285,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         const startTime = Date.now();
         this.logger.log(`Processing extraction job ${job.id} (source: ${job.source_type})`);
 
+        // Reset step counter for this job
+        this.stepCounter = 0;
+
         const timeline: TimelineEvent[] = [];
         let providerName = this.llmFactory.getProviderName();
         let extractionResult: ExtractionResult | null = null;
@@ -438,7 +449,28 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 allowed_types: allowedTypes ?? null,
             });
 
+            // Track LLM call timing for detailed logs
+            const llmCallStartTime = Date.now();
+
             try {
+                // Log LLM call input (prompt, content preview, config)
+                await this.extractionLogger.logStep({
+                    extractionJobId: job.id,
+                    stepIndex: this.stepCounter++,
+                    operationType: 'llm_call',
+                    operationName: 'extract_entities',
+                    inputData: {
+                        prompt: extractionPrompt,
+                        content_preview: documentContent.substring(0, 500) + (documentContent.length > 500 ? '...' : ''),
+                        content_length: documentContent.length,
+                        allowed_types: allowedTypes,
+                    },
+                    metadata: {
+                        provider: providerName,
+                        model: 'gemini-1.5-flash', // Current model used
+                    },
+                });
+
                 const result = await llmProvider.extractEntities(
                     documentContent,
                     extractionPrompt,
@@ -469,6 +501,32 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
                 extractionResult = result;
 
+                // Log LLM call output (entities, response, tokens)
+                await this.extractionLogger.logStep({
+                    extractionJobId: job.id,
+                    stepIndex: this.stepCounter++,
+                    operationType: 'llm_call',
+                    operationName: 'extract_entities',
+                    status: 'success',
+                    outputData: {
+                        entities_count: result.entities.length,
+                        entities: result.entities.map(e => ({
+                            type: e.type_name,
+                            name: e.name,
+                            properties: e.properties,
+                        })),
+                        discovered_types: result.discovered_types,
+                        raw_response: result.raw_response, // Full LLM response for inspection
+                    },
+                    durationMs: Date.now() - llmCallStartTime,
+                    tokensUsed: result.usage?.total_tokens ?? undefined,
+                    metadata: {
+                        provider: providerName,
+                        prompt_tokens: result.usage?.prompt_tokens,
+                        completion_tokens: result.usage?.completion_tokens,
+                    },
+                });
+
                 llmStep('success', {
                     metadata: {
                         entities: result.entities.length,
@@ -478,6 +536,23 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             } catch (error) {
                 const message = toErrorMessage(error);
                 const metadata = (error as Error & { llmStepMetadata?: Record<string, any> })?.llmStepMetadata;
+                
+                // Log LLM call error
+                await this.extractionLogger.logStep({
+                    extractionJobId: job.id,
+                    stepIndex: this.stepCounter++,
+                    operationType: 'error',
+                    operationName: 'extract_entities',
+                    status: 'error',
+                    errorMessage: message,
+                    errorStack: (error as Error).stack,
+                    durationMs: Date.now() - llmCallStartTime,
+                    metadata: {
+                        provider: providerName,
+                        ...metadata,
+                    },
+                });
+
                 llmStep('error', {
                     message,
                     metadata,
@@ -676,6 +751,28 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                         // graph_objects.key is NOT NULL so we must provide a value
                         const objectKey = entity.business_key || this.generateKeyFromName(entity.name, entity.type_name);
 
+                        // Log object creation input
+                        const objectCreationStartTime = Date.now();
+                        await this.extractionLogger.logStep({
+                            extractionJobId: job.id,
+                            stepIndex: this.stepCounter++,
+                            operationType: 'object_creation',
+                            operationName: 'create_graph_object',
+                            inputData: {
+                                entity_type: entity.type_name,
+                                entity_name: entity.name,
+                                entity_key: objectKey,
+                                entity_description: entity.description,
+                                entity_properties: entity.properties,
+                                confidence: finalConfidence,
+                                quality_decision: qualityDecision,
+                            },
+                            metadata: {
+                                org_id: job.org_id,
+                                project_id: job.project_id,
+                            },
+                        });
+
                         const graphObject = await this.graphService.createObject({
                             org_id: job.org_id,
                             project_id: job.project_id,
@@ -700,6 +797,26 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                             reviewRequiredObjectIds.push(graphObject.id);
                         }
 
+                        // Log successful object creation
+                        await this.extractionLogger.logStep({
+                            extractionJobId: job.id,
+                            stepIndex: this.stepCounter++,
+                            operationType: 'object_creation',
+                            operationName: 'create_graph_object',
+                            status: 'success',
+                            outputData: {
+                                object_id: graphObject.id,
+                                entity_name: entity.name,
+                                entity_type: entity.type_name,
+                                quality_decision: qualityDecision,
+                                requires_review: qualityDecision === 'review',
+                            },
+                            durationMs: Date.now() - objectCreationStartTime,
+                            metadata: {
+                                confidence: finalConfidence,
+                            },
+                        });
+
                         this.logger.debug(
                             `Created object ${graphObject.id}: ${entity.type_name} - ${entity.name} ` +
                             `(confidence: ${finalConfidence.toFixed(3)}, decision: ${qualityDecision})`
@@ -709,6 +826,22 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 } catch (error) {
                     outcome = 'failed';
                     const err = error instanceof Error ? error : new Error(String(error));
+                    
+                    // Log object creation error
+                    await this.extractionLogger.logStep({
+                        extractionJobId: job.id,
+                        stepIndex: this.stepCounter++,
+                        operationType: 'error',
+                        operationName: 'create_graph_object',
+                        status: 'error',
+                        errorMessage: err.message,
+                        errorStack: err.stack,
+                        metadata: {
+                            entity_name: entity.name,
+                            entity_type: entity.type_name,
+                        },
+                    });
+                    
                     this.logger.error(
                         `Failed to create object for entity ${entity.name}: ${err.message}`,
                         err.stack
