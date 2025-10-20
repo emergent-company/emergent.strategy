@@ -155,7 +155,7 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "List settings (placeholder)",
+            "description": "List all settings",
             "content": {
               "application/json": {
                 "schema": {
@@ -250,7 +250,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Get a single setting (placeholder)",
+            "description": "Get a single setting",
             "content": {
               "application/json": {
                 "schema": {
@@ -316,6 +316,109 @@
                     "error": {
                       "code": "not-found",
                       "message": "Setting not found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Settings"
+        ]
+      },
+      "put": {
+        "operationId": "update",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "example": {
+                  "value": "dark"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Update or create a setting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "key": "theme",
+                    "value": "dark"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1294,6 +1397,26 @@
     "/template-packs/projects/{projectId}/available": {
       "get": {
         "operationId": "getAvailableTemplates",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/template-packs/projects/{projectId}/compiled-types": {
+      "get": {
+        "operationId": "getCompiledObjectTypes",
         "parameters": [
           {
             "name": "projectId",

@@ -75,6 +75,7 @@ export class LangChainGeminiProvider implements ILLMProvider {
     async extractEntities(
         documentContent: string,
         extractionPrompt: string,
+        objectSchemas: Record<string, any>,
         allowedTypes?: string[]
     ): Promise<ExtractionResult> {
         if (!this.isConfigured()) {
@@ -94,7 +95,7 @@ export class LangChainGeminiProvider implements ILLMProvider {
         }
 
         // Process each type separately with its specific schema
-        const typesToExtract = allowedTypes || this.getAvailableSchemas();
+        const typesToExtract = allowedTypes || Object.keys(objectSchemas);
 
         this.logger.debug(`Extracting ${typesToExtract.length} types: ${typesToExtract.join(', ')}`);
 
@@ -111,7 +112,8 @@ export class LangChainGeminiProvider implements ILLMProvider {
                     const { entities, prompt, rawResponse } = await this.extractEntitiesForType(
                         typeName,
                         chunk,
-                        extractionPrompt
+                        extractionPrompt,
+                        objectSchemas[typeName]
                     );
 
                     // Store debug information for this call
@@ -249,8 +251,10 @@ export class LangChainGeminiProvider implements ILLMProvider {
     private async extractEntitiesForType(
         typeName: string,
         documentContent: string,
-        basePrompt: string
+        basePrompt: string,
+        objectSchema?: any
     ): Promise<{ entities: ExtractedEntity[]; prompt: string; rawResponse: any }> {
+        // Use built-in Zod schemas (for now, TODO: convert JSON Schema to Zod)
         const schema = getSchemaForType(typeName);
 
         if (!schema) {
@@ -263,8 +267,8 @@ export class LangChainGeminiProvider implements ILLMProvider {
             entities: z.array(schema as any), // Use any to avoid deep type instantiation
         });
 
-        // Build type-specific prompt
-        const typePrompt = this.buildTypeSpecificPrompt(typeName, basePrompt, documentContent);
+        // Build type-specific prompt with schema information
+        const typePrompt = this.buildTypeSpecificPrompt(typeName, basePrompt, documentContent, objectSchema);
 
         // Use structured output with Zod schema
         const structuredModel = this.model!.withStructuredOutput(arraySchema as any, {
@@ -331,15 +335,47 @@ export class LangChainGeminiProvider implements ILLMProvider {
     private buildTypeSpecificPrompt(
         typeName: string,
         basePrompt: string,
-        documentContent: string
+        documentContent: string,
+        objectSchema?: any
     ): string {
         const typeInstructions = this.getTypeInstructions(typeName);
 
-        return `${basePrompt}
+        let prompt = `${basePrompt}
 
 **Entity Type to Extract:** ${typeName}
 
-${typeInstructions}
+`;
+
+        // Add schema information if available
+        if (objectSchema) {
+            if (objectSchema.description) {
+                prompt += `**Description:** ${objectSchema.description}\n\n`;
+            }
+
+            if (objectSchema.properties) {
+                prompt += '**Schema Definition:**\n';
+                prompt += 'Properties:\n';
+                for (const [propName, propDef] of Object.entries(objectSchema.properties as Record<string, any>)) {
+                    const required = objectSchema.required?.includes(propName) ? ' (required)' : '';
+                    const description = propDef.description || '';
+                    const typeInfo = propDef.type ? ` [${propDef.type}]` : '';
+                    const enumInfo = propDef.enum ? ` (options: ${propDef.enum.join(', ')})` : '';
+                    prompt += `  - ${propName}${required}${typeInfo}${enumInfo}: ${description}\n`;
+                }
+                prompt += '\n';
+            }
+
+            // Add examples if available
+            if (objectSchema.examples && Array.isArray(objectSchema.examples) && objectSchema.examples.length > 0) {
+                prompt += '**Examples:**\n';
+                for (const example of objectSchema.examples) {
+                    prompt += '```json\n' + JSON.stringify(example, null, 2) + '\n```\n';
+                }
+                prompt += '\n';
+            }
+        }
+
+        prompt += `${typeInstructions}
 
 **Instructions:**
 - Extract ALL ${typeName} entities found in the document
@@ -352,6 +388,8 @@ ${typeInstructions}
 ${documentContent}
 
 **Output:** Return a JSON object with an "entities" array containing the extracted ${typeName} entities.`;
+
+        return prompt;
     }
 
     /**
