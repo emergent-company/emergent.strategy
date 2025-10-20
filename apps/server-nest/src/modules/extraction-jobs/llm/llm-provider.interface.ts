@@ -60,13 +60,15 @@ export interface ILLMProvider {
      * @param extractionPrompt - System prompt with extraction instructions
      * @param objectSchemas - Object type schemas from template pack (JSON Schema format)
      * @param allowedTypes - Optional list of allowed entity types
+     * @param availableTags - Optional list of existing tags to prefer for consistency
      * @returns Extraction result with entities and metadata
      */
     extractEntities(
         documentContent: string,
         extractionPrompt: string,
         objectSchemas: Record<string, any>,
-        allowedTypes?: string[]
+        allowedTypes?: string[],
+        availableTags?: string[]
     ): Promise<ExtractionResult>;
 
     /**

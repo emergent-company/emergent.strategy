@@ -60,7 +60,8 @@ export class VertexAIProvider implements ILLMProvider {
         documentContent: string,
         extractionPrompt: string,
         objectSchemas: Record<string, any>,
-        allowedTypes?: string[]
+        allowedTypes?: string[],
+        availableTags?: string[]
     ): Promise<ExtractionResult> {
         if (!this.isConfigured()) {
             throw new Error('Vertex AI provider not configured');
@@ -72,6 +73,9 @@ export class VertexAIProvider implements ILLMProvider {
         }
 
         this.logger.debug(`Extracting entities with model: ${model}`);
+        if (availableTags && availableTags.length > 0) {
+            this.logger.debug(`Available tags for reuse: ${availableTags.join(', ')}`);
+        }
 
         const startTime = Date.now();
         const allEntities: ExtractedEntity[] = [];
@@ -113,7 +117,8 @@ export class VertexAIProvider implements ILLMProvider {
                             typeName,
                             chunk,
                             extractionPrompt,
-                            objectSchemas[typeName]
+                            objectSchemas[typeName],
+                            availableTags
                         );
 
                         // Accumulate token usage
@@ -131,7 +136,8 @@ export class VertexAIProvider implements ILLMProvider {
                             input: {
                                 document: chunk.substring(0, 500) + (chunk.length > 500 ? '...' : ''),
                                 prompt: extractionPrompt,
-                                allowed_types: [typeName]
+                                allowed_types: [typeName],
+                                available_tags: availableTags || []
                             },
                             output: response,
                             entities_found: entities.length,
@@ -156,7 +162,8 @@ export class VertexAIProvider implements ILLMProvider {
                             input: {
                                 document: chunk.substring(0, 500) + (chunk.length > 500 ? '...' : ''),
                                 prompt: extractionPrompt,
-                                allowed_types: [typeName]
+                                allowed_types: [typeName],
+                                available_tags: availableTags || []
                             },
                             error: error instanceof Error ? error.message : String(error),
                             duration_ms: Date.now() - callStart,
@@ -219,14 +226,16 @@ export class VertexAIProvider implements ILLMProvider {
         typeName: string,
         documentContent: string,
         extractionPrompt: string,
-        objectSchema?: any
+        objectSchema?: any,
+        availableTags?: string[]
     ): Promise<{ entities: ExtractedEntity[], usage?: any, response: any }> {
         // Build the prompt with schema for this specific type
         const fullPrompt = this.buildPrompt(
             documentContent,
             extractionPrompt,
             objectSchema ? { [typeName]: objectSchema } : {},
-            [typeName]
+            [typeName],
+            availableTags
         );
 
         // Call the LLM
@@ -356,7 +365,8 @@ export class VertexAIProvider implements ILLMProvider {
         documentContent: string,
         extractionPrompt: string,
         objectSchemas: Record<string, any>,
-        allowedTypes?: string[]
+        allowedTypes?: string[],
+        availableTags?: string[]
     ): string {
         let prompt = extractionPrompt + '\n\n';
 
@@ -404,6 +414,15 @@ export class VertexAIProvider implements ILLMProvider {
 
         if (allowedTypes && allowedTypes.length > 0) {
             prompt += `**Allowed Entity Types:**\n${allowedTypes.map(t => `- ${t}`).join('\n')}\n\n`;
+        }
+
+        // Add available tags for consistency
+        if (availableTags && availableTags.length > 0) {
+            prompt += `**Available Tags:**\n`;
+            prompt += 'When adding tags to entities, prefer using tags from this existing list for consistency:\n';
+            prompt += availableTags.map(t => `- ${t}`).join('\n') + '\n';
+            prompt += 'Only create new tags if none of the existing tags are semantically appropriate.\n';
+            prompt += 'Tags should be lowercase, hyphenated (e.g., "high-priority", "backend-service").\n\n';
         }
 
         prompt += '**Document Content:**\n\n' + documentContent + '\n\n';

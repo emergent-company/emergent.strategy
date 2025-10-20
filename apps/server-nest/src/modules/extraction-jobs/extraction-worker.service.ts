@@ -464,6 +464,26 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             })();
             const allowedTypes = this.extractAllowedTypes(job);
 
+            // Fetch available tags for LLM to prefer existing tags
+            const fetchTagsStep = beginTimelineStep('fetch_available_tags');
+            let availableTags: string[] = [];
+            try {
+                const ctx = {
+                    orgId: job.organization_id ?? job.org_id,
+                    projectId: job.project_id,
+                };
+                availableTags = await this.graphService.getAllTags(ctx);
+                fetchTagsStep('success', {
+                    metadata: { tags_count: availableTags.length },
+                });
+                this.logger.debug(`Fetched ${availableTags.length} available tags for extraction`);
+            } catch (error) {
+                const message = toErrorMessage(error);
+                fetchTagsStep('warning', { message });
+                this.logger.warn(`Failed to fetch available tags, proceeding without: ${message}`);
+                // Don't throw - continue extraction without tags
+            }
+
             const llmStep = beginTimelineStep('llm_extract', {
                 provider: providerName,
                 allowed_types: allowedTypes ?? null,
@@ -485,6 +505,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                     content_length: documentContent.length,
                     allowed_types: allowedTypes,
                     schema_types: Object.keys(objectSchemas),
+                    available_tags: availableTags,
                 },
                 metadata: {
                     provider: providerName,
@@ -497,7 +518,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                     documentContent,
                     extractionPrompt,
                     objectSchemas,
-                    allowedTypes
+                    allowedTypes,
+                    availableTags
                 );
 
                 const llmCalls = Array.isArray(result.raw_response?.llm_calls)
