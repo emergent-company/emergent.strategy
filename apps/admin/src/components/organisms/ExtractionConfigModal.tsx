@@ -8,12 +8,12 @@ import { useState, useRef, useEffect } from 'react';
 import { Icon } from '@/components/atoms/Icon';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
-import { createTypeRegistryClient } from '@/api/type-registry';
 
 export interface ExtractionConfig {
     entity_types: string[];
     confidence_threshold: number;
     entity_linking_strategy: 'strict' | 'fuzzy' | 'none';
+    duplicate_strategy?: 'skip' | 'merge';
     require_review: boolean;
     send_notification: boolean;
 }
@@ -57,11 +57,12 @@ export function ExtractionConfigModal({
         entity_types: [],
         confidence_threshold: 0.7,
         entity_linking_strategy: 'fuzzy',
+        duplicate_strategy: 'skip',
         require_review: false,
         send_notification: true,
     });
 
-    // Fetch available object types from the type registry
+    // Fetch available object types from template packs
     useEffect(() => {
         const projectId = config_context.config.activeProjectId;
         if (!projectId) return;
@@ -69,18 +70,21 @@ export function ExtractionConfigModal({
         const fetchTypes = async () => {
             try {
                 setIsLoadingTypes(true);
-                const typeRegistryClient = createTypeRegistryClient(apiBase, fetchJson as any);
-                const entries = await typeRegistryClient.getProjectTypes(projectId);
+                
+                // Fetch compiled object types from active template packs
+                const compiledTypes = await fetchJson<Record<string, any>>(
+                    `${apiBase}/api/template-packs/projects/${projectId}/compiled-types`
+                );
 
-                // Transform TypeRegistryEntryDto[] into EntityType format
-                // Only include enabled types from template packs or custom types
-                const types: EntityType[] = entries
-                    .filter(entry => entry.enabled)
-                    .map(entry => ({
-                        value: entry.type,
-                        label: entry.ui_config?.label || entry.type,
-                        description: entry.description || `Extract ${entry.type} entities from documents`,
-                    }));
+                // Transform compiled types into EntityType format
+                const types: EntityType[] = Object.entries(compiledTypes).map(([typeName, schema]) => ({
+                    value: typeName,
+                    label: typeName + 's', // Pluralize for display
+                    description: schema.description || `Extract ${typeName} entities from documents`,
+                }));
+
+                // Sort alphabetically by label
+                types.sort((a, b) => a.label.localeCompare(b.label));
 
                 setAvailableTypes(types);
 
@@ -90,7 +94,7 @@ export function ExtractionConfigModal({
                     setConfig(prev => ({ ...prev, entity_types: defaultTypes }));
                 }
             } catch (error) {
-                console.error('Failed to fetch object types:', error);
+                console.error('Failed to fetch object types from template packs:', error);
                 // Fallback to empty array - user can't extract if no types available
                 setAvailableTypes([]);
             } finally {
@@ -304,6 +308,59 @@ export function ExtractionConfigModal({
                                 </div>
                             </div>
                         </label>
+                    </div>
+                </div>
+
+                {/* Duplicate Handling Strategy */}
+                <div className="mb-6">
+                    <label className="label">
+                        <span className="font-semibold label-text">Duplicate Handling Strategy</span>
+                    </label>
+                    <div className="w-full join join-vertical">
+                        <label className="flex items-start gap-3 hover:bg-base-200 p-3 border border-base-300 cursor-pointer join-item">
+                            <input
+                                type="radio"
+                                name="duplicate-strategy"
+                                className="mt-0.5 radio radio-primary"
+                                checked={config.duplicate_strategy === 'skip'}
+                                onChange={() =>
+                                    setConfig((prev) => ({ ...prev, duplicate_strategy: 'skip' }))
+                                }
+                                disabled={isLoading}
+                            />
+                            <div className="flex-1">
+                                <div className="font-medium">Skip (Default)</div>
+                                <div className="text-xs text-base-content/60">
+                                    Skip duplicate entities - faster, prevents duplicates
+                                </div>
+                            </div>
+                        </label>
+                        <label className="flex items-start gap-3 hover:bg-base-200 p-3 border border-base-300 cursor-pointer join-item">
+                            <input
+                                type="radio"
+                                name="duplicate-strategy"
+                                className="mt-0.5 radio radio-primary"
+                                checked={config.duplicate_strategy === 'merge'}
+                                onChange={() =>
+                                    setConfig((prev) => ({ ...prev, duplicate_strategy: 'merge' }))
+                                }
+                                disabled={isLoading}
+                            />
+                            <div className="flex-1">
+                                <div className="font-medium">Merge (Recommended)</div>
+                                <div className="text-xs text-base-content/60">
+                                    Merge new data into existing entities - enriches over time
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                    <div className="mt-2 text-xs text-base-content/60">
+                        <Icon icon="lucide--info" className="inline-block size-3 mr-1" />
+                        {config.duplicate_strategy === 'merge' ? (
+                            <>Updates existing entities with new properties and increases confidence scores</>
+                        ) : (
+                            <>Prevents duplicate entities by skipping ones that already exist</>
+                        )}
                     </div>
                 </div>
 

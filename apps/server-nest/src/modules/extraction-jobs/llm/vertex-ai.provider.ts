@@ -85,6 +85,19 @@ export class VertexAIProvider implements ILLMProvider {
                 allowedTypes
             );
 
+            // Log the full prompt for debugging
+            this.logger.debug(`Full prompt length: ${fullPrompt.length} characters`);
+            this.logger.debug(`Schemas included: ${Object.keys(objectSchemas).join(', ')}`);
+            if (allowedTypes) {
+                this.logger.debug(`Allowed types filter: ${allowedTypes.join(', ')}`);
+            }
+            
+            // Log first 5000 chars of prompt for inspection (increased to show full schemas)
+            this.logger.debug(`Prompt preview:\n${fullPrompt.substring(0, 5000)}...`);
+            
+            // Also log the actual object schemas being used
+            this.logger.debug(`Object schemas detail: ${JSON.stringify(objectSchemas, null, 2).substring(0, 3000)}`);
+
             // Call the LLM
             const startTime = Date.now();
             const result = await generativeModel.generateContent({
