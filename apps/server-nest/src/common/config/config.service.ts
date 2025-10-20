@@ -1,6 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { EnvVariables } from './config.schema';
 
+/**
+ * Configuration service that provides access to environment variables and database settings.
+ * 
+ * For extraction base prompt:
+ * 1. First checks database setting: kb.settings WHERE key = 'extraction.basePrompt'
+ * 2. Then checks environment variable: EXTRACTION_BASE_PROMPT
+ * 3. Finally falls back to default prompt
+ * 
+ * Note: Database settings are loaded asynchronously at runtime by the extraction worker.
+ */
 @Injectable()
 export class AppConfigService {
     constructor(@Inject(EnvVariables) private readonly env: EnvVariables) {
@@ -105,5 +115,18 @@ export class AppConfigService {
 
     get extractionChunkOverlap() {
         return this.env.EXTRACTION_CHUNK_OVERLAP || 2000;
+    }
+
+    get extractionBasePrompt(): string {
+        return this.env.EXTRACTION_BASE_PROMPT ||
+            `You are an expert entity extraction system. Your task is to analyze the provided document and extract structured entities according to the schema definitions that follow.
+
+Extract entities that match the defined types. For each entity:
+- Provide a clear, descriptive name
+- Include all relevant properties from the schema
+- Assign appropriate confidence scores (0.0-1.0)
+- Identify relationships between entities
+
+Return your response as a valid JSON array matching the expected schema format.`;
     }
 }
