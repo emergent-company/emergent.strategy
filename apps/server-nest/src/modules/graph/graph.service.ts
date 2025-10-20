@@ -339,6 +339,30 @@ export class GraphService {
     }
 
     /**
+     * Get all distinct tags across all graph objects in the project.
+     * Tags are stored in properties.tags as an array of strings.
+     * This method is used for:
+     * 1. Populating tag filter dropdowns in the UI
+     * 2. Providing available tags to LLM extraction prompts
+     * 
+     * @param ctx Tenant context (org_id, project_id)
+     * @returns Array of distinct tag strings, sorted alphabetically
+     */
+    async getAllTags(ctx?: GraphTenantContext): Promise<string[]> {
+        return this.runWithRequestContext(ctx, undefined, undefined, async () => {
+            const res = await this.db.query<{ tag: string }>(
+                `SELECT DISTINCT jsonb_array_elements_text(properties->'tags') as tag 
+                 FROM kb.graph_objects 
+                 WHERE properties ? 'tags'
+                 AND properties->'tags' IS NOT NULL
+                 AND deleted_at IS NULL
+                 ORDER BY tag`
+            );
+            return res.rows.map(row => row.tag);
+        });
+    }
+
+    /**
      * Resolve object HEAD on a branch with lazy fallback to ancestor branches.
      * Per spec Section 5.6.1: Uses recursive CTE to walk branch lineage,
      * picks earliest depth (closest branch) then highest version.

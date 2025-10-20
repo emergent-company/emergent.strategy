@@ -295,7 +295,12 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             operationType: 'validation',
             operationName: 'job_started',
             status: 'success',
-            inputData: job,
+            inputData: {
+                source_type: job.source_type,
+                source_id: job.source_id,
+                project_id: job.project_id,
+                organization_id: job.organization_id ?? job.org_id,
+            },
         });
 
         const timeline: TimelineEvent[] = [];
@@ -367,14 +372,6 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         });
 
         try {
-            // Log the start of the job with its configuration
-            await this.extractionLogger.logStep({
-                extractionJobId: job.id,
-                stepIndex: this.stepCounter++,
-                operationType: 'chunk_processing',
-                operationName: 'job_started',
-                inputData: job,
-            });
 
             // 1. Load document content
             const documentStep = beginTimelineStep('load_document', {
@@ -475,6 +472,26 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             // Track LLM call timing for detailed logs
             const llmCallStartTime = Date.now();
 
+            // Create pending log entry for LLM call
+            const llmLogId = await this.extractionLogger.logStep({
+                extractionJobId: job.id,
+                stepIndex: this.stepCounter++,
+                operationType: 'llm_call',
+                operationName: 'extract_entities',
+                status: 'pending',
+                inputData: {
+                    prompt: extractionPrompt,
+                    document_content: documentContent,
+                    content_length: documentContent.length,
+                    allowed_types: allowedTypes,
+                    schema_types: Object.keys(objectSchemas),
+                },
+                metadata: {
+                    provider: providerName,
+                    model: this.config.vertexAiModel,
+                },
+            });
+
             try {
                 const result = await llmProvider.extractEntities(
                     documentContent,
@@ -507,20 +524,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
                 extractionResult = result;
 
-                // Log combined LLM call (input + output in single entry)
-                await this.extractionLogger.logStep({
-                    extractionJobId: job.id,
-                    stepIndex: this.stepCounter++,
-                    operationType: 'llm_call',
-                    operationName: 'extract_entities',
+                // Update log entry with success
+                await this.extractionLogger.updateLogStep(llmLogId, {
                     status: 'success',
-                    inputData: {
-                        prompt: extractionPrompt,
-                        document_content: documentContent,
-                        content_length: documentContent.length,
-                        allowed_types: allowedTypes,
-                        schema_types: Object.keys(objectSchemas),
-                    },
                     outputData: {
                         entities_count: result.entities.length,
                         entities: result.entities.map(e => ({
@@ -549,18 +555,23 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 });
             } catch (error) {
                 const message = toErrorMessage(error);
-                const metadata = (error as Error & { llmStepMetadata?: Record<string, any> })?.llmStepMetadata;
+                const errorWithMeta = error as Error & { llmStepMetadata?: Record<string, any>; responseMetadata?: any };
+                const metadata = errorWithMeta.llmStepMetadata;
+                const responseMetadata = errorWithMeta.responseMetadata;
 
-                // Log LLM call error
-                await this.extractionLogger.logStep({
-                    extractionJobId: job.id,
-                    stepIndex: this.stepCounter++,
-                    operationType: 'error',
-                    operationName: 'extract_entities',
+                // Update log entry with error
+                await this.extractionLogger.updateLogStep(llmLogId, {
                     status: 'error',
                     errorMessage: message,
                     errorStack: (error as Error).stack,
                     durationMs: Date.now() - llmCallStartTime,
+                    outputData: responseMetadata ? {
+                        llm_response_preview: responseMetadata.rawTextPreview,
+                        response_length: responseMetadata.responseLength,
+                        finish_reason: responseMetadata.finishReason,
+                        extracted_json_preview: responseMetadata.extractedJsonPreview,
+                        parse_error: responseMetadata.parseError,
+                    } : undefined,
                     metadata: {
                         provider: providerName,
                         ...metadata,
