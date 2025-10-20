@@ -222,7 +222,6 @@ export function ExtractionLogsModal({ open, onOpenChange, jobId }: ExtractionLog
                                         <th className="w-40">Operation</th>
                                         <th className="w-24">Status</th>
                                         <th className="w-24">Duration</th>
-                                        <th className="w-24">Tokens</th>
                                         <th className="w-24">Actions</th>
                                     </tr>
                                 </thead>
@@ -244,9 +243,6 @@ export function ExtractionLogsModal({ open, onOpenChange, jobId }: ExtractionLog
                                                     </span>
                                                 </td>
                                                 <td className="font-mono text-xs">{formatDuration(log.duration_ms)}</td>
-                                                <td className="font-mono text-xs">
-                                                    {log.tokens_used ? log.tokens_used.toLocaleString() : '-'}
-                                                </td>
                                                 <td>
                                                     <button
                                                         className="btn btn-xs btn-ghost"
@@ -258,8 +254,25 @@ export function ExtractionLogsModal({ open, onOpenChange, jobId }: ExtractionLog
                                             </tr>
                                             {expandedLogId === log.id && (
                                                 <tr>
-                                                    <td colSpan={7} className="bg-base-300/30">
+                                                    <td colSpan={6} className="bg-base-300/30">
                                                         <div className="space-y-4 p-4">
+                                                            {/* Tokens Used (if available) */}
+                                                            {log.tokens_used && (
+                                                                <div className="bg-info/10 p-3 rounded-lg">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Icon icon="lucide--coins" className="text-info" />
+                                                                        <span className="font-medium text-info text-sm">Tokens Used:</span>
+                                                                        <span className="font-bold text-info">{log.tokens_used.toLocaleString()}</span>
+                                                                    </div>
+                                                                    {log.metadata?.prompt_tokens !== undefined && log.metadata?.completion_tokens !== undefined && (
+                                                                        <div className="mt-2 text-xs text-info/70">
+                                                                            Prompt: {log.metadata.prompt_tokens.toLocaleString()} • 
+                                                                            Completion: {log.metadata.completion_tokens.toLocaleString()}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
                                                             {/* Input Data */}
                                                             {log.input_data && Object.keys(log.input_data).length > 0 && (
                                                                 <div>

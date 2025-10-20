@@ -57,7 +57,7 @@ export default function ObjectsPage() {
                 // Transform API response to component format
                 const transformedObjects: GraphObject[] = response.items.map(obj => ({
                     id: obj.id,
-                    name: obj.key || (obj.properties?.name as string) || (obj.properties?.title as string) || `${obj.type}-${obj.id.substring(0, 8)}`,
+                    name: (obj.properties?.name as string) || (obj.properties?.title as string) || obj.key || `${obj.type}-${obj.id.substring(0, 8)}`,
                     type: obj.type,
                     source: obj.external_type || (obj.properties?._extraction_source as string) || undefined,
                     updated_at: obj.created_at,  // Use created_at as updated_at
@@ -83,7 +83,7 @@ export default function ObjectsPage() {
                 // Transform API response to component format
                 const transformedObjects: GraphObject[] = response.items.map(obj => ({
                     id: obj.id,
-                    name: obj.key || (obj.properties?.name as string) || (obj.properties?.title as string) || `${obj.type}-${obj.id.substring(0, 8)}`,
+                    name: (obj.properties?.name as string) || (obj.properties?.title as string) || obj.key || `${obj.type}-${obj.id.substring(0, 8)}`,
                     type: obj.type,
                     source: obj.external_type || (obj.properties?._extraction_source as string) || undefined,
                     updated_at: obj.created_at,  // Use created_at as updated_at
