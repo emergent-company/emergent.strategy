@@ -25,6 +25,7 @@ import { DiscoveryJobModule } from './discovery-jobs/discovery-job.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { ClickUpModule } from './clickup/clickup.module';
+import { McpModule } from './mcp/mcp.module';
 
 @Module({
     imports: [
@@ -53,6 +54,7 @@ import { ClickUpModule } from './clickup/clickup.module';
         NotificationsModule,
         IntegrationsModule,
         ClickUpModule,
+        McpModule,
         DatabaseModule,
     ],
 })
