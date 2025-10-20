@@ -39,10 +39,11 @@
     "react-daisyui Docs": {
       "type": "remote",
       "url": "https://gitmcp.io/daisyui/react-daisyui"
-    },
-    "nx-mcp": {
-      "command": "npx",
-      "args": ["nx-mcp@latest"]
     }
+    // ,
+    // "nx-mcp": {
+    //   "command": "npx",
+    //   "args": ["nx-mcp@latest"]
+    // }
   }
 }

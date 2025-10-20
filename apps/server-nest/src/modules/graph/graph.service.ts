@@ -330,9 +330,14 @@ export class GraphService {
 
     async getObject(id: string, ctx?: GraphTenantContext): Promise<GraphObjectDto> {
         return this.runWithRequestContext(ctx, undefined, undefined, async () => {
-            const res = await this.db.query<GraphObjectRow>(
-                `SELECT id, org_id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, created_at
-                 FROM kb.graph_objects WHERE id=$1`, [id]);
+            const res = await this.db.query<GraphObjectRow & { revision_count: number }>(
+                `SELECT 
+                    o.id, o.org_id, o.project_id, o.canonical_id, o.supersedes_id, o.version, 
+                    o.type, o.key, o.properties, o.labels, o.deleted_at, o.created_at,
+                    COALESCE(rc.revision_count, 1) as revision_count
+                 FROM kb.graph_objects o
+                 LEFT JOIN kb.graph_object_revision_counts rc ON rc.canonical_id = o.canonical_id
+                 WHERE o.id=$1`, [id]);
             if (!res.rowCount) throw new NotFoundException('object_not_found');
             return res.rows[0];
         });
@@ -359,6 +364,70 @@ export class GraphService {
                  ORDER BY tag`
             );
             return res.rows.map(row => row.tag);
+        });
+    }
+
+    /**
+     * Get version history for an object by its ID.
+     * Returns all versions in the version chain (linked by canonical_id).
+     * Versions are ordered newest to oldest (version DESC).
+     * 
+     * @param objectId The ID of any version of the object
+     * @param ctx Tenant context for RLS
+     * @returns Array of all versions with metadata
+     * @throws NotFoundException if object not found
+     */
+    async getObjectVersions(objectId: string, ctx?: GraphTenantContext): Promise<any[]> {
+        return this.runWithRequestContext(ctx, undefined, undefined, async () => {
+            // First, get the canonical_id for this object
+            const objRes = await this.db.query<{ canonical_id: string; version: number }>(
+                `SELECT canonical_id, version FROM kb.graph_objects WHERE id = $1`,
+                [objectId]
+            );
+
+            if (objRes.rows.length === 0) {
+                throw new NotFoundException(`Object with id ${objectId} not found`);
+            }
+
+            const { canonical_id, version: currentVersion } = objRes.rows[0];
+
+            // Get all versions in this chain
+            const versionsRes = await this.db.query<GraphObjectRow>(
+                `SELECT 
+                    id, version, supersedes_id, canonical_id,
+                    type, key, properties, labels,
+                    change_summary, content_hash,
+                    created_at, deleted_at
+                FROM kb.graph_objects
+                WHERE canonical_id = $1
+                ORDER BY version DESC`,
+                [canonical_id]
+            );
+
+            // Map to version DTOs
+            return versionsRes.rows.map((row, idx) => {
+                // Extract user info from properties if available
+                const createdBy = row.properties?._created_by as string | undefined;
+                const extractionJobId = row.properties?._extraction_job_id as string | undefined;
+
+                return {
+                    id: row.id,
+                    version: row.version,
+                    supersedes_id: row.supersedes_id || undefined,
+                    canonical_id: row.canonical_id,
+                    type: row.type,
+                    key: row.key || undefined,
+                    properties: row.properties || {},
+                    labels: row.labels || [],
+                    change_summary: row.change_summary || undefined,
+                    content_hash: row.content_hash ? Buffer.from(row.content_hash).toString('base64') : undefined,
+                    created_at: row.created_at,
+                    deleted_at: row.deleted_at || undefined,
+                    created_by: createdBy,
+                    extraction_job_id: extractionJobId,
+                    is_current: idx === 0 && row.version === currentVersion, // First item with matching version is current
+                };
+            });
         });
     }
 

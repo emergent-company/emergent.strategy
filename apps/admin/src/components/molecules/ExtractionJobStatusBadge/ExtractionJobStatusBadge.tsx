@@ -28,9 +28,9 @@ const STATUS_CONFIG: Record<ExtractionJobStatus, {
     badgeClass: string;
 }> = {
     pending: {
-        label: 'Pending',
-        icon: 'lucide--clock',
-        badgeClass: 'badge-warning badge-soft',
+        label: 'Running',
+        icon: 'lucide--loader-circle',
+        badgeClass: 'badge-info',
     },
     running: {
         label: 'Running',
@@ -77,7 +77,7 @@ export function ExtractionJobStatusBadge({
             {showIcon && (
                 <Icon
                     icon={config.icon}
-                    className={status === 'running' ? 'animate-spin' : ''}
+                    className={status === 'running' || status === 'pending' ? 'animate-spin' : ''}
                 />
             )}
             <span>{config.label}</span>
