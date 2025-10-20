@@ -45,9 +45,11 @@ User Input → Chat Controller → Chat Service → Chat Generation Service
    - ⚠️ **Citation retrieval** (hybrid search: vector + full-text) - **TO BE DISABLED**
 
 3. **ChatGenerationService** (`chat-generation.service.ts`):
-   - Wraps Vertex AI Gemini model
+   - Wraps Vertex AI with configurable model (via `VERTEX_AI_MODEL` env var)
+   - Default models: `gemini-1.5-flash-latest`, `gemini-1.5-pro-002`, `gemini-2.0-flash-exp`
    - `generateStreaming()` - Token-by-token streaming
    - Prompt assembly
+   - Model configured through `AppConfigService.vertexAiModel`
 
 **Current Generation Flow** (DEPRECATED):
 ```typescript
@@ -136,6 +138,8 @@ async searchTypes(projectId: string, orgId: string, query: string): Promise<Type
 
 #### 3. Enhanced Chat Generation
 **Modify**: `apps/server-nest/src/modules/chat/chat-generation.service.ts`
+
+**Configuration Note**: The service uses `this.config.vertexAiModel` which reads from `VERTEX_AI_MODEL` environment variable. This can be any Vertex AI model (e.g., `gemini-1.5-flash-latest`, `gemini-1.5-pro-002`, `gemini-2.0-flash-exp`).
 
 **New Method**: `generateWithTools()`
 
@@ -266,7 +270,8 @@ interface MCPToolState {
 
 #### Step 3.1: LLM-Based Intent Detection (4 hours)
 - Replace keyword detection with lightweight classifier
-- Use Gemini Flash for fast intent classification
+- Use configurable Vertex AI model (via `VERTEX_AI_MODEL` env var) for fast intent classification
+- Consider using a faster model like `gemini-1.5-flash-latest` for intent detection
 - Reduce false positives
 
 #### Step 3.2: Multi-Turn Schema Conversations (3 hours)
@@ -309,6 +314,118 @@ interface MCPToolState {
 - ✅ Object-level permissions (not document chunks)
 - ✅ Graph traversal capabilities (multi-hop queries)
 - ✅ Better for reasoning about connections
+
+---
+
+## Citation Retrieval → Graph Search Transition
+
+### Current System (To Be Disabled)
+
+**Hybrid Search (RRF - Reciprocal Rank Fusion)**:
+```sql
+WITH vec AS (
+    -- Vector similarity ranking (embedding <=> query_embedding)
+    SELECT id, 1.0 / (ROW_NUMBER() + 60) AS rrf
+    FROM kb.chunks
+    ORDER BY embedding <=> query_vector
+    LIMIT topK
+),
+lex AS (
+    -- Full-text ranking (tsvector @@ tsquery)
+    SELECT id, 1.0 / (ROW_NUMBER() + 60) AS rrf
+    FROM kb.chunks
+    WHERE tsv @@ websearch_query
+    ORDER BY ts_rank(tsv, websearch_query) DESC
+    LIMIT topK
+)
+-- Combine scores and return top results
+SELECT * FROM (vec UNION ALL lex)
+GROUP BY id ORDER BY SUM(rrf) DESC
+```
+
+**Problems**:
+1. Returns **unstructured text chunks** (not objects)
+2. No **relationship context** (just content similarity)
+3. **Document-centric** (not knowledge graph oriented)
+4. Chunks can span multiple entities without structure
+
+### Future System (Graph Search)
+
+**Natural Language → Graph Query**:
+```typescript
+User: "Show me Projects related to the Product Roadmap document"
+
+System Translation:
+1. Detect entities: "Product Roadmap" (Document)
+2. Detect relationship: "related to"
+3. Detect target type: "Projects"
+
+Graph Query:
+{
+  match: {
+    type: "Document",
+    name: "Product Roadmap"
+  },
+  traverse: {
+    relationship: "related_to",
+    direction: "outbound",
+    targetType: "Project"
+  }
+}
+
+Response (structured):
+{
+  source: { id: "doc-123", type: "Document", name: "Product Roadmap" },
+  targets: [
+    { id: "proj-456", type: "Project", name: "Q4 Planning" },
+    { id: "proj-789", type: "Project", name: "Product Launch" }
+  ],
+  relationships: [
+    { from: "doc-123", to: "proj-456", type: "supports", properties: {} },
+    { from: "doc-123", to: "proj-789", type: "documents", properties: {} }
+  ]
+}
+
+LLM Response:
+"The Product Roadmap document is related to 2 projects:
+- Q4 Planning (supports)
+- Product Launch (documents)
+Would you like to explore any of these relationships further?"
+```
+
+**Benefits**:
+- ✅ **Structured**: Objects with types, properties, relationships
+- ✅ **Contextual**: Relationship semantics (not just "similar content")
+- ✅ **Graph-aware**: Multi-hop traversal, path finding
+- ✅ **Permissions**: Object-level access control
+- ✅ **Reasoning**: LLM can reason about structure
+
+### Transition Strategy
+
+**Phase 1 (Week 1)**: Disable citations, add schema context only
+```typescript
+// No document chunks
+// Only schema information (types, relationships, version)
+const prompt = `Schema: ${schemaContext}\n\nQuestion: ${userQuestion}`;
+```
+
+**Phase 2 (Week 2-3)**: Build graph query infrastructure
+- Design natural language → query translator
+- Implement permission-aware graph queries
+- Test with simple queries ("find objects of type X")
+
+**Phase 3 (Week 4+)**: Replace citations with graph results
+```typescript
+// Graph-based context (structured)
+const graphResults = await this.graphSearch.execute(query, userId);
+const structuredContext = JSON.stringify(graphResults);
+const prompt = `Graph Results: ${structuredContext}\n\nQuestion: ${userQuestion}`;
+```
+
+**Phase 4 (Future)**: Advanced graph reasoning
+- Multi-hop traversal ("Projects → Documents → Tags")
+- Path finding ("How is X related to Y?")
+- Aggregation ("Count all Documents in Project Z")
 
 ---
 

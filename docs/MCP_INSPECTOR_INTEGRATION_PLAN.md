@@ -9,9 +9,17 @@
 
 ## Executive Summary
 
-This document outlines the plan to integrate the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) into our development workflow for testing and debugging the spec-server MCP implementation. The Inspector provides an interactive UI for exploring tools, testing parameters, and monitoring server responses.
+This document outlines the plan to integrate the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) into our development workflow for testing and debugging the spec-server MCP implementation. **The integration uses stdio transport to match how real AI agents (Claude Desktop, GitHub Copilot, Gemini CLI) connect to MCP servers.**
 
-**Goal**: Enable developers to test and validate MCP tools locally without requiring Claude Desktop or other AI agent clients.
+**Goal**: Enable developers to test MCP tools with Inspector using the **exact same connection method** as production AI agents - maximizing compatibility and realistic testing.
+
+**Key Decision**: Use **stdio transport** (not HTTP) for 100% compatibility with:
+- Claude Desktop (.vscode/mcp.json pattern)
+- GitHub Copilot MCP integration
+- Gemini CLI
+- Any other MCP client using stdio
+
+**Performance**: Not a concern - compatibility is the priority.
 
 ---
 
@@ -76,262 +84,600 @@ The MCP Inspector is an official tool from the Model Context Protocol team that 
 
 ## Integration Architecture
 
-### Option 1: Stdio Transport (RECOMMENDED)
+### ✅ CHOSEN: Stdio Transport (Maximum Compatibility)
 
 **How it works**:
 ```
-Inspector (npx) → Spawns → NestJS App (stdio mode) → MCP Protocol → Tools
+Inspector (npx) → Spawns → NestJS Stdio Wrapper → MCP SDK → MCP Tools
 ```
 
-**Advantages**:
-- ✅ Simple setup (no HTTP server required)
-- ✅ Matches Claude Desktop transport
-- ✅ Built-in process management
-- ✅ No port conflicts
+**Why stdio**:
+- ✅ **Identical to Claude Desktop**: Same transport, same behavior
+- ✅ **Matches existing .vscode/mcp.json**: postgres, playwright, context7 all use stdio
+- ✅ **Compatible with all MCP clients**: Works with Copilot, Gemini CLI, etc.
+- ✅ **Built-in process management**: Inspector spawns and manages process
+- ✅ **Simple connection**: No ports, no HTTP server, no CORS
+- ✅ **Standard MCP pattern**: JSON-RPC over stdin/stdout
 
-**Disadvantages**:
-- ⚠️ Requires creating stdio transport wrapper
-- ⚠️ Auth tokens need special handling
-- ⚠️ Limited to single session
+**Real-world examples from .vscode/mcp.json**:
+```json
+{
+  "postgres": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://..."]
+  },
+  "playwright": {
+    "command": "npx", 
+    "args": ["@playwright/mcp@latest", "--timeout-action=10000"]
+  },
+  "context7": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "@upstash/context7-mcp", "--api-key", "..."]
+  }
+}
+```
 
-**Command**:
+**Our equivalent**:
+```json
+{
+  "spec-server": {
+    "command": "node",
+    "args": ["apps/server-nest/dist/mcp-stdio.js"],
+    "env": {
+      "AUTH_TOKEN": "schema-read-token",
+      "NODE_ENV": "test",
+      "DATABASE_URL": "postgresql://spec:spec@localhost:5432/spec"
+    }
+  }
+}
+```
+
+**Command for Inspector**:
 ```bash
-npx @modelcontextprotocol/inspector node path/to/stdio-wrapper.js --auth-token=schema-read-token
+# Same command that Claude Desktop would use!
+AUTH_TOKEN=schema-read-token NODE_ENV=test \
+  npx @modelcontextprotocol/inspector node apps/server-nest/dist/mcp-stdio.js
 ```
+
+**Why this matters**:
+- Inspector spawns process **exactly** like Claude Desktop would
+- Same environment variables, same stdio transport, same JSON-RPC protocol
+- If it works in Inspector, it **will** work in Claude Desktop
+- Zero surprises when integrating with real AI agents
 
 ---
 
-### Option 2: HTTP/SSE Transport (ALTERNATIVE)
+### Alternative: HTTP/SSE Transport (NOT RECOMMENDED)
 
-**How it works**:
-```
-Inspector (web UI) → HTTP/SSE → NestJS HTTP Server → MCP Controller → Tools
-```
+**Why NOT HTTP**:
+- ❌ Different from Claude Desktop (stdio-based)
+- ❌ Requires separate server process
+- ❌ Auth token handling different (HTTP headers vs env vars)
+- ❌ Not compatible with typical MCP client configs
+- ❌ Adds complexity (CORS, ports, networking)
 
-**Advantages**:
-- ✅ Works with existing HTTP server
-- ✅ No wrapper needed
-- ✅ Matches production transport
-- ✅ Can test auth headers naturally
-
-**Disadvantages**:
-- ⚠️ Requires server to be running separately
-- ⚠️ Need to configure HTTP transport in Inspector
-- ⚠️ More complex connection setup
-
-**Command**:
-```bash
-# Terminal 1: Start server
-npm --prefix apps/server-nest run start:dev
-
-# Terminal 2: Start inspector
-npx @modelcontextprotocol/inspector http://localhost:3001/mcp
-```
-
----
-
-### Option 3: NPM Package Transport (NOT RECOMMENDED)
-
-**Why not recommended**:
-- ❌ Our server is not published as NPM package
-- ❌ Would require packaging just for testing
-- ❌ Adds unnecessary complexity
-- ❌ Harder to test local changes
-
----
-
-## Recommended Approach: Hybrid Strategy
-
-Use **both transports** for different scenarios:
-
-### Development Flow:
-1. **Quick iteration** → Use **stdio** (fast reconnects)
-2. **Auth testing** → Use **HTTP** (real auth headers)
-3. **Final validation** → Use **HTTP** (production-like)
+**Conclusion**: Use stdio for maximum compatibility with real AI agents!
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: HTTP Transport Integration (EASIEST - START HERE)
+### Phase 1: Stdio Wrapper Implementation (REQUIRED)
 
-**Goal**: Get Inspector working with existing HTTP server  
-**Time**: 30-45 minutes  
-**Risk**: Low
+**Goal**: Create stdio transport wrapper matching Claude Desktop/Copilot pattern  
+**Time**: 60-90 minutes  
+**Risk**: Low (well-documented MCP SDK pattern)  
+**Priority**: HIGH (required for compatibility)
 
 #### Tasks
 
-##### 1.1 Verify HTTP Transport Compatibility (15 min)
-- [ ] Check if current MCP endpoints support SSE
-- [ ] Test connection from Inspector to running server
-- [ ] Verify CORS headers if needed
+##### 1.1 Install MCP SDK Dependencies (5 min)
 
-##### 1.2 Create Inspector Launch Script (10 min)
+Already installed: `@modelcontextprotocol/sdk` (via @rekog/mcp-nest)
+
+Verify:
 ```bash
-# scripts/mcp-inspector.sh
-#!/bin/bash
-
-# Ensure server is running
-echo "🔍 Starting MCP Inspector..."
-echo "📡 Connecting to http://localhost:3001/mcp"
-echo ""
-echo "Available test tokens:"
-echo "  - schema-read-token (schema:read)"
-echo "  - data-read-token (schema:read, data:read)"
-echo "  - data-write-token (all data scopes)"
-echo "  - e2e-all (all scopes)"
-echo ""
-
-# Launch inspector
-npx @modelcontextprotocol/inspector http://localhost:3001/mcp \
-  --header "Authorization: Bearer schema-read-token"
+npm ls @modelcontextprotocol/sdk
 ```
 
-- [ ] Create script at `scripts/mcp-inspector.sh`
-- [ ] Make executable: `chmod +x scripts/mcp-inspector.sh`
-- [ ] Test launch
+##### 1.2 Create Stdio Entry Point (45 min)
 
-##### 1.3 Document Usage (10 min)
-- [ ] Add section to `README.md` or `RUNBOOK.md`
-- [ ] Document available test tokens
-- [ ] Add troubleshooting tips
-
-##### 1.4 Validate All Tools (10 min)
-- [ ] Test `schema_listTypes` with Inspector
-- [ ] Test `schema_getTypeDetails` with parameters
-- [ ] Test `data_getObjectsByType` with filters
-- [ ] Verify error handling for invalid inputs
-
-**Deliverables**:
-- ✅ Launch script
-- ✅ Documentation in RUNBOOK.md
-- ✅ Validated tool testing workflow
-
----
-
-### Phase 2: Stdio Transport Integration (OPTIONAL - MORE REALISTIC)
-
-**Goal**: Test with stdio transport (matches Claude Desktop)  
-**Time**: 1-2 hours  
-**Risk**: Medium (requires new code)
-
-#### Tasks
-
-##### 2.1 Create Stdio Wrapper (60 min)
-
-**File**: `apps/server-nest/src/mcp-stdio-wrapper.ts`
+**File**: `apps/server-nest/src/mcp-stdio.ts`
 
 ```typescript
+#!/usr/bin/env node
+import 'reflect-metadata';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+  Tool,
+} from '@modelcontextprotocol/sdk/types.js';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { McpModule } from './modules/mcp/mcp.module';
+import { AppModule } from './modules/app.module';
+import { SchemaTool } from './modules/mcp/tools/schema.tool';
+import { SpecificDataTool } from './modules/mcp/tools/specific-data.tool';
+import { GenericDataTool } from './modules/mcp/tools/generic-data.tool';
 
 /**
- * MCP Inspector Stdio Wrapper
+ * MCP Stdio Server - Claude Desktop Compatible
  * 
- * Launches NestJS app with stdio transport for MCP Inspector testing.
- * Usage: node dist/mcp-stdio-wrapper.js --auth-token=<token>
+ * Launches NestJS app with stdio transport for MCP clients.
+ * Matches the pattern used by Claude Desktop, GitHub Copilot, etc.
+ * 
+ * Usage:
+ *   node dist/mcp-stdio.js
+ * 
+ * Environment:
+ *   AUTH_TOKEN - Test token for authentication (default: schema-read-token)
+ *   NODE_ENV - Set to 'test' to enable mock tokens
+ *   DATABASE_URL - PostgreSQL connection string
  */
-async function bootstrap() {
-  // Parse auth token from CLI args
-  const args = process.argv.slice(2);
-  const tokenArg = args.find(arg => arg.startsWith('--auth-token='));
-  const authToken = tokenArg?.split('=')[1] || 'schema-read-token';
 
-  // Create app
+async function main() {
+  // Get auth token from env (for testing)
+  const authToken = process.env.AUTH_TOKEN || 'schema-read-token';
+  
+  // Bootstrap NestJS app (silent mode)
   const app = await NestFactory.create(AppModule, {
-    logger: ['error', 'warn'], // Reduce noise in stdio
+    logger: false, // Disable console logging (interferes with stdio)
   });
-
-  // Get MCP service
-  const mcpService = app.get(McpModule);
-
-  // Set up stdio transport
-  process.stdin.on('data', async (data) => {
-    try {
-      const message = JSON.parse(data.toString());
-      
-      // Add auth context from CLI token
-      const context = { authToken };
-      
-      // Route to MCP service
-      const response = await mcpService.handleMessage(message, context);
-      
-      // Write response to stdout
-      process.stdout.write(JSON.stringify(response) + '\n');
-    } catch (error) {
-      // Error handling
-      const errorResponse = {
-        jsonrpc: '2.0',
-        error: {
-          code: -32000,
-          message: error.message,
+  
+  await app.init();
+  
+  // Get MCP tool services from DI container
+  const schemaTool = app.get(SchemaTool);
+  const specificDataTool = app.get(SpecificDataTool);
+  const genericDataTool = app.get(GenericDataTool);
+  
+  // Create MCP server
+  const server = new Server(
+    {
+      name: 'spec-server',
+      version: '1.0.0',
+    },
+    {
+      capabilities: {
+        tools: {},
+      },
+    }
+  );
+  
+  // Register tool list handler
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
+    const tools: Tool[] = [
+      // Schema tools (4)
+      {
+        name: 'schema_listTypes',
+        description: 'List all available object types in the knowledge graph',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            include_system_types: {
+              type: 'boolean',
+              description: 'Include system types (default: false)',
+            },
+            category: {
+              type: 'string',
+              description: 'Filter by category',
+            },
+          },
         },
-        id: null,
+      },
+      {
+        name: 'schema_getTypeDetails',
+        description: 'Get detailed schema for a specific object type',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            type_name: {
+              type: 'string',
+              description: 'Name of the object type',
+            },
+          },
+          required: ['type_name'],
+        },
+      },
+      {
+        name: 'schema_listRelationships',
+        description: 'List available relationship types',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            from_type: {
+              type: 'string',
+              description: 'Filter by source type',
+            },
+            to_type: {
+              type: 'string',
+              description: 'Filter by target type',
+            },
+          },
+        },
+      },
+      {
+        name: 'schema_getPropertyDetails',
+        description: 'Get detailed information about a property',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            type_name: {
+              type: 'string',
+              description: 'Name of the object type',
+            },
+            property_name: {
+              type: 'string',
+              description: 'Name of the property',
+            },
+          },
+          required: ['type_name', 'property_name'],
+        },
+      },
+      // Specific data tools (6)
+      {
+        name: 'data_getPersons',
+        description: 'Query Person objects with filtering and pagination',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            limit: { type: 'number', description: 'Max results (default: 10, max: 100)' },
+            cursor: { type: 'string', description: 'Pagination cursor' },
+            filters: { type: 'object', description: 'Property filters' },
+          },
+        },
+      },
+      {
+        name: 'data_getTasks',
+        description: 'Query Task objects with filtering and pagination',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            limit: { type: 'number' },
+            cursor: { type: 'string' },
+            filters: { type: 'object' },
+          },
+        },
+      },
+      {
+        name: 'data_getPersonById',
+        description: 'Fetch specific Person by ID',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: 'Person ID' },
+          },
+          required: ['id'],
+        },
+      },
+      {
+        name: 'data_getTaskById',
+        description: 'Fetch specific Task by ID',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: 'Task ID' },
+          },
+          required: ['id'],
+        },
+      },
+      {
+        name: 'data_getPersonRelationships',
+        description: 'Get all relationships for a Person',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            person_id: { type: 'string', description: 'Person ID' },
+            relationship_type: { type: 'string', description: 'Filter by type' },
+            limit: { type: 'number' },
+          },
+          required: ['person_id'],
+        },
+      },
+      {
+        name: 'data_getTaskRelationships',
+        description: 'Get all relationships for a Task',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Task ID' },
+            relationship_type: { type: 'string' },
+            limit: { type: 'number' },
+          },
+          required: ['task_id'],
+        },
+      },
+      // Generic data tools (3)
+      {
+        name: 'data_getObjectsByType',
+        description: 'Query any object type without specialized tool',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            type: { type: 'string', description: 'Object type name' },
+            limit: { type: 'number' },
+            cursor: { type: 'string' },
+            label: { type: 'string' },
+          },
+          required: ['type'],
+        },
+      },
+      {
+        name: 'data_getObjectById',
+        description: 'Fetch any object by ID',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: 'Object ID' },
+          },
+          required: ['id'],
+        },
+      },
+      {
+        name: 'data_getRelatedObjects',
+        description: 'Generic relationship traversal',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            object_id: { type: 'string' },
+            relationship_type: { type: 'string' },
+            direction: { 
+              type: 'string',
+              enum: ['incoming', 'outgoing', 'both'],
+              description: 'Relationship direction',
+            },
+            limit: { type: 'number' },
+          },
+          required: ['object_id'],
+        },
+      },
+    ];
+    
+    return { tools };
+  });
+  
+  // Register tool call handler
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+    
+    // Mock auth context (in real usage, extract from MCP session)
+    const authContext = { token: authToken };
+    
+    try {
+      let result;
+      
+      // Route to appropriate tool
+      switch (name) {
+        // Schema tools
+        case 'schema_listTypes':
+          result = await schemaTool.listTypes(args);
+          break;
+        case 'schema_getTypeDetails':
+          result = await schemaTool.getTypeDetails(args);
+          break;
+        case 'schema_listRelationships':
+          result = await schemaTool.listRelationships(args);
+          break;
+        case 'schema_getPropertyDetails':
+          result = await schemaTool.getPropertyDetails(args);
+          break;
+          
+        // Specific data tools
+        case 'data_getPersons':
+          result = await specificDataTool.getPersons(args);
+          break;
+        case 'data_getTasks':
+          result = await specificDataTool.getTasks(args);
+          break;
+        case 'data_getPersonById':
+          result = await specificDataTool.getPersonById(args);
+          break;
+        case 'data_getTaskById':
+          result = await specificDataTool.getTaskById(args);
+          break;
+        case 'data_getPersonRelationships':
+          result = await specificDataTool.getPersonRelationships(args);
+          break;
+        case 'data_getTaskRelationships':
+          result = await specificDataTool.getTaskRelationships(args);
+          break;
+          
+        // Generic data tools
+        case 'data_getObjectsByType':
+          result = await genericDataTool.getObjectsByType(args);
+          break;
+        case 'data_getObjectById':
+          result = await genericDataTool.getObjectById(args);
+          break;
+        case 'data_getRelatedObjects':
+          result = await genericDataTool.getRelatedObjects(args);
+          break;
+          
+        default:
+          throw new Error(`Unknown tool: ${name}`);
+      }
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
       };
-      process.stdout.write(JSON.stringify(errorResponse) + '\n');
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              error: {
+                code: 'tool_execution_error',
+                message: error.message,
+              },
+            }, null, 2),
+          },
+        ],
+        isError: true,
+      };
     }
   });
-
-  // Handle process termination
-  process.on('SIGINT', async () => {
-    await app.close();
-    process.exit(0);
-  });
-
-  console.error('MCP Server ready on stdio (token: ' + authToken + ')');
+  
+  // Connect stdio transport
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  
+  // Log to stderr (stdout is reserved for MCP protocol)
+  console.error('MCP server ready on stdio');
+  console.error(`Auth token: ${authToken}`);
 }
 
-bootstrap();
+main().catch((error) => {
+  console.error('Failed to start MCP server:', error);
+  process.exit(1);
+});
 ```
 
-- [ ] Create wrapper file
-- [ ] Add build step to compile wrapper
-- [ ] Test with Inspector
+- [ ] Create `apps/server-nest/src/mcp-stdio.ts`
+- [ ] Add shebang for direct execution
+- [ ] Test compilation: `npm run build`
 
-##### 2.2 Update Launch Script (15 min)
+##### 1.3 Add Build Configuration (10 min)
 
+Update `apps/server-nest/tsconfig.json` (if needed):
+```json
+{
+  "compilerOptions": {
+    "module": "ES2022",
+    "moduleResolution": "node"
+  }
+}
+```
+
+Update `apps/server-nest/package.json`:
+```json
+{
+  "scripts": {
+    "build:mcp": "tsc src/mcp-stdio.ts --outDir dist",
+    "mcp:stdio": "node dist/mcp-stdio.js"
+  }
+}
+```
+
+- [ ] Update build scripts
+- [ ] Test build: `npm run build:mcp`
+- [ ] Verify output: `ls dist/mcp-stdio.js`
+
+##### 1.4 Create Launch Scripts (15 min)
+
+**File**: `scripts/mcp-inspector.sh`
 ```bash
-# scripts/mcp-inspector-stdio.sh
 #!/bin/bash
+set -e
 
-TOKEN=${1:-schema-read-token}
+echo "🔍 Starting MCP Inspector (stdio transport)"
+echo "📦 Building MCP server..."
 
-echo "🔍 Starting MCP Inspector (stdio mode)..."
-echo "🔑 Using token: $TOKEN"
-echo ""
-
-# Build wrapper if needed
+# Build stdio wrapper
 npm --prefix apps/server-nest run build
 
-# Launch inspector with stdio transport
-npx @modelcontextprotocol/inspector \
-  node apps/server-nest/dist/mcp-stdio-wrapper.js \
-  --auth-token=$TOKEN
+echo "🚀 Launching Inspector..."
+echo ""
+echo "Available test tokens (set AUTH_TOKEN env var):"
+echo "  - schema-read-token (default)"
+echo "  - data-read-token"
+echo "  - data-write-token"
+echo "  - e2e-all"
+echo ""
+
+# Launch inspector with stdio
+AUTH_TOKEN=${AUTH_TOKEN:-schema-read-token} \
+NODE_ENV=test \
+  npx @modelcontextprotocol/inspector \
+  node apps/server-nest/dist/mcp-stdio.js
 ```
 
-- [ ] Create stdio launch script
-- [ ] Make executable
-- [ ] Document in RUNBOOK.md
+- [ ] Create `scripts/mcp-inspector.sh`
+- [ ] Make executable: `chmod +x scripts/mcp-inspector.sh`
+- [ ] Test launch: `./scripts/mcp-inspector.sh`
 
-##### 2.3 Validate Stdio Transport (15 min)
-- [ ] Test connection from Inspector
-- [ ] Verify tool invocations work
-- [ ] Test authentication with different tokens
-- [ ] Compare with HTTP transport results
+##### 1.5 Add to .vscode/mcp.json (10 min)
+
+Update `.vscode/mcp.json`:
+```json
+{
+  "servers": {
+    "spec-server": {
+      "command": "node",
+      "args": ["apps/server-nest/dist/mcp-stdio.js"],
+      "env": {
+        "AUTH_TOKEN": "schema-read-token",
+        "NODE_ENV": "test"
+      }
+    }
+  }
+}
+```
+
+- [ ] Add spec-server to mcp.json
+- [ ] Test with Inspector
+- [ ] Verify tools list appears
 
 **Deliverables**:
 - ✅ Stdio wrapper implementation
-- ✅ Stdio launch script
-- ✅ Documentation for both transports
+- ✅ Build scripts
+- ✅ Launch script
+- ✅ VS Code MCP config
 
 ---
 
-### Phase 3: Development Workflow Integration (OPTIONAL)
+### Phase 2: Testing & Validation (REQUIRED)
 
-**Goal**: Streamline Inspector usage in daily development  
+**Goal**: Verify stdio transport works like other MCP servers  
 **Time**: 30-45 minutes  
-**Risk**: Low
+**Risk**: Low  
+**Priority**: HIGH
+
+#### Tasks
+
+##### 2.1 Test Tool Discovery (10 min)
+- [ ] Launch Inspector
+- [ ] Verify all 13 tools appear
+- [ ] Check tool descriptions are clear
+- [ ] Verify input schemas are correct
+
+##### 2.2 Test Authentication (10 min)
+- [ ] Test with default token (schema-read-token)
+- [ ] Test with data-read-token
+- [ ] Verify scope enforcement works
+- [ ] Check error messages are clear
+
+##### 2.3 Test Tool Execution (15 min)
+- [ ] Execute `schema_listTypes` (no params)
+- [ ] Execute `schema_getTypeDetails` with params
+- [ ] Execute `data_getObjectsByType`
+- [ ] Verify response format matches E2E tests
+
+##### 2.4 Test Error Handling (10 min)
+- [ ] Test with invalid parameters
+- [ ] Test with non-existent IDs
+- [ ] Verify error responses are clear
+- [ ] Check Inspector Notifications pane shows errors
+
+**Deliverables**:
+- ✅ All 13 tools tested
+- ✅ Auth verification complete
+- ✅ Error handling confirmed
+
+---
+
+### Phase 3: Documentation & Integration (OPTIONAL)
+
+**Goal**: Make Inspector easy for team to use  
+**Time**: 30-45 minutes  
+**Risk**: Low  
+**Priority**: MEDIUM
 
 #### Tasks
 
@@ -606,19 +952,20 @@ Interactive UI for testing MCP tools:
 
 ## Troubleshooting Guide
 
-### Issue 1: Connection Failed (HTTP)
+### Issue 1: Stdio Process Won't Start
 
-**Symptom**: Inspector shows "Connection failed" error
+**Symptom**: Inspector shows "Failed to start server" or immediate exit
 
 **Solutions**:
-1. Ensure server is running: `npm --prefix apps/server-nest run start:dev`
-2. Check server logs for errors
-3. Verify port 3001 is accessible: `curl http://localhost:3001/health`
-4. Check firewall/network settings
+1. Verify wrapper is compiled: `ls apps/server-nest/dist/mcp-stdio.js`
+2. Test manually: `node apps/server-nest/dist/mcp-stdio.js`
+3. Check database connection: `psql $DATABASE_URL`
+4. Ensure NODE_ENV=test (enables mock tokens)
+5. Check for console.log statements (interferes with stdio)
 
 ---
 
-### Issue 2: Authentication Errors
+### Issue 2: Tools Not Appearing
 
 **Symptom**: All tools return 401 Unauthorized
 
@@ -730,50 +1077,51 @@ Interactive UI for testing MCP tools:
 
 ## Integration Timeline
 
-### Phase 1: HTTP Transport (RECOMMENDED START)
-- **Time**: 30-45 minutes
-- **Dependencies**: None (uses existing HTTP server)
-- **Risk**: Low
-- **Value**: Immediate testing capability
+### Phase 1: Stdio Wrapper (REQUIRED)
+- **Time**: 60-90 minutes
+- **Dependencies**: None (uses @modelcontextprotocol/sdk already installed)
+- **Risk**: Low (standard MCP pattern)
+- **Value**: ⭐⭐⭐⭐⭐ Maximum compatibility
 
-### Phase 2: Stdio Transport (OPTIONAL)
-- **Time**: 1-2 hours
+### Phase 2: Testing & Validation (REQUIRED)
+- **Time**: 30-45 minutes
 - **Dependencies**: Phase 1 complete
-- **Risk**: Medium (new code)
-- **Value**: More realistic Claude Desktop testing
-
-### Phase 3: Workflow Integration (OPTIONAL)
-- **Time**: 30-45 minutes
-- **Dependencies**: Phase 1 or 2 complete
 - **Risk**: Low
-- **Value**: Improved developer experience
+- **Value**: ⭐⭐⭐⭐⭐ Ensures correctness
 
-**Total Time Estimate**: 2-3.5 hours for complete integration
+### Phase 3: Documentation (OPTIONAL)
+- **Time**: 30-45 minutes
+- **Dependencies**: Phase 2 complete
+- **Risk**: Low
+- **Value**: ⭐⭐⭐ Improved team DX
+
+**Total Time Estimate**: 90-135 minutes for full integration (Phases 1-2 required, Phase 3 optional)
 
 ---
 
 ## Success Criteria
 
 ### Phase 1 Complete When:
-- [ ] Inspector connects to HTTP server
-- [ ] Can authenticate with test tokens
-- [ ] All 13 tools visible in Inspector UI
-- [ ] Can execute tools with parameters
-- [ ] Errors display correctly in Notifications pane
-- [ ] Launch script documented in RUNBOOK.md
+- [ ] Stdio wrapper compiles successfully
+- [ ] `node dist/mcp-stdio.js` runs without errors
+- [ ] Logs show "MCP server ready on stdio"
+- [ ] Can spawn from Inspector: `npx @modelcontextprotocol/inspector node dist/mcp-stdio.js`
+- [ ] Inspector UI loads and connects
+- [ ] All 13 tools appear in Tools tab
 
 ### Phase 2 Complete When:
-- [ ] Stdio wrapper compiles and runs
-- [ ] Inspector connects via stdio transport
-- [ ] Tool invocations work same as HTTP
-- [ ] Auth tokens passed correctly via CLI
-- [ ] Both transports documented
+- [ ] All 13 tools can be executed from Inspector
+- [ ] Authentication works with test tokens
+- [ ] Responses match E2E test expectations
+- [ ] Error handling displays correctly in Notifications pane
+- [ ] Pagination works with cursor parameter
+- [ ] Can reconnect after code changes (hot reload)
 
 ### Phase 3 Complete When:
-- [ ] NPM scripts work: `npm run mcp:inspect`
-- [ ] VS Code tasks integrate Inspector
-- [ ] Documentation updated with workflow guide
-- [ ] Team can use Inspector without guidance
+- [ ] Launch script works: `./scripts/mcp-inspector.sh`
+- [ ] Added to .vscode/mcp.json
+- [ ] Documentation in RUNBOOK.md complete
+- [ ] Team can launch Inspector in <30 seconds
 
 ---
 
@@ -932,15 +1280,15 @@ Integrating the MCP Inspector will significantly improve our development workflo
 4. **Easier Onboarding**: New developers can explore tools visually
 5. **Validation**: Confirm tools work before AI agent testing
 
-**Recommendation**: Start with **Phase 1 (HTTP Transport)** for immediate value, then evaluate Phase 2/3 based on team feedback.
+**Recommendation**: Implement **Phase 1 (Stdio Wrapper)** for maximum compatibility with Claude Desktop, Copilot, and other MCP clients.
 
-**Effort**: 30-45 minutes for Phase 1, 2-3.5 hours for all phases  
-**ROI**: High - improves daily development workflow  
-**Risk**: Low - isolated to development environment
+**Effort**: 60-90 minutes for stdio wrapper, 30-45 minutes for testing  
+**ROI**: High - enables realistic testing with production-like transport  
+**Risk**: Low - well-documented MCP SDK pattern
 
 ---
 
 **Status**: 📋 Ready for Implementation  
-**Next Action**: Create PR with Phase 1 implementation (HTTP transport + launch script)  
+**Next Action**: Create `apps/server-nest/src/mcp-stdio.ts` following the implementation plan  
 **Owner**: Development Team  
-**Priority**: Medium (Nice-to-have for improved DX)
+**Priority**: HIGH (required for compatibility with real MCP clients)
