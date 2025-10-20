@@ -29,7 +29,8 @@ function hashSpecPaths(spec: any): string {
 // Updated after restoring deterministic top-level tags (generation normalization fix)
 // Updated after adding vector similarity + FTS endpoints (/graph/objects/vector-search, /graph/objects/{id}/similar, /graph/objects/fts)
 // Updated after fixing predicate evaluation in graph.service.ts (no API changes, rebuild artifact)
-const EXPECTED_HASH = process.env.OPENAPI_EXPECTED_HASH || '7d4664010d15ec7b7899210ac9b9734e6091e8ac9ceb44caffbdf65a6afa7566';
+// Updated after adding MCP authentication endpoints and Phase 4 security enhancements (GET /mcp/schema/version, GET /mcp/schema/changelog)
+const EXPECTED_HASH = process.env.OPENAPI_EXPECTED_HASH || '0cbfe3a0a5a6e7cc3a9cc8b395995870a6bcac45b991aea7d5d492c01324919a';
 
 describe('OpenAPI regression', () => {
     it('paths+tags hash matches expected (update EXPECTED_HASH intentionally if spec changed)', () => {
