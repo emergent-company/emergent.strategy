@@ -3,7 +3,7 @@
   "paths": {
     "/health": {
       "get": {
-        "operationId": "HealthController_get",
+        "operationId": "get",
         "parameters": [],
         "responses": {
           "200": {
@@ -62,7 +62,7 @@
     },
     "/auth/me": {
       "get": {
-        "operationId": "AuthController_me",
+        "operationId": "me",
         "parameters": [],
         "responses": {
           "200": {
@@ -116,10 +116,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "org:read"
-                      ]
+                      "message": "Forbidden"
                     }
                   }
                 }
@@ -149,15 +146,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "org:read"
         ]
       }
     },
     "/settings": {
       "get": {
-        "operationId": "SettingsController_list",
+        "operationId": "list",
         "parameters": [],
         "responses": {
           "200": {
@@ -243,7 +237,7 @@
     },
     "/settings/{key}": {
       "get": {
-        "operationId": "SettingsController_getOne",
+        "operationId": "getOne",
         "parameters": [
           {
             "name": "key",
@@ -349,7 +343,7 @@
         ]
       },
       "put": {
-        "operationId": "SettingsController_update",
+        "operationId": "update",
         "parameters": [
           {
             "name": "key",
@@ -454,7 +448,7 @@
     },
     "/orgs": {
       "get": {
-        "operationId": "OrgsController_list",
+        "operationId": "list",
         "parameters": [],
         "responses": {
           "200": {
@@ -536,7 +530,7 @@
         ]
       },
       "post": {
-        "operationId": "OrgsController_create",
+        "operationId": "create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -664,7 +658,7 @@
     },
     "/orgs/{id}": {
       "get": {
-        "operationId": "OrgsController_getOne",
+        "operationId": "getOne",
         "parameters": [
           {
             "name": "id",
@@ -767,7 +761,7 @@
         ]
       },
       "delete": {
-        "operationId": "OrgsController_delete",
+        "operationId": "delete",
         "parameters": [
           {
             "name": "id",
@@ -865,7 +859,7 @@
     },
     "/projects": {
       "get": {
-        "operationId": "ProjectsController_list",
+        "operationId": "list",
         "parameters": [
           {
             "name": "limit",
@@ -937,10 +931,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "project:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -965,18 +956,10 @@
         },
         "tags": [
           "Projects"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "project:read"
         ]
       },
       "post": {
-        "operationId": "ProjectsController_create",
+        "operationId": "create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1037,10 +1020,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "org:project:create"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1065,20 +1045,12 @@
         },
         "tags": [
           "Projects"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "org:project:create"
         ]
       }
     },
     "/projects/{id}": {
       "get": {
-        "operationId": "ProjectsController_getById",
+        "operationId": "getById",
         "parameters": [
           {
             "name": "id",
@@ -1138,10 +1110,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "project:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1166,18 +1135,10 @@
         },
         "tags": [
           "Projects"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "project:read"
         ]
       },
       "patch": {
-        "operationId": "ProjectsController_update",
+        "operationId": "update",
         "parameters": [
           {
             "name": "id",
@@ -1247,10 +1208,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "project:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1275,18 +1233,10 @@
         },
         "tags": [
           "Projects"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "project:write"
         ]
       },
       "delete": {
-        "operationId": "ProjectsController_delete",
+        "operationId": "delete",
         "parameters": [
           {
             "name": "id",
@@ -1348,10 +1298,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "org:project:delete"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1376,20 +1323,12 @@
         },
         "tags": [
           "Projects"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "org:project:delete"
         ]
       }
     },
     "/template-packs": {
       "post": {
-        "operationId": "TemplatePackController_createTemplatePack",
+        "operationId": "createTemplatePack",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1405,37 +1344,21 @@
           "201": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "admin:write"
-        ]
+        }
       },
       "get": {
-        "operationId": "TemplatePackController_listTemplatePacks",
+        "operationId": "listTemplatePacks",
         "parameters": [],
         "responses": {
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
-        ]
+        }
       }
     },
     "/template-packs/{id}": {
       "get": {
-        "operationId": "TemplatePackController_getTemplatePack",
+        "operationId": "getTemplatePack",
         "parameters": [
           {
             "name": "id",
@@ -1450,18 +1373,10 @@
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
-        ]
+        }
       },
       "delete": {
-        "operationId": "TemplatePackController_deleteTemplatePack",
+        "operationId": "deleteTemplatePack",
         "parameters": [
           {
             "name": "id",
@@ -1476,20 +1391,12 @@
           "204": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
-        ]
+        }
       }
     },
     "/template-packs/projects/{projectId}/available": {
       "get": {
-        "operationId": "TemplatePackController_getAvailableTemplates",
+        "operationId": "getAvailableTemplates",
         "parameters": [
           {
             "name": "projectId",
@@ -1504,20 +1411,12 @@
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
-        ]
+        }
       }
     },
     "/template-packs/projects/{projectId}/compiled-types": {
       "get": {
-        "operationId": "TemplatePackController_getCompiledObjectTypes",
+        "operationId": "getCompiledObjectTypes",
         "parameters": [
           {
             "name": "projectId",
@@ -1532,20 +1431,12 @@
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
-        ]
+        }
       }
     },
     "/template-packs/projects/{projectId}/installed": {
       "get": {
-        "operationId": "TemplatePackController_getInstalledTemplatePacks",
+        "operationId": "getInstalledTemplatePacks",
         "parameters": [
           {
             "name": "projectId",
@@ -1560,20 +1451,12 @@
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
-        ]
+        }
       }
     },
     "/template-packs/projects/{projectId}/assign": {
       "post": {
-        "operationId": "TemplatePackController_assignTemplatePack",
+        "operationId": "assignTemplatePack",
         "parameters": [
           {
             "name": "projectId",
@@ -1622,20 +1505,12 @@
           "201": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
-        ]
+        }
       }
     },
     "/template-packs/projects/{projectId}/assignments/{assignmentId}": {
       "patch": {
-        "operationId": "TemplatePackController_updateTemplatePackAssignment",
+        "operationId": "updateTemplatePackAssignment",
         "parameters": [
           {
             "name": "projectId",
@@ -1668,18 +1543,10 @@
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
-        ]
+        }
       },
       "delete": {
-        "operationId": "TemplatePackController_uninstallTemplatePack",
+        "operationId": "uninstallTemplatePack",
         "parameters": [
           {
             "name": "projectId",
@@ -1702,20 +1569,12 @@
           "204": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
-        ]
+        }
       }
     },
     "/search": {
       "get": {
-        "operationId": "SearchController_search",
+        "operationId": "search",
         "parameters": [
           {
             "name": "q",
@@ -1844,10 +1703,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "search:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1872,20 +1728,12 @@
         },
         "tags": [
           "Search"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "search:read"
         ]
       }
     },
     "/documents": {
       "get": {
-        "operationId": "DocumentsController_list",
+        "operationId": "list",
         "parameters": [
           {
             "name": "limit",
@@ -1967,10 +1815,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "documents:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -1995,18 +1840,10 @@
         },
         "tags": [
           "Documents"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:read"
         ]
       },
       "post": {
-        "operationId": "DocumentsController_create",
+        "operationId": "create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2078,10 +1915,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "documents:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -2106,20 +1940,12 @@
         },
         "tags": [
           "Documents"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:write"
         ]
       }
     },
     "/documents/{id}": {
       "get": {
-        "operationId": "DocumentsController_get",
+        "operationId": "get",
         "parameters": [
           {
             "name": "id",
@@ -2180,10 +2006,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "documents:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -2208,18 +2031,10 @@
         },
         "tags": [
           "Documents"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:read"
         ]
       },
       "delete": {
-        "operationId": "DocumentsController_delete",
+        "operationId": "delete",
         "parameters": [
           {
             "name": "id",
@@ -2237,20 +2052,12 @@
         },
         "tags": [
           "Documents"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "documents:delete"
         ]
       }
     },
     "/chunks": {
       "get": {
-        "operationId": "ChunksController_list",
+        "operationId": "list",
         "parameters": [
           {
             "name": "documentId",
@@ -2314,10 +2121,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "chunks:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -2342,20 +2146,12 @@
         },
         "tags": [
           "Chunks"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chunks:read"
         ]
       }
     },
     "/ingest/upload": {
       "post": {
-        "operationId": "IngestionController_upload",
+        "operationId": "upload",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2425,10 +2221,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "ingest:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -2453,20 +2246,12 @@
         },
         "tags": [
           "Ingestion"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "ingest:write"
         ]
       }
     },
     "/ingest/url": {
       "post": {
-        "operationId": "IngestionController_ingestUrl",
+        "operationId": "ingestUrl",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2536,10 +2321,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "ingest:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -2564,20 +2346,12 @@
         },
         "tags": [
           "Ingestion"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "ingest:write"
         ]
       }
     },
     "/admin/extraction-jobs": {
       "post": {
-        "operationId": "ExtractionJobController_createJob",
+        "operationId": "createJob",
         "summary": "Create extraction job",
         "description": "Creates a new extraction job with pending status. Phase 2 will enqueue to worker queue.",
         "parameters": [],
@@ -2606,19 +2380,7 @@
             "description": "Invalid request data"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           }
         },
         "tags": [
@@ -2628,15 +2390,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "extraction:write"
         ]
       }
     },
     "/admin/extraction-jobs/projects/{projectId}": {
       "get": {
-        "operationId": "ExtractionJobController_listJobs",
+        "operationId": "listJobs",
         "summary": "List extraction jobs",
         "description": "List extraction jobs for a project with optional filters and pagination",
         "parameters": [
@@ -2725,19 +2484,7 @@
             }
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           }
         },
         "tags": [
@@ -2747,15 +2494,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "extraction:read"
         ]
       }
     },
     "/admin/extraction-jobs/{jobId}": {
       "get": {
-        "operationId": "ExtractionJobController_getJob",
+        "operationId": "getJob",
         "summary": "Get extraction job",
         "description": "Get detailed information about a specific extraction job",
         "parameters": [
@@ -2781,19 +2525,7 @@
             }
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           },
           "404": {
             "description": "Job not found"
@@ -2806,13 +2538,10 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "extraction:read"
         ]
       },
       "patch": {
-        "operationId": "ExtractionJobController_updateJob",
+        "operationId": "updateJob",
         "summary": "Update extraction job",
         "description": "Update job status, progress, results, or errors",
         "parameters": [
@@ -2851,19 +2580,7 @@
             "description": "Invalid update data"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           },
           "404": {
             "description": "Job not found"
@@ -2876,13 +2593,10 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "extraction:write"
         ]
       },
       "delete": {
-        "operationId": "ExtractionJobController_deleteJob",
+        "operationId": "deleteJob",
         "summary": "Delete extraction job",
         "description": "Delete a completed, failed, or cancelled extraction job",
         "parameters": [
@@ -2904,19 +2618,7 @@
             "description": "Cannot delete running/pending job"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           },
           "404": {
             "description": "Job not found"
@@ -2929,15 +2631,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "extraction:write"
         ]
       }
     },
     "/admin/extraction-jobs/{jobId}/retry": {
       "post": {
-        "operationId": "ExtractionJobController_retryJob",
+        "operationId": "retryJob",
         "summary": "Retry a stuck or failed extraction job",
         "description": "Resets a job stuck in running status or failed status back to pending for retry. Useful after server restarts that leave jobs orphaned.",
         "parameters": [
@@ -2966,19 +2665,7 @@
             "description": "Cannot retry job with current status (only running/failed jobs)"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           },
           "404": {
             "description": "Job not found"
@@ -2991,15 +2678,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "extraction:write"
         ]
       }
     },
     "/admin/extraction-jobs/{jobId}/cancel": {
       "post": {
-        "operationId": "ExtractionJobController_cancelJob",
+        "operationId": "cancelJob",
         "summary": "Cancel extraction job",
         "description": "Cancel a pending or running extraction job",
         "parameters": [
@@ -3028,19 +2712,7 @@
             "description": "Job cannot be cancelled (already completed/failed)"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           },
           "404": {
             "description": "Job not found"
@@ -3053,15 +2725,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "extraction:write"
         ]
       }
     },
     "/admin/extraction-jobs/projects/{projectId}/statistics": {
       "get": {
-        "operationId": "ExtractionJobController_getStatistics",
+        "operationId": "getStatistics",
         "summary": "Get job statistics",
         "description": "Get aggregated statistics for extraction jobs in a project",
         "parameters": [
@@ -3124,19 +2793,7 @@
             }
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           }
         },
         "tags": [
@@ -3146,15 +2803,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "extraction:read"
         ]
       }
     },
     "/admin/extraction-jobs/_debug/available-models": {
       "get": {
-        "operationId": "ExtractionJobController_listAvailableModels",
+        "operationId": "listAvailableModels",
         "summary": "List available Gemini models",
         "description": "Query Google Gemini API to list all available models with their capabilities",
         "parameters": [],
@@ -3217,15 +2871,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "extraction:read"
         ]
       }
     },
     "/admin/extraction-jobs/{jobId}/logs": {
       "get": {
-        "operationId": "ExtractionJobController_getExtractionLogs",
+        "operationId": "getExtractionLogs",
         "summary": "Get detailed extraction logs",
         "description": "Retrieve step-by-step logs for an extraction job including LLM interactions, errors, and performance metrics",
         "parameters": [
@@ -3353,22 +3004,7 @@
             "description": "Invalid job ID format"
           },
           "403": {
-            "description": "Access denied to this extraction job",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "extraction:read"
-                      ]
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Access denied to this extraction job"
           },
           "404": {
             "description": "Extraction job not found"
@@ -3381,15 +3017,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "extraction:read"
         ]
       }
     },
     "/graph/objects": {
       "post": {
-        "operationId": "GraphObjectsController_create",
+        "operationId": "create",
         "summary": "Create a graph object (initial version)",
         "parameters": [],
         "requestBody": {
@@ -3412,20 +3045,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/graph/objects/search": {
       "get": {
-        "operationId": "GraphObjectsController_searchObjects",
+        "operationId": "searchObjects",
         "summary": "Search graph objects (basic filters)",
         "description": "Supports pagination via created_at cursor. Optional order param (asc|desc) controls chronological direction (default asc). Desc returns newest first; cursor always set to last item created_at in current page.",
         "parameters": [
@@ -3490,20 +3115,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/objects/fts": {
       "get": {
-        "operationId": "GraphObjectsController_ftsSearch",
+        "operationId": "ftsSearch",
         "summary": "Full-text search graph objects",
         "description": "Websearch syntax over inline-populated tsvector (type, key, properties JSON). Returns newest heads ranked by ts_rank. Supports optional type, label, branch_id filters. Limit max 100.",
         "parameters": [
@@ -3556,20 +3173,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/objects/tags": {
       "get": {
-        "operationId": "GraphObjectsController_getTags",
+        "operationId": "getTags",
         "summary": "Get all distinct tags from graph objects",
         "parameters": [],
         "responses": {
@@ -3589,20 +3198,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/objects/{id}": {
       "get": {
-        "operationId": "GraphObjectsController_get",
+        "operationId": "get",
         "summary": "Get latest version of a graph object",
         "parameters": [
           {
@@ -3624,18 +3225,10 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       },
       "patch": {
-        "operationId": "GraphObjectsController_patch",
+        "operationId": "patch",
         "summary": "Patch (create new version) of a graph object",
         "parameters": [
           {
@@ -3670,18 +3263,10 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       },
       "delete": {
-        "operationId": "GraphObjectsController_deleteObject",
+        "operationId": "deleteObject",
         "summary": "Soft delete (tombstone) an object (creates new version with deleted_at)",
         "parameters": [
           {
@@ -3700,20 +3285,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/graph/objects/{id}/restore": {
       "post": {
-        "operationId": "GraphObjectsController_restoreObject",
+        "operationId": "restoreObject",
         "summary": "Restore a soft-deleted object (creates new version clearing deleted_at)",
         "parameters": [
           {
@@ -3732,20 +3309,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/graph/objects/{id}/history": {
       "get": {
-        "operationId": "GraphObjectsController_history",
+        "operationId": "history",
         "summary": "List version history for a graph object",
         "parameters": [
           {
@@ -3790,20 +3359,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/relationships": {
       "post": {
-        "operationId": "GraphObjectsController_createRel",
+        "operationId": "createRel",
         "summary": "Create a relationship (initial version) or new version if properties changed",
         "parameters": [],
         "requestBody": {
@@ -3823,20 +3384,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/graph/relationships/{id}": {
       "get": {
-        "operationId": "GraphObjectsController_getRel",
+        "operationId": "getRel",
         "summary": "Get relationship by id",
         "parameters": [
           {
@@ -3855,18 +3408,10 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       },
       "patch": {
-        "operationId": "GraphObjectsController_patchRel",
+        "operationId": "patchRel",
         "summary": "Patch (create new version) of a relationship (only head version allowed)",
         "parameters": [
           {
@@ -3895,18 +3440,10 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       },
       "delete": {
-        "operationId": "GraphObjectsController_deleteRel",
+        "operationId": "deleteRel",
         "summary": "Soft delete a relationship (tombstone version)",
         "parameters": [
           {
@@ -3925,20 +3462,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/graph/relationships/search": {
       "get": {
-        "operationId": "GraphObjectsController_searchRels",
+        "operationId": "searchRels",
         "summary": "Search relationships (basic filters)",
         "description": "Supports pagination via created_at cursor. Optional order param (asc|desc) for chronological direction (default asc).",
         "parameters": [
@@ -4003,20 +3532,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/relationships/{id}/restore": {
       "post": {
-        "operationId": "GraphObjectsController_restoreRel",
+        "operationId": "restoreRel",
         "summary": "Restore a soft-deleted relationship",
         "parameters": [
           {
@@ -4035,20 +3556,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/graph/relationships/{id}/history": {
       "get": {
-        "operationId": "GraphObjectsController_historyRel",
+        "operationId": "historyRel",
         "summary": "List version history for a relationship",
         "parameters": [
           {
@@ -4090,20 +3603,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/objects/{id}/edges": {
       "get": {
-        "operationId": "GraphObjectsController_edges",
+        "operationId": "edges",
         "summary": "List relationships adjacent to an object",
         "parameters": [
           {
@@ -4138,20 +3643,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/traverse": {
       "post": {
-        "operationId": "GraphObjectsController_traverse",
+        "operationId": "traverse",
         "summary": "Traverse the graph from one or more root object ids (bounded BFS)",
         "parameters": [],
         "requestBody": {
@@ -4171,20 +3668,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/expand": {
       "post": {
-        "operationId": "GraphObjectsController_expand",
+        "operationId": "expand",
         "summary": "Expand graph (single-pass bounded traversal with projection & edge property option)",
         "parameters": [],
         "requestBody": {
@@ -4204,20 +3693,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/objects/vector-search": {
       "post": {
-        "operationId": "GraphObjectsController_vectorSearch",
+        "operationId": "vectorSearch",
         "summary": "Vector similarity search",
         "description": "Returns nearest neighbors (cosine distance) for provided query vector over embedding_vec. Threshold: use maxDistance (preferred) or legacy minScore (acts as maximum distance). When both are supplied, maxDistance takes precedence.",
         "parameters": [],
@@ -4238,20 +3719,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/objects/{id}/similar": {
       "get": {
-        "operationId": "GraphObjectsController_similar",
+        "operationId": "similar",
         "summary": "Find objects similar to given object id using stored embedding_vec",
         "description": "Supports same filters as POST /graph/objects/vector-search (type, orgId, projectId, branchId, keyPrefix, labelsAll, labelsAny, maxDistance|minScore, limit). maxDistance preferred; if both provided, maxDistance overrides minScore.",
         "parameters": [
@@ -4367,20 +3840,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/embedding-policies": {
       "post": {
-        "operationId": "GraphObjectsController_createEmbeddingPolicy",
+        "operationId": "createEmbeddingPolicy",
         "summary": "Create an embedding policy for a project and object type",
         "parameters": [],
         "requestBody": {
@@ -4410,18 +3875,10 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       },
       "get": {
-        "operationId": "GraphObjectsController_listEmbeddingPolicies",
+        "operationId": "listEmbeddingPolicies",
         "summary": "List all embedding policies for a project",
         "parameters": [
           {
@@ -4460,20 +3917,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/graph/embedding-policies/{id}": {
       "get": {
-        "operationId": "GraphObjectsController_getEmbeddingPolicy",
+        "operationId": "getEmbeddingPolicy",
         "summary": "Get a specific embedding policy by ID",
         "parameters": [
           {
@@ -4511,18 +3960,10 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       },
       "patch": {
-        "operationId": "GraphObjectsController_updateEmbeddingPolicy",
+        "operationId": "updateEmbeddingPolicy",
         "summary": "Update an embedding policy",
         "parameters": [
           {
@@ -4573,18 +4014,10 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       },
       "delete": {
-        "operationId": "GraphObjectsController_deleteEmbeddingPolicy",
+        "operationId": "deleteEmbeddingPolicy",
         "summary": "Delete an embedding policy",
         "parameters": [
           {
@@ -4615,20 +4048,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/graph/branches/{targetBranchId}/merge": {
       "post": {
-        "operationId": "GraphObjectsController_mergeDryRun",
+        "operationId": "mergeDryRun",
         "summary": "Branch merge (dry-run or execute)",
         "description": "Enumerate divergent canonical graph objects between source and target branches. Default is dry-run (no mutations). If `execute=true` and there are no conflicts: Added objects are cloned into target; Fast-forward objects are patched by adding only new properties (superset heuristic). Conflicts block apply. Classification statuses: added, unchanged, fast_forward, conflict.",
         "parameters": [
@@ -4671,20 +4096,12 @@
         },
         "tags": [
           "Graph"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/graph/branches": {
       "post": {
-        "operationId": "BranchController_create",
+        "operationId": "create",
         "parameters": [],
         "responses": {
           "201": {
@@ -4693,7 +4110,7 @@
         }
       },
       "get": {
-        "operationId": "BranchController_list",
+        "operationId": "list",
         "parameters": [
           {
             "name": "project_id",
@@ -4713,7 +4130,7 @@
     },
     "/product-versions": {
       "post": {
-        "operationId": "ProductVersionController_create",
+        "operationId": "create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -4758,18 +4175,10 @@
         },
         "tags": [
           "Product Versions"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       },
       "get": {
-        "operationId": "ProductVersionController_list",
+        "operationId": "list",
         "parameters": [
           {
             "name": "cursor",
@@ -4816,20 +4225,12 @@
         },
         "tags": [
           "Product Versions"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/product-versions/{id}": {
       "get": {
-        "operationId": "ProductVersionController_get",
+        "operationId": "get",
         "parameters": [
           {
             "name": "id",
@@ -4847,20 +4248,12 @@
         },
         "tags": [
           "Product Versions"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/product-versions/{id}/diff/{otherId}": {
       "get": {
-        "operationId": "ProductVersionController_diff",
+        "operationId": "diff",
         "parameters": [
           {
             "name": "id",
@@ -4908,20 +4301,12 @@
         },
         "tags": [
           "Product Versions"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/tags": {
       "post": {
-        "operationId": "TagController_create",
+        "operationId": "create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -4968,18 +4353,10 @@
         },
         "tags": [
           "Tags"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       },
       "get": {
-        "operationId": "TagController_list",
+        "operationId": "list",
         "parameters": [
           {
             "name": "cursor",
@@ -5025,20 +4402,12 @@
         },
         "tags": [
           "Tags"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/tags/{id}": {
       "get": {
-        "operationId": "TagController_get",
+        "operationId": "get",
         "parameters": [
           {
             "name": "id",
@@ -5059,18 +4428,10 @@
         },
         "tags": [
           "Tags"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       },
       "put": {
-        "operationId": "TagController_update",
+        "operationId": "update",
         "parameters": [
           {
             "name": "id",
@@ -5101,18 +4462,10 @@
         },
         "tags": [
           "Tags"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       },
       "delete": {
-        "operationId": "TagController_delete",
+        "operationId": "delete",
         "parameters": [
           {
             "name": "id",
@@ -5133,20 +4486,12 @@
         },
         "tags": [
           "Tags"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
         ]
       }
     },
     "/tags/by-name/{name}": {
       "get": {
-        "operationId": "TagController_getByName",
+        "operationId": "getByName",
         "parameters": [
           {
             "name": "name",
@@ -5167,20 +4512,12 @@
         },
         "tags": [
           "Tags"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
         ]
       }
     },
     "/type-registry/projects/{projectId}": {
       "get": {
-        "operationId": "TypeRegistryController_getProjectTypes",
+        "operationId": "getProjectTypes",
         "parameters": [
           {
             "name": "projectId",
@@ -5195,20 +4532,12 @@
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
-        ]
+        }
       }
     },
     "/type-registry/projects/{projectId}/types/{typeName}": {
       "get": {
-        "operationId": "TypeRegistryController_getType",
+        "operationId": "getType",
         "parameters": [
           {
             "name": "projectId",
@@ -5231,18 +4560,10 @@
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
-        ]
+        }
       },
       "patch": {
-        "operationId": "TypeRegistryController_updateType",
+        "operationId": "updateType",
         "parameters": [
           {
             "name": "projectId",
@@ -5275,18 +4596,10 @@
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
-        ]
+        }
       },
       "delete": {
-        "operationId": "TypeRegistryController_deleteType",
+        "operationId": "deleteType",
         "parameters": [
           {
             "name": "projectId",
@@ -5309,20 +4622,12 @@
           "204": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
-        ]
+        }
       }
     },
     "/type-registry/projects/{projectId}/types": {
       "post": {
-        "operationId": "TypeRegistryController_createType",
+        "operationId": "createType",
         "parameters": [
           {
             "name": "projectId",
@@ -5347,20 +4652,12 @@
           "201": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
-        ]
+        }
       }
     },
     "/type-registry/projects/{projectId}/validate": {
       "post": {
-        "operationId": "TypeRegistryController_validateData",
+        "operationId": "validateData",
         "parameters": [
           {
             "name": "projectId",
@@ -5375,20 +4672,12 @@
           "201": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
-        ]
+        }
       }
     },
     "/type-registry/projects/{projectId}/types/{typeName}/schema": {
       "get": {
-        "operationId": "TypeRegistryController_getTypeSchema",
+        "operationId": "getTypeSchema",
         "parameters": [
           {
             "name": "projectId",
@@ -5411,20 +4700,12 @@
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
-        ]
+        }
       }
     },
     "/type-registry/projects/{projectId}/types/{typeName}/toggle": {
       "patch": {
-        "operationId": "TypeRegistryController_toggleType",
+        "operationId": "toggleType",
         "parameters": [
           {
             "name": "projectId",
@@ -5447,20 +4728,12 @@
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:write"
-        ]
+        }
       }
     },
     "/type-registry/projects/{projectId}/stats": {
       "get": {
-        "operationId": "TypeRegistryController_getProjectStats",
+        "operationId": "getProjectStats",
         "parameters": [
           {
             "name": "projectId",
@@ -5475,20 +4748,12 @@
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "graph:read"
-        ]
+        }
       }
     },
     "/notifications": {
       "get": {
-        "operationId": "NotificationsController_getNotifications",
+        "operationId": "getNotifications",
         "summary": "Get notifications for current user",
         "parameters": [
           {
@@ -5576,10 +4841,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "notifications:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -5609,13 +4871,10 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "notifications:read"
         ]
       },
       "delete": {
-        "operationId": "NotificationsController_clearAll",
+        "operationId": "clearAll",
         "summary": "Clear all notifications in a tab",
         "parameters": [
           {
@@ -5674,10 +4933,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "notifications:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -5707,15 +4963,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "notifications:write"
         ]
       }
     },
     "/notifications/counts": {
       "get": {
-        "operationId": "NotificationsController_getUnreadCounts",
+        "operationId": "getUnreadCounts",
         "summary": "Get unread notification counts",
         "parameters": [],
         "responses": {
@@ -5760,10 +5013,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "notifications:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -5793,15 +5043,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "notifications:read"
         ]
       }
     },
     "/notifications/stats": {
       "get": {
-        "operationId": "NotificationsController_getStats",
+        "operationId": "getStats",
         "summary": "Get notification statistics (unread, dismissed, total)",
         "parameters": [],
         "responses": {
@@ -5846,10 +5093,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "notifications:read"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -5879,15 +5123,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "notifications:read"
         ]
       }
     },
     "/notifications/{id}/read": {
       "post": {
-        "operationId": "NotificationsController_markRead",
+        "operationId": "markRead",
         "summary": "Mark notification as read",
         "parameters": [
           {
@@ -5942,10 +5183,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "notifications:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -5975,15 +5213,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "notifications:write"
         ]
       }
     },
     "/notifications/{id}/unread": {
       "post": {
-        "operationId": "NotificationsController_markUnread",
+        "operationId": "markUnread",
         "summary": "Mark notification as unread",
         "parameters": [
           {
@@ -6038,10 +5273,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "notifications:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -6071,15 +5303,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "notifications:write"
         ]
       }
     },
     "/notifications/{id}/dismiss": {
       "post": {
-        "operationId": "NotificationsController_dismiss",
+        "operationId": "dismiss",
         "summary": "Dismiss notification",
         "parameters": [
           {
@@ -6134,10 +5363,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "notifications:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -6167,15 +5393,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "notifications:write"
         ]
       }
     },
     "/notifications/{id}": {
       "delete": {
-        "operationId": "NotificationsController_clear",
+        "operationId": "clear",
         "summary": "Clear notification (move to cleared tab)",
         "parameters": [
           {
@@ -6230,10 +5453,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "notifications:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -6263,15 +5483,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "notifications:write"
         ]
       }
     },
     "/notifications/{id}/unclear": {
       "post": {
-        "operationId": "NotificationsController_unclear",
+        "operationId": "unclear",
         "summary": "Restore notification from cleared tab",
         "parameters": [
           {
@@ -6326,10 +5543,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "notifications:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -6359,15 +5573,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "notifications:write"
         ]
       }
     },
     "/notifications/{id}/snooze": {
       "post": {
-        "operationId": "NotificationsController_snooze",
+        "operationId": "snooze",
         "summary": "Snooze notification until a specific time",
         "parameters": [
           {
@@ -6432,10 +5643,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "notifications:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -6465,15 +5673,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "notifications:write"
         ]
       }
     },
     "/notifications/{id}/unsnooze": {
       "post": {
-        "operationId": "NotificationsController_unsnooze",
+        "operationId": "unsnooze",
         "summary": "Unsnooze notification",
         "parameters": [
           {
@@ -6528,10 +5733,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "notifications:write"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -6561,15 +5763,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "notifications:write"
         ]
       }
     },
     "/chat/conversations": {
       "get": {
-        "operationId": "ChatController_listConversations",
+        "operationId": "listConversations",
         "parameters": [],
         "responses": {
           "200": {
@@ -6626,10 +5825,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "chat:use"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -6654,18 +5850,10 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:use"
         ]
       },
       "post": {
-        "operationId": "ChatController_createConversation",
+        "operationId": "createConversation",
         "parameters": [],
         "responses": {
           "200": {
@@ -6700,20 +5888,12 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:use"
         ]
       }
     },
     "/chat/{id}": {
       "get": {
-        "operationId": "ChatController_getConversation",
+        "operationId": "getConversation",
         "parameters": [
           {
             "name": "id",
@@ -6766,10 +5946,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "chat:use"
-                      ]
+                      "message": "Forbidden"
                     }
                   }
                 }
@@ -6809,18 +5986,10 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:use"
         ]
       },
       "patch": {
-        "operationId": "ChatController_rename",
+        "operationId": "rename",
         "parameters": [
           {
             "name": "id",
@@ -6879,18 +6048,10 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:admin"
         ]
       },
       "delete": {
-        "operationId": "ChatController_delete",
+        "operationId": "delete",
         "parameters": [
           {
             "name": "id",
@@ -6933,20 +6094,12 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:admin"
         ]
       }
     },
     "/chat/{id}/stream": {
       "get": {
-        "operationId": "ChatController_streamGet",
+        "operationId": "streamGet",
         "parameters": [
           {
             "name": "id",
@@ -7040,20 +6193,12 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:use"
         ]
       }
     },
     "/chat/stream": {
       "post": {
-        "operationId": "ChatController_streamPost",
+        "operationId": "streamPost",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -7131,16 +6276,6 @@
                     }
                   }
                 }
-              },
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
               }
             }
           },
@@ -7152,10 +6287,7 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "chat:use"
-                      ]
+                      "message": "Insufficient permissions"
                     }
                   }
                 }
@@ -7180,20 +6312,12 @@
         },
         "tags": [
           "Chat"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "chat:use"
         ]
       }
     },
     "/invites": {
       "post": {
-        "operationId": "InvitesController_create",
+        "operationId": "create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -7209,21 +6333,12 @@
           "201": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "org:invite:create",
-          "project:invite:create"
-        ]
+        }
       }
     },
     "/invites/accept": {
       "post": {
-        "operationId": "InvitesController_accept",
+        "operationId": "accept",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -7239,20 +6354,12 @@
           "201": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "org:read"
-        ]
+        }
       }
     },
     "/user/profile": {
       "get": {
-        "operationId": "UserProfileController_getSelf",
+        "operationId": "getSelf",
         "parameters": [],
         "responses": {
           "200": {
@@ -7331,7 +6438,7 @@
         ]
       },
       "put": {
-        "operationId": "UserProfileController_updateSelf",
+        "operationId": "updateSelf",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -7410,7 +6517,7 @@
     },
     "/user/profile/emails": {
       "get": {
-        "operationId": "UserProfileController_listEmails",
+        "operationId": "listEmails",
         "parameters": [],
         "responses": {
           "200": {
@@ -7492,7 +6599,7 @@
         ]
       },
       "post": {
-        "operationId": "UserProfileController_addEmail",
+        "operationId": "addEmail",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -7583,7 +6690,7 @@
     },
     "/user/profile/emails/{email}": {
       "delete": {
-        "operationId": "UserProfileController_removeEmail",
+        "operationId": "removeEmail",
         "parameters": [
           {
             "name": "email",
@@ -7675,7 +6782,7 @@
     },
     "/graph/search": {
       "post": {
-        "operationId": "GraphSearchController_search",
+        "operationId": "search",
         "parameters": [
           {
             "name": "debug",
@@ -7714,11 +6821,13 @@
                 "schema": {
                   "example": {
                     "error": {
-                      "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "graph:search:read"
-                      ]
+                      "code": "insufficient_scope",
+                      "message": "Debug scope required",
+                      "details": {
+                        "missing": [
+                          "graph:search:debug"
+                        ]
+                      }
                     }
                   }
                 }
@@ -7733,15 +6842,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "graph:search:read"
         ]
       }
     },
     "/discovery-jobs/projects/{projectId}/start": {
       "post": {
-        "operationId": "DiscoveryJobController_startDiscovery",
+        "operationId": "startDiscovery",
         "parameters": [
           {
             "name": "projectId",
@@ -7756,20 +6862,12 @@
           "201": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "discovery:write"
-        ]
+        }
       }
     },
     "/discovery-jobs/{jobId}": {
       "get": {
-        "operationId": "DiscoveryJobController_getJobStatus",
+        "operationId": "getJobStatus",
         "parameters": [
           {
             "name": "jobId",
@@ -7784,18 +6882,10 @@
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "discovery:read"
-        ]
+        }
       },
       "delete": {
-        "operationId": "DiscoveryJobController_cancelJob",
+        "operationId": "cancelJob",
         "parameters": [
           {
             "name": "jobId",
@@ -7810,20 +6900,12 @@
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "discovery:write"
-        ]
+        }
       }
     },
     "/discovery-jobs/projects/{projectId}": {
       "get": {
-        "operationId": "DiscoveryJobController_listJobs",
+        "operationId": "listJobs",
         "parameters": [
           {
             "name": "projectId",
@@ -7838,20 +6920,12 @@
           "200": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "discovery:read"
-        ]
+        }
       }
     },
     "/discovery-jobs/{jobId}/finalize": {
       "post": {
-        "operationId": "DiscoveryJobController_finalizeDiscovery",
+        "operationId": "finalizeDiscovery",
         "parameters": [
           {
             "name": "jobId",
@@ -7866,20 +6940,12 @@
           "201": {
             "description": ""
           }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "x-required-scopes": [
-          "discovery:write"
-        ]
+        }
       }
     },
     "/integrations/available": {
       "get": {
-        "operationId": "IntegrationsController_listAvailableIntegrations",
+        "operationId": "listAvailableIntegrations",
         "summary": "List available integration types",
         "description": "Get a list of all integration types that can be configured (ClickUp, GitHub, etc.)",
         "parameters": [],
@@ -7888,19 +6954,7 @@
             "description": "Available integrations retrieved successfully"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           }
         },
         "tags": [
@@ -7910,15 +6964,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "integrations:read"
         ]
       }
     },
     "/integrations": {
       "get": {
-        "operationId": "IntegrationsController_listIntegrations",
+        "operationId": "listIntegrations",
         "summary": "List integrations",
         "description": "List all integrations for a project with optional filters",
         "parameters": [],
@@ -7927,19 +6978,7 @@
             "description": "Integrations retrieved successfully"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           }
         },
         "tags": [
@@ -7949,13 +6988,10 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "integrations:read"
         ]
       },
       "post": {
-        "operationId": "IntegrationsController_createIntegration",
+        "operationId": "createIntegration",
         "summary": "Create integration",
         "description": "Create a new integration configuration with encrypted credentials",
         "parameters": [],
@@ -7977,19 +7013,7 @@
             "description": "Invalid request data"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           },
           "409": {
             "description": "Integration already exists for this project"
@@ -8002,15 +7026,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "integrations:write"
         ]
       }
     },
     "/integrations/{name}": {
       "get": {
-        "operationId": "IntegrationsController_getIntegration",
+        "operationId": "getIntegration",
         "summary": "Get integration",
         "description": "Get detailed information about a specific integration",
         "parameters": [
@@ -8029,19 +7050,7 @@
             "description": "Integration retrieved successfully"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           },
           "404": {
             "description": "Integration not found"
@@ -8054,13 +7063,10 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "integrations:read"
         ]
       },
       "put": {
-        "operationId": "IntegrationsController_updateIntegration",
+        "operationId": "updateIntegration",
         "summary": "Update integration",
         "description": "Update an existing integration configuration",
         "parameters": [
@@ -8092,19 +7098,7 @@
             "description": "Invalid update data"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           },
           "404": {
             "description": "Integration not found"
@@ -8117,13 +7111,10 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "integrations:write"
         ]
       },
       "delete": {
-        "operationId": "IntegrationsController_deleteIntegration",
+        "operationId": "deleteIntegration",
         "summary": "Delete integration",
         "description": "Delete an integration and all its associated data",
         "parameters": [
@@ -8142,19 +7133,7 @@
             "description": "Integration deleted successfully"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           },
           "404": {
             "description": "Integration not found"
@@ -8167,15 +7146,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "integrations:write"
         ]
       }
     },
     "/integrations/{name}/public": {
       "get": {
-        "operationId": "IntegrationsController_getPublicIntegrationInfo",
+        "operationId": "getPublicIntegrationInfo",
         "summary": "Get public integration info",
         "description": "Get non-sensitive information about an integration",
         "parameters": [
@@ -8194,19 +7170,7 @@
             "description": "Public info retrieved successfully"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           },
           "404": {
             "description": "Integration not found"
@@ -8219,15 +7183,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "integrations:read"
         ]
       }
     },
     "/integrations/{name}/test": {
       "post": {
-        "operationId": "IntegrationsController_testConnection",
+        "operationId": "testConnection",
         "summary": "Test integration connection",
         "description": "Test if the integration credentials are valid and the connection works",
         "parameters": [
@@ -8246,19 +7207,7 @@
             "description": "Connection test completed"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           },
           "404": {
             "description": "Integration not found"
@@ -8271,15 +7220,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "integrations:write"
         ]
       }
     },
     "/integrations/{name}/sync": {
       "post": {
-        "operationId": "IntegrationsController_triggerSync",
+        "operationId": "triggerSync",
         "summary": "Trigger integration sync",
         "description": "Manually trigger a full import/sync from the integration",
         "parameters": [
@@ -8301,19 +7247,7 @@
             "description": "Integration does not support import"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           },
           "404": {
             "description": "Integration not found"
@@ -8326,15 +7260,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "integrations:write"
         ]
       }
     },
     "/integrations/clickup/structure": {
       "get": {
-        "operationId": "IntegrationsController_getClickUpWorkspaceStructure",
+        "operationId": "getClickUpWorkspaceStructure",
         "summary": "Get ClickUp workspace structure",
         "description": "Fetch hierarchical workspace structure (spaces, folders, lists) with task counts for list selection UI",
         "parameters": [],
@@ -8343,19 +7274,7 @@
             "description": "Workspace structure retrieved successfully"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           },
           "404": {
             "description": "ClickUp integration not found or not configured"
@@ -8368,15 +7287,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "integrations:read"
         ]
       }
     },
     "/mcp/schema/version": {
       "get": {
-        "operationId": "McpController_getSchemaVersion",
+        "operationId": "getSchemaVersion",
         "summary": "Get current schema version hash",
         "description": "Returns a hash representing the current state of all schemas. Agents can use this to determine if cached tools are still valid.",
         "parameters": [],
@@ -8414,10 +7330,12 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "schema:read"
-                      ]
+                      "message": "Forbidden",
+                      "details": {
+                        "missing": [
+                          "schema:read"
+                        ]
+                      }
                     }
                   }
                 }
@@ -8432,15 +7350,12 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "schema:read"
         ]
       }
     },
     "/mcp/schema/changelog": {
       "get": {
-        "operationId": "McpController_getSchemaChangelog",
+        "operationId": "getSchemaChangelog",
         "summary": "Get schema change history",
         "description": "Returns recent schema changes for debugging and tracking",
         "parameters": [
@@ -8498,10 +7413,12 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions",
-                      "missing_scopes": [
-                        "schema:read"
-                      ]
+                      "message": "Forbidden",
+                      "details": {
+                        "missing": [
+                          "schema:read"
+                        ]
+                      }
                     }
                   }
                 }
@@ -8516,75 +7433,17 @@
           {
             "bearer": []
           }
-        ],
-        "x-required-scopes": [
-          "schema:read"
         ]
       }
     }
   },
   "info": {
     "title": "Spec Server API",
-    "description": "Generated OpenAPI spec (code-first). All protected operations include x-required-scopes and 403 examples with missing_scopes.",
+    "description": "Generated OpenAPI spec (NestJS). NOTE: Each Document MUST belong to a Project and each Project belongs to an Organization. Users with no accessible Projects must create one before using ingestion or search features.",
     "version": "0.2.0",
     "contact": {}
   },
-  "tags": [
-    {
-      "name": "Health"
-    },
-    {
-      "name": "Auth"
-    },
-    {
-      "name": "Orgs"
-    },
-    {
-      "name": "Projects"
-    },
-    {
-      "name": "Settings"
-    },
-    {
-      "name": "Ingestion"
-    },
-    {
-      "name": "Documents"
-    },
-    {
-      "name": "Chunks"
-    },
-    {
-      "name": "Search"
-    },
-    {
-      "name": "Chat"
-    },
-    {
-      "name": "Graph"
-    },
-    {
-      "name": "Extraction Jobs"
-    },
-    {
-      "name": "Integrations"
-    },
-    {
-      "name": "MCP"
-    },
-    {
-      "name": "Notifications"
-    },
-    {
-      "name": "Product Versions"
-    },
-    {
-      "name": "Tags"
-    },
-    {
-      "name": "UserProfile"
-    }
-  ],
+  "tags": [],
   "servers": [],
   "components": {
     "securitySchemes": {
@@ -11089,12 +9948,6 @@
       "name": "Chat",
       "tags": [
         "Chat"
-      ]
-    },
-    {
-      "name": "Knowledge Graph",
-      "tags": [
-        "Graph"
       ]
     }
   ]
