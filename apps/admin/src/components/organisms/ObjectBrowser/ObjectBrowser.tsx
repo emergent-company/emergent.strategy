@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Icon } from '@/components/atoms/Icon';
 
 export interface GraphObject {
@@ -30,6 +30,10 @@ export interface ObjectBrowserProps {
     onTypeFilterChange?: (types: string[]) => void;
     /** Available object types for filtering */
     availableTypes?: string[];
+    /** Called when tag filter changes */
+    onTagFilterChange?: (tags: string[]) => void;
+    /** Available tags for filtering */
+    availableTags?: string[];
 }
 
 export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
@@ -42,12 +46,18 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
     onSearchChange,
     onTypeFilterChange,
     availableTypes = [],
+    onTagFilterChange,
+    availableTags = [],
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [view, setView] = useState<'table' | 'cards'>('table');
-    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
+    const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
+    const typeDropdownRef = useRef<HTMLDivElement>(null);
+    const tagDropdownRef = useRef<HTMLDivElement>(null);
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const query = e.target.value;
@@ -62,6 +72,43 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
         setSelectedTypes(newTypes);
         onTypeFilterChange?.(newTypes);
     };
+
+    const handleClearTypeFilter = () => {
+        setSelectedTypes([]);
+        onTypeFilterChange?.([]);
+    };
+
+    const handleTagToggle = (tag: string) => {
+        const newTags = selectedTags.includes(tag)
+            ? selectedTags.filter(t => t !== tag)
+            : [...selectedTags, tag];
+        setSelectedTags(newTags);
+        onTagFilterChange?.(newTags);
+    };
+
+    const handleClearTagFilter = () => {
+        setSelectedTags([]);
+        onTagFilterChange?.([]);
+    };
+
+    // Handle click outside to close dropdowns
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (typeDropdownRef.current && !typeDropdownRef.current.contains(event.target as Node)) {
+                setTypeDropdownOpen(false);
+            }
+            if (tagDropdownRef.current && !tagDropdownRef.current.contains(event.target as Node)) {
+                setTagDropdownOpen(false);
+            }
+        };
+
+        if (typeDropdownOpen || tagDropdownOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => {
+                document.removeEventListener('mousedown', handleClickOutside);
+            };
+        }
+    }, [typeDropdownOpen, tagDropdownOpen]);
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -90,6 +137,17 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
         if (selectedTypes.length > 0 && !selectedTypes.includes(obj.type)) {
             return false;
         }
+        
+        // Apply tag filter
+        if (selectedTags.length > 0) {
+            const objTags = (obj.properties?.tags as string[] | undefined) || [];
+            // Object must have at least one selected tag
+            const hasMatchingTag = selectedTags.some(tag => objTags.includes(tag));
+            if (!hasMatchingTag) {
+                return false;
+            }
+        }
+        
         // Apply search filter
         if (searchQuery && !obj.name.toLowerCase().includes(searchQuery.toLowerCase())) {
             return false;
@@ -116,38 +174,122 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
 
             {/* Type Filter Dropdown */}
             {availableTypes.length > 0 && (
-                <div className="dropdown" data-open={dropdownOpen}>
-                    <button
+                <div className={`dropdown ${typeDropdownOpen ? 'dropdown-open' : ''}`} ref={typeDropdownRef}>
+                    <label
                         tabIndex={0}
-                        role="button"
-                        className="btn btn-sm btn-ghost"
-                        aria-label="Type filter"
-                        onClick={() => setDropdownOpen(!dropdownOpen)}
+                        className={`gap-2 btn btn-sm ${selectedTypes.length > 0 ? 'btn-primary' : 'btn-ghost'}`}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            setTypeDropdownOpen(!typeDropdownOpen);
+                        }}
                     >
                         <Icon icon="lucide--filter" className="size-4" />
-                        Type {selectedTypes.length > 0 && `(${selectedTypes.length})`}
-                    </button>
-                    {dropdownOpen && (
-                        <ul
-                            tabIndex={0}
-                            className="z-10 bg-base-100 shadow p-2 rounded-box w-52 dropdown-content menu"
-                            onMouseDown={(e) => e.preventDefault()} // Prevent blur on click
-                        >
-                            {availableTypes.map(type => (
+                        {selectedTypes.length > 0 ? (
+                            <span>Type ({selectedTypes.length})</span>
+                        ) : (
+                            <span>Filter by Type</span>
+                        )}
+                    </label>
+                    <ul
+                        tabIndex={0}
+                        className="dropdown-content menu bg-base-100 rounded-box z-[1] w-64 max-h-80 overflow-y-auto p-2 shadow-lg border border-base-300"
+                    >
+                        {/* Header with clear button */}
+                        {selectedTypes.length > 0 && (
+                            <li className="mb-2">
+                                <button
+                                    className="btn btn-xs btn-ghost btn-block justify-between"
+                                    onClick={handleClearTypeFilter}
+                                >
+                                    <span className="text-xs opacity-70">Clear all filters</span>
+                                    <Icon icon="lucide--x" className="size-3" />
+                                </button>
+                            </li>
+                        )}
+                        
+                        {/* Type checkboxes */}
+                        {availableTypes.map(type => {
+                            const count = objects.filter(obj => obj.type === type).length;
+                            return (
                                 <li key={type}>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="checkbox checkbox-sm"
-                                            checked={selectedTypes.includes(type)}
-                                            onChange={() => handleTypeToggle(type)}
-                                        />
-                                        <span>{type}</span>
+                                    <label className="flex items-center gap-2 cursor-pointer justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                className="checkbox checkbox-sm checkbox-primary"
+                                                checked={selectedTypes.includes(type)}
+                                                onChange={() => handleTypeToggle(type)}
+                                            />
+                                            <span className="font-medium">{type}</span>
+                                        </div>
+                                        <span className="badge badge-sm badge-ghost">{count}</span>
                                     </label>
                                 </li>
-                            ))}
-                        </ul>
-                    )}
+                            );
+                        })}
+                    </ul>
+                </div>
+            )}
+
+            {/* Tag Filter Dropdown */}
+            {availableTags.length > 0 && (
+                <div className={`dropdown ${tagDropdownOpen ? 'dropdown-open' : ''}`} ref={tagDropdownRef}>
+                    <label
+                        tabIndex={0}
+                        className={`gap-2 btn btn-sm ${selectedTags.length > 0 ? 'btn-secondary' : 'btn-ghost'}`}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            setTagDropdownOpen(!tagDropdownOpen);
+                        }}
+                    >
+                        <Icon icon="lucide--tag" className="size-4" />
+                        {selectedTags.length > 0 ? (
+                            <span>Tags ({selectedTags.length})</span>
+                        ) : (
+                            <span>Filter by Tag</span>
+                        )}
+                    </label>
+                    <ul
+                        tabIndex={0}
+                        className="dropdown-content menu bg-base-100 rounded-box z-[1] w-64 max-h-80 overflow-y-auto p-2 shadow-lg border border-base-300"
+                    >
+                        {/* Header with clear button */}
+                        {selectedTags.length > 0 && (
+                            <li className="mb-2">
+                                <button
+                                    className="btn btn-xs btn-ghost btn-block justify-between"
+                                    onClick={handleClearTagFilter}
+                                >
+                                    <span className="text-xs opacity-70">Clear all tags</span>
+                                    <Icon icon="lucide--x" className="size-3" />
+                                </button>
+                            </li>
+                        )}
+                        
+                        {/* Tag checkboxes */}
+                        {availableTags.map(tag => {
+                            const count = objects.filter(obj => {
+                                const objTags = (obj.properties?.tags as string[] | undefined) || [];
+                                return objTags.includes(tag);
+                            }).length;
+                            return (
+                                <li key={tag}>
+                                    <label className="flex items-center gap-2 cursor-pointer justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                className="checkbox checkbox-sm checkbox-secondary"
+                                                checked={selectedTags.includes(tag)}
+                                                onChange={() => handleTagToggle(tag)}
+                                            />
+                                            <span className="font-medium">{tag}</span>
+                                        </div>
+                                        <span className="badge badge-sm badge-ghost">{count}</span>
+                                    </label>
+                                </li>
+                            );
+                        })}
+                    </ul>
                 </div>
             )}
 
@@ -175,6 +317,52 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
             </button>
         </div>
     );
+
+    const renderActiveFilters = () => {
+        if (selectedTypes.length === 0 && selectedTags.length === 0) return null;
+
+        return (
+            <div className="flex flex-wrap items-center gap-2 bg-base-200/30 px-3 py-2 border border-base-300 rounded">
+                <span className="text-xs text-base-content/60 font-medium">Active filters:</span>
+                
+                {/* Type filter badges */}
+                {selectedTypes.map(type => (
+                    <button
+                        key={`type-${type}`}
+                        className="gap-1 badge badge-primary badge-sm"
+                        onClick={() => handleTypeToggle(type)}
+                        title={`Remove ${type} filter`}
+                    >
+                        <span>{type}</span>
+                        <Icon icon="lucide--x" className="size-3" />
+                    </button>
+                ))}
+                
+                {/* Tag filter badges */}
+                {selectedTags.map(tag => (
+                    <button
+                        key={`tag-${tag}`}
+                        className="gap-1 badge badge-secondary badge-sm"
+                        onClick={() => handleTagToggle(tag)}
+                        title={`Remove ${tag} tag filter`}
+                    >
+                        <span>{tag}</span>
+                        <Icon icon="lucide--x" className="size-3" />
+                    </button>
+                ))}
+                
+                <button
+                    className="text-xs text-base-content/60 hover:text-base-content underline ml-auto"
+                    onClick={() => {
+                        handleClearTypeFilter();
+                        handleClearTagFilter();
+                    }}
+                >
+                    Clear all
+                </button>
+            </div>
+        );
+    };
 
     const renderBulkActions = () => {
         if (selectedIds.size === 0) return null;
@@ -402,6 +590,7 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
     return (
         <div className="space-y-3">
             {renderToolbar()}
+            {renderActiveFilters()}
             {renderBulkActions()}
             {view === 'table' ? renderTableView() : renderCardView()}
         </div>

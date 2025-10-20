@@ -26,10 +26,12 @@ export default function ObjectsPage() {
 
     const [objects, setObjects] = useState<GraphObject[]>([]);
     const [availableTypes, setAvailableTypes] = useState<string[]>([]);
+    const [availableTags, setAvailableTags] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [selectedObject, setSelectedObject] = useState<GraphObject | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -116,9 +118,23 @@ export default function ObjectsPage() {
         }
     }, [config.activeProjectId, apiBase, fetchJson]);
 
+    const loadAvailableTags = useCallback(async () => {
+        if (!config.activeProjectId) return;
+
+        try {
+            const tags = await fetchJson<string[]>(
+                `${apiBase}/api/graph/objects/tags`
+            );
+            setAvailableTags(tags);
+        } catch (err) {
+            console.error('Failed to load tags:', err);
+        }
+    }, [config.activeProjectId, apiBase, fetchJson]);
+
     useEffect(() => {
         loadAvailableTypes();
-    }, [loadAvailableTypes]);
+        loadAvailableTags();
+    }, [loadAvailableTypes, loadAvailableTags]);
 
     useEffect(() => {
         loadObjects();
@@ -197,6 +213,10 @@ export default function ObjectsPage() {
         setSelectedTypes(types);
     };
 
+    const handleTagFilterChange = (tags: string[]) => {
+        setSelectedTags(tags);
+    };
+
     if (!config.activeProjectId) {
         return (
             <div className="mx-auto p-6 container">
@@ -231,6 +251,8 @@ export default function ObjectsPage() {
                 onSearchChange={handleSearchChange}
                 onTypeFilterChange={handleTypeFilterChange}
                 availableTypes={availableTypes}
+                onTagFilterChange={handleTagFilterChange}
+                availableTags={availableTags}
             />
 
             {/* Object Detail Modal */}

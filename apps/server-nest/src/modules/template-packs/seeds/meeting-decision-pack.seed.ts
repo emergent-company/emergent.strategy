@@ -97,11 +97,6 @@ const objectTypeSchemas = {
                 type: 'string',
                 description: 'If recurring, pattern description',
             },
-            tags: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Custom tags for categorization',
-            },
         },
     },
     MeetingSeries: {
@@ -135,11 +130,6 @@ const objectTypeSchemas = {
                 type: 'string',
                 format: 'date',
                 description: 'When the series ended (if applicable)',
-            },
-            tags: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Custom tags',
             },
         },
     },
@@ -208,11 +198,6 @@ const objectTypeSchemas = {
                 type: 'string',
                 description: 'How to measure if this was the right decision',
             },
-            tags: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Custom tags',
-            },
         },
     },
     ActionItem: {
@@ -260,11 +245,6 @@ const objectTypeSchemas = {
             blocking_reason: {
                 type: 'string',
                 description: 'Why this is blocked (if status is blocked)',
-            },
-            tags: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Custom tags',
             },
         },
     },
@@ -319,11 +299,6 @@ const objectTypeSchemas = {
                 type: 'string',
                 format: 'date',
                 description: 'When to revisit if deferred',
-            },
-            tags: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Custom tags',
             },
         },
     },

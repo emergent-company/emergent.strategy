@@ -12,7 +12,7 @@ export type ExtractionLogOperationType =
     | 'validation'
     | 'error';
 
-export type ExtractionLogStatus = 'success' | 'error' | 'warning';
+export type ExtractionLogStatus = 'pending' | 'success' | 'error' | 'warning';
 
 export interface LogExtractionStepParams {
     extractionJobId: string;
@@ -116,6 +116,73 @@ export class ExtractionLoggerService {
         await this.writeToFile(params);
 
         return result.rows[0].id;
+    }
+
+    /**
+     * Update an existing log entry (e.g., change pending to success/error)
+     */
+    async updateLogStep(logId: string, updates: {
+        status?: ExtractionLogStatus;
+        outputData?: any;
+        errorMessage?: string;
+        errorStack?: string;
+        durationMs?: number;
+        tokensUsed?: number;
+        metadata?: Record<string, any>;
+    }): Promise<void> {
+        const setClauses: string[] = [];
+        const values: any[] = [];
+        let paramIndex = 1;
+
+        if (updates.status !== undefined) {
+            setClauses.push(`status = $${paramIndex++}`);
+            values.push(updates.status);
+        }
+
+        if (updates.outputData !== undefined) {
+            setClauses.push(`output_data = $${paramIndex++}`);
+            values.push(JSON.stringify(updates.outputData));
+        }
+
+        if (updates.errorMessage !== undefined) {
+            setClauses.push(`error_message = $${paramIndex++}`);
+            values.push(updates.errorMessage);
+        }
+
+        if (updates.errorStack !== undefined) {
+            setClauses.push(`error_stack = $${paramIndex++}`);
+            values.push(updates.errorStack);
+        }
+
+        if (updates.durationMs !== undefined) {
+            setClauses.push(`duration_ms = $${paramIndex++}`);
+            values.push(updates.durationMs);
+        }
+
+        if (updates.tokensUsed !== undefined) {
+            setClauses.push(`tokens_used = $${paramIndex++}`);
+            values.push(updates.tokensUsed);
+        }
+
+        if (updates.metadata !== undefined) {
+            setClauses.push(`metadata = $${paramIndex++}`);
+            values.push(JSON.stringify(updates.metadata));
+        }
+
+        if (setClauses.length === 0) {
+            return; // Nothing to update
+        }
+
+        values.push(logId);
+
+        await this.db.query(
+            `
+            UPDATE kb.object_extraction_logs 
+            SET ${setClauses.join(', ')}
+            WHERE id = $${paramIndex}
+            `,
+            values
+        );
     }
 
     private async writeToFile(params: LogExtractionStepParams): Promise<void> {
