@@ -7289,6 +7289,72 @@
           }
         ]
       }
+    },
+    "/mcp/schema/version": {
+      "get": {
+        "operationId": "getSchemaVersion",
+        "summary": "Get current schema version hash",
+        "description": "Returns a hash representing the current state of all schemas. Agents can use this to determine if cached tools are still valid.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Current schema version information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaVersionDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "MCP"
+        ]
+      }
+    },
+    "/mcp/schema/changelog": {
+      "get": {
+        "operationId": "getSchemaChangelog",
+        "summary": "Get schema change history",
+        "description": "Returns recent schema changes for debugging and tracking",
+        "parameters": [
+          {
+            "name": "since",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schema change history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SchemaChangeDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "MCP"
+        ]
+      }
     }
   },
   "info": {
@@ -9699,6 +9765,67 @@
       "UpdateIntegrationDto": {
         "type": "object",
         "properties": {}
+      },
+      "SchemaVersionDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "Hash representing current schema state",
+            "example": "a1b2c3d4e5f6g7h8"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "ISO timestamp of last schema update",
+            "example": "2025-10-20T10:30:00.000Z"
+          },
+          "cache_hint_ttl": {
+            "type": "number",
+            "description": "Suggested cache TTL in seconds",
+            "example": 300
+          }
+        },
+        "required": [
+          "version",
+          "updated_at",
+          "cache_hint_ttl"
+        ]
+      },
+      "SchemaChangeDto": {
+        "type": "object",
+        "properties": {
+          "pack_id": {
+            "type": "string",
+            "description": "Template pack ID"
+          },
+          "version": {
+            "type": "string",
+            "description": "New version number"
+          },
+          "schema_hash": {
+            "type": "string",
+            "description": "Schema hash for this version"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "ISO timestamp of change"
+          },
+          "change_type": {
+            "type": "string",
+            "description": "Type of change",
+            "enum": [
+              "created",
+              "updated",
+              "deleted"
+            ]
+          }
+        },
+        "required": [
+          "pack_id",
+          "version",
+          "schema_hash",
+          "created_at"
+        ]
       }
     }
   },
