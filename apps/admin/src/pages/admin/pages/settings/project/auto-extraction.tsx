@@ -10,17 +10,12 @@ import { SettingsNav } from './SettingsNav';
 import { KBPurposeEditor } from '@/components/organisms/KBPurposeEditor';
 import { DiscoveryWizard } from '@/components/organisms/DiscoveryWizard';
 
-// Object types that can be auto-extracted
-const OBJECT_TYPES = [
-    { value: 'Requirement', label: 'Requirements', description: 'Functional and non-functional requirements' },
-    { value: 'Decision', label: 'Decisions', description: 'Architecture decisions and their rationale' },
-    { value: 'Feature', label: 'Features', description: 'Product features and capabilities' },
-    { value: 'Task', label: 'Tasks', description: 'Implementation tasks and action items' },
-    { value: 'Risk', label: 'Risks', description: 'Project risks and mitigation strategies' },
-    { value: 'Issue', label: 'Issues', description: 'Problems, bugs, and blockers' },
-    { value: 'Stakeholder', label: 'Stakeholders', description: 'People and organizations involved' },
-    { value: 'Constraint', label: 'Constraints', description: 'Technical and business constraints' },
-];
+// Type definition for object type option in the UI
+interface ObjectTypeOption {
+    value: string;
+    label: string;
+    description: string;
+}
 
 // Notification channels
 const NOTIFICATION_CHANNELS = [
@@ -32,6 +27,7 @@ const NOTIFICATION_CHANNELS = [
 const DEFAULT_CONFIG = {
     enabled_types: ['Requirement', 'Decision', 'Feature', 'Task'],
     min_confidence: 0.7,
+    duplicate_strategy: 'skip' as 'skip' | 'merge',
     require_review: true,
     notify_on_complete: true,
     notification_channels: ['inbox'],
@@ -47,16 +43,52 @@ export default function ProjectAutoExtractionSettingsPage() {
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+    // Available object types from template packs
+    const [availableObjectTypes, setAvailableObjectTypes] = useState<ObjectTypeOption[]>([]);
+    const [loadingTypes, setLoadingTypes] = useState(false);
+
     // Form state
     const [autoExtractEnabled, setAutoExtractEnabled] = useState(false);
     const [enabledTypes, setEnabledTypes] = useState<string[]>(DEFAULT_CONFIG.enabled_types);
     const [minConfidence, setMinConfidence] = useState(DEFAULT_CONFIG.min_confidence);
+    const [duplicateStrategy, setDuplicateStrategy] = useState<'skip' | 'merge'>(DEFAULT_CONFIG.duplicate_strategy);
     const [requireReview, setRequireReview] = useState(DEFAULT_CONFIG.require_review);
     const [notifyOnComplete, setNotifyOnComplete] = useState(DEFAULT_CONFIG.notify_on_complete);
     const [notificationChannels, setNotificationChannels] = useState<string[]>(DEFAULT_CONFIG.notification_channels);
 
     // Discovery Wizard state
     const [showDiscoveryWizard, setShowDiscoveryWizard] = useState(false);
+
+    // Load available object types from template packs
+    const loadAvailableObjectTypes = async () => {
+        if (!config.activeProjectId) return;
+
+        setLoadingTypes(true);
+
+        try {
+            const compiledTypes = await fetchJson<Record<string, any>>(
+                `${apiBase}/api/template-packs/projects/${config.activeProjectId}/compiled-types`
+            );
+
+            // Transform compiled types into UI options
+            const typeOptions: ObjectTypeOption[] = Object.entries(compiledTypes).map(([typeName, schema]) => ({
+                value: typeName,
+                label: typeName + 's', // Pluralize for display (e.g., "Person" -> "Persons")
+                description: schema.description || `${typeName} entities from your documents`
+            }));
+
+            // Sort alphabetically by label
+            typeOptions.sort((a, b) => a.label.localeCompare(b.label));
+
+            setAvailableObjectTypes(typeOptions);
+        } catch (err) {
+            console.error('Failed to load object types from template packs:', err);
+            // Fall back to empty array - user can still use Discovery Wizard
+            setAvailableObjectTypes([]);
+        } finally {
+            setLoadingTypes(false);
+        }
+    };
 
     // Load project settings
     const loadProject = async () => {
@@ -78,6 +110,7 @@ export default function ProjectAutoExtractionSettingsPage() {
             const extractConfig = projectData.auto_extract_config || {};
             setEnabledTypes(extractConfig.enabled_types || DEFAULT_CONFIG.enabled_types);
             setMinConfidence(extractConfig.min_confidence ?? DEFAULT_CONFIG.min_confidence);
+            setDuplicateStrategy(extractConfig.duplicate_strategy || DEFAULT_CONFIG.duplicate_strategy);
             setRequireReview(extractConfig.require_review ?? DEFAULT_CONFIG.require_review);
             setNotifyOnComplete(extractConfig.notify_on_complete ?? DEFAULT_CONFIG.notify_on_complete);
             setNotificationChannels(extractConfig.notification_channels || DEFAULT_CONFIG.notification_channels);
@@ -90,6 +123,7 @@ export default function ProjectAutoExtractionSettingsPage() {
 
     useEffect(() => {
         loadProject();
+        loadAvailableObjectTypes();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [config.activeProjectId]);
 
@@ -111,6 +145,7 @@ export default function ProjectAutoExtractionSettingsPage() {
                         auto_extract_config: {
                             enabled_types: enabledTypes,
                             min_confidence: minConfidence,
+                            duplicate_strategy: duplicateStrategy,
                             require_review: requireReview,
                             notify_on_complete: notifyOnComplete,
                             notification_channels: notificationChannels,
@@ -140,6 +175,7 @@ export default function ProjectAutoExtractionSettingsPage() {
         setAutoExtractEnabled(false);
         setEnabledTypes(DEFAULT_CONFIG.enabled_types);
         setMinConfidence(DEFAULT_CONFIG.min_confidence);
+        setDuplicateStrategy(DEFAULT_CONFIG.duplicate_strategy);
         setRequireReview(DEFAULT_CONFIG.require_review);
         setNotifyOnComplete(DEFAULT_CONFIG.notify_on_complete);
         setNotificationChannels(DEFAULT_CONFIG.notification_channels);
@@ -168,6 +204,7 @@ export default function ProjectAutoExtractionSettingsPage() {
             autoExtractEnabled !== (project.auto_extract_objects || false) ||
             JSON.stringify(enabledTypes) !== JSON.stringify(currentConfig.enabled_types || DEFAULT_CONFIG.enabled_types) ||
             minConfidence !== (currentConfig.min_confidence ?? DEFAULT_CONFIG.min_confidence) ||
+            duplicateStrategy !== (currentConfig.duplicate_strategy || DEFAULT_CONFIG.duplicate_strategy) ||
             requireReview !== (currentConfig.require_review ?? DEFAULT_CONFIG.require_review) ||
             notifyOnComplete !== (currentConfig.notify_on_complete ?? DEFAULT_CONFIG.notify_on_complete) ||
             JSON.stringify(notificationChannels) !== JSON.stringify(currentConfig.notification_channels || DEFAULT_CONFIG.notification_channels)
@@ -319,30 +356,49 @@ export default function ProjectAutoExtractionSettingsPage() {
                                     <p className="mb-4 text-sm text-base-content/70">
                                         Select which types of structured objects should be automatically extracted
                                     </p>
-                                    <div className="gap-3 grid sm:grid-cols-2">
-                                        {OBJECT_TYPES.map((type) => (
-                                            <label
-                                                key={type.value}
-                                                className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${enabledTypes.includes(type.value)
-                                                    ? 'border-primary bg-primary/5'
-                                                    : 'border-base-300 hover:border-base-400'
-                                                    }`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    className="mt-0.5 checkbox checkbox-primary"
-                                                    checked={enabledTypes.includes(type.value)}
-                                                    onChange={() => handleToggleType(type.value)}
-                                                />
-                                                <div className="flex-1">
-                                                    <div className="font-medium">{type.label}</div>
-                                                    <div className="text-xs text-base-content/60">
-                                                        {type.description}
-                                                    </div>
+                                    
+                                    {loadingTypes ? (
+                                        <div className="flex justify-center items-center py-8">
+                                            <span className="loading loading-spinner loading-md"></span>
+                                        </div>
+                                    ) : availableObjectTypes.length === 0 ? (
+                                        <div className="p-4 border border-warning/20 bg-warning/5 rounded-lg">
+                                            <div className="flex gap-3">
+                                                <Icon icon="lucide--alert-triangle" className="mt-0.5 size-5 text-warning" />
+                                                <div className="text-sm">
+                                                    <p className="font-medium text-warning">No Object Types Available</p>
+                                                    <p className="mt-1 text-base-content/70">
+                                                        No template packs are installed for this project. Use the Auto-Discovery feature above to automatically generate object types from your documents.
+                                                    </p>
                                                 </div>
-                                            </label>
-                                        ))}
-                                    </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="gap-3 grid sm:grid-cols-2">
+                                            {availableObjectTypes.map((type) => (
+                                                <label
+                                                    key={type.value}
+                                                    className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${enabledTypes.includes(type.value)
+                                                        ? 'border-primary bg-primary/5'
+                                                        : 'border-base-300 hover:border-base-400'
+                                                        }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        className="mt-0.5 checkbox checkbox-primary"
+                                                        checked={enabledTypes.includes(type.value)}
+                                                        onChange={() => handleToggleType(type.value)}
+                                                    />
+                                                    <div className="flex-1">
+                                                        <div className="font-medium">{type.label}</div>
+                                                        <div className="text-xs text-base-content/60">
+                                                            {type.description}
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -373,6 +429,59 @@ export default function ProjectAutoExtractionSettingsPage() {
                                     <div className="flex justify-between mt-2 text-xs text-base-content/60">
                                         <span>More results (0.0)</span>
                                         <span>Higher quality (1.0)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Duplicate Handling Strategy */}
+                            <div className="bg-base-100 border border-base-300 card">
+                                <div className="card-body">
+                                    <h3 className="flex items-center gap-2 mb-4 font-semibold">
+                                        <Icon icon="lucide--copy" className="size-5" />
+                                        Duplicate Handling Strategy
+                                    </h3>
+                                    <p className="mb-4 text-sm text-base-content/70">
+                                        Choose how to handle entities that have already been extracted from other documents
+                                    </p>
+                                    <div className="space-y-3">
+                                        <label className="flex items-start gap-3 p-4 border border-base-300 hover:border-base-400 rounded-lg transition-colors cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="duplicate-strategy"
+                                                className="mt-0.5 radio radio-primary"
+                                                checked={duplicateStrategy === 'skip'}
+                                                onChange={() => setDuplicateStrategy('skip')}
+                                            />
+                                            <div className="flex-1">
+                                                <div className="font-medium">Skip Duplicates</div>
+                                                <div className="mt-1 text-sm text-base-content/70">
+                                                    Skip duplicate entities - faster, prevents duplicates (default)
+                                                </div>
+                                            </div>
+                                        </label>
+                                        <label className="flex items-start gap-3 p-4 border border-base-300 hover:border-base-400 rounded-lg transition-colors cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="duplicate-strategy"
+                                                className="mt-0.5 radio radio-primary"
+                                                checked={duplicateStrategy === 'merge'}
+                                                onChange={() => setDuplicateStrategy('merge')}
+                                            />
+                                            <div className="flex-1">
+                                                <div className="font-medium">Merge into Existing</div>
+                                                <div className="mt-1 text-sm text-base-content/70">
+                                                    Merge new data into existing entities - enriches over time, tracks all sources
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div className="mt-3 p-3 bg-base-200 rounded-lg text-sm">
+                                        <Icon icon="lucide--info" className="inline-block size-4 mr-1 text-info" />
+                                        {duplicateStrategy === 'merge' ? (
+                                            <>Updates existing entities with new properties and increases confidence scores. Entities get richer as more documents are processed.</>
+                                        ) : (
+                                            <>Prevents duplicate entities by skipping ones that already exist. Faster for bulk imports.</>
+                                        )}
                                     </div>
                                 </div>
                             </div>

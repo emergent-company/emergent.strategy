@@ -289,12 +289,38 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         this.stepCounter = 0;
 
         // Log the start of the job with its configuration
+        void this.extractionLogger.logStep({
+            extractionJobId: job.id,
+            stepIndex: this.stepCounter++,
+            operationType: 'chunk_processing',
+            operationName: 'job_started',
+            inputData: job,
+        });
+
+        // Log the start of the job with its configuration
+        this.extractionLogger.logStep({
+            extractionJobId: job.id,
+            stepIndex: this.stepCounter++,
+            operationType: 'chunk_processing',
+            operationName: 'job_started',
+            inputData: job,
+        });
+
+        // Log the start of the job with its configuration
         await this.extractionLogger.logStep({
             extractionJobId: job.id,
             stepIndex: this.stepCounter++,
-            operationType: 'validation',
+            operationType: 'chunk_processing',
             operationName: 'job_started',
-            status: 'success',
+            inputData: job,
+        });
+
+        // Log the start of the job with its configuration
+        await this.extractionLogger.logStep({
+            extractionJobId: job.id,
+            stepIndex: this.stepCounter++,
+            operationType: 'chunk_processing',
+            operationName: 'job_started',
             inputData: job,
         });
 
@@ -476,7 +502,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             const llmCallStartTime = Date.now();
 
             try {
-                // Log LLM call input (full prompt, full document content, config)
+                // Log LLM call input (prompt, content preview, config)
                 await this.extractionLogger.logStep({
                     extractionJobId: job.id,
                     stepIndex: this.stepCounter++,
@@ -484,7 +510,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                     operationName: 'extract_entities',
                     inputData: {
                         prompt: extractionPrompt,
-                        document_content: documentContent,
+                        content_preview: documentContent.substring(0, 500) + (documentContent.length > 500 ? '...' : ''),
                         content_length: documentContent.length,
                         allowed_types: allowedTypes,
                         schema_types: Object.keys(objectSchemas),
@@ -774,261 +800,77 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                         // graph_objects.key is NOT NULL so we must provide a value
                         const objectKey = entity.business_key || this.generateKeyFromName(entity.name, entity.type_name);
 
-                        // Track object creation start time
+                        // Log object creation input
                         const objectCreationStartTime = Date.now();
-
-                        try {
-                            const graphObject = await this.graphService.createObject({
+                        await this.extractionLogger.logStep({
+                            extractionJobId: job.id,
+                            stepIndex: this.stepCounter++,
+                            operationType: 'object_creation',
+                            operationName: 'create_graph_object',
+                            inputData: {
+                                entity_type: entity.type_name,
+                                entity_name: entity.name,
+                                entity_key: objectKey,
+                                entity_description: entity.description,
+                                entity_properties: entity.properties,
+                                confidence: finalConfidence,
+                                quality_decision: qualityDecision,
+                            },
+                            metadata: {
                                 org_id: job.org_id,
                                 project_id: job.project_id,
-                                type: entity.type_name,
-                                key: objectKey,
-                                properties: {
-                                    name: entity.name,
-                                    description: entity.description,
-                                    ...entity.properties,
-                                    _extraction_confidence: finalConfidence,
-                                    _extraction_llm_confidence: entity.confidence,
-                                    _extraction_source: job.source_type,
-                                    _extraction_source_id: job.source_id,
-                                    _extraction_job_id: job.id,
-                                },
-                                labels,
-                            });
+                            },
+                        });
 
-                            createdObjectIds.push(graphObject.id);
+                        const graphObject = await this.graphService.createObject({
+                            org_id: job.org_id,
+                            project_id: job.project_id,
+                            type: entity.type_name,
+                            key: objectKey,
+                            properties: {
+                                name: entity.name,
+                                description: entity.description,
+                                ...entity.properties,
+                                _extraction_confidence: finalConfidence,
+                                _extraction_llm_confidence: entity.confidence,
+                                _extraction_source: job.source_type,
+                                _extraction_source_id: job.source_id,
+                                _extraction_job_id: job.id,
+                            },
+                            labels,
+                        });
 
-                            if (qualityDecision === 'review') {
-                                reviewRequiredObjectIds.push(graphObject.id);
-                            }
+                        createdObjectIds.push(graphObject.id);
 
-                            // Log successful object creation (combined input + output)
-                            await this.extractionLogger.logStep({
-                                extractionJobId: job.id,
-                                stepIndex: this.stepCounter++,
-                                operationType: 'object_creation',
-                                operationName: 'create_graph_object',
-                                status: 'success',
-                                inputData: {
-                                    entity_type: entity.type_name,
-                                    entity_name: entity.name,
-                                    entity_key: objectKey,
-                                    entity_description: entity.description,
-                                    entity_properties: entity.properties,
-                                    confidence: finalConfidence,
-                                    quality_decision: qualityDecision,
-                                },
-                                outputData: {
-                                    object_id: graphObject.id,
-                                    entity_name: entity.name,
-                                    entity_type: entity.type_name,
-                                    quality_decision: qualityDecision,
-                                    requires_review: qualityDecision === 'review',
-                                },
-                                durationMs: Date.now() - objectCreationStartTime,
-                                metadata: {
-                                    org_id: job.org_id,
-                                    project_id: job.project_id,
-                                    confidence: finalConfidence,
-                                },
-                            });
-
-                            this.logger.debug(
-                                `Created object ${graphObject.id}: ${entity.type_name} - ${entity.name} ` +
-                                `(confidence: ${finalConfidence.toFixed(3)}, decision: ${qualityDecision})`
-                            );
-                            outcome = 'created';
-                        } catch (createError) {
-                            // Handle duplicate key error gracefully
-                            const err = createError instanceof Error ? createError : new Error(String(createError));
-                            
-                            if (err.message === 'object_key_exists') {
-                                // Duplicate key detected - apply deduplication strategy
-                                const duplicateStrategy = job.extraction_config?.duplicate_strategy || 'skip';
-                                
-                                this.logger.debug(
-                                    `Duplicate key detected for ${entity.type_name} "${entity.name}" (key: ${objectKey}). ` +
-                                    `Strategy: ${duplicateStrategy}`
-                                );
-
-                                if (duplicateStrategy === 'skip') {
-                                    // Skip creation - object already exists
-                                    await this.extractionLogger.logStep({
-                                        extractionJobId: job.id,
-                                        stepIndex: this.stepCounter++,
-                                        operationType: 'object_creation',
-                                        operationName: 'create_graph_object',
-                                        status: 'warning',
-                                        inputData: {
-                                            entity_type: entity.type_name,
-                                            entity_name: entity.name,
-                                            entity_key: objectKey,
-                                        },
-                                        outputData: {
-                                            action: 'skipped',
-                                            reason: 'duplicate_key',
-                                            duplicate_strategy: duplicateStrategy,
-                                        },
-                                        durationMs: Date.now() - objectCreationStartTime,
-                                        metadata: {
-                                            org_id: job.org_id,
-                                            project_id: job.project_id,
-                                        },
-                                    });
-
-                                    this.logger.debug(
-                                        `Skipped duplicate object: ${entity.type_name} - ${entity.name} (key: ${objectKey})`
-                                    );
-                                    outcome = 'skipped';
-                                } else if (duplicateStrategy === 'merge') {
-                                    // Merge strategy: Find existing object and update with new properties
-                                    try {
-                                        // Find the existing object by key
-                                        const existingResult = await this.db.runWithTenantContext(
-                                            job.org_id,
-                                            job.project_id,
-                                            async () => {
-                                                return this.db.query<{
-                                                    id: string;
-                                                    properties: Record<string, any>;
-                                                    labels: string[];
-                                                    version: number;
-                                                }>(
-                                                    `SELECT id, properties, labels, version
-                                                     FROM kb.graph_objects
-                                                     WHERE project_id = $1 
-                                                       AND branch_id IS NULL 
-                                                       AND type = $2 
-                                                       AND key = $3
-                                                     ORDER BY version DESC
-                                                     LIMIT 1`,
-                                                    [job.project_id, entity.type_name, objectKey]
-                                                );
-                                            }
-                                        );
-
-                                        if (existingResult.rowCount === 0) {
-                                            throw new Error('Object not found after duplicate detection');
-                                        }
-
-                                        const existingObject = existingResult.rows[0];
-                                        const existingProps = existingObject.properties || {};
-
-                                        // Merge properties: new properties override existing, but preserve extraction metadata
-                                        const mergedProperties = {
-                                            ...existingProps,
-                                            ...entity.properties,
-                                            name: entity.name,  // Update name
-                                            description: entity.description || existingProps.description,
-                                            // Update confidence if new is higher
-                                            _extraction_confidence: Math.max(
-                                                existingProps._extraction_confidence || 0,
-                                                finalConfidence
-                                            ),
-                                            _extraction_llm_confidence: Math.max(
-                                                existingProps._extraction_llm_confidence || 0,
-                                                entity.confidence || 0
-                                            ),
-                                            // Track multiple extraction sources
-                                            _extraction_sources: [
-                                                ...(Array.isArray(existingProps._extraction_sources) 
-                                                    ? existingProps._extraction_sources 
-                                                    : existingProps._extraction_source 
-                                                        ? [existingProps._extraction_source] 
-                                                        : []
-                                                ),
-                                                job.source_type,
-                                            ],
-                                            _extraction_source_ids: [
-                                                ...(Array.isArray(existingProps._extraction_source_ids) 
-                                                    ? existingProps._extraction_source_ids 
-                                                    : existingProps._extraction_source_id 
-                                                        ? [existingProps._extraction_source_id] 
-                                                        : []
-                                                ),
-                                                job.source_id,
-                                            ],
-                                            _extraction_job_ids: [
-                                                ...(Array.isArray(existingProps._extraction_job_ids) 
-                                                    ? existingProps._extraction_job_ids 
-                                                    : existingProps._extraction_job_id 
-                                                        ? [existingProps._extraction_job_id] 
-                                                        : []
-                                                ),
-                                                job.id,
-                                            ],
-                                            _last_extraction_at: new Date().toISOString(),
-                                        };
-
-                                        // Merge labels
-                                        const mergedLabels = Array.from(new Set([
-                                            ...(existingObject.labels || []),
-                                            ...labels,
-                                        ]));
-
-                                        // Update the existing object using patchObject
-                                        const updatedObject = await this.graphService.patchObject(
-                                            existingObject.id,
-                                            {
-                                                properties: mergedProperties,
-                                                labels: mergedLabels,
-                                            }
-                                        );
-
-                                        // Log successful merge
-                                        await this.extractionLogger.logStep({
-                                            extractionJobId: job.id,
-                                            stepIndex: this.stepCounter++,
-                                            operationType: 'object_creation',
-                                            operationName: 'create_graph_object',
-                                            status: 'success',
-                                            inputData: {
-                                                entity_type: entity.type_name,
-                                                entity_name: entity.name,
-                                                entity_key: objectKey,
-                                                entity_properties: entity.properties,
-                                                confidence: finalConfidence,
-                                            },
-                                            outputData: {
-                                                action: 'merged',
-                                                object_id: updatedObject.id,
-                                                existing_version: existingObject.version,
-                                                new_version: updatedObject.version,
-                                                properties_added: Object.keys(entity.properties || {}).length,
-                                                duplicate_strategy: duplicateStrategy,
-                                            },
-                                            durationMs: Date.now() - objectCreationStartTime,
-                                            metadata: {
-                                                org_id: job.org_id,
-                                                project_id: job.project_id,
-                                                confidence_before: existingProps._extraction_confidence,
-                                                confidence_after: mergedProperties._extraction_confidence,
-                                            },
-                                        });
-
-                                        this.logger.debug(
-                                            `Merged entity into existing object ${updatedObject.id}: ${entity.type_name} - ${entity.name} ` +
-                                            `(v${existingObject.version} → v${updatedObject.version}, confidence: ${finalConfidence.toFixed(3)})`
-                                        );
-                                        outcome = 'merged';
-                                    } catch (mergeError) {
-                                        const mergeErr = mergeError instanceof Error ? mergeError : new Error(String(mergeError));
-                                        this.logger.error(
-                                            `Failed to merge duplicate object for ${entity.type_name} "${entity.name}": ${mergeErr.message}`,
-                                            mergeErr.stack
-                                        );
-                                        // Fall back to skipping on merge failure
-                                        outcome = 'skipped';
-                                    }
-                                } else {
-                                    // Unknown strategy - throw error
-                                    throw createError;
-                                }
-                            } else {
-                                // Not a duplicate error - re-throw
-                                throw createError;
-                            }
+                        if (qualityDecision === 'review') {
+                            reviewRequiredObjectIds.push(graphObject.id);
                         }
+
+                        // Log successful object creation
+                        await this.extractionLogger.logStep({
+                            extractionJobId: job.id,
+                            stepIndex: this.stepCounter++,
+                            operationType: 'object_creation',
+                            operationName: 'create_graph_object',
+                            status: 'success',
+                            outputData: {
+                                object_id: graphObject.id,
+                                entity_name: entity.name,
+                                entity_type: entity.type_name,
+                                quality_decision: qualityDecision,
+                                requires_review: qualityDecision === 'review',
+                            },
+                            durationMs: Date.now() - objectCreationStartTime,
+                            metadata: {
+                                confidence: finalConfidence,
+                            },
+                        });
+
+                        this.logger.debug(
+                            `Created object ${graphObject.id}: ${entity.type_name} - ${entity.name} ` +
+                            `(confidence: ${finalConfidence.toFixed(3)}, decision: ${qualityDecision})`
+                        );
+                        outcome = 'created';
                     }
                 } catch (error) {
                     outcome = 'failed';
@@ -1322,25 +1164,20 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         prompt: string | null;
         objectSchemas: Record<string, any>;
     }> {
-        // Get ALL active template packs for the project (not just one!)
         const templatePackQuery = `SELECT 
-                tp.id,
-                tp.name,
                 tp.extraction_prompts, 
                 tp.object_type_schemas,
                 ptp.customizations->>'default_prompt_key' as default_prompt_key
             FROM kb.project_template_packs ptp
              JOIN kb.graph_template_packs tp ON tp.id = ptp.template_pack_id
              WHERE ptp.project_id = $1 AND ptp.active = true
-             ORDER BY tp.name`;
+             LIMIT 1`;
 
-        // Get project's assigned template packs
+        // Get project's assigned template pack
         let result;
         try {
-            this.logger.debug(`[loadExtractionConfig] Querying template packs for project: ${job.project_id}`);
+            this.logger.debug(`[loadExtractionConfig] Querying template pack for project: ${job.project_id}`);
             result = await this.db.query<{
-                id: string;
-                name: string;
                 extraction_prompts: any;
                 object_type_schemas: any;
                 default_prompt_key: string | null;
@@ -1407,62 +1244,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             }
         }
 
-        // Merge extraction prompts and object schemas from ALL active template packs
-        const mergedExtractionPrompts: Record<string, string> = {};
-        const mergedObjectSchemas: Record<string, any> = {};
-        let firstDefaultPromptKey: string | null = null;
-
-        this.logger.log(`[loadExtractionConfig] Found ${result.rows.length} active template pack(s) for project ${job.project_id}`);
-
-        for (const row of result.rows) {
-            const packName = row.name;
-            this.logger.debug(`[loadExtractionConfig] Processing template pack: ${packName}`);
-
-            // Merge extraction prompts
-            const extractionPrompts = row.extraction_prompts || {};
-            for (const [key, value] of Object.entries(extractionPrompts)) {
-                if (typeof value === 'string') {
-                    mergedExtractionPrompts[key] = value;
-                    this.logger.debug(`[loadExtractionConfig] Added extraction prompt key: ${key} from ${packName}`);
-                }
-            }
-
-            // Merge object schemas
-            const objectSchemas = row.object_type_schemas || {};
-            for (const [typeName, schema] of Object.entries(objectSchemas)) {
-                if (typeof schema !== 'object' || schema === null) {
-                    this.logger.warn(`[loadExtractionConfig] Invalid schema for type ${typeName} in ${packName}, skipping`);
-                    continue;
-                }
-
-                if (mergedObjectSchemas[typeName]) {
-                    // Later packs override earlier ones for same type
-                    this.logger.debug(`[loadExtractionConfig] Merging schema for type: ${typeName} (from ${packName})`);
-                    mergedObjectSchemas[typeName] = {
-                        ...mergedObjectSchemas[typeName],
-                        ...(schema as Record<string, any>),
-                        _sources: [
-                            ...(mergedObjectSchemas[typeName]._sources || []),
-                            { pack: packName }
-                        ]
-                    };
-                } else {
-                    this.logger.debug(`[loadExtractionConfig] Adding schema for type: ${typeName} (from ${packName})`);
-                    mergedObjectSchemas[typeName] = {
-                        ...(schema as Record<string, any>),
-                        _sources: [{ pack: packName }]
-                    };
-                }
-            }
-
-            // Use the first default_prompt_key we encounter
-            if (!firstDefaultPromptKey && row.default_prompt_key) {
-                firstDefaultPromptKey = row.default_prompt_key;
-            }
-        }
-
-        this.logger.log(`[loadExtractionConfig] Merged ${Object.keys(mergedObjectSchemas).length} object type(s) from ${result.rows.length} template pack(s)`);
-        this.logger.debug(`[loadExtractionConfig] Object types: ${Object.keys(mergedObjectSchemas).join(', ')}`);
+        const extractionPrompts = result.rows[0].extraction_prompts || {};
+        const objectSchemas = result.rows[0].object_type_schemas || {};
+        const defaultPromptKey = result.rows[0].default_prompt_key;
 
         // Load base extraction prompt from database settings or fall back to environment/default
         // Priority: 1. Database (kb.settings) -> 2. Environment variable -> 3. Default
@@ -1483,8 +1267,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             this.logger.warn('Failed to load extraction base prompt from database, using default', error);
         }
 
-        this.logger.log(`Using schema-based extraction with ${Object.keys(mergedObjectSchemas).length} object type(s)`);
-        return { prompt: basePrompt, objectSchemas: mergedObjectSchemas };
+        this.logger.log(`Using schema-based extraction with ${Object.keys(objectSchemas).length} object type(s)`);
+        return { prompt: basePrompt, objectSchemas };
     }
 
     /**
@@ -1596,7 +1380,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             await this.notificationsService.notifyExtractionCompleted({
                 userId: job.subject_id,
                 tenantId: organizationId,
-                organizationId: organizationId ?? undefined,
+                organizationId,
                 projectId: job.project_id,
                 documentId: job.source_id || '',
                 documentName,
@@ -1651,7 +1435,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             await this.notificationsService.notifyExtractionFailed({
                 userId: job.subject_id,
                 tenantId: organizationId,
-                organizationId: organizationId ?? undefined,
+                organizationId,
                 projectId: job.project_id,
                 documentId: job.source_id || '',
                 documentName,

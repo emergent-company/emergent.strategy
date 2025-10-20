@@ -3,7 +3,18 @@
  * Seed Emergent Product Framework (EPF) Template Pack
  * Creates a template pack for managing product, strategy, and operations using EPF.
  * 
+ * This script creates:
+ * - 11 Object Types: Objective, KeyResult, Assumption, WorkPackage, ValueModel, 
+ *   ValueLayer, ValueComponent, ValueSubComponent, Artifact, AssessmentReport, CalibrationMemo
+ * - 9 Relationship Types: HAS_KEY_RESULT, SUPPORTS, TESTS, CONTAINS_LAYER, 
+ *   CONTAINS_COMPONENT, CONTAINS_SUB_COMPONENT, MAPS_TO, ASSESSES, CALIBRATES
+ * - UI configurations for all object types
+ * - Metadata with canonical value model references for Strategy, OrgOps, and Commercial tracks
+ * - Example artifacts for OKR, Assumption, and Work Package
+ * 
  * Usage: npx tsx scripts/seed-emergent-framework.ts
+ * 
+ * See docs/emergent_framework.md for full EPF documentation and canonical value models.
  */
 
 import { config } from 'dotenv';
@@ -225,6 +236,59 @@ const EPF_TEMPLATE_PACK: CreateTemplatePackDto = {
         Artifact: { icon: 'lucide--link', color: '#6B7280' },
         AssessmentReport: { icon: 'lucide--clipboard-check', color: '#14B8A6' },
         CalibrationMemo: { icon: 'lucide--compass', color: '#EC4899' },
+        _metadata: {
+            description: 'Canonical value models for Strategy, OrgOps, and Commercial tracks',
+            documentation_ref: 'docs/emergent_framework.md',
+            canonical_value_models: {
+                strategy: {
+                    track_name: 'Strategy',
+                    version: '1.0.0',
+                    status: 'active',
+                    description: 'Defines, communicates, and executes the company\'s overarching strategy.',
+                    layers: ['STRATEGIC ROADMAP', 'TACTICAL ROADMAP', 'STRATEGIC COMMUNICATIONS'],
+                    components_count: 14
+                },
+                org_ops: {
+                    track_name: 'OrgOps',
+                    version: '1.0.0',
+                    status: 'active',
+                    description: 'Builds and maintains the company\'s operational and cultural engine.',
+                    layers: ['TALENT MANAGEMENT', 'CULTURE & INTERNAL COMMUNICATIONS', 'FINANCIAL & LEGAL', 'FACILITIES & IT', 'COMPANY GOVERNANCE & COMPLIANCE', 'OPERATIONAL STRUCTURE'],
+                    components_count: 24
+                },
+                commercial: {
+                    track_name: 'Commercial',
+                    version: '1.0.0',
+                    status: 'active',
+                    description: 'Drives market positioning, revenue generation, and partnerships.',
+                    layers: ['BUSINESS DEVELOPMENT AND PARTNERSHIPS', 'BRAND & POSITIONING', 'SALES AND MARKETING'],
+                    components_count: 13
+                }
+            },
+            examples: {
+                okr: {
+                    id: 'okr-001',
+                    objective: 'Validate that the Board Meeting MVP solves a critical pain point',
+                    key_results: [
+                        { id: 'kr-001', description: 'Achieve >60% activation rate for invited board members' },
+                        { id: 'kr-002', description: 'Successfully conduct at least 3 end-to-end board meetings' },
+                        { id: 'kr-003', description: 'Achieve user satisfaction score of >8' }
+                    ]
+                },
+                assumption: {
+                    id: 'asm-001',
+                    description: 'We assume board administrators will find the process significantly easier than their current manual process'
+                },
+                work_package: {
+                    id: 'wp-001',
+                    name: 'Build Admin Meeting & Agenda Creation',
+                    description: 'Develop the core functionality for an authenticated administrator to create a meeting event',
+                    owner: 'eng_lead_tbd',
+                    status: 'ready',
+                    output: 'A functional UI and backend for meeting creation'
+                }
+            }
+        }
     },
 };
 
@@ -295,9 +359,12 @@ async function main() {
         console.log(`   Version: ${EPF_TEMPLATE_PACK.version}`);
         console.log(`   Object Types: ${typeCount}`);
         console.log(`   Relationship Types: ${relationshipCount}`);
+        console.log(`   Canonical Value Models: 3 (Strategy, OrgOps, Commercial)`);
+        console.log(`   Example Artifacts: OKR, Assumption, Work Package`);
         
         console.log('\n🏁 EPF Template Pack seeding completed successfully!');
         console.log('   You can now assign this template pack to projects via the admin interface.');
+        console.log('   📚 See docs/emergent_framework.md for detailed canonical value models.');
 
     } catch (error) {
         console.error('❌ Error seeding EPF template pack:', error);
