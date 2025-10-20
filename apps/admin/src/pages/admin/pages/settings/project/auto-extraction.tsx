@@ -356,13 +356,13 @@ export default function ProjectAutoExtractionSettingsPage() {
                                     <p className="mb-4 text-sm text-base-content/70">
                                         Select which types of structured objects should be automatically extracted
                                     </p>
-                                    
+
                                     {loadingTypes ? (
                                         <div className="flex justify-center items-center py-8">
                                             <span className="loading loading-spinner loading-md"></span>
                                         </div>
                                     ) : availableObjectTypes.length === 0 ? (
-                                        <div className="p-4 border border-warning/20 bg-warning/5 rounded-lg">
+                                        <div className="bg-warning/5 p-4 border border-warning/20 rounded-lg">
                                             <div className="flex gap-3">
                                                 <Icon icon="lucide--alert-triangle" className="mt-0.5 size-5 text-warning" />
                                                 <div className="text-sm">
@@ -475,8 +475,8 @@ export default function ProjectAutoExtractionSettingsPage() {
                                             </div>
                                         </label>
                                     </div>
-                                    <div className="mt-3 p-3 bg-base-200 rounded-lg text-sm">
-                                        <Icon icon="lucide--info" className="inline-block size-4 mr-1 text-info" />
+                                    <div className="bg-base-200 mt-3 p-3 rounded-lg text-sm">
+                                        <Icon icon="lucide--info" className="inline-block mr-1 size-4 text-info" />
                                         {duplicateStrategy === 'merge' ? (
                                             <>Updates existing entities with new properties and increases confidence scores. Entities get richer as more documents are processed.</>
                                         ) : (
@@ -529,7 +529,7 @@ export default function ProjectAutoExtractionSettingsPage() {
 
                                     {/* Notification Channels */}
                                     {notifyOnComplete && (
-                                        <div className="mt-4 pt-4 border-t border-base-300">
+                                        <div className="mt-4 pt-4 border-base-300 border-t">
                                             <div className="mb-3 font-medium text-sm">Notification Channels</div>
                                             <div className="flex flex-wrap gap-2">
                                                 {NOTIFICATION_CHANNELS.map((channel) => (
