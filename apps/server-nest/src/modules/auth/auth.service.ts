@@ -35,6 +35,11 @@ export const MOCK_SCOPES = {
     // Extraction job scopes
     extractionRead: 'extraction:read',
     extractionWrite: 'extraction:write',
+    // MCP scopes
+    schemaRead: 'schema:read',
+    dataRead: 'data:read',
+    dataWrite: 'data:write',
+    mcpAdmin: 'mcp:admin',
 };
 
 @Injectable()
@@ -63,7 +68,7 @@ export class AuthService implements OnModuleInit {
         // NOTE: staticTokenMode / looksLikeStaticE2EToken previously used for branching; logic now simplified
         // so those variables were removed as part of cleanup (no functional change).
         // Unconditional static token bypass (Option 3) so E2E suite is decoupled from live IdP while roles model is pending.
-        if (/^(no-scope|with-scope|graph-read|e2e-all|e2e-[A-Za-z0-9_-]+)$/.test(token)) {
+        if (/^(no-scope|with-scope|graph-read|schema-read-token|data-read-token|data-write-token|mcp-admin-token|e2e-all|e2e-[A-Za-z0-9_-]+)$/.test(token)) {
             // Normalize all mock subjects to valid UUIDs to satisfy DB subject_id UUID columns.
             const toUuid = (seed: string) => {
                 // Deterministic UUID (v5‑style) derived from SHA-1(seed). Ensures:
@@ -87,6 +92,11 @@ export class AuthService implements OnModuleInit {
             if (token === 'no-scope') return { sub: '00000000-0000-0000-0000-000000000001', scopes: [] };
             if (token === 'with-scope') return { sub: '00000000-0000-0000-0000-000000000001', scopes: [MOCK_SCOPES.orgRead] };
             if (token === 'graph-read') return { sub: toUuid('graph-read'), scopes: [MOCK_SCOPES.orgRead, MOCK_SCOPES.graphSearchRead] };
+            // MCP-specific test tokens
+            if (token === 'schema-read-token') return { sub: toUuid('schema-read'), scopes: [MOCK_SCOPES.schemaRead] };
+            if (token === 'data-read-token') return { sub: toUuid('data-read'), scopes: [MOCK_SCOPES.schemaRead, MOCK_SCOPES.dataRead] };
+            if (token === 'data-write-token') return { sub: toUuid('data-write'), scopes: [MOCK_SCOPES.schemaRead, MOCK_SCOPES.dataRead, MOCK_SCOPES.dataWrite] };
+            if (token === 'mcp-admin-token') return { sub: toUuid('mcp-admin'), scopes: [MOCK_SCOPES.mcpAdmin] };
             if (token === 'e2e-all') return { sub: toUuid('e2e-all'), scopes: Object.values(MOCK_SCOPES) };
             if (token.startsWith('e2e-')) return { sub: toUuid(token), scopes: Object.values(MOCK_SCOPES) };
         }
