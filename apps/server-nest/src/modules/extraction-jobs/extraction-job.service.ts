@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { DatabaseService } from '../../common/database/database.service';
 import { AppConfigService } from '../../common/config/config.service';
+import { ExtractionLoggerService } from './extraction-logger.service';
 import {
     CreateExtractionJobDto,
     UpdateExtractionJobDto,
@@ -34,21 +35,43 @@ interface ExtractionJobSchemaInfo {
  * Phase 2: Integration with Bull queue for async workers
  * Phase 3: Advanced features (retry logic, job dependencies, scheduling)
  */
+import { ExtractionLoggerService } from './extraction-logger.service';
+
+// ... (keep existing imports)
+
 @Injectable()
 export class ExtractionJobService {
-    private readonly logger = new Logger(ExtractionJobService.name);
-    private schemaInfo: ExtractionJobSchemaInfo | null = null;
-    private schemaInfoPromise: Promise<ExtractionJobSchemaInfo> | null = null;
+    // ... (keep existing properties)
 
-    constructor(
+constructor(
         private readonly db: DatabaseService,
-        private readonly config: AppConfigService
+        private readonly config: AppConfigService,
+        private readonly extractionLogger: ExtractionLoggerService,
     ) { }
 
-    private async getSchemaInfo(): Promise<ExtractionJobSchemaInfo> {
-        if (this.schemaInfo) {
-            return this.schemaInfo;
-        }
+    // ... (keep existing methods)
+
+    async createJob(dto: CreateExtractionJobDto): Promise<ExtractionJobDto> {
+        // ... (keep existing createJob logic)
+
+const job = this.mapRowToDto(result.rows[0], schema);
+        this.logger.log(`Created extraction job ${job.id} with status ${job.status}`);
+
+        // Log the start of the job with its configuration
+        void this.extractionLogger.logStep({
+            extractionJobId: job.id,
+            stepIndex: 0,
+            operationType: 'chunk_processing',
+            operationName: 'job_created',
+            inputData: dto,
+        });
+
+        return job;
+    }
+    
+    // ... (keep existing methods)
+}
+
 
         if (!this.schemaInfoPromise) {
             this.schemaInfoPromise = (async () => {
@@ -172,6 +195,15 @@ export class ExtractionJobService {
 
         const job = this.mapRowToDto(result.rows[0], schema);
         this.logger.log(`Created extraction job ${job.id} with status ${job.status}`);
+
+        // Log the start of the job with its configuration
+        new ExtractionLoggerService(this.db).logStep({
+            extractionJobId: job.id,
+            stepIndex: 0,
+            operationType: 'chunk_processing',
+            operationName: 'job_created',
+            inputData: dto,
+        });
 
         return job;
     }

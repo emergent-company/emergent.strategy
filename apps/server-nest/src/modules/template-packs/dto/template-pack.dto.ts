@@ -136,6 +136,7 @@ export interface AvailableTemplateDto {
         sample_count?: number;
     }>;
     relationship_types: string[];
+    relationship_count: number;
     installed: boolean;
     compatible: boolean;
     published_at: string;

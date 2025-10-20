@@ -45,9 +45,19 @@ function useSettingString(key: string, initial: string) {
 export default function AiPromptsSettingsPage() {
     const systemDefault = "You are a helpful assistant. Answer the user question using only the provided CONTEXT. Cite sources inline using bracketed numbers like [1], [2], matching the provided context order. If the answer can't be derived from the CONTEXT, say you don't know rather than hallucinating.";
     const humanDefault = "Question:\n{question}\n\nCONTEXT (citations in order):\n{context}\n\nProvide a concise, well-structured answer.";
+    const extractionDefault = `You are an expert entity extraction system. Your task is to analyze the provided document and extract structured entities according to the schema definitions that follow.
+
+Extract entities that match the defined types. For each entity:
+- Provide a clear, descriptive name
+- Include all relevant properties from the schema
+- Assign appropriate confidence scores (0.0-1.0)
+- Identify relationships between entities
+
+Return your response as a valid JSON array matching the expected schema format.`;
 
     const system = useSettingString('chat.systemPrompt', systemDefault);
     const user = useSettingString('chat.userTemplate', humanDefault);
+    const extraction = useSettingString('extraction.basePrompt', extractionDefault);
 
     return (
         <div data-testid="page-settings-ai-prompts" className="min-sm:container">
@@ -60,7 +70,31 @@ export default function AiPromptsSettingsPage() {
             </div>
 
             <h1 className="mt-4 font-semibold text-xl">AI Prompt Templates</h1>
-            <p className="mt-2 text-base-content/70">Edit the system and user prompt used by Chat with retrieved context. Use placeholders where applicable.</p>
+            <p className="mt-2 text-base-content/70">Edit the system and user prompt used by Chat with retrieved context, and the base extraction prompt for document processing. Use placeholders where applicable.</p>
+
+            {/* Extraction Base Prompt Card */}
+            <div className="bg-base-100 mt-6 card-border card">
+                <div className="gap-6 sm:gap-8 card-body">
+                    <div className="flex items-center gap-2">
+                        <Icon icon="lucide--scan-search" className="size-5" aria-hidden />
+                        <h2 className="font-medium text-lg">Entity Extraction Base Prompt</h2>
+                    </div>
+                    <p className="mt-1 text-xs text-base-content/70">
+                        Base instruction for LLM entity extraction. This should be schema-agnostic - specific entity types and their properties are automatically appended from your installed template packs.
+                    </p>
+                    <textarea
+                        className="mt-3 sm:mt-4 w-full h-48 textarea"
+                        value={extraction.value}
+                        onChange={(e) => extraction.setValue(e.target.value)}
+                        placeholder={extractionDefault}
+                    />
+                    <div className="flex justify-end items-center gap-3 sm:gap-4 mt-3 sm:mt-4">
+                        <button className="btn btn-sm btn-ghost" onClick={() => extraction.setValue(extractionDefault)}>Restore default</button>
+                        <button className="btn btn-sm btn-primary" onClick={() => extraction.save(extraction.value)} disabled={extraction.loading}>Save</button>
+                        {extraction.error && <span className="text-error text-sm">{extraction.error}</span>}
+                    </div>
+                </div>
+            </div>
 
             {/* System Prompt Card */}
             <div className="bg-base-100 mt-6 card-border card">

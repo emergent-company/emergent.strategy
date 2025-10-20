@@ -343,24 +343,28 @@ export class TemplatePackService {
         const typeCounts = new Map(countsResult.rows.map(r => [r.type, parseInt(r.count)]));
 
         // Build response
-        return packsResult.rows.map(pack => ({
-            id: pack.id,
-            name: pack.name,
-            version: pack.version,
-            description: pack.description,
-            author: pack.author,
-            source: pack.source,
-            object_types: Object.entries(pack.object_type_schemas).map(([type, schema]: [string, any]) => ({
-                type,
-                description: schema.description,
-                sample_count: typeCounts.get(type) || 0,
-            })),
-            relationship_types: Object.keys(pack.relationship_type_schemas),
-            installed: installedIds.has(pack.id),
-            compatible: true, // TODO: Add compatibility check
-            published_at: pack.published_at,
-            deprecated_at: pack.deprecated_at,
-        }));
+        return packsResult.rows.map(pack => {
+            const relationshipTypes = Object.keys(pack.relationship_type_schemas || {});
+            return {
+                id: pack.id,
+                name: pack.name,
+                version: pack.version,
+                description: pack.description,
+                author: pack.author,
+                source: pack.source,
+                object_types: Object.entries(pack.object_type_schemas).map(([type, schema]: [string, any]) => ({
+                    type,
+                    description: schema.description,
+                    sample_count: typeCounts.get(type) || 0,
+                })),
+                relationship_types: relationshipTypes,
+                relationship_count: relationshipTypes.length,
+                installed: installedIds.has(pack.id),
+                compatible: true, // TODO: Add compatibility check
+                published_at: pack.published_at,
+                deprecated_at: pack.deprecated_at,
+            };
+        });
     }
 
     /**
@@ -514,17 +518,18 @@ export class TemplatePackService {
         try {
             await client.query('BEGIN');
 
-            // Set RLS context
+            // Set RLS context for checking project assignments
             await client.query(`SELECT set_config('app.current_organization_id', $1, true)`, [orgId]);
 
             // Check if template pack exists and get its details
+            // Template packs are global resources, not org-scoped
             const packResult = await client.query(
-                `SELECT id, name, source FROM kb.graph_template_packs WHERE id = $1 AND organization_id = $2`,
-                [packId, orgId]
+                `SELECT id, name, source FROM kb.graph_template_packs WHERE id = $1`,
+                [packId]
             );
 
             if (packResult.rows.length === 0) {
-                throw new BadRequestException('Template pack not found or access denied');
+                throw new BadRequestException('Template pack not found');
             }
 
             const pack = packResult.rows[0];
@@ -534,11 +539,11 @@ export class TemplatePackService {
                 throw new BadRequestException('Cannot delete built-in template packs');
             }
 
-            // Check if pack is currently installed in any project
+            // Check if pack is currently installed in any project (across all orgs)
             const assignmentResult = await client.query(
                 `SELECT COUNT(*) as count FROM kb.project_template_packs 
-                 WHERE template_pack_id = $1 AND organization_id = $2`,
-                [packId, orgId]
+                 WHERE template_pack_id = $1`,
+                [packId]
             );
 
             const installCount = parseInt(assignmentResult.rows[0].count, 10);
@@ -548,15 +553,15 @@ export class TemplatePackService {
                 );
             }
 
-            // Delete the template pack
+            // Delete the template pack (global resource)
             await client.query(
-                `DELETE FROM kb.graph_template_packs WHERE id = $1 AND organization_id = $2`,
-                [packId, orgId]
+                `DELETE FROM kb.graph_template_packs WHERE id = $1`,
+                [packId]
             );
 
             await client.query('COMMIT');
 
-            this.logger.log(`Deleted template pack ${packId} (${pack.name}) from organization ${orgId}`);
+            this.logger.log(`Deleted template pack ${packId} (${pack.name})`);
 
         } catch (error) {
             await client.query('ROLLBACK');
@@ -578,5 +583,61 @@ export class TemplatePackService {
             sql_views: dto.sql_views,
         });
         return createHash('sha256').update(content).digest('hex');
+    }
+
+    /**
+     * Get compiled object type schemas from all installed packs for a project
+     */
+    async getCompiledObjectTypesForProject(
+        projectId: string,
+        orgId: string
+    ): Promise<Record<string, any>> {
+        // Get all active template pack assignments for this project
+        const assignmentsResult = await this.db.query<ProjectTemplatePackRow>(
+            `SELECT * FROM kb.project_template_packs 
+             WHERE project_id = $1 AND organization_id = $2 AND active = true`,
+            [projectId, orgId]
+        );
+
+        if (assignmentsResult.rows.length === 0) {
+            return {};
+        }
+
+        // Get the full template packs
+        const packIds = assignmentsResult.rows.map(a => a.template_pack_id);
+        const placeholders = packIds.map((_, i) => `$${i + 1}`).join(', ');
+        const packsResult = await this.db.query<TemplatePackRow>(
+            `SELECT * FROM kb.graph_template_packs 
+             WHERE id IN (${placeholders})`,
+            packIds
+        );
+
+        // Merge all object_type_schemas from all packs
+        const compiledSchemas: Record<string, any> = {};
+
+        for (const pack of packsResult.rows) {
+            const schemas = pack.object_type_schemas || {};
+            for (const [typeName, schema] of Object.entries(schemas)) {
+                // If type already exists, merge properties
+                if (compiledSchemas[typeName]) {
+                    // Later packs override earlier ones for same type
+                    compiledSchemas[typeName] = {
+                        ...compiledSchemas[typeName],
+                        ...schema,
+                        _sources: [
+                            ...(compiledSchemas[typeName]._sources || []),
+                            { pack: pack.name, version: pack.version }
+                        ]
+                    };
+                } else {
+                    compiledSchemas[typeName] = {
+                        ...schema,
+                        _sources: [{ pack: pack.name, version: pack.version }]
+                    };
+                }
+            }
+        }
+
+        return compiledSchemas;
     }
 }

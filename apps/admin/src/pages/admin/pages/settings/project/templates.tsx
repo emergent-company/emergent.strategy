@@ -20,6 +20,7 @@ interface TemplatePack {
         sample_count?: number;
     }>;
     relationship_types: string[];
+    relationship_count: number;
     installed: boolean;
     compatible: boolean;
     published_at: string;
@@ -57,6 +58,8 @@ export default function ProjectTemplatesSettingsPage() {
     const [error, setError] = useState<string | null>(null);
     const [installing, setInstalling] = useState<string | null>(null);
     const [selectedPreview, setSelectedPreview] = useState<TemplatePack | null>(null);
+    const [showCompiledPreview, setShowCompiledPreview] = useState(false);
+    const [compiledTypes, setCompiledTypes] = useState<Record<string, any>>({});
 
     const loadTemplatePacks = async () => {
         if (!config.activeProjectId) return;
@@ -88,6 +91,20 @@ export default function ProjectTemplatesSettingsPage() {
         loadTemplatePacks();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [config.activeProjectId]);
+
+    const loadCompiledTypes = async () => {
+        if (!config.activeProjectId) return;
+
+        try {
+            const compiled = await fetchJson<Record<string, any>>(
+                `${apiBase}/api/template-packs/projects/${config.activeProjectId}/compiled-types`
+            );
+            setCompiledTypes(compiled || {});
+            setShowCompiledPreview(true);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to load compiled types');
+        }
+    };
 
     const handleInstall = async (packId: string) => {
         if (!config.activeProjectId) return;
@@ -190,11 +207,23 @@ export default function ProjectTemplatesSettingsPage() {
             <SettingsNav />
 
             {/* Header */}
-            <div className="mb-6">
-                <h1 className="font-bold text-2xl">Object Template Packs</h1>
-                <p className="mt-1 text-base-content/70">
-                    Template packs define the types of structured objects you can create and extract from documents
-                </p>
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h1 className="font-bold text-2xl">Object Template Packs</h1>
+                    <p className="mt-1 text-base-content/70">
+                        Template packs define the types of structured objects you can create and extract from documents
+                    </p>
+                </div>
+                {installedPacks.length > 0 && (
+                    <button
+                        className="btn-outline btn btn-sm"
+                        onClick={loadCompiledTypes}
+                        data-testid="preview-compiled-types-button"
+                    >
+                        <Icon icon="lucide--eye" className="size-4" />
+                        Preview All Types
+                    </button>
+                )}
             </div>
 
             {/* Error Alert */}
@@ -336,6 +365,8 @@ export default function ProjectTemplatesSettingsPage() {
                                                             )}
                                                             <div className="flex items-center gap-2 mt-3 text-sm text-base-content/60">
                                                                 <span>{pack.object_types?.length || 0} object types</span>
+                                                                <span>•</span>
+                                                                <span>{pack.relationship_count || 0} relationships</span>
                                                                 {pack.author && (
                                                                     <>
                                                                         <span>•</span>
@@ -408,6 +439,8 @@ export default function ProjectTemplatesSettingsPage() {
                                                             )}
                                                             <div className="flex items-center gap-2 mt-3 text-sm text-base-content/60">
                                                                 <span>{pack.object_types?.length || 0} object types</span>
+                                                                <span>•</span>
+                                                                <span>{pack.relationship_count || 0} relationships</span>
                                                                 {pack.author && (
                                                                     <>
                                                                         <span>•</span>
@@ -534,6 +567,116 @@ export default function ProjectTemplatesSettingsPage() {
                                 ) : (
                                     'Install Template Pack'
                                 )}
+                            </button>
+                        </div>
+                    </div>
+                </dialog>
+            )}
+
+            {/* Compiled Types Preview Modal */}
+            {showCompiledPreview && (
+                <dialog className="modal modal-open" data-testid="compiled-types-modal">
+                    <div className="max-w-4xl modal-box">
+                        <form method="dialog">
+                            <button
+                                className="top-2 right-2 absolute btn btn-sm btn-circle btn-ghost"
+                                onClick={() => setShowCompiledPreview(false)}
+                            >
+                                ✕
+                            </button>
+                        </form>
+                        <h3 className="mb-2 font-bold text-lg">Compiled Object Types</h3>
+                        <p className="mb-4 text-sm text-base-content/70">
+                            All object types from installed template packs, merged and ready for extraction
+                        </p>
+
+                        {Object.keys(compiledTypes).length === 0 ? (
+                            <div className="bg-base-200 py-8 text-center card">
+                                <Icon icon="lucide--inbox" className="opacity-50 mx-auto mb-2 size-10" />
+                                <p className="text-base-content/70">No object types installed</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="divider">Object Types ({Object.keys(compiledTypes).length})</div>
+                                <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                                    {Object.entries(compiledTypes).map(([typeName, schema]) => (
+                                        <div key={typeName} className="bg-base-200 p-4 rounded">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <h4 className="font-semibold text-base">{typeName}</h4>
+                                                {schema._sources && schema._sources.length > 0 && (
+                                                    <div className="flex flex-wrap justify-end gap-1">
+                                                        {schema._sources.map((source: any, idx: number) => (
+                                                            <span
+                                                                key={idx}
+                                                                className="badge badge-sm badge-ghost"
+                                                                title={`From: ${source.pack} v${source.version}`}
+                                                            >
+                                                                {source.pack}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {schema.description && (
+                                                <p className="mt-2 mb-3 text-sm text-base-content/70">{schema.description}</p>
+                                            )}
+                                            {schema.properties && Object.keys(schema.properties).length > 0 && (
+                                                <div className="mt-3">
+                                                    <div className="mb-2 font-medium text-sm">Properties:</div>
+                                                    <div className="space-y-1">
+                                                        {Object.entries(schema.properties).map(([propName, propDef]: [string, any]) => (
+                                                            <div key={propName} className="bg-base-100 px-3 py-2 rounded text-xs">
+                                                                <span className="font-mono font-medium">{propName}</span>
+                                                                {schema.required?.includes(propName) && (
+                                                                    <span className="ml-2 badge badge-xs badge-error">required</span>
+                                                                )}
+                                                                {propDef.type && (
+                                                                    <span className="ml-2 text-base-content/60">
+                                                                        {propDef.type}
+                                                                    </span>
+                                                                )}
+                                                                {propDef.description && (
+                                                                    <div className="mt-1 text-base-content/60">
+                                                                        {propDef.description}
+                                                                    </div>
+                                                                )}
+                                                                {propDef.enum && (
+                                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                                        {propDef.enum.map((val: string) => (
+                                                                            <span key={val} className="badge badge-xs">
+                                                                                {val}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {schema.examples && schema.examples.length > 0 && (
+                                                <div className="mt-3">
+                                                    <div className="mb-2 font-medium text-sm">Examples:</div>
+                                                    <div className="space-y-2">
+                                                        {schema.examples.map((example: any, idx: number) => (
+                                                            <div key={idx} className="bg-base-100 p-2 rounded">
+                                                                <pre className="overflow-x-auto font-mono text-xs">
+                                                                    {JSON.stringify(example, null, 2)}
+                                                                </pre>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+
+                        <div className="modal-action">
+                            <button className="btn btn-ghost" onClick={() => setShowCompiledPreview(false)}>
+                                Close
                             </button>
                         </div>
                     </div>

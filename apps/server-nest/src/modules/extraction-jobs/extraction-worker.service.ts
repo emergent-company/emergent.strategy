@@ -288,6 +288,42 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         // Reset step counter for this job
         this.stepCounter = 0;
 
+        // Log the start of the job with its configuration
+        void this.extractionLogger.logStep({
+            extractionJobId: job.id,
+            stepIndex: this.stepCounter++,
+            operationType: 'chunk_processing',
+            operationName: 'job_started',
+            inputData: job,
+        });
+
+        // Log the start of the job with its configuration
+        this.extractionLogger.logStep({
+            extractionJobId: job.id,
+            stepIndex: this.stepCounter++,
+            operationType: 'chunk_processing',
+            operationName: 'job_started',
+            inputData: job,
+        });
+
+        // Log the start of the job with its configuration
+        await this.extractionLogger.logStep({
+            extractionJobId: job.id,
+            stepIndex: this.stepCounter++,
+            operationType: 'chunk_processing',
+            operationName: 'job_started',
+            inputData: job,
+        });
+
+        // Log the start of the job with its configuration
+        await this.extractionLogger.logStep({
+            extractionJobId: job.id,
+            stepIndex: this.stepCounter++,
+            operationType: 'chunk_processing',
+            operationName: 'job_started',
+            inputData: job,
+        });
+
         const timeline: TimelineEvent[] = [];
         let providerName = this.llmFactory.getProviderName();
         let extractionResult: ExtractionResult | null = null;
@@ -357,6 +393,15 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         });
 
         try {
+            // Log the start of the job with its configuration
+            await this.extractionLogger.logStep({
+                extractionJobId: job.id,
+                stepIndex: this.stepCounter++,
+                operationType: 'chunk_processing',
+                operationName: 'job_started',
+                inputData: job,
+            });
+
             // 1. Load document content
             const documentStep = beginTimelineStep('load_document', {
                 source_id: job.source_id ?? null,
@@ -381,26 +426,30 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 },
             });
 
-            // 2. Load extraction prompt from template pack
+            // 2. Load extraction config (prompt + schemas) from template pack
             const promptStep = beginTimelineStep('load_prompt', {
                 template_pack_strategy: this.config.extractionEntityLinkingStrategy,
             });
 
-            const extractionPrompt = await this.loadExtractionPrompt(job).catch((error) => {
+            const extractionConfig = await this.loadExtractionConfig(job).catch((error: Error) => {
                 const message = toErrorMessage(error);
                 promptStep('error', { message });
                 throw error;
             });
 
-            if (!extractionPrompt) {
+            if (!extractionConfig.prompt) {
                 const message = 'No extraction prompt configured for this project';
                 promptStep('error', { message });
                 throw new Error(message);
             }
 
+            const extractionPrompt = extractionConfig.prompt;
+            const objectSchemas = extractionConfig.objectSchemas;
+
             promptStep('success', {
                 metadata: {
                     prompt_length: extractionPrompt.length,
+                    schema_count: Object.keys(objectSchemas).length,
                 },
             });
 
@@ -464,6 +513,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                         content_preview: documentContent.substring(0, 500) + (documentContent.length > 500 ? '...' : ''),
                         content_length: documentContent.length,
                         allowed_types: allowedTypes,
+                        schema_types: Object.keys(objectSchemas),
                     },
                     metadata: {
                         provider: providerName,
@@ -472,6 +522,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 }); const result = await llmProvider.extractEntities(
                     documentContent,
                     extractionPrompt,
+                    objectSchemas,
                     allowedTypes
                 );
 
@@ -1106,10 +1157,17 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     }
 
     /**
-     * Load extraction prompt from project's template pack
+     * Load extraction configuration from project's template pack
+     * Returns both the extraction prompt and object type schemas
      */
-    private async loadExtractionPrompt(job: ExtractionJobDto): Promise<string | null> {
-        const templatePackQuery = `SELECT tp.extraction_prompts, ptp.customizations->>'default_prompt_key' as default_prompt_key
+    private async loadExtractionConfig(job: ExtractionJobDto): Promise<{
+        prompt: string | null;
+        objectSchemas: Record<string, any>;
+    }> {
+        const templatePackQuery = `SELECT 
+                tp.extraction_prompts, 
+                tp.object_type_schemas,
+                ptp.customizations->>'default_prompt_key' as default_prompt_key
             FROM kb.project_template_packs ptp
              JOIN kb.graph_template_packs tp ON tp.id = ptp.template_pack_id
              WHERE ptp.project_id = $1 AND ptp.active = true
@@ -1118,14 +1176,15 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         // Get project's assigned template pack
         let result;
         try {
-            this.logger.debug(`[loadExtractionPrompt] Querying template pack for project: ${job.project_id}`);
+            this.logger.debug(`[loadExtractionConfig] Querying template pack for project: ${job.project_id}`);
             result = await this.db.query<{
                 extraction_prompts: any;
+                object_type_schemas: any;
                 default_prompt_key: string | null;
             }>(templatePackQuery, [job.project_id]);
         } catch (error) {
             const err = error instanceof Error ? error : new Error(String(error));
-            this.logger.error(`[loadExtractionPrompt] Query failed: ${err.message}`, err.stack);
+            this.logger.error(`[loadExtractionConfig] Query failed: ${err.message}`, err.stack);
             throw err;
         } if (!result.rowCount) {
             this.logger.warn(`No active template pack found for project ${job.project_id}`);
@@ -1133,7 +1192,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             const defaultTemplatePackId = this.config.extractionDefaultTemplatePackId;
             if (!defaultTemplatePackId) {
                 this.logger.warn('No default extraction template pack configured; skipping auto-install');
-                return null;
+                return { prompt: null, objectSchemas: {} };
             }
 
             const organizationId = this.getOrganizationId(job);
@@ -1141,7 +1200,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 this.logger.warn(
                     `Cannot auto-install default template pack ${defaultTemplatePackId}: missing organization ID on job ${job.id}`
                 );
-                return null;
+                return { prompt: null, objectSchemas: {} };
             }
 
             const tenantId = (job as unknown as { tenant_id?: string }).tenant_id ?? organizationId;
@@ -1171,7 +1230,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                         `Failed to auto-install default template pack ${defaultTemplatePackId} for project ${job.project_id}`,
                         err
                     );
-                    return null;
+                    return { prompt: null, objectSchemas: {} };
                 }
             }
 
@@ -1181,86 +1240,35 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 this.logger.warn(
                     `Default template pack ${defaultTemplatePackId} available but prompts still missing for project ${job.project_id}`
                 );
-                return null;
+                return { prompt: null, objectSchemas: {} };
             }
         }
 
         const extractionPrompts = result.rows[0].extraction_prompts || {};
+        const objectSchemas = result.rows[0].object_type_schemas || {};
         const defaultPromptKey = result.rows[0].default_prompt_key;
 
-        const renderPrompt = (raw: unknown): string | null => {
-            if (!raw) {
-                return null;
-            }
+        // Load base extraction prompt from database settings or fall back to environment/default
+        // Priority: 1. Database (kb.settings) -> 2. Environment variable -> 3. Default
+        let basePrompt = this.config.extractionBasePrompt; // Default from config service
 
-            if (typeof raw === 'string') {
-                const trimmed = raw.trim();
-                return trimmed.length > 0 ? trimmed : null;
+        try {
+            const settingResult = await this.db.query(
+                'SELECT value FROM kb.settings WHERE key = $1',
+                ['extraction.basePrompt']
+            );
+            if (settingResult.rows.length > 0 && settingResult.rows[0].value) {
+                const value = settingResult.rows[0].value;
+                // The value is stored as JSONB, extract the string
+                basePrompt = typeof value === 'string' ? value : (value as any)?.text || (value as any)?.template || value;
+                this.logger.log('Using extraction base prompt from database settings');
             }
-
-            if (typeof raw === 'object') {
-                const value = raw as { system?: unknown; user?: unknown };
-                const system = typeof value.system === 'string' ? value.system.trim() : '';
-                const user = typeof value.user === 'string' ? value.user.trim() : '';
-                const parts = [system, user].filter(Boolean);
-                const combined = parts.join('\n').trim();
-                return combined.length > 0 ? combined : null;
-            }
-
-            return null;
-        };
-
-        if (defaultPromptKey) {
-            const prompt = renderPrompt(extractionPrompts[defaultPromptKey]);
-            if (prompt) {
-                this.logger.log(`Using extraction prompt with configured default key: ${defaultPromptKey}`);
-                return prompt;
-            }
+        } catch (error) {
+            this.logger.warn('Failed to load extraction base prompt from database, using default', error);
         }
 
-        // Try to get a generic/default prompt first
-        const defaultPrompt = renderPrompt(extractionPrompts.default);
-        if (defaultPrompt) {
-            this.logger.log(`Using default extraction prompt`);
-            return defaultPrompt;
-        }
-
-        // If specific entity types are requested, combine their prompts
-        const requestedTypes = job.extraction_config?.entity_types || [];
-        if (requestedTypes.length > 0) {
-            const availablePrompts: string[] = [];
-
-            for (const entityType of requestedTypes) {
-                if (extractionPrompts[entityType]) {
-                    const promptText = renderPrompt(extractionPrompts[entityType]);
-
-                    if (promptText) {
-                        availablePrompts.push(`For ${entityType}: ${promptText}`);
-                    }
-                }
-            }
-
-            if (availablePrompts.length > 0) {
-                const combinedPrompt = `Extract the following entity types from the document:\n\n${availablePrompts.join('\n\n')}`;
-                this.logger.log(`Using combined extraction prompt for ${availablePrompts.length} entity types`);
-                return combinedPrompt;
-            }
-        }
-
-        // Fallback: use the first available prompt
-        const availableKeys = Object.keys(extractionPrompts);
-        if (availableKeys.length > 0) {
-            for (const key of availableKeys) {
-                const promptText = renderPrompt(extractionPrompts[key]);
-                if (promptText) {
-                    this.logger.warn(`No matching prompts found, using fallback prompt key: ${key}`);
-                    return promptText;
-                }
-            }
-        }
-
-        this.logger.warn(`No extraction prompts available in template pack`);
-        return null;
+        this.logger.log(`Using schema-based extraction with ${Object.keys(objectSchemas).length} object type(s)`);
+        return { prompt: basePrompt, objectSchemas };
     }
 
     /**

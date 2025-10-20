@@ -112,6 +112,10 @@ export class EnvVariables {
     @IsOptional()
     EXTRACTION_CHUNK_OVERLAP?: number; // Overlap between chunks in characters (default: 2000)
 
+    @IsString()
+    @IsOptional()
+    EXTRACTION_BASE_PROMPT?: string; // Base instruction prompt for LLM entity extraction (schema-agnostic)
+
 }
 
 export function validate(config: Record<string, unknown>): EnvVariables {
@@ -150,6 +154,7 @@ export function validate(config: Record<string, unknown>): EnvVariables {
         })(),
         EXTRACTION_CHUNK_SIZE: process.env.EXTRACTION_CHUNK_SIZE || '100000',
         EXTRACTION_CHUNK_OVERLAP: process.env.EXTRACTION_CHUNK_OVERLAP || '2000',
+        EXTRACTION_BASE_PROMPT: process.env.EXTRACTION_BASE_PROMPT,
         ...config,
     };
     const transformed = plainToInstance(EnvVariables, {

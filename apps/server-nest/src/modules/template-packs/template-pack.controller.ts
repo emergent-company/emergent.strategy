@@ -125,6 +125,23 @@ export class TemplatePackController {
     }
 
     /**
+     * Get compiled object type schemas from all installed packs for a project
+     * This merges schemas from all active template packs
+     */
+    @Get('projects/:projectId/compiled-types')
+    @Scopes('graph:read')
+    async getCompiledObjectTypes(
+        @Param('projectId') projectId: string,
+        @Req() req: any
+    ) {
+        const orgId = (req.headers['x-org-id'] as string | undefined) || undefined;
+        if (!orgId) {
+            throw new BadRequestException('Organization context required');
+        }
+        return this.templatePackService.getCompiledObjectTypesForProject(projectId, orgId);
+    }
+
+    /**
      * Get installed template packs for a project
      */
     @Get('projects/:projectId/installed')

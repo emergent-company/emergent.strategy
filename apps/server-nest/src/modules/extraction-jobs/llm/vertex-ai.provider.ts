@@ -58,6 +58,7 @@ export class VertexAIProvider implements ILLMProvider {
     async extractEntities(
         documentContent: string,
         extractionPrompt: string,
+        objectSchemas: Record<string, any>,
         allowedTypes?: string[]
     ): Promise<ExtractionResult> {
         if (!this.isConfigured()) {
@@ -76,10 +77,11 @@ export class VertexAIProvider implements ILLMProvider {
                 model: model,
             });
 
-            // Build the prompt
+            // Build the prompt with schemas
             const fullPrompt = this.buildPrompt(
                 documentContent,
                 extractionPrompt,
+                objectSchemas,
                 allowedTypes
             );
 
@@ -149,9 +151,52 @@ export class VertexAIProvider implements ILLMProvider {
     private buildPrompt(
         documentContent: string,
         extractionPrompt: string,
+        objectSchemas: Record<string, any>,
         allowedTypes?: string[]
     ): string {
         let prompt = extractionPrompt + '\n\n';
+
+        // Add object type schemas if available
+        if (Object.keys(objectSchemas).length > 0) {
+            prompt += '**Object Type Schemas:**\n';
+            prompt += 'Extract entities matching these schema definitions:\n\n';
+
+            // Determine which schemas to show
+            const schemasToShow = allowedTypes && allowedTypes.length > 0
+                ? allowedTypes.filter(type => objectSchemas[type])
+                : Object.keys(objectSchemas);
+
+            for (const typeName of schemasToShow) {
+                const schema = objectSchemas[typeName];
+                prompt += `**${typeName}:**\n`;
+
+                if (schema.description) {
+                    prompt += `${schema.description}\n\n`;
+                }
+
+                if (schema.properties) {
+                    prompt += 'Properties:\n';
+                    for (const [propName, propDef] of Object.entries(schema.properties as Record<string, any>)) {
+                        const required = schema.required?.includes(propName) ? ' (required)' : '';
+                        const description = propDef.description || '';
+                        const typeInfo = propDef.type ? ` [${propDef.type}]` : '';
+                        const enumInfo = propDef.enum ? ` (options: ${propDef.enum.join(', ')})` : '';
+                        prompt += `  - ${propName}${required}${typeInfo}${enumInfo}: ${description}\n`;
+                    }
+                }
+
+                // Add examples if available
+                if (schema.examples && Array.isArray(schema.examples) && schema.examples.length > 0) {
+                    prompt += '\nExamples:\n';
+                    for (const example of schema.examples) {
+                        prompt += '```json\n' + JSON.stringify(example, null, 2) + '\n```\n';
+                    }
+                }
+
+                prompt += '\n';
+            }
+            prompt += '\n';
+        }
 
         if (allowedTypes && allowedTypes.length > 0) {
             prompt += `**Allowed Entity Types:**\n${allowedTypes.map(t => `- ${t}`).join('\n')}\n\n`;
