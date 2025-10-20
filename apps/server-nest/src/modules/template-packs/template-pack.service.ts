@@ -349,6 +349,7 @@ export class TemplatePackService {
             version: pack.version,
             description: pack.description,
             author: pack.author,
+            source: pack.source,
             object_types: Object.entries(pack.object_type_schemas).map(([type, schema]: [string, any]) => ({
                 type,
                 description: schema.description,
@@ -494,6 +495,68 @@ export class TemplatePackService {
             await client.query('COMMIT');
 
             this.logger.log(`Uninstalled template pack assignment ${assignmentId} from project ${projectId}`);
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
+    /**
+     * Delete a template pack permanently
+     * Only allows deletion of non-system packs that are not currently installed
+     */
+    async deleteTemplatePack(packId: string, orgId: string): Promise<void> {
+        const client = await this.db.getClient();
+
+        try {
+            await client.query('BEGIN');
+
+            // Set RLS context
+            await client.query(`SELECT set_config('app.current_organization_id', $1, true)`, [orgId]);
+
+            // Check if template pack exists and get its details
+            const packResult = await client.query(
+                `SELECT id, name, source FROM kb.graph_template_packs WHERE id = $1 AND organization_id = $2`,
+                [packId, orgId]
+            );
+
+            if (packResult.rows.length === 0) {
+                throw new BadRequestException('Template pack not found or access denied');
+            }
+
+            const pack = packResult.rows[0];
+
+            // Prevent deletion of system packs
+            if (pack.source === 'system') {
+                throw new BadRequestException('Cannot delete built-in template packs');
+            }
+
+            // Check if pack is currently installed in any project
+            const assignmentResult = await client.query(
+                `SELECT COUNT(*) as count FROM kb.project_template_packs 
+                 WHERE template_pack_id = $1 AND organization_id = $2`,
+                [packId, orgId]
+            );
+
+            const installCount = parseInt(assignmentResult.rows[0].count, 10);
+            if (installCount > 0) {
+                throw new BadRequestException(
+                    `Cannot delete template pack "${pack.name}" because it is currently installed in ${installCount} project(s). Please uninstall it from all projects first.`
+                );
+            }
+
+            // Delete the template pack
+            await client.query(
+                `DELETE FROM kb.graph_template_packs WHERE id = $1 AND organization_id = $2`,
+                [packId, orgId]
+            );
+
+            await client.query('COMMIT');
+
+            this.logger.log(`Deleted template pack ${packId} (${pack.name}) from organization ${orgId}`);
 
         } catch (error) {
             await client.query('ROLLBACK');

@@ -13,6 +13,7 @@ interface TemplatePack {
     version: string;
     description?: string;
     author?: string;
+    source?: 'manual' | 'discovered' | 'imported' | 'system';
     object_types: Array<{
         type: string;
         description?: string;
@@ -31,6 +32,7 @@ interface InstalledPack {
         name: string;
         version: string;
         description?: string;
+        source?: 'manual' | 'discovered' | 'imported' | 'system';
         object_types: Array<{
             type: string;
             description?: string;
@@ -152,6 +154,25 @@ export default function ProjectTemplatesSettingsPage() {
         }
     };
 
+    const handleDelete = async (packId: string, packName: string) => {
+        if (!window.confirm(`Are you sure you want to permanently delete "${packName}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        setError(null);
+
+        try {
+            await fetchJson(`${apiBase}/api/template-packs/${packId}`, {
+                method: 'DELETE',
+            });
+
+            // Reload packs
+            await loadTemplatePacks();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to delete template pack');
+        }
+    };
+
     if (!config.activeProjectId) {
         return (
             <div className="mx-auto p-6 container">
@@ -219,9 +240,17 @@ export default function ProjectTemplatesSettingsPage() {
                                                     <div className="flex items-center gap-3">
                                                         <Icon icon="lucide--check-circle" className="size-5 text-success" />
                                                         <div>
-                                                            <h3 className="font-semibold text-lg">
-                                                                {pack.template_pack.name}
-                                                            </h3>
+                                                            <div className="flex items-center gap-2">
+                                                                <h3 className="font-semibold text-lg">
+                                                                    {pack.template_pack.name}
+                                                                </h3>
+                                                                {pack.template_pack.source === 'system' && (
+                                                                    <span className="badge badge-info badge-sm">Built-in</span>
+                                                                )}
+                                                                {pack.template_pack.source === 'discovered' && (
+                                                                    <span className="badge badge-secondary badge-sm">Discovered</span>
+                                                                )}
+                                                            </div>
                                                             <p className="text-sm text-base-content/60">
                                                                 v{pack.template_pack.version}
                                                             </p>
@@ -257,13 +286,15 @@ export default function ProjectTemplatesSettingsPage() {
                                                         />
                                                         {pack.active ? 'Disable' : 'Enable'}
                                                     </button>
-                                                    <button
-                                                        className="btn-outline btn btn-sm btn-error"
-                                                        onClick={() => handleUninstall(pack.id)}
-                                                    >
-                                                        <Icon icon="lucide--trash-2" className="size-4" />
-                                                        Remove
-                                                    </button>
+                                                    {pack.template_pack.source !== 'system' && (
+                                                        <button
+                                                            className="btn-outline btn btn-sm btn-error"
+                                                            onClick={() => handleUninstall(pack.id)}
+                                                        >
+                                                            <Icon icon="lucide--trash-2" className="size-4" />
+                                                            Remove
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -276,63 +307,156 @@ export default function ProjectTemplatesSettingsPage() {
                     {/* Available Template Packs */}
                     <section>
                         <h2 className="mb-4 font-semibold text-xl">Available Template Packs</h2>
-                        <div className="gap-4 grid md:grid-cols-2">
-                            {availablePacks
-                                .filter((pack) => !pack.installed)
-                                .map((pack) => (
-                                    <div key={pack.id} className="bg-base-100 border hover:border-primary/30 border-base-300 transition-colors card">
-                                        <div className="card-body">
-                                            <div className="flex items-start gap-3">
-                                                <Icon icon="lucide--package" className="mt-1 size-6 text-primary" />
-                                                <div className="flex-1 min-w-0">
-                                                    <h3 className="font-semibold">{pack.name}</h3>
-                                                    <p className="text-sm text-base-content/60">v{pack.version}</p>
-                                                    {pack.description && (
-                                                        <p className="mt-2 text-sm text-base-content/70 line-clamp-2">
-                                                            {pack.description}
-                                                        </p>
-                                                    )}
-                                                    <div className="flex items-center gap-2 mt-3 text-sm text-base-content/60">
-                                                        <span>{pack.object_types?.length || 0} object types</span>
-                                                        {pack.author && (
-                                                            <>
-                                                                <span>•</span>
-                                                                <span>by {pack.author}</span>
-                                                            </>
-                                                        )}
+
+                        {/* Built-in Packs */}
+                        {availablePacks.filter((pack) => !pack.installed && pack.source === 'system').length > 0 && (
+                            <div className="mb-6">
+                                <h3 className="flex items-center gap-2 mb-3 font-medium text-base">
+                                    <Icon icon="lucide--shield-check" className="size-5 text-info" />
+                                    Built-in Packs
+                                </h3>
+                                <div className="space-y-3">
+                                    {availablePacks
+                                        .filter((pack) => !pack.installed && pack.source === 'system')
+                                        .map((pack) => (
+                                            <div key={pack.id} className="bg-base-100 border border-base-300 hover:border-info/30 transition-colors card">
+                                                <div className="card-body">
+                                                    <div className="flex items-start gap-3">
+                                                        <Icon icon="lucide--package" className="mt-1 size-6 text-info" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <h3 className="font-semibold">{pack.name}</h3>
+                                                                <span className="badge badge-info badge-xs">Built-in</span>
+                                                            </div>
+                                                            <p className="text-sm text-base-content/60">v{pack.version}</p>
+                                                            {pack.description && (
+                                                                <p className="mt-2 text-sm text-base-content/70 line-clamp-2">
+                                                                    {pack.description}
+                                                                </p>
+                                                            )}
+                                                            <div className="flex items-center gap-2 mt-3 text-sm text-base-content/60">
+                                                                <span>{pack.object_types?.length || 0} object types</span>
+                                                                {pack.author && (
+                                                                    <>
+                                                                        <span>•</span>
+                                                                        <span>by {pack.author}</span>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="justify-end mt-4 card-actions">
+                                                        <button
+                                                            className="btn btn-sm btn-ghost"
+                                                            onClick={() => setSelectedPreview(pack)}
+                                                        >
+                                                            <Icon icon="lucide--eye" className="size-4" />
+                                                            Preview
+                                                        </button>
+                                                        <button
+                                                            className="btn btn-sm btn-primary"
+                                                            onClick={() => handleInstall(pack.id)}
+                                                            disabled={installing === pack.id}
+                                                        >
+                                                            {installing === pack.id ? (
+                                                                <>
+                                                                    <span className="loading loading-spinner loading-xs"></span>
+                                                                    Installing...
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Icon icon="lucide--download" className="size-4" />
+                                                                    Install
+                                                                </>
+                                                            )}
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="justify-end mt-4 card-actions">
-                                                <button
-                                                    className="btn btn-sm btn-ghost"
-                                                    onClick={() => setSelectedPreview(pack)}
-                                                >
-                                                    <Icon icon="lucide--eye" className="size-4" />
-                                                    Preview
-                                                </button>
-                                                <button
-                                                    className="btn btn-sm btn-primary"
-                                                    onClick={() => handleInstall(pack.id)}
-                                                    disabled={installing === pack.id}
-                                                >
-                                                    {installing === pack.id ? (
-                                                        <>
-                                                            <span className="loading loading-spinner loading-xs"></span>
-                                                            Installing...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Icon icon="lucide--download" className="size-4" />
-                                                            Install
-                                                        </>
-                                                    )}
-                                                </button>
+                                        ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* User Created & Discovered Packs */}
+                        {availablePacks.filter((pack) => !pack.installed && pack.source !== 'system').length > 0 && (
+                            <div>
+                                <h3 className="flex items-center gap-2 mb-3 font-medium text-base">
+                                    <Icon icon="lucide--user" className="size-5 text-primary" />
+                                    User Created & Discovered Packs
+                                </h3>
+                                <div className="space-y-3">
+                                    {availablePacks
+                                        .filter((pack) => !pack.installed && pack.source !== 'system')
+                                        .map((pack) => (
+                                            <div key={pack.id} className="bg-base-100 border border-base-300 hover:border-primary/30 transition-colors card">
+                                                <div className="card-body">
+                                                    <div className="flex items-start gap-3">
+                                                        <Icon icon="lucide--package" className="mt-1 size-6 text-primary" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <h3 className="font-semibold">{pack.name}</h3>
+                                                                {pack.source === 'discovered' && (
+                                                                    <span className="badge badge-secondary badge-xs">Discovered</span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-sm text-base-content/60">v{pack.version}</p>
+                                                            {pack.description && (
+                                                                <p className="mt-2 text-sm text-base-content/70 line-clamp-2">
+                                                                    {pack.description}
+                                                                </p>
+                                                            )}
+                                                            <div className="flex items-center gap-2 mt-3 text-sm text-base-content/60">
+                                                                <span>{pack.object_types?.length || 0} object types</span>
+                                                                {pack.author && (
+                                                                    <>
+                                                                        <span>•</span>
+                                                                        <span>by {pack.author}</span>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="justify-end mt-4 card-actions">
+                                                        <button
+                                                            className="btn btn-sm btn-ghost"
+                                                            onClick={() => setSelectedPreview(pack)}
+                                                        >
+                                                            <Icon icon="lucide--eye" className="size-4" />
+                                                            Preview
+                                                        </button>
+                                                        <button
+                                                            className="btn-outline btn btn-sm btn-error"
+                                                            onClick={() => handleDelete(pack.id, pack.name)}
+                                                            title="Permanently delete this template pack"
+                                                        >
+                                                            <Icon icon="lucide--trash-2" className="size-4" />
+                                                            Delete
+                                                        </button>
+                                                        <button
+                                                            className="btn btn-sm btn-primary"
+                                                            onClick={() => handleInstall(pack.id)}
+                                                            disabled={installing === pack.id}
+                                                        >
+                                                            {installing === pack.id ? (
+                                                                <>
+                                                                    <span className="loading loading-spinner loading-xs"></span>
+                                                                    Installing...
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Icon icon="lucide--download" className="size-4" />
+                                                                    Install
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                ))}
-                        </div>
+                                        ))}
+                                </div>
+                            </div>
+                        )}
 
                         {availablePacks.filter((p) => !p.installed).length === 0 && installedPacks.length > 0 && (
                             <div className="bg-base-200 card">

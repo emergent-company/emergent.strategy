@@ -125,8 +125,8 @@ export function ExtractionLogsModal({ open, onOpenChange, jobId }: ExtractionLog
         return date.toLocaleTimeString();
     };
 
-    const filteredLogs = filterType === 'all' 
-        ? logs 
+    const filteredLogs = filterType === 'all'
+        ? logs
         : logs.filter(log => log.operation_type === filterType);
 
     const operationTypes = Array.from(new Set(logs.map(log => log.operation_type)));
@@ -164,19 +164,19 @@ export function ExtractionLogsModal({ open, onOpenChange, jobId }: ExtractionLog
                     {/* Summary Statistics */}
                     <div className="gap-4 grid grid-cols-2 md:grid-cols-4 mb-6">
                         <div className="bg-base-200 p-4 rounded-lg">
-                            <div className="text-base-content/60 text-sm">Total Steps</div>
+                            <div className="text-sm text-base-content/60">Total Steps</div>
                             <div className="font-bold text-2xl">{summary.totalSteps}</div>
                         </div>
                         <div className="bg-base-200 p-4 rounded-lg">
-                            <div className="text-base-content/60 text-sm">Success</div>
-                            <div className="font-bold text-2xl text-success">{summary.successSteps}</div>
+                            <div className="text-sm text-base-content/60">Success</div>
+                            <div className="font-bold text-success text-2xl">{summary.successSteps}</div>
                         </div>
                         <div className="bg-base-200 p-4 rounded-lg">
-                            <div className="text-base-content/60 text-sm">Errors</div>
-                            <div className="font-bold text-2xl text-error">{summary.errorSteps}</div>
+                            <div className="text-sm text-base-content/60">Errors</div>
+                            <div className="font-bold text-error text-2xl">{summary.errorSteps}</div>
                         </div>
                         <div className="bg-base-200 p-4 rounded-lg">
-                            <div className="text-base-content/60 text-sm">Duration</div>
+                            <div className="text-sm text-base-content/60">Duration</div>
                             <div className="font-bold text-2xl">{formatDuration(summary.totalDurationMs)}</div>
                         </div>
                     </div>
@@ -193,7 +193,7 @@ export function ExtractionLogsModal({ open, onOpenChange, jobId }: ExtractionLog
 
                     {/* Filters */}
                     <div className="flex flex-wrap items-center gap-2 mb-4">
-                        <span className="text-base-content/70 text-sm">Filter by type:</span>
+                        <span className="text-sm text-base-content/70">Filter by type:</span>
                         <button
                             className={`btn btn-xs ${filterType === 'all' ? 'btn-primary' : 'btn-outline'}`}
                             onClick={() => setFilterType('all')}
@@ -212,10 +212,10 @@ export function ExtractionLogsModal({ open, onOpenChange, jobId }: ExtractionLog
                     </div>
 
                     {/* Logs Table */}
-                    <div className="border-base-300 border rounded-lg overflow-hidden">
+                    <div className="border border-base-300 rounded-lg overflow-hidden">
                         <div className="max-h-[500px] overflow-y-auto">
-                            <table className="table table-zebra table-xs">
-                                <thead className="sticky top-0 bg-base-200 z-10">
+                            <table className="table table-xs table-zebra">
+                                <thead className="top-0 z-10 sticky bg-base-200">
                                     <tr>
                                         <th className="w-16">Step</th>
                                         <th className="w-24">Time</th>
@@ -280,7 +280,7 @@ export function ExtractionLogsModal({ open, onOpenChange, jobId }: ExtractionLog
                                                                 <div>
                                                                     <div className="flex items-center gap-2 mb-2">
                                                                         <Icon icon="lucide--arrow-left" className="size-4 text-success" />
-                                                                        <span className="font-semibold text-sm text-success">Output Data</span>
+                                                                        <span className="font-semibold text-success text-sm">Output Data</span>
                                                                     </div>
                                                                     <div className="bg-base-100 p-3 rounded overflow-x-auto">
                                                                         <pre className="font-mono text-xs whitespace-pre-wrap">
@@ -301,7 +301,7 @@ export function ExtractionLogsModal({ open, onOpenChange, jobId }: ExtractionLog
                                                                         <div className="font-mono text-error text-xs">{log.error_message}</div>
                                                                         {log.error_stack && (
                                                                             <details className="mt-2">
-                                                                                <summary className="cursor-pointer text-error/70 text-xs hover:text-error">
+                                                                                <summary className="text-error/70 hover:text-error text-xs cursor-pointer">
                                                                                     Stack Trace
                                                                                 </summary>
                                                                                 <pre className="mt-2 font-mono text-error/80 text-xs whitespace-pre-wrap">
@@ -318,7 +318,7 @@ export function ExtractionLogsModal({ open, onOpenChange, jobId }: ExtractionLog
                                                                 <div>
                                                                     <div className="flex items-center gap-2 mb-2">
                                                                         <Icon icon="lucide--info" className="size-4 text-base-content/60" />
-                                                                        <span className="font-semibold text-base-content/80 text-sm">Metadata</span>
+                                                                        <span className="font-semibold text-sm text-base-content/80">Metadata</span>
                                                                     </div>
                                                                     <div className="bg-base-200 p-3 rounded">
                                                                         <pre className="font-mono text-xs whitespace-pre-wrap">
@@ -339,7 +339,7 @@ export function ExtractionLogsModal({ open, onOpenChange, jobId }: ExtractionLog
                     </div>
 
                     {filteredLogs.length === 0 && (
-                        <div className="py-12 text-center text-base-content/60">
+                        <div className="py-12 text-base-content/60 text-center">
                             <Icon icon="lucide--inbox" className="mx-auto mb-2 size-12" />
                             <p>No logs found for the selected filter</p>
                         </div>

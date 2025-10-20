@@ -850,6 +850,93 @@ Now you immediately know: File: `encryption.service.ts`, Line: `45`, Method: `en
 
 ---
 
+### 2025-10-19 - Frontend Request Failing Because Backend Endpoint Didn't Exist
+
+**Context**: User reported KB Purpose Editor showing 400 Bad Request when clicking "Save". Frontend was sending PATCH request to `/api/projects/:id` with `{ kb_purpose: "..." }`.
+
+**Mistake**: Implemented frontend component that calls PATCH endpoint without verifying the backend endpoint existed first. Assumed the standard CRUD pattern would include update endpoints.
+
+**Why It Was Wrong**:
+- Frontend development completed before backend endpoint verification
+- Made assumption that ProjectsController would have a PATCH endpoint because it had GET, POST, DELETE
+- Didn't check the controller implementation before building dependent frontend features
+- This created a "works in code but fails at runtime" situation
+- User discovered the issue only during manual browser testing
+
+**Correct Approach**:
+1. **Before implementing frontend that calls an API**: Verify the endpoint exists in the backend controller
+2. **Check controller methods**: `grep -r "@Patch\|@Put\|@Post\|@Get\|@Delete" apps/server-nest/src/modules/<module>/`
+3. **If endpoint missing**: Implement backend first, then frontend
+4. **For new features requiring API changes**: 
+   - Create migration (if database schema changes needed)
+   - Create/update DTOs (request/response types)
+   - Add service method (business logic)
+   - Add controller endpoint (HTTP handler)
+   - Test endpoint with curl/Postman
+   - Then implement frontend
+5. **Full-stack verification checklist**:
+   - [ ] Database column exists (check schema or run migration)
+   - [ ] DTO includes field (check `*.dto.ts`)
+   - [ ] Service method handles field (check `*.service.ts`)
+   - [ ] Controller endpoint exists (check `*.controller.ts`)
+   - [ ] Endpoint has correct HTTP method (@Patch, @Post, etc.)
+   - [ ] Endpoint has correct scope/auth guards
+   - [ ] Test endpoint with curl before frontend work
+
+**Solution Applied**:
+1. Created `UpdateProjectDto` with `name?` and `kb_purpose?` fields
+2. Added `update()` method to ProjectsService (dynamic SQL builder)
+3. Added `@Patch(':id')` endpoint to ProjectsController with `@Scopes('project:write')`
+4. Updated `ProjectDto` to include `kb_purpose?: string` in response
+5. Verified `kb_purpose` column existed in database (migration already applied)
+6. Restarted server to load new endpoint
+7. Documented fix in `docs/KB_PURPOSE_EDITOR_FIX.md`
+
+**Prevention**:
+- When implementing frontend API calls, first verify endpoint exists:
+  ```bash
+  # Check if endpoint exists
+  grep -r "@Patch.*projects" apps/server-nest/src/modules/projects/
+  
+  # Check DTO includes field
+  grep "kb_purpose" apps/server-nest/src/modules/projects/dto/
+  
+  # Check database column exists
+  # (use postgres MCP or check migrations)
+  ```
+- Use semantic_search to find controller and check methods before coding frontend
+- For CRUD operations, verify all standard endpoints exist (GET, POST, PATCH, DELETE)
+- Don't assume standard patterns - verify explicitly
+- Test backend endpoint with curl before integrating frontend
+- Add to checklist: "Verified backend endpoint exists" before frontend PR
+
+**Related Files/Conventions**:
+- `apps/server-nest/src/modules/projects/projects.controller.ts` (added PATCH endpoint)
+- `apps/server-nest/src/modules/projects/projects.service.ts` (added update method)
+- `apps/server-nest/src/modules/projects/dto/project.dto.ts` (added UpdateProjectDto)
+- `apps/admin/src/components/organisms/KBPurposeEditor/KBPurposeEditor.tsx` (frontend caller)
+- NestJS patterns: Controller (@Patch) → Service (business logic) → Database
+- Full-stack verification: Migration → DTO → Service → Controller → Frontend
+
+**Real-World Impact**:
+- Before: Frontend compiled successfully but failed at runtime with 400 error
+- After: Full CRUD support for projects (can now update name or kb_purpose)
+- Discovery Wizard can now save KB purpose before running discovery
+- Users can edit and persist knowledge base purpose descriptions
+- Proper RESTful API pattern established for projects resource
+
+**Time Cost**:
+- Frontend implementation: 2 hours (KB Purpose Editor component)
+- Bug discovery: 5 minutes (user testing)
+- Root cause diagnosis: 10 minutes (grep searches, controller inspection)
+- Backend implementation: 30 minutes (DTO + Service + Controller)
+- Testing & documentation: 15 minutes
+- **Total wasted time**: ~1 hour (could have been prevented with upfront verification)
+
+**Key Takeaway**: Always verify backend APIs exist before implementing frontend features that depend on them. A 2-minute grep search would have saved an hour of rework.
+
+---
+
 ## Meta-Lessons
 
 ### Pattern Recognition

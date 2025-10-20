@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Post, Query, UseInterceptors, UsePipes, ValidationPipe, Delete, Param, ParseUUIDPipe, NotFoundException, UseGuards, Req } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseInterceptors, UsePipes, ValidationPipe, Delete, Param, ParseUUIDPipe, NotFoundException, UseGuards, Req, Patch } from '@nestjs/common';
 import { UuidParamPipe } from '../../common/pipes/uuid-param.pipe';
 import { ApiOkResponse, ApiTags, ApiBadRequestResponse, ApiQuery, ApiCreatedResponse } from '@nestjs/swagger';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
-import { CreateProjectDto, ProjectDto } from './dto/project.dto';
+import { CreateProjectDto, ProjectDto, UpdateProjectDto } from './dto/project.dto';
 import { ProjectsService } from './projects.service';
 import { CachingInterceptor } from '../../common/interceptors/caching.interceptor';
 import { AuthGuard } from '../auth/auth.guard';
@@ -56,6 +56,24 @@ export class ProjectsController {
         const validator = new UuidParamPipe({ paramName: 'orgId' });
         dto.orgId = validator.transform(dto.orgId)!; // CreateProjectDto requires orgId
         return this.projects.create(dto.name, dto.orgId, userId);
+    }
+
+    @Patch(':id')
+    @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+    @ApiOkResponse({ description: 'Project updated', type: ProjectDto })
+    @ApiBadRequestResponse({ description: 'Invalid id or validation error', schema: { example: { error: { code: 'bad-request', message: 'Invalid id' } } } })
+    @ApiStandardErrors()
+    // Updating a project requires project:write
+    @Scopes('project:write')
+    async update(
+        @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+        @Body() dto: UpdateProjectDto
+    ) {
+        const updated = await this.projects.update(id, dto);
+        if (!updated) {
+            throw new NotFoundException({ error: { code: 'not-found', message: 'Project not found' } });
+        }
+        return updated;
     }
 
     @Delete(':id')

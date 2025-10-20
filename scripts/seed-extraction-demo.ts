@@ -165,8 +165,8 @@ async function upsertTemplatePack(client: PoolClient): Promise<void> {
             `INSERT INTO kb.graph_template_packs (
                 id, name, version, description, author,
                 object_type_schemas, relationship_type_schemas,
-                ui_configs, extraction_prompts, published_at
-            ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, '{}'::jsonb, $7::jsonb, $8::jsonb, now())`,
+                ui_configs, extraction_prompts, published_at, source
+            ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, '{}'::jsonb, $7::jsonb, $8::jsonb, now(), $9)`,
             [
                 templatePackId,
                 templatePackName,
@@ -176,6 +176,7 @@ async function upsertTemplatePack(client: PoolClient): Promise<void> {
                 JSON.stringify(objectTypeSchemas),
                 JSON.stringify(uiConfigs),
                 JSON.stringify(extractionPrompts),
+                'system' // Mark as built-in/system template pack
             ]
         );
         console.log('• Created extraction template pack');

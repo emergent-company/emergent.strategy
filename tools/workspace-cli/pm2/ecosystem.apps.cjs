@@ -75,7 +75,10 @@ const apps = [
     },
     env_development: {
       NODE_ENV: 'development',
-      LOG_LEVEL: 'debug'
+      LOG_LEVEL: 'debug',
+      VERTEX_AI_MODEL: 'gemini-2.5-pro',
+      VERTEX_AI_PROJECT_ID: 'twentyfirst-io',
+      VERTEX_AI_LOCATION: 'us-central1'
     },
     env_staging: {
       NODE_ENV: 'staging',
