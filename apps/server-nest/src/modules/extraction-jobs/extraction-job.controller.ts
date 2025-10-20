@@ -16,7 +16,6 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { ExtractionJobService } from './extraction-job.service';
-import { ExtractionLoggerService } from './extraction-logger.service';
 import {
     CreateExtractionJobDto,
     UpdateExtractionJobDto,
@@ -41,10 +40,7 @@ import { Scopes } from '../auth/scopes.decorator';
 @ApiBearerAuth()
 @UseGuards(AuthGuard, ScopesGuard)
 export class ExtractionJobController {
-    constructor(
-        private readonly jobService: ExtractionJobService,
-        private readonly loggerService: ExtractionLoggerService,
-    ) { }
+    constructor(private readonly jobService: ExtractionJobService) { }
 
     private getOrganizationId(req: Request): string {
         const header = req.headers['x-org-id'];
@@ -336,89 +332,5 @@ export class ExtractionJobController {
     @Scopes('extraction:read')
     async listAvailableModels(): Promise<any> {
         return this.jobService.listAvailableGeminiModels();
-    }
-
-    /**
-     * Get detailed logs for a specific extraction job
-     * 
-     * Returns step-by-step logs including LLM prompts, responses, and errors
-     * for debugging and inspection in the UI
-     */
-    @Get(':jobId/logs')
-    @HttpCode(HttpStatus.OK)
-    @ApiOperation({
-        summary: 'Get detailed extraction logs',
-        description: 'Retrieve step-by-step logs for an extraction job including LLM interactions, errors, and performance metrics'
-    })
-    @ApiParam({ name: 'jobId', description: 'Extraction job UUID' })
-    @ApiResponse({
-        status: 200,
-        description: 'Logs retrieved successfully',
-        schema: {
-            type: 'object',
-            properties: {
-                logs: {
-                    type: 'array',
-                    items: {
-                        type: 'object',
-                        properties: {
-                            id: { type: 'string', format: 'uuid' },
-                            logged_at: { type: 'string', format: 'date-time' },
-                            step_index: { type: 'number' },
-                            operation_type: { type: 'string', enum: ['llm_call', 'chunk_processing', 'object_creation', 'relationship_creation', 'suggestion_creation', 'validation', 'error'] },
-                            operation_name: { type: 'string', nullable: true },
-                            status: { type: 'string', enum: ['success', 'error', 'warning'] },
-                            input_data: { type: 'object', nullable: true },
-                            output_data: { type: 'object', nullable: true },
-                            error_message: { type: 'string', nullable: true },
-                            error_stack: { type: 'string', nullable: true },
-                            duration_ms: { type: 'number', nullable: true },
-                            tokens_used: { type: 'number', nullable: true },
-                            metadata: { type: 'object', nullable: true },
-                        }
-                    }
-                },
-                summary: {
-                    type: 'object',
-                    properties: {
-                        totalSteps: { type: 'number' },
-                        successSteps: { type: 'number' },
-                        errorSteps: { type: 'number' },
-                        warningSteps: { type: 'number' },
-                        totalDurationMs: { type: 'number' },
-                        totalTokensUsed: { type: 'number' },
-                        operationCounts: { type: 'object' }
-                    }
-                }
-            }
-        }
-    })
-    @ApiResponse({ status: 400, description: 'Invalid job ID format' })
-    @ApiResponse({ status: 403, description: 'Access denied to this extraction job' })
-    @ApiResponse({ status: 404, description: 'Extraction job not found' })
-    @Scopes('extraction:read')
-    async getExtractionLogs(
-        @Param('jobId') jobId: string,
-        @Req() req: Request,
-    ): Promise<{ logs: any[]; summary: any }> {
-        if (!isUUID(jobId)) {
-            throw new BadRequestException('Invalid job ID format');
-        }
-
-        const organizationId = this.getOrganizationId(req);
-
-        // Verify the job exists and belongs to the requesting organization
-        // Note: We'll fetch the job to validate access, even though we just need jobId for logs
-        const projectId = this.getProjectId(req);
-        const job = await this.jobService.getJobById(jobId, projectId, organizationId);
-        // getJobById will throw if not found or access denied
-
-        // Fetch logs and summary
-        const [logs, summary] = await Promise.all([
-            this.loggerService.getJobLogs(jobId),
-            this.loggerService.getLogSummary(jobId),
-        ]);
-
-        return { logs, summary };
     }
 }
