@@ -476,24 +476,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             const llmCallStartTime = Date.now();
 
             try {
-                // Log LLM call input (full prompt, full document content, config)
-                await this.extractionLogger.logStep({
-                    extractionJobId: job.id,
-                    stepIndex: this.stepCounter++,
-                    operationType: 'llm_call',
-                    operationName: 'extract_entities',
-                    inputData: {
-                        prompt: extractionPrompt,
-                        document_content: documentContent,
-                        content_length: documentContent.length,
-                        allowed_types: allowedTypes,
-                        schema_types: Object.keys(objectSchemas),
-                    },
-                    metadata: {
-                        provider: providerName,
-                        model: this.config.vertexAiModel, // Current model used
-                    },
-                }); const result = await llmProvider.extractEntities(
+                const result = await llmProvider.extractEntities(
                     documentContent,
                     extractionPrompt,
                     objectSchemas,
@@ -524,13 +507,20 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
                 extractionResult = result;
 
-                // Log LLM call output (entities, response, tokens)
+                // Log combined LLM call (input + output in single entry)
                 await this.extractionLogger.logStep({
                     extractionJobId: job.id,
                     stepIndex: this.stepCounter++,
                     operationType: 'llm_call',
                     operationName: 'extract_entities',
                     status: 'success',
+                    inputData: {
+                        prompt: extractionPrompt,
+                        document_content: documentContent,
+                        content_length: documentContent.length,
+                        allowed_types: allowedTypes,
+                        schema_types: Object.keys(objectSchemas),
+                    },
                     outputData: {
                         entities_count: result.entities.length,
                         entities: result.entities.map(e => ({
@@ -545,6 +535,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                     tokensUsed: result.usage?.total_tokens ?? undefined,
                     metadata: {
                         provider: providerName,
+                        model: this.config.vertexAiModel,
                         prompt_tokens: result.usage?.prompt_tokens,
                         completion_tokens: result.usage?.completion_tokens,
                     },
@@ -841,11 +832,11 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                         } catch (createError) {
                             // Handle duplicate key error gracefully
                             const err = createError instanceof Error ? createError : new Error(String(createError));
-                            
+
                             if (err.message === 'object_key_exists') {
                                 // Duplicate key detected - apply deduplication strategy
                                 const duplicateStrategy = job.extraction_config?.duplicate_strategy || 'skip';
-                                
+
                                 this.logger.debug(
                                     `Duplicate key detected for ${entity.type_name} "${entity.name}" (key: ${objectKey}). ` +
                                     `Strategy: ${duplicateStrategy}`
@@ -931,28 +922,28 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                                             ),
                                             // Track multiple extraction sources
                                             _extraction_sources: [
-                                                ...(Array.isArray(existingProps._extraction_sources) 
-                                                    ? existingProps._extraction_sources 
-                                                    : existingProps._extraction_source 
-                                                        ? [existingProps._extraction_source] 
+                                                ...(Array.isArray(existingProps._extraction_sources)
+                                                    ? existingProps._extraction_sources
+                                                    : existingProps._extraction_source
+                                                        ? [existingProps._extraction_source]
                                                         : []
                                                 ),
                                                 job.source_type,
                                             ],
                                             _extraction_source_ids: [
-                                                ...(Array.isArray(existingProps._extraction_source_ids) 
-                                                    ? existingProps._extraction_source_ids 
-                                                    : existingProps._extraction_source_id 
-                                                        ? [existingProps._extraction_source_id] 
+                                                ...(Array.isArray(existingProps._extraction_source_ids)
+                                                    ? existingProps._extraction_source_ids
+                                                    : existingProps._extraction_source_id
+                                                        ? [existingProps._extraction_source_id]
                                                         : []
                                                 ),
                                                 job.source_id,
                                             ],
                                             _extraction_job_ids: [
-                                                ...(Array.isArray(existingProps._extraction_job_ids) 
-                                                    ? existingProps._extraction_job_ids 
-                                                    : existingProps._extraction_job_id 
-                                                        ? [existingProps._extraction_job_id] 
+                                                ...(Array.isArray(existingProps._extraction_job_ids)
+                                                    ? existingProps._extraction_job_ids
+                                                    : existingProps._extraction_job_id
+                                                        ? [existingProps._extraction_job_id]
                                                         : []
                                                 ),
                                                 job.id,

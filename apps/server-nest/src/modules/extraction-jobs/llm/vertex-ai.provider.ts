@@ -91,10 +91,10 @@ export class VertexAIProvider implements ILLMProvider {
             if (allowedTypes) {
                 this.logger.debug(`Allowed types filter: ${allowedTypes.join(', ')}`);
             }
-            
+
             // Log first 5000 chars of prompt for inspection (increased to show full schemas)
             this.logger.debug(`Prompt preview:\n${fullPrompt.substring(0, 5000)}...`);
-            
+
             // Also log the actual object schemas being used
             this.logger.debug(`Object schemas detail: ${JSON.stringify(objectSchemas, null, 2).substring(0, 3000)}`);
 

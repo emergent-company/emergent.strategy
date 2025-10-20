@@ -70,7 +70,7 @@ export function ExtractionConfigModal({
         const fetchTypes = async () => {
             try {
                 setIsLoadingTypes(true);
-                
+
                 // Fetch compiled object types from active template packs
                 const compiledTypes = await fetchJson<Record<string, any>>(
                     `${apiBase}/api/template-packs/projects/${projectId}/compiled-types`
@@ -88,9 +88,9 @@ export function ExtractionConfigModal({
 
                 setAvailableTypes(types);
 
-                // Set default selected types (first 4)
+                // Set default selected types (all types checked by default)
                 if (types.length > 0) {
-                    const defaultTypes = types.slice(0, Math.min(4, types.length)).map(t => t.value);
+                    const defaultTypes = types.map(t => t.value);
                     setConfig(prev => ({ ...prev, entity_types: defaultTypes }));
                 }
             } catch (error) {
@@ -193,7 +193,7 @@ export function ExtractionConfigModal({
                             {availableTypes.map((entityType) => (
                                 <label
                                     key={entityType.value}
-                                    className="flex items-start gap-3 p-3 border hover:border-primary border-base-300 rounded-box transition-colors cursor-pointer"
+                                    className="flex items-start gap-3 p-3 border border-base-300 hover:border-primary rounded-box transition-colors cursor-pointer"
                                 >
                                     <input
                                         type="checkbox"
@@ -355,7 +355,7 @@ export function ExtractionConfigModal({
                         </label>
                     </div>
                     <div className="mt-2 text-xs text-base-content/60">
-                        <Icon icon="lucide--info" className="inline-block size-3 mr-1" />
+                        <Icon icon="lucide--info" className="inline-block mr-1 size-3" />
                         {config.duplicate_strategy === 'merge' ? (
                             <>Updates existing entities with new properties and increases confidence scores</>
                         ) : (
