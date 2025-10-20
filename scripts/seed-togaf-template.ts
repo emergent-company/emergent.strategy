@@ -992,8 +992,8 @@ async function createTogafTemplatePack(client: Client): Promise<string> {
         `INSERT INTO kb.graph_template_packs (
             name, version, description, author, license,
             documentation_url, object_type_schemas, relationship_type_schemas,
-            ui_configs, extraction_prompts, sql_views
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            ui_configs, extraction_prompts, sql_views, source
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING id`,
         [
             TOGAF_TEMPLATE_PACK.name,
@@ -1006,7 +1006,8 @@ async function createTogafTemplatePack(client: Client): Promise<string> {
             JSON.stringify(TOGAF_TEMPLATE_PACK.relationship_type_schemas),
             JSON.stringify(TOGAF_TEMPLATE_PACK.ui_configs),
             JSON.stringify(TOGAF_TEMPLATE_PACK.extraction_prompts),
-            JSON.stringify(TOGAF_TEMPLATE_PACK.sql_views)
+            JSON.stringify(TOGAF_TEMPLATE_PACK.sql_views),
+            'system' // Mark as built-in/system template pack
         ]
     );
 

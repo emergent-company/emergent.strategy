@@ -6,7 +6,7 @@ import { AppConfigService } from '../../common/config/config.service';
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 
-interface ProjectRow { id: string; name: string; org_id: string; created_at?: string; updated_at?: string; }
+interface ProjectRow { id: string; name: string; org_id: string; kb_purpose?: string; created_at?: string; updated_at?: string; }
 
 @Injectable()
 export class ProjectsService {
@@ -25,28 +25,28 @@ export class ProjectsService {
                 return [];
             }
             const res = await this.db.query<ProjectRow>(
-                `SELECT id, name, org_id FROM kb.projects WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2`,
+                `SELECT id, name, org_id, kb_purpose FROM kb.projects WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2`,
                 [orgId, limit],
             );
-            return res.rows.map(r => ({ id: r.id, name: r.name, orgId: r.org_id }));
+            return res.rows.map(r => ({ id: r.id, name: r.name, orgId: r.org_id, kb_purpose: r.kb_purpose }));
         }
         const res = await this.db.query<ProjectRow>(
-            `SELECT id, name, org_id FROM kb.projects ORDER BY created_at DESC LIMIT $1`,
+            `SELECT id, name, org_id, kb_purpose FROM kb.projects ORDER BY created_at DESC LIMIT $1`,
             [limit],
         );
-        return res.rows.map(r => ({ id: r.id, name: r.name, orgId: r.org_id }));
+        return res.rows.map(r => ({ id: r.id, name: r.name, orgId: r.org_id, kb_purpose: r.kb_purpose }));
     }
 
     async getById(id: string): Promise<ProjectDto | null> {
         const res = await this.db.query<ProjectRow>(
-            `SELECT id, name, org_id FROM kb.projects WHERE id = $1`,
+            `SELECT id, name, org_id, kb_purpose FROM kb.projects WHERE id = $1`,
             [id],
         );
         if (res.rows.length === 0) {
             return null;
         }
         const r = res.rows[0];
-        return { id: r.id, name: r.name, orgId: r.org_id };
+        return { id: r.id, name: r.name, orgId: r.org_id, kb_purpose: r.kb_purpose };
     }
 
     async create(name: string, orgId?: string, userId?: string): Promise<ProjectDto> {
@@ -105,6 +105,56 @@ export class ProjectsService {
         await this.installDefaultTemplatePack(project, orgId, userId);
 
         return project;
+    }
+
+    /**
+     * Update a project's properties (name, kb_purpose, etc.)
+     * Returns the updated project or null if not found.
+     */
+    async update(projectId: string, updates: { name?: string; kb_purpose?: string }): Promise<ProjectDto | null> {
+        // Validate UUID shape
+        if (!/^[0-9a-fA-F-]{36}$/.test(projectId)) return null;
+
+        const fields: string[] = [];
+        const values: any[] = [];
+        let paramIndex = 1;
+
+        if (updates.name !== undefined) {
+            fields.push(`name = $${paramIndex++}`);
+            values.push(updates.name);
+        }
+
+        if (updates.kb_purpose !== undefined) {
+            fields.push(`kb_purpose = $${paramIndex++}`);
+            values.push(updates.kb_purpose);
+        }
+
+        // If no fields to update, just return current project
+        if (fields.length === 0) {
+            return this.getById(projectId);
+        }
+
+        values.push(projectId);
+
+        const result = await this.db.query<{ id: string; name: string; org_id: string; kb_purpose?: string }>(
+            `UPDATE kb.projects 
+             SET ${fields.join(', ')}, updated_at = now()
+             WHERE id = $${paramIndex}
+             RETURNING id, name, org_id, kb_purpose`,
+            values
+        );
+
+        if (result.rowCount === 0) {
+            return null;
+        }
+
+        const row = result.rows[0];
+        return {
+            id: row.id,
+            name: row.name,
+            orgId: row.org_id,
+            kb_purpose: row.kb_purpose
+        };
     }
 
     /**

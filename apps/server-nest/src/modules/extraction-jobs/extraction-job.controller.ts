@@ -346,7 +346,7 @@ export class ExtractionJobController {
      */
     @Get(':jobId/logs')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Get detailed extraction logs',
         description: 'Retrieve step-by-step logs for an extraction job including LLM interactions, errors, and performance metrics'
     })

@@ -222,4 +222,23 @@ export class TemplatePackController {
             orgId
         );
     }
+
+    /**
+     * Delete a template pack permanently
+     * Only allows deletion of non-system packs that are not installed in any project
+     */
+    @Delete(':id')
+    @Scopes('graph:write')
+    @HttpCode(HttpStatus.NO_CONTENT)
+    async deleteTemplatePack(
+        @Param('id') packId: string,
+        @Req() req: any
+    ) {
+        const orgId = (req.headers['x-org-id'] as string | undefined) || undefined;
+        if (!orgId) {
+            throw new BadRequestException('Organization context required');
+        }
+
+        await this.templatePackService.deleteTemplatePack(packId, orgId);
+    }
 }

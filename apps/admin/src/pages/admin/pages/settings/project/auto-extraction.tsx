@@ -7,6 +7,8 @@ import { useApi } from '@/hooks/use-api';
 import { Icon } from '@/components/atoms/Icon';
 import type { Project } from '@/hooks/use-projects';
 import { SettingsNav } from './SettingsNav';
+import { KBPurposeEditor } from '@/components/organisms/KBPurposeEditor';
+import { DiscoveryWizard } from '@/components/organisms/DiscoveryWizard';
 
 // Object types that can be auto-extracted
 const OBJECT_TYPES = [
@@ -52,6 +54,9 @@ export default function ProjectAutoExtractionSettingsPage() {
     const [requireReview, setRequireReview] = useState(DEFAULT_CONFIG.require_review);
     const [notifyOnComplete, setNotifyOnComplete] = useState(DEFAULT_CONFIG.notify_on_complete);
     const [notificationChannels, setNotificationChannels] = useState<string[]>(DEFAULT_CONFIG.notification_channels);
+
+    // Discovery Wizard state
+    const [showDiscoveryWizard, setShowDiscoveryWizard] = useState(false);
 
     // Load project settings
     const loadProject = async () => {
@@ -223,6 +228,61 @@ export default function ProjectAutoExtractionSettingsPage() {
                 </div>
             ) : (
                 <div className="space-y-6">
+                    {/* Knowledge Base Purpose */}
+                    <div className="bg-base-100 border border-base-300 card">
+                        <div className="card-body">
+                            <h2 className="flex items-center gap-2 mb-4 font-semibold text-lg">
+                                <Icon icon="lucide--lightbulb" className="size-5 text-primary" />
+                                Knowledge Base Purpose
+                            </h2>
+                            <p className="mb-4 text-sm text-base-content/70">
+                                Describe the purpose and domain of this knowledge base. This helps the AI understand context when discovering object types and relationships.
+                            </p>
+                            {config.activeProjectId && (
+                                <KBPurposeEditor projectId={config.activeProjectId} />
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Auto-Discovery */}
+                    <div className="bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/20 card">
+                        <div className="card-body">
+                            <div className="flex justify-between items-start gap-4">
+                                <div className="flex-1">
+                                    <h2 className="flex items-center gap-2 mb-2 font-semibold text-lg">
+                                        <Icon icon="lucide--sparkles" className="size-5 text-primary" />
+                                        Auto-Discovery
+                                        <span className="badge badge-primary badge-sm">New</span>
+                                    </h2>
+                                    <p className="text-sm text-base-content/70">
+                                        Let AI analyze your documents to automatically discover object types, properties, and relationships. Save hours of manual template pack configuration.
+                                    </p>
+                                    <div className="flex flex-wrap gap-2 mt-3">
+                                        <div className="flex items-center gap-1.5 text-xs text-base-content/60">
+                                            <Icon icon="lucide--check" className="size-3.5 text-success" />
+                                            <span>Discovers types automatically</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-xs text-base-content/60">
+                                            <Icon icon="lucide--check" className="size-3.5 text-success" />
+                                            <span>Infers relationships</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-xs text-base-content/60">
+                                            <Icon icon="lucide--check" className="size-3.5 text-success" />
+                                            <span>Generates template pack</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button
+                                    className="gap-2 btn btn-primary"
+                                    onClick={() => setShowDiscoveryWizard(true)}
+                                >
+                                    <Icon icon="lucide--wand-sparkles" className="size-4" />
+                                    Run Discovery
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Enable/Disable Auto-Extraction */}
                     <div className="bg-base-100 border border-base-300 card">
                         <div className="card-body">
@@ -430,6 +490,15 @@ export default function ProjectAutoExtractionSettingsPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Discovery Wizard Modal */}
+            {config.activeProjectId && (
+                <DiscoveryWizard
+                    projectId={config.activeProjectId}
+                    isOpen={showDiscoveryWizard}
+                    onClose={() => setShowDiscoveryWizard(false)}
+                />
             )}
         </div>
     );

@@ -130,8 +130,8 @@ export function validate(config: Record<string, unknown>): EnvVariables {
         RLS_POLICY_STRICT: process.env.RLS_POLICY_STRICT,
         // Extraction Worker defaults
         VERTEX_AI_PROJECT_ID: process.env.VERTEX_AI_PROJECT_ID,
-        VERTEX_AI_LOCATION: process.env.VERTEX_AI_LOCATION || 'us-central1',
-        VERTEX_AI_MODEL: process.env.VERTEX_AI_MODEL || 'gemini-2.5-flash',
+        VERTEX_AI_LOCATION: process.env.VERTEX_AI_LOCATION,
+        VERTEX_AI_MODEL: process.env.VERTEX_AI_MODEL,
         EXTRACTION_WORKER_ENABLED: process.env.EXTRACTION_WORKER_ENABLED,
         EXTRACTION_WORKER_POLL_INTERVAL_MS: process.env.EXTRACTION_WORKER_POLL_INTERVAL_MS || '5000',
         EXTRACTION_WORKER_BATCH_SIZE: process.env.EXTRACTION_WORKER_BATCH_SIZE || '5',

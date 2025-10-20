@@ -129,6 +129,7 @@ export interface AvailableTemplateDto {
     version: string;
     description?: string;
     author?: string;
+    source?: 'manual' | 'discovered' | 'imported' | 'system';
     object_types: Array<{
         type: string;
         description?: string;
