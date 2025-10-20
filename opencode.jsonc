@@ -35,6 +35,14 @@
     "gh_grep": {
       "type": "remote",
       "url": "https://mcp.grep.app"
+    },
+    "react-daisyui Docs": {
+      "type": "remote",
+      "url": "https://gitmcp.io/daisyui/react-daisyui"
+    },
+    "nx-mcp": {
+      "command": "npx",
+      "args": ["nx-mcp@latest"]
     }
   }
 }

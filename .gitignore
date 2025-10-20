@@ -48,3 +48,4 @@ apps/server-nest/logs/
 *.log
 
 storybook-static
+logs
