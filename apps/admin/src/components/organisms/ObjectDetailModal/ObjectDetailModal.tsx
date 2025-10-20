@@ -1,5 +1,8 @@
+import { useState, useEffect, useCallback, type ReactElement } from 'react';
 import { Icon } from '@/components/atoms/Icon';
 import { GraphObject } from '../ObjectBrowser/ObjectBrowser';
+import { useApi } from '@/hooks/use-api';
+import type { ObjectVersion, ObjectHistoryResponse } from '@/types/object-version';
 
 export interface ObjectDetailModalProps {
     /** The object to display */
@@ -22,6 +25,40 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
     onClose,
     onDelete,
 }) => {
+    const { fetchJson } = useApi();
+    const [versions, setVersions] = useState<ObjectVersion[]>([]);
+    const [loadingVersions, setLoadingVersions] = useState(false);
+    const [versionsError, setVersionsError] = useState<string | null>(null);
+
+    const loadVersionHistory = useCallback(async () => {
+        if (!object) return;
+
+        setLoadingVersions(true);
+        setVersionsError(null);
+        try {
+            const data = await fetchJson<ObjectHistoryResponse>(
+                `/api/graph/objects/${object.id}/history?limit=50`
+            );
+            setVersions(data.items || []);
+        } catch (error) {
+            console.error('Failed to load version history:', error);
+            setVersionsError('Failed to load version history');
+        } finally {
+            setLoadingVersions(false);
+        }
+    }, [object, fetchJson]);
+
+    // Load version history when modal opens
+    useEffect(() => {
+        if (isOpen && object) {
+            loadVersionHistory();
+        } else {
+            // Reset when modal closes
+            setVersions([]);
+            setVersionsError(null);
+        }
+    }, [isOpen, object, loadVersionHistory]);
+
     if (!object || !isOpen) return null;
 
     // Separate extraction metadata from regular properties
@@ -119,10 +156,10 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                                         <div className="w-24">
                                             <progress
                                                 className={`progress ${extractionMetadata._extraction_confidence >= 0.8
-                                                        ? 'progress-success'
-                                                        : extractionMetadata._extraction_confidence >= 0.6
-                                                            ? 'progress-warning'
-                                                            : 'progress-error'
+                                                    ? 'progress-success'
+                                                    : extractionMetadata._extraction_confidence >= 0.6
+                                                        ? 'progress-warning'
+                                                        : 'progress-error'
                                                     }`}
                                                 value={extractionMetadata._extraction_confidence * 100}
                                                 max="100"
@@ -132,20 +169,41 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                                 </div>
                             )}
 
-                            {/* Source Document Link */}
-                            {typeof extractionMetadata._extraction_source_id === 'string' && (
-                                <div className="flex justify-between items-center">
-                                    <span className="font-medium text-sm">Source Document</span>
-                                    <a
-                                        href={`/admin/documents?id=${extractionMetadata._extraction_source_id}`}
-                                        className="gap-1 btn btn-sm btn-ghost"
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <Icon icon="lucide--external-link" className="size-3" />
-                                        View Document
-                                    </a>
-                                </div>
-                            )}
+                            {/* Source Documents */}
+                            {(typeof extractionMetadata._extraction_source_id === 'string' ||
+                                Array.isArray(extractionMetadata._extraction_source_ids)) && (
+                                    <div className="flex justify-between items-start">
+                                        <span className="font-medium text-sm">Sources</span>
+                                        <div className="flex flex-wrap justify-end gap-1">
+                                            {/* Handle single source (legacy) */}
+                                            {typeof extractionMetadata._extraction_source_id === 'string' && (
+                                                <a
+                                                    href={`/admin/apps/documents`}
+                                                    className="gap-1 btn btn-sm badge badge-primary"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    title="View source document"
+                                                >
+                                                    <Icon icon="lucide--file-text" className="size-3" />
+                                                    Document
+                                                </a>
+                                            )}
+                                            {/* Handle multiple sources */}
+                                            {Array.isArray(extractionMetadata._extraction_source_ids) &&
+                                                extractionMetadata._extraction_source_ids.map((sourceId, idx) => (
+                                                    <a
+                                                        key={sourceId as string}
+                                                        href={`/admin/apps/documents`}
+                                                        className="gap-1 btn btn-sm badge badge-primary"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        title={`Source ${idx + 1}`}
+                                                    >
+                                                        <Icon icon="lucide--file-text" className="size-3" />
+                                                        Doc {idx + 1}
+                                                    </a>
+                                                ))}
+                                        </div>
+                                    </div>
+                                )}
 
                             {/* Extraction Job Link */}
                             {typeof extractionMetadata._extraction_job_id === 'string' && (
@@ -167,6 +225,7 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                                 .filter(([key]) =>
                                     !key.includes('confidence') &&
                                     !key.includes('source_id') &&
+                                    !key.includes('source_ids') &&
                                     !key.includes('job_id')
                                 )
                                 .map(([key, value]) => (
@@ -242,6 +301,159 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                             </span>
                         </div>
                     </div>
+                </div>
+
+                {/* Version History */}
+                <div className="mb-6">
+                    <h4 className="flex items-center gap-2 mb-3 font-semibold text-lg">
+                        <Icon icon="lucide--history" className="size-5" />
+                        Version History
+                    </h4>
+
+                    {loadingVersions ? (
+                        <div className="flex justify-center p-4">
+                            <span className="loading loading-spinner loading-md"></span>
+                        </div>
+                    ) : versionsError ? (
+                        <div className="alert alert-error">
+                            <Icon icon="lucide--alert-circle" />
+                            <span>{versionsError}</span>
+                        </div>
+                    ) : versions.length > 1 ? (
+                        <div className="space-y-3">
+                            {versions.map((version, idx): ReactElement => (
+                                <div
+                                    key={version.id}
+                                    className={`flex gap-3 p-3 rounded border ${idx === 0 ? 'bg-primary/5 border-primary' : 'bg-base-200 border-base-300'
+                                        }`}
+                                >
+                                    {/* Version Indicator */}
+                                    <div className="flex flex-col items-center pt-1">
+                                        <div className={`size-3 rounded-full ${idx === 0 ? 'bg-primary' : 'bg-base-300'
+                                            }`} />
+                                        {idx < versions.length - 1 && (
+                                            <div className="flex-1 bg-base-300 mt-1 w-px" />
+                                        )}
+                                    </div>
+
+                                    {/* Content */}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="font-semibold">
+                                                    Version {version.version}
+                                                </span>
+                                                {idx === 0 && (
+                                                    <span className="badge badge-primary badge-sm">
+                                                        Current
+                                                    </span>
+                                                )}
+                                                {version.version === 1 && (
+                                                    <span className="badge badge-ghost badge-sm">
+                                                        Initial
+                                                    </span>
+                                                )}
+                                                {version.deleted_at && (
+                                                    <span className="badge badge-error badge-sm">
+                                                        Deleted
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="mb-2 text-xs text-base-content/70">
+                                            {new Date(version.created_at).toLocaleString()}
+                                        </div>
+
+                                        {/* Change Summary */}
+                                        {(() => {
+                                            const summary = version.change_summary;
+                                            if (!summary) return null;
+
+                                            const hasChanges =
+                                                (Array.isArray(summary.added) && summary.added.length > 0) ||
+                                                (Array.isArray(summary.modified) && summary.modified.length > 0) ||
+                                                (Array.isArray(summary.removed) && summary.removed.length > 0) ||
+                                                summary.reason;
+
+                                            if (!hasChanges) return null;
+
+                                            return (
+                                                <div className="space-y-1 mt-2">
+                                                    {Array.isArray(summary.added) && summary.added.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 text-xs">
+                                                            <span className="font-medium text-success">Added:</span>
+                                                            {summary.added.map((field, i) => (
+                                                                <span key={i} className="gap-1 badge badge-success badge-sm">
+                                                                    <Icon icon="lucide--plus" className="size-2" />
+                                                                    {String(field)}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {Array.isArray(summary.modified) && summary.modified.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 text-xs">
+                                                            <span className="font-medium text-info">Changed:</span>
+                                                            {summary.modified.map((field, i) => (
+                                                                <span key={i} className="gap-1 badge badge-info badge-sm">
+                                                                    <Icon icon="lucide--edit-2" className="size-2" />
+                                                                    {String(field)}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {Array.isArray(summary.removed) && summary.removed.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 text-xs">
+                                                            <span className="font-medium text-error">Removed:</span>
+                                                            {summary.removed.map((field, i) => (
+                                                                <span key={i} className="gap-1 badge badge-error badge-sm">
+                                                                    <Icon icon="lucide--minus" className="size-2" />
+                                                                    {String(field)}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {summary.reason && (
+                                                        <p className="text-xs text-base-content/70 italic">
+                                                            {String(summary.reason)}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* Extraction Job Link */}
+                                        {(() => {
+                                            const props = version.properties;
+                                            if (!props || typeof props !== 'object') return null;
+                                            if (!('_extraction_job_id' in props)) return null;
+                                            const jobId = props._extraction_job_id;
+                                            if (!jobId) return null;
+
+                                            return (
+                                                <a
+                                                    href={`/admin/extraction-jobs/${String(jobId)}`}
+                                                    className="inline-flex gap-1 mt-2 btn btn-xs btn-ghost"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <Icon icon="lucide--zap" className="size-2" />
+                                                    From Extraction
+                                                </a>
+                                            );
+                                        })()}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : versions.length === 1 ? (
+                        <p className="text-sm text-base-content/70">
+                            This is the initial version (no history yet)
+                        </p>
+                    ) : (
+                        <p className="text-sm text-base-content/70">
+                            No version history available
+                        </p>
+                    )}
                 </div>
 
                 {/* Actions */}

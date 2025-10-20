@@ -25,10 +25,13 @@ export interface GraphObjectRow {
     synced_at?: string | null; // Last sync timestamp
     external_updated_at?: string | null; // Last modified in source system
     created_at: string;
+    // Computed fields (not stored in database)
+    revision_count?: number; // Total number of versions for this object
 }
 
 export interface GraphObjectDto extends GraphObjectRow {
     diff?: any;
+    revision_count?: number; // Total number of versions for this object
 }
 
 export interface GraphRelationshipRow {
