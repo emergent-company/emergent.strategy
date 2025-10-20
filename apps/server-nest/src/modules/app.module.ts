@@ -21,6 +21,7 @@ import { GraphSearchModule } from './graph-search/graph-search.module';
 import { TemplatePackModule } from './template-packs/template-pack.module';
 import { TypeRegistryModule } from './type-registry/type-registry.module';
 import { ExtractionJobModule } from './extraction-jobs/extraction-job.module';
+import { DiscoveryJobModule } from './discovery-jobs/discovery-job.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { ClickUpModule } from './clickup/clickup.module';
@@ -48,6 +49,7 @@ import { ClickUpModule } from './clickup/clickup.module';
         TemplatePackModule,
         TypeRegistryModule,
         ExtractionJobModule,
+        DiscoveryJobModule,
         NotificationsModule,
         IntegrationsModule,
         ClickUpModule,

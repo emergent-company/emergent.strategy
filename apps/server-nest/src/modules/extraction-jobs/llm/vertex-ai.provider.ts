@@ -30,6 +30,11 @@ export class VertexAIProvider implements ILLMProvider {
             return;
         }
 
+        if (!location) {
+            this.logger.warn('Vertex AI not configured: VERTEX_AI_LOCATION missing');
+            return;
+        }
+
         try {
             this.vertexAI = new VertexAI({
                 project: projectId,
@@ -60,6 +65,10 @@ export class VertexAIProvider implements ILLMProvider {
         }
 
         const model = this.config.vertexAiModel;
+        if (!model) {
+            throw new Error('VERTEX_AI_MODEL not configured');
+        }
+
         this.logger.debug(`Extracting entities with model: ${model}`);
 
         try {

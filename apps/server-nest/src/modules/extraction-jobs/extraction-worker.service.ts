@@ -467,11 +467,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                     },
                     metadata: {
                         provider: providerName,
-                        model: 'gemini-1.5-flash', // Current model used
+                        model: this.config.vertexAiModel, // Current model used
                     },
-                });
-
-                const result = await llmProvider.extractEntities(
+                }); const result = await llmProvider.extractEntities(
                     documentContent,
                     extractionPrompt,
                     allowedTypes
@@ -536,7 +534,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             } catch (error) {
                 const message = toErrorMessage(error);
                 const metadata = (error as Error & { llmStepMetadata?: Record<string, any> })?.llmStepMetadata;
-                
+
                 // Log LLM call error
                 await this.extractionLogger.logStep({
                     extractionJobId: job.id,
@@ -826,7 +824,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 } catch (error) {
                     outcome = 'failed';
                     const err = error instanceof Error ? error : new Error(String(error));
-                    
+
                     // Log object creation error
                     await this.extractionLogger.logStep({
                         extractionJobId: job.id,
@@ -841,7 +839,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                             entity_type: entity.type_name,
                         },
                     });
-                    
+
                     this.logger.error(
                         `Failed to create object for entity ${entity.name}: ${err.message}`,
                         err.stack

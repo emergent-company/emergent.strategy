@@ -919,7 +919,7 @@ export class ExtractionJobService {
             const modelNames = modelList.map((m: any) => m.name.replace('models/', ''));
 
             return {
-                current_model: this.config.vertexAiModel || 'gemini-1.5-flash-latest',
+                current_model: this.config.vertexAiModel,
                 available_models: modelList,
                 model_names: modelNames,
                 total_count: modelList.length,

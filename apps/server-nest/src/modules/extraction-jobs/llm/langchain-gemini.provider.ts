@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatVertexAI } from '@langchain/google-vertexai';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { z } from 'zod';
 import { AppConfigService } from '../../../common/config/config.service';
@@ -11,49 +11,55 @@ import {
 import { getSchemaForType } from '../schemas';
 
 /**
- * LangChain + Google Gemini provider for entity extraction
- * 
- * Uses ChatGoogleGenerativeAI with .withStructuredOutput() for type-safe extraction.
- * Follows the same pattern as chat-generation.service.ts for consistency.
+ * LangChain Gemini LLM Provider for entity extraction.
+ * Uses ChatVertexAI with .withStructuredOutput() for type-safe extraction.
+ * Supports dynamic type schemas via getSchemaForType helper.
  */
 @Injectable()
 export class LangChainGeminiProvider implements ILLMProvider {
     private readonly logger = new Logger(LangChainGeminiProvider.name);
-    private model: ChatGoogleGenerativeAI | null = null;
+    private model: ChatVertexAI | null = null;
 
     constructor(private readonly config: AppConfigService) {
         this.initialize();
     }
 
     private initialize() {
-        const apiKey = this.config.googleApiKey; // Shared with chat service
+        const projectId = this.config.vertexAiProjectId;
+        const location = this.config.vertexAiLocation;
+        const modelName = this.config.vertexAiModel;
 
-        if (!apiKey) {
-            this.logger.warn('LangChain Gemini not configured: GOOGLE_API_KEY missing');
+        if (!projectId) {
+            this.logger.warn('LangChain Vertex AI not configured: VERTEX_AI_PROJECT_ID missing');
             return;
         }
 
-        // Debug: Log the API key being used (masked for security)
-        const maskedKey = apiKey ? `${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)}` : 'undefined';
-        const modelName = this.config.vertexAiModel || 'gemini-2.5-flash';
+        if (!location) {
+            this.logger.warn('LangChain Vertex AI not configured: VERTEX_AI_LOCATION missing');
+            return;
+        }
 
-        // Force console.log to ensure we see this
-        // eslint-disable-next-line no-console
-        console.log(`[LangChainGeminiProvider] Initializing with API key: ${maskedKey} (length: ${apiKey?.length || 0}), model: ${modelName}`);
-        this.logger.log(`Using API key: ${maskedKey} (length: ${apiKey?.length || 0}), model: ${modelName}`);
+        if (!modelName) {
+            this.logger.warn('LangChain Vertex AI not configured: VERTEX_AI_MODEL missing');
+            return;
+        }
+
+        this.logger.log(`Initializing Vertex AI: project=${projectId}, location=${location}, model=${modelName}`);
 
         try {
-            // Use same model configuration as chat service for consistency
-            this.model = new ChatGoogleGenerativeAI({
-                apiKey: apiKey,
+            this.model = new ChatVertexAI({
                 model: modelName,
-                temperature: 0, // Deterministic for extraction
+                authOptions: {
+                    projectId: projectId,
+                },
+                location: location,
+                temperature: 0,
                 maxOutputTokens: 8192,
             });
 
-            this.logger.log(`LangChain Gemini initialized: model=${modelName}`);
+            this.logger.log(`LangChain Vertex AI initialized: model=${modelName}`);
         } catch (error) {
-            this.logger.error('Failed to initialize LangChain Gemini', error);
+            this.logger.error('Failed to initialize LangChain Vertex AI', error);
             this.model = null;
         }
     }
@@ -82,7 +88,7 @@ export class LangChainGeminiProvider implements ILLMProvider {
 
         // Split document into chunks if it's large
         const chunks = await this.splitDocumentIntoChunks(documentContent);
-        
+
         if (chunks.length > 1) {
             this.logger.log(`Document split into ${chunks.length} chunks for processing`);
         }
@@ -96,11 +102,11 @@ export class LangChainGeminiProvider implements ILLMProvider {
         for (const typeName of typesToExtract) {
             const typeStartTime = Date.now();
             const typeEntities: ExtractedEntity[] = [];
-            
+
             for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
                 const chunk = chunks[chunkIndex];
                 const callStart = Date.now();
-                
+
                 try {
                     const { entities, prompt, rawResponse } = await this.extractEntitiesForType(
                         typeName,
@@ -122,11 +128,9 @@ export class LangChainGeminiProvider implements ILLMProvider {
                         entities_found: entities.length,
                         duration_ms: Date.now() - callStart,
                         timestamp: new Date().toISOString(),
-                        model: this.config.vertexAiModel || 'gemini-2.5-flash',
+                        model: this.config.vertexAiModel,
                         status: 'success'
-                    });
-
-                    if (entities.length > 0) {
+                    }); if (entities.length > 0) {
                         typeEntities.push(...entities);
                     }
                 } catch (error) {
@@ -145,17 +149,15 @@ export class LangChainGeminiProvider implements ILLMProvider {
                         error: error instanceof Error ? error.message : String(error),
                         duration_ms: Date.now() - callStart,
                         timestamp: new Date().toISOString(),
-                        model: this.config.vertexAiModel || 'gemini-2.5-flash',
+                        model: this.config.vertexAiModel,
                         status: 'error'
-                    });
-
-                    // Continue with other chunks even if one fails
+                    });                    // Continue with other chunks even if one fails
                 }
             }
 
             // Deduplicate entities by name within the type
             const deduplicatedEntities = this.deduplicateEntities(typeEntities);
-            
+
             if (deduplicatedEntities.length > 0) {
                 allEntities.push(...deduplicatedEntities);
                 discoveredTypes.add(typeName);
@@ -214,9 +216,9 @@ export class LangChainGeminiProvider implements ILLMProvider {
         });
 
         const chunks = await splitter.splitText(documentContent);
-        
+
         this.logger.debug(`Created ${chunks.length} chunks`);
-        
+
         return chunks;
     }
 

@@ -324,7 +324,7 @@ export default function DocumentsPage() {
                     <div className="card-body">
                         {/* Show subtle info alert when uploading/refreshing */}
                         {uploading && (
-                            <div role="alert" className="alert alert-info mb-4">
+                            <div role="alert" className="mb-4 alert alert-info">
                                 <span className="loading loading-spinner loading-sm" />
                                 <span>Uploading document and refreshing list...</span>
                             </div>

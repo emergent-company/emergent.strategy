@@ -29,9 +29,17 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
         if (this.config.embeddingsNetworkDisabled) {
             return this.deterministicStub(text, 'vertex:offline:');
         }
-        const project = process.env.GOOGLE_VERTEX_PROJECT || 'dummy-project';
-        const location = process.env.GOOGLE_VERTEX_LOCATION || 'us-central1';
-        const model = process.env.VERTEX_EMBEDDING_MODEL || 'text-embedding-004';
+        const project = process.env.GOOGLE_VERTEX_PROJECT;
+        const location = process.env.GOOGLE_VERTEX_LOCATION;
+        const model = process.env.VERTEX_EMBEDDING_MODEL || 'text-embedding-004'; // text-embedding-004 is the standard model
+
+        if (!project) {
+            throw new Error('GOOGLE_VERTEX_PROJECT not configured for embeddings');
+        }
+        if (!location) {
+            throw new Error('GOOGLE_VERTEX_LOCATION not configured for embeddings');
+        }
+
         const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${project}/locations/${location}/publishers/google/models/${model}:predict`;
         const apiKey = process.env.GOOGLE_API_KEY!;
         try {

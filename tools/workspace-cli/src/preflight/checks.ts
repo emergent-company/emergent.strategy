@@ -167,11 +167,7 @@ async function collectEnvWarnings(command: string): Promise<EnvWarning[]> {
     const rootEnvPath = path.join(ROOT_DIR, '.env');
     if (!existsSync(rootEnvPath)) {
         warnings.push({
-            message: 'Root .env file not found. Copy .env.example to .env and supply GOOGLE_API_KEY, database, and Zitadel settings.'
-        });
-    } else if (!(await envFileContains(rootEnvPath, 'GOOGLE_API_KEY')) && process.env.GOOGLE_API_KEY === undefined) {
-        warnings.push({
-            message: 'GOOGLE_API_KEY is missing. Set it in .env before starting the server to avoid runtime failures.'
+            message: 'Root .env file not found. Copy .env.example to .env and supply database and Zitadel settings.'
         });
     }
 

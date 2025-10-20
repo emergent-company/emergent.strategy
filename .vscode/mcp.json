@@ -26,12 +26,16 @@
         "-y",
         "@upstash/context7-mcp",
         "--api-key",
-        "ctx7sk-04743fb8-074d-4868-bf5e-9d2e3cc3dc4b"
+        "ctx7sk-77ad3f0a-32a5-4b23-8b82-1431d078b1c6"
       ]
-     },
+    },
     "gh_grep": {
       "type": "http",
       "url": "https://mcp.grep.app"
+    },
+    "react-daisyui Docs": {
+      "type": "sse",
+      "url": "https://gitmcp.io/daisyui/react-daisyui"
     }
   }
 }

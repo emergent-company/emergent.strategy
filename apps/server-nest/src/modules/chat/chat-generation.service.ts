@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AppConfigService } from '../../common/config/config.service';
-import { GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatVertexAI } from '@langchain/google-vertexai';
 
 // NOTE: We reuse embeddings client initialization trick for simplicity; for a full model we'd use a proper text generation client.
 // For now emulate streaming by splitting the single model response into tokens.
@@ -23,10 +23,18 @@ export class ChatGenerationService {
         if (!this.enabled) throw new Error('chat model disabled');
         try {
             if (process.env.E2E_DEBUG_CHAT === '1') {
-                this.logger.log(`[gen] start enabled=${this.enabled} hasKey=${this.hasKey} model=gemini-1.5-flash promptPreview="${prompt.slice(0, 80).replace(/\n/g, ' ')}"`);
+                this.logger.log(`[gen] start enabled=${this.enabled} model=gemini-2.5-pro promptPreview="${prompt.slice(0, 80).replace(/\n/g, ' ')}"`);
             }
-            // Use a fast, inexpensive model; fallback to embedding ping if generative fails
-            const model = new ChatGoogleGenerativeAI({ apiKey: this.config.googleApiKey, model: 'gemini-1.5-flash' });
+            // Use Vertex AI with gemini-2.5-pro model
+            const model = new ChatVertexAI({
+                model: this.config.vertexAiModel,
+                authOptions: {
+                    projectId: this.config.vertexAiProjectId,
+                },
+                location: this.config.vertexAiLocation,
+                temperature: 0,
+                maxOutputTokens: 8192,
+            });
             const msg = await model.invoke(prompt);
             const full = typeof msg === 'string' ? msg : (msg as any)?.content || JSON.stringify(msg);
             // Naive tokenization (split on spaces) for incremental emission

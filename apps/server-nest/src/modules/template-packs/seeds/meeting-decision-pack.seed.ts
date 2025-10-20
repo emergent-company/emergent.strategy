@@ -628,8 +628,8 @@ async function seedMeetingDecisionPack(pool: Pool): Promise<void> {
                 `INSERT INTO kb.graph_template_packs (
           id, name, version, description, author,
           object_type_schemas, relationship_type_schemas,
-          ui_configs, extraction_prompts, published_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())`,
+          ui_configs, extraction_prompts, published_at, source
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), $10)`,
                 [
                     PACK_ID,
                     'Meeting & Decision Management',
@@ -640,6 +640,7 @@ async function seedMeetingDecisionPack(pool: Pool): Promise<void> {
                     JSON.stringify(relationshipTypeSchemas),
                     JSON.stringify(uiConfigs),
                     JSON.stringify(extractionPrompts),
+                    'system' // Mark as built-in/system template pack
                 ]
             );
 

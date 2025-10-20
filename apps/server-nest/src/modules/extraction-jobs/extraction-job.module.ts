@@ -60,6 +60,6 @@ import { AuthModule } from '../auth/auth.module';
         LLMProviderFactory,
     ],
     controllers: [ExtractionJobController],
-    exports: [ExtractionJobService, ExtractionWorkerService, ExtractionLoggerService],
+    exports: [ExtractionJobService, ExtractionWorkerService, ExtractionLoggerService, LangChainGeminiProvider],
 })
 export class ExtractionJobModule { }

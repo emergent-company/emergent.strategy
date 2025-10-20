@@ -47,7 +47,7 @@ export interface ExtractionLogRow {
 
 @Injectable()
 export class ExtractionLoggerService {
-    constructor(private readonly db: DatabaseService) {}
+    constructor(private readonly db: DatabaseService) { }
 
     /**
      * Log a single extraction step with input/output data

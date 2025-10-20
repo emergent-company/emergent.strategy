@@ -11,6 +11,9 @@ export interface TemplatePackRow {
     license?: string;
     repository_url?: string;
     documentation_url?: string;
+    source?: 'manual' | 'discovered' | 'imported' | 'system';
+    discovery_job_id?: string;
+    pending_review?: boolean;
     object_type_schemas: Record<string, any>;
     relationship_type_schemas: Record<string, any>;
     ui_configs: Record<string, any>;
