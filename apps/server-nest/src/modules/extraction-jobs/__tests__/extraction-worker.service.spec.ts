@@ -260,7 +260,7 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
         });
     });
 
-    describe('loadExtractionPrompt - default template pack fallback', () => {
+    describe('loadExtractionConfig - default template pack fallback', () => {
         const baseJob = {
             id: 'job-1',
             project_id: 'project-123',
@@ -281,6 +281,7 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
                     rows: [
                         {
                             extraction_prompts: { default: 'Prompt text' },
+                            object_type_schemas: {},
                             default_prompt_key: null,
                         },
                     ],
@@ -288,7 +289,7 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
 
             templatePackService.assignTemplatePackToProject.mockResolvedValue({ success: true });
 
-            const prompt = await (service as any).loadExtractionPrompt(baseJob);
+            const result = await (service as any).loadExtractionConfig(baseJob);
 
             expect(templatePackService.assignTemplatePackToProject).toHaveBeenCalledWith(
                 baseJob.project_id,
@@ -297,7 +298,8 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
                 baseJob.subject_id,
                 { template_pack_id: configService.extractionDefaultTemplatePackId }
             );
-            expect(prompt).toBe('Prompt text');
+            expect(result.prompt).toBe('Prompt text');
+            expect(result.objectSchemas).toBeDefined();
             expect(databaseService.query).toHaveBeenCalledTimes(2);
         });
 
@@ -305,9 +307,10 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
             configService.extractionDefaultTemplatePackId = null;
             databaseService.query.mockResolvedValue({ rowCount: 0, rows: [] });
 
-            const prompt = await (service as any).loadExtractionPrompt(baseJob);
+            const result = await (service as any).loadExtractionConfig(baseJob);
 
-            expect(prompt).toBeNull();
+            expect(result.prompt).toBeNull();
+            expect(result.objectSchemas).toEqual({});
             expect(templatePackService.assignTemplatePackToProject).not.toHaveBeenCalled();
         });
 
@@ -315,9 +318,10 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
             databaseService.query.mockResolvedValue({ rowCount: 0, rows: [] });
             templatePackService.assignTemplatePackToProject.mockRejectedValue(new NotFoundException('missing'));
 
-            const prompt = await (service as any).loadExtractionPrompt(baseJob);
+            const result = await (service as any).loadExtractionConfig(baseJob);
 
-            expect(prompt).toBeNull();
+            expect(result.prompt).toBeNull();
+            expect(result.objectSchemas).toEqual({});
             expect(templatePackService.assignTemplatePackToProject).toHaveBeenCalledTimes(1);
         });
 
@@ -329,6 +333,7 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
                     rows: [
                         {
                             extraction_prompts: { default: { system: 'sys', user: 'user' } },
+                            object_type_schemas: {},
                             default_prompt_key: null,
                         },
                     ],
@@ -336,9 +341,10 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
 
             templatePackService.assignTemplatePackToProject.mockRejectedValueOnce(new ConflictException('already'));
 
-            const prompt = await (service as any).loadExtractionPrompt(baseJob);
+            const result = await (service as any).loadExtractionConfig(baseJob);
 
-            expect(prompt).toBe('sys\nuser');
+            expect(result.prompt).toBe('sys\nuser');
+            expect(result.objectSchemas).toBeDefined();
             expect(templatePackService.assignTemplatePackToProject).toHaveBeenCalledTimes(1);
             expect(databaseService.query).toHaveBeenCalledTimes(2);
         });
