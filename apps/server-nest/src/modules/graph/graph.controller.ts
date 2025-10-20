@@ -99,6 +99,23 @@ export class GraphObjectsController {
         return this.service.searchObjectsFts({ q, limit: parsedLimit, type, label, branch_id, org_id: orgId, project_id: projectId }, { orgId, projectId });
     }
 
+    @Get('objects/tags')
+    @Scopes('graph:read')
+    @ApiOperation({ summary: 'Get all distinct tags from graph objects' })
+    @ApiResponse({ status: 200, description: 'List of distinct tags', type: [String] })
+    @ApiOkResponse({ 
+        description: 'Returns all distinct tags used across graph objects in the project. Tags are stored in properties.tags as string arrays.',
+        schema: {
+            type: 'array',
+            items: { type: 'string' },
+            example: ['team-sync', 'weekly', 'engineering', 'roadmap']
+        }
+    })
+    async getTags(@Req() req: any): Promise<string[]> {
+        const ctx = this.extractContext(req);
+        return this.service.getAllTags(ctx);
+    }
+
     @Get('objects/:id')
     @Scopes('graph:read')
     @ApiOperation({ summary: 'Get latest version of a graph object' })

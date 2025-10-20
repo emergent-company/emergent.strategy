@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { VertexAI } from '@google-cloud/vertexai';
+import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { AppConfigService } from '../../../common/config/config.service';
 import {
     ILLMProvider,
@@ -72,93 +73,283 @@ export class VertexAIProvider implements ILLMProvider {
 
         this.logger.debug(`Extracting entities with model: ${model}`);
 
+        const startTime = Date.now();
+        const allEntities: ExtractedEntity[] = [];
+        const discoveredTypes = new Set<string>();
+        const debugCalls: any[] = []; // Collect debug info for each LLM call
+        let totalTokens = 0;
+        let totalPromptTokens = 0;
+        let totalCompletionTokens = 0;
+
         try {
             const generativeModel = this.vertexAI!.getGenerativeModel({
                 model: model,
             });
 
-            // Build the prompt with schemas
-            const fullPrompt = this.buildPrompt(
-                documentContent,
-                extractionPrompt,
-                objectSchemas,
-                allowedTypes
-            );
+            // Split document into chunks if it's large
+            const chunks = await this.splitDocumentIntoChunks(documentContent);
 
-            // Log the full prompt for debugging
-            this.logger.debug(`Full prompt length: ${fullPrompt.length} characters`);
-            this.logger.debug(`Schemas included: ${Object.keys(objectSchemas).join(', ')}`);
-            if (allowedTypes) {
-                this.logger.debug(`Allowed types filter: ${allowedTypes.join(', ')}`);
+            if (chunks.length > 1) {
+                this.logger.log(`Document split into ${chunks.length} chunks for processing`);
             }
 
-            // Log first 5000 chars of prompt for inspection (increased to show full schemas)
-            this.logger.debug(`Prompt preview:\n${fullPrompt.substring(0, 5000)}...`);
+            // Process each type separately with its specific schema
+            const typesToExtract = allowedTypes || Object.keys(objectSchemas);
 
-            // Also log the actual object schemas being used
-            this.logger.debug(`Object schemas detail: ${JSON.stringify(objectSchemas, null, 2).substring(0, 3000)}`);
+            this.logger.debug(`Extracting ${typesToExtract.length} types: ${typesToExtract.join(', ')}`);
 
-            // Call the LLM
-            const startTime = Date.now();
-            const result = await generativeModel.generateContent({
-                contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-                generationConfig: {
-                    temperature: 0.1, // Low temperature for structured extraction
-                    maxOutputTokens: 8192,
-                },
-            });
+            // Process each chunk for each type
+            for (const typeName of typesToExtract) {
+                const typeStartTime = Date.now();
+                const typeEntities: ExtractedEntity[] = [];
+
+                for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+                    const chunk = chunks[chunkIndex];
+                    const callStart = Date.now();
+
+                    try {
+                        const { entities, usage, response } = await this.extractEntitiesForType(
+                            generativeModel,
+                            typeName,
+                            chunk,
+                            extractionPrompt,
+                            objectSchemas[typeName]
+                        );
+
+                        // Accumulate token usage
+                        if (usage) {
+                            totalTokens += usage.total_tokens;
+                            totalPromptTokens += usage.prompt_tokens;
+                            totalCompletionTokens += usage.completion_tokens;
+                        }
+
+                        // Store debug information for this call
+                        debugCalls.push({
+                            type: typeName,
+                            chunk_index: chunkIndex,
+                            chunk_count: chunks.length,
+                            input: {
+                                document: chunk.substring(0, 500) + (chunk.length > 500 ? '...' : ''),
+                                prompt: extractionPrompt,
+                                allowed_types: [typeName]
+                            },
+                            output: response,
+                            entities_found: entities.length,
+                            duration_ms: Date.now() - callStart,
+                            timestamp: new Date().toISOString(),
+                            model: model,
+                            status: 'success',
+                            usage: usage
+                        });
+
+                        if (entities.length > 0) {
+                            typeEntities.push(...entities);
+                        }
+                    } catch (error) {
+                        this.logger.error(`Failed to extract ${typeName} from chunk ${chunkIndex + 1}/${chunks.length}:`, error);
+
+                        // Store error debug information
+                        debugCalls.push({
+                            type: typeName,
+                            chunk_index: chunkIndex,
+                            chunk_count: chunks.length,
+                            input: {
+                                document: chunk.substring(0, 500) + (chunk.length > 500 ? '...' : ''),
+                                prompt: extractionPrompt,
+                                allowed_types: [typeName]
+                            },
+                            error: error instanceof Error ? error.message : String(error),
+                            duration_ms: Date.now() - callStart,
+                            timestamp: new Date().toISOString(),
+                            model: model,
+                            status: 'error'
+                        });
+
+                        // Continue with other chunks even if one fails
+                    }
+                }
+
+                // Deduplicate entities by name within the type
+                const deduplicatedEntities = this.deduplicateEntities(typeEntities);
+
+                if (deduplicatedEntities.length > 0) {
+                    allEntities.push(...deduplicatedEntities);
+                    discoveredTypes.add(typeName);
+                    this.logger.debug(
+                        `Extracted ${deduplicatedEntities.length} unique ${typeName} entities ` +
+                        `(${typeEntities.length} total before deduplication) in ${Date.now() - typeStartTime}ms`
+                    );
+                }
+            }
 
             const duration = Date.now() - startTime;
-            this.logger.debug(`LLM response received in ${duration}ms`);
-
-            // Parse the response
-            const response = result.response;
-            const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-            if (!text) {
-                throw new Error('Empty response from Vertex AI');
-            }
-
-            // Extract JSON from response (handle markdown code blocks)
-            const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
-            const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
-
-            let parsed: any;
-            try {
-                parsed = JSON.parse(jsonText);
-            } catch (parseError) {
-                this.logger.error('Failed to parse LLM response as JSON', { text, parseError });
-                throw new Error('Invalid JSON response from LLM');
-            }
-
-            // Validate and normalize the response
-            const entities = this.normalizeEntities(parsed.entities || parsed);
-            const discoveredTypes = this.extractDiscoveredTypes(entities);
-
-            // Extract usage metadata
-            const usage = response.usageMetadata
-                ? {
-                    prompt_tokens: response.usageMetadata.promptTokenCount || 0,
-                    completion_tokens: response.usageMetadata.candidatesTokenCount || 0,
-                    total_tokens: response.usageMetadata.totalTokenCount || 0,
-                }
-                : undefined;
 
             this.logger.log(
-                `Extracted ${entities.length} entities, discovered ${discoveredTypes.length} types, ` +
-                `tokens: ${usage?.total_tokens || 'unknown'}`
+                `Extracted ${allEntities.length} total entities across ${discoveredTypes.size} types in ${duration}ms, ` +
+                `tokens: ${totalTokens}`
             );
 
             return {
-                entities,
-                discovered_types: discoveredTypes,
-                usage,
-                raw_response: response,
+                entities: allEntities,
+                discovered_types: Array.from(discoveredTypes),
+                usage: {
+                    prompt_tokens: totalPromptTokens,
+                    completion_tokens: totalCompletionTokens,
+                    total_tokens: totalTokens,
+                },
+                raw_response: {
+                    llm_calls: debugCalls,
+                    total_duration_ms: duration,
+                    total_entities: allEntities.length,
+                    types_processed: typesToExtract.length,
+                    chunks_processed: chunks.length
+                }
             };
         } catch (error) {
             this.logger.error('Entity extraction failed', error);
             throw error;
         }
+    }
+
+    /**
+     * Extract entities for a specific type from a single chunk
+     */
+    private async extractEntitiesForType(
+        generativeModel: any,
+        typeName: string,
+        documentContent: string,
+        extractionPrompt: string,
+        objectSchema?: any
+    ): Promise<{ entities: ExtractedEntity[], usage?: any, response: any }> {
+        // Build the prompt with schema for this specific type
+        const fullPrompt = this.buildPrompt(
+            documentContent,
+            extractionPrompt,
+            objectSchema ? { [typeName]: objectSchema } : {},
+            [typeName]
+        );
+
+        // Call the LLM
+        const result = await generativeModel.generateContent({
+            contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+            generationConfig: {
+                temperature: 0.1, // Low temperature for structured extraction
+                maxOutputTokens: 8192,
+            },
+        });
+
+        // Parse the response
+        const response = result.response;
+        const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+        if (!text) {
+            throw new Error('Empty response from Vertex AI');
+        }
+
+        // Extract JSON from response (handle markdown code blocks)
+        const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
+        const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
+
+        let parsed: any;
+        try {
+            parsed = JSON.parse(jsonText);
+        } catch (parseError) {
+            // Log full details for debugging
+            const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+            const finishReason = response.candidates?.[0]?.finishReason;
+            
+            this.logger.error('Failed to parse LLM response as JSON', {
+                rawText: text.substring(0, 5000),
+                extractedJson: jsonText.substring(0, 5000),
+                parseError: errorMessage,
+                responseLength: text.length,
+                finishReason,
+                safetyRatings: response.candidates?.[0]?.safetyRatings,
+            });
+            
+            // Throw with enhanced error including response metadata
+            const error: Error & { responseMetadata?: any } = new Error(
+                finishReason && finishReason !== 'STOP' 
+                    ? `Invalid JSON response from LLM (finish_reason: ${finishReason})`
+                    : 'Invalid JSON response from LLM'
+            );
+            
+            // Attach metadata for logging
+            error.responseMetadata = {
+                rawTextPreview: text.substring(0, 1000),
+                responseLength: text.length,
+                finishReason,
+                extractedJsonPreview: jsonText.substring(0, 1000),
+                parseError: errorMessage,
+            };
+            
+            throw error;
+        }
+
+        // Validate and normalize the response
+        const entities = this.normalizeEntities(parsed.entities || parsed);
+
+        // Extract usage metadata
+        const usage = response.usageMetadata
+            ? {
+                prompt_tokens: response.usageMetadata.promptTokenCount || 0,
+                completion_tokens: response.usageMetadata.candidatesTokenCount || 0,
+                total_tokens: response.usageMetadata.totalTokenCount || 0,
+            }
+            : undefined;
+
+        return { entities, usage, response };
+    }
+
+    /**
+     * Split document into chunks using LangChain text splitter with overlap
+     */
+    private async splitDocumentIntoChunks(documentContent: string): Promise<string[]> {
+        const chunkSize = this.config.extractionChunkSize;
+        const chunkOverlap = this.config.extractionChunkOverlap;
+
+        // If document is smaller than chunk size, return as single chunk
+        if (documentContent.length <= chunkSize) {
+            return [documentContent];
+        }
+
+        this.logger.debug(
+            `Splitting document (${documentContent.length} chars) into chunks ` +
+            `(size: ${chunkSize}, overlap: ${chunkOverlap})`
+        );
+
+        const splitter = new RecursiveCharacterTextSplitter({
+            chunkSize,
+            chunkOverlap,
+            separators: ['\n\n', '\n', '. ', ' ', ''],
+        });
+
+        const chunks = await splitter.splitText(documentContent);
+
+        this.logger.debug(`Created ${chunks.length} chunks`);
+
+        return chunks;
+    }
+
+    /**
+     * Deduplicate entities by name (case-insensitive)
+     * Keeps the entity with highest confidence when duplicates found
+     */
+    private deduplicateEntities(entities: ExtractedEntity[]): ExtractedEntity[] {
+        const entityMap = new Map<string, ExtractedEntity>();
+
+        for (const entity of entities) {
+            const key = entity.name.toLowerCase();
+            const existing = entityMap.get(key);
+            const entityConfidence = entity.confidence || 0;
+            const existingConfidence = existing?.confidence || 0;
+
+            if (!existing || entityConfidence > existingConfidence) {
+                entityMap.set(key, entity);
+            }
+        }
+
+        return Array.from(entityMap.values());
     }
 
     private buildPrompt(

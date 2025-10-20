@@ -1961,6 +1961,21 @@ paths:
         '200':
           description: ''
       tags: *ref_7
+  /graph/objects/tags:
+    get:
+      operationId: getTags
+      summary: Get all distinct tags from graph objects
+      parameters: []
+      responses:
+        '200':
+          description: List of distinct tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+      tags: *ref_7
   /graph/objects/{id}:
     get:
       operationId: get
