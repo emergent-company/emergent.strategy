@@ -19,6 +19,8 @@ import { ProductVersionService } from './product-version.service';
 import { ProductVersionController } from './product-version.controller';
 import { TagService } from './tag.service';
 import { TagController } from './tag.controller';
+import { TagCleanupWorkerService } from './tag-cleanup-worker.service';
+import { RevisionCountRefreshWorkerService } from './revision-count-refresh-worker.service';
 import { RedactionInterceptor } from './redaction.interceptor';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 
@@ -31,6 +33,8 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
         BranchService,
         ProductVersionService,
         TagService,
+        TagCleanupWorkerService,
+        RevisionCountRefreshWorkerService,
         EmbeddingJobsService,
         EmbeddingPolicyService,
         {
