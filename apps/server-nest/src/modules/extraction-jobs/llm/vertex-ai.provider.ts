@@ -257,7 +257,7 @@ export class VertexAIProvider implements ILLMProvider {
             // Log full details for debugging
             const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
             const finishReason = response.candidates?.[0]?.finishReason;
-            
+
             this.logger.error('Failed to parse LLM response as JSON', {
                 rawText: text.substring(0, 5000),
                 extractedJson: jsonText.substring(0, 5000),
@@ -266,14 +266,14 @@ export class VertexAIProvider implements ILLMProvider {
                 finishReason,
                 safetyRatings: response.candidates?.[0]?.safetyRatings,
             });
-            
+
             // Throw with enhanced error including response metadata
             const error: Error & { responseMetadata?: any } = new Error(
-                finishReason && finishReason !== 'STOP' 
+                finishReason && finishReason !== 'STOP'
                     ? `Invalid JSON response from LLM (finish_reason: ${finishReason})`
                     : 'Invalid JSON response from LLM'
             );
-            
+
             // Attach metadata for logging
             error.responseMetadata = {
                 rawTextPreview: text.substring(0, 1000),
@@ -282,7 +282,7 @@ export class VertexAIProvider implements ILLMProvider {
                 extractedJsonPreview: jsonText.substring(0, 1000),
                 parseError: errorMessage,
             };
-            
+
             throw error;
         }
 
