@@ -103,7 +103,7 @@ export class GraphObjectsController {
     @Scopes('graph:read')
     @ApiOperation({ summary: 'Get all distinct tags from graph objects' })
     @ApiResponse({ status: 200, description: 'List of distinct tags', type: [String] })
-    @ApiOkResponse({ 
+    @ApiOkResponse({
         description: 'Returns all distinct tags used across graph objects in the project. Tags are stored in properties.tags as string arrays.',
         schema: {
             type: 'array',

@@ -137,7 +137,7 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
         if (selectedTypes.length > 0 && !selectedTypes.includes(obj.type)) {
             return false;
         }
-        
+
         // Apply tag filter
         if (selectedTags.length > 0) {
             const objTags = (obj.properties?.tags as string[] | undefined) || [];
@@ -147,7 +147,7 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                 return false;
             }
         }
-        
+
         // Apply search filter
         if (searchQuery && !obj.name.toLowerCase().includes(searchQuery.toLowerCase())) {
             return false;
@@ -192,27 +192,27 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                     </label>
                     <ul
                         tabIndex={0}
-                        className="dropdown-content menu bg-base-100 rounded-box z-[1] w-64 max-h-80 overflow-y-auto p-2 shadow-lg border border-base-300"
+                        className="z-[1] bg-base-100 shadow-lg p-2 border border-base-300 rounded-box w-64 max-h-80 overflow-y-auto dropdown-content menu"
                     >
                         {/* Header with clear button */}
                         {selectedTypes.length > 0 && (
                             <li className="mb-2">
                                 <button
-                                    className="btn btn-xs btn-ghost btn-block justify-between"
+                                    className="btn-block justify-between btn btn-xs btn-ghost"
                                     onClick={handleClearTypeFilter}
                                 >
-                                    <span className="text-xs opacity-70">Clear all filters</span>
+                                    <span className="opacity-70 text-xs">Clear all filters</span>
                                     <Icon icon="lucide--x" className="size-3" />
                                 </button>
                             </li>
                         )}
-                        
+
                         {/* Type checkboxes */}
                         {availableTypes.map(type => {
                             const count = objects.filter(obj => obj.type === type).length;
                             return (
                                 <li key={type}>
-                                    <label className="flex items-center gap-2 cursor-pointer justify-between">
+                                    <label className="flex justify-between items-center gap-2 cursor-pointer">
                                         <div className="flex items-center gap-2">
                                             <input
                                                 type="checkbox"
@@ -251,21 +251,21 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                     </label>
                     <ul
                         tabIndex={0}
-                        className="dropdown-content menu bg-base-100 rounded-box z-[1] w-64 max-h-80 overflow-y-auto p-2 shadow-lg border border-base-300"
+                        className="z-[1] bg-base-100 shadow-lg p-2 border border-base-300 rounded-box w-[32rem] max-h-[40rem] overflow-y-auto dropdown-content menu"
                     >
                         {/* Header with clear button */}
                         {selectedTags.length > 0 && (
                             <li className="mb-2">
                                 <button
-                                    className="btn btn-xs btn-ghost btn-block justify-between"
+                                    className="btn-block justify-between btn btn-xs btn-ghost"
                                     onClick={handleClearTagFilter}
                                 >
-                                    <span className="text-xs opacity-70">Clear all tags</span>
+                                    <span className="opacity-70 text-xs">Clear all tags</span>
                                     <Icon icon="lucide--x" className="size-3" />
                                 </button>
                             </li>
                         )}
-                        
+
                         {/* Tag checkboxes */}
                         {availableTags.map(tag => {
                             const count = objects.filter(obj => {
@@ -274,7 +274,7 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                             }).length;
                             return (
                                 <li key={tag}>
-                                    <label className="flex items-center gap-2 cursor-pointer justify-between">
+                                    <label className="flex justify-between items-center gap-2 cursor-pointer">
                                         <div className="flex items-center gap-2">
                                             <input
                                                 type="checkbox"
@@ -323,8 +323,8 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
 
         return (
             <div className="flex flex-wrap items-center gap-2 bg-base-200/30 px-3 py-2 border border-base-300 rounded">
-                <span className="text-xs text-base-content/60 font-medium">Active filters:</span>
-                
+                <span className="font-medium text-xs text-base-content/60">Active filters:</span>
+
                 {/* Type filter badges */}
                 {selectedTypes.map(type => (
                     <button
@@ -337,7 +337,7 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                         <Icon icon="lucide--x" className="size-3" />
                     </button>
                 ))}
-                
+
                 {/* Tag filter badges */}
                 {selectedTags.map(tag => (
                     <button
@@ -350,9 +350,9 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                         <Icon icon="lucide--x" className="size-3" />
                     </button>
                 ))}
-                
+
                 <button
-                    className="text-xs text-base-content/60 hover:text-base-content underline ml-auto"
+                    className="ml-auto text-xs text-base-content/60 hover:text-base-content underline"
                     onClick={() => {
                         handleClearTypeFilter();
                         handleClearTagFilter();
@@ -485,16 +485,16 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                                     {hasExtractionData ? (
                                         <div className="flex items-center gap-1">
                                             <span className={`text-xs font-medium ${extractionConfidence >= 0.8 ? 'text-success' :
-                                                    extractionConfidence >= 0.6 ? 'text-warning' :
-                                                        'text-error'
+                                                extractionConfidence >= 0.6 ? 'text-warning' :
+                                                    'text-error'
                                                 }`}>
                                                 {(extractionConfidence * 100).toFixed(0)}%
                                             </span>
                                             <div className="w-12">
                                                 <progress
                                                     className={`progress progress-xs ${extractionConfidence >= 0.8 ? 'progress-success' :
-                                                            extractionConfidence >= 0.6 ? 'progress-warning' :
-                                                                'progress-error'
+                                                        extractionConfidence >= 0.6 ? 'progress-warning' :
+                                                            'progress-error'
                                                         }`}
                                                     value={extractionConfidence * 100}
                                                     max="100"
