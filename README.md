@@ -22,6 +22,49 @@ Every protected endpoint enforces one or more OAuth-style scopes. Missing scopes
 
 See `SECURITY_SCOPES.md` for the complete catalogue and mapping to endpoints. The generated OpenAPI (`apps/server-nest/openapi.yaml`) annotates each operation with `x-required-scopes`.
 
+## Schema-Aware Chat (MCP Integration)
+
+The chat system integrates with the Model Context Protocol (MCP) to provide intelligent, real-time schema information. When users ask questions about the database schema (version, changes, type definitions), the system automatically:
+
+1. **Detects schema queries** using pattern matching
+2. **Queries the database** via MCP tools (schema_version, schema_changelog, type_info)
+3. **Injects context** into LLM prompts
+4. **Streams responses** with accurate, up-to-date schema information
+
+**Example User Experience:**
+
+```
+User: "What is the current schema version?"
+System: [Shows "Querying schema version..." indicator]
+AI: "The current schema version is 1.2.3, effective since October 15, 2025..."
+```
+
+**Configuration:**
+
+```bash
+# Enable/disable MCP integration (default: enabled)
+CHAT_ENABLE_MCP=1
+
+# MCP server URL (default: internal endpoint)
+MCP_SERVER_URL=http://localhost:3001
+
+# Request timeout (default: 30 seconds)
+MCP_TIMEOUT=30000
+```
+
+**Documentation:**
+- [Architecture Overview](docs/MCP_CHAT_ARCHITECTURE.md) - System design and data flow
+- [User Guide](docs/MCP_CHAT_USER_GUIDE.md) - How to use schema-aware chat
+- [Configuration Guide](docs/MCP_CHAT_CONFIGURATION.md) - Deployment and administration
+- [UI Integration](docs/MCP_CHAT_UI_INTEGRATION.md) - Frontend implementation details
+
+**Features:**
+- ✅ Automatic schema query detection
+- ✅ Real-time database queries
+- ✅ Graceful degradation (chat continues if MCP fails)
+- ✅ Visual feedback ("Querying..." indicator)
+- ✅ Full test coverage (unit + integration + E2E)
+
 ## Error Logging & Debugging
 
 The system includes comprehensive error logging for both server and browser:

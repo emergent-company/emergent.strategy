@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { McpController } from './mcp.controller';
+import { McpServerController } from './mcp-server.controller';
 import { SchemaTool } from './tools/schema.tool';
 import { SpecificDataTool } from './tools/specific-data.tool';
 import { GenericDataTool } from './tools/generic-data.tool';
@@ -19,12 +20,22 @@ import { AuthModule } from '../auth/auth.module';
  * - Generic fallback tools (getObjectsByType, etc.) ✅ Phase 3 Part 2
  * - Schema versioning for cache invalidation ✅ Phase 3.5
  * - Authentication & authorization ✅ Phase 4
+ * - JSON-RPC 2.0 MCP Server ✅ Phase 5 (NEW)
  * 
  * Architecture:
+ * - **Legacy REST API**: McpController (GET /mcp/schema/version, etc.)
+ * - **MCP Server**: McpServerController (POST /mcp/rpc) - JSON-RPC 2.0 protocol
  * - Hybrid tool approach: specific discoverable tools + generic fallbacks
  * - Version-based caching with TTL and optional WebSocket notifications
  * - HTTP caching headers (ETag, Cache-Control)
  * - JWT authentication with scope-based authorization
+ * 
+ * MCP Server (Phase 5):
+ * - Implements Model Context Protocol (JSON-RPC 2.0)
+ * - Lifecycle management (initialize, capability negotiation)
+ * - Tools: schema_version, schema_changelog, type_info
+ * - HTTP transport (POST /mcp/rpc)
+ * - Compatible with MCP clients (our chat + future external clients)
  * 
  * Security:
  * - All endpoints require authentication (JWT bearer token)
@@ -39,7 +50,10 @@ import { AuthModule } from '../auth/auth.module';
         GraphModule,
         AuthModule,  // Phase 4: Authentication & Authorization
     ],
-    controllers: [McpController],
+    controllers: [
+        McpController,        // Legacy REST API
+        McpServerController   // JSON-RPC 2.0 MCP Server (Phase 5)
+    ],
     providers: [
         SchemaVersionService, // Phase 3.5: Schema versioning
         SchemaTool,           // Phase 2: Schema discovery tools

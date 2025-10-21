@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Req, Res, HttpStatus, Patch, Body, Delete, Post, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Param, Req, Res, HttpStatus, Patch, Body, Delete, Post, UseGuards, BadRequestException, Logger } from '@nestjs/common';
 import { ApiOkResponse, ApiTags, ApiNotFoundResponse, ApiProduces, ApiForbiddenResponse, ApiBadRequestResponse, ApiBody, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
 import { IsArray, IsBoolean, IsOptional, IsString, IsUUID, Max, Min, ValidateNested, ArrayMaxSize, ArrayNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -45,6 +45,8 @@ class ChatRequestDto {
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import { ChatService } from './chat.service';
 import { ChatGenerationService } from './chat-generation.service';
+import { McpClientService } from './mcp-client.service';
+import { McpToolDetectorService } from './mcp-tool-detector.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
 import { Scopes } from '../auth/scopes.decorator';
@@ -88,6 +90,14 @@ class ChatStreamErrorEvent {
 class ChatStreamDoneEvent {
     type!: 'done';
 }
+// MCP Tool SSE events
+class ChatStreamMcpToolEvent {
+    type!: 'mcp_tool';
+    tool!: string;
+    status!: 'started' | 'completed' | 'error';
+    result?: any;
+    error?: string;
+}
 
 // GET stream event frame variants (SSE) (different shape than POST stream for backward compatibility)
 class GetChatStreamMetaFrame { meta!: { chat_model_enabled: boolean; google_key: boolean } }
@@ -105,6 +115,7 @@ class GetChatStreamErrorFrame { error!: { code: string; message: string }; done?
     ChatStreamTokenEvent,
     ChatStreamErrorEvent,
     ChatStreamDoneEvent,
+    ChatStreamMcpToolEvent,
     GetChatStreamMetaFrame,
     GetChatStreamTokenFrame,
     GetChatStreamCitationsFrame,
@@ -115,7 +126,14 @@ class GetChatStreamErrorFrame { error!: { code: string; message: string }; done?
 @Controller('chat')
 @UseGuards(AuthGuard, ScopesGuard)
 export class ChatController {
-    constructor(private readonly chat: ChatService, private readonly gen: ChatGenerationService) { }
+    private readonly logger = new Logger(ChatController.name);
+
+    constructor(
+        private readonly chat: ChatService,
+        private readonly gen: ChatGenerationService,
+        private readonly mcpClient: McpClientService,
+        private readonly mcpDetector: McpToolDetectorService
+    ) { }
     private static readonly UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 
     @Get('conversations')
@@ -241,20 +259,28 @@ export class ChatController {
             res.write(`data: ${JSON.stringify({ error: { code: 'upstream-failed', message: 'Simulated upstream model failure' }, done: true })}\n\n`);
             return res.end();
         }
+        // DISABLED: Citation retrieval system (hybrid search) - will be replaced with graph search in future
         // Pre-retrieval for contextual augmentation (move retrieval ahead of generation so model can use it)
-        let citations: any[] = [];
+        let citations: any[] = []; // Keep for backward compatibility with SSE events
         const userQuestion = conv.messages?.[0]?.content || 'Hello';
-        try {
-            citations = await this.chat.retrieveCitations(userQuestion, 4, orgId, projectId, null) as any[];
-            if (process.env.E2E_DEBUG_CHAT === '1') {
-                // eslint-disable-next-line no-console
-                console.log('[stream] pre-retrieval citations count=', citations.length);
+        // Feature flag to re-enable citations if needed (default: disabled)
+        const citationsEnabled = process.env.CHAT_ENABLE_CITATIONS === '1';
+        if (citationsEnabled) {
+            try {
+                citations = await this.chat.retrieveCitations(userQuestion, 4, orgId, projectId, null) as any[];
+                if (process.env.E2E_DEBUG_CHAT === '1') {
+                    // eslint-disable-next-line no-console
+                    console.log('[stream] pre-retrieval citations count=', citations.length);
+                }
+            } catch (e) {
+                if (process.env.E2E_DEBUG_CHAT === '1') {
+                    // eslint-disable-next-line no-console
+                    console.log('[stream] retrieval failed pre-generation:', (e as Error).message);
+                }
             }
-        } catch (e) {
-            if (process.env.E2E_DEBUG_CHAT === '1') {
-                // eslint-disable-next-line no-console
-                console.log('[stream] retrieval failed pre-generation:', (e as Error).message);
-            }
+        } else if (process.env.E2E_DEBUG_CHAT === '1') {
+            // eslint-disable-next-line no-console
+            console.log('[stream] citations disabled (CHAT_ENABLE_CITATIONS=0)');
         }
         const tokens: string[] = [];
         if (this.gen.enabled) {
@@ -264,9 +290,8 @@ export class ChatController {
             }
             try {
                 let idx = 0;
-                // Assemble contextual prompt (truncate total context to avoid excessive token usage)
-                const contextSnippet = citations.slice(0, 3).map(c => c.text).join('\n---\n').slice(0, 1200);
-                const prompt = `You are a retrieval-augmented assistant. Use ONLY the provided context to answer. If context is empty, say you lack data.\nContext:\n${contextSnippet || '[no-context]'}\n\nQuestion: ${userQuestion}\nAnswer:`;
+                // UPDATED: Removed citation context - will be replaced with MCP schema context
+                const prompt = `You are a helpful assistant for querying knowledge graphs and schemas. Answer questions clearly and concisely.\n\nQuestion: ${userQuestion}\nAnswer:`;
                 const content = await this.gen.generateStreaming(prompt, (t) => {
                     const token = t;
                     tokens.push(token);
@@ -308,11 +333,13 @@ export class ChatController {
                 res.write(`data: ${JSON.stringify({ message: t, index: i, total: 5 })}\n\n`);
             }
         }
+        // DISABLED: Fallback citation retrieval
         // citations already retrieved pre-generation; if empty we can attempt a fallback retrieval using conversation identifier
-        if (!citations.length) {
-            try { citations = await this.chat.retrieveCitations(`conversation:${id}`, 3, orgId, projectId, null) as any[]; } catch { /* swallow */ }
-        }
-        if (citations.length) {
+        // if (!citations.length && citationsEnabled) {
+        //     try { citations = await this.chat.retrieveCitations(`conversation:${id}`, 3, orgId, projectId, null) as any[]; } catch { /* swallow */ }
+        // }
+        // Note: citations array intentionally kept empty (backward compatibility for SSE events)
+        if (citations.length && citationsEnabled) {
             res.write(`data: ${JSON.stringify({ citations })}\n\n`);
         }
         // No codename injection – rely on real model output OR generation_error meta path.
@@ -385,6 +412,7 @@ export class ChatController {
                     oneOf: [
                         { $ref: getSchemaPath(ChatStreamMetaEvent) },
                         { $ref: getSchemaPath(ChatStreamTokenEvent) },
+                        { $ref: getSchemaPath(ChatStreamMcpToolEvent) },
                         { $ref: getSchemaPath(ChatStreamErrorEvent) },
                         { $ref: getSchemaPath(ChatStreamDoneEvent) },
                     ],
@@ -392,6 +420,9 @@ export class ChatController {
                 },
                 examples: {
                     meta: { value: 'data: {"type":"meta","conversationId":"11111111-1111-4111-8111-111111111111","citations":[]}\n\n' },
+                    mcp_started: { value: 'data: {"type":"mcp_tool","tool":"schema_version","status":"started"}\n\n' },
+                    mcp_completed: { value: 'data: {"type":"mcp_tool","tool":"schema_version","status":"completed","result":{"version":"1.0.0"}}\n\n' },
+                    mcp_error: { value: 'data: {"type":"mcp_tool","tool":"schema_version","status":"error","error":"MCP server unavailable"}\n\n' },
                     token: { value: 'data: {"type":"token","token":"Hello"}\n\n' },
                     error: { value: 'data: {"type":"error","error":"model key missing"}\n\n' },
                     done: { value: 'data: {"type":"done"}\n\n' },
@@ -431,19 +462,126 @@ export class ChatController {
         res.setHeader('Connection', 'keep-alive');
         (res as any).flushHeaders?.();
 
+        // DISABLED: Citation retrieval (hybrid search) - will be replaced with graph search
         // Retrieve citations (vector + lexical hybrid). Errors -> empty citations.
-        let citations: any[] = [];
-        try { citations = await this.chat.retrieveCitations(message, topK, orgId, projectId, filterIds) as any[]; } catch { citations = []; }
-        // Emit meta frame first with conversationId & citations
-        try { res.write(`data: ${JSON.stringify({ type: 'meta', conversationId: convId, citations })}\n\n`); } catch { /* ignore */ }
+        let citations: any[] = []; // Keep for backward compatibility
+        const citationsEnabled = process.env.CHAT_ENABLE_CITATIONS === '1';
+        if (citationsEnabled) {
+            try { citations = await this.chat.retrieveCitations(message, topK, orgId, projectId, filterIds) as any[]; } catch { citations = []; }
+        }
+        // Emit meta frame first with conversationId (citations excluded when disabled)
+        try {
+            const meta: any = { type: 'meta', conversationId: convId };
+            if (citationsEnabled && citations.length) {
+                meta.citations = citations;
+            }
+            res.write(`data: ${JSON.stringify(meta)}\n\n`);
+        } catch { /* ignore */ }
+
+        // MCP Tool Detection & Execution
+        // Detect if message is a schema-related query that should invoke MCP tools
+        let mcpToolContext = '';
+        let detectedIntent: 'schema-version' | 'schema-changes' | 'type-info' | 'general' = 'general';
+        const mcpEnabled = process.env.CHAT_ENABLE_MCP !== '0'; // Default enabled unless explicitly disabled
+
+        if (mcpEnabled) {
+            try {
+                const detection = this.mcpDetector.detect(message);
+
+                // Store detected intent for prompt building
+                if (detection.detectedIntent && detection.detectedIntent !== 'none') {
+                    detectedIntent = detection.detectedIntent;
+                }
+
+                if (detection.shouldUseMcp && detection.suggestedTool) {
+                    // Emit MCP tool started event
+                    try {
+                        res.write(`data: ${JSON.stringify({
+                            type: 'mcp_tool',
+                            tool: detection.suggestedTool,
+                            status: 'started'
+                        })}\n\n`);
+                    } catch { /* ignore SSE write errors */ }
+
+                    try {
+                        // Initialize MCP client (reads MCP_SERVER_URL from config)
+                        const mcpServerUrl = process.env.MCP_SERVER_URL || 'http://localhost:3001/mcp/rpc';
+
+                        // Extract user's auth token from request
+                        const authHeader = req.headers.authorization;
+                        const authToken = authHeader?.startsWith('Bearer ')
+                            ? authHeader.substring(7)
+                            : undefined;
+
+                        await this.mcpClient.initialize({
+                            serverUrl: mcpServerUrl,
+                            authToken, // Pass user's token for MCP authentication
+                            clientInfo: {
+                                name: 'nexus-chat',
+                                version: '1.0.0'
+                            }
+                        });
+
+                        // Call MCP tool with detected arguments
+                        const toolResult = await this.mcpClient.callTool(
+                            detection.suggestedTool,
+                            detection.suggestedArguments || {}
+                        );
+
+                        // Extract text content from tool result
+                        if (toolResult.content && toolResult.content.length > 0) {
+                            const textContent = toolResult.content
+                                .filter(c => c.type === 'text' && c.text)
+                                .map(c => c.text)
+                                .join('\n');
+
+                            if (textContent) {
+                                mcpToolContext = textContent;
+                            }
+                        }
+
+                        // Emit MCP tool completed event
+                        try {
+                            res.write(`data: ${JSON.stringify({
+                                type: 'mcp_tool',
+                                tool: detection.suggestedTool,
+                                status: 'completed',
+                                result: toolResult
+                            })}\n\n`);
+                        } catch { /* ignore SSE write errors */ }
+
+                    } catch (mcpError: any) {
+                        // Emit MCP tool error event but continue with generation
+                        try {
+                            res.write(`data: ${JSON.stringify({
+                                type: 'mcp_tool',
+                                tool: detection.suggestedTool,
+                                status: 'error',
+                                error: mcpError.message || 'MCP tool execution failed'
+                            })}\n\n`);
+                        } catch { /* ignore SSE write errors */ }
+
+                        // Log error for debugging but don't fail the request
+                        this.logger.warn(`MCP tool execution failed: ${mcpError.message}`, mcpError.stack);
+                    }
+                }
+            } catch (detectionError: any) {
+                // Detection errors should not break the chat flow
+                this.logger.warn(`MCP detection failed: ${detectionError.message}`);
+            }
+        }
 
         const tokens: string[] = [];
         const canGenerate = this.gen.enabled && this.gen.hasKey;
         if (canGenerate) {
             try {
-                // Assemble lightweight context prompt
-                const context = citations.map((c, i) => `[${i + 1}] ${(c.filename || c.sourceUrl || c.documentId || '').toString()}\n${c.text}`).join('\n\n').slice(0, 4000);
-                const prompt = `You are a retrieval-augmented assistant. Use ONLY the provided context. If insufficient, say you don't know.\nContext:\n${context || '[no-context]'}\n\nQuestion: ${message}\nAnswer:`;
+                // Build prompt using enhanced prompt builder with MCP context and detected intent
+                const prompt = this.gen.buildPrompt({
+                    message,
+                    mcpToolContext,
+                    detectedIntent
+                });
+
                 await this.gen.generateStreaming(prompt, (t) => {
                     tokens.push(t);
                     try { res.write(`data: ${JSON.stringify({ type: 'token', token: t })}\n\n`); } catch { /* swallow */ }

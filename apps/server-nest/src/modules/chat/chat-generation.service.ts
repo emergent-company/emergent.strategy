@@ -5,13 +5,139 @@ import { ChatVertexAI } from '@langchain/google-vertexai';
 // NOTE: We reuse embeddings client initialization trick for simplicity; for a full model we'd use a proper text generation client.
 // For now emulate streaming by splitting the single model response into tokens.
 
+/**
+ * Options for building prompts with optional MCP tool context
+ */
+export interface PromptBuildOptions {
+    /** The user's question or message */
+    message: string;
+    /** Optional context from MCP tool execution (e.g., schema data) */
+    mcpToolContext?: string;
+    /** Optional detected intent for specialized prompt templates */
+    detectedIntent?: 'schema-version' | 'schema-changes' | 'type-info' | 'general';
+}
+
 @Injectable()
 export class ChatGenerationService {
     private readonly logger = new Logger(ChatGenerationService.name);
     constructor(private readonly config: AppConfigService) { }
 
     get enabled(): boolean { return this.config.chatModelEnabled; }
-    get hasKey(): boolean { return !!this.config.googleApiKey; }
+
+    /**
+     * Check if we have authentication configured for the chat model.
+     * Supports both direct Google API key and Vertex AI project credentials.
+     */
+    get hasKey(): boolean {
+        return !!this.config.googleApiKey || !!this.config.vertexAiProjectId;
+    }
+
+    /**
+     * Build a well-structured prompt for the LLM based on the query type and available context.
+     * This method creates specialized prompts for different schema query types.
+     * 
+     * @param options - Options containing message, MCP context, and detected intent
+     * @returns Formatted prompt string ready for LLM generation
+     */
+    buildPrompt(options: PromptBuildOptions): string {
+        const { message, mcpToolContext, detectedIntent } = options;
+
+        // Base system prompt for all queries
+        let systemPrompt = 'You are a helpful assistant specialized in knowledge graphs and data schemas.';
+
+        // Add intent-specific instructions
+        switch (detectedIntent) {
+            case 'schema-version':
+                systemPrompt += ' When answering questions about schema versions, provide clear version information and explain what it means.';
+                break;
+            case 'schema-changes':
+                systemPrompt += ' When describing schema changes, organize them chronologically and highlight the most important modifications.';
+                break;
+            case 'type-info':
+                systemPrompt += ' When explaining entity types, describe their properties, relationships, and use cases clearly.';
+                break;
+            default:
+                systemPrompt += ' Answer questions clearly, concisely, and accurately.';
+        }
+
+        // Start building the prompt
+        let prompt = systemPrompt;
+
+        // Add MCP tool context if available
+        if (mcpToolContext && mcpToolContext.trim()) {
+            prompt += '\n\n## Context from Schema\n\n';
+            prompt += this.formatToolContext(mcpToolContext, detectedIntent);
+        }
+
+        // Add the user's question
+        prompt += '\n\n## User Question\n\n';
+        prompt += message;
+
+        // Add response instruction
+        prompt += '\n\n## Your Response\n\n';
+        prompt += 'Provide a helpful, accurate answer based on the context above:';
+
+        return prompt;
+    }
+
+    /**
+     * Format MCP tool context for better readability and structure.
+     * Different formatting based on the query type.
+     * 
+     * @param context - Raw context from MCP tool
+     * @param intent - Detected query intent
+     * @returns Formatted context string
+     */
+    private formatToolContext(context: string, intent?: string): string {
+        // If context looks like JSON, try to parse and format it
+        if (context.trim().startsWith('{') || context.trim().startsWith('[')) {
+            try {
+                const parsed = JSON.parse(context);
+                return this.formatJsonContext(parsed, intent);
+            } catch {
+                // Not valid JSON, return as-is
+                return context;
+            }
+        }
+
+        // For plain text context, just return it
+        return context;
+    }
+
+    /**
+     * Format parsed JSON context based on query intent
+     */
+    private formatJsonContext(data: any, intent?: string): string {
+        switch (intent) {
+            case 'schema-version':
+                if (data.version) {
+                    return `Current schema version: ${data.version}${data.updated_at ? `\nLast updated: ${data.updated_at}` : ''}`;
+                }
+                break;
+            case 'schema-changes':
+                if (Array.isArray(data.changes) && data.changes.length > 0) {
+                    return data.changes.map((change: any, idx: number) =>
+                        `${idx + 1}. ${change.description || change.type || 'Schema change'}${change.timestamp ? ` (${change.timestamp})` : ''}`
+                    ).join('\n');
+                }
+                break;
+            case 'type-info':
+                if (data.type_name) {
+                    let formatted = `Entity Type: ${data.type_name}`;
+                    if (data.properties && Array.isArray(data.properties)) {
+                        formatted += `\n\nProperties:\n${data.properties.map((p: any) => `- ${p.name}: ${p.type}`).join('\n')}`;
+                    }
+                    if (data.relationships && Array.isArray(data.relationships)) {
+                        formatted += `\n\nRelationships:\n${data.relationships.map((r: any) => `- ${r.name}: ${r.target_type}`).join('\n')}`;
+                    }
+                    return formatted;
+                }
+                break;
+        }
+
+        // Fallback: pretty-print JSON
+        return JSON.stringify(data, null, 2);
+    }
 
     async generateStreaming(prompt: string, onToken: (t: string) => void): Promise<string> {
         // Deterministic synthetic mode for tests: bypass external model and emit fixed token sequence

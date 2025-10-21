@@ -116,6 +116,7 @@ export function useChat(opts: UseChatOptions = {}) {
     const [conversations, setConversations] = useState<Conversation[]>(() => loadConversations(lsKey));
     const [activeId, setActiveId] = useState<string | null>(conversations[0]?.id ?? null);
     const [streaming, setStreaming] = useState(false);
+    const [mcpToolActive, setMcpToolActive] = useState<{ tool: string; status: string } | null>(null);
     const controllerRef = useRef<AbortController | null>(null);
     const streamingRef = useRef(false);
     useEffect(() => { streamingRef.current = streaming; }, [streaming]);
@@ -496,6 +497,18 @@ export function useChat(opts: UseChatOptions = {}) {
                             });
                         } else if (evt.type === "meta" && evt.citations) {
                             updateMessage(currentConvId, assistant.id, { citations: evt.citations });
+                        } else if (evt.type === "mcp_tool") {
+                            // Handle MCP tool execution events
+                            if (evt.status === "started" && evt.tool) {
+                                setMcpToolActive({ tool: evt.tool, status: "running" });
+                            } else if (evt.status === "completed") {
+                                setMcpToolActive(null);
+                                // Optionally append tool result info to assistant message
+                                // For now, we let the LLM handle formatting the result
+                            } else if (evt.status === "error") {
+                                setMcpToolActive(null);
+                                // Error is already logged, LLM will continue without tool context
+                            }
                         } else if (evt.type === "error") {
                             let errStr: string = 'unknown';
                             const raw = (evt as any).error;
@@ -508,6 +521,7 @@ export function useChat(opts: UseChatOptions = {}) {
                             updateMessage(currentConvId, assistant.id, { content: `Error: ${errStr}` });
                         } else if (evt.type === "done") {
                             setStreaming(false);
+                            setMcpToolActive(null); // Clear MCP tool status when stream completes
                             // Finalize by hydrating from server to ensure canonical data and drop any temp duplicates
                             const id = serverConvId || currentConvId;
                             if (id && !/^c_/.test(id)) {
@@ -620,5 +634,6 @@ export function useChat(opts: UseChatOptions = {}) {
         stop,
         regenerate,
         streaming,
+        mcpToolActive,
     } as const;
 }
