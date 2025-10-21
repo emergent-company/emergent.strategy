@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import ReactMarkdown from "react-markdown";
 import { PageTitle } from "@/components";
 import { NewChatCtas } from "@/components/molecules/NewChatCtas";
+import { ChatObjectRefs, parseObjectRefs, stripObjectRefBlocks } from "@/components/organisms/ChatObjectRefs";
 import { useChat } from "@/hooks/use-chat";
 import { useAuth } from "@/contexts/auth";
 import type { Conversation, Message } from "@/types/chat";
@@ -172,9 +173,20 @@ export default function ChatConversationPage() {
                                         <div className={`chat-bubble ${m.role === "assistant" ? "chat-bubble-primary" : ""}`}>
                                             {m.content ? (
                                                 m.role === "assistant" ? (
-                                                    <div className="max-w-none prose prose-sm">
-                                                        <ReactMarkdown
-                                                            components={{
+                                                    (() => {
+                                                        // Parse object references from ```object-ref blocks
+                                                        const refs = parseObjectRefs(m.content);
+                                                        const cleanMarkdown = stripObjectRefBlocks(m.content);
+                                                        
+                                                        return (
+                                                            <>
+                                                                {/* Render object cards first (above message) */}
+                                                                {refs.length > 0 && <ChatObjectRefs refs={refs} />}
+                                                                
+                                                                {/* Render markdown without object-ref blocks */}
+                                                                <div className="max-w-none prose prose-sm">
+                                                                    <ReactMarkdown
+                                                                        components={{
                                                                 // Style code blocks
                                                                 code: ({ className, children, ...props }) => {
                                                                     const isInline = !className?.includes('language-');
@@ -237,9 +249,12 @@ export default function ChatConversationPage() {
                                                                 ),
                                                             }}
                                                         >
-                                                            {m.content}
+                                                            {cleanMarkdown}
                                                         </ReactMarkdown>
                                                     </div>
+                                                                </>
+                                                            );
+                                                        })()
                                                 ) : (
                                                     m.content
                                                 )
