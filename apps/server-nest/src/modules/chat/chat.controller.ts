@@ -47,6 +47,7 @@ import { ChatService } from './chat.service';
 import { ChatGenerationService } from './chat-generation.service';
 import { McpClientService } from './mcp-client.service';
 import { McpToolDetectorService } from './mcp-tool-detector.service';
+import { McpToolSelectorService } from './mcp-tool-selector.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
 import { Scopes } from '../auth/scopes.decorator';
@@ -132,7 +133,8 @@ export class ChatController {
         private readonly chat: ChatService,
         private readonly gen: ChatGenerationService,
         private readonly mcpClient: McpClientService,
-        private readonly mcpDetector: McpToolDetectorService
+        private readonly mcpDetector: McpToolDetectorService,
+        private readonly mcpSelector: McpToolSelectorService
     ) { }
     private static readonly UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 
@@ -481,93 +483,121 @@ export class ChatController {
         // MCP Tool Detection & Execution
         // Detect if message is a schema-related query that should invoke MCP tools
         let mcpToolContext = '';
-        let detectedIntent: 'schema-version' | 'schema-changes' | 'type-info' | 'general' = 'general';
+        let detectedIntent: 'schema-version' | 'schema-changes' | 'type-info' | 'entity-query' | 'entity-list' | 'general' = 'general';
         const mcpEnabled = process.env.CHAT_ENABLE_MCP !== '0'; // Default enabled unless explicitly disabled
+        const useLlmSelection = process.env.USE_LLM_TOOL_SELECTION !== '0'; // Default enabled unless explicitly disabled
 
         if (mcpEnabled) {
-            try {
-                const detection = this.mcpDetector.detect(message);
+            let detection: { shouldUseMcp: boolean; suggestedTool?: string; suggestedArguments?: any; detectedIntent?: string; confidence?: number } = {
+                shouldUseMcp: false
+            };
 
-                // Store detected intent for prompt building
-                if (detection.detectedIntent && detection.detectedIntent !== 'none') {
-                    detectedIntent = detection.detectedIntent;
+            // Try LLM-based tool selection first (more flexible, context-aware)
+            if (useLlmSelection) {
+                try {
+                    const llmSelection = await this.mcpSelector.selectTool(message, orgId || '', projectId || '');
+                    
+                    if (llmSelection.shouldUseMcp && llmSelection.suggestedTool && llmSelection.confidence && llmSelection.confidence > 0.7) {
+                        // LLM selection successful with high confidence
+                        detection = {
+                            shouldUseMcp: true,
+                            suggestedTool: llmSelection.suggestedTool,
+                            suggestedArguments: llmSelection.suggestedArguments,
+                            detectedIntent: llmSelection.detectedIntent || 'general',
+                            confidence: llmSelection.confidence
+                        };
+                        this.logger.log(`LLM tool selection: ${detection.suggestedTool} (confidence: ${detection.confidence})`);
+                    } else {
+                        // LLM selection low confidence, fallback to pattern matching
+                        this.logger.log(`LLM tool selection low confidence (${llmSelection.confidence}), falling back to pattern matching`);
+                        detection = this.mcpDetector.detect(message);
+                    }
+                } catch (llmError: any) {
+                    // LLM selection failed, fallback to pattern matching
+                    this.logger.warn(`LLM tool selection failed: ${llmError.message}, falling back to pattern matching`);
+                    detection = this.mcpDetector.detect(message);
                 }
+            } else {
+                // LLM selection disabled, use pattern matching directly
+                detection = this.mcpDetector.detect(message);
+            }
 
-                if (detection.shouldUseMcp && detection.suggestedTool) {
-                    // Emit MCP tool started event
+            // Store detected intent for prompt building
+            if (detection.detectedIntent && detection.detectedIntent !== 'none') {
+                detectedIntent = detection.detectedIntent as any;
+            }
+
+            if (detection.shouldUseMcp && detection.suggestedTool) {
+                // Emit MCP tool started event
+                try {
+                    res.write(`data: ${JSON.stringify({
+                        type: 'mcp_tool',
+                        tool: detection.suggestedTool,
+                        status: 'started'
+                    })}\n\n`);
+                } catch { /* ignore SSE write errors */ }
+
+                try {
+                    // Initialize MCP client (reads MCP_SERVER_URL from config)
+                    const mcpServerUrl = process.env.MCP_SERVER_URL || 'http://localhost:3001/mcp/rpc';
+
+                    // Extract user's auth token from request
+                    const authHeader = req.headers.authorization;
+                    const authToken = authHeader?.startsWith('Bearer ')
+                        ? authHeader.substring(7)
+                        : undefined;
+
+                    await this.mcpClient.initialize({
+                        serverUrl: mcpServerUrl,
+                        authToken, // Pass user's token for MCP authentication
+                        clientInfo: {
+                            name: 'nexus-chat',
+                            version: '1.0.0'
+                        }
+                    });
+
+                    // Call MCP tool with detected arguments
+                    const toolResult = await this.mcpClient.callTool(
+                        detection.suggestedTool,
+                        detection.suggestedArguments || {}
+                    );
+
+                    // Extract text content from tool result
+                    if (toolResult.content && toolResult.content.length > 0) {
+                        const textContent = toolResult.content
+                            .filter(c => c.type === 'text' && c.text)
+                            .map(c => c.text)
+                            .join('\n');
+
+                        if (textContent) {
+                            mcpToolContext = textContent;
+                        }
+                    }
+
+                    // Emit MCP tool completed event
                     try {
                         res.write(`data: ${JSON.stringify({
                             type: 'mcp_tool',
                             tool: detection.suggestedTool,
-                            status: 'started'
+                            status: 'completed',
+                            result: toolResult
                         })}\n\n`);
                     } catch { /* ignore SSE write errors */ }
 
+                } catch (mcpError: any) {
+                    // Emit MCP tool error event but continue with generation
                     try {
-                        // Initialize MCP client (reads MCP_SERVER_URL from config)
-                        const mcpServerUrl = process.env.MCP_SERVER_URL || 'http://localhost:3001/mcp/rpc';
+                        res.write(`data: ${JSON.stringify({
+                            type: 'mcp_tool',
+                            tool: detection.suggestedTool,
+                            status: 'error',
+                            error: mcpError.message || 'MCP tool execution failed'
+                        })}\n\n`);
+                    } catch { /* ignore SSE write errors */ }
 
-                        // Extract user's auth token from request
-                        const authHeader = req.headers.authorization;
-                        const authToken = authHeader?.startsWith('Bearer ')
-                            ? authHeader.substring(7)
-                            : undefined;
-
-                        await this.mcpClient.initialize({
-                            serverUrl: mcpServerUrl,
-                            authToken, // Pass user's token for MCP authentication
-                            clientInfo: {
-                                name: 'nexus-chat',
-                                version: '1.0.0'
-                            }
-                        });
-
-                        // Call MCP tool with detected arguments
-                        const toolResult = await this.mcpClient.callTool(
-                            detection.suggestedTool,
-                            detection.suggestedArguments || {}
-                        );
-
-                        // Extract text content from tool result
-                        if (toolResult.content && toolResult.content.length > 0) {
-                            const textContent = toolResult.content
-                                .filter(c => c.type === 'text' && c.text)
-                                .map(c => c.text)
-                                .join('\n');
-
-                            if (textContent) {
-                                mcpToolContext = textContent;
-                            }
-                        }
-
-                        // Emit MCP tool completed event
-                        try {
-                            res.write(`data: ${JSON.stringify({
-                                type: 'mcp_tool',
-                                tool: detection.suggestedTool,
-                                status: 'completed',
-                                result: toolResult
-                            })}\n\n`);
-                        } catch { /* ignore SSE write errors */ }
-
-                    } catch (mcpError: any) {
-                        // Emit MCP tool error event but continue with generation
-                        try {
-                            res.write(`data: ${JSON.stringify({
-                                type: 'mcp_tool',
-                                tool: detection.suggestedTool,
-                                status: 'error',
-                                error: mcpError.message || 'MCP tool execution failed'
-                            })}\n\n`);
-                        } catch { /* ignore SSE write errors */ }
-
-                        // Log error for debugging but don't fail the request
-                        this.logger.warn(`MCP tool execution failed: ${mcpError.message}`, mcpError.stack);
-                    }
+                    // Log error for debugging but don't fail the request
+                    this.logger.warn(`MCP tool execution failed: ${mcpError.message}`, mcpError.stack);
                 }
-            } catch (detectionError: any) {
-                // Detection errors should not break the chat flow
-                this.logger.warn(`MCP detection failed: ${detectionError.message}`);
             }
         }
 

@@ -8,6 +8,7 @@ import { SchemaVersionService } from './services/schema-version.service';
 import { TemplatePackModule } from '../template-packs/template-pack.module';
 import { GraphModule } from '../graph/graph.module';
 import { AuthModule } from '../auth/auth.module';
+import { DatabaseModule } from '../../common/database/database.module';
 
 /**
  * MCP (Model Context Protocol) Module
@@ -48,7 +49,8 @@ import { AuthModule } from '../auth/auth.module';
     imports: [
         TemplatePackModule,
         GraphModule,
-        AuthModule,  // Phase 4: Authentication & Authorization
+        AuthModule,       // Phase 4: Authentication & Authorization
+        DatabaseModule,   // For data query tools
     ],
     controllers: [
         McpController,        // Legacy REST API
