@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Inject, Optional } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject, Optional, Logger } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { pairIndependentHeads, pairIndependentRelationshipHeads } from './merge.util';
 import { DatabaseService } from '../../common/database/database.service';
@@ -20,6 +20,7 @@ import { evaluatePredicates } from './predicate-evaluator';
 import { buildTemporalFilterClause } from './temporal-filter.util';
 import { pruneGraphResult, FieldStrategy } from './utils/field-pruning.util';
 import { buildExpirationFilterClause } from './utils/expiration-filter.util';
+import { GraphVectorSearchService } from './graph-vector-search.service';
 
 type GraphTenantContext = {
     orgId?: string | null;
@@ -28,6 +29,7 @@ type GraphTenantContext = {
 
 @Injectable()
 export class GraphService {
+    private readonly logger = new Logger(GraphService.name);
     /**
      * Find a merge base (lowest common ancestor) between two object/relationship version IDs using
      * the kb.merge_provenance parent linkage graph. This performs a bounded bidirectional ancestry
@@ -81,6 +83,7 @@ export class GraphService {
         @Optional() @Inject(EmbeddingJobsService) private readonly embeddingJobs?: EmbeddingJobsService,
         @Optional() @Inject(EmbeddingPolicyService) private readonly embeddingPolicy?: EmbeddingPolicyService,
         @Optional() @Inject(AppConfigService) private readonly config?: AppConfigService,
+        @Optional() @Inject(GraphVectorSearchService) private readonly vectorSearch?: GraphVectorSearchService,
     ) { }
 
     private sortObject(value: any): any { // stable key ordering for hashing
@@ -179,6 +182,7 @@ export class GraphService {
         let {
             type,
             key,
+            status,
             properties = {},
             labels = [],
             organization_id = null,
@@ -286,10 +290,10 @@ export class GraphService {
                 // string as a later parameter ($11) that is explicitly text.
                 const ftsVectorSql = `to_tsvector('simple', coalesce($1,'') || ' ' || coalesce($2,'') || ' ' || coalesce($10,'') )`;
                 const row = await client.query<GraphObjectRow>(
-                    `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, org_id, project_id, branch_id, change_summary, content_hash, fts, embedding, embedding_updated_at)
-                     VALUES ($1,$2,$3,$4,1,gen_random_uuid(),$5,$6,$7,$8,$9, ${ftsVectorSql}, NULL, NULL)
-                     RETURNING id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
-                    [type, key ?? null, properties, dedupedLabels, org_id, project_id, branch_id, changeSummary, hash, JSON.stringify(properties)]
+                    `INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, org_id, project_id, branch_id, change_summary, content_hash, fts, embedding, embedding_updated_at)
+                     VALUES ($1,$2,$11,$3,$4,1,gen_random_uuid(),$5,$6,$7,$8,$9, ${ftsVectorSql}, NULL, NULL)
+                     RETURNING id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
+                    [type, key ?? null, properties, dedupedLabels, org_id, project_id, branch_id, changeSummary, hash, JSON.stringify(properties), status ?? null]
                 );
                 await client.query('COMMIT');
                 const created = row.rows[0];
@@ -304,7 +308,8 @@ export class GraphService {
                                 created.type,
                                 created.properties,
                                 created.labels,
-                                policies
+                                policies,
+                                (created as any).status ?? null
                             );
 
                             if (evaluation.shouldEmbed) {
@@ -521,19 +526,21 @@ export class GraphService {
                 } else if (patch.replaceLabels) {
                     nextLabels = [];
                 }
+                const nextStatus = patch.status !== undefined ? patch.status : (current as any).status;
                 const diff = generateDiff(current.properties, nextProps);
                 const labelsChanged = JSON.stringify(current.labels) !== JSON.stringify(nextLabels);
-                if (isNoOpChange(diff) && !labelsChanged) throw new BadRequestException('no_effective_change');
+                const statusChanged = (current as any).status !== nextStatus;
+                if (isNoOpChange(diff) && !labelsChanged && !statusChanged) throw new BadRequestException('no_effective_change');
                 // Compute content hash using new utility
                 const hashBuffer = computeContentHash(nextProps);
                 const hash = hashBuffer.toString('base64');
                 // IMPORTANT: Keep serialized properties text parameter separate from JSONB properties to avoid type inference conflicts.
                 const ftsVectorSql = `to_tsvector('simple', coalesce($13,'') || ' ' || coalesce($14,'') || ' ' || coalesce($15,'') )`;
                 const inserted = await client.query<GraphObjectRow>(
-                    `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, org_id, project_id, branch_id, deleted_at, change_summary, content_hash, fts, embedding, embedding_updated_at)
-                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL,$11,$12, ${ftsVectorSql}, NULL, NULL)
-                     RETURNING id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
-                    [current.type, current.key, nextProps, nextLabels, current.version + 1, current.canonical_id, current.id, (current as any).org_id ?? null, (current as any).project_id ?? null, (current as any).branch_id ?? null, diff, hash, current.key ?? '', JSON.stringify(nextProps), current.type]
+                    `INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, supersedes_id, org_id, project_id, branch_id, deleted_at, change_summary, content_hash, fts, embedding, embedding_updated_at)
+                     VALUES ($1,$2,$16,$3,$4,$5,$6,$7,$8,$9,$10,NULL,$11,$12, ${ftsVectorSql}, NULL, NULL)
+                     RETURNING id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
+                    [current.type, current.key, nextProps, nextLabels, current.version + 1, current.canonical_id, current.id, (current as any).org_id ?? null, (current as any).project_id ?? null, (current as any).branch_id ?? null, diff, hash, current.key ?? '', JSON.stringify(nextProps), current.type, nextStatus ?? null]
                 );
                 await client.query('COMMIT');
                 const updated = { ...inserted.rows[0], diff } as any;
@@ -909,7 +916,7 @@ export class GraphService {
             const headParams: any[] = [];
             if (branch_id !== undefined) { headParams.push(branch_id ?? null); headFilters.push(`branch_id IS NOT DISTINCT FROM $${headParams.length}`); }
             const headWhere = headFilters.length ? 'WHERE ' + headFilters.join(' AND ') : '';
-            const baseHeadCte = `SELECT DISTINCT ON (canonical_id) id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, created_at
+            const baseHeadCte = `SELECT DISTINCT ON (canonical_id) id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, created_at
                                  FROM kb.graph_objects
                                  ${headWhere}
                                  ORDER BY canonical_id, version DESC`;
@@ -969,7 +976,7 @@ export class GraphService {
             // Head selection restricted to FTS matches first, then filter deleted heads; rank computed on head row's fts vector.
             const expirationClause = buildExpirationFilterClause('h');
             const buildSql = (expirationFilter: string, includeExpirationColumn: boolean) => {
-                const columnList = `o.id, o.org_id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.properties, o.labels, o.deleted_at, o.created_at, o.fts${includeExpirationColumn ? ', o.expires_at' : ''}`;
+                const columnList = `o.id, o.org_id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.status, o.properties, o.labels, o.deleted_at, o.created_at, o.fts${includeExpirationColumn ? ', o.expires_at' : ''}`;
                 return `WITH heads AS (
               SELECT DISTINCT ON (o.canonical_id) ${columnList}
               FROM kb.graph_objects o
@@ -998,6 +1005,154 @@ export class GraphService {
                 return { ...rest, rank } as GraphObjectDto & { rank: number };
             });
             return { query: q, items, total: items.length, limit };
+        });
+    }
+
+    /**
+     * Search for objects using vector similarity and optionally include their neighbors.
+     * 
+     * This method combines:
+     * 1. Vector search (semantic similarity) - finds objects similar to query text
+     * 2. Neighbor retrieval - for each result, finds:
+     *    a) Semantically similar objects (via searchSimilar)
+     *    b) Directly connected objects (via relationships)
+     * 
+     * Similar to document search with citations, but for graph objects.
+     * 
+     * @param queryText - Natural language query to search for
+     * @param opts - Search options
+     * @returns Primary search results + their neighbors (if requested)
+     */
+    async searchObjectsWithNeighbors(
+        queryText: string,
+        opts: {
+            limit?: number;
+            includeNeighbors?: boolean;
+            maxNeighbors?: number;
+            maxDistance?: number;
+            projectId?: string;
+            orgId?: string;
+            branchId?: string | null;
+            types?: string[];
+            labels?: string[];
+        },
+        ctx?: GraphTenantContext
+    ): Promise<{
+        primaryResults: GraphObjectDto[];
+        neighbors: Record<string, GraphObjectDto[]>;
+    }> {
+        const orgFilterProvided = Object.prototype.hasOwnProperty.call(opts, 'orgId');
+        const projectFilterProvided = Object.prototype.hasOwnProperty.call(opts, 'projectId');
+        const fallbackOrg = orgFilterProvided ? (opts.orgId ?? null) : undefined;
+        const fallbackProject = projectFilterProvided ? (opts.projectId ?? null) : undefined;
+
+        return this.runWithRequestContext(ctx, fallbackOrg, fallbackProject, async () => {
+            const limit = Math.min(Math.max(opts.limit || 10, 1), 100);
+            const maxNeighbors = Math.min(Math.max(opts.maxNeighbors || 5, 1), 20);
+
+            if (!queryText?.trim()) {
+                return { primaryResults: [], neighbors: {} };
+            }
+
+            if (!this.vectorSearch) {
+                this.logger.warn('GraphVectorSearchService not available, returning empty results');
+                return { primaryResults: [], neighbors: {} };
+            }
+
+            // Step 1: Generate embedding for query text
+            // Note: This assumes embeddings are generated by EmbeddingJobsService
+            // For now, we'll use searchObjectsFts as a fallback if vector search fails
+            let primaryResults: GraphObjectDto[] = [];
+
+            try {
+                // Try FTS search first (since we don't have embedQuery in GraphService yet)
+                const ftsResults = await this.searchObjectsFts({
+                    q: queryText,
+                    limit,
+                    org_id: opts.orgId,
+                    project_id: opts.projectId,
+                    type: opts.types?.[0], // Use first type if provided
+                    label: opts.labels?.[0], // Use first label if provided
+                    branch_id: opts.branchId,
+                }, ctx);
+
+                primaryResults = ftsResults.items;
+            } catch (error) {
+                this.logger.error(`Search failed: ${(error as Error).message}`);
+                return { primaryResults: [], neighbors: {} };
+            }
+
+            // Step 2: If neighbors requested, fetch for each primary result
+            const neighbors: Record<string, GraphObjectDto[]> = {};
+
+            if (opts.includeNeighbors && primaryResults.length > 0) {
+                for (const obj of primaryResults) {
+                    const neighborIds = new Set<string>();
+                    const neighborObjects: GraphObjectDto[] = [];
+
+                    try {
+                        // 2a. Get semantically similar objects using searchSimilar
+                        // This finds objects with similar embedding vectors
+                        const similarResults = await this.vectorSearch.searchSimilar(obj.id, {
+                            limit: Math.ceil(maxNeighbors / 2), // Split quota between similar and connected
+                            maxDistance: opts.maxDistance || 0.5,
+                            projectId: opts.projectId,
+                            orgId: opts.orgId,
+                            branchId: opts.branchId ?? undefined,
+                        });
+
+                        for (const similar of similarResults) {
+                            if (similar.id !== obj.id) { // Exclude self
+                                neighborIds.add(similar.id);
+                            }
+                        }
+
+                        // 2b. Get directly connected objects via relationships
+                        const outgoingRels = await this.searchRelationships({
+                            src_id: obj.id,
+                            limit: maxNeighbors,
+                            branch_id: opts.branchId,
+                        }, ctx);
+
+                        const incomingRels = await this.searchRelationships({
+                            dst_id: obj.id,
+                            limit: maxNeighbors,
+                            branch_id: opts.branchId,
+                        }, ctx);
+
+                        for (const rel of outgoingRels.items) {
+                            neighborIds.add(rel.dst_id);
+                        }
+                        for (const rel of incomingRels.items) {
+                            neighborIds.add(rel.src_id);
+                        }
+
+                        // 2c. Fetch full neighbor objects (limit to maxNeighbors)
+                        const limitedNeighborIds = Array.from(neighborIds).slice(0, maxNeighbors);
+                        for (const neighborId of limitedNeighborIds) {
+                            try {
+                                const neighborObj = await this.getObject(neighborId, ctx);
+                                if (neighborObj) {
+                                    neighborObjects.push(neighborObj);
+                                }
+                            } catch (err) {
+                                // Skip if neighbor not found or access denied
+                                this.logger.debug(`Could not fetch neighbor ${neighborId}: ${(err as Error).message}`);
+                            }
+                        }
+
+                        neighbors[obj.id] = neighborObjects;
+                    } catch (error) {
+                        this.logger.warn(`Failed to fetch neighbors for object ${obj.id}: ${(error as Error).message}`);
+                        neighbors[obj.id] = []; // Empty array on error
+                    }
+                }
+            }
+
+            return {
+                primaryResults,
+                neighbors,
+            };
         });
     }
 

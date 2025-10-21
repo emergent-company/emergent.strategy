@@ -11,6 +11,11 @@ export class CreateGraphObjectDto {
     key?: string;
 
     @IsOptional()
+    @IsString()
+    @MaxLength(64)
+    status?: string;
+
+    @IsOptional()
     @IsObject()
     properties?: Record<string, unknown>;
 

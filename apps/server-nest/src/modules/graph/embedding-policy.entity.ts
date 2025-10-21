@@ -18,6 +18,7 @@ export interface EmbeddingPolicy {
     requiredLabels: string[];
     excludedLabels: string[];
     relevantPaths: string[];
+    excludedStatuses: string[]; // NEW: Status values to exclude (e.g., ['draft'])
     createdAt: Date;
     updatedAt: Date;
 }
@@ -31,6 +32,7 @@ export interface EmbeddingPolicyRow {
     required_labels: string[];
     excluded_labels: string[];
     relevant_paths: string[];
+    excluded_statuses: string[]; // NEW: Status values to exclude
     created_at: Date;
     updated_at: Date;
 }
@@ -48,6 +50,7 @@ export function toEmbeddingPolicy(row: EmbeddingPolicyRow): EmbeddingPolicy {
         requiredLabels: row.required_labels || [],
         excludedLabels: row.excluded_labels || [],
         relevantPaths: row.relevant_paths || [],
+        excludedStatuses: row.excluded_statuses || [],
         createdAt: row.created_at,
         updatedAt: row.updated_at,
     };

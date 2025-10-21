@@ -13,6 +13,8 @@ export interface ObjectDetailModalProps {
     onClose: () => void;
     /** Called when delete is requested */
     onDelete?: (objectId: string) => void;
+    /** Called when accept is requested */
+    onAccept?: (objectId: string) => void;
 }
 
 /**
@@ -24,6 +26,7 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
     isOpen,
     onClose,
     onDelete,
+    onAccept,
 }) => {
     const { fetchJson } = useApi();
     const [versions, setVersions] = useState<ObjectVersion[]>([]);
@@ -112,12 +115,6 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                             <span className="badge badge-primary badge-lg">
                                 {object.type}
                             </span>
-                            {object.source && (
-                                <span className="badge-outline badge badge-ghost">
-                                    <Icon icon="lucide--file-text" className="mr-1 size-3" />
-                                    {object.source}
-                                </span>
-                            )}
                             {object.relationship_count !== undefined && (
                                 <span className="badge-outline badge badge-ghost">
                                     <Icon icon="lucide--git-branch" className="mr-1 size-3" />
@@ -458,6 +455,17 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
 
                 {/* Actions */}
                 <div className="flex flex-wrap justify-end gap-2 modal-action">
+                    {onAccept && object && object.status !== 'accepted' && (
+                        <button
+                            className="gap-2 btn btn-success btn-sm"
+                            onClick={() => {
+                                onAccept(object.id);
+                            }}
+                        >
+                            <Icon icon="lucide--check-circle" className="size-4" />
+                            Accept
+                        </button>
+                    )}
                     <button className="gap-2 btn btn-ghost btn-sm" disabled>
                         <Icon icon="lucide--edit" className="size-4" />
                         Edit

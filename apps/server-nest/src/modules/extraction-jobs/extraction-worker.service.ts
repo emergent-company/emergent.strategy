@@ -794,6 +794,11 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                             labels.push('requires_review');
                         }
 
+                        // Determine status based on confidence and auto-accept threshold
+                        // High confidence (>= autoThreshold) → status='accepted' (will be embedded)
+                        // Low confidence (< autoThreshold) → status='draft' (will NOT be embedded)
+                        const status = finalConfidence >= autoThreshold ? 'accepted' : 'draft';
+
                         // Generate a valid key if business_key is missing
                         // graph_objects.key is NOT NULL so we must provide a value
                         const objectKey = entity.business_key || this.generateKeyFromName(entity.name, entity.type_name);
@@ -807,6 +812,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                                 project_id: job.project_id,
                                 type: entity.type_name,
                                 key: objectKey,
+                                status: status, // NEW: Set status based on confidence threshold
                                 properties: {
                                     name: entity.name,
                                     description: entity.description,

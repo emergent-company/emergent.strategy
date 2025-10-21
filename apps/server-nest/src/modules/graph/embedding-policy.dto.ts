@@ -66,6 +66,16 @@ export class CreateEmbeddingPolicyDto {
     @IsArray()
     @IsString({ each: true })
     relevantPaths?: string[];
+
+    @ApiPropertyOptional({
+        description: 'Status values that prevent embedding if present on the object',
+        example: ['draft', 'archived'],
+        type: [String],
+    })
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    excludedStatuses?: string[];
 }
 
 /**
@@ -118,6 +128,16 @@ export class UpdateEmbeddingPolicyDto {
     @IsArray()
     @IsString({ each: true })
     relevantPaths?: string[];
+
+    @ApiPropertyOptional({
+        description: 'Status values that prevent embedding',
+        example: ['draft'],
+        type: [String],
+    })
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    excludedStatuses?: string[];
 }
 
 /**
@@ -175,6 +195,13 @@ export class EmbeddingPolicyResponseDto {
         example: ['/properties/title'],
     })
     relevantPaths!: string[];
+
+    @ApiProperty({
+        description: 'Excluded status values',
+        type: [String],
+        example: ['draft'],
+    })
+    excludedStatuses!: string[];
 
     @ApiProperty({
         description: 'Creation timestamp',
