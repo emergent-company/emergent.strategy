@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
+import ReactMarkdown from "react-markdown";
 import { PageTitle } from "@/components";
 import { NewChatCtas } from "@/components/molecules/NewChatCtas";
 import { useChat } from "@/hooks/use-chat";
@@ -169,7 +170,80 @@ export default function ChatConversationPage() {
                                 {(conv.messages || []).map((m) => (
                                     <div key={m.id} className={`chat ${m.role === "user" ? "chat-end" : "chat-start"}`}>
                                         <div className={`chat-bubble ${m.role === "assistant" ? "chat-bubble-primary" : ""}`}>
-                                            {m.content || (m.role === "assistant" && streaming ? (
+                                            {m.content ? (
+                                                m.role === "assistant" ? (
+                                                    <div className="max-w-none prose prose-sm">
+                                                        <ReactMarkdown
+                                                            components={{
+                                                                // Style code blocks
+                                                                code: ({ className, children, ...props }) => {
+                                                                    const isInline = !className?.includes('language-');
+                                                                    return isInline ? (
+                                                                        <code className="bg-base-300/50 px-1 py-0.5 rounded text-sm" {...props}>
+                                                                            {children}
+                                                                        </code>
+                                                                    ) : (
+                                                                        <code className="block bg-base-300/50 p-3 rounded-lg overflow-x-auto text-sm" {...props}>
+                                                                            {children}
+                                                                        </code>
+                                                                    );
+                                                                },
+                                                                // Style links
+                                                                a: ({ children, ...props }) => (
+                                                                    <a className="link link-primary" {...props}>
+                                                                        {children}
+                                                                    </a>
+                                                                ),
+                                                                // Style lists
+                                                                ul: ({ children, ...props }) => (
+                                                                    <ul className="space-y-1 list-disc list-inside" {...props}>
+                                                                        {children}
+                                                                    </ul>
+                                                                ),
+                                                                ol: ({ children, ...props }) => (
+                                                                    <ol className="space-y-1 list-decimal list-inside" {...props}>
+                                                                        {children}
+                                                                    </ol>
+                                                                ),
+                                                                // Style headings
+                                                                h1: ({ children, ...props }) => (
+                                                                    <h1 className="mt-4 mb-2 font-bold text-xl" {...props}>
+                                                                        {children}
+                                                                    </h1>
+                                                                ),
+                                                                h2: ({ children, ...props }) => (
+                                                                    <h2 className="mt-3 mb-2 font-bold text-lg" {...props}>
+                                                                        {children}
+                                                                    </h2>
+                                                                ),
+                                                                h3: ({ children, ...props }) => (
+                                                                    <h3 className="mt-2 mb-1 font-bold text-base" {...props}>
+                                                                        {children}
+                                                                    </h3>
+                                                                ),
+                                                                // Style tables
+                                                                table: ({ children, ...props }) => (
+                                                                    <div className="my-4 overflow-x-auto">
+                                                                        <table className="table table-sm" {...props}>
+                                                                            {children}
+                                                                        </table>
+                                                                    </div>
+                                                                ),
+                                                                // Style blockquotes
+                                                                blockquote: ({ children, ...props }) => (
+                                                                    <blockquote className="my-2 pl-4 border-primary/30 border-l-4 italic" {...props}>
+                                                                        {children}
+                                                                    </blockquote>
+                                                                ),
+                                                            }}
+                                                        >
+                                                            {m.content}
+                                                        </ReactMarkdown>
+                                                    </div>
+                                                ) : (
+                                                    m.content
+                                                )
+                                            ) : (m.role === "assistant" && streaming ? (
                                                 <span className="loading loading-dots loading-sm" />
                                             ) : null)}
                                         </div>

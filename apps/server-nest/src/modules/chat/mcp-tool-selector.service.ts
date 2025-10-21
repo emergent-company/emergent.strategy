@@ -105,7 +105,7 @@ export class McpToolSelectorService {
         } catch (error) {
             const err = error as Error;
             this.logger.error(`LLM tool selection failed: ${err.message}`, err.stack);
-            
+
             // Return no-tool selection on error (fallback to pattern matcher)
             return {
                 shouldUseMcp: false,
@@ -246,9 +246,9 @@ Analyze the user message and respond with a JSON object containing:
     private parseToolSelection(content: string): ToolSelectionResult {
         try {
             // Extract JSON from response (might be wrapped in ```json blocks)
-            const jsonMatch = content.match(/```json\s*\n?(.*?)\n?```/s) || 
-                             content.match(/\{[\s\S]*\}/);
-            
+            const jsonMatch = content.match(/```json\s*\n?(.*?)\n?```/s) ||
+                content.match(/\{[\s\S]*\}/);
+
             if (!jsonMatch) {
                 throw new Error('No JSON found in LLM response');
             }
@@ -275,7 +275,7 @@ Analyze the user message and respond with a JSON object containing:
             const err = error as Error;
             this.logger.error(`Failed to parse LLM tool selection: ${err.message}`);
             this.logger.debug(`Raw LLM response: ${content}`);
-            
+
             // Return no-tool selection on parse error
             return {
                 shouldUseMcp: false,
