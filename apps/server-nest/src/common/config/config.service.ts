@@ -18,7 +18,8 @@ export class AppConfigService {
             // eslint-disable-next-line no-console
             console.log('[config-debug] CHAT_MODEL_ENABLED raw=', process.env.CHAT_MODEL_ENABLED,
                 'GOOGLE_API_KEY set=', !!process.env.GOOGLE_API_KEY,
-                'computed chatModelEnabled=', !!process.env.GOOGLE_API_KEY && (process.env.CHAT_MODEL_ENABLED === 'true' || process.env.CHAT_MODEL_ENABLED === '1'));
+                'VERTEX_AI_PROJECT_ID set=', !!process.env.VERTEX_AI_PROJECT_ID,
+                'computed chatModelEnabled=', (!!process.env.GOOGLE_API_KEY || !!process.env.VERTEX_AI_PROJECT_ID) && (process.env.CHAT_MODEL_ENABLED === 'true' || process.env.CHAT_MODEL_ENABLED === '1'));
         }
     }
     /**
@@ -58,7 +59,17 @@ export class AppConfigService {
         }
         return dim;
     }
-    get chatModelEnabled() { return !!this.env.GOOGLE_API_KEY && !!this.env.CHAT_MODEL_ENABLED; }
+
+    /**
+     * Chat model is enabled if CHAT_MODEL_ENABLED is true AND we have either:
+     * - GOOGLE_API_KEY (for direct Gemini API access), OR
+     * - VERTEX_AI_PROJECT_ID (for Vertex AI authentication)
+     */
+    get chatModelEnabled() {
+        const hasProvider = !!this.env.GOOGLE_API_KEY || !!this.env.VERTEX_AI_PROJECT_ID;
+        return hasProvider && !!this.env.CHAT_MODEL_ENABLED;
+    }
+
     get autoInitDb() { return !!this.env.DB_AUTOINIT; }
     /** Password used when creating / connecting as dedicated non-bypass RLS role (app_rls). Optional so tests can rely on default. */
     get appRlsPassword() { return this.env.APP_RLS_PASSWORD || 'app_rls_pw'; }
