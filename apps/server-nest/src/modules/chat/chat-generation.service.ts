@@ -44,28 +44,37 @@ export class ChatGenerationService {
     buildPrompt(options: PromptBuildOptions): string {
         const { message, mcpToolContext, detectedIntent } = options;
 
-        // Base system prompt for all queries
-        let systemPrompt = 'You are a helpful assistant specialized in knowledge graphs and data schemas.';
+        // Base system prompt for all queries with explicit markdown instruction
+        let systemPrompt = 'You are a helpful assistant specialized in knowledge graphs and data schemas. IMPORTANT: Always respond using proper markdown formatting.';
 
         // Add intent-specific instructions
         switch (detectedIntent) {
             case 'schema-version':
-                systemPrompt += ' When answering questions about schema versions, provide clear version information and explain what it means.';
+                systemPrompt += ' When answering questions about schema versions, provide clear version information and explain what it means. Use markdown headings, bold text, and lists.';
                 break;
             case 'schema-changes':
-                systemPrompt += ' When describing schema changes, organize them chronologically and highlight the most important modifications.';
+                systemPrompt += ' When describing schema changes, organize them chronologically using markdown headings (###) and bullet points (-). Highlight important modifications with **bold text**.';
                 break;
             case 'type-info':
-                systemPrompt += ' When explaining entity types, describe their properties, relationships, and use cases clearly.';
+                systemPrompt += ' When explaining entity types, use markdown headings (###) for the type name, bullet lists (-) for properties and relationships.';
                 break;
             case 'entity-list':
-                systemPrompt += ' When listing available entity types, present them in a clear, organized manner with counts and descriptions.';
+                systemPrompt += ' When listing available entity types, use numbered lists (1., 2., 3.) and **bold** for type names.';
                 break;
             case 'entity-query':
-                systemPrompt += ' When presenting entity data, format it clearly with the most relevant information highlighted. Include key properties and dates.';
+                systemPrompt += ' When presenting entity query results, respond with a brief introduction and then format each entity as a structured object reference using this EXACT format:\n\n';
+                systemPrompt += '```object-ref\n';
+                systemPrompt += '{\n';
+                systemPrompt += '  "id": "entity-uuid-here",\n';
+                systemPrompt += '  "type": "EntityType",\n';
+                systemPrompt += '  "name": "Display Name",\n';
+                systemPrompt += '  "summary": "Brief one-line description or key detail"\n';
+                systemPrompt += '}\n';
+                systemPrompt += '```\n\n';
+                systemPrompt += 'Use one ```object-ref block per entity. The summary should be the most important detail from the entity properties (e.g., status, date, key attribute). Do NOT include full property lists - the user will click to see details.';
                 break;
             default:
-                systemPrompt += ' Answer questions clearly, concisely, and accurately.';
+                systemPrompt += ' Answer questions clearly using markdown formatting: headings (# ## ###), lists (- or 1.), **bold**, `code`, etc.';
         }
 
         // Start building the prompt
@@ -81,9 +90,16 @@ export class ChatGenerationService {
         prompt += '\n\n## User Question\n\n';
         prompt += message;
 
-        // Add response instruction
+        // Add response instruction with markdown formatting examples
         prompt += '\n\n## Your Response\n\n';
-        prompt += 'Provide a helpful, accurate answer based on the context above:';
+        prompt += 'Provide a helpful, accurate answer based on the context above. Use proper markdown formatting:\n';
+        prompt += '- Use ### for headings\n';
+        prompt += '- Use - or * for unordered lists (with space after)\n';
+        prompt += '- Use 1. 2. 3. for ordered lists\n';
+        prompt += '- Use **text** for bold\n';
+        prompt += '- Use `code` for inline code\n';
+        prompt += '- Use proper blank lines between sections\n\n';
+        prompt += 'Your markdown formatted answer:';
 
         return prompt;
     }
@@ -157,30 +173,53 @@ export class ChatGenerationService {
                     const pagination = data.pagination || {};
                     const total = pagination.total || data.entities.length;
                     const entityType = data.entities.length > 0 ? data.entities[0].type : 'entities';
-                    
+
                     let formatted = `Found ${total} ${entityType}${total !== 1 ? 's' : ''} (showing ${data.entities.length}):\n\n`;
-                    
+
                     formatted += data.entities.map((entity: any, idx: number) => {
-                        let item = `${idx + 1}. **${entity.name}**\n`;
-                        item += `   - ID: ${entity.id}\n`;
-                        item += `   - Key: ${entity.key}\n`;
-                        
+                        let item = `### ${idx + 1}. ${entity.name}\n\n`;
+                        item += `- **ID**: ${entity.id}\n`;
+                        item += `- **Type**: ${entity.type}\n`;
+                        item += `- **Key**: ${entity.key}\n`;
+
                         if (entity.created_at) {
                             const date = new Date(entity.created_at);
-                            item += `   - Created: ${date.toLocaleDateString()}\n`;
+                            item += `- **Created**: ${date.toLocaleDateString()}\n`;
                         }
-                        
+
                         if (entity.properties && Object.keys(entity.properties).length > 0) {
-                            item += `   - Properties: ${JSON.stringify(entity.properties, null, 2).split('\n').join('\n     ')}\n`;
+                            // Filter out internal extraction metadata fields
+                            const props = entity.properties;
+                            const cleanProps: Record<string, any> = {};
+
+                            for (const [key, value] of Object.entries(props)) {
+                                // Skip extraction metadata fields
+                                if (key.startsWith('_extraction_')) continue;
+
+                                // Skip null/undefined/empty values
+                                if (value === null || value === undefined || value === '') continue;
+
+                                cleanProps[key] = value;
+                            }
+
+                            // Format clean properties as markdown list
+                            for (const [key, value] of Object.entries(cleanProps)) {
+                                // Format value based on type
+                                let displayValue = value;
+                                if (typeof value === 'object') {
+                                    displayValue = JSON.stringify(value);
+                                }
+                                item += `- **${key}**: ${displayValue}\n`;
+                            }
                         }
-                        
+
                         return item;
                     }).join('\n');
-                    
+
                     if (pagination.has_more) {
-                        formatted += `\n\n(${total - data.entities.length} more ${entityType}${(total - data.entities.length) !== 1 ? 's' : ''} available)`;
+                        formatted += `\n\n*${total - data.entities.length} more ${entityType}${(total - data.entities.length) !== 1 ? 's' : ''} available*`;
                     }
-                    
+
                     return formatted;
                 }
                 break;
@@ -214,16 +253,28 @@ export class ChatGenerationService {
             });
             const msg = await model.invoke(prompt);
             const full = typeof msg === 'string' ? msg : (msg as any)?.content || JSON.stringify(msg);
-            // Naive tokenization (split on spaces) for incremental emission
-            const pieces = full.split(/\s+/).filter(Boolean);
-            const maxTokens = Math.min(pieces.length, 128); // cap to keep tests fast
+            // Tokenization that preserves spaces and newlines for proper markdown formatting
+            // Strategy: Split on word boundaries but include the whitespace in tokens
+            // This ensures "Hello\n\nWorld" becomes ["Hello", "\n\n", "World"] not ["Hello", "World"]
+            const pieces: string[] = [];
+            const regex = /(\s+)|(\S+)/g;
+            let match;
+            while ((match = regex.exec(full)) !== null) {
+                if (match[0]) pieces.push(match[0]);
+            }
+
+            // Since whitespace is now included as tokens, we need a much higher limit
+            // ~2048 tokens ≈ ~1024 words (each word + space = 2 tokens)
+            // This allows for comprehensive responses with multiple entities
+            const maxTokens = Math.min(pieces.length, 2048);
             for (let i = 0; i < maxTokens; i++) {
                 onToken(pieces[i]);
             }
             if (process.env.E2E_DEBUG_CHAT === '1') {
                 this.logger.log(`[gen] success tokens=${maxTokens}`);
             }
-            return pieces.slice(0, maxTokens).join(' ');
+            // Join without separator since tokens already include spaces/newlines
+            return pieces.slice(0, maxTokens).join('');
         } catch (e) {
             const err = e as Error;
             this.logger.warn(`Generation failed: ${err.message}`);

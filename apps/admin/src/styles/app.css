@@ -25,6 +25,9 @@
 /* Animations */
 @plugin "tailwindcss-motion";
 
+/* Typography (prose classes for markdown) */
+@plugin "@tailwindcss/typography";
+
 /* Iconify (Lucide icons) */
 @plugin "@iconify/tailwind4" {
     prefixes: lucide, hugeicons, ri;
