@@ -69,6 +69,7 @@ export default function ChatConversationPage() {
         deleteConversation,
         send,
         streaming,
+        mcpToolActive,
     } = useChat();
     const { user } = useAuth();
 
@@ -180,6 +181,16 @@ export default function ChatConversationPage() {
                                     </div>
                                 ))}
                             </div>
+
+                            {/* MCP Tool Status Indicator */}
+                            {mcpToolActive && (
+                                <div className="flex items-center gap-2 bg-info/10 px-4 py-3 border border-info/30 rounded-lg">
+                                    <span className="text-info loading loading-spinner loading-sm" />
+                                    <span className="font-medium text-info text-sm">
+                                        Querying {mcpToolActive.tool.replace(/_/g, ' ')}...
+                                    </span>
+                                </div>
+                            )}
 
                             {/* Composer */}
                             <div className="bottom-0 sticky bg-base-100 card-border card">

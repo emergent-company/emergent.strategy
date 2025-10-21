@@ -39,10 +39,15 @@ export interface ChatRequest {
 }
 
 export interface ChatChunk {
-    type: "token" | "done" | "error" | "meta";
+    type: "token" | "done" | "error" | "meta" | "mcp_tool";
     token?: string;
     messageId?: string;
     citations?: Citation[];
     conversationId?: string;
     error?: string;
+    // MCP Tool event fields
+    tool?: string;
+    status?: "started" | "completed" | "error";
+    result?: any;
+    args?: any;
 }
