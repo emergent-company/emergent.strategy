@@ -349,7 +349,8 @@ export class ChatController {
         try {
             const exists = await this.chat.hasConversation(id);
             if (exists) {
-                const content = tokens.join(' ');
+                // Join tokens without separator to preserve newlines and formatting from LLM
+                const content = tokens.join('');
                 await this.chat.persistAssistantMessage(id, content, citations);
             }
         } catch (e) {
@@ -496,7 +497,7 @@ export class ChatController {
             if (useLlmSelection) {
                 try {
                     const llmSelection = await this.mcpSelector.selectTool(message, orgId || '', projectId || '');
-                    
+
                     if (llmSelection.shouldUseMcp && llmSelection.suggestedTool && llmSelection.confidence && llmSelection.confidence > 0.7) {
                         // LLM selection successful with high confidence
                         detection = {
@@ -626,7 +627,8 @@ export class ChatController {
 
         // Persist assistant message if any tokens were produced
         if (tokens.length) {
-            try { await this.chat.persistAssistantMessage(convId, tokens.join(' '), citations); } catch { /* ignore persistence errors */ }
+            // Join tokens without separator to preserve newlines and formatting from LLM
+            try { await this.chat.persistAssistantMessage(convId, tokens.join(''), citations); } catch { /* ignore persistence errors */ }
         }
         try { res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`); } catch { /* ignore */ }
         res.end();

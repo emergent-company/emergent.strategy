@@ -361,10 +361,10 @@ export class McpToolDetectorService {
             // Pattern: (optional: show/list/get/find/what) + (optional: last/recent/latest) + (number) + (entity name)
             const queryPattern = /(?:show|list|get|find|what|give).*?\b(last|recent|latest|first)?\s*(\d+)?\s*(\w+s)\b/i;
             const match = normalized.match(queryPattern);
-            
+
             if (match) {
                 const entityPlural = match[3]; // "decisions", "projects", "tasks", etc.
-                
+
                 // Check if it looks like an entity type (ends with 's' and not a common word)
                 const commonWords = ['is', 'was', 'has', 'does', 'goes', 'things', 'items', 'objects'];
                 if (!commonWords.includes(entityPlural)) {
@@ -517,16 +517,16 @@ export class McpToolDetectorService {
                 //           "list tasks" -> "tasks"
                 const entityPattern = /\b(last|recent|latest|first)?\s*(\d+)?\s*(\w+s)\b/i;
                 const entityMatch = normalized.match(entityPattern);
-                
+
                 if (entityMatch) {
                     const pluralName = entityMatch[3]; // "decisions", "projects", "tasks"
-                    
+
                     // Clean up: remove punctuation (?, !, .)
                     const cleanName = pluralName.replace(/[?!.,;:]+$/, '');
-                    
+
                     // Convert plural to singular: "decisions" -> "decision"
                     const singularName = cleanName.endsWith('s') ? cleanName.slice(0, -1) : cleanName;
-                    
+
                     // Capitalize: "decision" -> "Decision"
                     argsEntity.type_name = singularName.charAt(0).toUpperCase() + singularName.slice(1);
                 }
