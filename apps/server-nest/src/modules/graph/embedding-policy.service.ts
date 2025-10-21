@@ -18,8 +18,8 @@ export class EmbeddingPolicyService {
     async create(projectId: string, dto: CreateEmbeddingPolicyDto): Promise<EmbeddingPolicy> {
         const result = await this.db.query<EmbeddingPolicyRow>(
             `INSERT INTO kb.embedding_policies 
-             (project_id, object_type, enabled, max_property_size, required_labels, excluded_labels, relevant_paths)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             (project_id, object_type, enabled, max_property_size, required_labels, excluded_labels, relevant_paths, excluded_statuses)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
             [
                 projectId,
@@ -29,6 +29,7 @@ export class EmbeddingPolicyService {
                 dto.requiredLabels ?? [],
                 dto.excludedLabels ?? [],
                 dto.relevantPaths ?? [],
+                dto.excludedStatuses ?? [],
             ]
         );
 
@@ -99,6 +100,10 @@ export class EmbeddingPolicyService {
             updates.push(`relevant_paths = $${paramIndex++}`);
             values.push(dto.relevantPaths);
         }
+        if (dto.excludedStatuses !== undefined) {
+            updates.push(`excluded_statuses = $${paramIndex++}`);
+            values.push(dto.excludedStatuses);
+        }
 
         if (updates.length === 0) {
             return this.findById(id, projectId);
@@ -137,13 +142,15 @@ export class EmbeddingPolicyService {
      * @param properties - Object properties (JSONB)
      * @param labels - Object labels
      * @param policies - Policies to evaluate (typically all policies for the project)
+     * @param status - Object status (optional)
      * @returns true if object should be embedded, false otherwise
      */
     shouldEmbed(
         objectType: string,
         properties: Record<string, any>,
         labels: string[],
-        policies: EmbeddingPolicy[]
+        policies: EmbeddingPolicy[],
+        status?: string | null
     ): { shouldEmbed: boolean; reason?: string; filteredProperties?: Record<string, any> } {
         // Find policy for this object type
         const policy = policies.find(p => p.objectType === objectType);
@@ -202,7 +209,21 @@ export class EmbeddingPolicyService {
             }
         }
 
-        // Check 5: Relevant paths (field masking)
+        // Check 5: Excluded statuses
+        if (policy.excludedStatuses.length > 0 && status) {
+            const isExcluded = policy.excludedStatuses.some(excStatus =>
+                excStatus.toLowerCase() === status.toLowerCase()
+            );
+
+            if (isExcluded) {
+                return {
+                    shouldEmbed: false,
+                    reason: `Object has excluded status: ${status}`,
+                };
+            }
+        }
+
+        // Check 6: Relevant paths (field masking)
         let filteredProperties = properties;
         if (policy.relevantPaths.length > 0) {
             filteredProperties = this.filterPropertiesByPaths(properties, policy.relevantPaths);
@@ -317,12 +338,12 @@ export class EmbeddingPolicyService {
      */
     async batchShouldEmbed(
         projectId: string,
-        objects: Array<{ type: string; properties: Record<string, any>; labels: string[] }>
+        objects: Array<{ type: string; properties: Record<string, any>; labels: string[]; status?: string | null }>
     ): Promise<Array<{ shouldEmbed: boolean; reason?: string; filteredProperties?: Record<string, any> }>> {
         const policies = await this.findByProject(projectId);
 
         return objects.map(obj =>
-            this.shouldEmbed(obj.type, obj.properties, obj.labels, policies)
+            this.shouldEmbed(obj.type, obj.properties, obj.labels, policies, obj.status)
         );
     }
 }

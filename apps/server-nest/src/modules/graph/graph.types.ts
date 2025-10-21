@@ -8,6 +8,7 @@ export interface GraphObjectRow {
     version: number;
     type: string;
     key?: string | null;
+    status?: string | null;
     properties: any;
     labels: string[];
     deleted_at?: string | null;

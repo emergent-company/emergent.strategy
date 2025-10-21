@@ -36,7 +36,7 @@ export function ChatObjectRefs({ refs }: ChatObjectRefsProps) {
     const handleCardClick = async (objectId: string) => {
         setLoading(true);
         setError(null);
-        
+
         try {
             // Fetch full object details from API
             const obj = await fetchJson<GraphObject>(`/api/graph/objects/${objectId}`);
@@ -71,14 +71,14 @@ export function ChatObjectRefs({ refs }: ChatObjectRefsProps) {
                         onClick={() => handleCardClick(ref.id)}
                     />
                 ))}
-                
+
                 {/* Loading spinner */}
                 {loading && (
                     <div className="flex justify-center py-2">
                         <span className="loading loading-spinner loading-sm"></span>
                     </div>
                 )}
-                
+
                 {/* Error alert */}
                 {error && (
                     <div className="alert alert-error alert-sm">

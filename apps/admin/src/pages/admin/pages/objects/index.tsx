@@ -11,6 +11,7 @@ interface GraphObjectResponse {
     id: string;
     key?: string | null;  // Graph objects use 'key' not 'name'
     type: string;
+    status?: string | null;  // Object status: 'accepted', 'draft', 'rejected', etc.
     description?: string;
     properties: Record<string, unknown>;
     labels: string[];
@@ -61,6 +62,7 @@ export default function ObjectsPage() {
                     id: obj.id,
                     name: (obj.properties?.name as string) || (obj.properties?.title as string) || obj.key || `${obj.type}-${obj.id.substring(0, 8)}`,
                     type: obj.type,
+                    status: obj.status || undefined,
                     source: obj.external_type || (obj.properties?._extraction_source as string) || undefined,
                     updated_at: obj.created_at,  // Use created_at as updated_at
                     relationship_count: undefined,  // Not included in API response
@@ -87,6 +89,7 @@ export default function ObjectsPage() {
                     id: obj.id,
                     name: (obj.properties?.name as string) || (obj.properties?.title as string) || obj.key || `${obj.type}-${obj.id.substring(0, 8)}`,
                     type: obj.type,
+                    status: obj.status || undefined,
                     source: obj.external_type || (obj.properties?._extraction_source as string) || undefined,
                     updated_at: obj.created_at,  // Use created_at as updated_at
                     relationship_count: undefined,  // Not included in API response
@@ -201,6 +204,56 @@ export default function ObjectsPage() {
         }
     };
 
+    const handleBulkAccept = async (selectedIds: string[]) => {
+        if (!config.activeProjectId || selectedIds.length === 0) return;
+
+        try {
+            const response = await fetchJson<{
+                success: number;
+                failed: number;
+                results: Array<{ id: string; success: boolean; error?: string }>;
+            }>(`${apiBase}/api/graph/objects/bulk-update-status`, {
+                method: 'POST',
+                body: {
+                    ids: selectedIds,
+                    status: 'accepted'
+                },
+            });
+
+            if (response.failed > 0) {
+                alert(`Updated ${response.success} object(s), ${response.failed} failed.`);
+            }
+
+            // Reload objects after update
+            await loadObjects();
+        } catch (err) {
+            console.error('Failed to accept objects:', err);
+            alert(err instanceof Error ? err.message : 'Failed to accept objects');
+        }
+    };
+
+    const handleAcceptObject = async (objectId: string) => {
+        if (!config.activeProjectId) return;
+
+        try {
+            await fetchJson(`${apiBase}/api/graph/objects/${objectId}`, {
+                method: 'PATCH',
+                body: { status: 'accepted' },
+            });
+
+            // Reload objects after update
+            await loadObjects();
+
+            // Update modal object if it's open
+            if (selectedObject?.id === objectId) {
+                setSelectedObject({ ...selectedObject, status: 'accepted' });
+            }
+        } catch (err) {
+            console.error('Failed to accept object:', err);
+            alert(err instanceof Error ? err.message : 'Failed to accept object');
+        }
+    };
+
     const handleBulkSelect = (selectedIds: string[]) => {
         console.log('Selected objects:', selectedIds);
     };
@@ -248,6 +301,7 @@ export default function ObjectsPage() {
                 onObjectClick={handleObjectClick}
                 onBulkSelect={handleBulkSelect}
                 onBulkDelete={handleBulkDelete}
+                onBulkAccept={handleBulkAccept}
                 onSearchChange={handleSearchChange}
                 onTypeFilterChange={handleTypeFilterChange}
                 availableTypes={availableTypes}
@@ -261,6 +315,7 @@ export default function ObjectsPage() {
                 isOpen={isModalOpen}
                 onClose={handleModalClose}
                 onDelete={handleDelete}
+                onAccept={handleAcceptObject}
             />
         </div>
     );

@@ -3288,6 +3288,66 @@
         ]
       }
     },
+    "/graph/objects/bulk-update-status": {
+      "post": {
+        "operationId": "bulkUpdateStatus",
+        "summary": "Update status for multiple objects",
+        "description": "Updates the status field for multiple objects in a single request. Creates a new version for each object. Returns summary of successes and failures.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkUpdateStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bulk update completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "number",
+                      "description": "Number of successfully updated objects"
+                    },
+                    "failed": {
+                      "type": "number",
+                      "description": "Number of failed updates"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "success": {
+                            "type": "boolean"
+                          },
+                          "error": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
     "/graph/objects/{id}/restore": {
       "post": {
         "operationId": "restoreObject",
@@ -3836,6 +3896,58 @@
         "responses": {
           "200": {
             "description": ""
+          }
+        },
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
+    "/graph/search-with-neighbors": {
+      "post": {
+        "operationId": "searchWithNeighbors",
+        "summary": "Search graph objects with optional neighbor expansion",
+        "description": "\nPerforms semantic search over graph objects and optionally retrieves their neighbors.\n\n**Search Strategy:**\n- Uses full-text search (FTS) to find primary results matching the query\n- Optionally expands each result to include:\n  1. Semantically similar objects (via vector embeddings)\n  2. Directly connected objects (via relationships)\n\n**Use Cases:**\n- Chat context retrieval (similar to document citations)\n- Discovery features (\"related objects\")\n- Rich detail views with context\n\n**Neighbor Sources:**\n- **Semantic**: Objects with similar embedding vectors (via searchSimilar)\n- **Relational**: Objects connected via graph relationships (depends_on, implements, etc.)\n\n**Example:**\n```json\n{\n  \"query\": \"authentication patterns\",\n  \"limit\": 5,\n  \"includeNeighbors\": true,\n  \"maxNeighbors\": 3,\n  \"maxDistance\": 0.5\n}\n```\n        ",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchObjectsWithNeighborsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search results with optional neighbors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "primaryResults": {
+                      "type": "array",
+                      "description": "Objects matching the search query",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "neighbors": {
+                      "type": "object",
+                      "description": "Map of object ID to array of neighbor objects",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -8270,6 +8382,33 @@
         "type": "object",
         "properties": {}
       },
+      "BulkUpdateStatusDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "description": "Array of object IDs to update",
+            "example": [
+              "uuid1",
+              "uuid2",
+              "uuid3"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "description": "New status value",
+            "example": "accepted",
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "ids",
+          "status"
+        ]
+      },
       "VersionedObjectDto": {
         "type": "object",
         "properties": {
@@ -8713,6 +8852,80 @@
           "vector"
         ]
       },
+      "SearchObjectsWithNeighborsDto": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Natural language query text to search for",
+            "example": "authentication and authorization patterns"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of primary search results",
+            "default": 10,
+            "minimum": 1,
+            "maximum": 100
+          },
+          "includeNeighbors": {
+            "type": "boolean",
+            "description": "Whether to include neighbors for each result",
+            "default": false
+          },
+          "maxNeighbors": {
+            "type": "number",
+            "description": "Maximum number of neighbors per result",
+            "default": 5,
+            "minimum": 1,
+            "maximum": 20
+          },
+          "maxDistance": {
+            "type": "number",
+            "description": "Maximum vector distance for similarity (0.0-2.0, lower = more similar)",
+            "default": 0.5,
+            "minimum": 0,
+            "maximum": 2
+          },
+          "projectId": {
+            "type": "string",
+            "description": "Filter by project ID"
+          },
+          "orgId": {
+            "type": "string",
+            "description": "Filter by organization ID"
+          },
+          "branchId": {
+            "type": "string",
+            "description": "Filter by branch ID"
+          },
+          "types": {
+            "description": "Filter by object types",
+            "example": [
+              "Decision",
+              "Pattern",
+              "Document"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "labels": {
+            "description": "Filter by labels",
+            "example": [
+              "accepted",
+              "high-priority"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
       "CreateEmbeddingPolicyDto": {
         "type": "object",
         "properties": {
@@ -8764,6 +8977,17 @@
             "example": [
               "/properties/title",
               "/properties/description"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "excludedStatuses": {
+            "description": "Status values that prevent embedding if present on the object",
+            "example": [
+              "draft",
+              "archived"
             ],
             "type": "array",
             "items": {
@@ -8835,6 +9059,16 @@
               "type": "string"
             }
           },
+          "excludedStatuses": {
+            "description": "Excluded status values",
+            "example": [
+              "draft"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string",
@@ -8857,6 +9091,7 @@
           "requiredLabels",
           "excludedLabels",
           "relevantPaths",
+          "excludedStatuses",
           "createdAt",
           "updatedAt"
         ]
@@ -8898,6 +9133,16 @@
             "description": "JSON Pointer paths to relevant properties",
             "example": [
               "/properties/summary"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "excludedStatuses": {
+            "description": "Status values that prevent embedding",
+            "example": [
+              "draft"
             ],
             "type": "array",
             "items": {

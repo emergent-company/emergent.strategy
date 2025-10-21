@@ -6,6 +6,7 @@ export interface GraphObject {
     name: string;
     type: string;
     source?: string;
+    status?: string;
     updated_at: string;
     relationship_count?: number;
     properties?: Record<string, unknown>;
@@ -24,6 +25,8 @@ export interface ObjectBrowserProps {
     onBulkSelect?: (selectedIds: string[]) => void;
     /** Called when bulk delete is requested */
     onBulkDelete?: (selectedIds: string[]) => void;
+    /** Called when bulk accept is requested */
+    onBulkAccept?: (selectedIds: string[]) => void;
     /** Called when search query changes */
     onSearchChange?: (query: string) => void;
     /** Called when type filter changes */
@@ -43,6 +46,7 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
     onObjectClick,
     onBulkSelect,
     onBulkDelete,
+    onBulkAccept,
     onSearchChange,
     onTypeFilterChange,
     availableTypes = [],
@@ -372,6 +376,18 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                     {selectedIds.size} selected
                 </span>
                 <button
+                    className="gap-2 btn btn-sm btn-success"
+                    onClick={() => {
+                        if (onBulkAccept) {
+                            onBulkAccept(Array.from(selectedIds));
+                            setSelectedIds(new Set());
+                        }
+                    }}
+                >
+                    <Icon icon="lucide--check-circle" className="size-4" />
+                    Accept
+                </button>
+                <button
                     className="gap-2 btn-outline btn btn-sm btn-error"
                     onClick={() => {
                         if (onBulkDelete) {
@@ -413,6 +429,7 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                         </th>
                         <th>Name</th>
                         <th>Type</th>
+                        <th>Status</th>
                         <th>Source</th>
                         <th>Confidence</th>
                         <th>Updated</th>
@@ -426,6 +443,7 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                                 <td className="py-2"><div className="bg-base-300 rounded w-4 h-4" /></td>
                                 <td><div className="bg-base-300 rounded w-40 h-4" /></td>
                                 <td><div className="bg-base-300 rounded w-24 h-4" /></td>
+                                <td><div className="bg-base-300 rounded w-16 h-4" /></td>
                                 <td><div className="bg-base-300 rounded w-20 h-4" /></td>
                                 <td><div className="bg-base-300 rounded w-16 h-4" /></td>
                                 <td><div className="bg-base-300 rounded w-16 h-4" /></td>
@@ -435,7 +453,7 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                     )}
                     {!loading && error && (
                         <tr>
-                            <td colSpan={7} className="py-10 text-error text-sm text-center">
+                            <td colSpan={8} className="py-10 text-error text-sm text-center">
                                 <Icon icon="lucide--alert-circle" className="mx-auto mb-2 size-5" />
                                 <div>{error}</div>
                             </td>
@@ -443,7 +461,7 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                     )}
                     {!loading && !error && filteredObjects.length === 0 && (
                         <tr>
-                            <td colSpan={7} className="py-10 text-sm text-base-content/70 text-center">
+                            <td colSpan={8} className="py-10 text-sm text-base-content/70 text-center">
                                 <Icon icon="lucide--inbox" className="opacity-50 mx-auto mb-2 size-8" />
                                 <div>No objects match current filters.</div>
                             </td>
@@ -479,6 +497,19 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                                 </td>
                                 <td>
                                     <span className="badge badge-sm badge-ghost">{obj.type}</span>
+                                </td>
+                                <td>
+                                    {obj.status ? (
+                                        <span className={`badge badge-sm ${obj.status === 'accepted' ? 'badge-success' :
+                                                obj.status === 'draft' ? 'badge-warning' :
+                                                    obj.status === 'rejected' ? 'badge-error' :
+                                                        'badge-ghost'
+                                            }`}>
+                                            {obj.status}
+                                        </span>
+                                    ) : (
+                                        <span className="text-sm text-base-content/70">—</span>
+                                    )}
                                 </td>
                                 <td className="text-sm text-base-content/70">{obj.source || '—'}</td>
                                 <td>

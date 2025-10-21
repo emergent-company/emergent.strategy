@@ -4,6 +4,7 @@ import { Scopes } from '../auth/scopes.decorator';
 import { GraphService } from './graph.service';
 import { CreateGraphObjectDto } from './dto/create-graph-object.dto';
 import { PatchGraphObjectDto } from './dto/patch-graph-object.dto';
+import { BulkUpdateStatusDto } from './dto/bulk-update-status.dto';
 import { CreateGraphRelationshipDto } from './dto/create-graph-relationship.dto';
 import { PatchGraphRelationshipDto } from './dto/patch-graph-relationship.dto';
 import { TraverseGraphDto } from './dto/traverse-graph.dto';
@@ -15,6 +16,7 @@ import { VectorSearchDto } from './dto/vector-search.dto';
 import { SimilarVectorSearchQueryDto } from './dto/similar-vector-search.dto';
 import { EmbeddingPolicyService } from './embedding-policy.service';
 import { CreateEmbeddingPolicyDto, UpdateEmbeddingPolicyDto, EmbeddingPolicyResponseDto } from './embedding-policy.dto';
+import { SearchObjectsWithNeighborsDto } from './dto/search-with-neighbors.dto';
 
 @ApiTags('Graph')
 @Controller('graph')
@@ -130,6 +132,77 @@ export class GraphObjectsController {
     @ApiResponse({ status: 400, description: 'No effective change' })
     @ApiResponse({ status: 404, description: 'Not found' })
     patch(@Param('id') id: string, @Body() dto: PatchGraphObjectDto, @Req() req: any) { return this.service.patchObject(id, dto, this.extractContext(req)); }
+
+    @Post('objects/bulk-update-status')
+    @Scopes('graph:write')
+    @ApiOperation({
+        summary: 'Update status for multiple objects',
+        description: 'Updates the status field for multiple objects in a single request. Creates a new version for each object. Returns summary of successes and failures.'
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Bulk update completed',
+        schema: {
+            type: 'object',
+            properties: {
+                success: { type: 'number', description: 'Number of successfully updated objects' },
+                failed: { type: 'number', description: 'Number of failed updates' },
+                results: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string' },
+                            success: { type: 'boolean' },
+                            error: { type: 'string' }
+                        }
+                    }
+                }
+            }
+        }
+    })
+    @HttpCode(200)
+    async bulkUpdateStatus(
+        @Body() body: BulkUpdateStatusDto,
+        @Req() req: any
+    ) {
+        this.logger.log(`[BULK-UPDATE] Starting bulk update for ${body.ids.length} objects to status="${body.status}"`);
+        const ctx = this.extractContext(req);
+        this.logger.log(`[BULK-UPDATE] Context: ${JSON.stringify(ctx)}`);
+
+        const startTime = Date.now();
+
+        // Process sequentially to avoid connection pool exhaustion
+        // Each patchObject acquires an advisory lock and holds a transaction open,
+        // so running them in parallel can exhaust the connection pool and cause deadlocks
+        const results = [];
+        for (let i = 0; i < body.ids.length; i++) {
+            const id = body.ids[i];
+            this.logger.log(`[BULK-UPDATE] Processing object ${i + 1}/${body.ids.length}: ${id}`);
+            try {
+                const result = await this.service.patchObject(id, { status: body.status }, ctx);
+                this.logger.log(`[BULK-UPDATE] ✅ Object ${id} updated successfully`);
+                results.push({ status: 'fulfilled' as const, value: result });
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                this.logger.error(`[BULK-UPDATE] ❌ Object ${id} failed: ${errorMessage}`);
+                results.push({ status: 'rejected' as const, reason: error });
+            }
+        }
+
+        const elapsed = Date.now() - startTime;
+        this.logger.log(`[BULK-UPDATE] Completed in ${elapsed}ms`);
+
+        return {
+            success: results.filter(r => r.status === 'fulfilled').length,
+            failed: results.filter(r => r.status === 'rejected').length,
+            results: results.map((r, i) => ({
+                id: body.ids[i],
+                success: r.status === 'fulfilled',
+                error: r.status === 'rejected' ? (r.reason instanceof Error ? r.reason.message : String(r.reason)) : undefined
+            }))
+        };
+    }
 
     @Delete('objects/:id')
     @Scopes('graph:write')
@@ -283,6 +356,77 @@ export class GraphObjectsController {
             labelsAll: labelsAll || query.labelsAll,
             labelsAny: labelsAny || query.labelsAny,
         });
+    }
+
+    @Post('search-with-neighbors')
+    @Scopes('graph:read')
+    @ApiOperation({
+        summary: 'Search graph objects with optional neighbor expansion',
+        description: `
+Performs semantic search over graph objects and optionally retrieves their neighbors.
+
+**Search Strategy:**
+- Uses full-text search (FTS) to find primary results matching the query
+- Optionally expands each result to include:
+  1. Semantically similar objects (via vector embeddings)
+  2. Directly connected objects (via relationships)
+
+**Use Cases:**
+- Chat context retrieval (similar to document citations)
+- Discovery features ("related objects")
+- Rich detail views with context
+
+**Neighbor Sources:**
+- **Semantic**: Objects with similar embedding vectors (via searchSimilar)
+- **Relational**: Objects connected via graph relationships (depends_on, implements, etc.)
+
+**Example:**
+\`\`\`json
+{
+  "query": "authentication patterns",
+  "limit": 5,
+  "includeNeighbors": true,
+  "maxNeighbors": 3,
+  "maxDistance": 0.5
+}
+\`\`\`
+        `
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Search results with optional neighbors',
+        schema: {
+            type: 'object',
+            properties: {
+                primaryResults: {
+                    type: 'array',
+                    description: 'Objects matching the search query',
+                    items: { type: 'object' }
+                },
+                neighbors: {
+                    type: 'object',
+                    description: 'Map of object ID to array of neighbor objects',
+                    additionalProperties: {
+                        type: 'array',
+                        items: { type: 'object' }
+                    }
+                }
+            }
+        }
+    })
+    @HttpCode(200)
+    async searchWithNeighbors(@Body() dto: SearchObjectsWithNeighborsDto, @Req() req: any) {
+        return this.service.searchObjectsWithNeighbors(dto.query, {
+            limit: dto.limit,
+            includeNeighbors: dto.includeNeighbors,
+            maxNeighbors: dto.maxNeighbors,
+            maxDistance: dto.maxDistance,
+            projectId: dto.projectId,
+            orgId: dto.orgId,
+            branchId: dto.branchId,
+            types: dto.types,
+            labels: dto.labels,
+        }, this.extractContext(req));
     }
 
     // ---------------- Embedding Policies ----------------
