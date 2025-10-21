@@ -1,4 +1,4 @@
-import { IsOptional, IsObject, IsArray, ArrayMaxSize, Matches, IsBoolean } from 'class-validator';
+import { IsOptional, IsObject, IsArray, ArrayMaxSize, Matches, IsBoolean, IsString, MaxLength } from 'class-validator';
 
 export class PatchGraphObjectDto {
     @IsOptional()
@@ -14,4 +14,9 @@ export class PatchGraphObjectDto {
     @IsOptional()
     @IsBoolean()
     replaceLabels?: boolean;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(64)
+    status?: string;
 }

@@ -187,7 +187,7 @@ export const ResponsiveWidths = {
                     />
                 </div>
             </div>
-            
+
             <div>
                 <p className="mb-2 text-xs text-base-content/60">Tablet (640px)</p>
                 <div className="w-[640px]">
@@ -200,7 +200,7 @@ export const ResponsiveWidths = {
                     />
                 </div>
             </div>
-            
+
             <div>
                 <p className="mb-2 text-xs text-base-content/60">Desktop (1024px)</p>
                 <div className="w-[1024px]">
