@@ -14,7 +14,9 @@ export interface PromptBuildOptions {
     /** Optional context from MCP tool execution (e.g., schema data) */
     mcpToolContext?: string;
     /** Optional detected intent for specialized prompt templates */
-    detectedIntent?: 'schema-version' | 'schema-changes' | 'type-info' | 'general';
+    detectedIntent?: 'schema-version' | 'schema-changes' | 'type-info' | 'entity-query' | 'entity-list' | 'general';
+    /** Optional list of available entity types with counts */
+    availableEntityTypes?: Array<{ name: string; description: string; count: number }>;
 }
 
 @Injectable()
@@ -55,6 +57,12 @@ export class ChatGenerationService {
                 break;
             case 'type-info':
                 systemPrompt += ' When explaining entity types, describe their properties, relationships, and use cases clearly.';
+                break;
+            case 'entity-list':
+                systemPrompt += ' When listing available entity types, present them in a clear, organized manner with counts and descriptions.';
+                break;
+            case 'entity-query':
+                systemPrompt += ' When presenting entity data, format it clearly with the most relevant information highlighted. Include key properties and dates.';
                 break;
             default:
                 systemPrompt += ' Answer questions clearly, concisely, and accurately.';
@@ -130,6 +138,49 @@ export class ChatGenerationService {
                     if (data.relationships && Array.isArray(data.relationships)) {
                         formatted += `\n\nRelationships:\n${data.relationships.map((r: any) => `- ${r.name}: ${r.target_type}`).join('\n')}`;
                     }
+                    return formatted;
+                }
+                break;
+            case 'entity-list':
+                if (data.types && Array.isArray(data.types)) {
+                    const total = data.total || data.types.length;
+                    let formatted = `Available Entity Types (${total} total):\n\n`;
+                    formatted += data.types.map((type: any) => {
+                        const desc = type.description && type.description !== 'No description' ? ` - ${type.description}` : '';
+                        return `• **${type.name}**: ${type.count} instance${type.count !== 1 ? 's' : ''}${desc}`;
+                    }).join('\n');
+                    return formatted;
+                }
+                break;
+            case 'entity-query':
+                if (data.entities && Array.isArray(data.entities)) {
+                    const pagination = data.pagination || {};
+                    const total = pagination.total || data.entities.length;
+                    const entityType = data.entities.length > 0 ? data.entities[0].type : 'entities';
+                    
+                    let formatted = `Found ${total} ${entityType}${total !== 1 ? 's' : ''} (showing ${data.entities.length}):\n\n`;
+                    
+                    formatted += data.entities.map((entity: any, idx: number) => {
+                        let item = `${idx + 1}. **${entity.name}**\n`;
+                        item += `   - ID: ${entity.id}\n`;
+                        item += `   - Key: ${entity.key}\n`;
+                        
+                        if (entity.created_at) {
+                            const date = new Date(entity.created_at);
+                            item += `   - Created: ${date.toLocaleDateString()}\n`;
+                        }
+                        
+                        if (entity.properties && Object.keys(entity.properties).length > 0) {
+                            item += `   - Properties: ${JSON.stringify(entity.properties, null, 2).split('\n').join('\n     ')}\n`;
+                        }
+                        
+                        return item;
+                    }).join('\n');
+                    
+                    if (pagination.has_more) {
+                        formatted += `\n\n(${total - data.entities.length} more ${entityType}${(total - data.entities.length) !== 1 ? 's' : ''} available)`;
+                    }
+                    
                     return formatted;
                 }
                 break;

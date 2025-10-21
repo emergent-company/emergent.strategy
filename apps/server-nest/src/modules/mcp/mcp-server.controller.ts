@@ -4,6 +4,7 @@ import { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
 import { SchemaVersionService } from './services/schema-version.service';
+import { DatabaseService } from '../../common/database/database.service';
 
 /**
  * JSON-RPC 2.0 Request
@@ -86,6 +87,8 @@ const ErrorCode = {
  * - `schema_version` - Get current schema version and metadata
  * - `schema_changelog` - Get schema changes since a version/date
  * - `type_info` - Get information about object types
+ * - `list_entity_types` - List all available entity types with instance counts
+ * - `query_entities` - Query entity instances by type with pagination
  * 
  * **Protocol:** JSON-RPC 2.0 over HTTP POST
  * **Transport:** HTTP (POST requests to /mcp/rpc)
@@ -100,6 +103,7 @@ export class McpServerController {
 
     constructor(
         private readonly schemaVersionService: SchemaVersionService,
+        private readonly db: DatabaseService,
     ) { }
 
     @Post('rpc')
@@ -406,6 +410,54 @@ Model Context Protocol (MCP) server endpoint.
                         },
                         required: []
                     }
+                },
+                {
+                    name: 'list_entity_types',
+                    description: 'List all available entity types in the knowledge graph with instance counts. Helps discover what entities can be queried.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {},
+                        required: []
+                    }
+                },
+                {
+                    name: 'query_entities',
+                    description: 'Query entity instances by type with pagination and filtering. Returns actual entity data from the knowledge graph.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            type_name: {
+                                type: 'string',
+                                description: 'Entity type to query (e.g., "Decision", "Project", "Document")'
+                            },
+                            limit: {
+                                type: 'number',
+                                description: 'Maximum number of results (default: 10, max: 50)',
+                                minimum: 1,
+                                maximum: 50,
+                                default: 10
+                            },
+                            offset: {
+                                type: 'number',
+                                description: 'Pagination offset for results (default: 0)',
+                                minimum: 0,
+                                default: 0
+                            },
+                            sort_by: {
+                                type: 'string',
+                                description: 'Field to sort by (default: "created_at")',
+                                enum: ['created_at', 'updated_at', 'name'],
+                                default: 'created_at'
+                            },
+                            sort_order: {
+                                type: 'string',
+                                description: 'Sort direction (default: "desc")',
+                                enum: ['asc', 'desc'],
+                                default: 'desc'
+                            }
+                        },
+                        required: ['type_name']
+                    }
                 }
             ]
         };
@@ -457,13 +509,19 @@ Model Context Protocol (MCP) server endpoint.
             case 'type_info':
                 return this.executeTypeInfo(toolArguments);
 
+            case 'list_entity_types':
+                return this.executeListEntityTypes(req);
+
+            case 'query_entities':
+                return this.executeQueryEntities(toolArguments, req);
+
             default:
                 throw {
                     code: ErrorCode.METHOD_NOT_FOUND,
                     message: `Tool not found: ${toolName}`,
                     data: {
                         tool: toolName,
-                        available_tools: ['schema_version', 'schema_changelog', 'type_info']
+                        available_tools: ['schema_version', 'schema_changelog', 'type_info', 'list_entity_types', 'query_entities']
                     }
                 };
         }
@@ -535,6 +593,157 @@ Model Context Protocol (MCP) server endpoint.
                         type_name: typeName || 'all',
                         note: 'Type info retrieval not yet implemented',
                         hint: 'Will return object type definitions, relationships, and properties'
+                    }, null, 2)
+                }
+            ]
+        };
+    }
+
+    /**
+     * Execute list_entity_types tool
+     * Returns all available entity types with instance counts
+     */
+    private async executeListEntityTypes(req: Request): Promise<any> {
+        // Check data:read scope
+        this.checkScope(req, 'data:read');
+
+        const projectId = req.headers['x-project-id'] as string;
+        const orgId = req.headers['x-org-id'] as string;
+
+        // Query type registry for available types
+        const types = await this.db.runWithTenantContext(orgId, projectId, async () => {
+            const result = await this.db.query(`
+                SELECT 
+                    tr.type as name,
+                    tr.description,
+                    COUNT(go.id) as instance_count
+                FROM kb.project_object_type_registry tr
+                LEFT JOIN kb.graph_objects go ON go.type = tr.type AND go.deleted_at IS NULL
+                WHERE tr.enabled = true
+                GROUP BY tr.type, tr.description
+                ORDER BY tr.type
+            `);
+            return result.rows;
+        });
+
+        const formattedTypes = types.map((t: any) => ({
+            name: t.name,
+            description: t.description || 'No description',
+            count: parseInt(t.instance_count, 10)
+        }));
+
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: JSON.stringify({
+                        types: formattedTypes,
+                        total: formattedTypes.length
+                    }, null, 2)
+                }
+            ]
+        };
+    }
+
+    /**
+     * Execute query_entities tool
+     * Query entity instances by type with pagination
+     */
+    private async executeQueryEntities(args: any, req: Request): Promise<any> {
+        // Check data:read scope
+        this.checkScope(req, 'data:read');
+
+        const projectId = req.headers['x-project-id'] as string;
+        const orgId = req.headers['x-org-id'] as string;
+
+        // Validate and extract parameters
+        const {
+            type_name,
+            limit = 10,
+            offset = 0,
+            sort_by = 'created_at',
+            sort_order = 'desc'
+        } = args;
+
+        // Validate required parameter
+        if (!type_name) {
+            throw {
+                code: ErrorCode.INVALID_PARAMS,
+                message: 'Missing required parameter: type_name',
+                data: {
+                    required: ['type_name'],
+                    received: Object.keys(args)
+                }
+            };
+        }
+
+        // Validate limits
+        const safeLimit = Math.min(Math.max(1, limit), 50);
+        const safeOffset = Math.max(0, offset);
+
+        // Validate sort parameters
+        const allowedSortFields = ['created_at', 'updated_at', 'name'];
+        const allowedSortOrders = ['asc', 'desc'];
+        const safeSortBy = allowedSortFields.includes(sort_by) ? sort_by : 'created_at';
+        const safeSortOrder = allowedSortOrders.includes(sort_order?.toLowerCase()) ? sort_order.toUpperCase() : 'DESC';
+
+        // Query entities
+        const entities = await this.db.runWithTenantContext(orgId, projectId, async () => {
+            const result = await this.db.query(`
+                SELECT 
+                    go.id,
+                    go.key,
+                    go.properties->>'name' as name,
+                    go.properties,
+                    go.created_at,
+                    go.updated_at,
+                    go.type as type_name,
+                    tr.description as type_description
+                FROM kb.graph_objects go
+                LEFT JOIN kb.project_object_type_registry tr ON tr.type = go.type
+                WHERE go.type = $1
+                  AND go.deleted_at IS NULL
+                ORDER BY go.${safeSortBy} ${safeSortOrder}
+                LIMIT $2 OFFSET $3
+            `, [type_name, safeLimit, safeOffset]);
+
+            return result.rows;
+        });
+
+        // Get total count
+        const countResult = await this.db.runWithTenantContext(orgId, projectId, async () => {
+            const result = await this.db.query(`
+                SELECT COUNT(*) as total
+                FROM kb.graph_objects go
+                WHERE go.type = $1
+                  AND go.deleted_at IS NULL
+            `, [type_name]);
+
+            return parseInt(result.rows[0].total, 10);
+        });
+
+        const formattedEntities = entities.map((e: any) => ({
+            id: e.id,
+            key: e.key,
+            name: e.name,
+            type: e.type_name,
+            properties: e.properties,
+            created_at: e.created_at,
+            updated_at: e.updated_at
+        }));
+
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: JSON.stringify({
+                        entities: formattedEntities,
+                        pagination: {
+                            total: countResult,
+                            limit: safeLimit,
+                            offset: safeOffset,
+                            has_more: (safeOffset + safeLimit) < countResult
+                        }
                     }, null, 2)
                 }
             ]
