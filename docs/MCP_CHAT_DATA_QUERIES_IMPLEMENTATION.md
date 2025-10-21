@@ -304,44 +304,45 @@ private buildArguments(
             // Pattern: "show [recent] [N] {Entity}[s]"
             // Examples: "show decisions", "show recent 5 decisions", "list projects"
             
-            // Common entity types (extend as needed)
-            const entityTypes = [
-                'decision', 'decisions',
-                'project', 'projects',
-                'document', 'documents',
-                'task', 'tasks',
-                'person', 'people',
-                'organization', 'organizations',
-                'location', 'locations',
-                'event', 'events'
-            ];
+            // IMPORTANT: This should use DYNAMIC entity types from type registry
+            // The detector service should cache available types and use them for detection
+            // For now, we use a generic approach that extracts potential entity names
             
-            // Find entity type in message
+            // Strategy: Look for noun-like words after query verbs
+            // This is a fallback - ideally detector would know available types
+            const queryVerbs = ['show', 'list', 'get', 'find', 'recent', 'latest', 'last'];
+            
             let detectedType: string | null = null;
-            for (const entityType of entityTypes) {
-                if (normalized.includes(entityType)) {
-                    // Normalize to singular, capitalized form
-                    const singular = entityType.endsWith('s') && entityType !== 'people'
-                        ? entityType.slice(0, -1)
-                        : entityType;
-                    
-                    // Special cases
-                    const typeMap: Record<string, string> = {
-                        'people': 'Person',
-                        'decision': 'Decision',
-                        'project': 'Project',
-                        'document': 'Document',
-                        'task': 'Task',
-                        'organization': 'Organization',
-                        'location': 'Location',
-                        'event': 'Event'
-                    };
-                    
-                    detectedType = typeMap[singular] || 
-                        singular.charAt(0).toUpperCase() + singular.slice(1);
-                    break;
+            
+            // Try to extract type name from message structure
+            // Example: "show decisions" -> extract "decisions"
+            const words = normalized.split(/\s+/);
+            for (let i = 0; i < words.length - 1; i++) {
+                if (queryVerbs.includes(words[i])) {
+                    // Skip numbers (e.g., "show 5 decisions")
+                    const nextWord = words[i + 1];
+                    if (!/^\d+$/.test(nextWord)) {
+                        // Capitalize first letter (Decision, Project, etc.)
+                        // Remove plural 's' if present
+                        const candidate = nextWord.endsWith('s') 
+                            ? nextWord.slice(0, -1)
+                            : nextWord;
+                        detectedType = candidate.charAt(0).toUpperCase() + candidate.slice(1);
+                        break;
+                    } else if (i + 2 < words.length) {
+                        // Handle "show 5 decisions" pattern
+                        const followingWord = words[i + 2];
+                        const candidate = followingWord.endsWith('s')
+                            ? followingWord.slice(0, -1)
+                            : followingWord;
+                        detectedType = candidate.charAt(0).toUpperCase() + candidate.slice(1);
+                        break;
+                    }
                 }
             }
+            
+            // NOTE: The backend query_entities tool will validate if this type exists
+            // If type doesn't exist, it will return empty results (graceful degradation)
             
             if (detectedType) {
                 args.type_name = detectedType;
@@ -684,21 +685,27 @@ Expected:
 
 ## Future Enhancements
 
-1. **Advanced Filtering**:
+1. **Smarter Type Detection**:
+   - Cache `list_entity_types` result in detector service on startup
+   - Build dynamic keyword patterns based on actual types in database
+   - Match plural forms automatically (Decision/Decisions, Person/People)
+   - Handle synonyms (e.g., "docs" → "Document", "ppl" → "Person")
+
+2. **Advanced Filtering**:
    - Property-based filters: "show decisions with status=approved"
    - Date range filters: "decisions from last week"
    - Relationship filters: "projects related to Decision X"
 
-2. **Aggregations**:
+3. **Aggregations**:
    - Count queries: "how many decisions do we have?"
    - Grouping: "decisions by status"
    - Statistics: "average completion time for decisions"
 
-3. **Relationships**:
+4. **Relationships**:
    - Traverse relationships: "show all tasks for Project X"
    - Multi-hop queries: "find people who worked on decisions related to Project Y"
 
-4. **Full-Text Search**:
+5. **Full-Text Search**:
    - Search entity properties: "find decisions mentioning 'AI strategy'"
    - Fuzzy matching for entity names
 

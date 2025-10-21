@@ -5,7 +5,7 @@ import { Injectable, Logger } from '@nestjs/common';
  */
 export interface ToolDetectionResult {
     shouldUseMcp: boolean;                                    // Whether to invoke MCP tools
-    detectedIntent: 'schema-version' | 'schema-changes' | 'type-info' | 'none';  // Detected user intent
+    detectedIntent: 'schema-version' | 'schema-changes' | 'type-info' | 'entity-query' | 'entity-list' | 'none';  // Detected user intent
     confidence: number;                                       // Confidence score (0.0-1.0)
     suggestedTool?: string;                                   // MCP tool name to invoke
     suggestedArguments?: Record<string, any>;                 // Arguments for the tool
@@ -16,7 +16,7 @@ export interface ToolDetectionResult {
  * Keyword Pattern for Intent Detection
  */
 interface KeywordPattern {
-    intent: 'schema-version' | 'schema-changes' | 'type-info';
+    intent: 'schema-version' | 'schema-changes' | 'type-info' | 'entity-query' | 'entity-list';
     tool: string;
     keywords: string[];                    // Exact match keywords
     partialKeywords?: string[];           // Partial match keywords
@@ -168,6 +168,83 @@ export class McpToolDetectorService {
                 'entities'
             ],
             confidence: 0.9
+        },
+
+        // Entity List Intent (list available entity types)
+        {
+            intent: 'entity-list',
+            tool: 'list_entity_types',
+            keywords: [
+                'what entities',
+                'available entities',
+                'what types can I query',
+                'what data types',
+                'what objects',
+                'what can I query',
+                'what data is available',
+                'what entities are available',
+                'what entities exist',
+                'list entity types',
+                'show entity types',
+                'what can I ask about',
+                'what data do we have',
+                'available data types',
+                'available entity types'
+            ],
+            confidence: 0.9
+        },
+
+        // Entity Query Intent (query specific entity type instances)
+        {
+            intent: 'entity-query',
+            tool: 'query_entities',
+            keywords: [
+                // More flexible patterns that match common query structures
+                'show decisions',
+                'list decisions',
+                'recent decisions',
+                'latest decisions',
+                'get decisions',
+                'find decisions',
+                'decisions',
+                'last decisions',
+                'show projects',
+                'list projects',
+                'projects',
+                'recent projects',
+                'latest projects',
+                'show documents',
+                'list documents',
+                'documents',
+                'recent documents',
+                'latest documents',
+                'show tasks',
+                'list tasks',
+                'tasks',
+                'recent tasks',
+                'show people',
+                'list people',
+                'people',
+                'recent people',
+                'show locations',
+                'list locations',
+                'locations',
+                'show events',
+                'list events',
+                'events',
+                'recent events'
+            ],
+            partialKeywords: [
+                'show',
+                'list',
+                'recent',
+                'latest',
+                'last',
+                'find',
+                'get',
+                'what'
+            ],
+            confidence: 0.9
         }
     ];
 
@@ -278,6 +355,31 @@ export class McpToolDetectorService {
             }
         }
 
+        // Special case for entity-query: look for query verbs + plural entity names
+        // Examples: "what are the last 5 decisions?", "show me recent projects", "list tasks"
+        if (pattern.intent === 'entity-query') {
+            // Pattern: (optional: show/list/get/find/what) + (optional: last/recent/latest) + (number) + (entity name)
+            const queryPattern = /(?:show|list|get|find|what|give).*?\b(last|recent|latest|first)?\s*(\d+)?\s*(\w+s)\b/i;
+            const match = normalized.match(queryPattern);
+            
+            if (match) {
+                const entityPlural = match[3]; // "decisions", "projects", "tasks", etc.
+                
+                // Check if it looks like an entity type (ends with 's' and not a common word)
+                const commonWords = ['is', 'was', 'has', 'does', 'goes', 'things', 'items', 'objects'];
+                if (!commonWords.includes(entityPlural)) {
+                    return {
+                        shouldUseMcp: true,
+                        detectedIntent: pattern.intent,
+                        confidence: pattern.confidence,
+                        suggestedTool: pattern.tool,
+                        suggestedArguments: this.buildArguments(pattern.intent, normalized),
+                        matchedKeywords: [match[0]]
+                    };
+                }
+            }
+        }
+
         // Check partial keyword matches (medium confidence)
         if (pattern.partialKeywords) {
             for (const keyword of pattern.partialKeywords) {
@@ -330,7 +432,7 @@ export class McpToolDetectorService {
      * @returns Tool arguments
      */
     private buildArguments(
-        intent: 'schema-version' | 'schema-changes' | 'type-info',
+        intent: 'schema-version' | 'schema-changes' | 'type-info' | 'entity-query' | 'entity-list',
         normalized: string
     ): Record<string, any> {
         switch (intent) {
@@ -401,6 +503,50 @@ export class McpToolDetectorService {
                 }
 
                 return args2;
+
+            case 'entity-list':
+                // No arguments needed for list_entity_types
+                return {};
+
+            case 'entity-query':
+                const argsEntity: Record<string, any> = {};
+
+                // Strategy: Use regex to extract plural entity names from the query
+                // Examples: "what are the last 5 decisions?" -> "decisions"
+                //           "show me recent projects" -> "projects"
+                //           "list tasks" -> "tasks"
+                const entityPattern = /\b(last|recent|latest|first)?\s*(\d+)?\s*(\w+s)\b/i;
+                const entityMatch = normalized.match(entityPattern);
+                
+                if (entityMatch) {
+                    const pluralName = entityMatch[3]; // "decisions", "projects", "tasks"
+                    
+                    // Clean up: remove punctuation (?, !, .)
+                    const cleanName = pluralName.replace(/[?!.,;:]+$/, '');
+                    
+                    // Convert plural to singular: "decisions" -> "decision"
+                    const singularName = cleanName.endsWith('s') ? cleanName.slice(0, -1) : cleanName;
+                    
+                    // Capitalize: "decision" -> "Decision"
+                    argsEntity.type_name = singularName.charAt(0).toUpperCase() + singularName.slice(1);
+                }
+
+                // Extract limit from query
+                // Examples: "show 5 decisions", "last 10 projects", "recent 3 documents"
+                const limitMatchEntity = normalized.match(/(?:show|last|recent|latest|top)\s+(\d+)/);
+                if (limitMatchEntity) {
+                    argsEntity.limit = Math.min(parseInt(limitMatchEntity[1], 10), 50);
+                } else {
+                    argsEntity.limit = 10; // Default
+                }
+
+                // Extract sort preference
+                if (normalized.includes('recent') || normalized.includes('latest') || normalized.includes('last')) {
+                    argsEntity.sort_by = 'created_at';
+                    argsEntity.sort_order = 'desc';
+                }
+
+                return argsEntity;
 
             default:
                 return {};
