@@ -9,8 +9,11 @@ interface DocumentRow {
     filename: string | null;
     source_url: string | null;
     mime_type: string | null;
+    content: string | null;
+    content_length: number | null;
     created_at: string;
     updated_at: string;
+    integration_metadata: Record<string, any> | null;
     chunks: number;
     extraction_status: string | null;
     extraction_completed_at: string | null;
@@ -43,6 +46,8 @@ export class DocumentsService {
         const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
         const res = await this.db.query<DocumentRow>(
             `SELECT d.id, d.org_id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
+                    d.integration_metadata,
+                    LENGTH(d.content) AS content_length,
                     COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
                     ej.status AS extraction_status,
                     ej.completed_at AS extraction_completed_at,
@@ -75,7 +80,8 @@ export class DocumentsService {
 
     async get(id: string): Promise<DocumentDto | null> {
         const res = await this.db.query<DocumentRow>(
-            `SELECT d.id, d.org_id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
+            `SELECT d.id, d.org_id, d.project_id, d.filename, d.source_url, d.mime_type, d.content, d.created_at, d.updated_at,
+                    d.integration_metadata,
                     COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
                     ej.status AS extraction_status,
                     ej.completed_at AS extraction_completed_at,
@@ -88,7 +94,7 @@ export class DocumentsService {
                  ORDER BY created_at DESC
                  LIMIT 1
              ) ej ON true
-             WHERE d.id = $1 LIMIT 1`,
+             WHERE d.id = $1`,
             [id],
         );
         if (!res.rowCount) return null;
@@ -149,8 +155,11 @@ export class DocumentsService {
             name: r.filename || r.source_url || 'unknown',
             sourceUrl: r.source_url,
             mimeType: r.mime_type,
+            content: r.content || undefined,
+            contentLength: r.content_length ?? undefined,
             createdAt: r.created_at,
             updatedAt: r.updated_at,
+            integrationMetadata: r.integration_metadata || undefined,
             chunks: r.chunks,
             extractionStatus: r.extraction_status || undefined,
             extractionCompletedAt: r.extraction_completed_at || undefined,

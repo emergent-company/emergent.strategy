@@ -452,6 +452,78 @@ export class IntegrationsController {
     }
 
     /**
+     * Get ClickUp space details
+     * 
+     * GET /integrations/clickup/spaces/:spaceId
+     * Headers: X-Project-ID, X-Org-ID
+     */
+    @Get('clickup/spaces/:spaceId')
+    @Scopes('integrations:read')
+    @ApiOperation({
+        summary: 'Get ClickUp space details',
+        description: 'Fetch details for a specific ClickUp space by ID'
+    })
+    @ApiParam({ name: 'spaceId', description: 'ClickUp space ID' })
+    @ApiResponse({ status: 200, description: 'Space details retrieved successfully' })
+    @ApiResponse({ status: 404, description: 'ClickUp integration not found or space not found' })
+    async getClickUpSpace(
+        @Req() req: Request,
+        @Param('spaceId') spaceId: string
+    ): Promise<any> {
+        const projectId = req.headers['x-project-id'] as string;
+        const orgId = req.headers['x-org-id'] as string;
+
+        try {
+            return this.integrationsService.getClickUpSpace(projectId, orgId, spaceId);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            throw new BadRequestException({
+                error: {
+                    code: 'clickup-api-error',
+                    message: 'Failed to fetch ClickUp space details.',
+                    details: errorMessage || 'Unknown ClickUp API error'
+                }
+            });
+        }
+    }
+
+    /**
+     * Get ClickUp folder details
+     * 
+     * GET /integrations/clickup/folders/:folderId
+     * Headers: X-Project-ID, X-Org-ID
+     */
+    @Get('clickup/folders/:folderId')
+    @Scopes('integrations:read')
+    @ApiOperation({
+        summary: 'Get ClickUp folder details',
+        description: 'Fetch details for a specific ClickUp folder by ID'
+    })
+    @ApiParam({ name: 'folderId', description: 'ClickUp folder ID' })
+    @ApiResponse({ status: 200, description: 'Folder details retrieved successfully' })
+    @ApiResponse({ status: 404, description: 'ClickUp integration not found or folder not found' })
+    async getClickUpFolder(
+        @Req() req: Request,
+        @Param('folderId') folderId: string
+    ): Promise<any> {
+        const projectId = req.headers['x-project-id'] as string;
+        const orgId = req.headers['x-org-id'] as string;
+
+        try {
+            return this.integrationsService.getClickUpFolder(projectId, orgId, folderId);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            throw new BadRequestException({
+                error: {
+                    code: 'clickup-api-error',
+                    message: 'Failed to fetch ClickUp folder details.',
+                    details: errorMessage || 'Unknown ClickUp API error'
+                }
+            });
+        }
+    }
+
+    /**
      * Delete an integration
      * 
      * DELETE /integrations/:name

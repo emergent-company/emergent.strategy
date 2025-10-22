@@ -499,6 +499,98 @@ export class IntegrationsService {
     }
 
     /**
+     * Get ClickUp space details
+     * 
+     * Fetches details for a specific ClickUp space by ID
+     */
+    async getClickUpSpace(
+        projectId: string,
+        orgId: string,
+        spaceId: string
+    ): Promise<any> {
+        this.logger.log(`Fetching ClickUp space ${spaceId} for project ${projectId}`);
+
+        // Get ClickUp integration configuration
+        const integration = await this.getIntegration('clickup', projectId, orgId);
+
+        if (!integration.enabled) {
+            throw new BadRequestException('ClickUp integration is disabled');
+        }
+
+        // Get ClickUp integration instance from registry
+        const clickupIntegration = this.registry.getIntegration('clickup');
+        if (!clickupIntegration) {
+            throw new NotFoundException('ClickUp integration not found in registry');
+        }
+
+        // Configure the integration
+        await clickupIntegration.configure(integration);
+
+        // Get the API client and fetch space details
+        const apiClient = (clickupIntegration as any).apiClient;
+        if (!apiClient) {
+            throw new BadRequestException('ClickUp API client not initialized');
+        }
+
+        if (!integration.settings?.workspace_id) {
+            throw new BadRequestException('ClickUp workspace ID not configured');
+        }
+
+        // Fetch all spaces and find the one we need
+        const workspaceId = integration.settings.workspace_id;
+        const spacesResponse = await apiClient.getSpaces(workspaceId, false);
+        const space = spacesResponse.spaces.find((s: any) => s.id === spaceId);
+
+        if (!space) {
+            throw new NotFoundException(`Space ${spaceId} not found`);
+        }
+
+        this.logger.log(`Space ${spaceId} fetched successfully: ${space.name}`);
+        return { id: space.id, name: space.name };
+    }
+
+    /**
+     * Get ClickUp folder details
+     * 
+     * Fetches details for a specific ClickUp folder by ID
+     */
+    async getClickUpFolder(
+        projectId: string,
+        orgId: string,
+        folderId: string
+    ): Promise<any> {
+        this.logger.log(`Fetching ClickUp folder ${folderId} for project ${projectId}`);
+
+        // Get ClickUp integration configuration
+        const integration = await this.getIntegration('clickup', projectId, orgId);
+
+        if (!integration.enabled) {
+            throw new BadRequestException('ClickUp integration is disabled');
+        }
+
+        // Get ClickUp integration instance from registry
+        const clickupIntegration = this.registry.getIntegration('clickup');
+        if (!clickupIntegration) {
+            throw new NotFoundException('ClickUp integration not found in registry');
+        }
+
+        // Configure the integration
+        await clickupIntegration.configure(integration);
+
+        // Get the API client and fetch folder details
+        const apiClient = (clickupIntegration as any).apiClient;
+        if (!apiClient) {
+            throw new BadRequestException('ClickUp API client not initialized');
+        }
+
+        // Fetch folder details directly
+        const folder = await apiClient.getFolder(folderId);
+
+        this.logger.log(`Folder ${folderId} fetched successfully: ${folder.name}`);
+        return { id: folder.id, name: folder.name };
+    }
+
+    /**
      * Generate a secure webhook secret
      */
     private generateWebhookSecret(): string {

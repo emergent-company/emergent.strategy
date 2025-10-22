@@ -1,37 +1,64 @@
 /**
  * DropdownTrigger Component
- * Renders the trigger element for the dropdown (button or custom content)
+ * Renders the trigger element (button or custom content) that opens the dropdown
  */
 
 import React from 'react';
-import type { DropdownTriggerProps } from './types';
 
-export const DropdownTrigger = React.forwardRef<HTMLLabelElement, DropdownTriggerProps>(
-    (
-        {
+// Only include props we explicitly support
+export interface TriggerPropsWithContext {
+    anchorName?: string;
+    popoverId?: string;
+    children: React.ReactNode;
+    className?: string;
+    asButton?: boolean;
+    variant?: 'ghost' | 'outline' | 'primary' | 'secondary' | 'accent' | 'neutral' | 'error';
+    size?: 'xs' | 'sm' | 'md' | 'lg';
+    disabled?: boolean;
+    onClick?: React.MouseEventHandler<HTMLButtonElement>;
+}
+
+export const DropdownTrigger = React.forwardRef<HTMLButtonElement, TriggerPropsWithContext>(
+    (props, ref) => {
+        const {
             children,
             className = '',
-            asButton = true,
+            asButton = false,
             variant = 'ghost',
             size = 'sm',
             disabled = false,
-            ...props
-        },
-        ref
-    ) => {
-        const buttonClasses = asButton
-            ? `btn btn-${size} ${variant === 'outline' ? 'btn-outline' : `btn-${variant}`} ${disabled ? 'btn-disabled' : ''}`
-            : '';
+            anchorName,
+            popoverId,
+            onClick,
+        } = props;
+
+        if (!asButton) {
+            return (
+                <label
+                    tabIndex={0}
+                    className={className}
+                >
+                    {children}
+                </label>
+            );
+        }
+
+        // Build button className
+        const buttonClasses = ['btn'];
+        if (variant) buttonClasses.push(`btn-${variant}`);
+        if (size) buttonClasses.push(`btn-${size}`);
+        if (className) buttonClasses.push(className);
 
         return (
-            <label
+            <button
                 ref={ref}
-                tabIndex={disabled ? -1 : 0}
-                className={`${buttonClasses} ${className}`.trim()}
-                {...props}
+                type="button"
+                className={buttonClasses.join(' ')}
+                disabled={disabled}
+                onClick={onClick}
             >
                 {children}
-            </label>
+            </button>
         );
     }
 );

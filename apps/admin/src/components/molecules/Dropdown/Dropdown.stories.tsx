@@ -276,7 +276,7 @@ export const CustomWidth: Story = {
                 <Dropdown.Item onClick={() => console.log('Action 1')}>
                     <div>
                         <div className="font-semibold">Action with description</div>
-                        <div className="text-xs opacity-70">
+                        <div className="opacity-70 text-xs">
                             This is a longer description that needs more space
                         </div>
                     </div>
@@ -284,7 +284,7 @@ export const CustomWidth: Story = {
                 <Dropdown.Item onClick={() => console.log('Action 2')}>
                     <div>
                         <div className="font-semibold">Another action</div>
-                        <div className="text-xs opacity-70">
+                        <div className="opacity-70 text-xs">
                             With additional context information
                         </div>
                     </div>
@@ -301,8 +301,8 @@ export const CustomTrigger: Story = {
     args: {},
     render: () => (
         <Dropdown>
-            <Dropdown.Trigger asButton={false} className="cursor-pointer hover:opacity-70">
-                <div className="flex items-center gap-2 p-2 border rounded border-base-300">
+            <Dropdown.Trigger asButton={false} className="hover:opacity-70 cursor-pointer">
+                <div className="flex items-center gap-2 p-2 border border-base-300 rounded">
                     <Icon icon="lucide--more-vertical" className="size-5" />
                 </div>
             </Dropdown.Trigger>

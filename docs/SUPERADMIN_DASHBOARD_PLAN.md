@@ -72,3 +72,20 @@ Capture **structured artifacts** for key events rather than plain text logs. Thi
 - `GET /api/superadmin/resources?type=<type>`: Get a list of resources.
 - `GET /api/superadmin/resources/:type/:id`: Get the detailed payload for a specific resource.
 - `POST /api/superadmin/client-logs`: Endpoint to receive logs from the frontend.
+
+## 7. Frontend Integration Plan
+
+### 7.1. Sidebar Navigation
+A new "Superadmin" group will be added to the main sidebar in `apps/admin/src/pages/admin/layout.tsx`. This section will be visible only to users with superadmin privileges.
+
+The proposed links are:
+- **Admin** (Group Title)
+  - **Dashboard**: `/admin/superadmin/dashboard` - The main analytics and metrics page.
+  - **Jobs**: `/admin/superadmin/jobs` - A view of the `ResourceTable` for backend jobs.
+  - **Chat Sessions**: `/admin/superadmin/chat-sessions` - A view for `chat_session` resources.
+  - **Frontend Sessions**: `/admin/superadmin/frontend-sessions` - A view for `frontend_session` resources.
+  - **User Explorer**: `/admin/superadmin/user-explorer` - The user-centric activity view.
+  - **System Configuration**: `/admin/superadmin/configuration` - The page for managing feature flags and system settings.
+
+### 7.2. Routing
+New routes will be added to `apps/admin/src/router/register.tsx` to register the page components for each of the new sidebar links. Each route will be lazy-loaded for better performance.

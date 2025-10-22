@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import ReactMarkdown from "react-markdown";
-import { PageTitle } from "@/components";
 import { NewChatCtas } from "@/components/molecules/NewChatCtas";
 import { ChatObjectRefs, parseObjectRefs, stripObjectRefBlocks } from "@/components/organisms/ChatObjectRefs";
 import { useChat } from "@/hooks/use-chat";
@@ -140,8 +139,14 @@ export default function ChatConversationPage() {
         <div data-testid="page-chat-conversation" className="drawer drawer-open">
             <input id="chat-drawer" type="checkbox" className="drawer-toggle" />
             <div className="drawer-content">
-                <div className="mx-auto p-4 container">
-                    <PageTitle title="AI Chat" items={[{ label: "Admin" }, { label: "Chat", active: true }]} />
+                <div className="mx-auto p-6 max-w-7xl container">
+                    {/* Header */}
+                    <div className="mb-6">
+                        <h1 className="font-bold text-2xl">AI Chat</h1>
+                        <p className="mt-1 text-base-content/70">
+                            Ask questions and get answers from your knowledge base
+                        </p>
+                    </div>
 
                     {/* Empty state: reuse CTA grid and composer when no messages */}
                     {(!conv || (conv.messages?.length || 0) === 0) ? (

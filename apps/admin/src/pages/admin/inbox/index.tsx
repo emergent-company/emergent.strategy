@@ -3,7 +3,7 @@
  * Main page component for the notification inbox feature
  */
 import { useState } from 'react';
-import { MetaData, PageTitle } from '@/components';
+import { MetaData } from '@/components';
 import { NotificationInbox } from '@/components/organisms/NotificationInbox';
 import { useNotifications, useNotificationCounts, useNotificationMutations } from '@/hooks/useNotifications';
 import type { NotificationTab, NotificationFilter, Notification } from '@/types/notification';
@@ -66,30 +66,28 @@ const InboxPage = () => {
     };
 
     return (
-        <div data-testid="page-inbox">
+        <div data-testid="page-inbox" className="mx-auto p-6 max-w-7xl container">
             <MetaData title="Inbox" noIndex />
 
-            <PageTitle
-                title="Inbox"
-                items={[
-                    { label: 'Admin', active: false },
-                    { label: 'Inbox', active: true },
-                ]}
-            />
-
-            <div className="mt-6">
-                <NotificationInbox
-                    notifications={notifications}
-                    counts={counts || { all: 0, important: 0, other: 0, snoozed: 0, cleared: 0 }}
-                    activeTab={activeTab}
-                    loading={isLoading}
-                    onTabChange={handleTabChange}
-                    onNotificationClick={handleNotificationClick}
-                    onFilterClick={handleFilterClick}
-                    onClearAll={handleClearAll}
-                    onCustomizeClick={handleCustomizeClick}
-                />
+            {/* Header */}
+            <div className="mb-6">
+                <h1 className="font-bold text-2xl">Inbox</h1>
+                <p className="mt-1 text-base-content/70">
+                    View and manage your notifications and updates
+                </p>
             </div>
+
+            <NotificationInbox
+                notifications={notifications}
+                counts={counts || { all: 0, important: 0, other: 0, snoozed: 0, cleared: 0 }}
+                activeTab={activeTab}
+                loading={isLoading}
+                onTabChange={handleTabChange}
+                onNotificationClick={handleNotificationClick}
+                onFilterClick={handleFilterClick}
+                onClearAll={handleClearAll}
+                onCustomizeClick={handleCustomizeClick}
+            />
         </div>
     );
 };

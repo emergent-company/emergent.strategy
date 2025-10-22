@@ -17,6 +17,20 @@ export class DocumentDto {
     createdAt!: string;
     @ApiProperty({ example: '2025-01-01T00:05:00.000Z' })
     updatedAt!: string;
+    @ApiProperty({
+        required: false,
+        nullable: true,
+        example: '# Document Title\n\nDocument content here...',
+        description: 'The full text content of the document'
+    })
+    content?: string | null;
+    @ApiProperty({
+        required: false,
+        nullable: true,
+        example: 7332286,
+        description: 'The byte length of the content field'
+    })
+    contentLength?: number | null;
     @ApiProperty({ example: 12, description: 'Number of chunks associated with this document' })
     chunks!: number;
     @ApiProperty({

@@ -30,6 +30,102 @@ Each entry should follow this structure:
 
 ## Lessons Learned
 
+### 2025-10-22 - ClickUp API v2/v3 ID Mismatch & Discovery of Parent Parameter
+
+**Context**: User wanted to import documents only from "Huma" space (ID: 90152846670) but all documents from workspace were being imported, ignoring space selection.
+
+**Mistake**: Attempted to filter documents by comparing v2 Spaces API space IDs (90152846670) directly with v3 Docs API parent IDs (42415326, 42415333, etc.). Wasted time investigating folder-to-space mapping when the solution was much simpler: the v3 API supports a `parent` parameter.
+
+**Why It Was Wrong**:
+- ClickUp v2 API (spaces, folders, lists, tasks) uses one ID numbering system
+- ClickUp v3 API (docs, pages) uses a completely different ID numbering system
+- The `doc.parent.id` field contains **folder IDs** from v2, not space IDs
+- Direct comparison of space IDs vs doc parent IDs always failed (0 matches)
+- Resulted in either importing ALL documents OR importing NONE (depending on filter logic)
+- User's space selection was completely ignored
+- **Critical miss**: Didn't check v3 API documentation for filtering parameters before building complex workarounds
+
+**Investigation Process**:
+1. Initially suspected parent IDs were folders → tried calling `GET /folder/{id}` to resolve
+2. Got 401 error: "Team(s) not authorized" - API token lacks permission for individual folder endpoint
+3. Discovered `GET /space/{id}/folder` endpoint IS accessible and returns folders with space relationship
+4. Started implementing folder→space mapping approach
+5. **User discovered the real solution**: ClickUp v3 API supports `?parent={spaceId}` parameter!
+6. Refactored to use native API filtering instead of complex local filtering
+
+**Correct Approach**:
+**ALWAYS check API documentation for native filtering parameters first!** The v3 Docs API supports `?parent={parentId}` parameter:
+
+```typescript
+// Simple approach using native API filtering
+for (const spaceId of selectedSpaceIds) {
+    const docsResponse = await this.apiClient.getDocs(workspaceId, undefined, spaceId);
+    allDocs.push(...docsResponse.docs);
+}
+```
+
+The API client passes it through:
+```typescript
+async getDocs(workspaceId: string, cursor?: string, parentId?: string) {
+    const params: any = {};
+    if (cursor) params.cursor = cursor;
+    if (parentId) params.parent = parentId; // ← Native API filtering!
+    return this.requestV3(`/workspaces/${workspaceId}/docs`, params);
+}
+```
+
+**Alternative (Complex) Approach** - folder-to-space mapping:
+Only needed if API doesn't support native filtering. Build lookup map BEFORE processing:
+
+```typescript
+// Build mapping (1 API call per space)
+const folderToSpaceMap = new Map<string, string>();
+for (const spaceId of selectedSpaceIds) {
+    const foldersResponse = await this.apiClient.getFolders(spaceId);
+    for (const folder of foldersResponse.folders) {
+        folderToSpaceMap.set(folder.id, spaceId);
+    }
+}
+
+// Filter documents locally
+const filteredDocs = docs.filter(doc => {
+    if (doc.parent.type === 6) { // Type 6 = folder parent
+        return folderToSpaceMap.has(doc.parent.id);
+    }
+    return false;
+});
+```
+
+**Prevention**:
+- **FIRST**: Check API documentation for native filtering parameters (query params, request body filters)
+- **SECOND**: Test filtering parameters with curl/Postman before implementing complex workarounds
+- When working with external APIs, never assume IDs from different API versions/endpoints are compatible
+- Always test actual API responses with real data to see exact ID formats
+- When direct comparison fails, look for relationship/mapping endpoints as LAST resort
+- Use accessible batch endpoints (GET /space/{id}/folder) instead of restricted individual endpoints (GET /folder/{id})
+- Document API version differences prominently in code comments
+- Add investigation logging on first iteration to validate filtering logic with real data
+
+**API Discovery Process**:
+1. Read official API docs for filtering/query parameters
+2. Test parameters with curl: `curl "https://api.clickup.com/api/v3/workspaces/{id}/docs?parent={spaceId}"`
+3. If no native filtering, then investigate relationship endpoints
+4. Build mapping/lookup tables as last resort
+
+**Related Files/Conventions**:
+- `apps/server-nest/src/modules/clickup/clickup-import.service.ts` (importDocs using parent parameter)
+- `apps/server-nest/src/modules/clickup/clickup-api.client.ts` (getDocs with parent parameter support)
+- ClickUp v3 API documentation: Check for query parameters on list/fetch endpoints
+
+**Performance Impact**:
+- Before: Fetch ALL workspace docs → filter locally → wasted network/processing on unwanted docs
+- After (with parent param): Fetch only selected spaces' docs → API does filtering → dramatically faster
+- Using parent parameter: 1 API call per selected space, only retrieves relevant documents
+
+**Key Takeaway**: ALWAYS check if the API supports native filtering before implementing complex client-side filtering or ID mapping. Read the docs, test the parameters. Most modern APIs support filtering via query parameters. Don't reinvent the wheel.
+
+---
+
 ### 2025-10-22 - Unlimited Pagination Caused UI to Hang
 
 **Context**: User reported "select lists" step in ClickUp integration taking forever and finishing with 500 error. Investigating the algorithm to list documents and spaces.
@@ -125,6 +221,14 @@ do {
 - Improvement: ~50x faster for large workspaces
 
 **Key Takeaway**: Never implement unlimited pagination loops. Always add multiple safety mechanisms (max iterations, deduplication, limits). Consider whether the use case needs "all items" or just a "preview". For UI operations, preview is almost always sufficient and dramatically faster.
+
+**Update 2025-10-22 (Later same day)**: This exact issue occurred AGAIN in `importDocs()` method. The ClickUp API returned the same cursor repeatedly (`eyJuZXh0SWQiOiI0Ymo0MS0xNzY0NCJ9`), and because all 50 docs per iteration were being filtered out (not in selected spaces), the loop continued infinitely with 0 progress. Applied the same safety mechanisms:
+- MAX_ITERATIONS = 50 (for import, higher than preview's 10)
+- Cursor deduplication with `seenCursors` Set
+- Enhanced logging showing iteration count and elapsed time
+- Better completion messages distinguishing natural end vs safety trigger
+
+This proves the pattern: **ANY pagination loop MUST have these safety mechanisms**, not just preview operations. Data import operations are actually MORE critical because they run in background and can waste server resources indefinitely.
 
 ---
 

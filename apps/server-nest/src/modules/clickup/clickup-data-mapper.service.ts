@@ -356,6 +356,11 @@ export class ClickUpDataMapper {
             parent_id: doc.parent.id,
         };
 
+        // Track which space this was imported from (if available)
+        if ((doc as any)._imported_from_space_id) {
+            metadata.imported_from_space_id = (doc as any)._imported_from_space_id;
+        }
+
         // Avatar (emoji or icon)
         if (doc.avatar) {
             metadata.avatar = doc.avatar.value;

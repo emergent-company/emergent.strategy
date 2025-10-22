@@ -109,6 +109,15 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
                             AI Prompts
                         </Sidebar.MenuItem>
                     </Sidebar.Section>
+                    <Sidebar.Section id="admin-superadmin" title="Superadmin" className="mt-4">
+                        <Sidebar.MenuItem
+                            id="admin-superadmin-dashboard"
+                            url="/admin/superadmin/dashboard"
+                            icon="lucide--shield"
+                        >
+                            Dashboard
+                        </Sidebar.MenuItem>
+                    </Sidebar.Section>
                 </Sidebar>
                 <div className="flex flex-col min-w-0 h-screen overflow-auto grow">
                     <Topbar />

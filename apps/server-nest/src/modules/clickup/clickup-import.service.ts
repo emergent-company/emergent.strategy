@@ -171,8 +171,8 @@ export class ClickUpImportService {
     /**
      * Run full import from ClickUp workspace
      */    /**
-   * Run full import from ClickUp workspace
-   */
+* Run full import from ClickUp workspace
+*/
     async runFullImport(
         integrationId: string,
         projectId: string,
@@ -304,8 +304,11 @@ export class ClickUpImportService {
                 ? config.space_ids
                 : spacesResponse.spaces.map(s => s.id);
 
+            this.logger.log(`Available spaces from API: ${JSON.stringify(spacesResponse.spaces.map(s => ({ id: s.id, name: s.name })))}`);
+
             if (selectedSpaceIds.length > 0) {
                 this.logger.log(`Importing docs for ${selectedSpaceIds.length} selected spaces`);
+                this.logger.debug(`Selected space IDs: ${JSON.stringify(selectedSpaceIds)}`);
                 await this.importDocs(
                     workspaceId,
                     selectedSpaceIds,
@@ -330,7 +333,9 @@ export class ClickUpImportService {
             });
 
             const durationMs = Date.now() - startTime;
-            this.logger.log(`Import completed: ${totalImported} imported, ${totalFailed} failed in ${durationMs}ms`);
+            this.logger.log(
+                `Import completed: ${breakdown['docs'].imported} docs with ${breakdown['pages'].imported} pages (${totalImported} total items), ${totalFailed} failed in ${durationMs}ms`
+            );
 
             return {
                 success: true,
@@ -720,82 +725,99 @@ export class ClickUpImportService {
 
         let cursor: string | undefined = undefined;
         let totalDocsProcessed = 0;
+        const MAX_ITERATIONS = 50; // Safety ceiling to prevent infinite loops
+        const seenCursors = new Set<string>(); // Track cursors to detect loops
+        let iterations = 0;
 
         try {
-            // Fetch all docs with pagination
-            do {
-                const docsResponse = await this.apiClient.getDocs(workspaceId, cursor);
-                const docs = docsResponse.docs;
-                cursor = docsResponse.next_cursor;
+            // Use v3 API with parent parameter to filter docs by space
+            // The v3 API supports ?parent={spaceId} parameter!
+            let allDocs: any[] = [];
 
-                this.logger.log(`Fetched ${docs.length} docs (cursor: ${cursor || 'none'})`);
+            if (selectedSpaceIds && selectedSpaceIds.length > 0) {
+                this.logger.log(`Fetching docs from ${selectedSpaceIds.length} selected spaces using v3 API with parent_type=SPACE filter...`);
 
-                // Debug: Log parent types to understand document structure
-                if (docs.length > 0) {
-                    const parentTypes = docs.slice(0, 5).map(doc => ({
-                        docName: doc.name,
-                        parentType: doc.parent.type,
-                        parentId: doc.parent.id
-                    }));
-                    this.logger.debug(`Sample doc parents: ${JSON.stringify(parentTypes)}`);
-                }
-
-                // Filter docs by selected spaces
-                // Only import docs where parent.type === 6 (space) && parent.id in selectedSpaceIds
-                const filteredDocs = docs.filter(doc =>
-                    doc.parent.type === 6 && selectedSpaceIds.includes(doc.parent.id)
-                );
-
-                this.logger.log(`Filtered to ${filteredDocs.length} docs in selected spaces (from ${docs.length} total)`);
-
-                // Import each doc with its pages combined into single document
-                for (const doc of filteredDocs) {
+                for (const spaceId of selectedSpaceIds) {
                     try {
-                        // Fetch pages first to combine with doc
-                        let pagesContent = '';
-                        let pagesCount = 0;
+                        this.logger.log(`Fetching docs for space ${spaceId} (with parent_type=SPACE)...`);
+                        // Use parent_id + parent_type to get ALL docs under this space
+                        // This includes docs in folders, lists, and direct space children
+                        const docsResponse = await this.apiClient.getDocs(workspaceId, undefined, spaceId, 'SPACE');
+                        const fetchedCount = docsResponse.docs.length;
 
-                        try {
-                            const pagesResponse = await this.apiClient.getDocPages(workspaceId, doc.id);
-                            pagesCount = pagesResponse.length;
+                        // Tag all docs with the space ID
+                        const taggedDocs = docsResponse.docs.map(doc => ({
+                            ...doc,
+                            _imported_from_space_id: spaceId
+                        }));
 
-                            // Combine all page content (recursively for nested pages)
-                            pagesContent = this.combinePageContent(pagesResponse);
-
-                            this.logger.log(`Doc "${doc.name}" (${doc.id}): ${pagesCount} pages, ${pagesContent.length} chars`);
-
-                        } catch (error) {
-                            const err = error as Error;
-                            this.logger.warn(`Failed to fetch pages for doc ${doc.id}, storing doc only: ${err.message}`);
-                        }
-
-                        // Map doc and combine with pages content
-                        const docData = this.dataMapper.mapDoc(doc);
-
-                        // Combine doc + pages into single content
-                        if (pagesContent) {
-                            docData.content = `# ${doc.name}\n\n${pagesContent}`;
-                        }
-
-                        // Store combined document
-                        await this.storeDocument(projectId, orgId, integrationId, docData, undefined);
-                        breakdown['docs'].imported++;
-                        breakdown['pages'].imported += pagesCount; // Count pages for stats
-                        totalDocsProcessed++;
-
+                        allDocs.push(...taggedDocs);
+                        this.logger.log(`✅ Space ${spaceId}: fetched ${fetchedCount} docs (including nested in folders/lists)`);
                     } catch (error) {
                         const err = error as Error;
-                        this.logger.error(`Failed to import doc ${doc.id}: ${err.message}`);
-                        breakdown['docs'].failed++;
+                        this.logger.warn(`Failed to fetch docs for space ${spaceId}: ${err.message}`);
                     }
                 }
 
-                // Check if we need to continue pagination
-                if (cursor) {
-                    this.logger.log(`Continuing pagination (processed ${totalDocsProcessed} docs so far)`);
-                }
+                this.logger.log(`Total docs fetched from ${selectedSpaceIds.length} spaces: ${allDocs.length}`);
+            } else {
+                this.logger.log(`No space filtering: fetching all documents from workspace...`);
+                // Fetch all docs (no parent filter)
+                const docsResponse = await this.apiClient.getDocs(workspaceId);
+                allDocs = docsResponse.docs;
+                this.logger.log(`Fetched ${allDocs.length} docs from entire workspace`);
+            }
 
-            } while (cursor);
+            this.logger.log(`Processing ${allDocs.length} docs`);
+
+            // Import each doc with its pages combined into single document
+            for (const doc of allDocs) {
+                try {
+                    // Fetch pages first to combine with doc
+                    let pagesContent = '';
+                    let pagesCount = 0;
+
+                    try {
+                        const pagesResponse = await this.apiClient.getDocPages(workspaceId, doc.id);
+                        pagesCount = pagesResponse.length;
+
+                        // Combine all page content (recursively for nested pages)
+                        pagesContent = this.combinePageContent(pagesResponse);
+
+                        this.logger.log(`Doc "${doc.name}" (${doc.id}): ${pagesCount} pages, ${pagesContent.length} chars combined`);
+                        if (pagesCount > 0 && pagesContent.length === 0) {
+                            this.logger.warn(`⚠️  Doc "${doc.name}" has ${pagesCount} pages but combined content is empty!`);
+                            this.logger.debug(`First page structure: ${JSON.stringify(pagesResponse[0], null, 2).substring(0, 500)}`);
+                        }
+
+                    } catch (error) {
+                        const err = error as Error;
+                        this.logger.warn(`Failed to fetch pages for doc ${doc.id}, storing doc only: ${err.message}`);
+                    }
+
+                    // Map doc and combine with pages content
+                    const docData = this.dataMapper.mapDoc(doc);
+
+                    // Combine doc + pages into single content
+                    if (pagesContent) {
+                        docData.content = `# ${doc.name}\n\n${pagesContent}`;
+                        this.logger.debug(`Final content for "${doc.name}": ${docData.content.length} chars`);
+                    } else {
+                        this.logger.warn(`⚠️  No pages content for "${doc.name}", using placeholder`);
+                    }
+
+                    // Store combined document
+                    await this.storeDocument(projectId, orgId, integrationId, docData, undefined);
+                    breakdown['docs'].imported++;
+                    breakdown['pages'].imported += pagesCount; // Count pages for stats
+                    totalDocsProcessed++;
+
+                } catch (error) {
+                    const err = error as Error;
+                    this.logger.error(`Failed to import doc ${doc.id}: ${err.message}`);
+                    breakdown['docs'].failed++;
+                }
+            }
 
             this.logger.log(`Docs import completed: ${totalDocsProcessed} docs processed`);
 
@@ -954,9 +976,21 @@ export class ClickUpImportService {
     private combinePageContent(pages: any[], level: number = 2): string {
         let combined = '';
 
+        this.logger.debug(`combinePageContent called with ${pages.length} pages at level ${level}`);
+
         for (const page of pages) {
-            // Skip pages without page_id (the doc itself returned as a "page")
-            if (!page.page_id) {
+            // Log full structure of first page to understand API response
+            if (level === 2 && combined.length === 0) {
+                this.logger.debug(`  First page keys: ${Object.keys(page).join(', ')}`);
+            }
+
+            this.logger.debug(`  Page: page_id=${page.page_id}, id=${page.id}, name="${page.name}", content_length=${page.content?.length || 0}`);
+
+            // The page_id field might be optional or named differently
+            // Don't skip pages just because page_id is missing - the page might still have content
+            // Skip only if the page has no name (which would make it unusable)
+            if (!page.name) {
+                this.logger.debug(`  ⏩ Skipping page without name`);
                 continue;
             }
 
@@ -967,14 +1001,19 @@ export class ClickUpImportService {
             // Add page content
             if (page.content) {
                 combined += `${page.content}\n\n`;
+                this.logger.debug(`  ✅ Added ${page.content.length} chars of content`);
+            } else {
+                this.logger.debug(`  ⚠️  Page has no content`);
             }
 
             // Recursively add nested pages
             if (page.pages && page.pages.length > 0) {
+                this.logger.debug(`  🔄 Recursing into ${page.pages.length} nested pages`);
                 combined += this.combinePageContent(page.pages, level + 1);
             }
         }
 
+        this.logger.debug(`combinePageContent returning ${combined.length} chars at level ${level}`);
         return combined;
     }
 
@@ -1089,7 +1128,7 @@ export class ClickUpImportService {
                 );
                 this.logger.debug(`  Updated existing document: ${documentId}`);
             } else {
-                // Create new document
+                // Create new document with upsert to handle content_hash duplicates
                 const result = await this.db.query(
                     `INSERT INTO kb.documents (
                         project_id,
@@ -1102,6 +1141,12 @@ export class ClickUpImportService {
                         created_at,
                         updated_at
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+                    ON CONFLICT (project_id, content_hash) 
+                    DO UPDATE SET
+                        content = EXCLUDED.content,
+                        integration_metadata = EXCLUDED.integration_metadata,
+                        parent_document_id = EXCLUDED.parent_document_id,
+                        updated_at = NOW()
                     RETURNING id`,
                     [
                         projectId,
@@ -1116,7 +1161,7 @@ export class ClickUpImportService {
 
                 documentId = result.rows[0].id;
                 isNewDocument = true;
-                this.logger.debug(`  Created document: ${documentId}`);
+                this.logger.debug(`  Created/updated document: ${documentId}`);
             }
 
             // NOTE: Auto-extraction removed - users will trigger extraction manually

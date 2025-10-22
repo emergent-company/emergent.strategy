@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import clickupSdk from '@api/clickup';
 import {
     ClickUpWorkspacesResponse,
     ClickUpSpacesResponse,
@@ -73,24 +73,23 @@ class RateLimiter {
 /**
  * ClickUp API Client
  * 
- * Handles all communication with the ClickUp API v2.
- * Implements rate limiting, error handling, and retry logic.
+ * Handles all communication with the ClickUp API using the official SDK.
+ * Implements rate limiting for additional safety on top of SDK functionality.
  * 
  * Rate Limits:
  * - 100 requests per minute per workspace
  * - Automatically waits when limit is reached
  * 
  * Error Handling:
- * - Retries on 429 (rate limit) with exponential backoff
- * - Retries on 5xx errors (server errors)
- * - Throws descriptive errors for 4xx errors
+ * - SDK handles retries and errors internally
+ * - Rate limiter provides additional safety layer
  * 
  * @see https://clickup.com/api
  */
 @Injectable()
 export class ClickUpApiClient {
     private readonly logger = new Logger(ClickUpApiClient.name);
-    private client: AxiosInstance | null = null;
+    private sdk = clickupSdk;
     private rateLimiter: RateLimiter;
     private apiToken: string | null = null;
 
@@ -107,29 +106,22 @@ export class ClickUpApiClient {
         }
 
         this.apiToken = apiToken;
-        this.client = axios.create({
-            baseURL: 'https://api.clickup.com/api/v2',
-            headers: {
-                'Authorization': apiToken,
-                'Content-Type': 'application/json',
-            },
-            timeout: 30000, // 30 seconds
-        });
+
+        // Configure SDK with authentication and timeout
+        this.sdk.auth(apiToken);
+        this.sdk.config({ timeout: 30000 }); // 30 seconds
 
         this.logger.log(`ClickUp API client configured with token: ${apiToken.substring(0, 10)}...`);
     }
 
     /**
-     * Make an API request with rate limiting and retries
+     * Helper method to wrap SDK calls with rate limiting and error handling
      */
-    private async request<T>(
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-        path: string,
-        data?: any,
-        params?: any,
-        retries: number = 3
+    private async sdkCall<T>(
+        sdkMethod: () => Promise<{ data: T; status: number }>,
+        methodName: string
     ): Promise<T> {
-        if (!this.client) {
+        if (!this.apiToken) {
             throw new Error('ClickUp API client not configured. Call configure() first.');
         }
 
@@ -137,51 +129,19 @@ export class ClickUpApiClient {
         await this.rateLimiter.waitForSlot();
 
         try {
-            const response = await this.client.request<T>({
-                method,
-                url: path,
-                data,
-                params,
-            });
+            const response = await sdkMethod();
 
             // Log API responses for debugging (redact sensitive data)
             if (process.env.NODE_ENV !== 'production') {
-                this.logger.debug(`API Response: ${method} ${path}`);
+                this.logger.debug(`SDK Call: ${methodName}`);
                 this.logger.debug(`Response data: ${JSON.stringify(response.data).substring(0, 500)}...`);
             }
 
             return response.data;
         } catch (error) {
-            const axiosError = error as AxiosError;
-
-            // Retry on rate limit (429) or server errors (5xx)
-            if (axiosError.response?.status === 429 && retries > 0) {
-                const retryAfter = axiosError.response.headers['retry-after'];
-                const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 5000;
-
-                this.logger.warn(`Rate limited. Waiting ${waitTime}ms before retry...`);
-                await new Promise(resolve => setTimeout(resolve, waitTime));
-
-                return this.request(method, path, data, params, retries - 1);
-            }
-
-            if (axiosError.response?.status && axiosError.response.status >= 500 && retries > 0) {
-                const waitTime = Math.pow(2, 4 - retries) * 1000; // Exponential backoff
-
-                this.logger.warn(`Server error ${axiosError.response.status}. Retrying in ${waitTime}ms...`);
-                await new Promise(resolve => setTimeout(resolve, waitTime));
-
-                return this.request(method, path, data, params, retries - 1);
-            }
-
-            // Handle 4xx errors
-            if (axiosError.response?.status && axiosError.response.status >= 400) {
-                const errorData = axiosError.response.data as any;
-                const message = errorData?.err || errorData?.error || axiosError.message;
-                throw new Error(`ClickUp API error (${axiosError.response.status}): ${message}`);
-            }
-
-            throw new Error(`ClickUp API request failed: ${axiosError.message}`);
+            const err = error as Error;
+            this.logger.error(`ClickUp SDK error in ${methodName}: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
         }
     }
 
@@ -203,7 +163,10 @@ export class ClickUpApiClient {
      * Get all workspaces (teams)
      */
     async getWorkspaces(): Promise<ClickUpWorkspacesResponse> {
-        return this.request<ClickUpWorkspacesResponse>('GET', '/team');
+        return this.sdkCall(
+            () => this.sdk.getAuthorizedTeams(),
+            'getWorkspaces'
+        ) as Promise<ClickUpWorkspacesResponse>;
     }
 
     /**
@@ -211,9 +174,10 @@ export class ClickUpApiClient {
      * Note: ClickUp API may paginate results, but doesn't document pagination for spaces endpoint
      */
     async getSpaces(workspaceId: string, archived: boolean = false): Promise<ClickUpSpacesResponse> {
-        return this.request<ClickUpSpacesResponse>('GET', `/team/${workspaceId}/space`, undefined, {
-            archived,
-        });
+        return this.sdkCall(
+            () => this.sdk.getSpaces({ team_id: parseInt(workspaceId), archived }),
+            'getSpaces'
+        ) as unknown as Promise<ClickUpSpacesResponse>;
     }
 
     /**
@@ -221,9 +185,10 @@ export class ClickUpApiClient {
      * Note: ClickUp API may paginate results, but doesn't document pagination for folders endpoint
      */
     async getFolders(spaceId: string, archived: boolean = false): Promise<ClickUpFoldersResponse> {
-        return this.request<ClickUpFoldersResponse>('GET', `/space/${spaceId}/folder`, undefined, {
-            archived,
-        });
+        return this.sdkCall(
+            () => this.sdk.getFolders({ space_id: parseInt(spaceId), archived }),
+            'getFolders'
+        ) as unknown as Promise<ClickUpFoldersResponse>;
     }
 
     /**
@@ -231,9 +196,10 @@ export class ClickUpApiClient {
      * Note: ClickUp API may paginate results, but doesn't document pagination for lists endpoint
      */
     async getListsInFolder(folderId: string, archived: boolean = false): Promise<ClickUpListsResponse> {
-        return this.request<ClickUpListsResponse>('GET', `/folder/${folderId}/list`, undefined, {
-            archived,
-        });
+        return this.sdkCall(
+            () => this.sdk.getLists({ folder_id: parseInt(folderId), archived }),
+            'getListsInFolder'
+        ) as unknown as Promise<ClickUpListsResponse>;
     }
 
     /**
@@ -241,9 +207,10 @@ export class ClickUpApiClient {
      * Note: ClickUp API may paginate results, but doesn't document pagination for lists endpoint
      */
     async getFolderlessLists(spaceId: string, archived: boolean = false): Promise<ClickUpListsResponse> {
-        return this.request<ClickUpListsResponse>('GET', `/space/${spaceId}/list`, undefined, {
-            archived,
-        });
+        return this.sdkCall(
+            () => this.sdk.getFolderlessLists({ space_id: parseInt(spaceId), archived }),
+            'getFolderlessLists'
+        ) as unknown as Promise<ClickUpListsResponse>;
     }
 
     /**
@@ -271,46 +238,60 @@ export class ClickUpApiClient {
             dateUpdatedLt?: number;
         } = {}
     ): Promise<ClickUpTasksResponse> {
-        return this.request<ClickUpTasksResponse>('GET', `/list/${listId}/task`, undefined, {
-            archived: options.archived || false,
-            page: options.page || 0,
-            order_by: options.orderBy,
-            reverse: options.reverse,
-            subtasks: options.subtasks,
-            statuses: options.statuses,
-            include_closed: options.includeClosed,
-            assignees: options.assignees,
-            tags: options.tags,
-            due_date_gt: options.dueDateGt,
-            due_date_lt: options.dueDateLt,
-            date_created_gt: options.dateCreatedGt,
-            date_created_lt: options.dateCreatedLt,
-            date_updated_gt: options.dateUpdatedGt,
-            date_updated_lt: options.dateUpdatedLt,
-        });
+        return this.sdkCall(
+            () => this.sdk.getTasks({
+                list_id: parseInt(listId),
+                archived: options.archived,
+                page: options.page,
+                order_by: options.orderBy,
+                reverse: options.reverse,
+                subtasks: options.subtasks,
+                statuses: options.statuses,
+                include_closed: options.includeClosed,
+                assignees: options.assignees,
+                tags: options.tags,
+                due_date_gt: options.dueDateGt,
+                due_date_lt: options.dueDateLt,
+                date_created_gt: options.dateCreatedGt,
+                date_created_lt: options.dateCreatedLt,
+                date_updated_gt: options.dateUpdatedGt,
+                date_updated_lt: options.dateUpdatedLt,
+            }),
+            'getTasksInList'
+        ) as unknown as Promise<ClickUpTasksResponse>;
     }
 
     /**
      * Get a single task by ID
      */
     async getTask(taskId: string, includeSubtasks: boolean = false): Promise<ClickUpTask> {
-        return this.request<ClickUpTask>('GET', `/task/${taskId}`, undefined, {
-            include_subtasks: includeSubtasks,
-        });
+        return this.sdkCall(
+            () => this.sdk.getTask({
+                task_id: taskId,
+                include_subtasks: includeSubtasks
+            }),
+            'getTask'
+        ) as unknown as Promise<ClickUpTask>;
     }
 
     /**
      * Get comments for a task
      */
     async getTaskComments(taskId: string): Promise<ClickUpCommentsResponse> {
-        return this.request<ClickUpCommentsResponse>('GET', `/task/${taskId}/comment`);
+        return this.sdkCall(
+            () => this.sdk.getTaskComments({ task_id: taskId }),
+            'getTaskComments'
+        ) as unknown as Promise<ClickUpCommentsResponse>;
     }
 
     /**
      * Get comments for a list
      */
     async getListComments(listId: string): Promise<ClickUpCommentsResponse> {
-        return this.request<ClickUpCommentsResponse>('GET', `/list/${listId}/comment`);
+        return this.sdkCall(
+            () => this.sdk.getListComments({ list_id: parseInt(listId) }),
+            'getListComments'
+        ) as unknown as Promise<ClickUpCommentsResponse>;
     }
 
     /**
@@ -325,12 +306,16 @@ export class ClickUpApiClient {
             reverse?: boolean;
         } = {}
     ): Promise<ClickUpTasksResponse> {
-        return this.request<ClickUpTasksResponse>('GET', `/team/${workspaceId}/task`, undefined, {
-            query,
-            page: options.page || 0,
-            order_by: options.orderBy,
-            reverse: options.reverse,
-        });
+        return this.sdkCall(
+            () => this.sdk.getFilteredTeamTasks({
+                team_Id: parseInt(workspaceId),
+                query,
+                page: options.page,
+                order_by: options.orderBy,
+                reverse: options.reverse,
+            }),
+            'searchTasks'
+        ) as unknown as Promise<ClickUpTasksResponse>;
     }
 
     /**
@@ -344,7 +329,7 @@ export class ClickUpApiClient {
      * Check if client is configured
      */
     isConfigured(): boolean {
-        return this.client !== null && this.apiToken !== null;
+        return this.apiToken !== null;
     }
 
     // ============================================================================
@@ -355,23 +340,25 @@ export class ClickUpApiClient {
      * Get all docs in a workspace (v3 API)
      * @param workspaceId - The workspace ID
      * @param cursor - Optional pagination cursor
+     * @param parentId - Optional parent ID to filter docs
+     * @param parentType - Optional parent type (SPACE, FOLDER, LIST, EVERYTHING, WORKSPACE)
      * @returns List of docs with pagination cursor
      */
     async getDocs(
         workspaceId: string,
-        cursor?: string
+        cursor?: string,
+        parentId?: string,
+        parentType?: string
     ): Promise<{ docs: ClickUpDoc[]; next_cursor?: string }> {
-        const params: any = {};
-        if (cursor) {
-            params.cursor = cursor;
-        }
-
-        return this.requestV3<{ docs: ClickUpDoc[]; next_cursor?: string }>(
-            'GET',
-            `/workspaces/${workspaceId}/docs`,
-            undefined,
-            params
-        );
+        return this.sdkCall(
+            () => this.sdk.searchDocs({
+                workspaceId: parseInt(workspaceId),
+                next_cursor: cursor,
+                parent_id: parentId,
+                parent_type: parentType,
+            }),
+            'getDocs'
+        ) as unknown as Promise<{ docs: ClickUpDoc[]; next_cursor?: string }>;
     }
 
     /**
@@ -381,10 +368,13 @@ export class ClickUpApiClient {
      * @returns Doc details
      */
     async getDoc(workspaceId: string, docId: string): Promise<ClickUpDoc> {
-        return this.requestV3<ClickUpDoc>(
-            'GET',
-            `/workspaces/${workspaceId}/docs/${docId}`
-        );
+        return this.sdkCall(
+            () => this.sdk.getDoc({
+                workspaceId: parseInt(workspaceId),
+                docId: docId,
+            }),
+            'getDoc'
+        ) as unknown as Promise<ClickUpDoc>;
     }
 
     /**
@@ -394,10 +384,13 @@ export class ClickUpApiClient {
      * @returns Array of pages (may be nested with child pages)
      */
     async getDocPages(workspaceId: string, docId: string): Promise<ClickUpPage[]> {
-        return this.requestV3<ClickUpPage[]>(
-            'GET',
-            `/workspaces/${workspaceId}/docs/${docId}/pages`
-        );
+        return this.sdkCall(
+            () => this.sdk.getDocPages({
+                workspaceId: parseInt(workspaceId),
+                docId: docId,
+            }),
+            'getDocPages'
+        ) as unknown as Promise<ClickUpPage[]>;
     }
 
     /**
@@ -412,58 +405,13 @@ export class ClickUpApiClient {
         docId: string,
         pageId: string
     ): Promise<ClickUpPage> {
-        return this.requestV3<ClickUpPage>(
-            'GET',
-            `/workspaces/${workspaceId}/docs/${docId}/pages/${pageId}`
-        );
-    }
-
-    /**
-     * Make a request to ClickUp API v3
-     */
-    private async requestV3<T>(
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-        endpoint: string,
-        data?: any,
-        params?: any
-    ): Promise<T> {
-        if (!this.isConfigured()) {
-            throw new Error('ClickUp API client is not configured. Set CLICKUP_API_TOKEN.');
-        }
-
-        await this.rateLimiter.waitForSlot();
-
-        try {
-            // Create a v3 client instance with the same config but different base URL
-            const v3Client = axios.create({
-                baseURL: 'https://api.clickup.com/api/v3',
-                headers: {
-                    'Authorization': this.apiToken!,
-                    'Content-Type': 'application/json',
-                },
-                timeout: 30000,
-            });
-
-            const response = await v3Client.request<T>({
-                method,
-                url: endpoint,
-                data,
-                params,
-            });
-
-            return response.data;
-        } catch (error) {
-            if (axios.isAxiosError(error)) {
-                const axiosError = error as AxiosError;
-                this.logger.error(
-                    `ClickUp API v3 error: ${axiosError.message}`,
-                    axiosError.response?.data
-                );
-                throw new Error(
-                    `ClickUp API v3 failed: ${axiosError.message}`
-                );
-            }
-            throw error;
-        }
+        return this.sdkCall(
+            () => this.sdk.getPage({
+                workspaceId: parseInt(workspaceId),
+                docId: docId,
+                pageId: pageId,
+            }),
+            'getPage'
+        ) as unknown as Promise<ClickUpPage>;
     }
 }
