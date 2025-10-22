@@ -398,179 +398,181 @@ export function DataTable<T extends TableDataItem>({
 
     // Render table view
     const renderTableView = () => (
-        <div className="border border-base-300 rounded overflow-x-auto overflow-y-visible">
-            <table className="table table-sm overflow-visible">
-                <thead>
-                    <tr className="text-xs text-base-content/60 uppercase">
-                        {enableSelection && (
-                            <th className="w-8">
-                                <input
-                                    type="checkbox"
-                                    className="checkbox checkbox-sm"
-                                    checked={allSelected}
-                                    ref={input => {
-                                        if (input) input.indeterminate = someSelected && !allSelected;
-                                    }}
-                                    onChange={(e) => handleSelectAll(e.target.checked)}
-                                />
-                            </th>
-                        )}
-                        {columns.map(col => (
-                            <th
-                                key={col.key}
-                                className={`${col.width || ''} ${col.headerClassName || ''} ${col.sortable ? 'cursor-pointer hover:bg-base-200' : ''}`}
-                                onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                            >
-                                <div className="flex items-center gap-2">
-                                    {col.label}
-                                    {col.sortable && sortConfig?.key === col.key && (
-                                        <Icon
-                                            icon={sortConfig.direction === 'asc' ? 'lucide--arrow-up' : 'lucide--arrow-down'}
-                                            className="size-3"
-                                        />
-                                    )}
-                                </div>
-                            </th>
-                        ))}
-                        {rowActions.length > 0 && <th className="w-32">Actions</th>}
-                    </tr>
-                </thead>
-                <tbody>
-                    {loading && (
-                        Array.from({ length: 5 }).map((_, i) => (
-                            <tr key={`skeleton-${i}`} className="opacity-70 animate-pulse">
-                                {enableSelection && <td className="py-2"><div className="bg-base-300 rounded w-4 h-4" /></td>}
-                                {columns.map((col, j) => (
-                                    <td key={`skeleton-${i}-${j}`}>
-                                        <div className="bg-base-300 rounded w-full h-4" />
-                                    </td>
-                                ))}
-                                {rowActions.length > 0 && <td><div className="bg-base-300 rounded w-20 h-4" /></td>}
-                            </tr>
-                        ))
-                    )}
-                    {!loading && error && (
-                        <tr>
-                            <td colSpan={columns.length + (enableSelection ? 1 : 0) + (rowActions.length > 0 ? 1 : 0)} className="py-10 text-error text-sm text-center">
-                                <Icon icon="lucide--alert-circle" className="mx-auto mb-2 size-5" />
-                                <div>{error}</div>
-                            </td>
-                        </tr>
-                    )}
-                    {!loading && !error && filteredData.length === 0 && (
-                        <tr>
-                            <td colSpan={columns.length + (enableSelection ? 1 : 0) + (rowActions.length > 0 ? 1 : 0)} className="py-10 text-sm text-base-content/70 text-center">
-                                <Icon icon={emptyIcon} className="opacity-50 mx-auto mb-2 size-8" />
-                                <div>{activeFilters.size > 0 || searchQuery ? noResultsMessage : emptyMessage}</div>
-                            </td>
-                        </tr>
-                    )}
-                    {!loading && !error && filteredData.map((item) => (
-                        <tr
-                            key={item.id}
-                            className={`hover:bg-base-200/50 ${onRowClick ? 'cursor-pointer' : ''} ${selectedIds.has(item.id) ? 'bg-base-200' : ''}`}
-                            onClick={() => onRowClick?.(item)}
-                        >
+        <div className="border border-base-300 rounded" style={{ overflow: 'visible' }}>
+            <div className="overflow-x-auto">
+                <table className="table table-sm">
+                    <thead>
+                        <tr className="text-xs text-base-content/60 uppercase">
                             {enableSelection && (
-                                <td onClick={(e) => e.stopPropagation()}>
+                                <th className="w-8">
                                     <input
                                         type="checkbox"
                                         className="checkbox checkbox-sm"
-                                        checked={selectedIds.has(item.id)}
-                                        onChange={(e) => handleSelectOne(item.id, e.target.checked)}
+                                        checked={allSelected}
+                                        ref={input => {
+                                            if (input) input.indeterminate = someSelected && !allSelected;
+                                        }}
+                                        onChange={(e) => handleSelectAll(e.target.checked)}
                                     />
-                                </td>
+                                </th>
                             )}
                             {columns.map(col => (
-                                <td key={col.key} className={col.cellClassName || ''}>
-                                    {col.render ? col.render(item) : (item[col.key] ?? '—')}
-                                </td>
+                                <th
+                                    key={col.key}
+                                    className={`${col.width || ''} ${col.headerClassName || ''} ${col.sortable ? 'cursor-pointer hover:bg-base-200' : ''}`}
+                                    onClick={col.sortable ? () => handleSort(col.key) : undefined}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        {col.label}
+                                        {col.sortable && sortConfig?.key === col.key && (
+                                            <Icon
+                                                icon={sortConfig.direction === 'asc' ? 'lucide--arrow-up' : 'lucide--arrow-down'}
+                                                className="size-3"
+                                            />
+                                        )}
+                                    </div>
+                                </th>
                             ))}
-                            {rowActions.length > 0 && (
-                                <td onClick={(e) => e.stopPropagation()} className="relative overflow-visible">
-                                    {useDropdownActions ? (
-                                        <Dropdown end>
-                                            <Dropdown.Trigger
-                                                asButton
-                                                variant="ghost"
-                                                size="xs"
-                                                className="gap-1"
-                                                onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                                            >
-                                                Actions
-                                                <Icon icon="lucide--chevron-down" className="size-3" />
-                                            </Dropdown.Trigger>
-                                            <Dropdown.Menu width="w-52">
-                                                {rowActions.map((action, idx) => {
-                                                    if (action.asLink && action.href) {
+                            {rowActions.length > 0 && <th className="w-32">Actions</th>}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {loading && (
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <tr key={`skeleton-${i}`} className="opacity-70 animate-pulse">
+                                    {enableSelection && <td className="py-2"><div className="bg-base-300 rounded w-4 h-4" /></td>}
+                                    {columns.map((col, j) => (
+                                        <td key={`skeleton-${i}-${j}`}>
+                                            <div className="bg-base-300 rounded w-full h-4" />
+                                        </td>
+                                    ))}
+                                    {rowActions.length > 0 && <td><div className="bg-base-300 rounded w-20 h-4" /></td>}
+                                </tr>
+                            ))
+                        )}
+                        {!loading && error && (
+                            <tr>
+                                <td colSpan={columns.length + (enableSelection ? 1 : 0) + (rowActions.length > 0 ? 1 : 0)} className="py-10 text-error text-sm text-center">
+                                    <Icon icon="lucide--alert-circle" className="mx-auto mb-2 size-5" />
+                                    <div>{error}</div>
+                                </td>
+                            </tr>
+                        )}
+                        {!loading && !error && filteredData.length === 0 && (
+                            <tr>
+                                <td colSpan={columns.length + (enableSelection ? 1 : 0) + (rowActions.length > 0 ? 1 : 0)} className="py-10 text-sm text-base-content/70 text-center">
+                                    <Icon icon={emptyIcon} className="opacity-50 mx-auto mb-2 size-8" />
+                                    <div>{activeFilters.size > 0 || searchQuery ? noResultsMessage : emptyMessage}</div>
+                                </td>
+                            </tr>
+                        )}
+                        {!loading && !error && filteredData.map((item) => (
+                            <tr
+                                key={item.id}
+                                className={`hover:bg-base-200/50 ${onRowClick ? 'cursor-pointer' : ''} ${selectedIds.has(item.id) ? 'bg-base-200' : ''}`}
+                                onClick={() => onRowClick?.(item)}
+                            >
+                                {enableSelection && (
+                                    <td onClick={(e) => e.stopPropagation()}>
+                                        <input
+                                            type="checkbox"
+                                            className="checkbox checkbox-sm"
+                                            checked={selectedIds.has(item.id)}
+                                            onChange={(e) => handleSelectOne(item.id, e.target.checked)}
+                                        />
+                                    </td>
+                                )}
+                                {columns.map(col => (
+                                    <td key={col.key} className={col.cellClassName || ''}>
+                                        {col.render ? col.render(item) : (item[col.key] ?? '—')}
+                                    </td>
+                                ))}
+                                {rowActions.length > 0 && (
+                                    <td onClick={(e) => e.stopPropagation()} className="relative overflow-visible">
+                                        {useDropdownActions ? (
+                                            <Dropdown end>
+                                                <Dropdown.Trigger
+                                                    asButton
+                                                    variant="ghost"
+                                                    size="xs"
+                                                    className="gap-1"
+                                                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                                                >
+                                                    Actions
+                                                    <Icon icon="lucide--chevron-down" className="size-3" />
+                                                </Dropdown.Trigger>
+                                                <Dropdown.Menu width="w-52">
+                                                    {rowActions.map((action, idx) => {
+                                                        if (action.asLink && action.href) {
+                                                            return (
+                                                                <Dropdown.Item
+                                                                    key={idx}
+                                                                    asLink
+                                                                    href={action.href(item)}
+                                                                >
+                                                                    {action.icon && <Icon icon={action.icon} className="size-4" />}
+                                                                    {action.label}
+                                                                </Dropdown.Item>
+                                                            );
+                                                        }
+
                                                         return (
                                                             <Dropdown.Item
                                                                 key={idx}
-                                                                asLink
-                                                                href={action.href(item)}
+                                                                onClick={() => {
+                                                                    action.onAction(item);
+                                                                }}
                                                             >
                                                                 {action.icon && <Icon icon={action.icon} className="size-4" />}
                                                                 {action.label}
                                                             </Dropdown.Item>
                                                         );
+                                                    })}
+                                                </Dropdown.Menu>
+                                            </Dropdown>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                {rowActions.map((action, idx) => {
+                                                    const variant = action.variant || 'ghost';
+                                                    const size = action.size || 'xs';
+
+                                                    if (action.asLink && action.href) {
+                                                        return (
+                                                            <a
+                                                                key={idx}
+                                                                href={action.href(item)}
+                                                                className={`gap-1 btn btn-${size} btn-${variant}`}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                {action.icon && <Icon icon={action.icon} className="size-4" />}
+                                                                {action.label}
+                                                            </a>
+                                                        );
                                                     }
 
                                                     return (
-                                                        <Dropdown.Item
+                                                        <button
                                                             key={idx}
-                                                            onClick={() => {
+                                                            className={`gap-1 btn btn-${size} btn-${variant}`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
                                                                 action.onAction(item);
                                                             }}
                                                         >
                                                             {action.icon && <Icon icon={action.icon} className="size-4" />}
                                                             {action.label}
-                                                        </Dropdown.Item>
+                                                        </button>
                                                     );
                                                 })}
-                                            </Dropdown.Menu>
-                                        </Dropdown>
-                                    ) : (
-                                        <div className="flex items-center gap-2">
-                                            {rowActions.map((action, idx) => {
-                                                const variant = action.variant || 'ghost';
-                                                const size = action.size || 'xs';
-
-                                                if (action.asLink && action.href) {
-                                                    return (
-                                                        <a
-                                                            key={idx}
-                                                            href={action.href(item)}
-                                                            className={`gap-1 btn btn-${size} btn-${variant}`}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        >
-                                                            {action.icon && <Icon icon={action.icon} className="size-4" />}
-                                                            {action.label}
-                                                        </a>
-                                                    );
-                                                }
-
-                                                return (
-                                                    <button
-                                                        key={idx}
-                                                        className={`gap-1 btn btn-${size} btn-${variant}`}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            action.onAction(item);
-                                                        }}
-                                                    >
-                                                        {action.icon && <Icon icon={action.icon} className="size-4" />}
-                                                        {action.label}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </td>
-                            )}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+                                            </div>
+                                        )}
+                                    </td>
+                                )}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 

@@ -126,56 +126,6 @@ export function OrgAndProjectGate({ children }: OrgAndProjectGateProps) {
 
     return (
         <>
-            <div className="flex flex-wrap justify-end items-center gap-2 opacity-70 mb-4 text-sm">
-                <div className="join">
-                    <details className="dropdown join-item">
-                        <summary className="btn btn-xs">Org</summary>
-                        <ul className="z-[1] bg-base-100 shadow p-2 rounded-box w-52 dropdown-content menu">
-                            {orgList.map(o => (
-                                <li key={o.id}>
-                                    <button
-                                        onClick={() => setActiveOrg(o.id, o.name)}
-                                        aria-current={o.id === activeOrgId ? 'true' : undefined}
-                                        className="flex justify-between items-center"
-                                    >
-                                        <span className="flex items-center gap-2">
-                                            <Icon icon="lucide--building-2" className="size-4" />{o.name}
-                                        </span>
-                                        {o.id === activeOrgId && <Icon icon="lucide--check" className="size-4" />}
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    </details>
-                    {activeOrgId && projectList.length > 0 && (
-                        <details className="dropdown join-item">
-                            <summary className="btn btn-xs">Project</summary>
-                            <ul className="z-[1] bg-base-100 shadow p-2 rounded-box w-52 dropdown-content menu">
-                                {projectList.map(p => (
-                                    <li key={p.id}>
-                                        <button
-                                            onClick={() => setActiveProject(p.id, p.name)}
-                                            aria-current={p.id === activeProjectId ? 'true' : undefined}
-                                            className="flex justify-between items-center"
-                                        >
-                                            <span className="flex items-center gap-2"><Icon icon="lucide--folder" className="size-4" />{p.name}</span>
-                                            {p.id === activeProjectId && <Icon icon="lucide--check" className="size-4" />}
-                                        </button>
-                                    </li>
-                                ))}
-                                <li className="mt-1 pt-1 border-base-300 border-t">
-                                    <label htmlFor="modal-create-project-inline" className="text-xs link link-primary">Add project</label>
-                                </li>
-                            </ul>
-                        </details>
-                    )}
-                </div>
-            </div>
-
-            {projLoading && activeOrgId && projectList.length === 0 && (
-                <div className="flex items-center gap-2 opacity-60 mb-4 text-xs"><span className="loading loading-dots loading-sm" /> Loading projects…</div>
-            )}
-
             {children}
 
             <input type="checkbox" id="modal-create-project-inline" className="modal-toggle" />

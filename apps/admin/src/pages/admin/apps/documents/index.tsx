@@ -6,6 +6,7 @@ import { useApi } from "@/hooks/use-api";
 import { useConfig } from "@/contexts/config";
 import { OrgAndProjectGate } from "@/components/organisms/OrgAndProjectGate";
 import { ExtractionConfigModal, type ExtractionConfig } from "@/components/organisms/ExtractionConfigModal";
+import { DocumentMetadataModal } from "@/components/organisms/DocumentMetadataModal";
 import { createExtractionJobsClient } from "@/api/extraction-jobs";
 import { DataTable, type ColumnDef, type RowAction, type BulkAction, type TableDataItem } from "@/components/organisms/DataTable";
 
@@ -17,10 +18,13 @@ type DocumentRow = {
     mime_type?: string | null;
     created_at?: string;
     updated_at?: string;
+    content?: string | null;
+    content_length?: number | null;
     // New camelCase fields from Nest server
     name?: string | null;
     sourceUrl?: string | null;
     mimeType?: string | null;
+    contentLength?: number | null;
     createdAt?: string;
     updatedAt?: string;
     chunks: number;
@@ -28,6 +32,8 @@ type DocumentRow = {
     extractionStatus?: string;
     extractionCompletedAt?: string;
     extractionObjectsCount?: number;
+    // Integration metadata
+    integrationMetadata?: Record<string, any> | null;
 };
 
 function normalize(doc: DocumentRow) {
@@ -65,6 +71,58 @@ export default function DocumentsPage() {
     const [selectedDocumentForExtraction, setSelectedDocumentForExtraction] = useState<DocumentRow | null>(null);
     const [isStartingExtraction, setIsStartingExtraction] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // Metadata modal state
+    const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
+    const [selectedDocumentForMetadata, setSelectedDocumentForMetadata] = useState<DocumentRow | null>(null);
+
+    // Preview modal state
+    const [preview, setPreview] = useState<DocumentRow | null>(null);
+    const [previewContent, setPreviewContent] = useState<string | null>(null);
+    const [loadingPreviewContent, setLoadingPreviewContent] = useState(false);
+
+    // Fetch document content when preview modal opens
+    useEffect(() => {
+        if (!preview) {
+            setPreviewContent(null);
+            return;
+        }
+
+        let cancelled = false;
+        setLoadingPreviewContent(true);
+
+        async function fetchContent() {
+            if (!preview) return; // Type guard
+
+            try {
+                const t = getAccessToken();
+                const doc = await fetchJson<DocumentRow>(`${apiBase}/api/documents/${preview.id}`, {
+                    headers: t ? buildHeaders({ json: false }) : {},
+                    json: false,
+                });
+                if (!cancelled) {
+                    // Check both possible field names for content
+                    const content = (doc as any).content || '';
+                    setPreviewContent(content);
+                }
+            } catch (err) {
+                console.error('Failed to load document content:', err);
+                if (!cancelled) {
+                    setPreviewContent('Failed to load document content.');
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoadingPreviewContent(false);
+                }
+            }
+        }
+
+        fetchContent();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [preview, apiBase, getAccessToken, buildHeaders, fetchJson]);
 
     const extractionClient = createExtractionJobsClient(
         apiBase,
@@ -122,6 +180,12 @@ export default function DocumentsPage() {
     const handleExtractObjects = (document: DocumentRow) => {
         setSelectedDocumentForExtraction(document);
         setIsExtractionModalOpen(true);
+    };
+
+    // Handle view metadata button click
+    const handleViewMetadata = (document: DocumentRow) => {
+        setSelectedDocumentForMetadata(document);
+        setIsMetadataModalOpen(true);
     };
 
     // Handle extraction confirmation
@@ -202,13 +266,20 @@ export default function DocumentsPage() {
                 r.status === 'fulfilled' && !r.value.success
             );
 
-            // Refresh the list
-            const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/api/documents`, {
-                headers: t ? { ...buildHeaders({ json: false }) } : {},
-                json: false,
-            });
-            const docs = (Array.isArray(json) ? json : json.documents).map(normalize);
-            setData(docs);
+            // Refresh from server to get updated list
+            try {
+                const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/api/documents`, {
+                    headers: t ? { ...buildHeaders({ json: false }) } : {},
+                    json: false,
+                });
+                const docs = (Array.isArray(json) ? json : json.documents).map(normalize);
+                setData(docs);
+            } catch (refreshErr) {
+                console.warn('Failed to refresh document list after deletion:', refreshErr);
+                // Fallback: optimistically update by removing deleted documents
+                const successfulIds = new Set(successful.map(s => s.value.doc.id));
+                setData(prevData => (prevData || []).filter(doc => !successfulIds.has(doc.id)));
+            }
 
             if (failed.length === 0) {
                 setUploadSuccess(`Successfully deleted ${successful.length} document${successful.length > 1 ? 's' : ''}.`);
@@ -321,8 +392,14 @@ export default function DocumentsPage() {
 
     return (
         <OrgAndProjectGate>
-            <div data-testid="page-documents" className="mx-auto p-4 container">
-                <h1 className="mb-4 font-medium text-2xl">Documents</h1>
+            <div data-testid="page-documents" className="mx-auto p-6 max-w-7xl container">
+                {/* Header */}
+                <div className="mb-6">
+                    <h1 className="font-bold text-2xl">Documents</h1>
+                    <p className="mt-1 text-base-content/70">
+                        Upload and manage documents for knowledge extraction
+                    </p>
+                </div>
 
                 {/* Upload controls */}
                 <div
@@ -400,7 +477,7 @@ export default function DocumentsPage() {
                 )}
 
                 {/* Documents Table */}
-                <div className={`mt-4 pb-48 ${uploading || isDeleting ? 'opacity-60 pointer-events-none' : ''}`}>
+                <div className={`mt-4 ${uploading || isDeleting ? 'opacity-60 pointer-events-none' : ''}`}>
                     <DataTable<DocumentRow>
                         data={data || []}
                         columns={[
@@ -411,6 +488,32 @@ export default function DocumentsPage() {
                                 render: (doc) => (
                                     <span className="font-medium">{doc.filename || "(no name)"}</span>
                                 ),
+                            },
+                            {
+                                key: 'size',
+                                label: 'Size',
+                                sortable: true,
+                                width: 'w-24',
+                                render: (doc) => {
+                                    // Use contentLength from API (camelCase or snake_case)
+                                    const contentLength = doc.contentLength ?? doc.content_length ?? 0;
+                                    if (contentLength === 0) {
+                                        return <span className="text-sm text-base-content/40">—</span>;
+                                    }
+
+                                    // Format size in human-readable format
+                                    const formatSize = (bytes: number): string => {
+                                        if (bytes < 1024) return `${bytes} B`;
+                                        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+                                        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+                                    };
+
+                                    return (
+                                        <span className="text-sm text-base-content/70">
+                                            {formatSize(contentLength)}
+                                        </span>
+                                    );
+                                },
                             },
                             {
                                 key: 'source_url',
@@ -541,6 +644,11 @@ export default function DocumentsPage() {
                         ] as ColumnDef<DocumentRow>[]}
                         rowActions={[
                             {
+                                label: 'Preview',
+                                icon: 'lucide--eye',
+                                onAction: (doc) => setPreview(doc),
+                            },
+                            {
                                 label: 'Extract',
                                 icon: 'lucide--sparkles',
                                 onAction: handleExtractObjects,
@@ -550,6 +658,12 @@ export default function DocumentsPage() {
                                 icon: 'lucide--list',
                                 asLink: true,
                                 href: (doc) => `/admin/apps/chunks?docId=${doc.id}`,
+                            },
+                            {
+                                label: 'View metadata',
+                                icon: 'lucide--info',
+                                onAction: handleViewMetadata,
+                                hidden: (doc: DocumentRow) => !doc.integrationMetadata,
                             },
                         ] as RowAction<DocumentRow>[]}
                         bulkActions={[
@@ -577,6 +691,7 @@ export default function DocumentsPage() {
             </div>
 
             {/* Extraction Configuration Modal */}
+            {/* Extraction Configuration Modal */}
             <ExtractionConfigModal
                 isOpen={isExtractionModalOpen}
                 onClose={() => {
@@ -587,6 +702,81 @@ export default function DocumentsPage() {
                 isLoading={isStartingExtraction}
                 documentName={selectedDocumentForExtraction?.filename || undefined}
             />
+
+            {/* Document Metadata Modal */}
+            <DocumentMetadataModal
+                isOpen={isMetadataModalOpen}
+                onClose={() => {
+                    setIsMetadataModalOpen(false);
+                    setSelectedDocumentForMetadata(null);
+                }}
+                metadata={selectedDocumentForMetadata?.integrationMetadata}
+                documentName={selectedDocumentForMetadata?.filename || selectedDocumentForMetadata?.name || 'Document'}
+            />
+
+            {/* Document Preview Modal */}
+            {preview && (
+                <dialog className="modal" open>
+                    <div className="max-w-5xl modal-box">
+                        <h3 className="card-title">{preview.filename || "(no name)"}</h3>
+                        <div className="mt-2 text-sm text-base-content/70">
+                            {preview.mime_type && (
+                                <span className="mr-3">Type: {preview.mime_type}</span>
+                            )}
+                            {preview.source_url && (
+                                <a
+                                    href={preview.source_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="link link-primary"
+                                >
+                                    View source
+                                </a>
+                            )}
+                        </div>
+                        <div className="space-y-2 mt-4">
+                            <div className="text-sm">
+                                <span className="font-medium">Chunks:</span> {preview.chunks}
+                            </div>
+                            {preview.created_at && (
+                                <div className="text-sm">
+                                    <span className="font-medium">Created:</span>{' '}
+                                    {new Date(preview.created_at).toLocaleString()}
+                                </div>
+                            )}
+                            {preview.extractionStatus && (
+                                <div className="text-sm">
+                                    <span className="font-medium">Extraction:</span> {preview.extractionStatus}
+                                    {preview.extractionObjectsCount && ` (${preview.extractionObjectsCount} objects)`}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Document Content */}
+                        <div className="mt-6">
+                            <div className="mb-2 font-medium text-sm">Content:</div>
+                            {loadingPreviewContent ? (
+                                <div className="flex justify-center items-center py-8">
+                                    <span className="loading loading-spinner loading-md" />
+                                </div>
+                            ) : (
+                                <pre className="bg-base-200 p-4 rounded-box max-h-96 overflow-y-auto text-sm whitespace-pre-wrap">
+                                    {previewContent || '(empty)'}
+                                </pre>
+                            )}
+                        </div>
+
+                        <div className="modal-action">
+                            <button className="btn" onClick={() => setPreview(null)}>
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                    <form method="dialog" className="modal-backdrop" onSubmit={() => setPreview(null)}>
+                        <button>close</button>
+                    </form>
+                </dialog>
+            )}
         </OrgAndProjectGate>
     );
 }

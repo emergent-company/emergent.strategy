@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { Icon } from "@/components/atoms/Icon";
-import { PageTitle, LoadingEffect } from "@/components";
+import { LoadingEffect } from "@/components";
 import { useApi } from "@/hooks/use-api";
 import { useConfig } from "@/contexts/config";
 import { OrgAndProjectGate } from "@/components/organisms/OrgAndProjectGate";
@@ -143,15 +143,13 @@ export default function IntegrationsPage() {
 
     return (
         <OrgAndProjectGate>
-            <div data-testid="page-integrations" className="flex flex-col gap-6">
-                {/* Page Header */}
-                <div className="flex justify-between items-center">
-                    <div>
-                        <PageTitle title="Integrations" />
-                        <p className="mt-2 text-base-content/70">
-                            Connect external tools and services to sync data with your knowledge base
-                        </p>
-                    </div>
+            <div data-testid="page-integrations" className="mx-auto p-6 max-w-7xl container">
+                {/* Header */}
+                <div className="mb-6">
+                    <h1 className="font-bold text-2xl">Integrations</h1>
+                    <p className="mt-1 text-base-content/70">
+                        Connect external tools and services to sync data with your knowledge base
+                    </p>
                 </div>
 
                 {/* Error Alert */}
