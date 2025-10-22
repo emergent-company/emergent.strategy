@@ -2,6 +2,11 @@ const path = require('node:path');
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 
+// Use the project directory name as a prefix for PM2 app names
+// This allows multiple instances of the same project to run simultaneously
+const projectName = path.basename(repoRoot);
+const APP_PREFIX = `${projectName}-`;
+
 function resolveCwd(relativePath) {
     return path.join(repoRoot, relativePath);
 }
@@ -19,7 +24,7 @@ const DEFAULT_BACKOFF_INITIAL_MS = 5_000;
 /** @type {import('pm2').StartOptions[]} */
 const apps = [
     {
-        name: 'postgres-dependency',
+        name: `${APP_PREFIX}postgres-dependency`,
         namespace: 'workspace-cli-deps',
         script: 'docker',
         args: ['compose', 'up', 'db'],
@@ -42,7 +47,7 @@ const apps = [
         }
     },
     {
-        name: 'zitadel-dependency',
+        name: `${APP_PREFIX}zitadel-dependency`,
         namespace: 'workspace-cli-deps',
         script: 'docker',
         args: ['compose', 'up', 'zitadel'],

@@ -37,6 +37,13 @@ const dependencyEcosystem = require('../../pm2/ecosystem.dependencies.cjs') as E
 
 const execFileAsync = promisify(execFile);
 
+// Helper to get the project-specific prefix from the repo root directory name
+function getProjectPrefix(): string {
+  const repoRoot = path.resolve(process.cwd());
+  const projectName = path.basename(repoRoot);
+  return `${projectName}-`;
+}
+
 interface DockerComposeEntry {
   readonly Service: string;
   readonly State: string;
@@ -96,21 +103,24 @@ function resolveTargetDependencies(
 }
 
 function resolveApplicationProcessName(serviceId: string): EcosystemProcessConfig {
-  const match = applicationEcosystem.apps.find((entry) => entry.name === serviceId);
+  const prefix = getProjectPrefix();
+  const expectedName = `${prefix}${serviceId}`;
+  const match = applicationEcosystem.apps.find((entry) => entry.name === expectedName);
 
   if (!match) {
-    throw new Error(`Missing PM2 ecosystem entry for service ${serviceId}`);
+    throw new Error(`Missing PM2 ecosystem entry for service ${serviceId} (expected name: ${expectedName})`);
   }
 
   return match;
 }
 
 function resolveDependencyProcessName(dependencyId: string): EcosystemProcessConfig {
-  const expectedName = `${dependencyId}-dependency`;
+  const prefix = getProjectPrefix();
+  const expectedName = `${prefix}${dependencyId}-dependency`;
   const match = dependencyEcosystem.apps.find((entry) => entry.name === expectedName);
 
   if (!match) {
-    throw new Error(`Missing PM2 ecosystem entry for dependency ${dependencyId}`);
+    throw new Error(`Missing PM2 ecosystem entry for dependency ${dependencyId} (expected name: ${expectedName})`);
   }
 
   return match;

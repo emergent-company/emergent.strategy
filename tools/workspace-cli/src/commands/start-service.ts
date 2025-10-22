@@ -65,21 +65,32 @@ interface DependencyEcosystemModule {
 
 const dependencyEcosystemModule = require('../../pm2/ecosystem.dependencies.cjs') as DependencyEcosystemModule;
 
+// Helper to get the project-specific prefix from the repo root directory name
+function getProjectPrefix(): string {
+  const repoRoot = path.resolve(process.cwd());
+  const projectName = path.basename(repoRoot);
+  return `${projectName}-`;
+}
+
 function getEcosystemEntry(serviceId: string): EcosystemProcessConfig {
-  const entry = ecosystemModule.apps.find((app) => app.name === serviceId);
+  const prefix = getProjectPrefix();
+  const expectedName = `${prefix}${serviceId}`;
+  const entry = ecosystemModule.apps.find((app) => app.name === expectedName);
 
   if (!entry) {
-    throw new Error(`Missing PM2 ecosystem entry for service: ${serviceId}`);
+    throw new Error(`Missing PM2 ecosystem entry for service: ${serviceId} (expected name: ${expectedName})`);
   }
 
   return entry;
 }
 
 function getDependencyEcosystemEntry(dependencyId: string): DependencyEcosystemProcessConfig {
-  const entry = dependencyEcosystemModule.apps.find((app) => app.name === `${dependencyId}-dependency`);
+  const prefix = getProjectPrefix();
+  const expectedName = `${prefix}${dependencyId}-dependency`;
+  const entry = dependencyEcosystemModule.apps.find((app) => app.name === expectedName);
 
   if (!entry) {
-    throw new Error(`Missing PM2 ecosystem entry for dependency: ${dependencyId}`);
+    throw new Error(`Missing PM2 ecosystem entry for dependency: ${dependencyId} (expected name: ${expectedName})`);
   }
 
   return entry;
