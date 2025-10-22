@@ -22,8 +22,26 @@ interface Document {
     name: string;
     filename: string | null;
     source_url: string | null;
+    sourceUrl: string | null;
     mime_type: string | null;
-    created_at: string;
+    mimeType: string | null;
+    created_at: string | null;
+    createdAt: string | null;
+}
+
+// Helper to safely format dates
+function formatDate(dateString: string | null | undefined): string {
+    if (!dateString) return 'Unknown date';
+
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+            return 'Invalid date';
+        }
+        return date.toLocaleDateString();
+    } catch {
+        return 'Invalid date';
+    }
 }
 
 export function Step1_Configure({ projectId, config, onConfigChange, onStart, onCancel }: Step1Props) {
@@ -147,7 +165,7 @@ export function Step1_Configure({ projectId, config, onConfigChange, onStart, on
                     {documents.map((doc) => (
                         <label
                             key={doc.id}
-                            className="flex items-start gap-3 p-3 border hover:border-primary/50 border-base-300 rounded-lg transition-colors cursor-pointer"
+                            className="flex items-start gap-3 p-3 border border-base-300 hover:border-primary/50 rounded-lg transition-colors cursor-pointer"
                         >
                             <input
                                 type="checkbox"
@@ -159,18 +177,18 @@ export function Step1_Configure({ projectId, config, onConfigChange, onStart, on
                                 <div className="font-medium truncate">
                                     {doc.filename || doc.name || 'Untitled'}
                                 </div>
-                                {doc.source_url && (
+                                {(doc.source_url || doc.sourceUrl) && (
                                     <div className="mt-0.5 text-xs text-base-content/60 truncate">
-                                        {doc.source_url}
+                                        {doc.source_url || doc.sourceUrl}
                                     </div>
                                 )}
                                 <div className="flex items-center gap-2 mt-1 text-xs text-base-content/50">
-                                    {doc.mime_type && (
+                                    {(doc.mime_type || doc.mimeType) && (
                                         <span className="badge badge-ghost badge-xs">
-                                            {doc.mime_type}
+                                            {doc.mime_type || doc.mimeType}
                                         </span>
                                     )}
-                                    <span>{new Date(doc.created_at).toLocaleDateString()}</span>
+                                    <span>{formatDate(doc.createdAt || doc.created_at)}</span>
                                 </div>
                             </div>
                         </label>
@@ -184,7 +202,7 @@ export function Step1_Configure({ projectId, config, onConfigChange, onStart, on
             </div>
 
             {/* Advanced Settings */}
-            <div className="pt-4 border-t border-base-300">
+            <div className="pt-4 border-base-300 border-t">
                 <button
                     className="flex items-center gap-2 mb-3 btn btn-ghost btn-sm"
                     onClick={() => setShowAdvanced(!showAdvanced)}
