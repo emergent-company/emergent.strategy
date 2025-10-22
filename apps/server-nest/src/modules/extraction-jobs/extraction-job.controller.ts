@@ -259,6 +259,117 @@ export class ExtractionJobController {
     }
 
     /**
+     * Bulk cancel all jobs for a project
+     */
+    @Post('projects/:projectId/bulk-cancel')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Cancel all pending/running jobs',
+        description: 'Bulk cancel all pending and running extraction jobs for a project'
+    })
+    @ApiParam({ name: 'projectId', description: 'Project ID' })
+    @ApiResponse({
+        status: 200,
+        description: 'Jobs cancelled successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                cancelled: { type: 'number', example: 5 },
+                message: { type: 'string', example: 'Cancelled 5 jobs' }
+            }
+        }
+    })
+    @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @Scopes('extraction:write')
+    async bulkCancelJobs(
+        @Param('projectId') projectId: string,
+        @Req() req: Request
+    ): Promise<{ cancelled: number; message: string }> {
+        const resolvedProjectId = this.getProjectId(req, projectId);
+        const organizationId = this.getOrganizationId(req);
+
+        const cancelled = await this.jobService.bulkCancelJobs(resolvedProjectId, organizationId);
+        return {
+            cancelled,
+            message: `Cancelled ${cancelled} job${cancelled !== 1 ? 's' : ''}`
+        };
+    }
+
+    /**
+     * Bulk delete all completed/failed/cancelled jobs for a project
+     */
+    @Delete('projects/:projectId/bulk-delete')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Delete all completed/failed/cancelled jobs',
+        description: 'Bulk delete all extraction jobs that are completed, failed, or cancelled'
+    })
+    @ApiParam({ name: 'projectId', description: 'Project ID' })
+    @ApiResponse({
+        status: 200,
+        description: 'Jobs deleted successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                deleted: { type: 'number', example: 10 },
+                message: { type: 'string', example: 'Deleted 10 jobs' }
+            }
+        }
+    })
+    @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @Scopes('extraction:write')
+    async bulkDeleteJobs(
+        @Param('projectId') projectId: string,
+        @Req() req: Request
+    ): Promise<{ deleted: number; message: string }> {
+        const resolvedProjectId = this.getProjectId(req, projectId);
+        const organizationId = this.getOrganizationId(req);
+
+        const deleted = await this.jobService.bulkDeleteJobs(resolvedProjectId, organizationId);
+        return {
+            deleted,
+            message: `Deleted ${deleted} job${deleted !== 1 ? 's' : ''}`
+        };
+    }
+
+    /**
+     * Bulk retry all failed jobs for a project
+     */
+    @Post('projects/:projectId/bulk-retry')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Retry all failed jobs',
+        description: 'Bulk retry all extraction jobs with failed status'
+    })
+    @ApiParam({ name: 'projectId', description: 'Project ID' })
+    @ApiResponse({
+        status: 200,
+        description: 'Jobs reset for retry successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                retried: { type: 'number', example: 3 },
+                message: { type: 'string', example: 'Retrying 3 jobs' }
+            }
+        }
+    })
+    @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @Scopes('extraction:write')
+    async bulkRetryJobs(
+        @Param('projectId') projectId: string,
+        @Req() req: Request
+    ): Promise<{ retried: number; message: string }> {
+        const resolvedProjectId = this.getProjectId(req, projectId);
+        const organizationId = this.getOrganizationId(req);
+
+        const retried = await this.jobService.bulkRetryJobs(resolvedProjectId, organizationId);
+        return {
+            retried,
+            message: `Retrying ${retried} job${retried !== 1 ? 's' : ''}`
+        };
+    }
+
+    /**
      * Get job statistics for a project
      */
     @Get('projects/:projectId/statistics')
@@ -342,7 +453,7 @@ export class ExtractionJobController {
      */
     @Get(':jobId/logs')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Get detailed extraction logs',
         description: 'Retrieve step-by-step logs for an extraction job including LLM interactions, errors, and performance metrics'
     })

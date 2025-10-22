@@ -48,6 +48,7 @@ import { ChatGenerationService } from './chat-generation.service';
 import { McpClientService } from './mcp-client.service';
 import { McpToolDetectorService } from './mcp-tool-detector.service';
 import { McpToolSelectorService } from './mcp-tool-selector.service';
+import { GraphService } from '../graph/graph.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
 import { Scopes } from '../auth/scopes.decorator';
@@ -72,6 +73,65 @@ class CitationDto {
 
     @IsOptional()
     score?: number;
+}
+
+// Graph object DTOs for SSE events
+class GraphObjectDto {
+    @IsUUID()
+    id!: string;
+
+    @IsString()
+    type!: string;
+
+    @IsOptional()
+    @IsString()
+    key?: string;
+
+    @IsOptional()
+    properties?: Record<string, any>;
+
+    @IsOptional()
+    distance?: number;
+}
+
+/**
+ * Filter internal metadata fields from graph object properties.
+ * Removes fields starting with underscore (_extraction_*, _confidence, etc.)
+ * while keeping all user-defined properties.
+ * 
+ * @param obj Graph object from database
+ * @returns Graph object with filtered properties
+ */
+function filterGraphObjectMetadata(obj: any): any {
+    if (!obj || !obj.properties) return obj;
+
+    const filteredProperties: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj.properties)) {
+        // Keep all properties except those starting with underscore (internal metadata)
+        if (!key.startsWith('_')) {
+            filteredProperties[key] = value;
+        }
+    }
+
+    return {
+        id: obj.id,
+        type: obj.type,
+        key: obj.key,
+        properties: filteredProperties,
+        distance: obj.distance,
+        // Include additional fields that might be useful
+        labels: obj.labels,
+        created_at: obj.created_at,
+        version: obj.version,
+    };
+}
+
+class GraphObjectNeighborsDto {
+    @IsUUID()
+    objectId!: string;
+
+    @IsArray()
+    neighbors!: GraphObjectDto[];
 }
 
 // SSE event variants (union). Represent each possible frame shape for POST /chat/stream
@@ -104,7 +164,9 @@ class ChatStreamMcpToolEvent {
 class GetChatStreamMetaFrame { meta!: { chat_model_enabled: boolean; google_key: boolean } }
 class GetChatStreamTokenFrame { message!: string; index!: number; streaming?: boolean; total?: number }
 class GetChatStreamCitationsFrame { citations!: CitationDto[] }
-class GetChatStreamSummaryFrame { summary!: true; token_count!: number; citations_count!: number }
+class GetChatStreamGraphObjectsFrame { graphObjects!: GraphObjectDto[] }
+class GetChatStreamGraphNeighborsFrame { graphNeighbors!: Record<string, GraphObjectDto[]> }
+class GetChatStreamSummaryFrame { summary!: true; token_count!: number; citations_count!: number; graph_objects_count?: number }
 class GetChatStreamDoneFrame { done!: true; message!: string }
 class GetChatStreamErrorFrame { error!: { code: string; message: string }; done?: true }
 
@@ -112,6 +174,8 @@ class GetChatStreamErrorFrame { error!: { code: string; message: string }; done?
 @ApiExtraModels(
     ChatRequestDto,
     CitationDto,
+    GraphObjectDto,
+    GraphObjectNeighborsDto,
     ChatStreamMetaEvent,
     ChatStreamTokenEvent,
     ChatStreamErrorEvent,
@@ -120,6 +184,8 @@ class GetChatStreamErrorFrame { error!: { code: string; message: string }; done?
     GetChatStreamMetaFrame,
     GetChatStreamTokenFrame,
     GetChatStreamCitationsFrame,
+    GetChatStreamGraphObjectsFrame,
+    GetChatStreamGraphNeighborsFrame,
     GetChatStreamSummaryFrame,
     GetChatStreamDoneFrame,
     GetChatStreamErrorFrame,
@@ -134,7 +200,8 @@ export class ChatController {
         private readonly gen: ChatGenerationService,
         private readonly mcpClient: McpClientService,
         private readonly mcpDetector: McpToolDetectorService,
-        private readonly mcpSelector: McpToolSelectorService
+        private readonly mcpSelector: McpToolSelectorService,
+        private readonly graphService: GraphService
     ) { }
     private static readonly UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 
@@ -261,10 +328,79 @@ export class ChatController {
             res.write(`data: ${JSON.stringify({ error: { code: 'upstream-failed', message: 'Simulated upstream model failure' }, done: true })}\n\n`);
             return res.end();
         }
-        // DISABLED: Citation retrieval system (hybrid search) - will be replaced with graph search in future
-        // Pre-retrieval for contextual augmentation (move retrieval ahead of generation so model can use it)
-        let citations: any[] = []; // Keep for backward compatibility with SSE events
+
+        // Graph search for contextual augmentation - retrieves relevant knowledge graph objects
+        let graphObjects: any[] = [];
+        let graphNeighbors: Record<string, any[]> = {};
         const userQuestion = conv.messages?.[0]?.content || 'Hello';
+
+        // Feature flag to enable/disable graph search (default: enabled)
+        const graphSearchEnabled = process.env.CHAT_ENABLE_GRAPH_SEARCH !== '0';
+
+        // eslint-disable-next-line no-console
+        console.log('[stream] Starting graph search - enabled:', graphSearchEnabled, 'question:', userQuestion, 'projectId:', projectId, 'orgId:', orgId);
+
+        if (graphSearchEnabled) {
+            try {
+                // eslint-disable-next-line no-console
+                console.log('[stream] Calling graphService.searchObjectsWithNeighbors...');
+
+                const graphContext = await this.graphService.searchObjectsWithNeighbors(
+                    userQuestion,
+                    {
+                        limit: 5,
+                        includeNeighbors: true,
+                        maxNeighbors: 3,
+                        maxDistance: 0.5,
+                        projectId,
+                        orgId: orgId || undefined,
+                    }
+                );
+
+                // Filter metadata from objects and neighbors
+                graphObjects = graphContext.primaryResults.map(filterGraphObjectMetadata);
+                graphNeighbors = Object.fromEntries(
+                    Object.entries(graphContext.neighbors).map(([objId, neighbors]) => [
+                        objId,
+                        neighbors.map(filterGraphObjectMetadata)
+                    ])
+                );
+
+                // eslint-disable-next-line no-console
+                console.log('[stream] Graph search returned:', graphObjects.length, 'objects with', Object.keys(graphNeighbors).length, 'neighbor groups');
+
+                // Log first object with full properties for debugging
+                if (graphObjects.length > 0) {
+                    // eslint-disable-next-line no-console
+                    console.log('[stream] First object (full):', JSON.stringify(graphObjects[0], null, 2));
+                }
+
+                // Emit graph objects in SSE event
+                if (graphObjects.length > 0) {
+                    // eslint-disable-next-line no-console
+                    console.log('[stream] Emitting graphObjects SSE event...');
+                    res.write(`data: ${JSON.stringify({ graphObjects })}\n\n`);
+                }
+
+                // Emit graph neighbors in SSE event
+                if (Object.keys(graphNeighbors).length > 0) {
+                    // eslint-disable-next-line no-console
+                    console.log('[stream] Emitting graphNeighbors SSE event...');
+                    res.write(`data: ${JSON.stringify({ graphNeighbors })}\n\n`);
+                }
+            } catch (e) {
+                // eslint-disable-next-line no-console
+                console.error('[stream] Graph search FAILED:', (e as Error).message, (e as Error).stack);
+            }
+        } else {
+            // eslint-disable-next-line no-console
+            console.log('[stream] Graph search disabled (CHAT_ENABLE_GRAPH_SEARCH=0)');
+        }
+
+        // DISABLED: Legacy citation retrieval system (hybrid search)
+        // Citations are replaced by graph search for richer contextual knowledge
+        let citations: any[] = []; // Keep for backward compatibility with SSE events
+
         // Feature flag to re-enable citations if needed (default: disabled)
         const citationsEnabled = process.env.CHAT_ENABLE_CITATIONS === '1';
         if (citationsEnabled) {
@@ -292,8 +428,46 @@ export class ChatController {
             }
             try {
                 let idx = 0;
-                // UPDATED: Removed citation context - will be replaced with MCP schema context
-                const prompt = `You are a helpful assistant for querying knowledge graphs and schemas. Answer questions clearly and concisely.\n\nQuestion: ${userQuestion}\nAnswer:`;
+
+                // Build enhanced context from graph objects and neighbors
+                let contextParts: string[] = [];
+
+                // Add graph objects context
+                if (graphObjects.length > 0) {
+                    contextParts.push('**Relevant Knowledge Graph Objects:**\n');
+                    for (const obj of graphObjects) {
+                        const name = obj.properties?.name || obj.key || obj.id;
+                        const description = obj.properties?.description || '';
+                        contextParts.push(`- [${obj.type}] ${name}${description ? ': ' + description : ''}`);
+
+                        // Add neighbors for this object
+                        const neighbors = graphNeighbors[obj.id] || [];
+                        if (neighbors.length > 0) {
+                            contextParts.push(`  Related objects:`);
+                            for (const neighbor of neighbors.slice(0, 3)) {
+                                const neighborName = neighbor.properties?.name || neighbor.key || neighbor.id;
+                                contextParts.push(`    • [${neighbor.type}] ${neighborName}`);
+                            }
+                        }
+                    }
+                    contextParts.push('');
+                }
+
+                // Add citations context if available (for backward compatibility)
+                if (citations.length > 0) {
+                    contextParts.push('**Relevant Documents:**\n');
+                    for (const citation of citations) {
+                        contextParts.push(`- ${citation.text}`);
+                    }
+                    contextParts.push('');
+                }
+
+                const contextString = contextParts.length > 0
+                    ? `\n\nContext:\n${contextParts.join('\n')}\n`
+                    : '';
+
+                const prompt = `You are a helpful assistant for querying knowledge graphs and schemas. Answer questions clearly and concisely based on the provided context.${contextString}\nQuestion: ${userQuestion}\nAnswer:`;
+
                 const content = await this.gen.generateStreaming(prompt, (t) => {
                     const token = t;
                     tokens.push(token);
@@ -357,7 +531,12 @@ export class ChatController {
             // Swallow persistence errors to avoid breaking the stream
         }
         // Emit summary frame BEFORE final done marker to allow clients to surface stats progressively
-        const summary = { summary: true, token_count: tokens.length, citations_count: citations.length };
+        const summary = {
+            summary: true,
+            token_count: tokens.length,
+            citations_count: citations.length,
+            graph_objects_count: graphObjects.length
+        };
         res.write(`data: ${JSON.stringify(summary)}\n\n`);
         res.write(`data: ${JSON.stringify({ done: true, message: '[DONE]' })}\n\n`);
         res.end();
@@ -465,21 +644,111 @@ export class ChatController {
         res.setHeader('Connection', 'keep-alive');
         (res as any).flushHeaders?.();
 
-        // DISABLED: Citation retrieval (hybrid search) - will be replaced with graph search
-        // Retrieve citations (vector + lexical hybrid). Errors -> empty citations.
+        // Graph search for contextual augmentation - retrieves relevant knowledge graph objects
+        let graphObjects: any[] = [];
+        let graphNeighbors: Record<string, any[]> = {};
+
+        const graphSearchEnabled = process.env.CHAT_ENABLE_GRAPH_SEARCH !== '0';
+
+        // eslint-disable-next-line no-console
+        console.log('[stream-post] Starting graph search - enabled:', graphSearchEnabled, 'question:', message, 'projectId:', projectId, 'orgId:', orgId);
+
+        if (graphSearchEnabled) {
+            try {
+                // eslint-disable-next-line no-console
+                console.log('[stream-post] Calling graphService.searchObjectsWithNeighbors...');
+
+                const graphContext = await this.graphService.searchObjectsWithNeighbors(
+                    message,
+                    {
+                        limit: 5,
+                        includeNeighbors: true,
+                        maxNeighbors: 3,
+                        maxDistance: 0.5,
+                        projectId,
+                        orgId: orgId || undefined,
+                    }
+                );
+
+                // Filter metadata from objects and neighbors
+                graphObjects = graphContext.primaryResults.map(filterGraphObjectMetadata);
+                graphNeighbors = Object.fromEntries(
+                    Object.entries(graphContext.neighbors).map(([objId, neighbors]) => [
+                        objId,
+                        neighbors.map(filterGraphObjectMetadata)
+                    ])
+                );
+
+                // eslint-disable-next-line no-console
+                console.log('[stream-post] Graph search returned:', graphObjects.length, 'objects with', Object.keys(graphNeighbors).length, 'neighbor groups');
+
+                // Log first object with full properties for debugging
+                if (graphObjects.length > 0) {
+                    // eslint-disable-next-line no-console
+                    console.log('[stream-post] First object (full):', JSON.stringify(graphObjects[0], null, 2));
+                }
+            } catch (e) {
+                // eslint-disable-next-line no-console
+                console.error('[stream-post] Graph search FAILED:', (e as Error).message, (e as Error).stack);
+                this.logger.warn(`Graph search failed: ${(e as Error).message}`);
+            }
+        } else {
+            // eslint-disable-next-line no-console
+            console.log('[stream-post] Graph search disabled (CHAT_ENABLE_GRAPH_SEARCH=0)');
+        }
+
+        // DISABLED: Legacy citation retrieval (hybrid search)
+        // Citations are replaced by graph search for richer contextual knowledge
         let citations: any[] = []; // Keep for backward compatibility
         const citationsEnabled = process.env.CHAT_ENABLE_CITATIONS === '1';
         if (citationsEnabled) {
             try { citations = await this.chat.retrieveCitations(message, topK, orgId, projectId, filterIds) as any[]; } catch { citations = []; }
         }
-        // Emit meta frame first with conversationId (citations excluded when disabled)
+
+        // Build graph context string for LLM prompt (similar to GET endpoint)
+        let graphContextString: string | undefined;
+        if (graphObjects.length > 0) {
+            const contextParts: string[] = [];
+            contextParts.push('**Relevant Knowledge Graph Objects:**\n');
+            for (const obj of graphObjects) {
+                const name = obj.properties?.name || obj.key || obj.id;
+                const description = obj.properties?.description || '';
+                contextParts.push(`- [${obj.type}] ${name}${description ? ': ' + description : ''}`);
+
+                // Add neighbors for this object
+                const neighbors = graphNeighbors[obj.id] || [];
+                if (neighbors.length > 0) {
+                    contextParts.push(`  Related objects:`);
+                    for (const neighbor of neighbors.slice(0, 3)) {
+                        const neighborName = neighbor.properties?.name || neighbor.key || neighbor.id;
+                        contextParts.push(`    • [${neighbor.type}] ${neighborName}`);
+                    }
+                }
+            }
+            graphContextString = contextParts.join('\n');
+            // eslint-disable-next-line no-console
+            console.log('[stream-post] Built graph context string:', graphContextString.length, 'chars');
+        }
+
+        // Emit meta frame first with conversationId and graph objects
         try {
             const meta: any = { type: 'meta', conversationId: convId };
             if (citationsEnabled && citations.length) {
                 meta.citations = citations;
             }
+            if (graphSearchEnabled && graphObjects.length) {
+                // eslint-disable-next-line no-console
+                console.log('[stream-post] Adding', graphObjects.length, 'graphObjects to meta frame');
+                meta.graphObjects = graphObjects;
+                meta.graphNeighbors = graphNeighbors;
+            }
+            // eslint-disable-next-line no-console
+            console.log('[stream-post] Emitting meta frame:', Object.keys(meta));
             res.write(`data: ${JSON.stringify(meta)}\n\n`);
-        } catch { /* ignore */ }
+        } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('[stream-post] Failed to emit meta frame:', (e as Error).message);
+        }
 
         // MCP Tool Detection & Execution
         // Detect if message is a schema-related query that should invoke MCP tools
@@ -606,12 +875,18 @@ export class ChatController {
         const canGenerate = this.gen.enabled && this.gen.hasKey;
         if (canGenerate) {
             try {
-                // Build prompt using enhanced prompt builder with MCP context and detected intent
-                const prompt = this.gen.buildPrompt({
+                // Build prompt using enhanced prompt builder with MCP context, graph context, detected intent, and custom template from project settings
+                const prompt = await this.gen.buildPrompt({
                     message,
                     mcpToolContext,
-                    detectedIntent
+                    graphContext: graphContextString,
+                    detectedIntent,
+                    projectId: projectId || undefined
                 });
+
+                // Log prompt preview for debugging
+                // eslint-disable-next-line no-console
+                console.log('[stream-post] Prompt preview (first 500 chars):', prompt.substring(0, 500));
 
                 await this.gen.generateStreaming(prompt, (t) => {
                     tokens.push(t);

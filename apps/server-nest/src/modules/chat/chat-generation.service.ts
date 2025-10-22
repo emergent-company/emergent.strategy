@@ -1,9 +1,26 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AppConfigService } from '../../common/config/config.service';
 import { ChatVertexAI } from '@langchain/google-vertexai';
+import { ProjectsService } from '../projects/projects.service';
 
 // NOTE: We reuse embeddings client initialization trick for simplicity; for a full model we'd use a proper text generation client.
 // For now emulate streaming by splitting the single model response into tokens.
+
+/**
+ * Default prompt template used when no custom template is set for the project.
+ * Supports placeholders: {{SYSTEM_PROMPT}}, {{MCP_CONTEXT}}, {{GRAPH_CONTEXT}}, {{MESSAGE}}, {{MARKDOWN_RULES}}
+ */
+const DEFAULT_PROMPT_TEMPLATE = `{{SYSTEM_PROMPT}}
+
+{{MCP_CONTEXT}}
+
+{{GRAPH_CONTEXT}}
+
+## User Question
+
+{{MESSAGE}}
+
+{{MARKDOWN_RULES}}`;
 
 /**
  * Options for building prompts with optional MCP tool context
@@ -13,39 +30,65 @@ export interface PromptBuildOptions {
     message: string;
     /** Optional context from MCP tool execution (e.g., schema data) */
     mcpToolContext?: string;
+    /** Optional context from graph search (relevant objects and neighbors) */
+    graphContext?: string;
     /** Optional detected intent for specialized prompt templates */
     detectedIntent?: 'schema-version' | 'schema-changes' | 'type-info' | 'entity-query' | 'entity-list' | 'general';
     /** Optional list of available entity types with counts */
     availableEntityTypes?: Array<{ name: string; description: string; count: number }>;
+    /** Optional project ID to fetch custom prompt template */
+    projectId?: string;
 }
 
 @Injectable()
 export class ChatGenerationService {
     private readonly logger = new Logger(ChatGenerationService.name);
-    constructor(private readonly config: AppConfigService) { }
+    constructor(
+        private readonly config: AppConfigService,
+        private readonly projectsService: ProjectsService
+    ) { }
 
     get enabled(): boolean { return this.config.chatModelEnabled; }
 
     /**
      * Check if we have authentication configured for the chat model.
-     * Supports both direct Google API key and Vertex AI project credentials.
+     * Uses Vertex AI project credentials.
      */
     get hasKey(): boolean {
-        return !!this.config.googleApiKey || !!this.config.vertexAiProjectId;
+        return !!this.config.vertexAiProjectId;
     }
 
     /**
      * Build a well-structured prompt for the LLM based on the query type and available context.
      * This method creates specialized prompts for different schema query types.
      * 
-     * @param options - Options containing message, MCP context, and detected intent
+     * If a projectId is provided, attempts to fetch custom prompt template from project settings.
+     * Falls back to default template if no custom template is configured.
+     * 
+     * @param options - Options containing message, MCP context, detected intent, and optional projectId
      * @returns Formatted prompt string ready for LLM generation
      */
-    buildPrompt(options: PromptBuildOptions): string {
-        const { message, mcpToolContext, detectedIntent } = options;
+    async buildPrompt(options: PromptBuildOptions): Promise<string> {
+        const { message, mcpToolContext, graphContext, detectedIntent, projectId } = options;
 
-        // Base system prompt for all queries with explicit markdown instruction
-        let systemPrompt = 'You are a helpful assistant specialized in knowledge graphs and data schemas. IMPORTANT: Always respond using proper markdown formatting.';
+        // Fetch custom template if projectId provided
+        let template = DEFAULT_PROMPT_TEMPLATE;
+        if (projectId) {
+            const project = await this.projectsService.getById(projectId);
+            if (project?.chat_prompt_template) {
+                template = project.chat_prompt_template;
+                this.logger.debug(`Using custom prompt template for project ${projectId}`);
+            }
+        }
+
+        // Build system prompt with intent-specific instructions
+        let systemPrompt = this.config.chatSystemPrompt
+            || 'You are a helpful assistant specialized in knowledge graphs and data schemas. IMPORTANT: Always respond using proper markdown formatting.';
+
+        // Replace template variables in custom prompt
+        if (this.config.chatSystemPrompt && detectedIntent) {
+            systemPrompt = systemPrompt.replace('{detectedIntent}', detectedIntent);
+        }
 
         // Add intent-specific instructions
         switch (detectedIntent) {
@@ -77,29 +120,41 @@ export class ChatGenerationService {
                 systemPrompt += ' Answer questions clearly using markdown formatting: headings (# ## ###), lists (- or 1.), **bold**, `code`, etc.';
         }
 
-        // Start building the prompt
-        let prompt = systemPrompt;
-
-        // Add MCP tool context if available
+        // Build MCP context section
+        let mcpContextSection = '';
         if (mcpToolContext && mcpToolContext.trim()) {
-            prompt += '\n\n## Context from Schema\n\n';
-            prompt += this.formatToolContext(mcpToolContext, detectedIntent);
+            mcpContextSection = '## Context from Schema\n\n' + this.formatToolContext(mcpToolContext, detectedIntent);
         }
 
-        // Add the user's question
-        prompt += '\n\n## User Question\n\n';
-        prompt += message;
+        // Build graph context section
+        let graphContextSection = '';
+        if (graphContext && graphContext.trim()) {
+            graphContextSection = '## Context from Knowledge Graph\n\n' + graphContext;
+        }
 
-        // Add response instruction with markdown formatting examples
-        prompt += '\n\n## Your Response\n\n';
-        prompt += 'Provide a helpful, accurate answer based on the context above. Use proper markdown formatting:\n';
-        prompt += '- Use ### for headings\n';
-        prompt += '- Use - or * for unordered lists (with space after)\n';
-        prompt += '- Use 1. 2. 3. for ordered lists\n';
-        prompt += '- Use **text** for bold\n';
-        prompt += '- Use `code` for inline code\n';
-        prompt += '- Use proper blank lines between sections\n\n';
-        prompt += 'Your markdown formatted answer:';
+        // Build markdown rules section
+        const markdownRules = `## Your Response
+
+Provide a helpful, accurate answer based on the context above. Use proper markdown formatting:
+- Use ### for headings
+- Use - or * for unordered lists (with space after)
+- Use 1. 2. 3. for ordered lists
+- Use **text** for bold
+- Use \`code\` for inline code
+- Use proper blank lines between sections
+
+Your markdown formatted answer:`;
+
+        // Replace placeholders in template
+        let prompt = template
+            .replace(/\{\{SYSTEM_PROMPT\}\}/g, systemPrompt)
+            .replace(/\{\{MCP_CONTEXT\}\}/g, mcpContextSection)
+            .replace(/\{\{GRAPH_CONTEXT\}\}/g, graphContextSection)
+            .replace(/\{\{MESSAGE\}\}/g, message)
+            .replace(/\{\{MARKDOWN_RULES\}\}/g, markdownRules);
+
+        // Clean up any double newlines that might have been introduced
+        prompt = prompt.replace(/\n{3,}/g, '\n\n');
 
         return prompt;
     }

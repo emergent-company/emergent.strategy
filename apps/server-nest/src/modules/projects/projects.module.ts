@@ -9,5 +9,6 @@ import { TemplatePackModule } from '../template-packs/template-pack.module';
     imports: [AuthModule, TemplatePackModule],
     controllers: [ProjectsController],
     providers: [ProjectsService],
+    exports: [ProjectsService], // Export so other modules can inject ProjectsService
 })
 export class ProjectsModule { }

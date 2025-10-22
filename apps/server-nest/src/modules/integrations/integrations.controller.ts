@@ -261,6 +261,67 @@ export class IntegrationsController {
     }
 
     /**
+     * Trigger integration sync/import with real-time progress (SSE)
+     * 
+     * GET /integrations/:name/sync/stream
+     * Headers: X-Project-ID, X-Org-ID
+     * 
+     * Returns Server-Sent Events (SSE) stream with progress updates:
+     * - event: progress, data: { step: 'fetching_docs', message: '...', count?: number }
+     * - event: complete, data: { success: true, result: ImportResult }
+     * - event: error, data: { error: string }
+     */
+    @Get(':name/sync/stream')
+    @Scopes('integrations:write')
+    @ApiOperation({
+        summary: 'Trigger integration sync with real-time progress (SSE)',
+        description: 'Starts a sync and streams progress updates via Server-Sent Events'
+    })
+    @ApiParam({ name: 'name', description: 'Integration name (e.g., "clickup")' })
+    @ApiResponse({ status: 200, description: 'SSE stream started' })
+    async triggerSyncStream(
+        @Req() req: Request & { res: any },
+        @Param('name') name: string
+    ): Promise<void> {
+        const projectId = req.headers['x-project-id'] as string;
+        const orgId = req.headers['x-org-id'] as string;
+        const res = req.res;
+
+        // Set SSE headers
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+
+        // Helper to send SSE events
+        const sendEvent = (event: string, data: any) => {
+            res.write(`event: ${event}\n`);
+            res.write(`data: ${JSON.stringify(data)}\n\n`);
+        };
+
+        try {
+            // Start sync with progress callback
+            const result = await this.integrationsService.triggerSyncWithProgress(
+                name,
+                projectId,
+                orgId,
+                {},
+                (progress) => {
+                    sendEvent('progress', progress);
+                }
+            );
+
+            // Send completion event
+            sendEvent('complete', { success: true, result });
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            sendEvent('error', { error: errorMessage });
+        } finally {
+            res.end();
+        }
+    }
+
+    /**
      * Trigger integration sync/import
      * 
      * POST /integrations/:name/sync

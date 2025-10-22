@@ -99,11 +99,12 @@ async function bootstrap() {
     const configService = app.get(AppConfigService);
     // Log chat model enablement state (always) for clarity during startup
     const chatEnabled = configService.chatModelEnabled;
-    const keyPresent = !!configService.googleApiKey;
+    const embeddingProvider = process.env.EMBEDDING_PROVIDER || 'unset';
     const chatModelInfo = {
         enabled: chatEnabled,
-        googleApiKey: keyPresent ? 'present' : 'missing',
+        embeddingProvider: embeddingProvider,
         CHAT_MODEL_ENABLED_env: process.env.CHAT_MODEL_ENABLED || 'unset',
+        VERTEX_AI_PROJECT_ID: process.env.VERTEX_AI_PROJECT_ID ? 'present' : 'missing',
     };
 
     fileLogger.log(`[startup] chat-model: ${JSON.stringify(chatModelInfo)}`, 'Bootstrap');

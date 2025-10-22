@@ -5,31 +5,19 @@ import {
     ClickUpFolder,
     ClickUpSpace,
     ClickUpWorkspace,
+    ClickUpDoc,
+    ClickUpPage,
 } from './clickup.types';
-
-/**
- * Internal Document Type
- * 
- * Simplified representation for mapping external data
- * Includes source tracking metadata per docs/spec/22-clickup-integration.md section 3.3.1
- */
-interface InternalDocument {
-    external_id: string;
-    external_type: string;
-    external_source: string; // Always "clickup" for this integration
-    external_url?: string; // Direct link to ClickUp object
-    external_parent_id?: string; // Parent object's external ID
-    external_updated_at?: Date; // Last modified in ClickUp
-    title: string;
-    content: string;
-    metadata: Record<string, any>;
-    url?: string; // Deprecated: use external_url instead
-}
+import { InternalDocument } from '../integrations/document-hierarchy.types';
 
 /**
  * ClickUp Data Mapper Service
  * 
- * Maps ClickUp entities to internal knowledge base structure.
+ * Maps ClickUp entities to generic internal document structure.
+ * 
+ * This mapper demonstrates how ANY integration can use the generic
+ * InternalDocument interface to preserve hierarchical relationships
+ * while storing source-specific metadata.
  * 
  * Mapping Strategy:
  * - ClickUp Workspace → Organization metadata
@@ -339,5 +327,117 @@ export class ClickUpDataMapper {
         parts.push(task.id);
 
         return parts.join('/');
+    }
+
+    /**
+     * Build ClickUp URL for a doc
+     */
+    private buildDocUrl(workspaceId: string, docId: string): string {
+        return `https://app.clickup.com/${workspaceId}/v/dc/${docId}`;
+    }
+
+    /**
+     * Map ClickUp Doc to internal document
+     * 
+     * Docs are top-level containers in ClickUp v3 API.
+     * They can belong to a space, folder, or list (parent.type = 6, 5, or 4)
+     */
+    mapDoc(doc: ClickUpDoc): InternalDocument {
+        const metadata: Record<string, any> = {
+            clickup_id: doc.id,
+            workspace_id: doc.workspace_id,
+            creator_id: doc.creator_id,
+            date_created: doc.date_created,
+            date_updated: doc.date_updated,
+            archived: doc.archived,
+            deleted: doc.deleted,
+            protected: doc.protected,
+            parent_type: doc.parent.type,
+            parent_id: doc.parent.id,
+        };
+
+        // Avatar (emoji or icon)
+        if (doc.avatar) {
+            metadata.avatar = doc.avatar.value;
+        }
+
+        return {
+            external_id: doc.id,
+            external_type: 'clickup_doc',
+            external_source: 'clickup',
+            external_url: this.buildDocUrl(doc.workspace_id, doc.id),
+            external_parent_id: doc.parent.id, // Points to space/folder/list
+            external_updated_at: new Date(doc.date_updated),
+            title: doc.name,
+            content: `ClickUp Doc: ${doc.name}`,
+            metadata,
+        };
+    }
+
+    /**
+     * Map ClickUp Page to internal document
+     * 
+     * Pages are the actual content within docs.
+     * They can be nested (parent_page_id) and contain rich markdown.
+     * 
+     * @param page The page to map
+     * @param docId The parent doc ID
+     * @param workspaceId The workspace ID for URL construction
+     * @param parentDocumentId Optional: Internal document ID of parent page (for hierarchy)
+     */
+    mapPage(
+        page: ClickUpPage,
+        docId: string,
+        workspaceId: string,
+        parentDocumentId?: string,
+    ): InternalDocument {
+        const metadata: Record<string, any> = {
+            clickup_page_id: page.page_id,
+            clickup_doc_id: docId,
+            workspace_id: workspaceId,
+            creator_id: page.creator_id,
+            date_created: page.date_created,
+            date_updated: page.date_updated,
+            archived: page.archived,
+            protected: page.protected,
+        };
+
+        // Parent page reference (for nested pages)
+        if (page.parent_page_id) {
+            metadata.parent_page_id = page.parent_page_id;
+        }
+
+        // Avatar (emoji or icon)
+        if (page.avatar) {
+            metadata.avatar = page.avatar.value;
+        }
+
+        // Cover image
+        if (page.cover) {
+            metadata.cover = {
+                type: page.cover.type,
+                value: page.cover.value,
+            };
+        }
+
+        // Presentation settings (for slides)
+        if (page.presentation_details) {
+            metadata.presentation_details = page.presentation_details;
+        }
+
+        // Build URL: workspace/doc/page
+        const pageUrl = `https://app.clickup.com/${workspaceId}/v/dc/${docId}/${page.page_id}`;
+
+        return {
+            external_id: page.page_id,
+            external_type: 'clickup_page',
+            external_source: 'clickup',
+            external_url: pageUrl,
+            external_parent_id: page.parent_page_id || docId, // Parent page or doc
+            external_updated_at: new Date(page.date_updated),
+            title: page.name,
+            content: page.content || `ClickUp Page: ${page.name}`,
+            metadata,
+        };
     }
 }

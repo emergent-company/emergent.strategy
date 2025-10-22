@@ -9,9 +9,11 @@ import { EmbeddingsModule } from '../embeddings/embeddings.module';
 import { DatabaseModule } from '../../common/database/database.module';
 import { AppConfigModule } from '../../common/config/config.module';
 import { AuthModule } from '../auth/auth.module';
+import { GraphModule } from '../graph/graph.module';
+import { ProjectsModule } from '../projects/projects.module';
 
 @Module({
-    imports: [EmbeddingsModule, DatabaseModule, AppConfigModule, AuthModule],
+    imports: [EmbeddingsModule, DatabaseModule, AppConfigModule, AuthModule, GraphModule, ProjectsModule],
     controllers: [ChatController],
     providers: [
         ChatService,

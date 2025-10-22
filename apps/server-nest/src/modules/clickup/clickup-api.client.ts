@@ -11,6 +11,9 @@ import {
     ClickUpList,
     ClickUpFolder,
     ClickUpSpace,
+    // v3 API types for Docs
+    ClickUpDoc,
+    ClickUpPage,
 } from './clickup.types';
 
 /**
@@ -342,5 +345,125 @@ export class ClickUpApiClient {
      */
     isConfigured(): boolean {
         return this.client !== null && this.apiToken !== null;
+    }
+
+    // ============================================================================
+    // ClickUp API v3 - Docs Endpoints
+    // ============================================================================
+
+    /**
+     * Get all docs in a workspace (v3 API)
+     * @param workspaceId - The workspace ID
+     * @param cursor - Optional pagination cursor
+     * @returns List of docs with pagination cursor
+     */
+    async getDocs(
+        workspaceId: string,
+        cursor?: string
+    ): Promise<{ docs: ClickUpDoc[]; next_cursor?: string }> {
+        const params: any = {};
+        if (cursor) {
+            params.cursor = cursor;
+        }
+
+        return this.requestV3<{ docs: ClickUpDoc[]; next_cursor?: string }>(
+            'GET',
+            `/workspaces/${workspaceId}/docs`,
+            undefined,
+            params
+        );
+    }
+
+    /**
+     * Get a specific doc (v3 API)
+     * @param workspaceId - The workspace ID
+     * @param docId - The doc ID
+     * @returns Doc details
+     */
+    async getDoc(workspaceId: string, docId: string): Promise<ClickUpDoc> {
+        return this.requestV3<ClickUpDoc>(
+            'GET',
+            `/workspaces/${workspaceId}/docs/${docId}`
+        );
+    }
+
+    /**
+     * Get pages for a doc (v3 API)
+     * @param workspaceId - The workspace ID
+     * @param docId - The doc ID
+     * @returns Array of pages (may be nested with child pages)
+     */
+    async getDocPages(workspaceId: string, docId: string): Promise<ClickUpPage[]> {
+        return this.requestV3<ClickUpPage[]>(
+            'GET',
+            `/workspaces/${workspaceId}/docs/${docId}/pages`
+        );
+    }
+
+    /**
+     * Get a specific page from a doc (v3 API)
+     * @param workspaceId - The workspace ID
+     * @param docId - The doc ID
+     * @param pageId - The page ID
+     * @returns Page details with full content
+     */
+    async getPage(
+        workspaceId: string,
+        docId: string,
+        pageId: string
+    ): Promise<ClickUpPage> {
+        return this.requestV3<ClickUpPage>(
+            'GET',
+            `/workspaces/${workspaceId}/docs/${docId}/pages/${pageId}`
+        );
+    }
+
+    /**
+     * Make a request to ClickUp API v3
+     */
+    private async requestV3<T>(
+        method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+        endpoint: string,
+        data?: any,
+        params?: any
+    ): Promise<T> {
+        if (!this.isConfigured()) {
+            throw new Error('ClickUp API client is not configured. Set CLICKUP_API_TOKEN.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            // Create a v3 client instance with the same config but different base URL
+            const v3Client = axios.create({
+                baseURL: 'https://api.clickup.com/api/v3',
+                headers: {
+                    'Authorization': this.apiToken!,
+                    'Content-Type': 'application/json',
+                },
+                timeout: 30000,
+            });
+
+            const response = await v3Client.request<T>({
+                method,
+                url: endpoint,
+                data,
+                params,
+            });
+
+            return response.data;
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                const axiosError = error as AxiosError;
+                this.logger.error(
+                    `ClickUp API v3 error: ${axiosError.message}`,
+                    axiosError.response?.data
+                );
+                throw new Error(
+                    `ClickUp API v3 failed: ${axiosError.message}`
+                );
+            }
+            throw error;
+        }
     }
 }

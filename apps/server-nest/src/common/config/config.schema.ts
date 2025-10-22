@@ -4,13 +4,9 @@ import { IsBoolean, IsNumber, IsOptional, IsString, validateSync } from 'class-v
 const FALLBACK_EXTRACTION_TEMPLATE_PACK_ID = '1f6f6267-0d2c-4e2f-9fdb-7f0481219775';
 
 export class EnvVariables {
-    @IsString()
-    @IsOptional()
-    GOOGLE_API_KEY?: string;
-
     @IsBoolean()
     @IsOptional()
-    CHAT_MODEL_ENABLED?: boolean; // when true and GOOGLE_API_KEY present, stream real model output
+    CHAT_MODEL_ENABLED?: boolean; // when true and VERTEX_AI_PROJECT_ID present, stream real model output
 
     @IsString()
     PGHOST!: string;
@@ -62,6 +58,11 @@ export class EnvVariables {
     @IsString()
     @IsOptional()
     VERTEX_AI_MODEL?: string;
+
+    // --- Chat System Prompts ---
+    @IsString()
+    @IsOptional()
+    CHAT_SYSTEM_PROMPT?: string;
 
     // --- Extraction Worker Behavior ---
     @IsBoolean()
@@ -136,6 +137,7 @@ export function validate(config: Record<string, unknown>): EnvVariables {
         VERTEX_AI_PROJECT_ID: process.env.VERTEX_AI_PROJECT_ID,
         VERTEX_AI_LOCATION: process.env.VERTEX_AI_LOCATION,
         VERTEX_AI_MODEL: process.env.VERTEX_AI_MODEL,
+        CHAT_SYSTEM_PROMPT: process.env.CHAT_SYSTEM_PROMPT,
         EXTRACTION_WORKER_ENABLED: process.env.EXTRACTION_WORKER_ENABLED,
         EXTRACTION_WORKER_POLL_INTERVAL_MS: process.env.EXTRACTION_WORKER_POLL_INTERVAL_MS || '5000',
         EXTRACTION_WORKER_BATCH_SIZE: process.env.EXTRACTION_WORKER_BATCH_SIZE || '5',

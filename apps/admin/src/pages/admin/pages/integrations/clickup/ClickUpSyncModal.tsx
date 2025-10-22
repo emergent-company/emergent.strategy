@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '@/components/atoms/Icon';
 import type { IntegrationsClient, ClickUpWorkspaceStructure, TriggerSyncResponse } from '@/api/integrations';
-import { WorkspaceTree } from './WorkspaceTree';
+import { WorkspaceTree, type SelectionMode } from './WorkspaceTree';
 import { ImportConfigForm, type ImportConfig } from './ImportConfigForm';
 import { ImportProgress } from './ImportProgress';
 
@@ -16,7 +16,7 @@ type SyncStep = 'select' | 'configure' | 'progress' | 'complete';
 export function ClickUpSyncModal({ client, onClose, onSuccess }: ClickUpSyncModalProps) {
     const [step, setStep] = useState<SyncStep>('select');
     const [structure, setStructure] = useState<ClickUpWorkspaceStructure | null>(null);
-    const [selectedListIds, setSelectedListIds] = useState<string[]>([]);
+    const [selectedSpaceIds, setSelectedSpaceIds] = useState<string[]>([]);
     const [config, setConfig] = useState<ImportConfig>({
         includeArchived: false,
         batchSize: 100,
@@ -47,10 +47,11 @@ export function ClickUpSyncModal({ client, onClose, onSuccess }: ClickUpSyncModa
 
     const handleNext = () => {
         if (step === 'select') {
-            if (selectedListIds.length === 0) {
-                setError('Please select at least one list to import');
+            if (selectedSpaceIds.length === 0) {
+                setError('Please select at least one space to import');
                 return;
             }
+
             setError(null);
             setStep('configure');
         } else if (step === 'configure') {
@@ -71,7 +72,7 @@ export function ClickUpSyncModal({ client, onClose, onSuccess }: ClickUpSyncModa
 
         try {
             const result = await client.triggerSync('clickup', {
-                list_ids: selectedListIds,
+                space_ids: selectedSpaceIds,  // Now using space_ids instead of list_ids
                 includeArchived: config.includeArchived,
                 batchSize: config.batchSize,
             });
@@ -94,7 +95,7 @@ export function ClickUpSyncModal({ client, onClose, onSuccess }: ClickUpSyncModa
     const getStepTitle = () => {
         switch (step) {
             case 'select':
-                return 'Select Lists to Import';
+                return 'Select Spaces to Import';
             case 'configure':
                 return 'Configure Import Options';
             case 'progress':
@@ -160,14 +161,20 @@ export function ClickUpSyncModal({ client, onClose, onSuccess }: ClickUpSyncModa
                                         <p className="text-sm text-base-content/70">
                                             Workspace: <span className="font-semibold">{structure.workspace.name}</span>
                                         </p>
-                                        <div className="text-sm text-base-content/70">
-                                            Selected: <span className="font-semibold text-primary">{selectedListIds.length}</span> lists
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-sm text-base-content/70">
+                                                Selected: <span className="font-semibold text-primary">
+                                                    {selectedSpaceIds.length} {selectedSpaceIds.length === 1 ? 'space' : 'spaces'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
+
                                     <WorkspaceTree
                                         structure={structure}
-                                        selectedListIds={selectedListIds}
-                                        onSelectionChange={setSelectedListIds}
+                                        selectedSpaceIds={selectedSpaceIds}
+                                        onSpaceSelectionChange={setSelectedSpaceIds}
+                                        mode="spaces"
                                     />
                                 </>
                             ) : (
@@ -187,7 +194,9 @@ export function ClickUpSyncModal({ client, onClose, onSuccess }: ClickUpSyncModa
                             <div className="mb-4 alert alert-info">
                                 <Icon icon="lucide--info" className="w-5 h-5" />
                                 <div>
-                                    <div className="font-semibold">Selected {selectedListIds.length} lists</div>
+                                    <div className="font-semibold">
+                                        Selected {selectedSpaceIds.length} {selectedSpaceIds.length === 1 ? 'space' : 'spaces'}
+                                    </div>
                                     <div className="text-sm">Configure import options below</div>
                                 </div>
                             </div>
@@ -250,7 +259,7 @@ export function ClickUpSyncModal({ client, onClose, onSuccess }: ClickUpSyncModa
                             <button
                                 className="btn btn-primary"
                                 onClick={handleNext}
-                                disabled={loading || selectedListIds.length === 0}
+                                disabled={loading || selectedSpaceIds.length === 0}
                                 data-testid="clickup-sync-next-button"
                             >
                                 Next
