@@ -6031,6 +6031,263 @@
         ]
       }
     },
+    "/monitoring/extraction-jobs": {
+      "get": {
+        "operationId": "listExtractionJobs",
+        "summary": "List extraction jobs with metrics",
+        "parameters": [
+          {
+            "name": "type",
+            "required": true,
+            "in": "query",
+            "description": "Type of resource to query",
+            "schema": {
+              "example": "extraction_job",
+              "enum": [
+                "extraction_job",
+                "chat_session",
+                "frontend_session"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "example": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "minimum": 0,
+              "default": 0,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter by status",
+            "schema": {
+              "example": "completed",
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_from",
+            "required": false,
+            "in": "query",
+            "description": "Filter by date from (ISO 8601)",
+            "schema": {
+              "example": "2025-10-01T00:00:00Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_to",
+            "required": false,
+            "in": "query",
+            "description": "Filter by date to (ISO 8601)",
+            "schema": {
+              "example": "2025-10-31T23:59:59Z",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "monitoring"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/monitoring/extraction-jobs/{id}": {
+      "get": {
+        "operationId": "getExtractionJobDetail",
+        "summary": "Get extraction job details with logs and LLM calls",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceDetailResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found"
+          }
+        },
+        "tags": [
+          "monitoring"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/monitoring/extraction-jobs/{id}/logs": {
+      "get": {
+        "operationId": "getExtractionJobLogs",
+        "summary": "Get process logs for extraction job",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "level",
+            "required": false,
+            "in": "query",
+            "description": "Filter by log level",
+            "schema": {
+              "example": "info",
+              "enum": [
+                "debug",
+                "info",
+                "warn",
+                "error",
+                "fatal"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of log entries to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100,
+              "example": 100,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "description": "Number of log entries to skip",
+            "schema": {
+              "minimum": 0,
+              "default": 0,
+              "example": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogEntryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "monitoring"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/monitoring/extraction-jobs/{id}/llm-calls": {
+      "get": {
+        "operationId": "getExtractionJobLLMCalls",
+        "summary": "Get LLM calls for extraction job",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LLMCallDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "monitoring"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/chat/conversations": {
       "get": {
         "operationId": "listConversations",
@@ -9821,6 +10078,263 @@
         },
         "required": [
           "until"
+        ]
+      },
+      "ExtractionJobResourceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "documentId": {
+            "type": "string",
+            "example": "doc_456"
+          },
+          "status": {
+            "type": "string",
+            "example": "completed",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "totalItems": {
+            "type": "number",
+            "example": 5
+          },
+          "processedItems": {
+            "type": "number",
+            "example": 5
+          },
+          "successfulItems": {
+            "type": "number",
+            "example": 5
+          },
+          "failedItems": {
+            "type": "number",
+            "example": 0
+          },
+          "startedAt": {
+            "type": "string",
+            "example": "2025-10-22T10:30:00Z"
+          },
+          "completedAt": {
+            "type": "string",
+            "example": "2025-10-22T10:35:00Z"
+          },
+          "totalCostUsd": {
+            "type": "number",
+            "example": 0.0125
+          }
+        },
+        "required": [
+          "id",
+          "documentId",
+          "status",
+          "totalItems",
+          "processedItems",
+          "successfulItems",
+          "failedItems",
+          "startedAt"
+        ]
+      },
+      "ResourceListResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtractionJobResourceDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 42
+          },
+          "limit": {
+            "type": "number",
+            "example": 50
+          },
+          "offset": {
+            "type": "number",
+            "example": 0
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ]
+      },
+      "LogEntryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "processId": {
+            "type": "string",
+            "example": "job_123"
+          },
+          "processType": {
+            "type": "string",
+            "example": "extraction_job"
+          },
+          "level": {
+            "type": "string",
+            "example": "info",
+            "enum": [
+              "debug",
+              "info",
+              "warn",
+              "error",
+              "fatal"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "example": "Job processing started"
+          },
+          "metadata": {
+            "type": "object",
+            "example": {
+              "step": "extraction",
+              "entity_count": 5
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "example": "2025-10-22T10:30:00Z"
+          }
+        },
+        "required": [
+          "id",
+          "processId",
+          "processType",
+          "level",
+          "message",
+          "timestamp"
+        ]
+      },
+      "LLMCallDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "processId": {
+            "type": "string",
+            "example": "job_123"
+          },
+          "processType": {
+            "type": "string",
+            "example": "extraction_job"
+          },
+          "modelName": {
+            "type": "string",
+            "example": "gemini-1.5-pro"
+          },
+          "requestPayload": {
+            "type": "object",
+            "example": {
+              "prompt": "Extract entities from..."
+            }
+          },
+          "responsePayload": {
+            "type": "object",
+            "example": {
+              "entities": []
+            }
+          },
+          "status": {
+            "type": "string",
+            "example": "success",
+            "enum": [
+              "success",
+              "error",
+              "timeout",
+              "pending"
+            ]
+          },
+          "errorMessage": {
+            "type": "string",
+            "example": "Timeout after 30s"
+          },
+          "inputTokens": {
+            "type": "number",
+            "example": 1000
+          },
+          "outputTokens": {
+            "type": "number",
+            "example": 500
+          },
+          "totalTokens": {
+            "type": "number",
+            "example": 1500
+          },
+          "costUsd": {
+            "type": "number",
+            "example": 0.00875
+          },
+          "startedAt": {
+            "type": "string",
+            "example": "2025-10-22T10:30:00Z"
+          },
+          "completedAt": {
+            "type": "string",
+            "example": "2025-10-22T10:30:05Z"
+          },
+          "durationMs": {
+            "type": "number",
+            "example": 5000
+          }
+        },
+        "required": [
+          "id",
+          "processId",
+          "processType",
+          "modelName",
+          "requestPayload",
+          "status",
+          "startedAt"
+        ]
+      },
+      "ResourceDetailResponseDto": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "$ref": "#/components/schemas/ExtractionJobResourceDto"
+          },
+          "recentLogs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogEntryDto"
+            }
+          },
+          "llmCalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LLMCallDto"
+            }
+          },
+          "metrics": {
+            "type": "object",
+            "example": {
+              "totalCost": 0.0125,
+              "avgDuration": 5000
+            }
+          }
+        },
+        "required": [
+          "resource",
+          "recentLogs",
+          "llmCalls"
         ]
       },
       "ChatRequestDto": {

@@ -13,6 +13,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { ExtractionJobDto } from './dto/extraction-job.dto';
 import type { ExtractionResult } from './llm/llm-provider.interface';
 import { TemplatePackService } from '../template-packs/template-pack.service';
+import { MonitoringLoggerService } from '../monitoring/monitoring-logger.service';
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 
@@ -81,6 +82,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         private readonly documentsService: DocumentsService,
         private readonly notificationsService: NotificationsService,
         private readonly templatePacks: TemplatePackService,
+        private readonly monitoringLogger: MonitoringLoggerService,
     ) { }
 
     /**
@@ -284,6 +286,20 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     private async processJob(job: ExtractionJobDto) {
         const startTime = Date.now();
         this.logger.log(`Processing extraction job ${job.id} (source: ${job.source_type})`);
+
+        // Log to monitoring system
+        await this.monitoringLogger.logProcessEvent({
+            processId: job.id,
+            processType: 'extraction_job',
+            level: 'info',
+            message: 'Extraction job started',
+            projectId: job.project_id,
+            metadata: {
+                source_type: job.source_type,
+                source_id: job.source_id,
+                organization_id: job.organization_id ?? job.org_id,
+            },
+        });
 
         // Reset step counter for this job
         this.stepCounter = 0;
@@ -519,7 +535,11 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                     extractionPrompt,
                     objectSchemas,
                     allowedTypes,
-                    availableTags
+                    availableTags,
+                    {
+                        jobId: job.id,
+                        projectId: job.project_id,
+                    }
                 );
 
                 const llmCalls = Array.isArray(result.raw_response?.llm_calls)
@@ -1172,6 +1192,22 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 `${duration}ms`
             );
 
+            // Log completion to monitoring system
+            await this.monitoringLogger.logProcessEvent({
+                processId: job.id,
+                processType: 'extraction_job',
+                level: 'info',
+                message: 'Extraction job completed successfully',
+                projectId: job.project_id,
+                metadata: {
+                    created_objects: createdObjectIds.length,
+                    rejected: rejectedCount,
+                    review_required: reviewRequiredObjectIds.length,
+                    discovered_types: extractionResult.discovered_types?.length || 0,
+                    duration_ms: duration,
+                },
+            });
+
             pushTimelineEvent('job_completed', 'success', {
                 durationMs: duration,
                 metadata: {
@@ -1189,6 +1225,20 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             const willRetry = await this.willRetryJob(job.id);
+
+            // Log failure to monitoring system
+            await this.monitoringLogger.logProcessEvent({
+                processId: job.id,
+                processType: 'extraction_job',
+                level: 'error',
+                message: `Extraction job failed: ${errorMessage}`,
+                projectId: job.project_id,
+                metadata: {
+                    error: errorMessage,
+                    will_retry: willRetry,
+                    duration_ms: Date.now() - startTime,
+                },
+            });
 
             pushTimelineEvent('job_failed', 'error', {
                 message: errorMessage,

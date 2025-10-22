@@ -109,11 +109,11 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
                             AI Prompts
                         </Sidebar.MenuItem>
                     </Sidebar.Section>
-                    <Sidebar.Section id="admin-superadmin" title="Superadmin" className="mt-4">
+                    <Sidebar.Section id="admin-monitoring" title="System Monitoring" className="mt-4">
                         <Sidebar.MenuItem
-                            id="admin-superadmin-dashboard"
-                            url="/admin/superadmin/dashboard"
-                            icon="lucide--shield"
+                            id="admin-monitoring-dashboard"
+                            url="/admin/monitoring/dashboard"
+                            icon="lucide--activity"
                         >
                             Dashboard
                         </Sidebar.MenuItem>

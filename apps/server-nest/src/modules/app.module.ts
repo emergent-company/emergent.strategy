@@ -26,6 +26,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { ClickUpModule } from './clickup/clickup.module';
 import { McpModule } from './mcp/mcp.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
 
 @Module({
     imports: [
@@ -55,6 +56,7 @@ import { McpModule } from './mcp/mcp.module';
         IntegrationsModule,
         ClickUpModule,
         McpModule,
+        MonitoringModule,
         DatabaseModule,
     ],
 })

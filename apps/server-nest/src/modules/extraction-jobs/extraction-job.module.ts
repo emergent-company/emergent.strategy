@@ -17,6 +17,7 @@ import { TemplatePackModule } from '../template-packs/template-pack.module';
 import { EmbeddingsModule } from '../embeddings/embeddings.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
+import { MonitoringModule } from '../monitoring/monitoring.module';
 
 /**
  * Extraction Job Module
@@ -47,6 +48,7 @@ import { AuthModule } from '../auth/auth.module';
         EmbeddingsModule,
         NotificationsModule,
         AuthModule,
+        MonitoringModule,
     ],
     providers: [
         ExtractionJobService,
