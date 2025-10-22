@@ -27,7 +27,7 @@ export interface DropdownProps extends React.HTMLAttributes<HTMLDivElement> {
     dataTheme?: string;
 }
 
-export interface DropdownTriggerProps extends React.HTMLAttributes<HTMLLabelElement> {
+export interface DropdownTriggerProps {
     /** Trigger content */
     children: ReactNode;
     /** Additional CSS classes */
@@ -40,6 +40,8 @@ export interface DropdownTriggerProps extends React.HTMLAttributes<HTMLLabelElem
     size?: 'xs' | 'sm' | 'md' | 'lg';
     /** Disabled state */
     disabled?: boolean;
+    /** Click handler (for button mode) */
+    onClick?: React.MouseEventHandler<HTMLButtonElement>;
 }
 
 export interface DropdownMenuProps extends React.HTMLAttributes<HTMLUListElement> {

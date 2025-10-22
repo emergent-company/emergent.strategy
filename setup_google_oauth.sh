@@ -16,14 +16,6 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# --- Load .env file if it exists ---
-if [ -f .env ]; then
-    echo -e "${BLUE}Loading environment variables from .env file...${NC}"
-    set -a # automatically export all variables
-    source .env
-    set +a
-fi
-
 # --- Functions ---
 
 setup_environment() {
@@ -34,9 +26,35 @@ setup_environment() {
     fi
 
     echo -e "${BLUE}Loading environment variables from .env file...${NC}"
-    set -a # automatically export all variables
-    source .env
-    set +a
+    
+    # Safely parse the .env file line by line to prevent command execution.
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Trim leading/trailing whitespace
+        line=$(echo "$line" | awk '{$1=$1};1')
+
+        # Skip comments and empty lines
+        if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then
+            continue
+        fi
+
+        # Process only lines that contain an equals sign
+        if [[ "$line" == *"="* ]]; then
+            # Split into key and value at the first '='
+            key="${line%%=*}"
+            value="${line#*=}"
+
+            # Check if the key is a valid bash identifier
+            if [[ "$key" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+                # Remove quotes from the value if they surround it
+                if [[ "$value" =~ ^\"(.*)\"$ ]] || [[ "$value" =~ ^\'(.*)\'$ ]]; then
+                    value="${value:1:${#value}-2}"
+                fi
+                
+                # Export the sanitized key and value
+                export "$key=$value"
+            fi
+        fi
+    done < .env
 
     if [ -z "$GCP_PROJECT_ID" ] || [ -z "$GOOGLE_REDIRECT_URL" ]; then
         echo -e "${YELLOW}Error: GCP_PROJECT_ID and GOOGLE_REDIRECT_URL must be set in the .env file.${NC}"

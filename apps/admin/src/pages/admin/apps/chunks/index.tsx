@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/auth";
 import { useApi } from "@/hooks/use-api";
 import { useSearchParams } from "react-router";
-import { PageTitle } from "@/components";
-import { LoadingEffect, TableEmptyState } from "@/components";
 import { Icon } from "@/components/atoms/Icon";
+import { DataTable } from "@/components/organisms/DataTable";
+import type { ColumnDef, RowAction } from "@/components/organisms/DataTable/types";
 
 interface ChunkRow {
     id: string;
@@ -23,22 +23,6 @@ interface ChunksResponse {
     total: number;
 }
 
-interface DocumentRow {
-    id: string;
-    filename?: string | null;
-    name?: string | null;
-    source_url?: string | null;
-    sourceUrl?: string | null;
-}
-
-function normalizeDoc(d: DocumentRow) {
-    return {
-        ...d,
-        filename: d.filename || d.name || null,
-        source_url: d.source_url ?? d.sourceUrl ?? null,
-    } as DocumentRow;
-}
-
 export default function ChunksPage() {
     const { getAccessToken } = useAuth();
     const { buildHeaders, apiBase, fetchJson } = useApi();
@@ -47,55 +31,11 @@ export default function ChunksPage() {
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [preview, setPreview] = useState<ChunkRow | null>(null);
-    const [docs, setDocs] = useState<DocumentRow[]>([]);
 
     const apiBaseMemo = useMemo(() => apiBase, [apiBase]);
 
     const page = Math.max(1, Number(searchParams.get("page") || 1));
-    const pageSize = Math.min(100, Math.max(1, Number(searchParams.get("pageSize") || 25)));
-    const q = (searchParams.get("q") || "").trim();
-    const docId = (searchParams.get("docId") || "").trim();
-    const sort = (searchParams.get("sort") || "created_at:desc").trim();
-
-    // derive search terms for highlighting
-    const terms = useMemo(() => {
-        if (!q) return [] as string[];
-        const ops = new Set(["and", "or", "not"]);
-        // extract quoted phrases first
-        const quoted: string[] = [];
-        q.replace(/"([^"]+)"/g, (_m, p1) => {
-            quoted.push(p1);
-            return "";
-        });
-        // words excluding operators and very short tokens
-        const words = q
-            .replace(/"[^"]+"/g, " ")
-            .split(/[^\p{L}\p{N}_]+/u)
-            .filter((w) => !!w && !ops.has(w.toLowerCase()) && w.length > 1);
-        const all = [...quoted, ...words];
-        // dedupe
-        return Array.from(new Set(all)).slice(0, 10);
-    }, [q]);
-
-    // Load documents for dropdown
-    useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            try {
-                const t = getAccessToken();
-                const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/api/documents`, {
-                    headers: t ? { ...buildHeaders({ json: false }) } : {},
-                    json: false,
-                });
-                if (!cancelled) setDocs((Array.isArray(json) ? json : (json.documents || [])).map(normalizeDoc));
-            } catch {
-                // ignore optional
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, [apiBase, apiBaseMemo, getAccessToken, buildHeaders, fetchJson]);
+    const pageSize = 25; // Fixed page size
 
     useEffect(() => {
         let cancelled = false;
@@ -104,11 +44,8 @@ export default function ChunksPage() {
             setError(null);
             try {
                 const qs = new URLSearchParams();
-                if (docId) qs.set("docId", docId);
-                if (q) qs.set("q", q);
                 qs.set("page", String(page));
                 qs.set("pageSize", String(pageSize));
-                if (sort) qs.set("sort", sort);
                 const t = getAccessToken();
                 // Accept both unified paginated shape and legacy/alternate array responses
                 const json = await fetchJson<any>(`${apiBase}/api/chunks?${qs.toString()}`, {
@@ -159,209 +96,138 @@ export default function ChunksPage() {
         return () => {
             cancelled = true;
         };
-    }, [apiBase, apiBaseMemo, page, pageSize, q, docId, sort, getAccessToken, buildHeaders, fetchJson]);
+    }, [apiBase, apiBaseMemo, page, pageSize, getAccessToken, buildHeaders, fetchJson]);
+
+    const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
     function updateParam(key: string, value: string) {
         const next = new URLSearchParams(searchParams);
         if (value) next.set(key, value);
         else next.delete(key);
-        // reset to first page when filters (other than page) change
-        if (key !== "page") next.set("page", "1");
         setSearchParams(next);
     }
 
-    const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
-
-    function escapeRegExp(s: string): string {
-        return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    }
-
-    function HighlightedText({ text, terms }: { text: string; terms: string[] }) {
-        if (!terms || terms.length === 0) return <>{text}</>;
-        const pattern = new RegExp(`(${terms.map(escapeRegExp).join("|")})`, "gi");
-        const parts = text.split(pattern);
-        return (
-            <>
-                {parts.map((part, idx) =>
-                    pattern.test(part) ? (
-                        <mark key={idx} className="bg-warning/30 px-0.5 rounded">
-                            {part}
-                        </mark>
+    const columns: ColumnDef<ChunkRow>[] = [
+        {
+            key: 'chunk_index',
+            label: 'Index',
+            width: 'w-24',
+            render: (chunk) => <span>{chunk.chunk_index}</span>,
+        },
+        {
+            key: 'document_title',
+            label: 'Document',
+            width: 'max-w-80',
+            render: (chunk) => (
+                <div className="truncate">
+                    {chunk.source_url ? (
+                        chunk.source_url.includes('clickup.com') || chunk.source_url.includes('app.clickup.com') ? (
+                            <div className="flex items-center gap-2">
+                                <span className="font-medium">{chunk.document_title}</span>
+                                <a
+                                    href={chunk.source_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-sm transition-colors link hover:link-primary"
+                                    title={chunk.source_url}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <Icon icon="simple-icons--clickup" className="w-3.5 h-3.5 text-purple-500" />
+                                    <span>Link</span>
+                                </a>
+                            </div>
+                        ) : (
+                            <a
+                                href={chunk.source_url}
+                                target="_blank"
+                                className="link"
+                                rel="noreferrer"
+                                title={chunk.source_url}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {chunk.document_title}
+                            </a>
+                        )
                     ) : (
-                        <span key={idx}>{part}</span>
-                    )
-                )}
-            </>
-        );
-    }
-
-    return (
-        <div data-testid="page-chunks" className="mx-auto p-4 container">
-            <PageTitle title="Chunks" items={[{ label: "Apps" }, { label: "Chunks", active: true }]} />
-
-            {/* Filters */}
-            <div className="gap-3 grid sm:grid-cols-3 mt-4">
-                <label className="input">
-                    <span className="label">Document</span>
-                    <select
-                        className="select"
-                        value={docId}
-                        onChange={(e) => updateParam("docId", e.target.value)}
-                    >
-                        <option value="">All documents</option>
-                        {docs.map((d) => (
-                            <option key={d.id} value={d.id}>
-                                {d.filename || d.source_url || d.id}
-                            </option>
-                        ))}
-                    </select>
-                </label>
-                <label className="sm:col-span-2 input">
-                    <span className="label">Search</span>
-                    <input
-                        className="input"
-                        type="search"
-                        placeholder="websearch query (AND/OR/quotes)"
-                        value={q}
-                        onChange={(e) => updateParam("q", e.target.value)}
-                    />
-                </label>
-                <label className="input">
-                    <span className="label">Sort</span>
-                    <select
-                        className="select"
-                        value={sort}
-                        onChange={(e) => updateParam("sort", e.target.value)}
-                    >
-                        <option value="created_at:desc">Newest first</option>
-                        <option value="created_at:asc">Oldest first</option>
-                        <option value="chunk_index:asc">Chunk index ↑</option>
-                        <option value="chunk_index:desc">Chunk index ↓</option>
-                    </select>
-                </label>
-                <label className="input">
-                    <span className="label">Page size</span>
-                    <select
-                        className="select"
-                        value={String(pageSize)}
-                        onChange={(e) => updateParam("pageSize", e.target.value)}
-                    >
-                        <option value="10">10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                    </select>
-                </label>
-            </div>
-
-            <div className="mt-4 card">
-                <div className="card-body">
-                    {loading && (
-                        <div className="space-y-2">
-                            <LoadingEffect height={36} />
-                            <LoadingEffect height={36} />
-                            <LoadingEffect height={36} />
-                        </div>
-                    )}
-                    {error && (
-                        <div role="alert" className="alert alert-error">
-                            <span className="size-5 iconify lucide--alert-circle" />
-                            <span>{error}</span>
-                        </div>
-                    )}
-                    {!loading && !error && (
-                        <div className="overflow-x-auto">
-                            <table className="table">
-                                <thead>
-                                    <tr>
-                                        <th>Doc</th>
-                                        <th>Index</th>
-                                        <th>Snippet</th>
-                                        <th>Created</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {data && data.items.length > 0 ? (
-                                        data.items.map((c) => (
-                                            <tr key={c.id}>
-                                                <td className="max-w-80 truncate">
-                                                    {c.source_url ? (
-                                                        c.source_url.includes('clickup.com') || c.source_url.includes('app.clickup.com') ? (
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="font-medium">{c.document_title}</span>
-                                                                <a
-                                                                    href={c.source_url}
-                                                                    target="_blank"
-                                                                    rel="noreferrer"
-                                                                    className="inline-flex items-center gap-1 text-sm transition-colors link hover:link-primary"
-                                                                    title={c.source_url}
-                                                                >
-                                                                    <Icon icon="simple-icons--clickup" className="w-3.5 h-3.5 text-purple-500" />
-                                                                    <span>Link</span>
-                                                                </a>
-                                                            </div>
-                                                        ) : (
-                                                            <a
-                                                                href={c.source_url}
-                                                                target="_blank"
-                                                                className="link"
-                                                                rel="noreferrer"
-                                                                title={c.source_url}
-                                                            >
-                                                                {c.document_title}
-                                                            </a>
-                                                        )
-                                                    ) : (
-                                                        <span className="font-medium">{c.document_title}</span>
-                                                    )}
-                                                </td>
-                                                <td className="w-24">{c.chunk_index}</td>
-                                                <td className="max-w-xl truncate">
-                                                    <HighlightedText text={c.text} terms={terms} />
-                                                </td>
-                                                <td className="whitespace-nowrap">{new Date(c.created_at).toLocaleString()}</td>
-                                                <td className="text-right">
-                                                    <button className="btn btn-sm" onClick={() => setPreview(c)}>
-                                                        Preview
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <TableEmptyState colSpan={5} />
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {/* Pagination */}
-                    {!loading && !error && data && data.total > 0 && (
-                        <div className="flex justify-between items-center mt-4">
-                            <div className="opacity-70">
-                                Page {data.page} of {totalPages} • {data.total} results
-                            </div>
-                            <div className="join">
-                                <button
-                                    className="btn btn-sm join-item"
-                                    disabled={page <= 1}
-                                    onClick={() => updateParam("page", String(page - 1))}
-                                >
-                                    Prev
-                                </button>
-                                <button
-                                    className="btn btn-sm join-item"
-                                    disabled={page >= totalPages}
-                                    onClick={() => updateParam("page", String(page + 1))}
-                                >
-                                    Next
-                                </button>
-                            </div>
-                        </div>
+                        <span className="font-medium">{chunk.document_title}</span>
                     )}
                 </div>
+            ),
+        },
+        {
+            key: 'text',
+            label: 'Length',
+            width: 'w-32',
+            render: (chunk) => <span>{chunk.text.length.toLocaleString()} chars</span>,
+        },
+        {
+            key: 'created_at',
+            label: 'Created',
+            cellClassName: 'whitespace-nowrap',
+            render: (chunk) => <span>{new Date(chunk.created_at).toLocaleString()}</span>,
+        },
+    ];
+
+    const rowActions: RowAction<ChunkRow>[] = [
+        {
+            label: 'Preview',
+            icon: 'lucide--eye',
+            variant: 'ghost',
+            size: 'xs',
+            onAction: (chunk) => setPreview(chunk),
+        },
+    ];
+
+    return (
+        <div data-testid="page-chunks" className="mx-auto p-6 max-w-7xl container">
+            {/* Header */}
+            <div className="mb-6">
+                <h1 className="font-bold text-2xl">Chunks</h1>
+                <p className="mt-1 text-base-content/70">
+                    Browse and manage text chunks extracted from your documents
+                </p>
             </div>
+
+            {/* DataTable */}
+            <DataTable
+                data={data?.items || []}
+                columns={columns}
+                loading={loading}
+                error={error}
+                rowActions={rowActions}
+                useDropdownActions={true}
+                onRowClick={(chunk) => setPreview(chunk)}
+                enableSearch={true}
+                searchPlaceholder="Search chunks..."
+                getSearchText={(chunk) => `${chunk.document_title} ${chunk.text}`}
+                emptyMessage="No chunks found"
+                noResultsMessage="No chunks match your search"
+            />
+
+            {/* Pagination */}
+            {!loading && !error && data && data.total > 0 && (
+                <div className="flex justify-between items-center mt-4">
+                    <div className="opacity-70">
+                        Page {data.page} of {totalPages} • {data.total} results
+                    </div>
+                    <div className="join">
+                        <button
+                            className="btn btn-sm join-item"
+                            disabled={page <= 1}
+                            onClick={() => updateParam("page", String(page - 1))}
+                        >
+                            Prev
+                        </button>
+                        <button
+                            className="btn btn-sm join-item"
+                            disabled={page >= totalPages}
+                            onClick={() => updateParam("page", String(page + 1))}
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Preview modal */}
             {preview && (
@@ -370,7 +236,7 @@ export default function ChunksPage() {
                         <h3 className="card-title">{preview.document_title}</h3>
                         <div className="opacity-70 mt-2 text-sm">Chunk #{preview.chunk_index}</div>
                         <pre className="mt-4 text-sm whitespace-pre-wrap">
-                            <HighlightedText text={preview.text} terms={terms} />
+                            {preview.text}
                         </pre>
                         <div className="modal-action">
                             <button className="btn" onClick={() => setPreview(null)}>

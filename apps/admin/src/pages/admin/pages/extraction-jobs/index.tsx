@@ -262,8 +262,13 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
     // Show error state
     if (error && !isLoading) {
         return (
-            <div className="mx-auto p-6 max-w-6xl container">
-                <h1 className="mb-6 font-bold text-3xl">Extraction Jobs</h1>
+            <div className="mx-auto p-6 max-w-7xl container">
+                <div className="mb-6">
+                    <h1 className="font-bold text-2xl">Extraction Jobs</h1>
+                    <p className="mt-1 text-base-content/70">
+                        View and manage AI-powered entity extraction jobs
+                    </p>
+                </div>
                 <div className="alert alert-error">
                     <Icon icon="lucide--alert-circle" />
                     <span>{error}</span>
@@ -273,12 +278,12 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
     }
 
     return (
-        <div data-testid="page-extraction-jobs" className="mx-auto p-6 max-w-6xl container">
-            {/* Page Header */}
+        <div data-testid="page-extraction-jobs" className="mx-auto p-6 max-w-7xl container">
+            {/* Header */}
             <div className="flex sm:flex-row flex-col justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
-                    <h1 className="mb-2 font-bold text-3xl">Extraction Jobs</h1>
-                    <p className="text-base-content/60">
+                    <h1 className="font-bold text-2xl">Extraction Jobs</h1>
+                    <p className="mt-1 text-base-content/70">
                         View and manage AI-powered entity extraction jobs
                     </p>
                 </div>

@@ -1,19 +1,20 @@
 /**
  * Dropdown Component (Molecule)
  * 
- * A flexible dropdown component using daisyUI classes with compound component pattern.
- * Based on react-daisyui implementation but simplified for our use case.
+ * A flexible dropdown component using HTML Popover API and CSS Anchor Positioning.
+ * This approach eliminates z-index and overflow issues in scrollable containers.
+ * Based on daisyUI v5 recommendations for dropdowns in complex layouts.
  * 
  * Features:
  * - Compound component API (Dropdown.Trigger, Dropdown.Menu, Dropdown.Item)
  * - Positioning control (top/bottom/left/right)
- * - Click outside handling via daisyUI
+ * - Works correctly in scrollable containers (tables, etc.)
  * - Proper accessibility (ARIA roles, keyboard support)
  * - TypeScript strict typing
  * 
  * @example
  * ```tsx
- * <Dropdown end vertical="top">
+ * <Dropdown end>
  *   <Dropdown.Trigger asButton variant="outline" size="xs">
  *     Actions <Icon icon="lucide--chevron-down" />
  *   </Dropdown.Trigger>
@@ -21,15 +22,12 @@
  *     <Dropdown.Item onClick={() => console.log('edit')}>
  *       <Icon icon="lucide--edit" /> Edit
  *     </Dropdown.Item>
- *     <Dropdown.Item onClick={() => console.log('delete')}>
- *       <Icon icon="lucide--trash" /> Delete
- *     </Dropdown.Item>
  *   </Dropdown.Menu>
  * </Dropdown>
  * ```
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useId } from 'react';
 import type { DropdownProps } from './types';
 import { DropdownTrigger } from './DropdownTrigger';
 import { DropdownMenu } from './DropdownMenu';
@@ -50,7 +48,9 @@ const DropdownRoot = React.forwardRef<HTMLDivElement, DropdownProps>(
         },
         ref
     ) => {
-        const dropdownRef = useRef<HTMLDivElement | null>(null);
+        const uniqueId = useId();
+        const anchorName = `--anchor-${uniqueId}`;
+        const popoverId = `popover-${uniqueId}`;
 
         // Build className based on props
         const buildClassName = () => {
@@ -68,46 +68,27 @@ const DropdownRoot = React.forwardRef<HTMLDivElement, DropdownProps>(
             return classes.join(' ');
         };
 
-        // Handle click outside to close dropdown (daisyUI handles this via details/label pattern)
-        useEffect(() => {
-            const handleClickOutside = (event: MouseEvent) => {
-                if (
-                    dropdownRef.current &&
-                    !dropdownRef.current.contains(event.target as Node)
-                ) {
-                    // Remove focus to close dropdown
-                    const activeElement = document.activeElement as HTMLElement;
-                    if (
-                        activeElement &&
-                        dropdownRef.current.contains(activeElement)
-                    ) {
-                        activeElement.blur();
-                    }
-                }
-            };
-
-            document.addEventListener('mousedown', handleClickOutside);
-            return () => {
-                document.removeEventListener('mousedown', handleClickOutside);
-            };
-        }, []);
+        // Pass context to children
+        const childrenWithProps = React.Children.map(children, child => {
+            if (React.isValidElement(child)) {
+                // Pass anchorName and popoverId to both Trigger and Menu
+                return React.cloneElement(child as React.ReactElement<any>, {
+                    anchorName,
+                    popoverId,
+                });
+            }
+            return child;
+        });
 
         return (
             <div
-                ref={(node) => {
-                    dropdownRef.current = node;
-                    if (typeof ref === 'function') {
-                        ref(node);
-                    } else if (ref) {
-                        ref.current = node;
-                    }
-                }}
+                ref={ref}
                 role="listbox"
                 data-theme={dataTheme}
                 className={buildClassName()}
                 {...props}
             >
-                {children}
+                {childrenWithProps}
             </div>
         );
     }

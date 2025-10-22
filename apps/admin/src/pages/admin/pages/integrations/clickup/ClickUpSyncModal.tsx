@@ -227,9 +227,15 @@ export function ClickUpSyncModal({ client, onClose, onSuccess }: ClickUpSyncModa
                             {syncResult.success && (
                                 <div className="shadow stats stats-horizontal">
                                     <div className="stat">
-                                        <div className="stat-title">Total Imported</div>
+                                        <div className="stat-title">Documents</div>
                                         <div className="text-primary stat-value">
-                                            {(syncResult as any).totalImported || 0}
+                                            {(syncResult as any).breakdown?.docs?.imported || 0}
+                                        </div>
+                                    </div>
+                                    <div className="stat">
+                                        <div className="stat-title">Pages</div>
+                                        <div className="text-primary stat-value">
+                                            {(syncResult as any).breakdown?.pages?.imported || 0}
                                         </div>
                                     </div>
                                     {(syncResult as any).totalFailed > 0 && (

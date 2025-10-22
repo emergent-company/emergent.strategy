@@ -32,6 +32,7 @@
         "print:openapi:scopes": "ts-node scripts/openapi-print-scopes.ts"
     },
     "dependencies": {
+        "@api/clickup": "file:.api/apis/clickup",
         "@google-cloud/vertexai": "^1.10.0",
         "@langchain/google-genai": "^0.2.17",
         "@langchain/google-vertexai": "^1.0.0",

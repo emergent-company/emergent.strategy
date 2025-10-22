@@ -3,7 +3,6 @@ import { useNavigate } from "react-router";
 import { useChat } from "@/hooks/use-chat";
 import { useAuth } from "@/contexts/auth";
 import type { Conversation } from "@/types/chat";
-import { PageTitle } from "@/components";
 import { NewChatCtas } from "@/components/molecules/NewChatCtas";
 
 const suggestions = [
@@ -31,13 +30,19 @@ export default function ChatHomePage() {
         <div data-testid="page-chat-home" className="drawer drawer-open">
             <input id="chat-drawer" type="checkbox" className="drawer-toggle" />
             <div className="drawer-content">
-                <div className="mx-auto p-4 container">
-                    <PageTitle title="AI Chat" items={[{ label: "Admin" }, { label: "Chat", active: true }]} />
+                <div className="mx-auto p-6 max-w-7xl container">
+                    {/* Header */}
+                    <div className="mb-6">
+                        <h1 className="font-bold text-2xl">AI Chat</h1>
+                        <p className="mt-1 text-base-content/70">
+                            Ask questions and get answers from your knowledge base
+                        </p>
+                    </div>
 
                     <div className="mt-6 text-center">
-                        <h1 className="bg-clip-text bg-gradient-to-r from-primary to-secondary font-bold text-transparent text-3xl sm:text-4xl">
+                        <h2 className="bg-clip-text bg-gradient-to-r from-primary to-secondary font-bold text-transparent text-3xl sm:text-4xl">
                             Ask your knowledge base
-                        </h1>
+                        </h2>
                         <p className="opacity-70 mt-2">Grounded answers with citations from your documents</p>
                     </div>
 

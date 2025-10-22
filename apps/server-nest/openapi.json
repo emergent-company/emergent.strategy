@@ -7598,6 +7598,74 @@
         ]
       }
     },
+    "/integrations/clickup/spaces/{spaceId}": {
+      "get": {
+        "operationId": "getClickUpSpace",
+        "summary": "Get ClickUp space details",
+        "description": "Fetch details for a specific ClickUp space by ID",
+        "parameters": [
+          {
+            "name": "spaceId",
+            "required": true,
+            "in": "path",
+            "description": "ClickUp space ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Space details retrieved successfully"
+          },
+          "404": {
+            "description": "ClickUp integration not found or space not found"
+          }
+        },
+        "tags": [
+          "Integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/integrations/clickup/folders/{folderId}": {
+      "get": {
+        "operationId": "getClickUpFolder",
+        "summary": "Get ClickUp folder details",
+        "description": "Fetch details for a specific ClickUp folder by ID",
+        "parameters": [
+          {
+            "name": "folderId",
+            "required": true,
+            "in": "path",
+            "description": "ClickUp folder ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Folder details retrieved successfully"
+          },
+          "404": {
+            "description": "ClickUp integration not found or folder not found"
+          }
+        },
+        "tags": [
+          "Integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/mcp/schema/version": {
       "get": {
         "operationId": "getSchemaVersion",
@@ -8170,6 +8238,18 @@
           "updatedAt": {
             "type": "string",
             "example": "2025-01-01T00:05:00.000Z"
+          },
+          "content": {
+            "type": "object",
+            "nullable": true,
+            "example": "# Document Title\n\nDocument content here...",
+            "description": "The full text content of the document"
+          },
+          "contentLength": {
+            "type": "object",
+            "nullable": true,
+            "example": 7332286,
+            "description": "The byte length of the content field"
           },
           "chunks": {
             "type": "number",
