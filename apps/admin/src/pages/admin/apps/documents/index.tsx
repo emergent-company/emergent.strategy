@@ -400,7 +400,7 @@ export default function DocumentsPage() {
                 )}
 
                 {/* Documents Table */}
-                <div className={`mt-4 ${uploading || isDeleting ? 'opacity-60 pointer-events-none' : ''}`}>
+                <div className={`mt-4 pb-48 ${uploading || isDeleting ? 'opacity-60 pointer-events-none' : ''}`}>
                     <DataTable<DocumentRow>
                         data={data || []}
                         columns={[
