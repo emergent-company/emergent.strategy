@@ -7,7 +7,7 @@ import type { ChatChunk, ChatRequest, Conversation, Message, Role } from "@/type
 function storageKey(orgId?: string | null, projectId?: string | null): string {
     const o = orgId || 'default';
     const p = projectId || 'default';
-    return `nexus.chat.conversations.${o}.${p}`;
+    return `spec-server.chat.conversations.${o}.${p}`;
 }
 
 function uid(prefix = "id"): string {
@@ -158,7 +158,7 @@ export function useChat(opts: UseChatOptions = {}) {
                 createdAt: c.created_at || c.createdAt,
                 updatedAt: c.updated_at || c.updatedAt,
                 messages: [],
-                ownerUserId: c.owner_user_id || c.ownerUserId,
+                ownerUserId: c.owner_subject_id || c.owner_user_id || c.ownerUserId,
                 isPrivate: !!(c.is_private ?? c.isPrivate),
             }));
             // If we're currently streaming a brand-new temp conversation, suppress very recent server additions to avoid duplicates
@@ -214,7 +214,14 @@ export function useChat(opts: UseChatOptions = {}) {
         (async () => {
             try {
                 const res = await fetch(`${apiBase}/api/chat/${id}`, { headers: authHeaders() });
-                if (!res.ok) return;
+                if (!res.ok) {
+                    // If conversation not found (404), remove it from localStorage to prevent future errors
+                    if (res.status === 404) {
+                        setConversationsPersisted((prev) => prev.filter((c) => c.id !== id));
+                        setActiveId(null);
+                    }
+                    return;
+                }
                 const payload = await res.json();
                 // Backend returns the conversation object directly (no { conversation } wrapper) – support both
                 const raw: any = payload?.conversation ?? payload;
@@ -224,7 +231,7 @@ export function useChat(opts: UseChatOptions = {}) {
                     title: raw.title || 'Conversation',
                     createdAt: raw.createdAt || raw.created_at,
                     updatedAt: raw.updatedAt || raw.updated_at,
-                    ownerUserId: raw.ownerUserId || raw.owner_user_id,
+                    ownerUserId: raw.owner_subject_id || raw.ownerUserId || raw.owner_user_id,
                     isPrivate: !!(raw.isPrivate ?? raw.is_private),
                     messages: Array.isArray(raw.messages) ? raw.messages : [],
                 };
@@ -536,7 +543,7 @@ export function useChat(opts: UseChatOptions = {}) {
                                             title: raw.title || 'Conversation',
                                             createdAt: raw.createdAt || raw.created_at,
                                             updatedAt: raw.updatedAt || raw.updated_at,
-                                            ownerUserId: raw.ownerUserId || raw.owner_user_id,
+                                            ownerUserId: raw.owner_subject_id || raw.ownerUserId || raw.owner_user_id,
                                             isPrivate: !!(raw.isPrivate ?? raw.is_private),
                                             messages: Array.isArray(raw.messages) ? raw.messages : [],
                                         };
@@ -607,6 +614,13 @@ export function useChat(opts: UseChatOptions = {}) {
         const prevActive = activeIdRef.current;
         setConversationsPersisted((prev) => prev.filter((c) => c.id !== conversationId));
         setActiveId((prevId) => (prevId === conversationId ? null : prevId));
+
+        // If this is a temporary conversation (starts with c_), it was never persisted to server
+        // Just remove it locally without sending DELETE request to backend
+        if (/^c_/.test(conversationId)) {
+            return;
+        }
+
         try {
             const res = await fetch(`${apiBase}/api/chat/${conversationId}`, { method: 'DELETE', headers: authHeaders() });
             if (!res.ok) {
@@ -614,7 +628,7 @@ export function useChat(opts: UseChatOptions = {}) {
                 setConversations(prevSnapshot);
                 setActiveId(prevActive || null);
             }
-        } catch {
+        } catch (err) {
             setConversations(prevSnapshot);
             setActiveId(prevActive || null);
         }

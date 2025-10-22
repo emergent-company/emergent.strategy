@@ -149,22 +149,9 @@ export class AuthService implements OnModuleInit {
 
     private mapClaims(payload: JWTPayload): AuthUser | null {
         if (!payload.sub) return null;
-        const rawSub = String(payload.sub);
-        const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(rawSub);
-        const toUuid = (seed: string) => {
-            try {
-                const { createHash } = require('crypto');
-                const h: Buffer = createHash('sha1').update(seed).digest();
-                const bytes = Buffer.from(h.slice(0, 16));
-                bytes[6] = (bytes[6] & 0x0f) | 0x50; // v5-style
-                bytes[8] = (bytes[8] & 0x3f) | 0x80;
-                const hex = bytes.toString('hex');
-                return `${hex.substr(0, 8)}-${hex.substr(8, 4)}-${hex.substr(12, 4)}-${hex.substr(16, 4)}-${hex.substr(20)}`;
-            } catch {
-                return '00000000-0000-0000-0000-000000000001';
-            }
-        };
-        const normalizedSub = isUuid ? rawSub : toUuid(rawSub);
+        // Use the subject ID as-is from the JWT payload, without UUID conversion.
+        // This allows ownership checks to compare user.sub directly with stored identifiers.
+        const normalizedSub = String(payload.sub);
         // Support multiple common claim keys for scopes across IdPs (scope, scopes, scp, permissions)
         const scopesCandidate = (payload.scope || (payload as any).scopes || (payload as any).scp || (payload as any).permissions) as string | string[] | undefined;
         let scopes: string[] | undefined;

@@ -415,6 +415,55 @@ export class IntegrationsService {
     }
 
     /**
+     * Trigger sync with real-time progress updates
+     */
+    async triggerSyncWithProgress(
+        name: string,
+        projectId: string,
+        orgId: string,
+        config: ImportConfig,
+        onProgress: (progress: { step: string; message: string; count?: number }) => void
+    ): Promise<ImportResult> {
+        this.logger.log(`Triggering sync with progress for integration ${name}`);
+
+        // Get integration configuration
+        const integration = await this.getIntegration(name, projectId, orgId);
+
+        if (!integration.enabled) {
+            throw new BadRequestException('Integration is disabled');
+        }
+
+        // Get integration instance from registry
+        const integrationInstance = this.registry.getIntegration(integration.name);
+        if (!integrationInstance) {
+            throw new NotFoundException(
+                `Integration type '${integration.name}' not found in registry`
+            );
+        }
+
+        // Check if integration supports import
+        const capabilities = integrationInstance.getCapabilities();
+        if (!capabilities.supportsImport) {
+            throw new BadRequestException(
+                `Integration '${integration.name}' does not support data import`
+            );
+        }
+
+        // Configure integration
+        await integrationInstance.configure(integration);
+
+        // Run import with progress callback
+        const result = await integrationInstance.runFullImportWithProgress(config, onProgress);
+
+        this.logger.log(
+            `Sync completed for ${name}: ${result.totalImported} imported, ` +
+            `${result.totalFailed} failed`
+        );
+
+        return result;
+    }
+
+    /**
      * Get ClickUp workspace structure for list selection UI
      * 
      * Fetches hierarchical structure: Workspace → Spaces → Folders → Lists

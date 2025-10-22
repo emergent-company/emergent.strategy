@@ -3,12 +3,11 @@ import { useNavigate } from "react-router";
 import { Icon } from "@/components/atoms/Icon";
 import { useAuth } from "@/contexts/auth";
 import { useApi } from "@/hooks/use-api";
-import { PageTitle } from "@/components";
 import { useConfig } from "@/contexts/config";
-import { LoadingEffect, TableEmptyState } from "@/components";
 import { OrgAndProjectGate } from "@/components/organisms/OrgAndProjectGate";
 import { ExtractionConfigModal, type ExtractionConfig } from "@/components/organisms/ExtractionConfigModal";
 import { createExtractionJobsClient } from "@/api/extraction-jobs";
+import { DataTable, type ColumnDef, type RowAction, type BulkAction, type TableDataItem } from "@/components/organisms/DataTable";
 
 type DocumentRow = {
     id: string;
@@ -25,6 +24,10 @@ type DocumentRow = {
     createdAt?: string;
     updatedAt?: string;
     chunks: number;
+    // Extraction status fields
+    extractionStatus?: string;
+    extractionCompletedAt?: string;
+    extractionObjectsCount?: number;
 };
 
 function normalize(doc: DocumentRow) {
@@ -61,6 +64,7 @@ export default function DocumentsPage() {
     const [isExtractionModalOpen, setIsExtractionModalOpen] = useState(false);
     const [selectedDocumentForExtraction, setSelectedDocumentForExtraction] = useState<DocumentRow | null>(null);
     const [isStartingExtraction, setIsStartingExtraction] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const extractionClient = createExtractionJobsClient(
         apiBase,
@@ -154,6 +158,73 @@ export default function DocumentsPage() {
             setUploadError(err instanceof Error ? err.message : 'Failed to create extraction job');
         } finally {
             setIsStartingExtraction(false);
+        }
+    };
+
+    // Handle bulk delete
+    const handleBulkDelete = async (selectedIds: string[], selectedItems: DocumentRow[]) => {
+        if (!selectedItems.length) return;
+
+        const confirmed = window.confirm(
+            `Are you sure you want to delete ${selectedItems.length} document${selectedItems.length > 1 ? 's' : ''}? This action cannot be undone.`
+        );
+
+        if (!confirmed) return;
+
+        setIsDeleting(true);
+        setUploadError(null);
+        setUploadSuccess(null);
+
+        try {
+            const t = getAccessToken();
+            const results = await Promise.allSettled(
+                selectedItems.map(async (doc) => {
+                    try {
+                        await fetchJson(`${apiBase}/api/documents/${doc.id}`, {
+                            method: 'DELETE',
+                            headers: t ? buildHeaders({ json: false }) : {},
+                        });
+                        return { success: true, doc };
+                    } catch (err) {
+                        return {
+                            success: false,
+                            doc,
+                            error: err instanceof Error ? err.message : 'Unknown error'
+                        };
+                    }
+                })
+            );
+
+            const successful = results.filter((r): r is PromiseFulfilledResult<{ success: true; doc: DocumentRow }> =>
+                r.status === 'fulfilled' && r.value.success
+            );
+            const failed = results.filter((r): r is PromiseFulfilledResult<{ success: false; doc: DocumentRow; error: string }> =>
+                r.status === 'fulfilled' && !r.value.success
+            );
+
+            // Refresh the list
+            const json = await fetchJson<DocumentRow[] | { documents: DocumentRow[] }>(`${apiBase}/api/documents`, {
+                headers: t ? { ...buildHeaders({ json: false }) } : {},
+                json: false,
+            });
+            const docs = (Array.isArray(json) ? json : json.documents).map(normalize);
+            setData(docs);
+
+            if (failed.length === 0) {
+                setUploadSuccess(`Successfully deleted ${successful.length} document${successful.length > 1 ? 's' : ''}.`);
+                setTimeout(() => setUploadSuccess(null), 3000);
+            } else {
+                const failedNames = failed.map(f => f.value.doc.filename || f.value.doc.id).join(', ');
+                setUploadError(
+                    `Deleted ${successful.length} documents, but ${failed.length} failed: ${failedNames}. ` +
+                    `(Reason: ${failed[0].value.error})`
+                );
+            }
+        } catch (err) {
+            console.error('Failed to delete documents:', err);
+            setUploadError(err instanceof Error ? err.message : 'Failed to delete documents');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -251,7 +322,7 @@ export default function DocumentsPage() {
     return (
         <OrgAndProjectGate>
             <div data-testid="page-documents" className="mx-auto p-4 container">
-                <PageTitle title="Documents" items={[{ label: "Apps" }, { label: "Documents", active: true }]} />
+                <h1 className="mb-4 font-medium text-2xl">Documents</h1>
 
                 {/* Upload controls */}
                 <div
@@ -320,91 +391,188 @@ export default function DocumentsPage() {
                     )}
                 </div>
 
-                <div className="mt-4 card">
-                    <div className="card-body">
-                        {/* Show subtle info alert when uploading/refreshing */}
-                        {uploading && (
-                            <div role="alert" className="mb-4 alert alert-info">
-                                <span className="loading loading-spinner loading-sm" />
-                                <span>Uploading document and refreshing list...</span>
-                            </div>
-                        )}
-                        {loading && (
-                            <div className="space-y-2">
-                                <LoadingEffect height={36} />
-                                <LoadingEffect height={36} />
-                                <LoadingEffect height={36} />
-                            </div>
-                        )}
-                        {error && (
-                            <div role="alert" className="alert alert-error">
-                                <Icon icon="lucide--alert-circle" className="size-5" aria-hidden />
-                                <span>{error}</span>
-                            </div>
-                        )}
-                        {!loading && !error && (
-                            <div className={`overflow-x-auto relative ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
-                                <table className="table">
-                                    <thead>
-                                        <tr>
-                                            <th>Filename</th>
-                                            <th>Source URL</th>
-                                            <th>Mime</th>
-                                            <th>Chunks</th>
-                                            <th>Created</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {data && data.length > 0 ? (
-                                            data.map((d) => (
-                                                <tr key={d.id}>
-                                                    <td className="font-medium">{d.filename || "(no name)"}</td>
-                                                    <td className="max-w-96 truncate">
-                                                        {d.source_url ? (
-                                                            <a href={d.source_url} target="_blank" className="link" rel="noreferrer">
-                                                                {d.source_url}
-                                                            </a>
-                                                        ) : (
-                                                            <span className="opacity-60">—</span>
-                                                        )}
-                                                    </td>
-                                                    <td>{d.mime_type || "text/plain"}</td>
-                                                    <td>
-                                                        <a
-                                                            href={`/admin/apps/chunks?docId=${d.id}`}
-                                                            className="badge-outline hover:underline no-underline badge"
-                                                            title="View chunks for this document"
-                                                        >
-                                                            {d.chunks}
-                                                        </a>
-                                                    </td>
-                                                    <td>{d.created_at ? new Date(d.created_at).toLocaleString() : "—"}</td>
-                                                    <td className="text-right">
-                                                        <div className="flex justify-end gap-2">
-                                                            <button
-                                                                className="btn btn-sm btn-primary"
-                                                                onClick={() => handleExtractObjects(d)}
-                                                                title="Extract objects using AI"
-                                                            >
-                                                                <Icon icon="lucide--sparkles" />
-                                                                Extract
-                                                            </button>
-                                                            <a className="btn btn-sm btn-ghost" href={`/admin/apps/chunks?docId=${d.id}`}>
-                                                                View chunks
-                                                            </a>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <TableEmptyState colSpan={6} />
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
+                {/* Show subtle info alert when uploading/refreshing */}
+                {uploading && (
+                    <div role="alert" className="mt-4 alert alert-info">
+                        <span className="loading loading-spinner loading-sm" />
+                        <span>Uploading document and refreshing list...</span>
                     </div>
+                )}
+
+                {/* Documents Table */}
+                <div className={`mt-4 ${uploading || isDeleting ? 'opacity-60 pointer-events-none' : ''}`}>
+                    <DataTable<DocumentRow>
+                        data={data || []}
+                        columns={[
+                            {
+                                key: 'filename',
+                                label: 'Filename',
+                                sortable: true,
+                                render: (doc) => (
+                                    <span className="font-medium">{doc.filename || "(no name)"}</span>
+                                ),
+                            },
+                            {
+                                key: 'source_url',
+                                label: 'Source',
+                                width: 'max-w-96',
+                                render: (doc) => {
+                                    if (!doc.source_url) {
+                                        return (
+                                            <span className="inline-flex items-center gap-1.5 text-sm text-base-content/70">
+                                                <Icon icon="lucide--upload" className="w-4 h-4" />
+                                                Upload
+                                            </span>
+                                        );
+                                    }
+
+                                    const isClickUp = doc.source_url.includes('clickup.com') || doc.source_url.includes('app.clickup.com');
+
+                                    if (isClickUp) {
+                                        return (
+                                            <a
+                                                href={doc.source_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1.5 transition-colors link hover:link-primary"
+                                                title={doc.source_url}
+                                            >
+                                                <Icon icon="simple-icons--clickup" className="w-4 h-4 text-purple-500" />
+                                                <span>ClickUp</span>
+                                            </a>
+                                        );
+                                    }
+
+                                    return (
+                                        <a
+                                            href={doc.source_url}
+                                            target="_blank"
+                                            className="inline-flex items-center gap-1.5 transition-colors link hover:link-primary"
+                                            rel="noreferrer"
+                                            title={doc.source_url}
+                                        >
+                                            <Icon icon="lucide--link" className="w-4 h-4" />
+                                            <span className="max-w-xs truncate">Link</span>
+                                        </a>
+                                    );
+                                },
+                            },
+                            {
+                                key: 'mime_type',
+                                label: 'Mime Type',
+                                render: (doc) => (
+                                    <span className="text-sm text-base-content/70">
+                                        {doc.mime_type || "text/plain"}
+                                    </span>
+                                ),
+                            },
+                            {
+                                key: 'chunks',
+                                label: 'Chunks',
+                                sortable: true,
+                                render: (doc) => (
+                                    <a
+                                        href={`/admin/apps/chunks?docId=${doc.id}`}
+                                        className="badge-outline hover:underline no-underline badge"
+                                        title="View chunks for this document"
+                                    >
+                                        {doc.chunks}
+                                    </a>
+                                ),
+                            },
+                            {
+                                key: 'extractionStatus',
+                                label: 'Extraction',
+                                width: 'w-32',
+                                render: (doc) => {
+                                    if (!doc.extractionStatus) {
+                                        return <span className="text-sm text-base-content/40">—</span>;
+                                    }
+
+                                    let statusColor = '';
+                                    let statusIcon = '';
+                                    let tooltipText = '';
+
+                                    switch (doc.extractionStatus) {
+                                        case 'completed':
+                                            statusColor = 'bg-success';
+                                            statusIcon = 'lucide--check-circle';
+                                            tooltipText = `Completed: ${doc.extractionCompletedAt ? new Date(doc.extractionCompletedAt).toLocaleString() : 'N/A'}${doc.extractionObjectsCount ? ` | ${doc.extractionObjectsCount} objects` : ''}`;
+                                            break;
+                                        case 'running':
+                                            statusColor = 'bg-warning';
+                                            statusIcon = 'lucide--loader-circle';
+                                            tooltipText = 'Extraction in progress...';
+                                            break;
+                                        case 'pending':
+                                            statusColor = 'bg-info';
+                                            statusIcon = 'lucide--clock';
+                                            tooltipText = 'Extraction pending';
+                                            break;
+                                        case 'failed':
+                                            statusColor = 'bg-error';
+                                            statusIcon = 'lucide--x-circle';
+                                            tooltipText = 'Extraction failed';
+                                            break;
+                                        default:
+                                            return <span className="text-sm text-base-content/40">—</span>;
+                                    }
+
+                                    return (
+                                        <div className="tooltip-left tooltip" data-tip={tooltipText}>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`w-2 h-2 rounded-full ${statusColor}`} />
+                                                <Icon icon={statusIcon} className="size-4 text-base-content/70" />
+                                            </div>
+                                        </div>
+                                    );
+                                },
+                            },
+                            {
+                                key: 'created_at',
+                                label: 'Created',
+                                sortable: true,
+                                render: (doc) => (
+                                    <span className="text-sm text-base-content/70">
+                                        {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : "—"}
+                                    </span>
+                                ),
+                            },
+                        ] as ColumnDef<DocumentRow>[]}
+                        rowActions={[
+                            {
+                                label: 'Extract',
+                                icon: 'lucide--sparkles',
+                                onAction: handleExtractObjects,
+                            },
+                            {
+                                label: 'View chunks',
+                                icon: 'lucide--list',
+                                asLink: true,
+                                href: (doc) => `/admin/apps/chunks?docId=${doc.id}`,
+                            },
+                        ] as RowAction<DocumentRow>[]}
+                        bulkActions={[
+                            {
+                                key: 'delete',
+                                label: 'Delete',
+                                icon: 'lucide--trash-2',
+                                variant: 'error',
+                                style: 'outline',
+                                onAction: handleBulkDelete,
+                            },
+                        ] as BulkAction<DocumentRow>[]}
+                        loading={loading}
+                        error={error}
+                        enableSelection={true}
+                        enableSearch={true}
+                        searchPlaceholder="Search documents..."
+                        getSearchText={(doc) => `${doc.filename || ''} ${doc.source_url || ''} ${doc.mime_type || ''}`}
+                        emptyMessage="No documents uploaded yet. Upload a document to get started."
+                        emptyIcon="lucide--file-text"
+                        formatDate={(date) => new Date(date).toLocaleDateString()}
+                        useDropdownActions={true}
+                    />
                 </div>
             </div>
 

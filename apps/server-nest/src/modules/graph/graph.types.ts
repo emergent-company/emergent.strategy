@@ -16,8 +16,8 @@ export interface GraphObjectRow {
     change_summary?: any | null;
     content_hash?: string | null; // base64 encoded
     fts?: string | null; // tsvector not normally selected; optional for debug
-    embedding?: any | null; // placeholder (vector/bytea); not exposed externally now
-    embedding_updated_at?: string | null;
+    embedding?: any | null; // bytea/vector field for semantic search
+    embedding_updated_at?: string | null; // timestamp when embedding was generated
     // Integration source tracking (docs/spec/22-clickup-integration.md section 3.3.1)
     external_source?: string | null; // Integration name (e.g., "clickup", "jira")
     external_id?: string | null; // Unique ID from source system (e.g., "9hz")

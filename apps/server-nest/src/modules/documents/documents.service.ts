@@ -12,6 +12,9 @@ interface DocumentRow {
     created_at: string;
     updated_at: string;
     chunks: number;
+    extraction_status: string | null;
+    extraction_completed_at: string | null;
+    extraction_objects_count: number | null;
 }
 
 @Injectable()
@@ -40,8 +43,18 @@ export class DocumentsService {
         const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
         const res = await this.db.query<DocumentRow>(
             `SELECT d.id, d.org_id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
-                    COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks
+                    COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
+                    ej.status AS extraction_status,
+                    ej.completed_at AS extraction_completed_at,
+                    ej.objects_created AS extraction_objects_count
              FROM kb.documents d
+             LEFT JOIN LATERAL (
+                 SELECT status, completed_at, objects_created
+                 FROM kb.object_extraction_jobs
+                 WHERE source_type = 'document' AND source_id::uuid = d.id
+                 ORDER BY created_at DESC
+                 LIMIT 1
+             ) ej ON true
              ${where}
              ORDER BY d.created_at DESC, d.id DESC
              LIMIT $1`,
@@ -63,8 +76,19 @@ export class DocumentsService {
     async get(id: string): Promise<DocumentDto | null> {
         const res = await this.db.query<DocumentRow>(
             `SELECT d.id, d.org_id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
-                    COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks
-             FROM kb.documents d WHERE d.id = $1 LIMIT 1`,
+                    COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
+                    ej.status AS extraction_status,
+                    ej.completed_at AS extraction_completed_at,
+                    ej.objects_created AS extraction_objects_count
+             FROM kb.documents d
+             LEFT JOIN LATERAL (
+                 SELECT status, completed_at, objects_created
+                 FROM kb.object_extraction_jobs
+                 WHERE source_type = 'document' AND source_id::uuid = d.id
+                 ORDER BY created_at DESC
+                 LIMIT 1
+             ) ej ON true
+             WHERE d.id = $1 LIMIT 1`,
             [id],
         );
         if (!res.rowCount) return null;
@@ -128,6 +152,9 @@ export class DocumentsService {
             createdAt: r.created_at,
             updatedAt: r.updated_at,
             chunks: r.chunks,
+            extractionStatus: r.extraction_status || undefined,
+            extractionCompletedAt: r.extraction_completed_at || undefined,
+            extractionObjectsCount: r.extraction_objects_count || undefined,
         };
     }
 }

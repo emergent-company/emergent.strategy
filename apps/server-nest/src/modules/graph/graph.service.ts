@@ -339,6 +339,7 @@ export class GraphService {
                 `SELECT 
                     o.id, o.org_id, o.project_id, o.canonical_id, o.supersedes_id, o.version, 
                     o.type, o.key, o.properties, o.labels, o.deleted_at, o.created_at,
+                    o.embedding, o.embedding_updated_at,
                     COALESCE(rc.revision_count, 1) as revision_count
                  FROM kb.graph_objects o
                  LEFT JOIN kb.graph_object_revision_counts rc ON rc.canonical_id = o.canonical_id
@@ -916,7 +917,7 @@ export class GraphService {
             const headParams: any[] = [];
             if (branch_id !== undefined) { headParams.push(branch_id ?? null); headFilters.push(`branch_id IS NOT DISTINCT FROM $${headParams.length}`); }
             const headWhere = headFilters.length ? 'WHERE ' + headFilters.join(' AND ') : '';
-            const baseHeadCte = `SELECT DISTINCT ON (canonical_id) id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, created_at
+            const baseHeadCte = `SELECT DISTINCT ON (canonical_id) id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, created_at, embedding, embedding_updated_at
                                  FROM kb.graph_objects
                                  ${headWhere}
                                  ORDER BY canonical_id, version DESC`;
@@ -976,7 +977,7 @@ export class GraphService {
             // Head selection restricted to FTS matches first, then filter deleted heads; rank computed on head row's fts vector.
             const expirationClause = buildExpirationFilterClause('h');
             const buildSql = (expirationFilter: string, includeExpirationColumn: boolean) => {
-                const columnList = `o.id, o.org_id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.status, o.properties, o.labels, o.deleted_at, o.created_at, o.fts${includeExpirationColumn ? ', o.expires_at' : ''}`;
+                const columnList = `o.id, o.org_id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.status, o.properties, o.labels, o.deleted_at, o.created_at, o.fts, o.embedding, o.embedding_updated_at${includeExpirationColumn ? ', o.expires_at' : ''}`;
                 return `WITH heads AS (
               SELECT DISTINCT ON (o.canonical_id) ${columnList}
               FROM kb.graph_objects o
@@ -2420,9 +2421,8 @@ export class GraphService {
     }
 
     private isEmbeddingsEnabled(): boolean {
-        const envKeyPresent = !!process.env.GOOGLE_API_KEY && process.env.GOOGLE_API_KEY.trim().length > 0;
-        const configured = this.config?.embeddingsEnabled ?? envKeyPresent;
+        const configured = this.config?.embeddingsEnabled ?? false;
         const networkDisabled = this.config?.embeddingsNetworkDisabled ?? Boolean(process.env.EMBEDDINGS_NETWORK_DISABLED);
-        return !networkDisabled && (configured || envKeyPresent);
+        return !networkDisabled && configured;
     }
 }

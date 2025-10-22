@@ -20,16 +20,22 @@ export class EmbeddingsService {
 
     private async ensureClient(): Promise<EmbeddingClient> {
         if (!this.isEnabled()) {
-            throw new Error('Embeddings disabled (missing GOOGLE_API_KEY)');
+            throw new Error('Embeddings disabled (EMBEDDING_PROVIDER not configured for Generative AI)');
+        }
+        // Note: This service uses Google Generative AI which requires GOOGLE_API_KEY
+        // For production embeddings, use the graph module's Vertex AI provider instead
+        const apiKey = process.env.GOOGLE_API_KEY;
+        if (!apiKey) {
+            throw new Error('GOOGLE_API_KEY not set - this service requires Generative AI API key. Use Vertex AI embeddings for production (graph module).');
         }
         if (!this.client) {
             // Lazy import to avoid require at startup when key missing
             const { GoogleGenerativeAIEmbeddings } = await import('@langchain/google-genai');
             this.client = new GoogleGenerativeAIEmbeddings({
-                apiKey: this.config.googleApiKey,
+                apiKey: apiKey,
                 model: 'text-embedding-004',
             }) as EmbeddingClient;
-            this.logger.log('Embeddings client initialized');
+            this.logger.log('Embeddings client initialized (Generative AI)');
         }
         return this.client;
     }

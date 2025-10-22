@@ -66,6 +66,7 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
     const [isLoading, setIsLoading] = useState(storybookLoading ?? false);
     const [totalCount, setTotalCount] = useState(storybookTotalCount ?? 0);
     const [error, setError] = useState<string | null>(null);
+    const [bulkActionInProgress, setBulkActionInProgress] = useState(false);
 
     // Fetch jobs from API
     useEffect(() => {
@@ -143,6 +144,121 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
         navigate(`/admin/extraction-jobs/${jobId}`);
     };
 
+    // Handle bulk operations
+    const handleBulkCancel = async () => {
+        if (!config.activeProjectId) return;
+
+        if (!window.confirm('Are you sure you want to cancel all pending and running jobs?')) {
+            return;
+        }
+
+        setBulkActionInProgress(true);
+        setError(null);
+
+        try {
+            const client = createExtractionJobsClient(
+                apiBase,
+                fetchJson,
+                config.activeProjectId
+            );
+
+            const result = await client.bulkCancelJobs();
+
+            // Refresh job list
+            const response = await client.listJobs(undefined, {
+                status: statusFilter === 'all' ? undefined : statusFilter,
+                page: currentPage,
+                limit: pageSize,
+            });
+
+            setJobs(response.jobs.map(jobToCardProps));
+            setTotalCount(response.total);
+
+            alert(result.message);
+        } catch (err) {
+            console.error('Failed to bulk cancel jobs:', err);
+            setError(err instanceof Error ? err.message : 'Failed to cancel jobs');
+        } finally {
+            setBulkActionInProgress(false);
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (!config.activeProjectId) return;
+
+        if (!window.confirm('Are you sure you want to delete all completed, failed, and cancelled jobs? This cannot be undone.')) {
+            return;
+        }
+
+        setBulkActionInProgress(true);
+        setError(null);
+
+        try {
+            const client = createExtractionJobsClient(
+                apiBase,
+                fetchJson,
+                config.activeProjectId
+            );
+
+            const result = await client.bulkDeleteJobs();
+
+            // Refresh job list
+            const response = await client.listJobs(undefined, {
+                status: statusFilter === 'all' ? undefined : statusFilter,
+                page: currentPage,
+                limit: pageSize,
+            });
+
+            setJobs(response.jobs.map(jobToCardProps));
+            setTotalCount(response.total);
+
+            alert(result.message);
+        } catch (err) {
+            console.error('Failed to bulk delete jobs:', err);
+            setError(err instanceof Error ? err.message : 'Failed to delete jobs');
+        } finally {
+            setBulkActionInProgress(false);
+        }
+    };
+
+    const handleBulkRetry = async () => {
+        if (!config.activeProjectId) return;
+
+        if (!window.confirm('Are you sure you want to retry all failed jobs?')) {
+            return;
+        }
+
+        setBulkActionInProgress(true);
+        setError(null);
+
+        try {
+            const client = createExtractionJobsClient(
+                apiBase,
+                fetchJson,
+                config.activeProjectId
+            );
+
+            const result = await client.bulkRetryJobs();
+
+            // Refresh job list
+            const response = await client.listJobs(undefined, {
+                status: statusFilter === 'all' ? undefined : statusFilter,
+                page: currentPage,
+                limit: pageSize,
+            });
+
+            setJobs(response.jobs.map(jobToCardProps));
+            setTotalCount(response.total);
+
+            alert(result.message);
+        } catch (err) {
+            console.error('Failed to bulk retry jobs:', err);
+            setError(err instanceof Error ? err.message : 'Failed to retry jobs');
+        } finally {
+            setBulkActionInProgress(false);
+        }
+    };
+
     // Show error state
     if (error && !isLoading) {
         return (
@@ -166,10 +282,69 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
                         View and manage AI-powered entity extraction jobs
                     </p>
                 </div>
-                <button className="btn btn-primary">
-                    <Icon icon="lucide--plus" />
-                    New Extraction
-                </button>
+
+                {/* Actions Dropdown */}
+                <div className="dropdown dropdown-end">
+                    <button
+                        tabIndex={0}
+                        className="btn btn-primary"
+                        disabled={bulkActionInProgress || isLoading}
+                    >
+                        <Icon icon="lucide--settings" />
+                        Actions
+                        <Icon icon="lucide--chevron-down" className="w-4 h-4" />
+                    </button>
+                    <ul
+                        tabIndex={0}
+                        className="z-10 bg-base-100 shadow-lg p-2 border border-base-300 rounded-box w-64 dropdown-content menu"
+                    >
+                        <li>
+                            <button
+                                onClick={handleBulkCancel}
+                                disabled={bulkActionInProgress}
+                                className="flex items-center gap-2"
+                            >
+                                <Icon icon="lucide--x-circle" className="text-warning" />
+                                <div className="flex flex-col items-start">
+                                    <span className="font-medium">Cancel All Jobs</span>
+                                    <span className="text-xs text-base-content/60">
+                                        Cancel pending & running
+                                    </span>
+                                </div>
+                            </button>
+                        </li>
+                        <li>
+                            <button
+                                onClick={handleBulkDelete}
+                                disabled={bulkActionInProgress}
+                                className="flex items-center gap-2"
+                            >
+                                <Icon icon="lucide--trash-2" className="text-error" />
+                                <div className="flex flex-col items-start">
+                                    <span className="font-medium">Delete All Jobs</span>
+                                    <span className="text-xs text-base-content/60">
+                                        Remove completed/failed/cancelled
+                                    </span>
+                                </div>
+                            </button>
+                        </li>
+                        <li>
+                            <button
+                                onClick={handleBulkRetry}
+                                disabled={bulkActionInProgress}
+                                className="flex items-center gap-2"
+                            >
+                                <Icon icon="lucide--refresh-cw" className="text-info" />
+                                <div className="flex flex-col items-start">
+                                    <span className="font-medium">Retry Failed Jobs</span>
+                                    <span className="text-xs text-base-content/60">
+                                        Reset failed jobs to pending
+                                    </span>
+                                </div>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
             </div>
 
             {/* Filters */}

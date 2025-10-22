@@ -52,6 +52,16 @@ export class ExtractionJobService {
 
         if (!this.schemaInfoPromise) {
             this.schemaInfoPromise = (async () => {
+                // Check if database is online before attempting schema detection
+                if (!this.db.isOnline()) {
+                    this.logger.warn('Database is offline during schema detection - waiting for initialization');
+                    // Wait a bit and retry (database might still be initializing)
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    if (!this.db.isOnline()) {
+                        throw new Error('Database offline - cannot detect schema. Check database initialization logs.');
+                    }
+                }
+
                 const result = await this.db.query<{ column_name: string; data_type: string }>(
                     `SELECT column_name, data_type
                      FROM information_schema.columns
@@ -62,6 +72,16 @@ export class ExtractionJobService {
                 for (const row of result.rows) {
                     columns.set(row.column_name, row.data_type);
                 }
+
+                // Debug logging
+                if (columns.size === 0) {
+                    this.logger.error('Schema detection returned 0 columns from information_schema.columns');
+                    this.logger.error(`Query result: ${JSON.stringify(result)}`);
+                    this.logger.error(`Database online status: ${this.db.isOnline()}`);
+                    throw new Error('Failed to detect object_extraction_jobs schema - no columns returned from information_schema');
+                }
+
+                this.logger.debug(`Detected ${columns.size} columns in object_extraction_jobs: ${Array.from(columns.keys()).join(', ')}`);
 
                 const orgColumn = columns.has('organization_id') ? 'organization_id' : 'org_id';
                 if (!orgColumn) {
@@ -726,6 +746,71 @@ export class ExtractionJobService {
     }
 
     /**
+     * Bulk cancel all pending/running jobs for a project
+     */
+    async bulkCancelJobs(projectId: string, orgId: string): Promise<number> {
+        const schema = await this.getSchemaInfo();
+        await this.db.setTenantContext(orgId, projectId);
+
+        const result = await this.db.query(
+            `UPDATE kb.object_extraction_jobs 
+             SET status = $1, updated_at = NOW()
+             WHERE ${schema.projectColumn} = $2 
+               AND ${schema.orgColumn} = $3
+               AND status IN ($4, $5)`,
+            [ExtractionJobStatus.CANCELLED, projectId, orgId, ExtractionJobStatus.PENDING, ExtractionJobStatus.RUNNING]
+        );
+
+        const cancelled = result.rowCount || 0;
+        this.logger.log(`Bulk cancelled ${cancelled} jobs for project ${projectId}`);
+        return cancelled;
+    }
+
+    /**
+     * Bulk delete all completed/failed/cancelled jobs for a project
+     */
+    async bulkDeleteJobs(projectId: string, orgId: string): Promise<number> {
+        const schema = await this.getSchemaInfo();
+        await this.db.setTenantContext(orgId, projectId);
+
+        const result = await this.db.query(
+            `DELETE FROM kb.object_extraction_jobs 
+             WHERE ${schema.projectColumn} = $1 
+               AND ${schema.orgColumn} = $2
+               AND status IN ($3, $4, $5)`,
+            [projectId, orgId, ExtractionJobStatus.COMPLETED, ExtractionJobStatus.FAILED, ExtractionJobStatus.CANCELLED]
+        );
+
+        const deleted = result.rowCount || 0;
+        this.logger.log(`Bulk deleted ${deleted} jobs for project ${projectId}`);
+        return deleted;
+    }
+
+    /**
+     * Bulk retry all failed jobs for a project
+     */
+    async bulkRetryJobs(projectId: string, orgId: string): Promise<number> {
+        const schema = await this.getSchemaInfo();
+        await this.db.setTenantContext(orgId, projectId);
+
+        const result = await this.db.query(
+            `UPDATE kb.object_extraction_jobs 
+             SET status = $1, 
+                 error_message = NULL,
+                 error_details = NULL,
+                 updated_at = NOW()
+             WHERE ${schema.projectColumn} = $2 
+               AND ${schema.orgColumn} = $3
+               AND status = $4`,
+            [ExtractionJobStatus.PENDING, projectId, orgId, ExtractionJobStatus.FAILED]
+        );
+
+        const retried = result.rowCount || 0;
+        this.logger.log(`Bulk retried ${retried} failed jobs for project ${projectId}`);
+        return retried;
+    }
+
+    /**
      * Get job statistics for a project
      */
     async getJobStatistics(projectId: string, orgId: string): Promise<{
@@ -871,59 +956,59 @@ export class ExtractionJobService {
 
     /**
      * List available Gemini models from Google API
-     * 
-     * Queries the Google Generative AI API to get all available models
-     * with their capabilities, token limits, and supported methods.
+    /**
+     * Lists available Vertex AI models.
+     * Note: This is a simplified version as Vertex AI model listing requires more complex setup.
+     * For production, use the Vertex AI Model Garden API.
      */
     async listAvailableGeminiModels(): Promise<any> {
-        const apiKey = this.config.googleApiKey;
+        const projectId = this.config.vertexAiProjectId;
 
-        if (!apiKey) {
-            throw new BadRequestException('Google API key not configured');
+        if (!projectId) {
+            throw new BadRequestException('Vertex AI project not configured (VERTEX_AI_PROJECT_ID missing)');
         }
 
         try {
-            // Use the REST API directly to list models
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+            // Return hardcoded list of common Vertex AI models
+            // For a complete list, use the Vertex AI Model Garden API with proper authentication
+            const models = [
                 {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                }
-            );
+                    name: 'models/gemini-1.5-pro-latest',
+                    displayName: 'Gemini 1.5 Pro',
+                    description: 'Most capable model for complex reasoning tasks',
+                    supportedGenerationMethods: ['generateContent'],
+                    inputTokenLimit: 1000000,
+                    outputTokenLimit: 8192,
+                },
+                {
+                    name: 'models/gemini-1.5-flash-latest',
+                    displayName: 'Gemini 1.5 Flash',
+                    description: 'Fast and versatile performance across diverse tasks',
+                    supportedGenerationMethods: ['generateContent'],
+                    inputTokenLimit: 1000000,
+                    outputTokenLimit: 8192,
+                },
+                {
+                    name: 'models/gemini-1.5-flash-8b',
+                    displayName: 'Gemini 1.5 Flash-8B',
+                    description: 'Fastest model for high-frequency tasks',
+                    supportedGenerationMethods: ['generateContent'],
+                    inputTokenLimit: 1000000,
+                    outputTokenLimit: 8192,
+                },
+            ];
 
-            if (!response.ok) {
-                throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-            }
+            this.logger.log(`Returning ${models.length} Vertex AI models`);
 
-            const data = await response.json();
-            const models = data.models || [];
-
-            const modelList = models.map((model: any) => ({
-                name: model.name,
-                displayName: model.displayName,
-                description: model.description || null,
-                supportedGenerationMethods: model.supportedGenerationMethods || [],
-                inputTokenLimit: model.inputTokenLimit || null,
-                outputTokenLimit: model.outputTokenLimit || null,
-                temperature: model.temperature || null,
-                topP: model.topP || null,
-                topK: model.topK || null,
-            }));
-
-            this.logger.log(`Found ${modelList.length} available Gemini models`);
-
-            // Extract just the model name for easier comparison
-            const modelNames = modelList.map((m: any) => m.name.replace('models/', ''));
+            const modelNames = models.map((m: any) => m.name.replace('models/', ''));
 
             return {
                 current_model: this.config.vertexAiModel || 'gemini-1.5-flash-latest',
-                available_models: modelList,
+                available_models: models,
                 model_names: modelNames,
-                total_count: modelList.length,
+                total_count: models.length,
                 queried_at: new Date().toISOString(),
+                note: 'Using Vertex AI. For complete model list, use Vertex AI Model Garden API.',
             };
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);

@@ -16,10 +16,12 @@ export class AppConfigService {
     constructor(@Inject(EnvVariables) private readonly env: EnvVariables) {
         if (process.env.E2E_DEBUG_CHAT === '1') {
             // eslint-disable-next-line no-console
-            console.log('[config-debug] CHAT_MODEL_ENABLED raw=', process.env.CHAT_MODEL_ENABLED,
-                'GOOGLE_API_KEY set=', !!process.env.GOOGLE_API_KEY,
-                'VERTEX_AI_PROJECT_ID set=', !!process.env.VERTEX_AI_PROJECT_ID,
-                'computed chatModelEnabled=', (!!process.env.GOOGLE_API_KEY || !!process.env.VERTEX_AI_PROJECT_ID) && (process.env.CHAT_MODEL_ENABLED === 'true' || process.env.CHAT_MODEL_ENABLED === '1'));
+            console.log('Config initialized:',
+                'PORT=', this.env.PORT,
+                'PGHOST=', this.env.PGHOST,
+                'EMBEDDING_PROVIDER=', process.env.EMBEDDING_PROVIDER || 'unset',
+                'VERTEX_AI_PROJECT_ID=', this.env.VERTEX_AI_PROJECT_ID || 'unset',
+                'computed chatModelEnabled=', (!!this.env.VERTEX_AI_PROJECT_ID) && (process.env.CHAT_MODEL_ENABLED === 'true' || process.env.CHAT_MODEL_ENABLED === '1'));
         }
     }
     /**
@@ -38,8 +40,16 @@ export class AppConfigService {
     get dbUser() { return this.env.PGUSER; }
     get dbPassword() { return this.env.PGPASSWORD; }
     get dbName() { return this.env.PGDATABASE; }
-    get googleApiKey() { return this.env.GOOGLE_API_KEY; }
-    get embeddingsEnabled() { return !!this.env.GOOGLE_API_KEY; }
+
+    /**
+     * Embeddings are enabled if EMBEDDING_PROVIDER is set to 'vertex' or 'google'
+     * No API key needed - Vertex AI uses Application Default Credentials
+     */
+    get embeddingsEnabled() {
+        const provider = process.env.EMBEDDING_PROVIDER?.toLowerCase();
+        return provider === 'vertex' || provider === 'google';
+    }
+
     get embeddingsNetworkDisabled(): boolean {
         return Boolean(process.env.EMBEDDINGS_NETWORK_DISABLED);
     }
@@ -61,13 +71,19 @@ export class AppConfigService {
     }
 
     /**
-     * Chat model is enabled if CHAT_MODEL_ENABLED is true AND we have either:
-     * - GOOGLE_API_KEY (for direct Gemini API access), OR
-     * - VERTEX_AI_PROJECT_ID (for Vertex AI authentication)
+     * Chat model is enabled if CHAT_MODEL_ENABLED is true AND we have Vertex AI configured
      */
     get chatModelEnabled() {
-        const hasProvider = !!this.env.GOOGLE_API_KEY || !!this.env.VERTEX_AI_PROJECT_ID;
-        return hasProvider && !!this.env.CHAT_MODEL_ENABLED;
+        return !!this.env.VERTEX_AI_PROJECT_ID && !!this.env.CHAT_MODEL_ENABLED;
+    }
+
+    /**
+     * Custom system prompt for chat. If not set, the generation service will use its default.
+     * Supports template variables:
+     * - {detectedIntent} - The detected query intent (schema-version, entity-query, etc.)
+     */
+    get chatSystemPrompt(): string | undefined {
+        return this.env.CHAT_SYSTEM_PROMPT;
     }
 
     get autoInitDb() { return !!this.env.DB_AUTOINIT; }
@@ -82,9 +98,8 @@ export class AppConfigService {
 
     // --- Extraction Worker Behavior ---
     get extractionWorkerEnabled() {
-        // Enable if either LangChain (GOOGLE_API_KEY) or Vertex AI (VERTEX_AI_PROJECT_ID) is configured
-        const hasProvider = !!this.env.GOOGLE_API_KEY || !!this.env.VERTEX_AI_PROJECT_ID;
-        return hasProvider && !!this.env.EXTRACTION_WORKER_ENABLED;
+        // Enable if Vertex AI is configured
+        return !!this.env.VERTEX_AI_PROJECT_ID && !!this.env.EXTRACTION_WORKER_ENABLED;
     }
     get extractionWorkerPollIntervalMs() {
         return this.env.EXTRACTION_WORKER_POLL_INTERVAL_MS || 5000;

@@ -1,49 +1,59 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ChatGenerationService, PromptBuildOptions } from '../chat-generation.service';
 import { AppConfigService } from '../../../common/config/config.service';
+import { ProjectsService } from '../../projects/projects.service';
 
 describe('ChatGenerationService - Enhanced Prompt Building', () => {
     let service: ChatGenerationService;
     let mockConfig: Partial<AppConfigService>;
+    let mockProjectsService: Partial<ProjectsService>;
 
     beforeEach(() => {
         // Mock config service
         mockConfig = {
             chatModelEnabled: true,
-            googleApiKey: 'test-key',
             vertexAiModel: 'gemini-2.5-pro',
             vertexAiProjectId: 'test-project',
             vertexAiLocation: 'us-central1',
         };
-        service = new ChatGenerationService(mockConfig as AppConfigService);
+
+        // Mock projects service
+        mockProjectsService = {
+            getById: vi.fn().mockResolvedValue(null), // Default: no custom template
+        };
+
+        service = new ChatGenerationService(
+            mockConfig as AppConfigService,
+            mockProjectsService as ProjectsService
+        );
     });
 
     describe('buildPrompt()', () => {
         describe('General queries without MCP context', () => {
-            it('should build basic prompt for general query', () => {
+            it('should build basic prompt for general query', async () => {
                 const options: PromptBuildOptions = {
                     message: 'Hello, how can you help me?',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).toContain('You are a helpful assistant specialized in knowledge graphs and data schemas');
-                expect(prompt).toContain('Answer questions clearly, concisely, and accurately');
+                expect(prompt).toContain('Answer questions clearly');
                 expect(prompt).toContain('## User Question');
                 expect(prompt).toContain('Hello, how can you help me?');
                 expect(prompt).toContain('## Your Response');
                 expect(prompt).not.toContain('## Context from Schema');
             });
 
-            it('should handle general intent explicitly', () => {
+            it('should handle general intent explicitly', async () => {
                 const options: PromptBuildOptions = {
                     message: 'What can you do?',
                     detectedIntent: 'general',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
-                expect(prompt).toContain('Answer questions clearly, concisely, and accurately');
+                expect(prompt).toContain('Answer questions clearly');
                 expect(prompt).not.toContain('version information');
                 expect(prompt).not.toContain('schema changes');
                 expect(prompt).not.toContain('entity types');
@@ -51,41 +61,41 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
         });
 
         describe('Schema version queries', () => {
-            it('should build specialized prompt for schema version query', () => {
+            it('should build specialized prompt for schema version query', async () => {
                 const options: PromptBuildOptions = {
                     message: 'What is the current schema version?',
                     detectedIntent: 'schema-version',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).toContain('When answering questions about schema versions');
                 expect(prompt).toContain('provide clear version information');
                 expect(prompt).toContain('What is the current schema version?');
             });
 
-            it('should include formatted schema version context', () => {
+            it('should include formatted schema version context', async () => {
                 const options: PromptBuildOptions = {
                     message: 'What is the schema version?',
                     mcpToolContext: '{"version":"1.2.3","updated_at":"2025-10-20T12:00:00Z"}',
                     detectedIntent: 'schema-version',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).toContain('## Context from Schema');
                 expect(prompt).toContain('Current schema version: 1.2.3');
                 expect(prompt).toContain('Last updated: 2025-10-20T12:00:00Z');
             });
 
-            it('should handle plain text schema version context', () => {
+            it('should handle plain text schema version context', async () => {
                 const options: PromptBuildOptions = {
                     message: 'Version?',
                     mcpToolContext: 'The current schema version is 1.0.0',
                     detectedIntent: 'schema-version',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).toContain('## Context from Schema');
                 expect(prompt).toContain('The current schema version is 1.0.0');
@@ -93,20 +103,20 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
         });
 
         describe('Schema changes queries', () => {
-            it('should build specialized prompt for schema changes query', () => {
+            it('should build specialized prompt for schema changes query', async () => {
                 const options: PromptBuildOptions = {
                     message: 'Show me recent schema changes',
                     detectedIntent: 'schema-changes',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).toContain('When describing schema changes');
                 expect(prompt).toContain('organize them chronologically');
                 expect(prompt).toContain('highlight the most important modifications');
             });
 
-            it('should format schema changes list from JSON', () => {
+            it('should format schema changes list from JSON', async () => {
                 const changes = {
                     changes: [
                         { description: 'Added Project.status field', timestamp: '2025-10-20T10:00:00Z' },
@@ -121,7 +131,7 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
                     detectedIntent: 'schema-changes',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).toContain('## Context from Schema');
                 expect(prompt).toContain('1. Added Project.status field (2025-10-20T10:00:00Z)');
@@ -129,14 +139,14 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
                 expect(prompt).toContain('3. relationship-added (2025-10-18T09:00:00Z)');
             });
 
-            it('should handle empty changes array', () => {
+            it('should handle empty changes array', async () => {
                 const options: PromptBuildOptions = {
                     message: 'Any changes?',
                     mcpToolContext: '{"changes":[]}',
                     detectedIntent: 'schema-changes',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).toContain('## Context from Schema');
                 // Should fall back to JSON pretty-print for empty array
@@ -145,19 +155,19 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
         });
 
         describe('Type info queries', () => {
-            it('should build specialized prompt for type info query', () => {
+            it('should build specialized prompt for type info query', async () => {
                 const options: PromptBuildOptions = {
                     message: 'Tell me about the Project entity',
                     detectedIntent: 'type-info',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).toContain('When explaining entity types');
                 expect(prompt).toContain('describe their properties, relationships, and use cases clearly');
             });
 
-            it('should format type info with properties and relationships', () => {
+            it('should format type info with properties and relationships', async () => {
                 const typeInfo = {
                     type_name: 'Project',
                     properties: [
@@ -177,7 +187,7 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
                     detectedIntent: 'type-info',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).toContain('## Context from Schema');
                 expect(prompt).toContain('Entity Type: Project');
@@ -190,7 +200,7 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
                 expect(prompt).toContain('- owner: User');
             });
 
-            it('should handle type info with only properties', () => {
+            it('should handle type info with only properties', async () => {
                 const typeInfo = {
                     type_name: 'Document',
                     properties: [
@@ -205,7 +215,7 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
                     detectedIntent: 'type-info',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).toContain('Entity Type: Document');
                 expect(prompt).toContain('Properties:');
@@ -214,7 +224,7 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
                 expect(prompt).not.toContain('Relationships:');
             });
 
-            it('should handle type info with only relationships', () => {
+            it('should handle type info with only relationships', async () => {
                 const typeInfo = {
                     type_name: 'Task',
                     relationships: [
@@ -228,7 +238,7 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
                     detectedIntent: 'type-info',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).toContain('Entity Type: Task');
                 expect(prompt).toContain('Relationships:');
@@ -238,51 +248,51 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
         });
 
         describe('Context formatting edge cases', () => {
-            it('should handle empty string context', () => {
+            it('should handle empty string context', async () => {
                 const options: PromptBuildOptions = {
                     message: 'Test query',
                     mcpToolContext: '',
                     detectedIntent: 'general',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).not.toContain('## Context from Schema');
             });
 
-            it('should handle whitespace-only context', () => {
+            it('should handle whitespace-only context', async () => {
                 const options: PromptBuildOptions = {
                     message: 'Test query',
                     mcpToolContext: '   \n\t  ',
                     detectedIntent: 'general',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).not.toContain('## Context from Schema');
             });
 
-            it('should handle invalid JSON gracefully', () => {
+            it('should handle invalid JSON gracefully', async () => {
                 const options: PromptBuildOptions = {
                     message: 'Test query',
                     mcpToolContext: '{invalid json}',
                     detectedIntent: 'schema-version',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).toContain('## Context from Schema');
                 expect(prompt).toContain('{invalid json}');
             });
 
-            it('should pretty-print JSON when format not recognized', () => {
+            it('should pretty-print JSON when format not recognized', async () => {
                 const options: PromptBuildOptions = {
                     message: 'Test query',
                     mcpToolContext: '{"unknown_field":"value","nested":{"data":123}}',
                     detectedIntent: 'general',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 expect(prompt).toContain('## Context from Schema');
                 expect(prompt).toContain('"unknown_field"');
@@ -294,14 +304,14 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
         });
 
         describe('Prompt structure validation', () => {
-            it('should include all sections in correct order', () => {
+            it('should include all sections in correct order', async () => {
                 const options: PromptBuildOptions = {
                     message: 'What is the schema version?',
                     mcpToolContext: 'Version: 1.0.0',
                     detectedIntent: 'schema-version',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 // Check order of sections
                 const systemPromptIdx = prompt.indexOf('You are a helpful assistant');
@@ -315,13 +325,13 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
                 expect(responseIdx).toBeGreaterThan(questionIdx);
             });
 
-            it('should skip context section when no context provided', () => {
+            it('should skip context section when no context provided', async () => {
                 const options: PromptBuildOptions = {
                     message: 'Test query',
                     detectedIntent: 'general',
                 };
 
-                const prompt = service.buildPrompt(options);
+                const prompt = await service.buildPrompt(options);
 
                 // Check order without context
                 const systemPromptIdx = prompt.indexOf('You are a helpful assistant');

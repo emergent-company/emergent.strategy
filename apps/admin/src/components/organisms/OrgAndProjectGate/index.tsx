@@ -95,7 +95,7 @@ export function OrgAndProjectGate({ children }: OrgAndProjectGateProps) {
                     <form onSubmit={onCreateOrg} className="space-y-3" aria-label="Create organization form">
                         <label className="w-full form-control">
                             <div className="py-1 label"><span className="font-medium label-text">Organization name</span></div>
-                            <input className="input-bordered w-full input" value={orgName} onChange={e => setOrgName(e.target.value)} required minLength={2} maxLength={100} placeholder="e.g. Acme Inc" />
+                            <input className="w-full input-bordered input" value={orgName} onChange={e => setOrgName(e.target.value)} required minLength={2} maxLength={100} placeholder="e.g. Acme Inc" />
                         </label>
                         {error && <div role="alert" className="alert alert-error"><Icon icon="lucide--alert-circle" className="size-5" /><span>{error}</span></div>}
                         <button className="w-full btn btn-primary" disabled={creatingOrg || orgName.trim().length < 2} type="submit">{creatingOrg && <span className="loading loading-spinner loading-sm" />} Create organization</button>
@@ -114,7 +114,7 @@ export function OrgAndProjectGate({ children }: OrgAndProjectGateProps) {
                     <form onSubmit={onCreateProject} className="space-y-3" aria-label="Create project form">
                         <label className="w-full form-control">
                             <div className="py-1 label"><span className="font-medium label-text">Project name</span></div>
-                            <input className="input-bordered w-full input" value={projectName} onChange={e => setProjectName(e.target.value)} required minLength={2} maxLength={100} placeholder="e.g. Product Docs" />
+                            <input className="w-full input-bordered input" value={projectName} onChange={e => setProjectName(e.target.value)} required minLength={2} maxLength={100} placeholder="e.g. Product Docs" />
                         </label>
                         {error && <div role="alert" className="alert alert-error"><Icon icon="lucide--alert-circle" className="size-5" /><span>{error}</span></div>}
                         <button className="w-full btn btn-primary" disabled={creatingProject || projectName.trim().length < 2} type="submit">{creatingProject && <span className="loading loading-spinner loading-sm" />} Create project</button>
@@ -126,10 +126,8 @@ export function OrgAndProjectGate({ children }: OrgAndProjectGateProps) {
 
     return (
         <>
-            <div className="flex flex-wrap items-center gap-2 opacity-70 mb-4 text-sm">
-                {activeOrgId && <span className="badge badge-neutral">Org: {config.activeOrgName}</span>}
-                {activeProjectId && <span className="badge badge-primary">Project: {config.activeProjectName || projectList.find(p => p.id === activeProjectId)?.name}</span>}
-                <div className="ml-auto join">
+            <div className="flex flex-wrap justify-end items-center gap-2 opacity-70 mb-4 text-sm">
+                <div className="join">
                     <details className="dropdown join-item">
                         <summary className="btn btn-xs">Org</summary>
                         <ul className="z-[1] bg-base-100 shadow p-2 rounded-box w-52 dropdown-content menu">
@@ -165,7 +163,7 @@ export function OrgAndProjectGate({ children }: OrgAndProjectGateProps) {
                                         </button>
                                     </li>
                                 ))}
-                                <li className="mt-1 pt-1 border-t border-base-300">
+                                <li className="mt-1 pt-1 border-base-300 border-t">
                                     <label htmlFor="modal-create-project-inline" className="text-xs link link-primary">Add project</label>
                                 </li>
                             </ul>

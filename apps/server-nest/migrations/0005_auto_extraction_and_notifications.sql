@@ -10,7 +10,7 @@
 ALTER TABLE
     kb.projects
 ADD
-    COLUMN IF NOT EXISTS auto_extract_objects BOOLEAN NOT NULL DEFAULT true,
+    COLUMN IF NOT EXISTS auto_extract_objects BOOLEAN NOT NULL DEFAULT false,
 ADD
     COLUMN IF NOT EXISTS auto_extract_config JSONB DEFAULT '{
     "enabled_types": null,

@@ -88,8 +88,8 @@ export interface TriggerSyncResponse {
 export interface TriggerSyncConfig {
     full_sync?: boolean;
     source_types?: string[];
-    /** Specific list IDs to import (ClickUp-specific, for selective sync) */
-    list_ids?: string[];
+    /** Specific space IDs to import (ClickUp-specific, for selective sync) */
+    space_ids?: string[];
     /** Whether to include completed/archived items */
     includeArchived?: boolean;
     /** Maximum tasks to import per batch */
@@ -116,9 +116,13 @@ export interface ClickUpFolder {
 export interface ClickUpSpace {
     id: string;
     name: string;
-    folders: ClickUpFolder[];
-    lists: ClickUpList[]; // Folderless lists
     archived: boolean;
+    documents: ClickUpDocument[];
+}
+
+export interface ClickUpDocument {
+    id: string;
+    name: string;
 }
 
 export interface ClickUpWorkspaceStructure {

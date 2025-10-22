@@ -49,6 +49,9 @@ export interface ImportConfig {
 
     /** Specific list IDs to import (ClickUp-specific, for selective sync) */
     list_ids?: string[];
+
+    /** Specific space IDs to import (ClickUp-specific, for doc filtering) */
+    space_ids?: string[];
 }
 
 /**
@@ -263,11 +266,92 @@ export abstract class BaseIntegration {
     }
 
     /**
+     * Run full import with real-time progress updates
+     * 
+     * Similar to runFullImport but calls onProgress callback with status updates.
+     * Subclasses can override onRunFullImportWithProgress to emit progress events.
+     */
+    async runFullImportWithProgress(
+        config: ImportConfig,
+        onProgress: (progress: { step: string; message: string; count?: number }) => void
+    ): Promise<ImportResult> {
+        if (!this.integration) {
+            throw new Error('Integration not configured. Call configure() first.');
+        }
+
+        const capabilities = this.getCapabilities();
+        if (!capabilities.supportsImport) {
+            throw new Error(`${this.displayName} does not support data import`);
+        }
+
+        this.logger.log(`Starting full import with progress for ${this.displayName}`);
+        const startTime = Date.now();
+
+        try {
+            onProgress({ step: 'starting', message: `Starting ${this.displayName} import...` });
+
+            const result = await this.onRunFullImportWithProgress(config, onProgress);
+            const durationMs = Date.now() - startTime;
+
+            this.logger.log(
+                `Full import completed: ${result.totalImported} imported, ` +
+                `${result.totalFailed} failed in ${durationMs}ms`
+            );
+
+            onProgress({
+                step: 'complete',
+                message: `Import complete: ${result.totalImported} imported, ${result.totalFailed} failed`,
+                count: result.totalImported
+            });
+
+            return {
+                ...result,
+                durationMs,
+                completedAt: new Date(),
+            };
+        } catch (error) {
+            const durationMs = Date.now() - startTime;
+            const err = error as Error;
+            this.logger.error(`Full import failed: ${err.message}`, err.stack);
+
+            onProgress({
+                step: 'error',
+                message: `Import failed: ${err.message}`
+            });
+
+            return {
+                success: false,
+                totalImported: 0,
+                totalFailed: 0,
+                durationMs,
+                error: err.message,
+                completedAt: new Date(),
+            };
+        }
+    }
+
+    /**
      * Hook for subclasses to implement import logic
      * 
      * Override to fetch data from external API and store in database.
      */
     protected abstract onRunFullImport(config?: ImportConfig): Promise<ImportResult>;
+
+    /**
+     * Hook for subclasses to implement import logic with progress
+     * 
+     * Override to fetch data from external API and store in database,
+     * calling onProgress to emit real-time status updates.
+     * 
+     * Default implementation calls onRunFullImport (no progress updates).
+     */
+    protected async onRunFullImportWithProgress(
+        config: ImportConfig,
+        onProgress: (progress: { step: string; message: string; count?: number }) => void
+    ): Promise<ImportResult> {
+        // Default: delegate to regular import (no progress updates)
+        return this.onRunFullImport(config);
+    }
 
     /**
      * Handle incoming webhook

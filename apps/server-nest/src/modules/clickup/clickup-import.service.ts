@@ -3,6 +3,8 @@ import { ImportConfig, ImportResult } from '../integrations/base-integration';
 import { ClickUpApiClient } from './clickup-api.client';
 import { ClickUpDataMapper } from './clickup-data-mapper.service';
 import { DatabaseService } from '../../common/database/database.service';
+import { ExtractionJobService } from '../extraction-jobs/extraction-job.service';
+import { ExtractionSourceType } from '../extraction-jobs/dto/extraction-job.dto';
 
 /**
  * ClickUp Import Service
@@ -31,19 +33,27 @@ export class ClickUpImportService {
     constructor(
         private readonly apiClient: ClickUpApiClient,
         private readonly dataMapper: ClickUpDataMapper,
-        private readonly db: DatabaseService
+        private readonly db: DatabaseService,
+        private readonly extractionJobService: ExtractionJobService
     ) { }
 
     /**
-     * Fetch workspace structure for list selection UI
+     * Fetch workspace structure with spaces and documents
      * 
-     * Returns hierarchical structure with task counts:
+     * Returns:
      * {
      *   workspace: { id, name },
      *   spaces: [
      *     {
-     *       id, name, folders: [...], lists: [...]
-     *     }
+     *       id: "space_id",
+     *       name: "Space Name",
+     *       archived: false,
+     *       documents: [
+     *         { id: "doc_id", name: "Doc Name" },
+     *         ...
+     *       ]
+     *     },
+     *     ...
      *   ]
      * }
      */
@@ -52,7 +62,7 @@ export class ClickUpImportService {
         includeArchived: boolean = false
     ): Promise<any> {
         try {
-            this.logger.log(`Fetching workspace structure for ${workspaceId}`);
+            this.logger.log(`Fetching workspace structure for ${workspaceId} (lightweight - no documents)`);
 
             // 1. Fetch workspace metadata
             const workspacesResponse = await this.apiClient.getWorkspaces();
@@ -64,133 +74,79 @@ export class ClickUpImportService {
 
             // 2. Fetch all spaces
             const spacesResponse = await this.apiClient.getSpaces(workspaceId, includeArchived);
-            this.logger.log(`Found ${spacesResponse.spaces.length} spaces: ${spacesResponse.spaces.map(s => s.name).join(', ')}`);
-            this.logger.debug(`Full spaces response: ${JSON.stringify(spacesResponse).substring(0, 1000)}`);
+            this.logger.log(`Found ${spacesResponse.spaces.length} spaces`);
 
-            // 3. Build hierarchical structure
-            const spaces = await Promise.all(
-                spacesResponse.spaces.map(async (space) => {
-                    try {
-                        // Fetch folders in space
-                        const foldersResponse = await this.apiClient.getFolders(space.id, includeArchived);
-                        this.logger.log(`Space "${space.name}": ${foldersResponse.folders.length} folders: ${foldersResponse.folders.map(f => f.name).join(', ') || '(none)'}`);
-                        this.logger.debug(`Space "${space.name}" folders response: ${JSON.stringify(foldersResponse).substring(0, 1000)}`);
+            // 3. Fetch only first page of documents to get a preview (max 100 docs)
+            // Full document fetch will happen during actual import, not in structure UI
+            const allDocs: any[] = [];
+            let cursor: string | undefined = undefined;
+            const MAX_PREVIEW_DOCS = 100;
+            const MAX_ITERATIONS = 10; // Safety limit
+            let iterations = 0;
+            const seenCursors = new Set<string>();
 
-                        // Build folder structure with lists and task counts
-                        const folders = await Promise.all(
-                            foldersResponse.folders.map(async (folder) => {
-                                try {
-                                    const listsResponse = await this.apiClient.getListsInFolder(folder.id, includeArchived);
-                                    this.logger.log(`  Folder "${folder.name}": ${listsResponse.lists.length} lists: ${listsResponse.lists.map(l => l.name).join(', ') || '(none)'}`);
+            this.logger.log(`Fetching document preview (max ${MAX_PREVIEW_DOCS} docs)...`);
 
-                                    // Get task counts for each list
-                                    const lists = await Promise.all(
-                                        listsResponse.lists.map(async (list) => {
-                                            try {
-                                                // Use list.task_count from the API response if available
-                                                // Otherwise fetch first page to check if tasks exist
-                                                let taskCount = (list as any).task_count || 0;
-                                                if (!taskCount) {
-                                                    const tasksResponse = await this.apiClient.getTasksInList(list.id, {
-                                                        archived: includeArchived,
-                                                        page: 0
-                                                    });
-                                                    // Note: ClickUp doesn't return total count, so we just know if tasks exist
-                                                    taskCount = tasksResponse.tasks?.length || 0;
-                                                }
-                                                return {
-                                                    id: list.id,
-                                                    name: list.name,
-                                                    task_count: taskCount,
-                                                    archived: list.archived || false,
-                                                };
-                                            } catch (error) {
-                                                const err = error as Error;
-                                                this.logger.warn(`Failed to get task count for list ${list.id}: ${err.message}`);
-                                                return {
-                                                    id: list.id,
-                                                    name: list.name,
-                                                    task_count: 0,
-                                                    archived: list.archived || false,
-                                                };
-                                            }
-                                        })
-                                    );
+            do {
+                iterations++;
 
-                                    return {
-                                        id: folder.id,
-                                        name: folder.name,
-                                        lists,
-                                        archived: folder.archived || false,
-                                    };
-                                } catch (error) {
-                                    const err = error as Error;
-                                    this.logger.warn(`Failed to fetch lists for folder ${folder.id}: ${err.message}`);
-                                    return {
-                                        id: folder.id,
-                                        name: folder.name,
-                                        lists: [],
-                                        archived: folder.archived || false,
-                                    };
-                                }
-                            })
-                        );
+                // Safety check: prevent infinite loops
+                if (iterations > MAX_ITERATIONS) {
+                    this.logger.warn(`Reached max iterations (${MAX_ITERATIONS}) while fetching docs preview. Breaking loop.`);
+                    break;
+                }
 
-                        // Fetch folderless lists
-                        const folderlessListsResponse = await this.apiClient.getFolderlessLists(space.id, includeArchived);
-                        this.logger.log(`Space "${space.name}": ${folderlessListsResponse.lists.length} folderless lists: ${folderlessListsResponse.lists.map(l => l.name).join(', ') || '(none)'}`);
-                        this.logger.debug(`Space "${space.name}" folderless lists response: ${JSON.stringify(folderlessListsResponse).substring(0, 1000)}`);
-                        const folderlessLists = await Promise.all(
-                            folderlessListsResponse.lists.map(async (list) => {
-                                try {
-                                    // Use list.task_count from the API response if available
-                                    let taskCount = (list as any).task_count || 0;
-                                    if (!taskCount) {
-                                        const tasksResponse = await this.apiClient.getTasksInList(list.id, {
-                                            archived: includeArchived,
-                                            page: 0
-                                        });
-                                        taskCount = tasksResponse.tasks?.length || 0;
-                                    }
-                                    return {
-                                        id: list.id,
-                                        name: list.name,
-                                        task_count: taskCount,
-                                        archived: list.archived || false,
-                                    };
-                                } catch (error) {
-                                    const err = error as Error;
-                                    this.logger.warn(`Failed to get task count for list ${list.id}: ${err.message}`);
-                                    return {
-                                        id: list.id,
-                                        name: list.name,
-                                        task_count: 0,
-                                        archived: list.archived || false,
-                                    };
-                                }
-                            })
-                        );
+                // Safety check: detect cursor loops (same cursor twice)
+                if (cursor && seenCursors.has(cursor)) {
+                    this.logger.warn(`Detected cursor loop (cursor: ${cursor}). Breaking to prevent infinite loop.`);
+                    break;
+                }
+                if (cursor) {
+                    seenCursors.add(cursor);
+                }
 
-                        return {
-                            id: space.id,
-                            name: space.name,
-                            folders,
-                            lists: folderlessLists,
-                            archived: space.archived || false,
-                        };
-                    } catch (error) {
-                        const err = error as Error;
-                        this.logger.warn(`Failed to fetch structure for space ${space.id}: ${err.message}`);
-                        return {
-                            id: space.id,
-                            name: space.name,
-                            folders: [],
-                            lists: [],
-                            archived: space.archived || false,
-                        };
+                const startTime = Date.now();
+                const docsResponse = await this.apiClient.getDocs(workspaceId, cursor);
+                const elapsed = Date.now() - startTime;
+
+                allDocs.push(...docsResponse.docs);
+                cursor = docsResponse.next_cursor;
+
+                this.logger.log(`[Preview] Fetched ${docsResponse.docs.length} docs in ${elapsed}ms (cursor: ${cursor ? 'yes' : 'none'}), total: ${allDocs.length}`);
+
+                // Stop after first page for preview (ClickUp typically returns 100 docs per page)
+                if (allDocs.length >= MAX_PREVIEW_DOCS) {
+                    this.logger.log(`Reached preview limit (${allDocs.length} docs). Stopping document fetch.`);
+                    break;
+                }
+
+            } while (cursor && allDocs.length < MAX_PREVIEW_DOCS);
+
+            this.logger.log(`Document preview fetched: ${allDocs.length} docs (${cursor ? 'more available' : 'all fetched'})`);
+
+            // 4. Group documents by space ID (parent.id where parent.type === 6)
+            const docsBySpace = new Map<string, any[]>();
+
+            for (const doc of allDocs) {
+                if (doc.parent && doc.parent.type === 6) {
+                    const spaceId = doc.parent.id;
+                    if (!docsBySpace.has(spaceId)) {
+                        docsBySpace.set(spaceId, []);
                     }
-                })
-            );
+                    docsBySpace.get(spaceId)!.push({
+                        id: doc.id,
+                        name: doc.name,
+                    });
+                }
+            }
+
+            // 5. Map spaces with their documents (preview only)
+            const spaces = spacesResponse.spaces.map(space => ({
+                id: space.id,
+                name: space.name,
+                archived: space.archived || false,
+                documents: docsBySpace.get(space.id) || [],
+            }));
 
             const structure = {
                 workspace: {
@@ -198,9 +154,11 @@ export class ClickUpImportService {
                     name: workspace.name,
                 },
                 spaces,
+                hasMoreDocs: !!cursor, // Indicates if there are more docs beyond preview
+                totalDocsPreview: allDocs.length,
             };
 
-            this.logger.log(`Workspace structure fetched: ${spaces.length} spaces`);
+            this.logger.log(`Workspace structure fetched: ${spaces.length} spaces, ${allDocs.length} preview docs${cursor ? ' (more available)' : ''}`);
             return structure;
 
         } catch (error) {
@@ -212,7 +170,9 @@ export class ClickUpImportService {
 
     /**
      * Run full import from ClickUp workspace
-     */
+     */    /**
+   * Run full import from ClickUp workspace
+   */
     async runFullImport(
         integrationId: string,
         projectId: string,
@@ -228,8 +188,8 @@ export class ClickUpImportService {
         try {
             // Update sync state to running
             await this.updateSyncState(integrationId, {
-                sync_status: 'running',
-                last_sync_at: new Date(),
+                import_status: 'running',
+                last_full_import_at: new Date(),
             });
 
             this.logger.log(`Starting import for workspace ${workspaceId}`);
@@ -253,6 +213,9 @@ export class ClickUpImportService {
             breakdown['lists'] = { imported: 0, failed: 0, skipped: 0 };
             breakdown['tasks'] = { imported: 0, failed: 0, skipped: 0 };
 
+            // NOTE: Tasks/Lists/Folders import is disabled - we only sync Docs/Pages
+            // The code below is commented out because we don't yet have proper storage for these entities
+            /*
             // Check if selective import (specific list IDs provided)
             if (config.list_ids && config.list_ids.length > 0) {
                 this.logger.log(`Selective import: ${config.list_ids.length} lists specified`);
@@ -330,13 +293,40 @@ export class ClickUpImportService {
                     }
                 }
             }
+            */
+
+            // 6. Import Docs (v3 API)
+            breakdown['docs'] = { imported: 0, failed: 0, skipped: 0 };
+            breakdown['pages'] = { imported: 0, failed: 0, skipped: 0 };
+
+            // If specific space IDs are configured, filter docs by those spaces
+            const selectedSpaceIds = config.space_ids && config.space_ids.length > 0
+                ? config.space_ids
+                : spacesResponse.spaces.map(s => s.id);
+
+            if (selectedSpaceIds.length > 0) {
+                this.logger.log(`Importing docs for ${selectedSpaceIds.length} selected spaces`);
+                await this.importDocs(
+                    workspaceId,
+                    selectedSpaceIds,
+                    projectId,
+                    orgId,
+                    integrationId,
+                    config,
+                    breakdown
+                );
+                totalImported += breakdown['docs'].imported + breakdown['pages'].imported;
+                totalFailed += breakdown['docs'].failed + breakdown['pages'].failed;
+            } else {
+                this.logger.log('No spaces selected, skipping docs import');
+            }
 
             // Update sync state to success
             await this.updateSyncState(integrationId, {
-                sync_status: 'success',
-                last_successful_sync: new Date(),
-                total_synced: totalImported,
-                sync_error: null,
+                import_status: 'success',
+                last_full_import_at: new Date(),
+                total_imported_objects: totalImported,
+                last_error: null,
             });
 
             const durationMs = Date.now() - startTime;
@@ -359,8 +349,146 @@ export class ClickUpImportService {
 
             // Update sync state to error
             await this.updateSyncState(integrationId, {
-                sync_status: 'error',
-                sync_error: err.message,
+                import_status: 'error',
+                last_error: err.message,
+            });
+
+            return {
+                success: false,
+                totalImported,
+                totalFailed,
+                durationMs,
+                error: err.message,
+                breakdown,
+                completedAt: new Date(),
+            };
+        }
+    }
+
+    /**
+     * Run full import with real-time progress updates
+     */
+    async runFullImportWithProgress(
+        integrationId: string,
+        projectId: string,
+        orgId: string,
+        workspaceId: string,
+        config: ImportConfig,
+        onProgress: (progress: { step: string; message: string; count?: number }) => void
+    ): Promise<ImportResult> {
+        const startTime = Date.now();
+        let totalImported = 0;
+        let totalFailed = 0;
+        const breakdown: Record<string, { imported: number; failed: number; skipped: number }> = {};
+
+        try {
+            // Update sync state to running
+            await this.updateSyncState(integrationId, {
+                import_status: 'running',
+                last_full_import_at: new Date(),
+            });
+
+            onProgress({ step: 'starting', message: 'Starting ClickUp import...' });
+            this.logger.log(`Starting import for workspace ${workspaceId}`);
+
+            // Set workspace ID in mapper for URL construction
+            this.dataMapper.setWorkspaceId(workspaceId);
+
+            // 1. Fetch workspace
+            onProgress({ step: 'fetching_workspace', message: 'Fetching workspace details...' });
+            const workspacesResponse = await this.apiClient.getWorkspaces();
+            const workspace = workspacesResponse.teams.find(t => t.id === workspaceId);
+            if (!workspace) {
+                throw new Error(`Workspace ${workspaceId} not found`);
+            }
+
+            // 2. Fetch all spaces
+            onProgress({ step: 'fetching_spaces', message: 'Fetching spaces...' });
+            const spacesResponse = await this.apiClient.getSpaces(workspaceId, config.includeArchived);
+            this.logger.log(`Found ${spacesResponse.spaces.length} spaces`);
+            onProgress({
+                step: 'spaces_fetched',
+                message: `Found ${spacesResponse.spaces.length} spaces`,
+                count: spacesResponse.spaces.length
+            });
+
+            breakdown['docs'] = { imported: 0, failed: 0, skipped: 0 };
+            breakdown['pages'] = { imported: 0, failed: 0, skipped: 0 };
+
+            // If specific space IDs are configured, filter docs by those spaces
+            const selectedSpaceIds = config.space_ids && config.space_ids.length > 0
+                ? config.space_ids
+                : spacesResponse.spaces.map(s => s.id);
+
+            if (selectedSpaceIds.length > 0) {
+                this.logger.log(`Importing docs for ${selectedSpaceIds.length} selected spaces`);
+                onProgress({
+                    step: 'importing_docs',
+                    message: `Importing docs from ${selectedSpaceIds.length} spaces...`,
+                    count: selectedSpaceIds.length
+                });
+
+                await this.importDocsWithProgress(
+                    workspaceId,
+                    selectedSpaceIds,
+                    projectId,
+                    orgId,
+                    integrationId,
+                    config,
+                    breakdown,
+                    onProgress
+                );
+
+                totalImported += breakdown['docs'].imported + breakdown['pages'].imported;
+                totalFailed += breakdown['docs'].failed + breakdown['pages'].failed;
+
+                onProgress({
+                    step: 'docs_imported',
+                    message: `Imported ${breakdown['docs'].imported} docs, ${breakdown['pages'].imported} pages`,
+                    count: totalImported
+                });
+            } else {
+                this.logger.log('No spaces selected, skipping docs import');
+                onProgress({ step: 'skipped', message: 'No spaces selected, skipping docs import' });
+            }
+
+            // Update sync state to success
+            await this.updateSyncState(integrationId, {
+                import_status: 'success',
+                last_full_import_at: new Date(),
+                total_imported_objects: totalImported,
+                last_error: null,
+            });
+
+            const durationMs = Date.now() - startTime;
+            this.logger.log(`Import completed: ${totalImported} imported, ${totalFailed} failed in ${durationMs}ms`);
+
+            onProgress({
+                step: 'complete',
+                message: `Import complete: ${totalImported} imported, ${totalFailed} failed`,
+                count: totalImported
+            });
+
+            return {
+                success: true,
+                totalImported,
+                totalFailed,
+                durationMs,
+                breakdown,
+                completedAt: new Date(),
+            };
+
+        } catch (error) {
+            const err = error as Error;
+            const durationMs = Date.now() - startTime;
+
+            this.logger.error(`Import failed: ${err.message}`, err.stack);
+            onProgress({ step: 'error', message: `Import failed: ${err.message}` });
+
+            // Update sync state to error
+            await this.updateSyncState(integrationId, {
+                import_status: 'error',
+                last_error: err.message,
             });
 
             return {
@@ -560,12 +688,359 @@ export class ClickUpImportService {
     }
 
     /**
+     * Import ClickUp Docs (v3 API)
+     * 
+     * Imports docs and their nested pages, filtered by space IDs.
+     * Maintains hierarchical structure through parent_document_id references.
+     * 
+     * Doc Structure:
+     * - Doc (top level) → stored as document
+     * - Pages (nested) → each stored as separate document with parent_document_id
+     * - Sub-pages (recursive) → maintain full hierarchy
+     * 
+     * Space Filtering:
+     * - Only import docs where parent.type === 6 (space) && parent.id in selectedSpaceIds
+     * 
+     * Metadata Stored:
+     * - ClickUp doc/page IDs
+     * - Workspace ID
+     * - Creator, dates, avatar, cover
+     * - Parent relationships (via parent_page_id)
+     */
+    private async importDocs(
+        workspaceId: string,
+        selectedSpaceIds: string[],
+        projectId: string,
+        orgId: string,
+        integrationId: string,
+        config: ImportConfig,
+        breakdown: Record<string, any>
+    ): Promise<void> {
+        this.logger.log(`Starting docs import for workspace ${workspaceId}`);
+
+        let cursor: string | undefined = undefined;
+        let totalDocsProcessed = 0;
+
+        try {
+            // Fetch all docs with pagination
+            do {
+                const docsResponse = await this.apiClient.getDocs(workspaceId, cursor);
+                const docs = docsResponse.docs;
+                cursor = docsResponse.next_cursor;
+
+                this.logger.log(`Fetched ${docs.length} docs (cursor: ${cursor || 'none'})`);
+
+                // Debug: Log parent types to understand document structure
+                if (docs.length > 0) {
+                    const parentTypes = docs.slice(0, 5).map(doc => ({
+                        docName: doc.name,
+                        parentType: doc.parent.type,
+                        parentId: doc.parent.id
+                    }));
+                    this.logger.debug(`Sample doc parents: ${JSON.stringify(parentTypes)}`);
+                }
+
+                // Filter docs by selected spaces
+                // Only import docs where parent.type === 6 (space) && parent.id in selectedSpaceIds
+                const filteredDocs = docs.filter(doc =>
+                    doc.parent.type === 6 && selectedSpaceIds.includes(doc.parent.id)
+                );
+
+                this.logger.log(`Filtered to ${filteredDocs.length} docs in selected spaces (from ${docs.length} total)`);
+
+                // Import each doc with its pages combined into single document
+                for (const doc of filteredDocs) {
+                    try {
+                        // Fetch pages first to combine with doc
+                        let pagesContent = '';
+                        let pagesCount = 0;
+
+                        try {
+                            const pagesResponse = await this.apiClient.getDocPages(workspaceId, doc.id);
+                            pagesCount = pagesResponse.length;
+
+                            // Combine all page content (recursively for nested pages)
+                            pagesContent = this.combinePageContent(pagesResponse);
+
+                            this.logger.log(`Doc "${doc.name}" (${doc.id}): ${pagesCount} pages, ${pagesContent.length} chars`);
+
+                        } catch (error) {
+                            const err = error as Error;
+                            this.logger.warn(`Failed to fetch pages for doc ${doc.id}, storing doc only: ${err.message}`);
+                        }
+
+                        // Map doc and combine with pages content
+                        const docData = this.dataMapper.mapDoc(doc);
+
+                        // Combine doc + pages into single content
+                        if (pagesContent) {
+                            docData.content = `# ${doc.name}\n\n${pagesContent}`;
+                        }
+
+                        // Store combined document
+                        await this.storeDocument(projectId, orgId, integrationId, docData, undefined);
+                        breakdown['docs'].imported++;
+                        breakdown['pages'].imported += pagesCount; // Count pages for stats
+                        totalDocsProcessed++;
+
+                    } catch (error) {
+                        const err = error as Error;
+                        this.logger.error(`Failed to import doc ${doc.id}: ${err.message}`);
+                        breakdown['docs'].failed++;
+                    }
+                }
+
+                // Check if we need to continue pagination
+                if (cursor) {
+                    this.logger.log(`Continuing pagination (processed ${totalDocsProcessed} docs so far)`);
+                }
+
+            } while (cursor);
+
+            this.logger.log(`Docs import completed: ${totalDocsProcessed} docs processed`);
+
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`Failed to import docs: ${err.message}`, err.stack);
+            throw error;
+        }
+    }
+
+    /**
+     * Import docs with real-time progress updates
+     */
+    private async importDocsWithProgress(
+        workspaceId: string,
+        selectedSpaceIds: string[],
+        projectId: string,
+        orgId: string,
+        integrationId: string,
+        config: ImportConfig,
+        breakdown: Record<string, any>,
+        onProgress: (progress: { step: string; message: string; count?: number }) => void
+    ): Promise<void> {
+        this.logger.log(`Starting docs import with progress for workspace ${workspaceId}`);
+
+        let cursor: string | undefined = undefined;
+        let totalDocsProcessed = 0;
+
+        try {
+            // Fetch all docs with pagination
+            do {
+                onProgress({
+                    step: 'fetching_docs',
+                    message: `Fetching docs... (${totalDocsProcessed} processed so far)`,
+                    count: totalDocsProcessed
+                });
+
+                const docsResponse = await this.apiClient.getDocs(workspaceId, cursor);
+                const docs = docsResponse.docs;
+                cursor = docsResponse.next_cursor;
+
+                this.logger.log(`Fetched ${docs.length} docs (cursor: ${cursor || 'none'})`);
+
+                // Filter docs by selected spaces
+                const filteredDocs = docs.filter(doc =>
+                    doc.parent.type === 6 && selectedSpaceIds.includes(doc.parent.id)
+                );
+
+                this.logger.log(`Filtered to ${filteredDocs.length} docs in selected spaces`);
+
+                if (filteredDocs.length > 0) {
+                    onProgress({
+                        step: 'storing_docs',
+                        message: `Storing ${filteredDocs.length} docs...`,
+                        count: filteredDocs.length
+                    });
+                }
+
+                // Import each doc with its pages combined into single document
+                for (const doc of filteredDocs) {
+                    try {
+                        onProgress({
+                            step: 'storing_doc',
+                            message: `Storing doc: ${doc.name}`,
+                            count: totalDocsProcessed + 1
+                        });
+
+                        // Fetch pages first to combine with doc
+                        let pagesContent = '';
+                        let pagesCount = 0;
+
+                        try {
+                            onProgress({
+                                step: 'fetching_pages',
+                                message: `Fetching pages for: ${doc.name}`
+                            });
+
+                            const pagesResponse = await this.apiClient.getDocPages(workspaceId, doc.id);
+                            pagesCount = pagesResponse.length;
+
+                            // Combine all page content (recursively for nested pages)
+                            pagesContent = this.combinePageContent(pagesResponse);
+
+                            this.logger.log(`Doc "${doc.name}" (${doc.id}): ${pagesCount} pages, ${pagesContent.length} chars`);
+
+                        } catch (error) {
+                            const err = error as Error;
+                            this.logger.warn(`Failed to fetch pages for doc ${doc.id}, storing doc only: ${err.message}`);
+                        }
+
+                        // Map doc and combine with pages content
+                        const docData = this.dataMapper.mapDoc(doc);
+
+                        // Combine doc + pages into single content
+                        if (pagesContent) {
+                            docData.content = `# ${doc.name}\n\n${pagesContent}`;
+                        }
+
+                        // Store combined document
+                        await this.storeDocument(projectId, orgId, integrationId, docData, undefined);
+                        breakdown['docs'].imported++;
+                        breakdown['pages'].imported += pagesCount; // Count pages for stats
+                        totalDocsProcessed++;
+
+                    } catch (error) {
+                        const err = error as Error;
+                        this.logger.error(`Failed to import doc ${doc.id}: ${err.message}`);
+                        breakdown['docs'].failed++;
+                        onProgress({
+                            step: 'doc_error',
+                            message: `Failed to import doc: ${doc.name}`
+                        });
+                    }
+                }
+
+                // Check if we need to continue pagination
+                if (cursor) {
+                    this.logger.log(`Continuing pagination (processed ${totalDocsProcessed} docs so far)`);
+                    onProgress({
+                        step: 'pagination',
+                        message: `Processing more docs... (${totalDocsProcessed} processed)`,
+                        count: totalDocsProcessed
+                    });
+                }
+
+            } while (cursor);
+
+            this.logger.log(`Docs import completed: ${totalDocsProcessed} docs processed`);
+            onProgress({
+                step: 'docs_complete',
+                message: `Docs import complete: ${totalDocsProcessed} docs processed`,
+                count: totalDocsProcessed
+            });
+
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`Failed to import docs: ${err.message}`, err.stack);
+            onProgress({
+                step: 'error',
+                message: `Failed to import docs: ${err.message}`
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Combine page content recursively
+     * 
+     * Extracts content from pages and their nested children,
+     * combining them into a single markdown string.
+     * 
+     * @param pages Array of pages to combine
+     * @param level Indentation level for headers (for nested pages)
+     * @returns Combined markdown content
+     */
+    private combinePageContent(pages: any[], level: number = 2): string {
+        let combined = '';
+
+        for (const page of pages) {
+            // Skip pages without page_id (the doc itself returned as a "page")
+            if (!page.page_id) {
+                continue;
+            }
+
+            // Add page heading
+            const headerPrefix = '#'.repeat(level);
+            combined += `${headerPrefix} ${page.name}\n\n`;
+
+            // Add page content
+            if (page.content) {
+                combined += `${page.content}\n\n`;
+            }
+
+            // Recursively add nested pages
+            if (page.pages && page.pages.length > 0) {
+                combined += this.combinePageContent(page.pages, level + 1);
+            }
+        }
+
+        return combined;
+    }
+
+    /**
+     * Import pages recursively (DEPRECATED - No longer used)
+     * 
+     * This method previously stored each page as a separate document.
+     * We now combine all pages into a single document for better UX.
+     * 
+     * Kept for reference in case we need to revert the approach.
+     */
+    private async importPages(
+        pages: any[], // ClickUpPage[]
+        docId: string,
+        workspaceId: string,
+        projectId: string,
+        orgId: string,
+        integrationId: string,
+        parentDocumentId: string | undefined,
+        breakdown: Record<string, any>
+    ): Promise<void> {
+        for (const page of pages) {
+            try {
+                // Map page to internal document
+                const pageData = this.dataMapper.mapPage(page, docId, workspaceId, parentDocumentId);
+
+                // Store page and get its document ID
+                const pageDocumentId = await this.storeDocument(
+                    projectId,
+                    orgId,
+                    integrationId,
+                    pageData,
+                    parentDocumentId
+                );
+                breakdown['pages'].imported++;
+
+                // Recursively import child pages, passing this page's ID as parent
+                if (page.pages && page.pages.length > 0) {
+                    this.logger.debug(`Page "${page.name}" has ${page.pages.length} child pages`);
+                    await this.importPages(
+                        page.pages,
+                        docId,
+                        workspaceId,
+                        projectId,
+                        orgId,
+                        integrationId,
+                        pageDocumentId, // This page becomes parent for its children
+                        breakdown
+                    );
+                }
+
+            } catch (error) {
+                const err = error as Error;
+                this.logger.error(`Failed to import page ${page.page_id}: ${err.message}`);
+                breakdown['pages'].failed++;
+            }
+        }
+    }
+
+    /**
      * Store document in database
      * 
-     * For now, this is a placeholder. In the full implementation,
-     * this would call the graph service to create nodes and edges.
+     * Stores a document in kb.documents with hierarchical relationship and metadata.
+     * Returns the created document UUID for use as parent reference.
      * 
-    * Source Tracking (docs/spec/22-clickup-integration.md section 3.3.1):
+     * Source Tracking (docs/spec/22-clickup-integration.md section 3.3.1):
      * - external_source: "clickup"
      * - external_id: ClickUp object ID
      * - external_url: Direct link to ClickUp
@@ -577,31 +1052,84 @@ export class ClickUpImportService {
         projectId: string,
         orgId: string,
         integrationId: string,
-        doc: any
-    ): Promise<void> {
-        // TODO: Integrate with graph service to create proper nodes
-        // For now, just log what we would store
-        this.logger.debug(`Would store: ${doc.external_type} - ${doc.title} (${doc.external_id})`);
-        this.logger.debug(`  URL: ${doc.external_url}`);
-        this.logger.debug(`  Parent: ${doc.external_parent_id}`);
+        doc: any,
+        parentDocumentId?: string
+    ): Promise<string> {
+        this.logger.debug(`Storing: ${doc.external_type} - ${doc.title} (${doc.external_id})`);
 
-        // Placeholder: Store in a temporary table or log
-        // In full implementation, this would be:
-        // await this.graphService.createObject({
-        //   org_id: orgId,
-        //   project_id: projectId,
-        //   type: doc.external_type,
-        //   properties: {
-        //     title: doc.title,
-        //     content: doc.content,
-        //     ...doc.metadata,
-        //   },
-        //   external_source: doc.external_source,
-        //   external_id: doc.external_id,
-        //   external_url: doc.external_url,
-        //   external_parent_id: doc.external_parent_id,
-        //   external_updated_at: doc.external_updated_at,
-        // });
+        try {
+            // Check if document already exists (for incremental sync)
+            const existingDoc = await this.db.query(
+                `SELECT id FROM kb.documents 
+                 WHERE integration_metadata->>'external_id' = $1 
+                   AND integration_metadata->>'external_source' = $2
+                   AND project_id = $3`,
+                [doc.external_id, doc.external_source, projectId]
+            );
+
+            let documentId: string;
+            let isNewDocument = false;
+
+            if (existingDoc.rows.length > 0) {
+                // Update existing document
+                documentId = existingDoc.rows[0].id;
+                await this.db.query(
+                    `UPDATE kb.documents 
+                     SET content = $1,
+                         integration_metadata = $2,
+                         parent_document_id = $3,
+                         updated_at = NOW()
+                     WHERE id = $4`,
+                    [
+                        doc.content,
+                        JSON.stringify(doc.metadata),
+                        parentDocumentId || null,
+                        documentId
+                    ]
+                );
+                this.logger.debug(`  Updated existing document: ${documentId}`);
+            } else {
+                // Create new document
+                const result = await this.db.query(
+                    `INSERT INTO kb.documents (
+                        project_id,
+                        org_id,
+                        source_url,
+                        filename,
+                        content,
+                        parent_document_id,
+                        integration_metadata,
+                        created_at,
+                        updated_at
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+                    RETURNING id`,
+                    [
+                        projectId,
+                        orgId,
+                        doc.external_url || null,
+                        doc.title,
+                        doc.content,
+                        parentDocumentId || null,
+                        JSON.stringify(doc.metadata)
+                    ]
+                );
+
+                documentId = result.rows[0].id;
+                isNewDocument = true;
+                this.logger.debug(`  Created document: ${documentId}`);
+            }
+
+            // NOTE: Auto-extraction removed - users will trigger extraction manually
+            // after reviewing imported documents (per refactor plan)
+            this.logger.debug(`  Document stored (auto-extraction disabled): ${documentId}`);
+
+            return documentId;
+
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`Failed to store document ${doc.external_id}: ${err.message}`, err.stack);
+            throw error;
+        }
     }
 
     /**
@@ -619,7 +1147,7 @@ export class ClickUpImportService {
              VALUES ($1, ${Object.keys(updates).map((_, idx) => `$${idx + 2}`).join(', ')})
              ON CONFLICT (integration_id)
              DO UPDATE SET ${setClause}`,
-            [integrationId, ...values, ...values]
+            [integrationId, ...values]
         );
     }
 }

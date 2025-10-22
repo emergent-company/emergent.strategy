@@ -27,7 +27,7 @@ const defaultConfig: IConfig = {
 };
 
 const useHook = () => {
-    const [config, setConfig] = useLocalStorage<IConfig>("__NEXUS_CONFIG_v3.0__", defaultConfig);
+    const [config, setConfig] = useLocalStorage<IConfig>("spec-server", defaultConfig);
     const htmlRef = useMemo(() => typeof window !== "undefined" && document.documentElement, []);
 
     const updateConfig = useCallback(
