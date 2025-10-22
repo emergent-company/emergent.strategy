@@ -88,6 +88,7 @@ export function DiscoveryWizard({ projectId, isOpen, onClose }: DiscoveryWizardP
     const [error, setError] = useState<string | null>(null);
     const [isLoadingPreviousJob, setIsLoadingPreviousJob] = useState(false);
     const [hasRestoredJob, setHasRestoredJob] = useState(false);
+    const [userStartedFresh, setUserStartedFresh] = useState(false);
 
     // Edited data from review steps
     const [editedTypes, setEditedTypes] = useState<TypeCandidate[]>([]);
@@ -98,7 +99,8 @@ export function DiscoveryWizard({ projectId, isOpen, onClose }: DiscoveryWizardP
 
     // Load any in-progress discovery jobs when wizard opens
     useEffect(() => {
-        if (!isOpen || hasRestoredJob) return;
+        // Don't load jobs if wizard isn't open or user explicitly started fresh
+        if (!isOpen || userStartedFresh) return;
 
         const loadInProgressJob = async () => {
             try {
@@ -174,12 +176,14 @@ export function DiscoveryWizard({ projectId, isOpen, onClose }: DiscoveryWizardP
         };
 
         loadInProgressJob();
-    }, [isOpen, projectId, apiBase, fetchJson, hasRestoredJob]);
+    }, [isOpen, projectId, apiBase, fetchJson, userStartedFresh]);
 
     // Handle modal open/close
     useEffect(() => {
         if (isOpen && dialogRef.current && !dialogRef.current.open) {
             dialogRef.current.showModal();
+            // Reset userStartedFresh flag when wizard opens to allow job loading
+            setUserStartedFresh(false);
         } else if (!isOpen && dialogRef.current?.open) {
             dialogRef.current.close();
         }
@@ -284,24 +288,32 @@ export function DiscoveryWizard({ projectId, isOpen, onClose }: DiscoveryWizardP
 
     // Start fresh (cancel current job and reset)
     const handleStartFresh = async () => {
-        if (jobId) {
-            try {
+        try {
+            if (jobId) {
+                // Delete the current job from the backend
                 await fetchJson(`${apiBase}/api/discovery-jobs/${jobId}`, {
                     method: 'DELETE',
                 });
-            } catch (err) {
-                console.error('Failed to cancel job:', err);
+                console.log('[DISCOVERY WIZARD] Deleted job:', jobId);
             }
-        }
 
-        setCurrentStep(1);
-        setJobId(null);
-        setConfig(DEFAULT_CONFIG);
-        setJobData(null);
-        setError(null);
-        setEditedTypes([]);
-        setEditedRelationships([]);
-        setHasRestoredJob(false);
+            // Reset all state to initial values
+            setCurrentStep(1);
+            setJobId(null);
+            setConfig(DEFAULT_CONFIG);
+            setJobData(null);
+            setError(null);
+            setEditedTypes([]);
+            setEditedRelationships([]);
+            setPackConfig(null);
+            setHasRestoredJob(false);
+            setUserStartedFresh(true); // Prevent useEffect from loading jobs again
+
+            console.log('[DISCOVERY WIZARD] State reset complete, starting fresh');
+        } catch (err) {
+            console.error('[DISCOVERY WIZARD] Failed to start fresh:', err);
+            setError(err instanceof Error ? err.message : 'Failed to reset wizard');
+        }
     };
 
     // Render current step
