@@ -12,6 +12,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Icon } from '@/components/atoms/Icon';
+import { Dropdown } from '@/components/molecules/Dropdown';
 import type {
     TableDataItem,
     DataTableProps,
@@ -398,7 +399,7 @@ export function DataTable<T extends TableDataItem>({
     // Render table view
     const renderTableView = () => (
         <div className="border border-base-300 rounded overflow-x-auto overflow-y-visible">
-            <table className="table table-sm">
+            <table className="table table-sm overflow-visible">
                 <thead>
                     <tr className="text-xs text-base-content/60 uppercase">
                         {enableSelection && (
@@ -486,51 +487,48 @@ export function DataTable<T extends TableDataItem>({
                                 </td>
                             ))}
                             {rowActions.length > 0 && (
-                                <td onClick={(e) => e.stopPropagation()} className="relative">
+                                <td onClick={(e) => e.stopPropagation()} className="relative overflow-visible">
                                     {useDropdownActions ? (
-                                        <div className="dropdown dropdown-end">
-                                            <button
-                                                tabIndex={0}
-                                                className="gap-1 btn-outline btn btn-xs"
-                                                onClick={(e) => e.stopPropagation()}
+                                        <Dropdown end>
+                                            <Dropdown.Trigger
+                                                asButton
+                                                variant="ghost"
+                                                size="xs"
+                                                className="gap-1"
+                                                onClick={(e: React.MouseEvent) => e.stopPropagation()}
                                             >
                                                 Actions
                                                 <Icon icon="lucide--chevron-down" className="size-3" />
-                                            </button>
-                                            <ul
-                                                tabIndex={0}
-                                                className="right-0 z-[9999] absolute bg-base-100 shadow-lg p-2 border border-base-300 rounded-box w-52 dropdown-content menu"
-                                                style={{ marginTop: '0.25rem' }}
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
+                                            </Dropdown.Trigger>
+                                            <Dropdown.Menu width="w-52">
                                                 {rowActions.map((action, idx) => {
                                                     if (action.asLink && action.href) {
                                                         return (
-                                                            <li key={idx}>
-                                                                <a href={action.href(item)} onClick={(e) => e.stopPropagation()}>
-                                                                    {action.icon && <Icon icon={action.icon} className="size-4" />}
-                                                                    {action.label}
-                                                                </a>
-                                                            </li>
+                                                            <Dropdown.Item
+                                                                key={idx}
+                                                                asLink
+                                                                href={action.href(item)}
+                                                            >
+                                                                {action.icon && <Icon icon={action.icon} className="size-4" />}
+                                                                {action.label}
+                                                            </Dropdown.Item>
                                                         );
                                                     }
 
                                                     return (
-                                                        <li key={idx}>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    action.onAction(item);
-                                                                }}
-                                                            >
-                                                                {action.icon && <Icon icon={action.icon} className="size-4" />}
-                                                                {action.label}
-                                                            </button>
-                                                        </li>
+                                                        <Dropdown.Item
+                                                            key={idx}
+                                                            onClick={() => {
+                                                                action.onAction(item);
+                                                            }}
+                                                        >
+                                                            {action.icon && <Icon icon={action.icon} className="size-4" />}
+                                                            {action.label}
+                                                        </Dropdown.Item>
                                                     );
                                                 })}
-                                            </ul>
-                                        </div>
+                                            </Dropdown.Menu>
+                                        </Dropdown>
                                     ) : (
                                         <div className="flex items-center gap-2">
                                             {rowActions.map((action, idx) => {

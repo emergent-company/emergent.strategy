@@ -22,6 +22,7 @@ export * from './molecules/TableEmptyState';
 export * from './molecules/ThemeToggle';
 export * from './molecules/NewChatCtas';
 export * from './molecules/FileUploader';
+export * from './molecules/Dropdown';
 
 // Organisms
 export * from './organisms/Sidebar';
