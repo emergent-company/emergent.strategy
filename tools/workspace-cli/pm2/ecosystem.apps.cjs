@@ -2,6 +2,11 @@ const path = require('node:path');
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 
+// Use the project directory name as a prefix for PM2 app names
+// This allows multiple instances of the same project to run simultaneously
+const projectName = path.basename(repoRoot);
+const APP_PREFIX = `${projectName}-`;
+
 function resolveCwd(relativePath) {
   return path.join(repoRoot, relativePath);
 }
@@ -19,7 +24,7 @@ const DEFAULT_BACKOFF_INITIAL_MS = 5_000;
 /** @type {import('pm2').StartOptions[]} */
 const apps = [
   {
-    name: 'admin',
+    name: `${APP_PREFIX}admin`,
     namespace: 'workspace-cli',
     script: 'npm',
     args: ['run', 'dev'],
@@ -53,7 +58,7 @@ const apps = [
     }
   },
   {
-    name: 'server',
+    name: `${APP_PREFIX}server`,
     namespace: 'workspace-cli',
     script: 'npm',
     args: ['run', 'start:dev'],

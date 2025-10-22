@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { VertexAI } from '@google-cloud/vertexai';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { AppConfigService } from '../../../common/config/config.service';
+import { MonitoringLoggerService } from '../../monitoring/monitoring-logger.service';
 import {
     ILLMProvider,
     ExtractionResult,
@@ -18,7 +19,10 @@ export class VertexAIProvider implements ILLMProvider {
     private readonly logger = new Logger(VertexAIProvider.name);
     private vertexAI: VertexAI | null = null;
 
-    constructor(private readonly config: AppConfigService) {
+    constructor(
+        private readonly config: AppConfigService,
+        private readonly monitoringLogger: MonitoringLoggerService,
+    ) {
         this.initialize();
     }
 
@@ -61,7 +65,8 @@ export class VertexAIProvider implements ILLMProvider {
         extractionPrompt: string,
         objectSchemas: Record<string, any>,
         allowedTypes?: string[],
-        availableTags?: string[]
+        availableTags?: string[],
+        context?: { jobId: string; projectId: string }
     ): Promise<ExtractionResult> {
         if (!this.isConfigured()) {
             throw new Error('Vertex AI provider not configured');
@@ -118,7 +123,8 @@ export class VertexAIProvider implements ILLMProvider {
                             chunk,
                             extractionPrompt,
                             objectSchemas[typeName],
-                            availableTags
+                            availableTags,
+                            context
                         );
 
                         // Accumulate token usage
@@ -227,7 +233,8 @@ export class VertexAIProvider implements ILLMProvider {
         documentContent: string,
         extractionPrompt: string,
         objectSchema?: any,
-        availableTags?: string[]
+        availableTags?: string[],
+        context?: { jobId: string; projectId: string }
     ): Promise<{ entities: ExtractedEntity[], usage?: any, response: any }> {
         // Build the prompt with schema for this specific type
         const fullPrompt = this.buildPrompt(
@@ -238,76 +245,152 @@ export class VertexAIProvider implements ILLMProvider {
             availableTags
         );
 
-        // Call the LLM
-        const result = await generativeModel.generateContent({
-            contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-            generationConfig: {
-                temperature: 0.1, // Low temperature for structured extraction
-                maxOutputTokens: 8192,
-            },
-        });
-
-        // Parse the response
-        const response = result.response;
-        const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-        if (!text) {
-            throw new Error('Empty response from Vertex AI');
+        // Start monitoring the LLM call
+        let callId: string | undefined;
+        if (context) {
+            try {
+                callId = await this.monitoringLogger.startLLMCall({
+                    processId: context.jobId,
+                    processType: 'extraction_job',
+                    modelName: this.config.vertexAiModel || 'unknown',
+                    status: 'pending',
+                    requestPayload: {
+                        type: typeName,
+                        prompt_length: fullPrompt.length,
+                        document_length: documentContent.length,
+                        available_tags: availableTags || [],
+                    },
+                    projectId: context.projectId,
+                });
+            } catch (error) {
+                this.logger.warn('Failed to start LLM call monitoring', error);
+            }
         }
 
-        // Extract JSON from response (handle markdown code blocks)
-        const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
-        const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
+        const llmCallStartTime = Date.now();
 
-        let parsed: any;
         try {
-            parsed = JSON.parse(jsonText);
-        } catch (parseError) {
-            // Log full details for debugging
-            const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
-            const finishReason = response.candidates?.[0]?.finishReason;
-
-            this.logger.error('Failed to parse LLM response as JSON', {
-                rawText: text.substring(0, 5000),
-                extractedJson: jsonText.substring(0, 5000),
-                parseError: errorMessage,
-                responseLength: text.length,
-                finishReason,
-                safetyRatings: response.candidates?.[0]?.safetyRatings,
+            // Call the LLM
+            const result = await generativeModel.generateContent({
+                contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+                generationConfig: {
+                    temperature: 0.1, // Low temperature for structured extraction
+                    maxOutputTokens: 8192,
+                },
             });
 
-            // Throw with enhanced error including response metadata
-            const error: Error & { responseMetadata?: any } = new Error(
-                finishReason && finishReason !== 'STOP'
-                    ? `Invalid JSON response from LLM (finish_reason: ${finishReason})`
-                    : 'Invalid JSON response from LLM'
-            );
+            // Parse the response
+            const response = result.response;
+            const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-            // Attach metadata for logging
-            error.responseMetadata = {
-                rawTextPreview: text.substring(0, 1000),
-                responseLength: text.length,
-                finishReason,
-                extractedJsonPreview: jsonText.substring(0, 1000),
-                parseError: errorMessage,
-            };
+            if (!text) {
+                throw new Error('Empty response from Vertex AI');
+            }
+
+            // Extract JSON from response (handle markdown code blocks)
+            const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
+            const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
+
+            let parsed: any;
+            try {
+                parsed = JSON.parse(jsonText);
+            } catch (parseError) {
+                // Log full details for debugging
+                const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+                const finishReason = response.candidates?.[0]?.finishReason;
+
+                this.logger.error('Failed to parse LLM response as JSON', {
+                    rawText: text.substring(0, 5000),
+                    extractedJson: jsonText.substring(0, 5000),
+                    parseError: errorMessage,
+                    responseLength: text.length,
+                    finishReason,
+                    safetyRatings: response.candidates?.[0]?.safetyRatings,
+                });
+
+                // Complete monitoring with error
+                if (callId && context) {
+                    try {
+                        await this.monitoringLogger.completeLLMCall({
+                            id: callId,
+                            status: 'error',
+                            errorMessage: `JSON parse error: ${errorMessage}`,
+                            durationMs: Date.now() - llmCallStartTime,
+                        });
+                    } catch (monitorError) {
+                        this.logger.warn('Failed to complete LLM call monitoring', monitorError);
+                    }
+                }
+
+                // Throw with enhanced error including response metadata
+                const error: Error & { responseMetadata?: any } = new Error(
+                    finishReason && finishReason !== 'STOP'
+                        ? `Invalid JSON response from LLM (finish_reason: ${finishReason})`
+                        : 'Invalid JSON response from LLM'
+                );
+
+                // Attach metadata for logging
+                error.responseMetadata = {
+                    rawTextPreview: text.substring(0, 1000),
+                    responseLength: text.length,
+                    finishReason,
+                    extractedJsonPreview: jsonText.substring(0, 1000),
+                    parseError: errorMessage,
+                };
+
+                throw error;
+            }
+
+            // Validate and normalize the response
+            const entities = this.normalizeEntities(parsed.entities || parsed);
+
+            // Extract usage metadata
+            const usage = response.usageMetadata
+                ? {
+                    prompt_tokens: response.usageMetadata.promptTokenCount || 0,
+                    completion_tokens: response.usageMetadata.candidatesTokenCount || 0,
+                    total_tokens: response.usageMetadata.totalTokenCount || 0,
+                }
+                : undefined;
+
+            // Complete monitoring with success
+            if (callId && context && usage) {
+                try {
+                    await this.monitoringLogger.completeLLMCall({
+                        id: callId,
+                        responsePayload: {
+                            entities_count: entities.length,
+                            response_length: text.length,
+                            type: typeName,
+                        },
+                        status: 'success',
+                        inputTokens: usage.prompt_tokens,
+                        outputTokens: usage.completion_tokens,
+                        durationMs: Date.now() - llmCallStartTime,
+                    });
+                } catch (monitorError) {
+                    this.logger.warn('Failed to complete LLM call monitoring', monitorError);
+                }
+            }
+
+            return { entities, usage, response };
+        } catch (error) {
+            // Complete monitoring with error if not already done
+            if (callId && context) {
+                try {
+                    await this.monitoringLogger.completeLLMCall({
+                        id: callId,
+                        status: 'error',
+                        errorMessage: error instanceof Error ? error.message : String(error),
+                        durationMs: Date.now() - llmCallStartTime,
+                    });
+                } catch (monitorError) {
+                    this.logger.warn('Failed to complete LLM call monitoring', monitorError);
+                }
+            }
 
             throw error;
         }
-
-        // Validate and normalize the response
-        const entities = this.normalizeEntities(parsed.entities || parsed);
-
-        // Extract usage metadata
-        const usage = response.usageMetadata
-            ? {
-                prompt_tokens: response.usageMetadata.promptTokenCount || 0,
-                completion_tokens: response.usageMetadata.candidatesTokenCount || 0,
-                total_tokens: response.usageMetadata.totalTokenCount || 0,
-            }
-            : undefined;
-
-        return { entities, usage, response };
     }
 
     /**
