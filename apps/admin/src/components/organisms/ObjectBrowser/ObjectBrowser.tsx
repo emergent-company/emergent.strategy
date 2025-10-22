@@ -10,6 +10,8 @@ export interface GraphObject {
     updated_at: string;
     relationship_count?: number;
     properties?: Record<string, unknown>;
+    embedding?: any | null;
+    embedding_updated_at?: string | null;
 }
 
 export interface ObjectBrowserProps {
@@ -501,9 +503,9 @@ export const ObjectBrowser: React.FC<ObjectBrowserProps> = ({
                                 <td>
                                     {obj.status ? (
                                         <span className={`badge badge-sm ${obj.status === 'accepted' ? 'badge-success' :
-                                                obj.status === 'draft' ? 'badge-warning' :
-                                                    obj.status === 'rejected' ? 'badge-error' :
-                                                        'badge-ghost'
+                                            obj.status === 'draft' ? 'badge-warning' :
+                                                obj.status === 'rejected' ? 'badge-error' :
+                                                    'badge-ghost'
                                             }`}>
                                             {obj.status}
                                         </span>

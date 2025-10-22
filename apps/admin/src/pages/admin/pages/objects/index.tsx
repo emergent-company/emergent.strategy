@@ -4,8 +4,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
-import { ObjectBrowser, GraphObject } from '@/components/organisms/ObjectBrowser/ObjectBrowser';
 import { ObjectDetailModal } from '@/components/organisms/ObjectDetailModal';
+import { DataTable, type ColumnDef, type FilterConfig, type BulkAction, type TableDataItem } from '@/components/organisms/DataTable';
+import { Icon } from '@/components/atoms/Icon';
 
 interface GraphObjectResponse {
     id: string;
@@ -18,7 +19,21 @@ interface GraphObjectResponse {
     external_id?: string;
     external_type?: string;
     created_at: string;
+    embedding?: any | null;
+    embedding_updated_at?: string | null;
     // Note: No updated_at in graph_objects table
+}
+
+interface GraphObject extends TableDataItem {
+    name: string;
+    type: string;
+    source?: string;
+    status?: string;
+    updated_at: string;
+    relationship_count?: number;
+    properties?: Record<string, unknown>;
+    embedding?: any | null;
+    embedding_updated_at?: string | null;
 }
 
 export default function ObjectsPage() {
@@ -67,6 +82,8 @@ export default function ObjectsPage() {
                     updated_at: obj.created_at,  // Use created_at as updated_at
                     relationship_count: undefined,  // Not included in API response
                     properties: obj.properties,
+                    embedding: obj.embedding,
+                    embedding_updated_at: obj.embedding_updated_at,
                 }));
 
                 setObjects(transformedObjects);
@@ -94,6 +111,8 @@ export default function ObjectsPage() {
                     updated_at: obj.created_at,  // Use created_at as updated_at
                     relationship_count: undefined,  // Not included in API response
                     properties: obj.properties,
+                    embedding: obj.embedding,
+                    embedding_updated_at: obj.embedding_updated_at,
                 }));
 
                 setObjects(transformedObjects);
@@ -270,6 +289,162 @@ export default function ObjectsPage() {
         setSelectedTags(tags);
     };
 
+    // Define table columns
+    const columns: ColumnDef<GraphObject>[] = [
+        {
+            key: 'name',
+            label: 'Name',
+            sortable: true,
+            render: (obj) => {
+                const hasExtractionData = obj.properties?._extraction_confidence !== undefined;
+                return (
+                    <span className="font-medium">
+                        {obj.name}
+                        {hasExtractionData && (
+                            <Icon
+                                icon="lucide--sparkles"
+                                className="inline-block ml-1 size-3 text-primary"
+                                title="AI Extracted"
+                            />
+                        )}
+                    </span>
+                );
+            },
+        },
+        {
+            key: 'type',
+            label: 'Type',
+            sortable: true,
+            render: (obj) => (
+                <span className="badge badge-sm badge-ghost">{obj.type}</span>
+            ),
+        },
+        {
+            key: 'status',
+            label: 'Status',
+            render: (obj) => {
+                if (!obj.status) {
+                    return <span className="text-sm text-base-content/70">—</span>;
+                }
+
+                const statusClass =
+                    obj.status === 'accepted' ? 'badge-success' :
+                        obj.status === 'draft' ? 'badge-warning' :
+                            obj.status === 'rejected' ? 'badge-error' :
+                                'badge-ghost';
+
+                return (
+                    <span className={`badge badge-sm ${statusClass}`}>
+                        {obj.status}
+                    </span>
+                );
+            },
+        },
+        {
+            key: 'source',
+            label: 'Source',
+            render: (obj) => (
+                <span className="text-sm text-base-content/70">{obj.source || '—'}</span>
+            ),
+        },
+        {
+            key: 'confidence',
+            label: 'Confidence',
+            render: (obj) => {
+                const extractionConfidence = obj.properties?._extraction_confidence as number | undefined;
+                const hasExtractionData = extractionConfidence !== undefined;
+
+                if (!hasExtractionData) {
+                    return <span className="text-sm text-base-content/70">—</span>;
+                }
+
+                const confidenceClass =
+                    extractionConfidence >= 0.8 ? 'text-success progress-success' :
+                        extractionConfidence >= 0.6 ? 'text-warning progress-warning' :
+                            'text-error progress-error';
+
+                const [textClass, progressClass] = confidenceClass.split(' ');
+
+                return (
+                    <div className="flex items-center gap-1">
+                        <span className={`text-xs font-medium ${textClass}`}>
+                            {(extractionConfidence * 100).toFixed(0)}%
+                        </span>
+                        <div className="w-12">
+                            <progress
+                                className={`progress progress-xs ${progressClass}`}
+                                value={extractionConfidence * 100}
+                                max="100"
+                            />
+                        </div>
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'updated_at',
+            label: 'Updated',
+            sortable: true,
+            render: (obj) => (
+                <span className="text-sm text-base-content/70">
+                    {new Date(obj.updated_at).toLocaleDateString()}
+                </span>
+            ),
+        },
+        {
+            key: 'relationship_count',
+            label: 'Rel',
+            render: (obj) => (
+                <span className="text-sm text-base-content/70">
+                    {obj.relationship_count ?? '—'}
+                </span>
+            ),
+        },
+    ];
+
+    // Define filters
+    const filters: FilterConfig<GraphObject>[] = [
+        {
+            key: 'type',
+            label: 'Filter by Type',
+            icon: 'lucide--filter',
+            options: availableTypes.map(type => ({ value: type, label: type })),
+            getValue: (obj) => obj.type,
+            badgeColor: 'primary',
+        },
+        {
+            key: 'tags',
+            label: 'Filter by Tag',
+            icon: 'lucide--tag',
+            options: availableTags.map(tag => ({ value: tag, label: tag })),
+            getValue: (obj) => (obj.properties?.tags as string[]) || [],
+            badgeColor: 'secondary',
+        },
+    ];
+
+    // Define bulk actions
+    const bulkActions: BulkAction<GraphObject>[] = [
+        {
+            key: 'accept',
+            label: 'Accept',
+            icon: 'lucide--check-circle',
+            variant: 'success',
+            onAction: async (selectedIds) => {
+                await handleBulkAccept(selectedIds);
+            },
+        },
+        {
+            key: 'delete',
+            label: 'Delete',
+            icon: 'lucide--trash-2',
+            variant: 'error',
+            style: 'outline',
+            onAction: async (selectedIds) => {
+                await handleBulkDelete(selectedIds);
+            },
+        },
+    ];
+
     if (!config.activeProjectId) {
         return (
             <div className="mx-auto p-6 container">
@@ -293,20 +468,24 @@ export default function ObjectsPage() {
                 </p>
             </div>
 
-            {/* Object Browser */}
-            <ObjectBrowser
-                objects={objects}
+            {/* DataTable */}
+            <DataTable<GraphObject>
+                data={objects}
+                columns={columns}
                 loading={loading}
                 error={error}
-                onObjectClick={handleObjectClick}
-                onBulkSelect={handleBulkSelect}
-                onBulkDelete={handleBulkDelete}
-                onBulkAccept={handleBulkAccept}
-                onSearchChange={handleSearchChange}
-                onTypeFilterChange={handleTypeFilterChange}
-                availableTypes={availableTypes}
-                onTagFilterChange={handleTagFilterChange}
-                availableTags={availableTags}
+                enableSelection={true}
+                enableSearch={true}
+                searchPlaceholder="Search objects..."
+                getSearchText={(obj) => `${obj.name} ${obj.type} ${obj.source || ''}`}
+                filters={filters}
+                bulkActions={bulkActions}
+                onRowClick={handleObjectClick}
+                onSelectionChange={handleBulkSelect}
+                emptyMessage="No objects found. Objects will appear here after extraction jobs complete."
+                emptyIcon="lucide--inbox"
+                noResultsMessage="No objects match current filters."
+                formatDate={(date) => new Date(date).toLocaleDateString()}
             />
 
             {/* Object Detail Modal */}

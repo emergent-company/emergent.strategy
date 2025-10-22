@@ -676,6 +676,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             await this.pool.query(`UPDATE kb.documents SET content_hash = encode(digest(coalesce(content, ''), 'sha256'), 'hex') WHERE content_hash IS NULL;`);
             await this.pool.query(`WITH ranked AS (SELECT id, content_hash, row_number() OVER (PARTITION BY content_hash ORDER BY created_at ASC, id ASC) AS rn FROM kb.documents WHERE content_hash IS NOT NULL) DELETE FROM kb.documents d USING ranked r WHERE d.id = r.id AND r.rn > 1;`);
             await this.pool.query(`DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'idx_documents_content_hash' AND n.nspname = 'kb') THEN DROP INDEX IF EXISTS kb.idx_documents_content_hash; END IF; END $$;`);
+            // Ensure content_hash is NOT NULL to prevent future duplication issues
+            await this.pool.query(`ALTER TABLE kb.documents ALTER COLUMN content_hash SET NOT NULL;`);
+            // Create trigger to automatically compute content_hash on insert/update
+            await this.pool.query(`CREATE OR REPLACE FUNCTION kb.compute_document_content_hash() RETURNS TRIGGER AS $trig$ BEGIN NEW.content_hash := encode(digest(coalesce(NEW.content, ''), 'sha256'), 'hex'); RETURN NEW; END; $trig$ LANGUAGE plpgsql;`);
+            await this.pool.query(`DROP TRIGGER IF EXISTS trg_documents_content_hash ON kb.documents;`);
+            await this.pool.query(`CREATE TRIGGER trg_documents_content_hash BEFORE INSERT OR UPDATE OF content ON kb.documents FOR EACH ROW EXECUTE FUNCTION kb.compute_document_content_hash();`);
             await this.pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_project_hash ON kb.documents(project_id, content_hash);`);
             await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_documents_org ON kb.documents(org_id);`);
             await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_documents_project ON kb.documents(project_id);`);

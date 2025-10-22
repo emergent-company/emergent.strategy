@@ -301,3 +301,91 @@ export interface ClickUpTasksResponse {
 export interface ClickUpCommentsResponse {
     comments: ClickUpComment[];
 }
+
+/**
+ * ClickUp API v3 Types
+ * Types for ClickUp Docs API (v3 endpoints)
+ */
+
+/**
+ * ClickUp Doc Parent Reference
+ * Used to identify where a doc belongs (space, folder, list)
+ */
+export interface ClickUpDocParent {
+    id: string;
+    type: number; // 6 = space, 5 = folder, 4 = list
+}
+
+/**
+ * ClickUp Doc Avatar
+ * Can be an emoji or custom icon
+ */
+export interface ClickUpDocAvatar {
+    value: string; // Format: "emoji::📃" or icon reference
+}
+
+/**
+ * ClickUp Doc Cover Image
+ */
+export interface ClickUpDocCover {
+    type: string; // e.g., "color"
+    value: string; // e.g., "#FF6900"
+}
+
+/**
+ * ClickUp Doc Presentation Settings
+ */
+export interface ClickUpPresentationSettings {
+    slide_size: string; // e.g., "standard"
+}
+
+/**
+ * ClickUp Doc (from v3 API)
+ * Represents a ClickUp Doc with metadata
+ */
+export interface ClickUpDoc {
+    id: string;
+    name: string;
+    parent: ClickUpDocParent;
+    workspace_id: string;
+    creator_id: number;
+    date_created: string;
+    date_updated: string;
+    avatar?: ClickUpDocAvatar;
+    archived: boolean;
+    deleted: boolean;
+    protected: boolean;
+}
+
+/**
+ * ClickUp Page (from v3 API)
+ * Represents a page within a ClickUp Doc
+ * Pages can have nested child pages (hierarchical structure)
+ */
+export interface ClickUpPage {
+    page_id: string;
+    name: string;
+    content: string; // Markdown content
+    parent_page_id?: string; // If nested, points to parent page
+    date_created: string;
+    date_updated: string;
+    creator_id: number;
+    avatar?: ClickUpDocAvatar;
+    cover?: ClickUpDocCover;
+    presentation_details?: ClickUpPresentationSettings;
+    archived: boolean;
+    protected: boolean;
+    pages?: ClickUpPage[]; // Nested child pages (recursive structure)
+}
+
+/**
+ * ClickUp API v3 Response Wrappers
+ */
+export interface ClickUpDocsResponse {
+    docs: ClickUpDoc[];
+    next_cursor?: string; // For pagination
+}
+
+export interface ClickUpDocPagesResponse {
+    pages: ClickUpPage[];
+}

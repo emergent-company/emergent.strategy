@@ -300,6 +300,43 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                     </div>
                 </div>
 
+                {/* Embedding Status Section */}
+                <div className="mb-6">
+                    <h4 className="flex items-center gap-2 mb-3 font-semibold text-lg">
+                        <Icon icon="lucide--brain" className="size-5" />
+                        Embedding Status
+                    </h4>
+                    <div className="space-y-3 bg-base-200/50 p-4 border border-base-300 rounded-lg">
+                        <div className="flex justify-between items-center">
+                            <span className="font-medium text-sm">Status</span>
+                            {object.embedding ? (
+                                <span className="gap-2 badge badge-success">
+                                    <Icon icon="lucide--check-circle" className="size-3" />
+                                    Embedded
+                                </span>
+                            ) : (
+                                <span className="gap-2 badge badge-ghost">
+                                    <Icon icon="lucide--circle" className="size-3" />
+                                    No Embedding
+                                </span>
+                            )}
+                        </div>
+                        {object.embedding_updated_at && (
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-base-content/70">Generated At</span>
+                                <span className="text-base-content">
+                                    {new Date(object.embedding_updated_at).toLocaleString()}
+                                </span>
+                            </div>
+                        )}
+                        {!object.embedding && (
+                            <div className="text-sm text-base-content/60 italic">
+                                This object has not been embedded yet. Embeddings are generated automatically for semantic search.
+                            </div>
+                        )}
+                    </div>
+                </div>
+
                 {/* Version History */}
                 <div className="mb-6">
                     <h4 className="flex items-center gap-2 mb-3 font-semibold text-lg">

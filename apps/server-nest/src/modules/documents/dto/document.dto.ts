@@ -19,4 +19,40 @@ export class DocumentDto {
     updatedAt!: string;
     @ApiProperty({ example: 12, description: 'Number of chunks associated with this document' })
     chunks!: number;
+    @ApiProperty({
+        required: false,
+        nullable: true,
+        example: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        description: 'Parent document ID for hierarchical structures (e.g., ClickUp page hierarchy)'
+    })
+    parentDocumentId?: string | null;
+    @ApiProperty({
+        required: false,
+        nullable: true,
+        example: { source: 'clickup', doc_id: '4bj41-33735', workspace_id: '4573313' },
+        description: 'Integration-specific metadata (ClickUp IDs, creator info, etc.)'
+    })
+    integrationMetadata?: Record<string, any> | null;
+    @ApiProperty({
+        required: false,
+        nullable: true,
+        example: 'completed',
+        description: 'Status of the most recent extraction job for this document (pending, running, completed, failed)',
+        enum: ['pending', 'running', 'completed', 'failed']
+    })
+    extractionStatus?: string;
+    @ApiProperty({
+        required: false,
+        nullable: true,
+        example: '2025-01-01T00:10:00.000Z',
+        description: 'Timestamp when the most recent extraction job was completed'
+    })
+    extractionCompletedAt?: string;
+    @ApiProperty({
+        required: false,
+        nullable: true,
+        example: 15,
+        description: 'Number of objects extracted in the most recent extraction job'
+    })
+    extractionObjectsCount?: number;
 }

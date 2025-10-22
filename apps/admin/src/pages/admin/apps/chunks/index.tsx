@@ -4,6 +4,7 @@ import { useApi } from "@/hooks/use-api";
 import { useSearchParams } from "react-router";
 import { PageTitle } from "@/components";
 import { LoadingEffect, TableEmptyState } from "@/components";
+import { Icon } from "@/components/atoms/Icon";
 
 interface ChunkRow {
     id: string;
@@ -286,9 +287,31 @@ export default function ChunksPage() {
                                             <tr key={c.id}>
                                                 <td className="max-w-80 truncate">
                                                     {c.source_url ? (
-                                                        <a href={c.source_url} target="_blank" className="link" rel="noreferrer">
-                                                            {c.document_title}
-                                                        </a>
+                                                        c.source_url.includes('clickup.com') || c.source_url.includes('app.clickup.com') ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-medium">{c.document_title}</span>
+                                                                <a
+                                                                    href={c.source_url}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="inline-flex items-center gap-1 text-sm transition-colors link hover:link-primary"
+                                                                    title={c.source_url}
+                                                                >
+                                                                    <Icon icon="simple-icons--clickup" className="w-3.5 h-3.5 text-purple-500" />
+                                                                    <span>Link</span>
+                                                                </a>
+                                                            </div>
+                                                        ) : (
+                                                            <a
+                                                                href={c.source_url}
+                                                                target="_blank"
+                                                                className="link"
+                                                                rel="noreferrer"
+                                                                title={c.source_url}
+                                                            >
+                                                                {c.document_title}
+                                                            </a>
+                                                        )
                                                     ) : (
                                                         <span className="font-medium">{c.document_title}</span>
                                                     )}

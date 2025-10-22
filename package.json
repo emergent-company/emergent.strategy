@@ -50,7 +50,9 @@
     "test:coverage:server": "nx run server-nest:test-coverage",
     "test:coverage:server:e2e": "nx run server-nest:test-coverage-e2e",
     "test:coverage:server:all": "nx run server-nest:test-coverage && nx run server-nest:test-coverage-e2e",
-    "test:coverage:all": "nx run repo-scripts:test-coverage-all"
+    "test:coverage:all": "nx run repo-scripts:test-coverage-all",
+    "log:pretty": "node scripts/pretty-print-log.js",
+    "log:clickup": "node scripts/pretty-print-log.js logs/clickup-import/*.jsonl"
   },
   "dependencies": {
     "@langchain/google-genai": "^0.2.1",

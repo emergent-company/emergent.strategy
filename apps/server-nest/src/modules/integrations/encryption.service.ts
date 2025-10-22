@@ -54,9 +54,10 @@ export class EncryptionService implements OnModuleInit {
 
         const settingsJson = JSON.stringify(settings);
 
+        // Use digest() to hash the key to ensure it's the right length for AES
         const result = await this.db.query<{ encrypted: string }>(
             `SELECT encode(
-                encrypt($1::bytea, $2::text, 'aes'),
+                pgp_sym_encrypt($1::text, $2::text),
                 'base64'
             ) as encrypted`,
             [settingsJson, this.encryptionKey]
@@ -98,20 +99,34 @@ export class EncryptionService implements OnModuleInit {
             : encryptedData;
 
         try {
+            // Try new pgp_sym_decrypt method first
             const result = await this.db.query<{ decrypted: string }>(
-                `SELECT convert_from(
-                    decrypt(decode($1, 'base64'), $2::text, 'aes'),
-                    'utf-8'
-                ) as decrypted`,
+                `SELECT pgp_sym_decrypt(decode($1, 'base64'), $2::text) as decrypted`,
                 [base64Data, this.encryptionKey]
             );
 
             const decryptedJson = result.rows[0].decrypted;
             return JSON.parse(decryptedJson);
         } catch (error) {
-            this.logger.error('Failed to decrypt integration settings');
-            this.logger.error(error);
-            throw new Error('Failed to decrypt integration settings. The encryption key may be incorrect.');
+            // If pgp_sym_decrypt fails, try legacy decrypt method for backwards compatibility
+            this.logger.warn('pgp_sym_decrypt failed, trying legacy decrypt method');
+            try {
+                const result = await this.db.query<{ decrypted: string }>(
+                    `SELECT convert_from(
+                        decrypt(decode($1, 'base64'), digest($2, 'sha256'), 'aes-cbc'),
+                        'utf-8'
+                    ) as decrypted`,
+                    [base64Data, this.encryptionKey]
+                );
+
+                const decryptedJson = result.rows[0].decrypted;
+                this.logger.log('Successfully decrypted using legacy method');
+                return JSON.parse(decryptedJson);
+            } catch (legacyError) {
+                this.logger.error('Failed to decrypt integration settings with both methods');
+                this.logger.error(error);
+                throw new Error('Failed to decrypt integration settings. The encryption key may be incorrect.');
+            }
         }
     }
 

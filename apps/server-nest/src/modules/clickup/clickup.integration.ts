@@ -167,6 +167,37 @@ export class ClickUpIntegration extends BaseIntegration {
     }
 
     /**
+     * Run full import with progress updates
+     */
+    protected async onRunFullImportWithProgress(
+        config: ImportConfig,
+        onProgress: (progress: { step: string; message: string; count?: number }) => void
+    ): Promise<ImportResult> {
+        if (!this.integration || !this.clickupSettings) {
+            throw new Error('Integration not configured');
+        }
+
+        this.logger.log(`Starting full import with progress from ClickUp workspace ${this.clickupSettings.workspace_id}`);
+
+        // Merge config with integration settings
+        const importConfig: ImportConfig = {
+            includeArchived: this.clickupSettings.import_completed_tasks ?? false,
+            batchSize: this.clickupSettings.batch_size ?? 100,
+            ...config,
+        };
+
+        // Run import with progress via import service
+        return await this.importService.runFullImportWithProgress(
+            this.integration.id,
+            this.integration.project_id,
+            this.integration.org_id,
+            this.clickupSettings.workspace_id,
+            importConfig,
+            onProgress
+        );
+    }
+
+    /**
      * Handle incoming webhook
      */
     protected async onHandleWebhook(payload: WebhookPayload): Promise<boolean> {

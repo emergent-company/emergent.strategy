@@ -6,7 +6,17 @@ import { AppConfigService } from '../../common/config/config.service';
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 
-interface ProjectRow { id: string; name: string; org_id: string; kb_purpose?: string; created_at?: string; updated_at?: string; }
+interface ProjectRow {
+    id: string;
+    name: string;
+    org_id: string;
+    kb_purpose?: string;
+    chat_prompt_template?: string;
+    auto_extract_objects?: boolean;
+    auto_extract_config?: any;
+    created_at?: string;
+    updated_at?: string;
+}
 
 @Injectable()
 export class ProjectsService {
@@ -39,14 +49,22 @@ export class ProjectsService {
 
     async getById(id: string): Promise<ProjectDto | null> {
         const res = await this.db.query<ProjectRow>(
-            `SELECT id, name, org_id, kb_purpose FROM kb.projects WHERE id = $1`,
+            `SELECT id, name, org_id, kb_purpose, chat_prompt_template, auto_extract_objects, auto_extract_config FROM kb.projects WHERE id = $1`,
             [id],
         );
         if (res.rows.length === 0) {
             return null;
         }
         const r = res.rows[0];
-        return { id: r.id, name: r.name, orgId: r.org_id, kb_purpose: r.kb_purpose };
+        return {
+            id: r.id,
+            name: r.name,
+            orgId: r.org_id,
+            kb_purpose: r.kb_purpose,
+            chat_prompt_template: r.chat_prompt_template,
+            auto_extract_objects: r.auto_extract_objects,
+            auto_extract_config: r.auto_extract_config
+        };
     }
 
     async create(name: string, orgId?: string, userId?: string): Promise<ProjectDto> {
@@ -108,10 +126,16 @@ export class ProjectsService {
     }
 
     /**
-     * Update a project's properties (name, kb_purpose, etc.)
+     * Update a project's properties (name, kb_purpose, chat_prompt_template, auto_extract_objects, auto_extract_config, etc.)
      * Returns the updated project or null if not found.
      */
-    async update(projectId: string, updates: { name?: string; kb_purpose?: string }): Promise<ProjectDto | null> {
+    async update(projectId: string, updates: {
+        name?: string;
+        kb_purpose?: string;
+        chat_prompt_template?: string;
+        auto_extract_objects?: boolean;
+        auto_extract_config?: any;
+    }): Promise<ProjectDto | null> {
         // Validate UUID shape
         if (!/^[0-9a-fA-F-]{36}$/.test(projectId)) return null;
 
@@ -129,6 +153,21 @@ export class ProjectsService {
             values.push(updates.kb_purpose);
         }
 
+        if (updates.chat_prompt_template !== undefined) {
+            fields.push(`chat_prompt_template = $${paramIndex++}`);
+            values.push(updates.chat_prompt_template);
+        }
+
+        if (updates.auto_extract_objects !== undefined) {
+            fields.push(`auto_extract_objects = $${paramIndex++}`);
+            values.push(updates.auto_extract_objects);
+        }
+
+        if (updates.auto_extract_config !== undefined) {
+            fields.push(`auto_extract_config = $${paramIndex++}`);
+            values.push(JSON.stringify(updates.auto_extract_config));
+        }
+
         // If no fields to update, just return current project
         if (fields.length === 0) {
             return this.getById(projectId);
@@ -136,11 +175,19 @@ export class ProjectsService {
 
         values.push(projectId);
 
-        const result = await this.db.query<{ id: string; name: string; org_id: string; kb_purpose?: string }>(
+        const result = await this.db.query<{
+            id: string;
+            name: string;
+            org_id: string;
+            kb_purpose?: string;
+            chat_prompt_template?: string;
+            auto_extract_objects?: boolean;
+            auto_extract_config?: any;
+        }>(
             `UPDATE kb.projects 
              SET ${fields.join(', ')}, updated_at = now()
              WHERE id = $${paramIndex}
-             RETURNING id, name, org_id, kb_purpose`,
+             RETURNING id, name, org_id, kb_purpose, chat_prompt_template, auto_extract_objects, auto_extract_config`,
             values
         );
 
@@ -153,7 +200,10 @@ export class ProjectsService {
             id: row.id,
             name: row.name,
             orgId: row.org_id,
-            kb_purpose: row.kb_purpose
+            kb_purpose: row.kb_purpose,
+            chat_prompt_template: row.chat_prompt_template,
+            auto_extract_objects: row.auto_extract_objects,
+            auto_extract_config: row.auto_extract_config
         };
     }
 

@@ -168,6 +168,21 @@ export interface ExtractionJobsClient {
      * Get extraction statistics for a project
      */
     getStatistics(projectId?: string): Promise<ExtractionJobStatistics>;
+
+    /**
+     * Bulk cancel all pending/running jobs for a project
+     */
+    bulkCancelJobs(projectId?: string): Promise<{ cancelled: number; message: string }>;
+
+    /**
+     * Bulk delete all completed/failed/cancelled jobs for a project
+     */
+    bulkDeleteJobs(projectId?: string): Promise<{ deleted: number; message: string }>;
+
+    /**
+     * Bulk retry all failed jobs for a project
+     */
+    bulkRetryJobs(projectId?: string): Promise<{ retried: number; message: string }>;
 }
 
 /**
@@ -264,6 +279,45 @@ export function createExtractionJobsClient(
 
             return fetchJson<ExtractionJobStatistics>(
                 `${apiBase}/api/admin/extraction-jobs/projects/${resolvedProjectId}/statistics`
+            );
+        },
+
+        async bulkCancelJobs(projectId?: string) {
+            const resolvedProjectId = projectId ?? defaultProjectId;
+
+            if (!resolvedProjectId) {
+                throw new Error('Project ID is required to bulk cancel jobs');
+            }
+
+            return fetchJson<{ cancelled: number; message: string }>(
+                `${apiBase}/api/admin/extraction-jobs/projects/${resolvedProjectId}/bulk-cancel`,
+                { method: 'POST' }
+            );
+        },
+
+        async bulkDeleteJobs(projectId?: string) {
+            const resolvedProjectId = projectId ?? defaultProjectId;
+
+            if (!resolvedProjectId) {
+                throw new Error('Project ID is required to bulk delete jobs');
+            }
+
+            return fetchJson<{ deleted: number; message: string }>(
+                `${apiBase}/api/admin/extraction-jobs/projects/${resolvedProjectId}/bulk-delete`,
+                { method: 'DELETE' }
+            );
+        },
+
+        async bulkRetryJobs(projectId?: string) {
+            const resolvedProjectId = projectId ?? defaultProjectId;
+
+            if (!resolvedProjectId) {
+                throw new Error('Project ID is required to bulk retry jobs');
+            }
+
+            return fetchJson<{ retried: number; message: string }>(
+                `${apiBase}/api/admin/extraction-jobs/projects/${resolvedProjectId}/bulk-retry`,
+                { method: 'POST' }
             );
         },
     };

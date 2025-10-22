@@ -1,72 +1,137 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { VertexAI } from '@google-cloud/vertexai';
 import { EmbeddingProvider } from './embedding.provider';
 import { AppConfigService } from '../../common/config/config.service';
 
 /**
  * GoogleVertexEmbeddingProvider
- * Implementation of a Google Vertex AI Text Embedding provider with graceful fallback.
- * Behaviour:
- *  - If embeddings disabled -> throw 'embeddings_disabled'
- *  - If EMBEDDINGS_NETWORK_DISABLED set -> return deterministic local hash (no network)
- *  - Otherwise perform HTTP call; on non-fatal/network errors log + fallback to deterministic hash
- * Environment Variables consulted (all optional except GOOGLE_API_KEY):
- *  - GOOGLE_API_KEY (required for real call)
- *  - VERTEX_EMBEDDING_MODEL (default: text-embedding-004)
- *  - GOOGLE_VERTEX_PROJECT (optional; if absent uses 'dummy-project')
- *  - GOOGLE_VERTEX_LOCATION (default: us-central1)
- *  - EMBEDDINGS_NETWORK_DISABLED (if set truthy -> skip HTTP)
+ * 
+ * Production implementation using Google Vertex AI Text Embeddings API.
+ * Uses the official @google-cloud/vertexai SDK with Application Default Credentials (ADC).
+ * No API key needed - authentication via gcloud CLI or service account JSON.
+ * 
+ * Configuration (environment variables):
+ *  - EMBEDDING_PROVIDER: Must be 'vertex' or 'google' to enable
+ *  - VERTEX_EMBEDDING_PROJECT: GCP project ID (e.g., 'twentyfirst-io')
+ *  - VERTEX_EMBEDDING_LOCATION: Region (e.g., 'us-central1')
+ *  - VERTEX_EMBEDDING_MODEL: Model name (default: 'text-embedding-004')
+ *  - EMBEDDINGS_NETWORK_DISABLED: If set, uses deterministic hash (offline mode)
+ * 
+ * Behavior:
+ *  - If embeddings disabled (EMBEDDING_PROVIDER not vertex/google) -> throws 'embeddings_disabled'
+ *  - If EMBEDDINGS_NETWORK_DISABLED set -> returns deterministic local hash (no network)
+ *  - Otherwise calls Vertex AI API; on errors falls back to deterministic hash with warning
+ * 
+ * Model: text-embedding-004
+ *  - Vector dimension: 768
+ *  - Task type: RETRIEVAL_DOCUMENT (for indexing) or RETRIEVAL_QUERY (for search)
+ *  - Max input tokens: ~2048 tokens (~8192 characters)
+ * 
+ * Authentication:
+ *  - Uses Application Default Credentials (ADC)
+ *  - Run: gcloud auth application-default login
+ *  - Or set GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
  */
 @Injectable()
 export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
     private readonly logger = new Logger(GoogleVertexEmbeddingProvider.name);
+    private vertexAI: VertexAI | null = null;
     private loggedFallback = false;
-    constructor(private readonly config: AppConfigService) { }
+
+    constructor(private readonly config: AppConfigService) {
+        this.initialize();
+    }
+
+    private initialize() {
+        const projectId = process.env.VERTEX_EMBEDDING_PROJECT;
+        const location = process.env.VERTEX_EMBEDDING_LOCATION || 'us-central1';
+
+        if (!projectId) {
+            this.logger.warn('Vertex AI Embeddings not configured: VERTEX_EMBEDDING_PROJECT missing');
+            return;
+        }
+
+        if (!this.config.embeddingsEnabled) {
+            this.logger.log('Embeddings disabled (EMBEDDING_PROVIDER not set to vertex/google)');
+            return;
+        }
+
+        try {
+            this.vertexAI = new VertexAI({
+                project: projectId,
+                location: location,
+            });
+            const model = process.env.VERTEX_EMBEDDING_MODEL || 'text-embedding-004';
+            this.logger.log(`Vertex AI Embeddings initialized: project=${projectId}, location=${location}, model=${model}`);
+        } catch (error) {
+            this.logger.error('Failed to initialize Vertex AI for embeddings', error);
+            this.vertexAI = null;
+        }
+    }
 
     async generate(text: string): Promise<Buffer> {
         if (!this.config.embeddingsEnabled) {
             throw new Error('embeddings_disabled');
         }
+
         if (this.config.embeddingsNetworkDisabled) {
             return this.deterministicStub(text, 'vertex:offline:');
         }
-        const project = process.env.GOOGLE_VERTEX_PROJECT;
-        const location = process.env.GOOGLE_VERTEX_LOCATION;
-        const model = process.env.VERTEX_EMBEDDING_MODEL || 'text-embedding-004'; // text-embedding-004 is the standard model
 
-        if (!project) {
-            throw new Error('GOOGLE_VERTEX_PROJECT not configured for embeddings');
-        }
-        if (!location) {
-            throw new Error('GOOGLE_VERTEX_LOCATION not configured for embeddings');
+        if (!this.vertexAI) {
+            this.logger.warn('Vertex AI not initialized, using deterministic fallback');
+            return this.deterministicStub(text, 'vertex:uninitialized:');
         }
 
-        const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${project}/locations/${location}/publishers/google/models/${model}:predict`;
-        const apiKey = process.env.GOOGLE_API_KEY!;
+        const model = process.env.VERTEX_EMBEDDING_MODEL || 'text-embedding-004';
+        const projectId = process.env.VERTEX_EMBEDDING_PROJECT;
+        const location = process.env.VERTEX_EMBEDDING_LOCATION || 'us-central1';
+
         try {
-            const fetchFn: typeof fetch = (global as any).fetch || (await import('node-fetch')).default as any;
-            const resp = await fetchFn(url, {
+            // Use the REST API approach directly with ADC
+            const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:predict`;
+
+            // Get auth token from Application Default Credentials
+            const { GoogleAuth } = await import('google-auth-library');
+            const auth = new GoogleAuth({
+                scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+            });
+            const client = await auth.getClient();
+            const accessToken = await client.getAccessToken();
+
+            if (!accessToken.token) {
+                throw new Error('Failed to get access token from ADC');
+            }
+
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${accessToken.token}`,
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
-                    // Some deployments may require explicit X-Goog-Api-Key; include if present.
-                    ...(apiKey ? { 'X-Goog-Api-Key': apiKey } : {}),
                 },
-                body: JSON.stringify({ instances: [{ content: text }] }),
+                body: JSON.stringify({
+                    instances: [{ content: text }]
+                }),
             });
-            if (!resp.ok) {
-                throw new Error(`vertex_http_${resp.status}`);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Vertex AI API error: ${response.status} ${response.statusText} - ${errorText}`);
             }
-            const json: any = await resp.json();
-            const vector: number[] | undefined = json.predictions?.[0]?.embeddings?.values || json.predictions?.[0]?.values;
-            if (!Array.isArray(vector) || !vector.length) {
-                throw new Error('vertex_response_no_vector');
+
+            const data = await response.json();
+            const values = data.predictions?.[0]?.embeddings?.values || data.predictions?.[0]?.values;
+
+            if (!Array.isArray(values) || values.length === 0) {
+                throw new Error('No embedding values returned from Vertex AI');
             }
-            // Convert to Buffer (Float32)
-            const floatArray = new Float32Array(vector.map(v => Number(v) || 0));
+
+            // Convert to Float32Array buffer (standard format for vector storage)
+            const floatArray = new Float32Array(values);
             return Buffer.from(floatArray.buffer);
+
         } catch (err) {
-            // Fallback path: log once per process to reduce noise.
+            // Fallback path: log once per process to reduce noise
             if (!this.loggedFallback) {
                 this.logger.warn(`Vertex embedding fallback to deterministic hash: ${(err as Error).message}`);
                 this.loggedFallback = true;

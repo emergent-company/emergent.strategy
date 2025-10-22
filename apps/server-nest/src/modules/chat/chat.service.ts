@@ -30,15 +30,10 @@ export class ChatService {
     ) { }
 
     mapUserId(sub: string | undefined): string | null {
-        if (!sub) return null;
-        if (UUID_RE.test(sub)) return sub;
-        // Deterministic UUID v5 style (sha1) similar to simple server implementation
-        const hash = crypto.createHash('sha1').update(sub).digest();
-        const bytes = Buffer.from(hash.subarray(0, 16));
-        bytes[6] = (bytes[6] & 0x0f) | 0x50; // version 5
-        bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
-        const hex = bytes.toString('hex');
-        return `${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}`;
+        // Return the sub as-is. The owner_subject_id column accepts any string identifier,
+        // not just UUIDs. This allows frontend ownership checks to work correctly by
+        // comparing user.sub directly with conversation.ownerUserId.
+        return sub || null;
     }
 
     async listConversations(userId: string | null, orgId: string | null, projectId: string | null) {

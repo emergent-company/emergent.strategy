@@ -3,11 +3,13 @@ import { ClickUpIntegration } from './clickup.integration';
 import { ClickUpApiClient } from './clickup-api.client';
 import { ClickUpDataMapper } from './clickup-data-mapper.service';
 import { ClickUpImportService } from './clickup-import.service';
+import { ClickUpImportLoggerService } from './clickup-import-logger.service';
 import { ClickUpWebhookHandler } from './clickup-webhook.handler';
 import { IntegrationRegistryService } from '../integrations/integration-registry.service';
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { DatabaseModule } from '../../common/database/database.module';
 import { AppConfigModule } from '../../common/config/config.module';
+import { ExtractionJobModule } from '../extraction-jobs/extraction-job.module';
 
 /**
  * ClickUp Integration Module
@@ -30,12 +32,14 @@ import { AppConfigModule } from '../../common/config/config.module';
         IntegrationsModule,
         DatabaseModule,
         AppConfigModule,
+        ExtractionJobModule,
     ],
     providers: [
         ClickUpIntegration,
         ClickUpApiClient,
         ClickUpDataMapper,
         ClickUpImportService,
+        ClickUpImportLoggerService,
         ClickUpWebhookHandler,
     ],
     exports: [
@@ -43,6 +47,7 @@ import { AppConfigModule } from '../../common/config/config.module';
         ClickUpApiClient,
         ClickUpDataMapper,
         ClickUpImportService,
+        ClickUpImportLoggerService,
         ClickUpWebhookHandler,
     ],
 })

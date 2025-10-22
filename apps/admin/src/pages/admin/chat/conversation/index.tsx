@@ -349,12 +349,7 @@ export default function ChatConversationPage() {
                                         <button
                                             className="btn btn-ghost btn-xs shrink-0"
                                             aria-label="Delete conversation"
-                                            onClick={() => {
-                                                const confirmDelete = window.confirm("Delete this conversation?");
-                                                if (confirmDelete) {
-                                                    deleteConversation(c.id);
-                                                }
-                                            }}
+                                            onClick={() => deleteConversation(c.id)}
                                         >
                                             <span className="iconify lucide--trash" />
                                         </button>
@@ -385,12 +380,7 @@ export default function ChatConversationPage() {
                                         <button
                                             className="btn btn-ghost btn-xs shrink-0"
                                             aria-label="Delete conversation"
-                                            onClick={() => {
-                                                const confirmDelete = window.confirm("Delete this conversation?");
-                                                if (confirmDelete) {
-                                                    deleteConversation(c.id);
-                                                }
-                                            }}
+                                            onClick={() => deleteConversation(c.id)}
                                         >
                                             <span className="iconify lucide--trash" />
                                         </button>
