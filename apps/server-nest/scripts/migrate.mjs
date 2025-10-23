@@ -28,12 +28,21 @@ const execAsync = promisify(exec);
 // Configuration
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = join(__dirname, '../migrations');
-const CONTAINER_NAME = 'spec_pg';
-const DB_USER = process.env.POSTGRES_USER || 'spec';
-const DB_NAME = process.env.POSTGRES_DB || 'spec';
-const DB_PASSWORD = process.env.POSTGRES_PASSWORD || 'spec';
-const DB_HOST = process.env.POSTGRES_HOST || 'localhost';
-const DB_PORT = process.env.POSTGRES_PORT || '5432';
+
+// Require explicit configuration - no defaults!
+const CONTAINER_NAME = process.env.DB_CONTAINER_NAME;
+const DB_USER = process.env.POSTGRES_USER;
+const DB_NAME = process.env.POSTGRES_DB;
+const DB_PASSWORD = process.env.POSTGRES_PASSWORD;
+const DB_HOST = process.env.POSTGRES_HOST;
+const DB_PORT = process.env.POSTGRES_PORT;
+
+// Validate required configuration
+if (!DB_USER) throw new Error('POSTGRES_USER environment variable is required');
+if (!DB_NAME) throw new Error('POSTGRES_DB environment variable is required');
+if (!DB_PASSWORD) throw new Error('POSTGRES_PASSWORD environment variable is required');
+if (!DB_HOST && !CONTAINER_NAME) throw new Error('Either POSTGRES_HOST or DB_CONTAINER_NAME environment variable is required');
+if (DB_HOST && !DB_PORT) throw new Error('POSTGRES_PORT is required when using POSTGRES_HOST');
 
 // Parse CLI arguments
 const args = process.argv.slice(2);
@@ -59,21 +68,19 @@ function log(message, color = 'reset') {
  */
 async function executeSql(sql, { silent = false } = {}) {
     try {
-        // Try Docker first
-        const dockerCmd = `echo "${sql.replace(/"/g, '\\"')}" | docker exec -i ${CONTAINER_NAME} psql -U ${DB_USER} -d ${DB_NAME} -t`;
-        const { stdout, stderr } = await execAsync(dockerCmd);
+        // Try Docker first if CONTAINER_NAME is set
+        if (CONTAINER_NAME) {
+            const dockerCmd = `echo "${sql.replace(/"/g, '\\"')}" | docker exec -i ${CONTAINER_NAME} psql -U ${DB_USER} -d ${DB_NAME} -t`;
+            const { stdout, stderr } = await execAsync(dockerCmd);
 
-        if (stderr && !silent) {
-            log(`Warning: ${stderr}`, 'yellow');
+            if (stderr && !silent) {
+                log(`Warning: ${stderr}`, 'yellow');
+            }
+
+            return stdout.trim();
         }
 
-        return stdout.trim();
-    } catch (error) {
-        // If Docker fails, try direct connection (requires psql client)
-        if (!silent) {
-            log('Docker connection failed, trying direct connection...', 'gray');
-        }
-
+        // Otherwise use direct connection
         const directCmd = `PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -p ${DB_PORT} -U ${DB_USER} -d ${DB_NAME} -t -c "${sql.replace(/"/g, '\\"')}"`;
         const { stdout, stderr } = await execAsync(directCmd);
 
@@ -82,6 +89,24 @@ async function executeSql(sql, { silent = false } = {}) {
         }
 
         return stdout.trim();
+    } catch (error) {
+        // If Docker was attempted but failed, try direct connection as fallback
+        if (CONTAINER_NAME && DB_HOST && DB_PORT) {
+            if (!silent) {
+                log('Docker connection failed, trying direct connection...', 'gray');
+            }
+
+            const directCmd = `PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -p ${DB_PORT} -U ${DB_USER} -d ${DB_NAME} -t -c "${sql.replace(/"/g, '\\"')}"`;
+            const { stdout, stderr } = await execAsync(directCmd);
+
+            if (stderr && !silent) {
+                log(`Warning: ${stderr}`, 'yellow');
+            }
+
+            return stdout.trim();
+        }
+
+        throw error;
     }
 }
 
@@ -90,9 +115,16 @@ async function executeSql(sql, { silent = false } = {}) {
  */
 async function executeMigrationFile(filePath) {
     try {
-        // Try Docker first
-        const dockerCmd = `cat "${filePath}" | docker exec -i ${CONTAINER_NAME} psql -U ${DB_USER} -d ${DB_NAME}`;
-        const { stdout, stderr } = await execAsync(dockerCmd);
+        // Try Docker first if CONTAINER_NAME is set
+        if (CONTAINER_NAME) {
+            const dockerCmd = `cat "${filePath}" | docker exec -i ${CONTAINER_NAME} psql -U ${DB_USER} -d ${DB_NAME}`;
+            const { stdout, stderr } = await execAsync(dockerCmd);
+            return { stdout, stderr, success: true };
+        }
+
+        // Otherwise use direct connection
+        const directCmd = `PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -p ${DB_PORT} -U ${DB_USER} -d ${DB_NAME} -f "${filePath}"`;
+        const { stdout, stderr } = await execAsync(directCmd);
         return { stdout, stderr, success: true };
     } catch (error) {
         // If Docker fails, try direct connection

@@ -31,14 +31,14 @@ describe('DatabaseService extended behaviour', () => {
     afterEach(() => { process.env = { ...ORIGINAL_ENV }; vi.clearAllMocks(); });
     beforeEach(() => { vi.useRealTimers(); });
 
-    it('lazy init success path (autoInitDb=false) sets online=true and does not mark schemaEnsured', async () => {
-        delete process.env.DB_AUTOINIT; // autoInitDb false
+    it('lazy init success path (autoInitDb=false) sets online=true', async () => {
+        delete process.env.DB_AUTOINIT; // autoInitDb false (migrations handle schema)
         const { db } = buildServices();
         expect(db.isOnline()).toBe(false);
         // Call query before onModuleInit to trigger lazy path
         await db.query('SELECT 42');
         expect(db.isOnline()).toBe(true);
-        expect(db.hasSchema()).toBe(false); // ensureSchema not called
+        // Schema is now managed by migrations, not by ensureSchema
     });
 
     it('lazy init failure leaves service offline', async () => {
@@ -48,48 +48,6 @@ describe('DatabaseService extended behaviour', () => {
         const { db } = buildServices();
         await db.query('SELECT 1');
         expect(db.isOnline()).toBe(false);
-    });
-
-    it('minimal schema path increments minimalSchemaBoots and sets schemaEnsured', async () => {
-        process.env.DB_AUTOINIT = '1';
-        process.env.E2E_MINIMAL_DB = 'true';
-        const { Pool }: any = await import('pg');
-        // Provide targeted responses for schema inspection queries used by minimal path
-        vi.spyOn(Pool.prototype as any, 'query').mockImplementation(async (sql: any) => {
-            if (sql === 'SELECT 1') {
-                return { rows: [{ one: 1 }], rowCount: 1, command: 'SELECT', fields: [], oid: 0 };
-            }
-            if (sql.includes("to_regclass('kb.projects')")) {
-                return { rows: [{ exists: null }], rowCount: 1 };
-            }
-            if (sql.includes("to_regclass('kb.schema_reset_guard')")) {
-                return { rows: [{ exists: null }], rowCount: 1 };
-            }
-            // All other DDL we just acknowledge success
-            return { rows: [], rowCount: 0, command: 'SELECT', fields: [], oid: 0 };
-        });
-        const { db } = buildServices();
-        await db.onModuleInit();
-        // autoInitDb triggers ensureSchema which sets hasSchema true in minimal path
-        expect(db.hasSchema()).toBe(true);
-        const metrics = db.getMetrics();
-        expect(metrics.minimalSchemaBoots).toBe(1);
-        expect(metrics.fullSchemaEnsures).toBe(0);
-        // Second ensureSchema call (simulate idempotent re-entry) should not bump minimalSchemaBoots again
-        await (db as any).ensureSchema();
-        const metrics2 = db.getMetrics();
-        expect(metrics2.minimalSchemaBoots).toBe(1);
-    });
-
-    it('full schema path increments fullSchemaEnsures and sets schemaEnsured', async () => {
-        process.env.DB_AUTOINIT = '1';
-        delete process.env.E2E_MINIMAL_DB;
-        const { db } = buildServices();
-        await db.onModuleInit();
-        expect(db.hasSchema()).toBe(true);
-        const metrics = db.getMetrics();
-        expect(metrics.fullSchemaEnsures).toBe(1);
-        expect(metrics.minimalSchemaBoots).toBe(0);
     });
 
     it('query returns empty rows when offline (after induced failure)', async () => {
@@ -104,10 +62,10 @@ describe('DatabaseService extended behaviour', () => {
     it('getClient throws offline error when pool defined but online=false', async () => {
         process.env.DB_AUTOINIT = '1';
         const { Pool }: any = await import('pg');
-        // Success for connectivity check, then failure during ensureSchema (second query call)
+        // Success for connectivity check, then failure during initialization
         const qSpy = vi.spyOn(Pool.prototype as any, 'query');
         qSpy.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // SELECT 1
-        qSpy.mockRejectedValueOnce(new Error('ensureSchema fail')); // first ensureSchema statement
+        qSpy.mockRejectedValueOnce(new Error('init fail')); // initialization failure
         const { db } = buildServices();
         await db.onModuleInit().catch(() => { });
         expect(db.isOnline()).toBe(false);
