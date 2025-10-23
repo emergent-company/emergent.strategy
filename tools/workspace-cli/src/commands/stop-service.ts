@@ -38,22 +38,13 @@ interface DependencyEcosystemModule {
 
 const dependencyEcosystemModule = require('../../pm2/ecosystem.dependencies.cjs') as DependencyEcosystemModule;
 
-// Helper to get the project-specific prefix from the repo root directory name
-function getProjectPrefix(): string {
-  const repoRoot = path.resolve(process.cwd());
-  const projectName = path.basename(repoRoot);
-  return `${projectName}-`;
-}
-
 function resolveProcessName(serviceId: string): EcosystemProcessConfig {
-  const prefix = getProjectPrefix();
-  const expectedName = `${prefix}${serviceId}`;
-  const entry = ecosystemModule.apps.find((app) => app.name === expectedName);
+  const entry = ecosystemModule.apps.find((app) => app.name === serviceId);
 
   if (!entry) {
     throw new WorkspaceCliError(
       'ECOSYSTEM_ENTRY_MISSING',
-      `No PM2 ecosystem configuration registered for ${serviceId} (expected name: ${expectedName}).`,
+      `No PM2 ecosystem configuration registered for ${serviceId} (expected name: ${serviceId}).`,
       {
         serviceId,
         recommendation: 'Add an entry to tools/workspace-cli/pm2/ecosystem.apps.cjs'
@@ -65,8 +56,7 @@ function resolveProcessName(serviceId: string): EcosystemProcessConfig {
 }
 
 function resolveDependencyProcessName(dependencyId: string): DependencyEcosystemProcessConfig {
-  const prefix = getProjectPrefix();
-  const expectedName = `${prefix}${dependencyId}-dependency`;
+  const expectedName = `${dependencyId}-dependency`;
   const entry = dependencyEcosystemModule.apps.find(
     (app) => app.name === expectedName
   );
