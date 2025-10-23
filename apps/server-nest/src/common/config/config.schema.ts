@@ -47,7 +47,7 @@ export class EnvVariables {
     RLS_POLICY_STRICT?: boolean; // when true, fail-fast if unexpected RLS policies detected
 
     // --- Extraction Worker (Vertex AI) ---
-        @IsString()
+    @IsString()
     @IsOptional()
     LLM_EXTRACT_PROVIDER?: string;
 
