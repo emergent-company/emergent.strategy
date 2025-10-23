@@ -105,7 +105,7 @@ The `GOOGLE_API_KEY` environment variable was **commented out** in `apps/server-
 ```bash
 # Before
 #GOOGLE_API_KEY=AIzaSyCqmd3wjHkzmJsX6niUbv8zlO2NKcai_50  # ❌ Commented out!
-VERTEX_AI_PROJECT_ID=twentyfirst-io  # ✅ Available but not recognized
+VERTEX_AI_PROJECT_ID=spec-server-dev  # ✅ Available but not recognized
 ```
 
 The Chat Generation Service only checked for Google API key:
@@ -146,7 +146,7 @@ ya29.a0AQQ_BDQ_PKzgeAsI-3Q6FOie90CrI5uv...  # ✅ Working!
 ```bash
 # .env configuration
 CHAT_MODEL_ENABLED=true
-VERTEX_AI_PROJECT_ID=twentyfirst-io
+VERTEX_AI_PROJECT_ID=spec-server-dev
 VERTEX_AI_LOCATION=us-central1
 VERTEX_AI_MODEL=gemini-2.5-flash
 ```

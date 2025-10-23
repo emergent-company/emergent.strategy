@@ -12,7 +12,7 @@ import { AppConfigService } from '../../common/config/config.service';
  * 
  * Configuration (environment variables):
  *  - EMBEDDING_PROVIDER: Must be 'vertex' or 'google' to enable
- *  - VERTEX_EMBEDDING_PROJECT: GCP project ID (e.g., 'twentyfirst-io')
+ *  - VERTEX_EMBEDDING_PROJECT: GCP project ID (e.g., 'spec-server-dev')
  *  - VERTEX_EMBEDDING_LOCATION: Region (e.g., 'us-central1')
  *  - VERTEX_EMBEDDING_MODEL: Model name (default: 'text-embedding-004')
  *  - EMBEDDINGS_NETWORK_DISABLED: If set, uses deterministic hash (offline mode)

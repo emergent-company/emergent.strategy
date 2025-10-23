@@ -49,7 +49,7 @@ get hasKey(): boolean {
 CHAT_MODEL_ENABLED=true
 
 # Vertex AI Configuration (Primary)
-VERTEX_AI_PROJECT_ID=twentyfirst-io
+VERTEX_AI_PROJECT_ID=spec-server-dev
 VERTEX_AI_LOCATION=us-central1
 VERTEX_AI_MODEL=gemini-2.5-flash
 
@@ -90,7 +90,7 @@ The system checks for authentication in this order:
 
 5. **Set Project** (optional, but recommended):
    ```bash
-   gcloud config set project twentyfirst-io
+   gcloud config set project spec-server-dev
    ```
 
 ### Verification
@@ -108,7 +108,7 @@ grep -E "VERTEX_AI|CHAT_MODEL_ENABLED" apps/server-nest/.env
 Expected output:
 ```
 CHAT_MODEL_ENABLED=true
-VERTEX_AI_PROJECT_ID=twentyfirst-io
+VERTEX_AI_PROJECT_ID=spec-server-dev
 VERTEX_AI_LOCATION=us-central1
 VERTEX_AI_MODEL=gemini-2.5-flash
 ```
@@ -130,7 +130,7 @@ Check: enabled? (hasKey && CHAT_MODEL_ENABLED)
     ↓
 Initialize ChatVertexAI with:
   - model: gemini-2.5-flash
-  - authOptions.projectId: twentyfirst-io
+  - authOptions.projectId: spec-server-dev
   - location: us-central1
     ↓
 Vertex AI authenticates using ADC
@@ -146,7 +146,7 @@ The system uses `@langchain/google-vertexai` package:
 const model = new ChatVertexAI({
     model: this.config.vertexAiModel,           // gemini-2.5-flash
     authOptions: {
-        projectId: this.config.vertexAiProjectId, // twentyfirst-io
+        projectId: this.config.vertexAiProjectId, // spec-server-dev
     },
     location: this.config.vertexAiLocation,      // us-central1
     temperature: 0,
@@ -257,7 +257,7 @@ npm run workspace:restart
    ```
 3. Enable Vertex AI API:
    ```bash
-   gcloud services enable aiplatform.googleapis.com --project=twentyfirst-io
+   gcloud services enable aiplatform.googleapis.com --project=spec-server-dev
    ```
 4. Check IAM permissions (need `Vertex AI User` role)
 
@@ -274,7 +274,7 @@ GOOGLE_API_KEY=AIzaSyCqmd3wjHkzmJsX6niUbv8zlO2NKcai_50
 ### After
 ```bash
 CHAT_MODEL_ENABLED=true
-VERTEX_AI_PROJECT_ID=twentyfirst-io
+VERTEX_AI_PROJECT_ID=spec-server-dev
 VERTEX_AI_LOCATION=us-central1
 VERTEX_AI_MODEL=gemini-2.5-flash
 
@@ -330,7 +330,7 @@ grep -E "CHAT_|VERTEX_AI" apps/server-nest/.env
 
 # Expected output:
 # CHAT_MODEL_ENABLED=true
-# VERTEX_AI_PROJECT_ID=twentyfirst-io
+# VERTEX_AI_PROJECT_ID=spec-server-dev
 # VERTEX_AI_LOCATION=us-central1
 # VERTEX_AI_MODEL=gemini-2.5-flash
 ```

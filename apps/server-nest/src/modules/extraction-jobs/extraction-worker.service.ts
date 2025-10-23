@@ -108,7 +108,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         }
 
         if (!this.llmFactory.isAvailable()) {
-            this.logger.warn('Extraction worker disabled: no LLM provider configured (set VERTEX_AI_PROJECT_ID)');
+            this.logger.warn('Extraction worker disabled: no LLM provider configured (set GCP_PROJECT_ID)');
             return;
         }
 

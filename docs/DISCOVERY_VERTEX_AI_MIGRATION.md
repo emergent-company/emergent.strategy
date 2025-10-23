@@ -86,7 +86,7 @@ env_development: {
     NODE_ENV: 'development',
     LOG_LEVEL: 'debug',
     VERTEX_AI_MODEL: 'gemini-1.5-flash',
-    VERTEX_AI_PROJECT_ID: 'twentyfirst-io',
+    VERTEX_AI_PROJECT_ID: 'spec-server-dev',
     VERTEX_AI_LOCATION: 'us-central1'
 }
 ```
@@ -97,7 +97,7 @@ Removed `GOOGLE_API_KEY` and added Vertex AI configuration.
 
 **Required in `.env`**:
 ```bash
-VERTEX_AI_PROJECT_ID=twentyfirst-io
+VERTEX_AI_PROJECT_ID=spec-server-dev
 VERTEX_AI_LOCATION=us-central1
 VERTEX_AI_MODEL=gemini-1.5-flash
 ```
@@ -127,14 +127,14 @@ After migration, verify discovery works:
 
 1. Navigate to Discovery Wizard
 2. Click "Run Discovery"
-3. Check logs for: `Initializing Vertex AI: project=twentyfirst-io, location=us-central1, model=gemini-1.5-flash`
+3. Check logs for: `Initializing Vertex AI: project=spec-server-dev, location=us-central1, model=gemini-1.5-flash`
 4. Verify types are discovered successfully
 
 ## Logs
 
 **Successful initialization**:
 ```
-[LOG] [LangChainGeminiProvider] Initializing Vertex AI: project=twentyfirst-io, location=us-central1, model=gemini-1.5-flash
+[LOG] [LangChainGeminiProvider] Initializing Vertex AI: project=spec-server-dev, location=us-central1, model=gemini-1.5-flash
 [LOG] [LangChainGeminiProvider] LangChain Gemini initialized: model=gemini-1.5-flash
 ```
 
