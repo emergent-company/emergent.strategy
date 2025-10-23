@@ -16,7 +16,7 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-postgres",
-        "postgresql://spec:spec@localhost:5432/spec"
+        "postgresql://spec:spec@localhost:5436/spec"
       ]
     },
     "context7": {

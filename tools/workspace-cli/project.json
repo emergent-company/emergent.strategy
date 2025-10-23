@@ -31,63 +31,63 @@
         "workspace:start": {
             "executor": "nx:run-commands",
             "options": {
-                "command": "npx tsx tools/workspace-cli/src/cli.ts start --workspace",
+                "command": "COMPOSE_PROJECT_NAME=spec-2 npx tsx tools/workspace-cli/src/cli.ts start --workspace",
                 "forwardAllArgs": true
             }
         },
         "workspace:start-all": {
             "executor": "nx:run-commands",
             "options": {
-                "command": "npx tsx tools/workspace-cli/src/cli.ts start --all",
+                "command": "COMPOSE_PROJECT_NAME=spec-2 npx tsx tools/workspace-cli/src/cli.ts start --all",
                 "forwardAllArgs": true
             }
         },
         "workspace:restart": {
             "executor": "nx:run-commands",
             "options": {
-                "command": "npx tsx tools/workspace-cli/src/cli.ts restart --workspace",
+                "command": "COMPOSE_PROJECT_NAME=spec-2 npx tsx tools/workspace-cli/src/cli.ts restart --workspace",
                 "forwardAllArgs": true
             }
         },
         "workspace:stop": {
             "executor": "nx:run-commands",
             "options": {
-                "command": "npx tsx tools/workspace-cli/src/cli.ts stop --workspace",
+                "command": "COMPOSE_PROJECT_NAME=spec-2 npx tsx tools/workspace-cli/src/cli.ts stop --workspace",
                 "forwardAllArgs": true
             }
         },
         "workspace:deps:start": {
             "executor": "nx:run-commands",
             "options": {
-                "command": "npx tsx tools/workspace-cli/src/cli.ts start --deps-only",
+                "command": "COMPOSE_PROJECT_NAME=spec-2 npx tsx tools/workspace-cli/src/cli.ts start --deps-only",
                 "forwardAllArgs": true
             }
         },
         "workspace:deps:restart": {
             "executor": "nx:run-commands",
             "options": {
-                "command": "npx tsx tools/workspace-cli/src/cli.ts restart --deps-only",
+                "command": "COMPOSE_PROJECT_NAME=spec-2 npx tsx tools/workspace-cli/src/cli.ts restart --deps-only",
                 "forwardAllArgs": true
             }
         },
         "workspace:deps:stop": {
             "executor": "nx:run-commands",
             "options": {
-                "command": "npx tsx tools/workspace-cli/src/cli.ts stop --deps-only",
+                "command": "COMPOSE_PROJECT_NAME=spec-2 npx tsx tools/workspace-cli/src/cli.ts stop --deps-only",
                 "forwardAllArgs": true
             }
         },
         "workspace:logs": {
             "executor": "nx:run-commands",
             "options": {
-                "command": "npx tsx tools/workspace-cli/src/cli.ts logs --workspace --dependencies",
+                "command": "COMPOSE_PROJECT_NAME=spec-2 npx tsx tools/workspace-cli/src/cli.ts logs --workspace --dependencies",
                 "forwardAllArgs": true
             }
         },
         "workspace:status": {
             "executor": "nx:run-commands",
             "options": {
-                "command": "npx tsx tools/workspace-cli/src/cli.ts status --workspace --dependencies",
+                "command": "COMPOSE_PROJECT_NAME=spec-2 npx tsx tools/workspace-cli/src/cli.ts status --workspace --dependencies",
                 "forwardAllArgs": true
             }
         }

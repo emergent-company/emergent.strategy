@@ -1,15 +1,15 @@
 services:
   db:
     image: pgvector/pgvector:pg16
-    container_name: spec_pg
+    container_name: ${COMPOSE_PROJECT_NAME:-spec}_pg
     environment:
-      POSTGRES_USER: spec
-      POSTGRES_PASSWORD: spec
-      POSTGRES_DB: spec
+      POSTGRES_USER: ${POSTGRES_USER:-spec}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spec}
+      POSTGRES_DB: ${POSTGRES_DB:-spec}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - spec_pg_data:/var/lib/postgresql/data
+      - pg_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
       - ../logs:/logs
     command: >
@@ -26,7 +26,7 @@ services:
       -c log_duration=off
       -c log_line_prefix='%t [%p] %u@%d '
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U spec -d spec"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-spec} -d ${POSTGRES_DB:-spec}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -34,7 +34,7 @@ services:
   # Zitadel Identity Provider (dev)
   zitadel:
     image: ghcr.io/zitadel/zitadel:latest
-    container_name: spec_zitadel
+    container_name: ${COMPOSE_PROJECT_NAME:-spec}_zitadel
     depends_on:
       db:
         condition: service_healthy
@@ -42,8 +42,8 @@ services:
       - ./zitadel.env
     command: ["start-from-init", "--masterkeyFromEnv"]
     ports:
-      - "8100:8080" # Zitadel HTTP (API) - mapped to 8100 to avoid conflicts
-      - "8101:3000" # Zitadel Login v2 (Next.js) - mapped to 8101
+      - "${ZITADEL_HTTP_PORT:-8100}:8080" # Zitadel HTTP (API) - configurable to avoid conflicts
+      - "${ZITADEL_LOGIN_PORT:-8101}:3000" # Zitadel Login v2 (Next.js) - configurable
     healthcheck:
       test: ["CMD", "/app/zitadel", "ready"]
       interval: 10s
@@ -58,7 +58,7 @@ services:
     image: ghcr.io/zitadel/zitadel-login:latest
     restart: unless-stopped
     environment:
-      - ZITADEL_API_URL=http://localhost:8100
+      - ZITADEL_API_URL=http://localhost:${ZITADEL_HTTP_PORT:-8100}
       - NEXT_PUBLIC_BASE_PATH=/ui/v2/login
       - ZITADEL_SERVICE_USER_TOKEN_FILE=/current-dir/login-client.pat
     volumes:
@@ -68,4 +68,4 @@ services:
       zitadel:
         condition: service_healthy
 volumes:
-  spec_pg_data:
+  pg_data:

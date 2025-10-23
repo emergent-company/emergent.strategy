@@ -5,7 +5,8 @@
     "main": "dist/main.js",
     "scripts": {
         "start": "node dist/main.js",
-        "start:dev": "tsx ../../scripts/run-migrations.ts && NODE_OPTIONS=--enable-source-maps ts-node-dev --respawn --no-notify --ignore-watch node_modules src/main.ts",
+        "start:dev": "NODE_OPTIONS=--enable-source-maps ts-node-dev --respawn --no-notify --ignore-watch node_modules src/main.ts",
+        "start:dev:migrate": "tsx ../../scripts/run-migrations.ts && NODE_OPTIONS=--enable-source-maps ts-node-dev --respawn --no-notify --ignore-watch node_modules src/main.ts",
         "clean": "rimraf dist dist-openapi || true",
         "build": "npm run clean && tsc -p tsconfig.json",
         "openapi:run": "node dist/openapi-generate.js",
