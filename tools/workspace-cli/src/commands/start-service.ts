@@ -65,13 +65,6 @@ interface DependencyEcosystemModule {
 
 const dependencyEcosystemModule = require('../../pm2/ecosystem.dependencies.cjs') as DependencyEcosystemModule;
 
-// Helper to get the project-specific prefix from the repo root directory name
-function getProjectPrefix(): string {
-  const repoRoot = path.resolve(process.cwd());
-  const projectName = path.basename(repoRoot);
-  return `${projectName}-`;
-}
-
 function getEcosystemEntry(serviceId: string): EcosystemProcessConfig {
   const entry = ecosystemModule.apps.find((app) => app.name === serviceId);
 

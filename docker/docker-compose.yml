@@ -9,7 +9,7 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - docker_spec_pg_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
       - ../logs:/logs
     command: >
@@ -68,4 +68,5 @@ services:
       zitadel:
         condition: service_healthy
 volumes:
-  pg_data:
+  docker_spec_pg_data:
+    external: true
