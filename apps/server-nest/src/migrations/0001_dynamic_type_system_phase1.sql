@@ -456,7 +456,7 @@ OR REPLACE FUNCTION kb.get_project_active_types(p_project_id UUID) RETURNS TABLE
     json_schema JSONB,
     ui_config JSONB,
     extraction_config JSONB
-) AS $ $ BEGIN RETURN QUERY
+) AS $$ BEGIN RETURN QUERY
 SELECT
     ptr.type,
     ptr.source,
@@ -473,6 +473,6 @@ ORDER BY
 
 END;
 
-$ $ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
 COMMIT;

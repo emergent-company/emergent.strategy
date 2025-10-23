@@ -30,7 +30,8 @@ async function bootstrap() {
         'http://localhost:3001', // same-port (if ever served together)
         'http://localhost:5173', // Vite default
         'http://localhost:5174', // secondary
-        'http://localhost:5175', // current admin dev port
+        'http://localhost:5175', // legacy admin dev port
+        'http://localhost:5176', // current admin dev port
     ]);
     app.enableCors({
         origin: (origin, cb) => {

@@ -98,7 +98,7 @@ CREATE INDEX IF NOT EXISTS idx_notif_prefs_user ON kb.user_notification_preferen
 -- Auto-delete cleared notifications older than 30 days
 -- =====================================================
 CREATE
-OR REPLACE FUNCTION kb.delete_old_cleared_notifications() RETURNS void AS $ $ BEGIN
+OR REPLACE FUNCTION kb.delete_old_cleared_notifications() RETURNS void AS $$ BEGIN
 DELETE FROM
     kb.notifications
 WHERE
@@ -107,14 +107,14 @@ WHERE
 
 END;
 
-$ $ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 -- =====================================================
 -- Auto-snooze Wake-up Function
 -- Trigger to wake up snoozed notifications
 -- =====================================================
 CREATE
-OR REPLACE FUNCTION kb.wakeup_snoozed_notifications() RETURNS void AS $ $ BEGIN
+OR REPLACE FUNCTION kb.wakeup_snoozed_notifications() RETURNS void AS $$ BEGIN
 UPDATE
     kb.notifications
 SET
@@ -125,7 +125,7 @@ WHERE
 
 END;
 
-$ $ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 COMMIT;
 

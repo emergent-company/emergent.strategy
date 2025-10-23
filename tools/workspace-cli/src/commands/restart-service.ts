@@ -169,7 +169,7 @@ export async function runRestartCommand(argv: readonly string[]): Promise<void> 
 
             const status = description.pm2_env?.status ?? 'unknown';
             process.stdout.write(`∙ Restarting ${processName} (current status: ${status})\n`);
-            await restartProcess(processName);
+            await restartProcess(processName, true);
 
             await waitForProcessStability({
                 serviceId: dependencyId,
@@ -215,7 +215,7 @@ export async function runRestartCommand(argv: readonly string[]): Promise<void> 
 
             const status = description.pm2_env?.status ?? 'unknown';
             process.stdout.write(`∙ Restarting ${processName} (current status: ${status})\n`);
-            await restartProcess(processName);
+            await restartProcess(processName, true);
 
             await waitForProcessStability({
                 serviceId,
