@@ -18,7 +18,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({ jobId, isOpen, o
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'overview' | 'logs' | 'llm-calls'>('overview');
     const [logLevel, setLogLevel] = useState<LogLevel>('all');
-    
+
     // Data states
     const [jobDetail, setJobDetail] = useState<any>(null);
     const [logs, setLogs] = useState<any[]>([]);
@@ -136,11 +136,11 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({ jobId, isOpen, o
 
     return (
         <div className="modal modal-open">
-            <div className="modal-box max-w-6xl max-h-[90vh] p-0 flex flex-col">
+            <div className="flex flex-col p-0 max-w-6xl max-h-[90vh] modal-box">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-base-300">
+                <div className="flex justify-between items-center p-6 border-base-300 border-b">
                     <div className="flex items-center gap-4">
-                        <h2 className="text-2xl font-bold">Job Details</h2>
+                        <h2 className="font-bold text-2xl">Job Details</h2>
                         {jobDetail && (
                             <span className={getStatusBadgeClass(jobDetail.resource.status)}>
                                 {jobDetail.resource.status}
@@ -155,8 +155,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({ jobId, isOpen, o
                 {/* Content */}
                 <div className="flex-1 overflow-auto">
                     {loading ? (
-                        <div className="flex items-center justify-center h-64">
-                            <span className="loading loading-spinner loading-lg text-primary"></span>
+                        <div className="flex justify-center items-center h-64">
+                            <span className="text-primary loading loading-spinner loading-lg"></span>
                         </div>
                     ) : error ? (
                         <div className="p-6">
@@ -167,7 +167,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({ jobId, isOpen, o
                     ) : jobDetail ? (
                         <>
                             {/* Tabs */}
-                            <div className="tabs tabs-boxed mx-6 mt-4">
+                            <div className="mx-6 mt-4 tabs tabs-boxed">
                                 <a
                                     className={`tab ${activeTab === 'overview' ? 'tab-active' : ''}`}
                                     onClick={() => setActiveTab('overview')}
@@ -193,10 +193,10 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({ jobId, isOpen, o
                                 {activeTab === 'overview' && (
                                     <div className="space-y-6">
                                         {/* Job Information */}
-                                        <div className="card bg-base-200">
+                                        <div className="bg-base-200 card">
                                             <div className="card-body">
-                                                <h3 className="card-title text-lg">Job Information</h3>
-                                                <div className="grid grid-cols-2 gap-4">
+                                                <h3 className="text-lg card-title">Job Information</h3>
+                                                <div className="gap-4 grid grid-cols-2">
                                                     <div>
                                                         <div className="text-sm text-base-content/70">Job ID</div>
                                                         <div className="font-mono text-sm">{jobDetail.resource.resource_id}</div>
@@ -226,25 +226,25 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({ jobId, isOpen, o
                                         </div>
 
                                         {/* Metrics */}
-                                        <div className="card bg-base-200">
+                                        <div className="bg-base-200 card">
                                             <div className="card-body">
-                                                <h3 className="card-title text-lg">Metrics</h3>
-                                                <div className="grid grid-cols-4 gap-4">
-                                                    <div className="stat bg-base-100 rounded-lg">
+                                                <h3 className="text-lg card-title">Metrics</h3>
+                                                <div className="gap-4 grid grid-cols-4">
+                                                    <div className="bg-base-100 rounded-lg stat">
                                                         <div className="stat-title">Objects Created</div>
-                                                        <div className="stat-value text-2xl">{jobDetail.resource.objects_created || 0}</div>
+                                                        <div className="text-2xl stat-value">{jobDetail.resource.objects_created || 0}</div>
                                                     </div>
-                                                    <div className="stat bg-base-100 rounded-lg">
+                                                    <div className="bg-base-100 rounded-lg stat">
                                                         <div className="stat-title">LLM Calls</div>
-                                                        <div className="stat-value text-2xl">{jobDetail.resource.llm_call_count || 0}</div>
+                                                        <div className="text-2xl stat-value">{jobDetail.resource.llm_call_count || 0}</div>
                                                     </div>
-                                                    <div className="stat bg-base-100 rounded-lg">
+                                                    <div className="bg-base-100 rounded-lg stat">
                                                         <div className="stat-title">Total Tokens</div>
-                                                        <div className="stat-value text-2xl">{jobDetail.metrics?.totalTokens || 0}</div>
+                                                        <div className="text-2xl stat-value">{jobDetail.metrics?.totalTokens || 0}</div>
                                                     </div>
-                                                    <div className="stat bg-base-100 rounded-lg">
+                                                    <div className="bg-base-100 rounded-lg stat">
                                                         <div className="stat-title">Total Cost</div>
-                                                        <div className="stat-value text-2xl text-primary">{formatCost(jobDetail.resource.total_cost)}</div>
+                                                        <div className="text-primary text-2xl stat-value">{formatCost(jobDetail.resource.total_cost)}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -252,10 +252,10 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({ jobId, isOpen, o
 
                                         {/* Recent Logs Preview */}
                                         {jobDetail.recentLogs && jobDetail.recentLogs.length > 0 && (
-                                            <div className="card bg-base-200">
+                                            <div className="bg-base-200 card">
                                                 <div className="card-body">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <h3 className="card-title text-lg">Recent Logs</h3>
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <h3 className="text-lg card-title">Recent Logs</h3>
                                                         <button
                                                             className="btn btn-sm btn-primary"
                                                             onClick={() => setActiveTab('logs')}
@@ -265,7 +265,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({ jobId, isOpen, o
                                                     </div>
                                                     <div className="space-y-2 max-h-64 overflow-auto">
                                                         {jobDetail.recentLogs.slice(0, 5).map((log: any, idx: number) => (
-                                                            <div key={idx} className="p-2 bg-base-100 rounded text-sm">
+                                                            <div key={idx} className="bg-base-100 p-2 rounded text-sm">
                                                                 <div className="flex items-center gap-2 mb-1">
                                                                     <span className={getLogLevelBadgeClass(log.level)}>{log.level}</span>
                                                                     <span className="text-xs text-base-content/70">{formatDate(log.created_at)}</span>
@@ -284,9 +284,9 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({ jobId, isOpen, o
                                     <div className="space-y-4">
                                         {/* Log Level Filter */}
                                         <div className="flex items-center gap-2">
-                                            <label className="text-sm font-medium">Filter by level:</label>
+                                            <label className="font-medium text-sm">Filter by level:</label>
                                             <select
-                                                className="select select-bordered select-sm"
+                                                className="select-bordered select-sm select"
                                                 value={logLevel}
                                                 onChange={(e) => setLogLevel(e.target.value as LogLevel)}
                                             >
@@ -303,24 +303,24 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({ jobId, isOpen, o
                                         {/* Logs List */}
                                         <div className="space-y-2 max-h-[60vh] overflow-auto">
                                             {logs.length === 0 ? (
-                                                <div className="text-center py-8 text-base-content/70">
+                                                <div className="py-8 text-base-content/70 text-center">
                                                     No logs found for this level
                                                 </div>
                                             ) : (
                                                 logs.map((log: any, idx: number) => (
-                                                    <div key={idx} className="card bg-base-200">
-                                                        <div className="card-body p-3">
+                                                    <div key={idx} className="bg-base-200 card">
+                                                        <div className="p-3 card-body">
                                                             <div className="flex items-start gap-3">
                                                                 <span className={getLogLevelBadgeClass(log.level)}>{log.level}</span>
                                                                 <div className="flex-1">
-                                                                    <div className="text-xs text-base-content/70 mb-1">
+                                                                    <div className="mb-1 text-xs text-base-content/70">
                                                                         {formatDate(log.created_at)}
                                                                     </div>
                                                                     <div className="font-mono text-sm">{log.message}</div>
                                                                     {log.metadata && (
                                                                         <details className="mt-2">
-                                                                            <summary className="text-xs text-primary cursor-pointer">View Metadata</summary>
-                                                                            <pre className="text-xs mt-2 p-2 bg-base-100 rounded overflow-x-auto">
+                                                                            <summary className="text-primary text-xs cursor-pointer">View Metadata</summary>
+                                                                            <pre className="bg-base-100 mt-2 p-2 rounded overflow-x-auto text-xs">
                                                                                 {JSON.stringify(log.metadata, null, 2)}
                                                                             </pre>
                                                                         </details>
@@ -338,53 +338,53 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({ jobId, isOpen, o
                                 {activeTab === 'llm-calls' && (
                                     <div className="space-y-4">
                                         {llmLoading ? (
-                                            <div className="flex items-center justify-center h-32">
+                                            <div className="flex justify-center items-center h-32">
                                                 <span className="loading loading-spinner loading-lg"></span>
                                             </div>
                                         ) : llmCalls.length === 0 ? (
-                                            <div className="text-center py-8 text-base-content/70">
+                                            <div className="py-8 text-base-content/70 text-center">
                                                 No LLM calls recorded for this job
                                             </div>
                                         ) : (
                                             llmCalls.map((call: any, idx: number) => (
-                                                <div key={idx} className="card bg-base-200">
+                                                <div key={idx} className="bg-base-200 card">
                                                     <div className="card-body">
-                                                        <div className="flex items-start justify-between mb-3">
+                                                        <div className="flex justify-between items-start mb-3">
                                                             <div>
                                                                 <div className="font-semibold">{call.model}</div>
                                                                 <div className="text-xs text-base-content/70">{formatDate(call.created_at)}</div>
                                                             </div>
                                                             <div className="text-right">
-                                                                <div className="text-lg font-bold text-primary">{formatCost(call.cost)}</div>
+                                                                <div className="font-bold text-primary text-lg">{formatCost(call.cost)}</div>
                                                                 <div className="text-xs text-base-content/70">{call.duration_ms}ms</div>
                                                             </div>
                                                         </div>
-                                                        <div className="grid grid-cols-3 gap-4 mb-3">
-                                                            <div className="stat bg-base-100 rounded p-2">
-                                                                <div className="stat-title text-xs">Input Tokens</div>
-                                                                <div className="stat-value text-lg">{call.input_tokens || 0}</div>
+                                                        <div className="gap-4 grid grid-cols-3 mb-3">
+                                                            <div className="bg-base-100 p-2 rounded stat">
+                                                                <div className="text-xs stat-title">Input Tokens</div>
+                                                                <div className="text-lg stat-value">{call.input_tokens || 0}</div>
                                                             </div>
-                                                            <div className="stat bg-base-100 rounded p-2">
-                                                                <div className="stat-title text-xs">Output Tokens</div>
-                                                                <div className="stat-value text-lg">{call.output_tokens || 0}</div>
+                                                            <div className="bg-base-100 p-2 rounded stat">
+                                                                <div className="text-xs stat-title">Output Tokens</div>
+                                                                <div className="text-lg stat-value">{call.output_tokens || 0}</div>
                                                             </div>
-                                                            <div className="stat bg-base-100 rounded p-2">
-                                                                <div className="stat-title text-xs">Total Tokens</div>
-                                                                <div className="stat-value text-lg">{call.total_tokens || 0}</div>
+                                                            <div className="bg-base-100 p-2 rounded stat">
+                                                                <div className="text-xs stat-title">Total Tokens</div>
+                                                                <div className="text-lg stat-value">{call.total_tokens || 0}</div>
                                                             </div>
                                                         </div>
                                                         {call.request_payload && (
                                                             <details>
-                                                                <summary className="text-sm text-primary cursor-pointer mb-2">Request Payload</summary>
-                                                                <pre className="text-xs p-3 bg-base-100 rounded overflow-x-auto max-h-48">
+                                                                <summary className="mb-2 text-primary text-sm cursor-pointer">Request Payload</summary>
+                                                                <pre className="bg-base-100 p-3 rounded max-h-48 overflow-x-auto text-xs">
                                                                     {JSON.stringify(call.request_payload, null, 2)}
                                                                 </pre>
                                                             </details>
                                                         )}
                                                         {call.response_payload && (
                                                             <details>
-                                                                <summary className="text-sm text-primary cursor-pointer mb-2">Response Payload</summary>
-                                                                <pre className="text-xs p-3 bg-base-100 rounded overflow-x-auto max-h-48">
+                                                                <summary className="mb-2 text-primary text-sm cursor-pointer">Response Payload</summary>
+                                                                <pre className="bg-base-100 p-3 rounded max-h-48 overflow-x-auto text-xs">
                                                                     {JSON.stringify(call.response_payload, null, 2)}
                                                                 </pre>
                                                             </details>
@@ -401,7 +401,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({ jobId, isOpen, o
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-2 p-4 border-t border-base-300">
+                <div className="flex justify-end items-center gap-2 p-4 border-base-300 border-t">
                     <button onClick={onClose} className="btn">Close</button>
                 </div>
             </div>

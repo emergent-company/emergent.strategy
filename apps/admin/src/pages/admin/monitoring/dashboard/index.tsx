@@ -137,10 +137,10 @@ export default function MonitoringDashboardPage() {
                             Monitor extraction jobs, LLM usage, and system costs
                         </p>
                     </div>
-                    
+
                     {/* View Cost Analytics Link */}
-                    <Link 
-                        to="/admin/monitoring/analytics" 
+                    <Link
+                        to="/admin/monitoring/analytics"
                         className="btn btn-primary"
                     >
                         <Icon icon="lucide--bar-chart-3" className="w-4 h-4" />
@@ -210,122 +210,122 @@ export default function MonitoringDashboardPage() {
                 {/* Content */}
                 <>
                     {error && (
-                            <div className="mb-6 alert alert-error">
-                                <Icon icon="lucide--alert-circle" className="w-5 h-5" />
-                                <span>{error}</span>
-                            </div>
-                        )}
-
-                        {loading ? (
-                    <div className="flex justify-center items-center py-12">
-                        <LoadingEffect />
-                    </div>
-                ) : jobs.length === 0 ? (
-                    <div className="bg-base-100 shadow-sm card">
-                        <div className="items-center py-12 text-center card-body">
-                            <Icon icon="lucide--database" className="mb-4 w-16 h-16 text-base-content/30" />
-                            <h3 className="mb-2 font-semibold text-xl">No extraction jobs found</h3>
-                            <p className="text-base-content/70">
-                                {statusFilter || sourceTypeFilter
-                                    ? 'Try adjusting your filters'
-                                    : 'Extraction jobs will appear here once they start running'}
-                            </p>
+                        <div className="mb-6 alert alert-error">
+                            <Icon icon="lucide--alert-circle" className="w-5 h-5" />
+                            <span>{error}</span>
                         </div>
-                    </div>
-                ) : (
-                    <>
-                        {/* Jobs Table */}
-                        <div className="bg-base-100 shadow-sm mb-6 card">
-                            <div className="overflow-x-auto">
-                                <table className="table table-zebra">
-                                    <thead>
-                                        <tr>
-                                            <th>Job ID</th>
-                                            <th>Source</th>
-                                            <th>Status</th>
-                                            <th>Started</th>
-                                            <th>Duration</th>
-                                            <th>Objects</th>
-                                            <th>LLM Calls</th>
-                                            <th>Total Cost</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {jobs.map((job) => (
-                                            <tr 
-                                                key={job.id} 
-                                                className="hover:bg-base-200 cursor-pointer"
-                                                onClick={() => handleJobClick(job.id)}
-                                            >
-                                                <td>
-                                                    <code className="text-xs">{job.id.slice(0, 8)}</code>
-                                                </td>
-                                                <td>
-                                                    <div>
-                                                        <div className="font-medium">{job.source_type}</div>
-                                                        <div className="text-xs text-base-content/70">
-                                                            {job.source_id}
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span className={`badge ${getStatusBadgeClass(job.status)}`}>
-                                                        {job.status}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span className="text-sm">
-                                                        {new Date(job.started_at).toLocaleString()}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span className="text-sm">{formatDuration(job.duration_ms)}</span>
-                                                </td>
-                                                <td>
-                                                    <span className="text-sm">{job.objects_created ?? '-'}</span>
-                                                </td>
-                                                <td>
-                                                    <span className="text-sm">{job.total_llm_calls ?? '-'}</span>
-                                                </td>
-                                                <td>
-                                                    <span className="font-mono font-semibold text-sm">
-                                                        {formatCost(job.total_cost_usd)}
-                                                    </span>
-                                                </td>
+                    )}
+
+                    {loading ? (
+                        <div className="flex justify-center items-center py-12">
+                            <LoadingEffect />
+                        </div>
+                    ) : jobs.length === 0 ? (
+                        <div className="bg-base-100 shadow-sm card">
+                            <div className="items-center py-12 text-center card-body">
+                                <Icon icon="lucide--database" className="mb-4 w-16 h-16 text-base-content/30" />
+                                <h3 className="mb-2 font-semibold text-xl">No extraction jobs found</h3>
+                                <p className="text-base-content/70">
+                                    {statusFilter || sourceTypeFilter
+                                        ? 'Try adjusting your filters'
+                                        : 'Extraction jobs will appear here once they start running'}
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Jobs Table */}
+                            <div className="bg-base-100 shadow-sm mb-6 card">
+                                <div className="overflow-x-auto">
+                                    <table className="table table-zebra">
+                                        <thead>
+                                            <tr>
+                                                <th>Job ID</th>
+                                                <th>Source</th>
+                                                <th>Status</th>
+                                                <th>Started</th>
+                                                <th>Duration</th>
+                                                <th>Objects</th>
+                                                <th>LLM Calls</th>
+                                                <th>Total Cost</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {jobs.map((job) => (
+                                                <tr
+                                                    key={job.id}
+                                                    className="hover:bg-base-200 cursor-pointer"
+                                                    onClick={() => handleJobClick(job.id)}
+                                                >
+                                                    <td>
+                                                        <code className="text-xs">{job.id.slice(0, 8)}</code>
+                                                    </td>
+                                                    <td>
+                                                        <div>
+                                                            <div className="font-medium">{job.source_type}</div>
+                                                            <div className="text-xs text-base-content/70">
+                                                                {job.source_id}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span className={`badge ${getStatusBadgeClass(job.status)}`}>
+                                                            {job.status}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span className="text-sm">
+                                                            {new Date(job.started_at).toLocaleString()}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span className="text-sm">{formatDuration(job.duration_ms)}</span>
+                                                    </td>
+                                                    <td>
+                                                        <span className="text-sm">{job.objects_created ?? '-'}</span>
+                                                    </td>
+                                                    <td>
+                                                        <span className="text-sm">{job.total_llm_calls ?? '-'}</span>
+                                                    </td>
+                                                    <td>
+                                                        <span className="font-mono font-semibold text-sm">
+                                                            {formatCost(job.total_cost_usd)}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Pagination */}
-                        {totalJobs > pageSize && (
-                            <div className="flex justify-center items-center gap-4">
-                                <button
-                                    className="btn btn-sm"
-                                    disabled={currentPage === 1}
-                                    onClick={() => setCurrentPage(currentPage - 1)}
-                                >
-                                    <Icon icon="lucide--chevron-left" className="w-4 h-4" />
-                                    Previous
-                                </button>
-                                <span className="text-sm">
-                                    Page {currentPage} of {Math.ceil(totalJobs / pageSize)}
-                                    {' '}({totalJobs} total)
-                                </span>
-                                <button
-                                    className="btn btn-sm"
-                                    disabled={currentPage >= Math.ceil(totalJobs / pageSize)}
-                                    onClick={() => setCurrentPage(currentPage + 1)}
-                                >
-                                    Next
-                                    <Icon icon="lucide--chevron-right" className="w-4 h-4" />
-                                </button>
-                            </div>
-                        )}
-                    </>
-                )}
+                            {/* Pagination */}
+                            {totalJobs > pageSize && (
+                                <div className="flex justify-center items-center gap-4">
+                                    <button
+                                        className="btn btn-sm"
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(currentPage - 1)}
+                                    >
+                                        <Icon icon="lucide--chevron-left" className="w-4 h-4" />
+                                        Previous
+                                    </button>
+                                    <span className="text-sm">
+                                        Page {currentPage} of {Math.ceil(totalJobs / pageSize)}
+                                        {' '}({totalJobs} total)
+                                    </span>
+                                    <button
+                                        className="btn btn-sm"
+                                        disabled={currentPage >= Math.ceil(totalJobs / pageSize)}
+                                        onClick={() => setCurrentPage(currentPage + 1)}
+                                    >
+                                        Next
+                                        <Icon icon="lucide--chevron-right" className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
+                        </>
+                    )}
                 </>
             </div>
 
