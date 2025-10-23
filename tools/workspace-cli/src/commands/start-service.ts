@@ -66,7 +66,9 @@ interface DependencyEcosystemModule {
 const dependencyEcosystemModule = require('../../pm2/ecosystem.dependencies.cjs') as DependencyEcosystemModule;
 
 function getEcosystemEntry(serviceId: string): EcosystemProcessConfig {
-  const entry = ecosystemModule.apps.find((app) => app.name === serviceId);
+  const namespace = process.env.NAMESPACE || 'workspace-cli';
+  const expectedName = `${namespace}-${serviceId}`;
+  const entry = ecosystemModule.apps.find((app) => app.name === expectedName);
 
   if (!entry) {
     throw new Error(`Missing PM2 ecosystem entry for service: ${serviceId}`);
@@ -76,7 +78,9 @@ function getEcosystemEntry(serviceId: string): EcosystemProcessConfig {
 }
 
 function getDependencyEcosystemEntry(dependencyId: string): DependencyEcosystemProcessConfig {
-  const entry = dependencyEcosystemModule.apps.find((app) => app.name === `${dependencyId}-dependency`);
+  const namespace = process.env.NAMESPACE || 'workspace-cli';
+  const expectedName = `${namespace}-${dependencyId}-dependency`;
+  const entry = dependencyEcosystemModule.apps.find((app) => app.name === expectedName);
 
   if (!entry) {
     throw new Error(`Missing PM2 ecosystem entry for dependency: ${dependencyId}`);
