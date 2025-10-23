@@ -22,41 +22,41 @@ export function ChatSessionsListPage() {
     const { apiBase, fetchJson } = useApi();
     const { config: { activeProjectId, activeOrgId } } = useConfig();
     const monitoringClient = createMonitoringClient(apiBase, fetchJson, activeProjectId, activeOrgId);
-    
+
     // Pagination state
     const [limit] = useState(20);
     const [offset, setOffset] = useState(0);
     const [total, setTotal] = useState(0);
-    
+
     // Filter state
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    
+
     // Data state
     const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    
+
     // Modal state
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
-    
+
     // Load sessions
     const loadSessions = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
-            
+
             const params: ListChatSessionsParams = {
                 limit,
                 offset,
             };
-            
+
             if (startDate) params.start_date = startDate;
             if (endDate) params.end_date = endDate;
-            
+
             const response = await monitoringClient.listChatSessions(params);
-            
+
             setSessions(response.items);
             setTotal(response.total);
         } catch (err) {
@@ -66,71 +66,71 @@ export function ChatSessionsListPage() {
             setLoading(false);
         }
     }, [monitoringClient, limit, offset, startDate, endDate]);
-    
+
     // Load on mount and when params change
     useEffect(() => {
         loadSessions();
     }, [loadSessions]);
-    
+
     // Handle row click
     const handleRowClick = (sessionId: string) => {
         setSelectedSessionId(sessionId);
         setModalOpen(true);
     };
-    
+
     // Handle modal close
     const handleModalClose = () => {
         setModalOpen(false);
         setSelectedSessionId(null);
     };
-    
+
     // Handle page navigation
     const handlePreviousPage = () => {
         if (offset > 0) {
             setOffset(Math.max(0, offset - limit));
         }
     };
-    
+
     const handleNextPage = () => {
         if (offset + limit < total) {
             setOffset(offset + limit);
         }
     };
-    
+
     // Calculate page numbers
     const currentPage = Math.floor(offset / limit) + 1;
     const totalPages = Math.ceil(total / limit);
-    
+
     // Format duration (seconds to readable string)
     const formatDuration = (started: string, lastActivity: string) => {
         const start = new Date(started).getTime();
         const end = new Date(lastActivity).getTime();
         const durationSeconds = Math.floor((end - start) / 1000);
-        
+
         if (durationSeconds < 60) return `${durationSeconds}s`;
         if (durationSeconds < 3600) return `${Math.floor(durationSeconds / 60)}m`;
         return `${Math.floor(durationSeconds / 3600)}h ${Math.floor((durationSeconds % 3600) / 60)}m`;
     };
-    
+
     // Format cost
     const formatCost = (cost: number | null) => {
         if (cost === null || cost === 0) return '-';
         return `$${cost.toFixed(4)}`;
     };
-    
+
     // Truncate session ID
     const truncateSessionId = (id: string, length: number = 12) => {
         if (id.length <= length) return id;
         return `${id.substring(0, length)}...`;
     };
-    
+
     return (
-        <div className="container mx-auto p-6">
+        <div className="mx-auto p-6 container">
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold">Chat Sessions</h1>
-                    <p className="text-base-content/70 mt-1">
+                    <h1 className="font-bold text-3xl">Chat Sessions</h1>
+                    <p className="mt-1 text-base-content/70">
                         Monitor chat interactions, tool calls, and LLM usage
                     </p>
                 </div>
@@ -149,12 +149,12 @@ export function ChatSessionsListPage() {
                     )}
                 </button>
             </div>
-            
+
             {/* Filters */}
-            <div className="card bg-base-100 shadow-md mb-6">
+            <div className="bg-base-100 shadow-md mb-6 card">
                 <div className="card-body">
-                    <h2 className="card-title text-lg mb-4">Filters</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <h2 className="mb-4 text-lg card-title">Filters</h2>
+                    <div className="gap-4 grid grid-cols-1 md:grid-cols-2">
                         <div className="form-control">
                             <label className="label">
                                 <span className="label-text">Start Date</span>
@@ -200,19 +200,19 @@ export function ChatSessionsListPage() {
                     )}
                 </div>
             </div>
-            
+
             {/* Error Message */}
             {error && (
-                <div className="alert alert-error mb-6">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <div className="mb-6 alert alert-error">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span>{error}</span>
                 </div>
             )}
-            
+
             {/* Sessions Table */}
-            <div className="card bg-base-100 shadow-md">
+            <div className="bg-base-100 shadow-md card">
                 <div className="card-body">
                     <div className="overflow-x-auto">
                         <table className="table table-zebra">
@@ -229,17 +229,17 @@ export function ChatSessionsListPage() {
                             <tbody>
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={6} className="text-center py-8">
+                                        <td colSpan={6} className="py-8 text-center">
                                             <span className="loading loading-spinner loading-lg"></span>
                                             <p className="mt-2 text-base-content/70">Loading sessions...</p>
                                         </td>
                                     </tr>
                                 ) : sessions.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="text-center py-8">
+                                        <td colSpan={6} className="py-8 text-center">
                                             <p className="text-base-content/70">No chat sessions found</p>
                                             {(startDate || endDate) && (
-                                                <p className="text-sm text-base-content/50 mt-1">
+                                                <p className="mt-1 text-sm text-base-content/50">
                                                     Try adjusting your filters
                                                 </p>
                                             )}
@@ -249,7 +249,7 @@ export function ChatSessionsListPage() {
                                     sessions.map((session) => (
                                         <tr
                                             key={session.session_id}
-                                            className="cursor-pointer hover:bg-base-200"
+                                            className="hover:bg-base-200 cursor-pointer"
                                             onClick={() => handleRowClick(session.session_id)}
                                         >
                                             <td>
@@ -284,7 +284,7 @@ export function ChatSessionsListPage() {
                             </tbody>
                         </table>
                     </div>
-                    
+
                     {/* Pagination */}
                     {!loading && sessions.length > 0 && (
                         <div className="flex justify-between items-center mt-4">
@@ -314,7 +314,7 @@ export function ChatSessionsListPage() {
                     )}
                 </div>
             </div>
-            
+
             {/* Detail Modal */}
             {selectedSessionId && (
                 <ChatSessionDetailModal
