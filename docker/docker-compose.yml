@@ -1,7 +1,6 @@
 services:
   db:
     image: pgvector/pgvector:pg16
-    container_name: ${NAMESPACE:-spec}_pg
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-spec}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spec}
@@ -9,7 +8,7 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - ${NAMESPACE:-spec}_pg_data:/var/lib/postgresql/data
+      - pg_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
       - ../logs:/logs
     command: >
@@ -38,7 +37,6 @@ services:
   # Zitadel Identity Provider (dev)
   zitadel:
     image: ghcr.io/zitadel/zitadel:latest
-    container_name: ${NAMESPACE:-spec}_zitadel
     depends_on:
       db:
         condition: service_healthy
@@ -72,6 +70,4 @@ services:
       zitadel:
         condition: service_healthy
 volumes:
-  spec-server_pg_data:
-    name: ${NAMESPACE:-spec}_pg_data
-    external: true
+  pg_data:
