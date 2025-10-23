@@ -45,5 +45,8 @@
     //   "command": "npx",
     //   "args": ["nx-mcp@latest"]
     // }
-  }
+  },
+  "instructions": [
+    ".opencode/instructions.md"
+  ]
 }

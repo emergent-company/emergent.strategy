@@ -21,11 +21,13 @@ const DEFAULT_MIN_UPTIME_MS = 90_000;
 const DEFAULT_RESTART_DELAY_MS = 5_000;
 const DEFAULT_BACKOFF_INITIAL_MS = 5_000;
 
+const WORKSPACE_DEPENDENCY_NAMESPACE = process.env.NAMESPACE ? `${process.env.NAMESPACE}-deps` : 'workspace-cli-deps';
+
 /** @type {import('pm2').StartOptions[]} */
 const apps = [
     {
-        name: `${APP_PREFIX}postgres-dependency`,
-        namespace: 'workspace-cli-deps',
+        name: `postgres-dependency`,
+        namespace: WORKSPACE_DEPENDENCY_NAMESPACE,
         script: 'docker',
         args: ['compose', 'up', 'db'],
         cwd: resolveCwd('docker'),
@@ -47,8 +49,8 @@ const apps = [
         }
     },
     {
-        name: `${APP_PREFIX}zitadel-dependency`,
-        namespace: 'workspace-cli-deps',
+        name: `zitadel-dependency`,
+        namespace: WORKSPACE_DEPENDENCY_NAMESPACE,
         script: 'docker',
         args: ['compose', 'up', 'zitadel'],
         cwd: resolveCwd('docker'),
