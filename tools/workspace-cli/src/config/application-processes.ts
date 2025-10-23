@@ -22,6 +22,9 @@ function buildLogConfig(serviceId: string) {
   } as const;
 }
 
+const ADMIN_PORT = process.env.ADMIN_PORT || '5175';
+const SERVER_PORT = process.env.SERVER_PORT || '3001';
+
 const APPLICATION_PROFILES: readonly ApplicationProcessProfile[] = [
   {
     processId: 'admin',
@@ -32,14 +35,14 @@ const APPLICATION_PROFILES: readonly ApplicationProcessProfile[] = [
     restartPolicy: DEFAULT_RESTART_POLICY,
     logs: buildLogConfig('admin'),
     healthCheck: {
-      url: 'http://localhost:5175/__workspace_health',
+      url: `http://localhost:${ADMIN_PORT}/__workspace_health`,
       timeoutMs: 15000
     },
     dependencies: [],
     namespace: WORKSPACE_NAMESPACE,
     defaultEnabled: true,
     setupCommands: ['npm install'],
-    exposedPorts: ['5175'],
+    exposedPorts: [ADMIN_PORT],
     environmentOverrides: {
       staging: {
         VITE_APP_ENV: 'staging'
@@ -58,14 +61,14 @@ const APPLICATION_PROFILES: readonly ApplicationProcessProfile[] = [
     restartPolicy: DEFAULT_RESTART_POLICY,
     logs: buildLogConfig('server'),
     healthCheck: {
-      url: 'http://localhost:3001/healthz',
+      url: `http://localhost:${SERVER_PORT}/healthz`,
       timeoutMs: 15000
     },
     dependencies: [],
     namespace: WORKSPACE_NAMESPACE,
     defaultEnabled: true,
     setupCommands: ['npm install'],
-    exposedPorts: ['3001'],
+    exposedPorts: [SERVER_PORT],
     environmentOverrides: {
       staging: {
         NODE_ENV: 'staging'

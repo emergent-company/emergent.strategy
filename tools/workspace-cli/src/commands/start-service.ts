@@ -154,7 +154,7 @@ function resolveStartContext(
     expBackoffRestartDelay: expBackoffMs,
     interpreter: processProfile.interpreter,
     args: toArrayArgs(ecosystemEntry.args, processProfile.args),
-    namespace: process.env.PM2_NAMESPACE || ecosystemEntry.namespace || processProfile.namespace,
+    namespace: process.env.NAMESPACE || ecosystemEntry.namespace || processProfile.namespace,
     outFile,
     errorFile,
     mergeLogs: ecosystemEntry.merge_logs ?? true,
@@ -181,7 +181,7 @@ function resolveDependencyStartContext(
   const dependencyProfile = getDependencyProcess(dependencyId);
   const ecosystemEntry = getDependencyEcosystemEntry(dependencyId);
   const envProfile = getEnvironmentProfile(profileId);
-  const namespace = process.env.PM2_NAMESPACE ? `${process.env.PM2_NAMESPACE}-deps` : (ecosystemEntry.namespace ?? getDependencyNamespace());
+  const namespace = process.env.NAMESPACE ? `${process.env.NAMESPACE}-deps` : (ecosystemEntry.namespace ?? getDependencyNamespace());
   const fallbackCommand = dependencyProfile.startScript.split(' ').filter(Boolean);
   const [fallbackScript, ...fallbackArgs] = fallbackCommand;
 
