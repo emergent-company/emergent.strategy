@@ -8,7 +8,7 @@ import { LangChainGeminiProvider } from './langchain-gemini.provider';
  * Factory for creating LLM providers
  * 
  * Priority order:
- * 1. Google Vertex AI (production-grade GCP service, requires VERTEX_AI_PROJECT_ID)
+ * 1. Google Vertex AI (production-grade GCP service, requires GCP_PROJECT_ID)
  * 2. LangChain + Google Gemini (fallback, uses public API with GOOGLE_API_KEY)
  * 
  * Future providers can be added here (OpenAI, Anthropic, etc.)
@@ -38,7 +38,7 @@ export class LLMProviderFactory {
             this.logger.log(`Using LLM provider: ${this.provider.getName()} (fallback)`);
         }
         else {
-            this.logger.warn('No LLM provider configured. Set VERTEX_AI_PROJECT_ID or GOOGLE_API_KEY');
+            this.logger.warn('No LLM provider configured. Set GCP_PROJECT_ID or GOOGLE_API_KEY');
         }
     }
 
@@ -48,7 +48,7 @@ export class LLMProviderFactory {
      */
     getProvider(): ILLMProvider {
         if (!this.provider) {
-            throw new Error('No LLM provider configured. Set GOOGLE_GENERATIVE_AI_API_KEY or VERTEX_AI_PROJECT_ID to enable extraction.');
+            throw new Error('No LLM provider configured. Set GOOGLE_GENERATIVE_AI_API_KEY or GCP_PROJECT_ID to enable extraction.');
         }
         return this.provider;
     }

@@ -965,7 +965,7 @@ export class ExtractionJobService {
         const projectId = this.config.vertexAiProjectId;
 
         if (!projectId) {
-            throw new BadRequestException('Vertex AI project not configured (VERTEX_AI_PROJECT_ID missing)');
+            throw new BadRequestException('Vertex AI project not configured (GCP_PROJECT_ID missing)');
         }
 
         try {

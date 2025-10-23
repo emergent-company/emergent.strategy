@@ -38,6 +38,7 @@ const dashboardRoutes: IRoutesProps[] = [
     { path: "/admin/settings/project/templates", element: cw(lazy(() => import("@/pages/admin/pages/settings/project/templates"))) },
     { path: "/admin/settings/project/auto-extraction", element: cw(lazy(() => import("@/pages/admin/pages/settings/project/auto-extraction"))) },
     { path: "/admin/monitoring/dashboard", element: cw(lazy(() => import("@/pages/admin/monitoring/dashboard"))) },
+    { path: "/admin/monitoring/analytics", element: cw(lazy(() => import("@/pages/admin/monitoring/analytics"))) },
 ];
 
 const appRoutes: IRoutesProps[] = [];

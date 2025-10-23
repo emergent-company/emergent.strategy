@@ -30,7 +30,7 @@ export class LangChainGeminiProvider implements ILLMProvider {
         const modelName = this.config.vertexAiModel;
 
         if (!projectId) {
-            this.logger.warn('LangChain Vertex AI not configured: VERTEX_AI_PROJECT_ID missing');
+            this.logger.warn('LangChain Vertex AI not configured: GCP_PROJECT_ID missing');
             return;
         }
 

@@ -23,7 +23,7 @@ export class DiscoveryLLMProvider {
         const modelName = this.config.vertexAiModel;
 
         if (!projectId) {
-            this.logger.warn('Discovery LLM not configured: VERTEX_AI_PROJECT_ID missing');
+            this.logger.warn('Discovery LLM not configured: GCP_PROJECT_ID missing');
             return;
         }
 

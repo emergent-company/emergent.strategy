@@ -1,10 +1,12 @@
 import { useEffect, useState, useMemo } from "react";
+import { Link } from "react-router";
 import { Icon } from "@/components/atoms/Icon";
 import { LoadingEffect } from "@/components";
 import { useApi } from "@/hooks/use-api";
 import { useConfig } from "@/contexts/config";
 import { OrgAndProjectGate } from "@/components/organisms/OrgAndProjectGate";
 import { createMonitoringClient, type ExtractionJobSummary, type ListExtractionJobsParams } from "@/api/monitoring";
+import { JobDetailModal } from "./JobDetailModal";
 
 export default function MonitoringDashboardPage() {
     const { apiBase, fetchJson } = useApi();
@@ -19,6 +21,20 @@ export default function MonitoringDashboardPage() {
     // Filters
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [sourceTypeFilter, setSourceTypeFilter] = useState<string>('');
+
+    // Modal state
+    const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const handleJobClick = (jobId: string) => {
+        setSelectedJobId(jobId);
+        setIsModalOpen(true);
+    };
+
+    const handleModalClose = () => {
+        setIsModalOpen(false);
+        setSelectedJobId(null);
+    };
 
     const monitoringClient = useMemo(() => createMonitoringClient(
         apiBase,
@@ -121,6 +137,15 @@ export default function MonitoringDashboardPage() {
                             Monitor extraction jobs, LLM usage, and system costs
                         </p>
                     </div>
+                    
+                    {/* View Cost Analytics Link */}
+                    <Link 
+                        to="/admin/monitoring/analytics" 
+                        className="btn btn-primary"
+                    >
+                        <Icon icon="lucide--bar-chart-3" className="w-4 h-4" />
+                        View Cost Analytics
+                    </Link>
                 </div>
 
                 {/* Filters */}
@@ -183,14 +208,15 @@ export default function MonitoringDashboardPage() {
                 </div>
 
                 {/* Content */}
-                {error && (
-                    <div className="mb-6 alert alert-error">
-                        <Icon icon="lucide--alert-circle" className="w-5 h-5" />
-                        <span>{error}</span>
-                    </div>
-                )}
+                <>
+                    {error && (
+                            <div className="mb-6 alert alert-error">
+                                <Icon icon="lucide--alert-circle" className="w-5 h-5" />
+                                <span>{error}</span>
+                            </div>
+                        )}
 
-                {loading ? (
+                        {loading ? (
                     <div className="flex justify-center items-center py-12">
                         <LoadingEffect />
                     </div>
@@ -226,7 +252,11 @@ export default function MonitoringDashboardPage() {
                                     </thead>
                                     <tbody>
                                         {jobs.map((job) => (
-                                            <tr key={job.id} className="hover:bg-base-200 cursor-pointer">
+                                            <tr 
+                                                key={job.id} 
+                                                className="hover:bg-base-200 cursor-pointer"
+                                                onClick={() => handleJobClick(job.id)}
+                                            >
                                                 <td>
                                                     <code className="text-xs">{job.id.slice(0, 8)}</code>
                                                 </td>
@@ -296,7 +326,17 @@ export default function MonitoringDashboardPage() {
                         )}
                     </>
                 )}
+                </>
             </div>
+
+            {/* Job Detail Modal */}
+            {selectedJobId && (
+                <JobDetailModal
+                    jobId={selectedJobId}
+                    isOpen={isModalOpen}
+                    onClose={handleModalClose}
+                />
+            )}
         </OrgAndProjectGate>
     );
 }

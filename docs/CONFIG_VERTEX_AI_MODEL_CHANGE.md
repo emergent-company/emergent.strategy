@@ -13,7 +13,7 @@ env_development: {
   NODE_ENV: 'development',
   LOG_LEVEL: 'debug',
   VERTEX_AI_MODEL: 'gemini-2.5-pro',      // ❌ Removed
-  VERTEX_AI_PROJECT_ID: 'twentyfirst-io', // ❌ Removed
+  VERTEX_AI_PROJECT_ID: 'spec-server-dev', // ❌ Removed
   VERTEX_AI_LOCATION: 'us-central1'       // ❌ Removed
 }
 
@@ -30,7 +30,7 @@ env_development: {
 **Added** Vertex AI configuration:
 ```bash
 # --- Extraction Worker (Google Vertex AI) ---
-VERTEX_AI_PROJECT_ID=twentyfirst-io
+VERTEX_AI_PROJECT_ID=spec-server-dev
 VERTEX_AI_LOCATION=us-central1
 VERTEX_AI_MODEL=gemini-2.5-flash
 ```

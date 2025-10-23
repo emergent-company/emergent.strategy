@@ -120,7 +120,7 @@ npm run workspace:start
 ```
 ✅ LangChainGeminiProvider initialized: model=gemini-2.5-pro
 ✅ DiscoveryLLMProvider initialized: model=gemini-2.5-pro
-✅ VertexAIProvider initialized: project=twentyfirst-io, location=us-central1
+✅ VertexAIProvider initialized: project=spec-server-dev, location=us-central1
 ✅ No 401 errors in logs
 ✅ No "API keys are not supported" errors
 ```

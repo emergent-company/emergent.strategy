@@ -3,13 +3,14 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ResourceQueryDto {
-    @ApiProperty({
-        description: 'Type of resource to query',
+    @ApiPropertyOptional({
+        description: 'Type of resource to query (optional, inferred from endpoint path)',
         enum: ['extraction_job', 'chat_session', 'frontend_session'],
         example: 'extraction_job'
     })
+    @IsOptional()
     @IsEnum(['extraction_job', 'chat_session', 'frontend_session'])
-    type!: string;
+    type?: string;
 
     @ApiPropertyOptional({
         description: 'Number of items to return',

@@ -20,8 +20,8 @@ export class AppConfigService {
                 'PORT=', this.env.PORT,
                 'PGHOST=', this.env.PGHOST,
                 'EMBEDDING_PROVIDER=', process.env.EMBEDDING_PROVIDER || 'unset',
-                'VERTEX_AI_PROJECT_ID=', this.env.VERTEX_AI_PROJECT_ID || 'unset',
-                'computed chatModelEnabled=', (!!this.env.VERTEX_AI_PROJECT_ID) && (process.env.CHAT_MODEL_ENABLED === 'true' || process.env.CHAT_MODEL_ENABLED === '1'));
+                'GCP_PROJECT_ID=', this.env.GCP_PROJECT_ID || 'unset',
+                'computed chatModelEnabled=', (!!this.env.GCP_PROJECT_ID) && (process.env.CHAT_MODEL_ENABLED === 'true' || process.env.CHAT_MODEL_ENABLED === '1'));
         }
     }
     /**
@@ -74,7 +74,7 @@ export class AppConfigService {
      * Chat model is enabled if CHAT_MODEL_ENABLED is true AND we have Vertex AI configured
      */
     get chatModelEnabled() {
-        return !!this.env.VERTEX_AI_PROJECT_ID && !!this.env.CHAT_MODEL_ENABLED;
+        return !!this.env.GCP_PROJECT_ID && !!this.env.CHAT_MODEL_ENABLED;
     }
 
     /**
@@ -92,14 +92,14 @@ export class AppConfigService {
     get rlsPolicyStrict() { return !!this.env.RLS_POLICY_STRICT; }
 
     // --- Extraction Worker (Vertex AI) ---
-    get vertexAiProjectId() { return this.env.VERTEX_AI_PROJECT_ID; }
+    get vertexAiProjectId() { return this.env.GCP_PROJECT_ID; }
     get vertexAiLocation() { return this.env.VERTEX_AI_LOCATION; }
     get vertexAiModel() { return this.env.VERTEX_AI_MODEL; }
 
     // --- Extraction Worker Behavior ---
     get extractionWorkerEnabled() {
         // Enable if Vertex AI is configured
-        return !!this.env.VERTEX_AI_PROJECT_ID && !!this.env.EXTRACTION_WORKER_ENABLED;
+        return !!this.env.GCP_PROJECT_ID && !!this.env.EXTRACTION_WORKER_ENABLED;
     }
     get extractionWorkerPollIntervalMs() {
         return this.env.EXTRACTION_WORKER_POLL_INTERVAL_MS || 5000;
