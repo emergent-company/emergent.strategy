@@ -3757,9 +3757,9 @@ paths:
       summary: List extraction jobs with metrics
       parameters:
         - name: type
-          required: true
+          required: false
           in: query
-          description: Type of resource to query
+          description: Type of resource to query (optional, inferred from endpoint path)
           schema:
             example: extraction_job
             enum:

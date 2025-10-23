@@ -16,6 +16,56 @@
 - **Scope Reuse**: Leverages existing scopes like `extraction:read`, `chat:use`, etc.
 - **Implementation**: Standard `@UseGuards(AuthGuard, ScopesGuard)` with `@Scopes()` decorators
 
+## 1.2 Existing Implementation Status
+
+### ✅ Already Implemented (October 2025)
+
+**Cost Analytics Page** (`/admin/monitoring/analytics`):
+- **Status**: COMPLETE - Production ready
+- **Location**: `apps/admin/src/pages/admin/monitoring/analytics/index.tsx`
+- **Features**:
+  - Real-time cost visualization with ApexCharts
+  - Three interactive charts:
+    - Cost over time (line chart)
+    - Job distribution by source type (pie chart)
+    - Cost by source type (bar chart)
+  - Three summary statistics cards:
+    - Total jobs processed
+    - Total cost in USD
+    - Average cost per job
+  - Loads up to 1000 extraction jobs for comprehensive analysis
+  - Error handling and loading states
+  - Responsive design with Tailwind CSS
+- **Component**: `CostVisualization.tsx` (reusable, 367 lines)
+- **API Integration**: Uses `monitoringClient.listExtractionJobs()` with org/project scoping
+- **Documentation**: `docs/COST_ANALYTICS_ROUTING.md`
+
+**Dashboard Page** (`/admin/monitoring/dashboard`):
+- **Status**: COMPLETE - Production ready
+- **Location**: `apps/admin/src/pages/admin/monitoring/dashboard/index.tsx`
+- **Features**:
+  - Paginated job list (20 per page)
+  - Status and source type filtering
+  - Job detail modal with full metadata
+  - "View Cost Analytics" button linking to analytics page
+  - Real-time job status updates
+- **API Integration**: Uses `monitoringClient.listExtractionJobs()` with pagination
+
+**Backend Monitoring API**:
+- **Status**: COMPLETE - Production ready
+- **Endpoint**: `GET /monitoring/extraction-jobs` (with org/project scoping via headers)
+  - Frontend calls: `/api/monitoring/extraction-jobs` (Vite proxy strips `/api` → backend receives `/monitoring/extraction-jobs`)
+- **Response**: `ExtractionJobListResponse { items, total, page, page_size, has_more }`
+- **Features**:
+  - Pagination support
+  - Sorting by started_at (desc)
+  - Filtering by status and source type
+  - Includes cost data per job
+- **Authorization**: Uses existing `extraction:read` scope
+
+### 🚧 To Be Implemented (Phases 1-5)
+The sections below describe the remaining monitoring features to be built.
+
 ## 2. Core Concept: Resource-Centric Monitoring UI
 The UI will be built around a generalized, reusable architecture:
 - **`ResourceTable`**: A configurable table to display lists of any resource type (jobs, chat sessions, etc.).
@@ -439,11 +489,29 @@ The "Superadmin" section in the sidebar (already exists) will be renamed to "Sys
 
 The proposed links are:
 - **System Monitoring** (Group Title)
-  - **Dashboard**: `/admin/monitoring/dashboard` - The main analytics and metrics page
+  - **Dashboard**: `/admin/monitoring/dashboard` - The main job list and metrics page
+  - **Cost Analytics**: `/admin/monitoring/analytics` - Visual cost/usage analysis with charts (ApexCharts) and model breakdown
   - **Extraction Jobs**: `/admin/monitoring/jobs` - A view of the `ResourceTable` for extraction jobs
   - **Chat Sessions**: `/admin/monitoring/chat-sessions` - A view for chat session monitoring
   - **Frontend Logs**: `/admin/monitoring/frontend-logs` - A view for client-side error tracking
-  - **LLM Analytics**: `/admin/monitoring/llm-analytics` - Cost/usage breakdown by model
+
+**Note**: "Cost Analytics" and "LLM Analytics" are the same feature - cost tracking with model-level breakdown. The current implementation shows:
+- Cost over time (line chart)
+- Job distribution by source type (pie chart)
+- Cost by source type (bar chart)
+- Summary statistics (total jobs, total cost, average cost)
+
+Future enhancements can add:
+- Token usage trends per model
+- Cost breakdown by model (gemini-1.5-pro vs gemini-1.5-flash)
+- Cost optimization recommendations
+- Month-over-month comparisons
+
+**Cross-Page Navigation**:
+- Dashboard has "View Cost Analytics" button → links to Cost Analytics page
+- Cost Analytics has breadcrumb: Dashboard > Cost Analytics
+- All monitoring pages have consistent navigation header with quick links to other monitoring sections
+- Resource tables (jobs, sessions) have action buttons that open detail panels inline (no navigation)
 
 ### 7.2. Routing
 
@@ -452,11 +520,13 @@ Routes will be added to `apps/admin/src/router/register.tsx` to register the pag
 ```typescript
 // In register.tsx
 { path: "/admin/monitoring/dashboard", element: cw(lazy(() => import("@/pages/admin/monitoring/dashboard"))) },
+{ path: "/admin/monitoring/analytics", element: cw(lazy(() => import("@/pages/admin/monitoring/analytics"))) },
 { path: "/admin/monitoring/jobs", element: cw(lazy(() => import("@/pages/admin/monitoring/jobs"))) },
 { path: "/admin/monitoring/chat-sessions", element: cw(lazy(() => import("@/pages/admin/monitoring/chat-sessions"))) },
 { path: "/admin/monitoring/frontend-logs", element: cw(lazy(() => import("@/pages/admin/monitoring/frontend-logs"))) },
-{ path: "/admin/monitoring/llm-analytics", element: cw(lazy(() => import("@/pages/admin/monitoring/llm-analytics"))) },
 ```
+
+**Note**: The `/admin/monitoring/analytics` route already exists and is working. It currently shows cost visualization with ApexCharts. Future enhancements will add model-level breakdown and token usage trends to this same page.
 
 ### 7.3. Access Control
 

@@ -6,7 +6,7 @@ const FALLBACK_EXTRACTION_TEMPLATE_PACK_ID = '1f6f6267-0d2c-4e2f-9fdb-7f04812197
 export class EnvVariables {
     @IsBoolean()
     @IsOptional()
-    CHAT_MODEL_ENABLED?: boolean; // when true and VERTEX_AI_PROJECT_ID present, stream real model output
+    CHAT_MODEL_ENABLED?: boolean; // when true and GCP_PROJECT_ID present, stream real model output
 
     @IsString()
     PGHOST!: string;
@@ -47,9 +47,13 @@ export class EnvVariables {
     RLS_POLICY_STRICT?: boolean; // when true, fail-fast if unexpected RLS policies detected
 
     // --- Extraction Worker (Vertex AI) ---
+        @IsString()
+    @IsOptional()
+    LLM_EXTRACT_PROVIDER?: string;
+
     @IsString()
     @IsOptional()
-    VERTEX_AI_PROJECT_ID?: string;
+    GCP_PROJECT_ID?: string;
 
     @IsString()
     @IsOptional()
@@ -134,7 +138,7 @@ export function validate(config: Record<string, unknown>): EnvVariables {
         EMBEDDINGS_NETWORK_DISABLED: process.env.EMBEDDINGS_NETWORK_DISABLED,
         RLS_POLICY_STRICT: process.env.RLS_POLICY_STRICT,
         // Extraction Worker defaults
-        VERTEX_AI_PROJECT_ID: process.env.VERTEX_AI_PROJECT_ID,
+        GCP_PROJECT_ID: process.env.GCP_PROJECT_ID,
         VERTEX_AI_LOCATION: process.env.VERTEX_AI_LOCATION,
         VERTEX_AI_MODEL: process.env.VERTEX_AI_MODEL,
         CHAT_SYSTEM_PROMPT: process.env.CHAT_SYSTEM_PROMPT,

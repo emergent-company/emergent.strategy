@@ -29,7 +29,7 @@ All configuration is complete! The system is now ready to test MCP chat integrat
 CHAT_MODEL_ENABLED=true
 
 # Vertex AI (Primary Provider)
-VERTEX_AI_PROJECT_ID=twentyfirst-io
+VERTEX_AI_PROJECT_ID=spec-server-dev
 VERTEX_AI_LOCATION=us-central1
 VERTEX_AI_MODEL=gemini-2.5-flash
 

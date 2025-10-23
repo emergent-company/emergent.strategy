@@ -104,7 +104,7 @@ async function bootstrap() {
         enabled: chatEnabled,
         embeddingProvider: embeddingProvider,
         CHAT_MODEL_ENABLED_env: process.env.CHAT_MODEL_ENABLED || 'unset',
-        VERTEX_AI_PROJECT_ID: process.env.VERTEX_AI_PROJECT_ID ? 'present' : 'missing',
+        GCP_PROJECT_ID: process.env.GCP_PROJECT_ID ? 'present' : 'missing',
     };
 
     fileLogger.log(`[startup] chat-model: ${JSON.stringify(chatModelInfo)}`, 'Bootstrap');

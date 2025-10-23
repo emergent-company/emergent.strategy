@@ -31,7 +31,7 @@ export class VertexAIProvider implements ILLMProvider {
         const location = this.config.vertexAiLocation;
 
         if (!projectId) {
-            this.logger.warn('Vertex AI not configured: VERTEX_AI_PROJECT_ID missing');
+            this.logger.warn('Vertex AI not configured: GCP_PROJECT_ID missing');
             return;
         }
 

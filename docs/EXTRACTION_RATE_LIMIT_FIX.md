@@ -98,7 +98,7 @@ nx run workspace-cli:workspace:start
 **How to:**
 1. Go to Google Cloud Console: https://console.cloud.google.com
 2. Navigate to: Vertex AI → Generative AI → Quotas
-3. Enable billing for project `twentyfirst-io`
+3. Enable billing for project `spec-server-dev`
 4. Request quota increase if needed
 5. Update `.env` with higher limits:
    ```bash
@@ -197,7 +197,7 @@ tail -50 apps/logs/server/error.log | grep -i "429\|rate"
 **Environment:** `apps/server-nest/.env`
 ```bash
 # Vertex AI Configuration
-VERTEX_AI_PROJECT_ID=twentyfirst-io
+VERTEX_AI_PROJECT_ID=spec-server-dev
 VERTEX_AI_LOCATION=us-central1
 VERTEX_AI_MODEL=gemini-2.5-flash
 
