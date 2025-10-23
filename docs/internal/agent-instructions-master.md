@@ -1,3 +1,4 @@
+<!-- START:SHARED -->
 # Coding Agent Instructions
 
 This document provides instructions for interacting with the workspace, including logging, process management, and running scripts.
@@ -64,3 +65,11 @@ All scripts and tests should be executed using `nx`. Note that commands for the 
     ```bash
     npx playwright test --project=chromium
     ```
+<!-- END:SHARED -->
+
+<!-- START:OPENCODE_ONLY -->
+---
+description: 'Instructions for workspace management, including logging, process management, and running scripts.'
+applyTo: '**'
+---
+<!-- END:OPENCODE_ONLY -->

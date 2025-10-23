@@ -53,10 +53,10 @@ MCP_TIMEOUT=30000
 ```
 
 **Documentation:**
-- [Architecture Overview](docs/MCP_CHAT_ARCHITECTURE.md) - System design and data flow
-- [User Guide](docs/MCP_CHAT_USER_GUIDE.md) - How to use schema-aware chat
-- [Configuration Guide](docs/MCP_CHAT_CONFIGURATION.md) - Deployment and administration
-- [UI Integration](docs/MCP_CHAT_UI_INTEGRATION.md) - Frontend implementation details
+- [Architecture Overview](docs/technical/MCP_CHAT_ARCHITECTURE.md) - System design and data flow
+- [User Guide](docs/guides/MCP_CHAT_USER_GUIDE.md) - How to use schema-aware chat
+- [Configuration Guide](docs/setup/MCP_CHAT_CONFIGURATION.md) - Deployment and administration
+- [UI Integration](docs/features/MCP_CHAT_UI_INTEGRATION.md) - Frontend implementation details
 
 **Features:**
 - ✅ Automatic schema query detection
@@ -90,29 +90,13 @@ window.__errorLogs.printLogs()
 window.__errorLogs.downloadLogs()
 ```
 
-See `docs/ERROR_LOGGING.md` for complete guide or `docs/ERROR_LOGGING_QUICKREF.md` for quick reference.
+See `docs/technical/ERROR_LOGGING.md` for complete guide or `docs/guides/ERROR_LOGGING_QUICKREF.md` for quick reference.
 
 ## Workspace CLI (Automation)
 
-Local automation is handled by the Workspace CLI (`workspace:*` npm scripts) that wraps Nx targets and PM2 process supervision. The CLI provides:
+Local automation is handled by the Workspace CLI (`workspace:*` npm scripts) that wraps Nx targets and PM2 process supervision. It provides lifecycle management for dependencies, application services, logging, and health checks.
 
-- 🧪 Test orchestration for admin (Vitest, Playwright) and server (Jest)
-- 🔄 Lifecycle management for dependencies (Docker stack) and app services (API/Admin)
-- 📋 Log aggregation under `apps/logs/`
-- 📊 Health/status snapshots combining Docker, PM2, and port checks
-
-**Quick Start:**
-
-```bash
-npm run workspace:deps:start   # Start Postgres, Zitadel, login portal
-npm run workspace:start        # Launch API + Admin under PM2
-npm run workspace:status       # Inspect service + dependency health
-npm run workspace:logs         # Tail aggregated logs
-npm run workspace:stop         # Stop app services
-npm run workspace:deps:stop    # Stop Docker dependencies
-```
-
-See `docs/DEV_PROCESS_MANAGER.md`, `QUICK_START_DEV.md`, and `.github/instructions/admin.instructions.md` for a deeper walkthrough of the automation workflow.
+See `QUICK_START_DEV.md` for a complete guide to starting, stopping, and managing services.
 
 ## Reference projects
 
@@ -134,6 +118,16 @@ When copying from `react-daisyui`, keep attribution headers and adapt to use our
 ## Changelog
 
 See `CHANGELOG.md` for notable removals and additions.
+
+## Documentation
+
+All project documentation is located in the `/docs` directory, organized into the following categories:
+
+- **/docs/setup**: Guides for setting up the project and its dependencies (Docker, Zitadel, etc.).
+- **/docs/guides**: How-to guides and quick references for developers.
+- **/docs/features**: Detailed documentation on specific features.
+- **/docs/technical**: Deep dives into the architecture and technical implementation details.
+- **/docs/archive**: Outdated or historical documents, such as status reports and old plans.
 
 ## Graph Search Pagination (Summary)
 Bidirectional cursor pagination is supported for hybrid (lexical + vector) fused results. Each item carries an opaque Base64URL cursor. Requests accept:

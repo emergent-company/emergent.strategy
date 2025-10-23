@@ -28,7 +28,7 @@ export class EnvVariables {
     APP_RLS_PASSWORD?: string; // password for non-bypass RLS enforcement role (app_rls)
 
     @IsNumber()
-    PORT: number = 3001; // default aligned with admin frontend fallback
+    PORT: number = 3002; // default aligned with admin frontend fallback
 
     @IsBoolean()
     @IsOptional()
@@ -166,7 +166,7 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     const transformed = plainToInstance(EnvVariables, {
         ...withDefaults,
         PGPORT: withDefaults.PGPORT ? Number(withDefaults.PGPORT) : 5432,
-        PORT: withDefaults.PORT ? Number(withDefaults.PORT) : 3001,
+        PORT: withDefaults.PORT ? Number(withDefaults.PORT) : 3002,
         DB_AUTOINIT: withDefaults.DB_AUTOINIT === 'true' || withDefaults.DB_AUTOINIT === true,
         CHAT_MODEL_ENABLED: withDefaults.CHAT_MODEL_ENABLED === 'true' || withDefaults.CHAT_MODEL_ENABLED === true,
         EMBEDDINGS_NETWORK_DISABLED: withDefaults.EMBEDDINGS_NETWORK_DISABLED === 'true' || withDefaults.EMBEDDINGS_NETWORK_DISABLED === true,
