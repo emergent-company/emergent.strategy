@@ -152,11 +152,14 @@ export async function reloadProcess(name: string): Promise<void> {
     });
 }
 
-export async function restartProcess(name: string): Promise<void> {
+export async function restartProcess(name: string, updateEnv = true): Promise<void> {
     await withPm2(async () => {
         await new Promise<void>((resolve, reject) => {
-            (pm2 as unknown as { restart: (target: string, callback: (error: Error | null) => void) => void }).restart(
-                name,
+            const restartOptions = updateEnv ? { updateEnv: true } : {};
+            (pm2 as unknown as { 
+                restart: (target: string | { name: string; updateEnv?: boolean }, callback: (error: Error | null) => void) => void 
+            }).restart(
+                updateEnv ? { name, updateEnv: true } : name,
                 (error: Error | null) => {
                     if (error) {
                         reject(error);
