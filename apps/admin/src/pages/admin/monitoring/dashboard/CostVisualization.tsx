@@ -19,16 +19,16 @@ export const CostVisualization: React.FC<CostVisualizationProps> = ({ jobs, load
         const totalCost = jobs.reduce((sum, job) => sum + (job.total_cost_usd || 0), 0);
         const avgCost = jobs.length > 0 ? totalCost / jobs.length : 0;
         const maxCost = Math.max(...jobs.map(j => j.total_cost_usd || 0), 0);
-        
+
         // Group by date for time series
         const costByDate = new Map<string, number>();
         jobs.forEach(job => {
             // Skip jobs without valid dates
             if (!job.started_at) return;
-            
+
             const dateObj = new Date(job.started_at);
             if (isNaN(dateObj.getTime())) return; // Skip invalid dates
-            
+
             const date = dateObj.toISOString().split('T')[0];
             costByDate.set(date, (costByDate.get(date) || 0) + (job.total_cost_usd || 0));
         });
@@ -281,15 +281,15 @@ export const CostVisualization: React.FC<CostVisualizationProps> = ({ jobs, load
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-96">
-                <span className="loading loading-spinner loading-lg text-primary"></span>
+            <div className="flex justify-center items-center h-96">
+                <span className="text-primary loading loading-spinner loading-lg"></span>
             </div>
         );
     }
 
     if (jobs.length === 0) {
         return (
-            <div className="text-center py-12 text-base-content/70">
+            <div className="py-12 text-base-content/70 text-center">
                 <p>No data available for cost visualization</p>
             </div>
         );
@@ -298,24 +298,24 @@ export const CostVisualization: React.FC<CostVisualizationProps> = ({ jobs, load
     return (
         <div className="space-y-6">
             {/* Summary Stats */}
-            <div className="grid grid-cols-3 gap-4">
-                <div className="stat bg-base-200 rounded-lg">
+            <div className="gap-4 grid grid-cols-3">
+                <div className="bg-base-200 rounded-lg stat">
                     <div className="stat-title">Total Cost</div>
-                    <div className="stat-value text-2xl text-primary">
+                    <div className="text-primary text-2xl stat-value">
                         ${metrics.totalCost.toFixed(4)}
                     </div>
                     <div className="stat-desc">{jobs.length} jobs</div>
                 </div>
-                <div className="stat bg-base-200 rounded-lg">
+                <div className="bg-base-200 rounded-lg stat">
                     <div className="stat-title">Average Cost</div>
-                    <div className="stat-value text-2xl text-secondary">
+                    <div className="text-secondary text-2xl stat-value">
                         ${metrics.avgCost.toFixed(4)}
                     </div>
                     <div className="stat-desc">per job</div>
                 </div>
-                <div className="stat bg-base-200 rounded-lg">
+                <div className="bg-base-200 rounded-lg stat">
                     <div className="stat-title">Highest Cost</div>
-                    <div className="stat-value text-2xl text-accent">
+                    <div className="text-accent text-2xl stat-value">
                         ${metrics.maxCost.toFixed(4)}
                     </div>
                     <div className="stat-desc">single job</div>
@@ -323,11 +323,11 @@ export const CostVisualization: React.FC<CostVisualizationProps> = ({ jobs, load
             </div>
 
             {/* Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="gap-6 grid grid-cols-1 lg:grid-cols-2">
                 {/* Time Series Chart */}
-                <div className="card bg-base-200">
+                <div className="bg-base-200 card">
                     <div className="card-body">
-                        <h3 className="card-title text-lg mb-4">Cost Over Time</h3>
+                        <h3 className="mb-4 text-lg card-title">Cost Over Time</h3>
                         <ReactApexChart
                             options={timeSeriesOptions}
                             series={timeSeriesSeries}
@@ -338,9 +338,9 @@ export const CostVisualization: React.FC<CostVisualizationProps> = ({ jobs, load
                 </div>
 
                 {/* Status Breakdown Pie Chart */}
-                <div className="card bg-base-200">
+                <div className="bg-base-200 card">
                     <div className="card-body">
-                        <h3 className="card-title text-lg mb-4">Cost by Status</h3>
+                        <h3 className="mb-4 text-lg card-title">Cost by Status</h3>
                         <ReactApexChart
                             options={statusChartOptions}
                             series={statusChartSeries}
@@ -353,9 +353,9 @@ export const CostVisualization: React.FC<CostVisualizationProps> = ({ jobs, load
 
             {/* Top Expensive Jobs */}
             {metrics.topExpensiveJobs.length > 0 && (
-                <div className="card bg-base-200">
+                <div className="bg-base-200 card">
                     <div className="card-body">
-                        <h3 className="card-title text-lg mb-4">Top 10 Most Expensive Jobs</h3>
+                        <h3 className="mb-4 text-lg card-title">Top 10 Most Expensive Jobs</h3>
                         <ReactApexChart
                             options={topJobsOptions}
                             series={topJobsSeries}
