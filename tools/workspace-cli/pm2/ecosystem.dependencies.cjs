@@ -23,10 +23,10 @@ const apps = [
     {
         name: 'postgres-dependency',
         namespace: WORKSPACE_DEPENDENCY_NAMESPACE,
-        script: 'docker',
-        args: ['compose', 'up', 'db'],
-        cwd: resolveCwd('docker'),
-        interpreter: undefined,
+        script: 'docker compose --project-name ${NAMESPACE} -f docker/docker-compose.yml up db',
+        cwd: repoRoot,
+        interpreter: '/bin/bash',
+        interpreter_args: '-c',
         max_restarts: DEFAULT_MAX_RESTARTS,
         min_uptime: DEFAULT_MIN_UPTIME_MS,
         restart_delay: DEFAULT_RESTART_DELAY_MS,
@@ -40,16 +40,17 @@ const apps = [
             WORKSPACE_DEPENDENCY_ID: 'postgres',
             WORKSPACE_PROCESS_NAMESPACE: 'workspace-cli-deps',
             WORKSPACE_RESTART_MAX: String(DEFAULT_MAX_RESTARTS),
-            WORKSPACE_RESTART_WINDOW_SEC: '900'
+            WORKSPACE_RESTART_WINDOW_SEC: '900',
+            NAMESPACE: process.env.NAMESPACE || 'workspace-cli'
         }
     },
     {
         name: 'zitadel-dependency',
         namespace: WORKSPACE_DEPENDENCY_NAMESPACE,
-        script: 'docker',
-        args: ['compose', 'up', 'zitadel'],
-        cwd: resolveCwd('docker'),
-        interpreter: undefined,
+        script: 'docker compose --project-name ${NAMESPACE} -f docker/docker-compose.yml up zitadel',
+        cwd: repoRoot,
+        interpreter: '/bin/bash',
+        interpreter_args: '-c',
         max_restarts: DEFAULT_MAX_RESTARTS,
         min_uptime: DEFAULT_MIN_UPTIME_MS,
         restart_delay: DEFAULT_RESTART_DELAY_MS,
@@ -63,7 +64,8 @@ const apps = [
             WORKSPACE_DEPENDENCY_ID: 'zitadel',
             WORKSPACE_PROCESS_NAMESPACE: 'workspace-cli-deps',
             WORKSPACE_RESTART_MAX: String(DEFAULT_MAX_RESTARTS),
-            WORKSPACE_RESTART_WINDOW_SEC: '900'
+            WORKSPACE_RESTART_WINDOW_SEC: '900',
+            NAMESPACE: process.env.NAMESPACE || 'workspace-cli'
         }
     }
 ];
