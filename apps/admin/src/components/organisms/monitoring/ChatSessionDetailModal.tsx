@@ -24,16 +24,16 @@ type TabId = 'summary' | 'transcript' | 'tools' | 'llm' | 'logs';
 export function ChatSessionDetailModal({ sessionId, isOpen, onClose }: ChatSessionDetailModalProps) {
     const { apiBase, fetchJson } = useApi();
     const { config: { activeProjectId, activeOrgId } } = useConfig();
-    
+
     const [activeTab, setActiveTab] = useState<TabId>('summary');
     const [detail, setDetail] = useState<ChatSessionDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    
+
     // Load session detail when modal opens
     useEffect(() => {
         if (!isOpen) return;
-        
+
         const loadDetail = async () => {
             try {
                 setLoading(true);
@@ -48,10 +48,10 @@ export function ChatSessionDetailModal({ sessionId, isOpen, onClose }: ChatSessi
                 setLoading(false);
             }
         };
-        
+
         loadDetail();
     }, [sessionId, isOpen, apiBase, fetchJson, activeProjectId, activeOrgId]);
-    
+
     // Reset state when modal closes
     useEffect(() => {
         if (!isOpen) {
@@ -61,37 +61,37 @@ export function ChatSessionDetailModal({ sessionId, isOpen, onClose }: ChatSessi
             setError(null);
         }
     }, [isOpen]);
-    
+
     if (!isOpen) return null;
-    
+
     // Helper: Format cost
     const formatCost = (cost: number | null | undefined) => {
         if (cost === null || cost === undefined || cost === 0) return '$0.0000';
         return `$${cost.toFixed(4)}`;
     };
-    
+
     // Helper: Format duration (milliseconds to readable string)
     const formatDuration = (durationMs?: number) => {
         if (!durationMs) return 'Unknown';
-        
+
         const durationSeconds = Math.floor(durationMs / 1000);
-        
+
         if (durationSeconds < 60) return `${durationSeconds}s`;
         if (durationSeconds < 3600) return `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s`;
         const hours = Math.floor(durationSeconds / 3600);
         const minutes = Math.floor((durationSeconds % 3600) / 60);
         return `${hours}h ${minutes}m`;
     };
-    
+
     // Helper: Truncate long text
     const truncate = (text: string, maxLength: number) => {
         if (text.length <= maxLength) return text;
         return `${text.substring(0, maxLength)}...`;
     };
-    
+
     return (
         <dialog className="modal modal-open" onClick={(e) => e.target === e.currentTarget && onClose()}>
-            <div className="modal-box max-w-6xl h-[90vh] flex flex-col">
+            <div className="flex flex-col max-w-6xl h-[90vh] modal-box">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="font-bold text-lg">Chat Session Detail</h3>
@@ -99,29 +99,29 @@ export function ChatSessionDetailModal({ sessionId, isOpen, onClose }: ChatSessi
                         ✕
                     </button>
                 </div>
-                
+
                 {/* Loading State */}
                 {loading && (
-                    <div className="flex-1 flex items-center justify-center">
+                    <div className="flex flex-1 justify-center items-center">
                         <span className="loading loading-spinner loading-lg"></span>
                     </div>
                 )}
-                
+
                 {/* Error State */}
                 {error && (
                     <div className="alert alert-error">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span>{error}</span>
                     </div>
                 )}
-                
+
                 {/* Content */}
                 {!loading && !error && detail && (
                     <>
                         {/* Tabs */}
-                        <div role="tablist" className="tabs tabs-bordered mb-4">
+                        <div role="tablist" className="mb-4 tabs tabs-bordered">
                             <a
                                 role="tab"
                                 className={`tab ${activeTab === 'summary' ? 'tab-active' : ''}`}
@@ -158,91 +158,91 @@ export function ChatSessionDetailModal({ sessionId, isOpen, onClose }: ChatSessi
                                 Logs ({detail.logs.length})
                             </a>
                         </div>
-                        
+
                         {/* Tab Content */}
                         <div className="flex-1 overflow-auto">
                             {/* Summary Tab */}
                             {activeTab === 'summary' && (
                                 <div className="space-y-4">
                                     {/* Session Info Cards */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                        <div className="stats shadow">
+                                    <div className="gap-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+                                        <div className="shadow stats">
                                             <div className="stat">
                                                 <div className="stat-title">Session ID</div>
-                                                <div className="stat-value text-sm">
+                                                <div className="text-sm stat-value">
                                                     <code>{truncate(detail.session_id, 16)}</code>
                                                 </div>
                                             </div>
                                         </div>
-                                        
-                                        <div className="stats shadow">
+
+                                        <div className="shadow stats">
                                             <div className="stat">
                                                 <div className="stat-title">Duration</div>
-                                                <div className="stat-value text-2xl">
+                                                <div className="text-2xl stat-value">
                                                     {formatDuration(detail.duration_ms)}
                                                 </div>
                                             </div>
                                         </div>
-                                        
-                                        <div className="stats shadow">
+
+                                        <div className="shadow stats">
                                             <div className="stat">
                                                 <div className="stat-title">Total Cost</div>
-                                                <div className="stat-value text-2xl">
+                                                <div className="text-2xl stat-value">
                                                     {formatCost(detail.total_cost)}
                                                 </div>
                                             </div>
                                         </div>
-                                        
-                                        <div className="stats shadow">
+
+                                        <div className="shadow stats">
                                             <div className="stat">
                                                 <div className="stat-title">Total Turns</div>
-                                                <div className="stat-value text-2xl">
+                                                <div className="text-2xl stat-value">
                                                     {detail.total_turns}
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     {/* Metrics */}
-                                    <div className="card bg-base-100 shadow-md">
+                                    <div className="bg-base-100 shadow-md card">
                                         <div className="card-body">
                                             <h3 className="card-title">Session Metrics</h3>
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            <div className="gap-4 grid grid-cols-2 md:grid-cols-4">
                                                 <div>
                                                     <div className="text-sm text-base-content/70">Logs</div>
-                                                    <div className="text-2xl font-bold">{detail.logs.length}</div>
+                                                    <div className="font-bold text-2xl">{detail.logs.length}</div>
                                                 </div>
                                                 <div>
                                                     <div className="text-sm text-base-content/70">LLM Calls</div>
-                                                    <div className="text-2xl font-bold">{detail.llm_calls.length}</div>
+                                                    <div className="font-bold text-2xl">{detail.llm_calls.length}</div>
                                                 </div>
                                                 <div>
                                                     <div className="text-sm text-base-content/70">Tool Calls</div>
-                                                    <div className="text-2xl font-bold">{detail.tool_calls.length}</div>
+                                                    <div className="font-bold text-2xl">{detail.tool_calls.length}</div>
                                                 </div>
                                                 <div>
                                                     <div className="text-sm text-base-content/70">Errors</div>
-                                                    <div className="text-2xl font-bold text-error">
+                                                    <div className="font-bold text-error text-2xl">
                                                         {detail.logs.filter(log => log.level === 'error').length}
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     {/* Timestamps */}
-                                    <div className="card bg-base-100 shadow-md">
+                                    <div className="bg-base-100 shadow-md card">
                                         <div className="card-body">
                                             <h3 className="card-title">Timeline</h3>
                                             <div className="space-y-2">
                                                 <div className="flex justify-between">
                                                     <span className="text-sm text-base-content/70">Started:</span>
-                                                    <span className="text-sm font-mono">{new Date(detail.started_at).toLocaleString()}</span>
+                                                    <span className="font-mono text-sm">{new Date(detail.started_at).toLocaleString()}</span>
                                                 </div>
                                                 {detail.completed_at && (
                                                     <div className="flex justify-between">
                                                         <span className="text-sm text-base-content/70">Completed:</span>
-                                                        <span className="text-sm font-mono">{new Date(detail.completed_at).toLocaleString()}</span>
+                                                        <span className="font-mono text-sm">{new Date(detail.completed_at).toLocaleString()}</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -250,7 +250,7 @@ export function ChatSessionDetailModal({ sessionId, isOpen, onClose }: ChatSessi
                                     </div>
                                 </div>
                             )}
-                            
+
                             {/* Transcript Tab */}
                             {activeTab === 'transcript' && (
                                 <div className="space-y-4">
@@ -261,7 +261,7 @@ export function ChatSessionDetailModal({ sessionId, isOpen, onClose }: ChatSessi
                                             const role = log.metadata?.role as string | undefined;
                                             const content = log.metadata?.content as string | undefined;
                                             const turnNumber = log.metadata?.turn_number as number | undefined;
-                                            
+
                                             return (
                                                 <div
                                                     key={log.id}
@@ -269,33 +269,33 @@ export function ChatSessionDetailModal({ sessionId, isOpen, onClose }: ChatSessi
                                                 >
                                                     <div className="chat-header">
                                                         {role === 'user' ? 'User' : 'Assistant'}
-                                                        <time className="text-xs opacity-50 ml-2">
+                                                        <time className="opacity-50 ml-2 text-xs">
                                                             Turn {turnNumber || idx + 1}
                                                         </time>
                                                     </div>
                                                     <div className={`chat-bubble ${role === 'user' ? 'chat-bubble-primary' : ''}`}>
                                                         {content || 'No content'}
                                                     </div>
-                                                    <div className="chat-footer opacity-50">
+                                                    <div className="opacity-50 chat-footer">
                                                         {new Date(log.timestamp).toLocaleTimeString()}
                                                     </div>
                                                 </div>
                                             );
                                         })}
-                                    
+
                                     {detail.logs.filter(log => log.processType === 'chat_turn').length === 0 && (
-                                        <div className="text-center py-8 text-base-content/70">
+                                        <div className="py-8 text-base-content/70 text-center">
                                             No conversation turns recorded
                                         </div>
                                     )}
                                 </div>
                             )}
-                            
+
                             {/* MCP Tools Tab */}
                             {activeTab === 'tools' && (
                                 <div className="space-y-2">
                                     {detail.tool_calls.length === 0 ? (
-                                        <div className="text-center py-8 text-base-content/70">
+                                        <div className="py-8 text-base-content/70 text-center">
                                             No tool calls recorded
                                         </div>
                                     ) : (
@@ -305,7 +305,7 @@ export function ChatSessionDetailModal({ sessionId, isOpen, onClose }: ChatSessi
                                     )}
                                 </div>
                             )}
-                            
+
                             {/* LLM Calls Tab */}
                             {activeTab === 'llm' && (
                                 <div className="overflow-x-auto">
@@ -330,7 +330,7 @@ export function ChatSessionDetailModal({ sessionId, isOpen, onClose }: ChatSessi
                                                             <div>Out: {call.output_tokens}</div>
                                                         </div>
                                                     </td>
-                                                    <td className="text-right font-mono">{formatCost(call.cost_usd)}</td>
+                                                    <td className="font-mono text-right">{formatCost(call.cost_usd)}</td>
                                                     <td className="text-right">{call.duration_ms}ms</td>
                                                     <td>
                                                         <div className={`badge badge-sm ${call.status === 'success' ? 'badge-success' : 'badge-error'}`}>
@@ -342,15 +342,15 @@ export function ChatSessionDetailModal({ sessionId, isOpen, onClose }: ChatSessi
                                             ))}
                                         </tbody>
                                     </table>
-                                    
+
                                     {detail.llm_calls.length === 0 && (
-                                        <div className="text-center py-8 text-base-content/70">
+                                        <div className="py-8 text-base-content/70 text-center">
                                             No LLM calls recorded
                                         </div>
                                     )}
                                 </div>
                             )}
-                            
+
                             {/* Logs Tab */}
                             {activeTab === 'logs' && (
                                 <div className="overflow-x-auto">
@@ -367,11 +367,10 @@ export function ChatSessionDetailModal({ sessionId, isOpen, onClose }: ChatSessi
                                             {detail.logs.map((log) => (
                                                 <tr key={log.id}>
                                                     <td>
-                                                        <div className={`badge badge-sm ${
-                                                            log.level === 'error' ? 'badge-error' :
-                                                            log.level === 'warn' ? 'badge-warning' :
-                                                            'badge-info'
-                                                        }`}>
+                                                        <div className={`badge badge-sm ${log.level === 'error' ? 'badge-error' :
+                                                                log.level === 'warn' ? 'badge-warning' :
+                                                                    'badge-info'
+                                                            }`}>
                                                             {log.level}
                                                         </div>
                                                     </td>
@@ -382,9 +381,9 @@ export function ChatSessionDetailModal({ sessionId, isOpen, onClose }: ChatSessi
                                             ))}
                                         </tbody>
                                     </table>
-                                    
+
                                     {detail.logs.length === 0 && (
-                                        <div className="text-center py-8 text-base-content/70">
+                                        <div className="py-8 text-base-content/70 text-center">
                                             No logs recorded
                                         </div>
                                     )}
@@ -404,17 +403,17 @@ export function ChatSessionDetailModal({ sessionId, isOpen, onClose }: ChatSessi
  */
 function ToolCallRow({ tool }: { tool: McpToolCallLog }) {
     const [expanded, setExpanded] = useState(false);
-    
+
     return (
-        <div className="card bg-base-100 shadow-sm">
-            <div className="card-body p-4">
+        <div className="bg-base-100 shadow-sm card">
+            <div className="p-4 card-body">
                 <div
-                    className="flex items-center justify-between cursor-pointer"
+                    className="flex justify-between items-center cursor-pointer"
                     onClick={() => setExpanded(!expanded)}
                 >
-                    <div className="flex items-center gap-4 flex-1">
+                    <div className="flex flex-1 items-center gap-4">
                         <div className="badge badge-neutral">Turn {tool.turn_number}</div>
-                        <code className="text-sm font-semibold">{tool.tool_name}</code>
+                        <code className="font-semibold text-sm">{tool.tool_name}</code>
                         <div className={`badge badge-sm ${tool.status === 'success' ? 'badge-success' : 'badge-error'}`}>
                             {tool.status}
                         </div>
@@ -424,36 +423,36 @@ function ToolCallRow({ tool }: { tool: McpToolCallLog }) {
                         {expanded ? '▼' : '▶'}
                     </button>
                 </div>
-                
+
                 {expanded && (
-                    <div className="mt-4 space-y-4">
+                    <div className="space-y-4 mt-4">
                         {/* Parameters */}
                         {tool.tool_parameters && (
                             <div>
-                                <h4 className="text-sm font-semibold mb-2">Parameters</h4>
-                                <pre className="bg-base-200 p-3 rounded text-xs overflow-x-auto">
+                                <h4 className="mb-2 font-semibold text-sm">Parameters</h4>
+                                <pre className="bg-base-200 p-3 rounded overflow-x-auto text-xs">
                                     {JSON.stringify(tool.tool_parameters, null, 2)}
                                 </pre>
                             </div>
                         )}
-                        
+
                         {/* Result */}
                         {tool.tool_result && (
                             <div>
-                                <h4 className="text-sm font-semibold mb-2">Result</h4>
-                                <pre className="bg-base-200 p-3 rounded text-xs overflow-x-auto">
+                                <h4 className="mb-2 font-semibold text-sm">Result</h4>
+                                <pre className="bg-base-200 p-3 rounded overflow-x-auto text-xs">
                                     {JSON.stringify(tool.tool_result, null, 2)}
                                 </pre>
                             </div>
                         )}
-                        
+
                         {/* Error */}
                         {tool.error_message && (
                             <div className="alert alert-error">
                                 <span className="text-sm">{tool.error_message}</span>
                             </div>
                         )}
-                        
+
                         {/* Timestamp */}
                         <div className="text-xs text-base-content/70">
                             Executed at: {new Date(tool.created_at).toLocaleString()}

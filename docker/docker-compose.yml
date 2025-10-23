@@ -9,7 +9,7 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - docker_spec_pg_data:/var/lib/postgresql/data
+      - ${NAMESPACE:-spec}_pg_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
       - ../logs:/logs
     command: >
@@ -26,7 +26,11 @@ services:
       -c log_duration=off
       -c log_line_prefix='%t [%p] %u@%d '
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-spec} -d ${POSTGRES_DB:-spec}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-spec} -d ${POSTGRES_DB:-spec}",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -68,5 +72,6 @@ services:
       zitadel:
         condition: service_healthy
 volumes:
-  docker_spec_pg_data:
+  spec-server_pg_data:
+    name: ${NAMESPACE:-spec}_pg_data
     external: true
