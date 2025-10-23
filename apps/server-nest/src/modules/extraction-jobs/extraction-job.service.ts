@@ -404,10 +404,9 @@ export class ExtractionJobService {
         const candidatesResult = await this.db.query<{
             id: string;
             organization_id: string | null;
-            tenant_id: string | null;
             project_id: string | null;
         }>(
-            `SELECT id, organization_id, tenant_id, project_id
+            `SELECT id, organization_id, project_id
              FROM kb.object_extraction_jobs
              WHERE status = $1
              ORDER BY created_at ASC
@@ -424,7 +423,7 @@ export class ExtractionJobService {
         // Step 2: Claim each job by updating it within its tenant context
         const claimedJobs: ExtractionJobDto[] = [];
         for (const candidate of candidatesResult.rows) {
-            const orgId = candidate.organization_id ?? candidate.tenant_id ?? null;
+            const orgId = candidate.organization_id ?? null;
             const projectId = candidate.project_id ?? null;
 
             if (!orgId || !projectId) {
