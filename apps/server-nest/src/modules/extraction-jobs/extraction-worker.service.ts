@@ -140,14 +140,12 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 source_type: string;
                 started_at: string | null;
                 organization_id: string | null;
-                tenant_id: string | null;
                 project_id: string | null;
             }>(
                 `SELECT id,
                         source_type,
                         started_at,
                         organization_id,
-                        tenant_id,
                         project_id
                  FROM kb.object_extraction_jobs
                  WHERE status = 'running'
@@ -162,12 +160,12 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             const recovered: string[] = [];
 
             for (const row of result.rows) {
-                const orgId = row.organization_id ?? row.tenant_id ?? null;
+                const orgId = row.organization_id ?? null;
                 const projectId = row.project_id ?? null;
 
                 if (!orgId || !projectId) {
                     this.logger.warn(
-                        `Skipping orphaned job ${row.id} (${row.source_type}) - missing organization/project context (org=${orgId}, tenant=${row.tenant_id}, project=${projectId})`
+                        `Skipping orphaned job ${row.id} (${row.source_type}) - missing organization/project context (org=${orgId}, project=${projectId})`
                     );
                     continue;
                 }

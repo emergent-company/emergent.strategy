@@ -10,10 +10,34 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import yaml from 'js-yaml';
+import { execSync } from 'node:child_process';
 
 async function bootstrap() {
     // Create file logger instance
     const fileLogger = new FileLogger();
+
+    // Run database migrations automatically on startup
+    if (process.env.SKIP_MIGRATIONS !== '1') {
+        try {
+            fileLogger.log('[startup] Running database migrations...', 'Bootstrap');
+            // Determine correct working directory (handles both monorepo root and apps/server-nest)
+            const migrateDir = process.cwd().endsWith('server-nest')
+                ? process.cwd()
+                : join(process.cwd(), 'apps/server-nest');
+            execSync('node scripts/migrate.mjs', {
+                cwd: migrateDir,
+                stdio: 'inherit',
+                env: { ...process.env }
+            });
+            fileLogger.log('[startup] Database migrations completed successfully', 'Bootstrap');
+        } catch (error) {
+            const errMsg = error instanceof Error ? error.message : String(error);
+            fileLogger.error(`[startup] Database migration failed: ${errMsg}`, 'Bootstrap');
+            throw new Error('Failed to run database migrations');
+        }
+    } else {
+        fileLogger.log('[startup] Skipping migrations (SKIP_MIGRATIONS=1)', 'Bootstrap');
+    }
 
     const app = await NestFactory.create(AppModule, {
         cors: false,
