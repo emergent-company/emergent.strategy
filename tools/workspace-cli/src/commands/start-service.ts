@@ -73,24 +73,20 @@ function getProjectPrefix(): string {
 }
 
 function getEcosystemEntry(serviceId: string): EcosystemProcessConfig {
-  const prefix = getProjectPrefix();
-  const expectedName = `${prefix}${serviceId}`;
-  const entry = ecosystemModule.apps.find((app) => app.name === expectedName);
+  const entry = ecosystemModule.apps.find((app) => app.name === serviceId);
 
   if (!entry) {
-    throw new Error(`Missing PM2 ecosystem entry for service: ${serviceId} (expected name: ${expectedName})`);
+    throw new Error(`Missing PM2 ecosystem entry for service: ${serviceId}`);
   }
 
   return entry;
 }
 
 function getDependencyEcosystemEntry(dependencyId: string): DependencyEcosystemProcessConfig {
-  const prefix = getProjectPrefix();
-  const expectedName = `${prefix}${dependencyId}-dependency`;
-  const entry = dependencyEcosystemModule.apps.find((app) => app.name === expectedName);
+  const entry = dependencyEcosystemModule.apps.find((app) => app.name === `${dependencyId}-dependency`);
 
   if (!entry) {
-    throw new Error(`Missing PM2 ecosystem entry for dependency: ${dependencyId} (expected name: ${expectedName})`);
+    throw new Error(`Missing PM2 ecosystem entry for dependency: ${dependencyId}`);
   }
 
   return entry;
@@ -165,7 +161,7 @@ function resolveStartContext(
     expBackoffRestartDelay: expBackoffMs,
     interpreter: processProfile.interpreter,
     args: toArrayArgs(ecosystemEntry.args, processProfile.args),
-    namespace: ecosystemEntry.namespace ?? processProfile.namespace,
+    namespace: process.env.PM2_NAMESPACE || ecosystemEntry.namespace || processProfile.namespace,
     outFile,
     errorFile,
     mergeLogs: ecosystemEntry.merge_logs ?? true,
@@ -192,7 +188,7 @@ function resolveDependencyStartContext(
   const dependencyProfile = getDependencyProcess(dependencyId);
   const ecosystemEntry = getDependencyEcosystemEntry(dependencyId);
   const envProfile = getEnvironmentProfile(profileId);
-  const namespace = ecosystemEntry.namespace ?? getDependencyNamespace();
+  const namespace = process.env.PM2_NAMESPACE ? `${process.env.PM2_NAMESPACE}-deps` : (ecosystemEntry.namespace ?? getDependencyNamespace());
   const fallbackCommand = dependencyProfile.startScript.split(' ').filter(Boolean);
   const [fallbackScript, ...fallbackArgs] = fallbackCommand;
 

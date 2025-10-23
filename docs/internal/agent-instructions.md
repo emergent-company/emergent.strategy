@@ -24,12 +24,19 @@ All service logs are managed by the workspace CLI. The primary command for acces
     ```
     *(Replace `<service-id>` with the service you want to inspect, e.g., `server`)*
 
+*   **View logs as JSON with a specific line count:**
+    ```bash
+    nx run workspace-cli:workspace:logs -- --lines 200 --json
+    ```
+
 ### Log File Locations
 
 Log files are stored in the `apps/logs/` directory.
 
 *   **Service logs:** `apps/logs/<serviceId>/out.log` (stdout) and `apps/logs/<serviceId>/error.log` (stderr)
 *   **Dependency logs:** `apps/logs/dependencies/<id>/out.log` and `apps/logs/dependencies/<id>/error.log`
+
+Log rotation is handled automatically by `pm2-logrotate`.
 
 ## 2. Process Management (PM2)
 

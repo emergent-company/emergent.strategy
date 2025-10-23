@@ -1,7 +1,7 @@
 services:
   db:
     image: pgvector/pgvector:pg16
-    container_name: ${COMPOSE_PROJECT_NAME:-spec}_pg
+    container_name: ${NAMESPACE:-spec}_pg
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-spec}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spec}
@@ -34,7 +34,7 @@ services:
   # Zitadel Identity Provider (dev)
   zitadel:
     image: ghcr.io/zitadel/zitadel:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-spec}_zitadel
+    container_name: ${NAMESPACE:-spec}_zitadel
     depends_on:
       db:
         condition: service_healthy

@@ -1,3 +1,7 @@
+---
+description: 'Instructions for workspace management, including logging, process management, and running scripts.'
+applyTo: '**'
+---
 # Coding Agent Instructions
 
 This document provides instructions for interacting with the workspace, including logging, process management, and running scripts.

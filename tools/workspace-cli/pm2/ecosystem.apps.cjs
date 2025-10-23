@@ -21,11 +21,13 @@ const DEFAULT_MIN_UPTIME_MS = 60_000;
 const DEFAULT_RESTART_DELAY_MS = 5_000;
 const DEFAULT_BACKOFF_INITIAL_MS = 5_000;
 
+const WORKSPACE_NAMESPACE = process.env.NAMESPACE || 'workspace-cli';
+
 /** @type {import('pm2').StartOptions[]} */
 const apps = [
   {
-    name: `${APP_PREFIX}admin`,
-    namespace: 'workspace-cli',
+    name: `admin`,
+    namespace: WORKSPACE_NAMESPACE,
     script: 'npm',
     args: ['run', 'dev'],
     cwd: resolveCwd('apps/admin'),
@@ -58,8 +60,8 @@ const apps = [
     }
   },
   {
-    name: `${APP_PREFIX}server`,
-    namespace: 'workspace-cli',
+    name: `server`,
+    namespace: WORKSPACE_NAMESPACE,
     script: 'npm',
     args: ['run', 'start:dev'],
     cwd: resolveCwd('apps/server-nest'),
