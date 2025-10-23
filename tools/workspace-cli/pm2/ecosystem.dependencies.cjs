@@ -17,11 +17,12 @@ const DEFAULT_RESTART_DELAY_MS = 5_000;
 const DEFAULT_BACKOFF_INITIAL_MS = 5_000;
 
 const WORKSPACE_DEPENDENCY_NAMESPACE = process.env.NAMESPACE ? `${process.env.NAMESPACE}-deps` : 'workspace-cli-deps';
+const NAMESPACE_PREFIX = process.env.NAMESPACE || 'workspace-cli';
 
 /** @type {import('pm2').StartOptions[]} */
 const apps = [
     {
-        name: 'postgres-dependency',
+        name: `${NAMESPACE_PREFIX}-postgres-dependency`,
         namespace: WORKSPACE_DEPENDENCY_NAMESPACE,
         script: 'docker compose --project-name ${NAMESPACE} -f docker/docker-compose.yml up db',
         cwd: repoRoot,
@@ -45,7 +46,7 @@ const apps = [
         }
     },
     {
-        name: 'zitadel-dependency',
+        name: `${NAMESPACE_PREFIX}-zitadel-dependency`,
         namespace: WORKSPACE_DEPENDENCY_NAMESPACE,
         script: 'docker compose --project-name ${NAMESPACE} -f docker/docker-compose.yml up zitadel',
         cwd: repoRoot,

@@ -21,7 +21,7 @@ const WORKSPACE_NAMESPACE = process.env.NAMESPACE || 'workspace-cli';
 /** @type {import('pm2').StartOptions[]} */
 const apps = [
   {
-    name: 'admin',
+    name: `${WORKSPACE_NAMESPACE}-admin`,
     namespace: WORKSPACE_NAMESPACE,
     script: 'npm',
     args: ['run', 'dev'],
@@ -55,7 +55,7 @@ const apps = [
     }
   },
   {
-    name: 'server',
+    name: `${WORKSPACE_NAMESPACE}-server`,
     namespace: WORKSPACE_NAMESPACE,
     script: 'npm',
     args: ['run', 'start:dev'],

@@ -96,17 +96,20 @@ function resolveTargetDependencies(
 }
 
 function resolveApplicationProcessName(serviceId: string): EcosystemProcessConfig {
-  const match = applicationEcosystem.apps.find((entry) => entry.name === serviceId);
+  const namespace = process.env.NAMESPACE || 'workspace-cli';
+  const expectedName = `${namespace}-${serviceId}`;
+  const match = applicationEcosystem.apps.find((entry) => entry.name === expectedName);
 
   if (!match) {
-    throw new Error(`Missing PM2 ecosystem entry for service ${serviceId} (expected name: ${serviceId})`);
+    throw new Error(`Missing PM2 ecosystem entry for service ${serviceId} (expected name: ${expectedName})`);
   }
 
   return match;
 }
 
 function resolveDependencyProcessName(dependencyId: string): EcosystemProcessConfig {
-  const expectedName = `${dependencyId}-dependency`;
+  const namespace = process.env.NAMESPACE || 'workspace-cli';
+  const expectedName = `${namespace}-${dependencyId}-dependency`;
   const match = dependencyEcosystem.apps.find((entry) => entry.name === expectedName);
 
   if (!match) {
