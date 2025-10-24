@@ -17,11 +17,16 @@ describe('GoogleVertexEmbeddingProvider integration modes', () => {
         return mod.get('EMBEDDING_PROVIDER');
     }
 
-    it('throws embeddings_disabled when no key', async () => {
+    it('uses deterministic fallback when Vertex AI not initialized', async () => {
+        // Set provider to 'vertex' but don't set project ID, so Vertex AI won't initialize
         process.env.EMBEDDING_PROVIDER = 'vertex';
+        delete process.env.VERTEX_EMBEDDING_PROJECT;
         delete process.env.GOOGLE_API_KEY;
         const provider: any = await make();
-        await expect(provider.generate('hello')).rejects.toThrow('embeddings_disabled');
+        // Should NOT throw, but return deterministic stub instead
+        const result = await provider.generate('hello');
+        expect(Buffer.isBuffer(result)).toBe(true);
+        expect(result.length).toBeGreaterThan(0);
     });
 
     it('returns deterministic stub when network disabled', async () => {

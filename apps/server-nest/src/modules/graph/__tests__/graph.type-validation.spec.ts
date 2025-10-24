@@ -64,7 +64,7 @@ describe('GraphService - Type Registry Validation Integration', () => {
                 status: 'active',
             },
             labels: ['production'],
-            org_id: mockOrgId,
+            organization_id: mockOrgId,
             project_id: mockProjectId,
         };
 
@@ -79,7 +79,7 @@ describe('GraphService - Type Registry Validation Integration', () => {
                     rowCount: 1,
                     rows: [{
                         id: mockObjectId,
-                        org_id: mockOrgId,
+                        organization_id: mockOrgId,
                         project_id: mockProjectId,
                         type: 'Application',
                         key: 'my-app',
@@ -163,7 +163,7 @@ describe('GraphService - Type Registry Validation Integration', () => {
         it('should skip Type Registry validation when project_id or org_id is missing', async () => {
             const dtoWithoutOrgProject = {
                 ...validCreateDto,
-                org_id: undefined,
+                organization_id: undefined,
                 project_id: undefined,
             };
 
@@ -179,7 +179,7 @@ describe('GraphService - Type Registry Validation Integration', () => {
                     rowCount: 1,
                     rows: [{
                         id: mockObjectId,
-                        org_id: null,
+                        organization_id: null,
                         project_id: null,
                         type: 'Application',
                         key: 'my-app',
@@ -202,7 +202,7 @@ describe('GraphService - Type Registry Validation Integration', () => {
     describe('patchObject - Type Registry Validation', () => {
         const existingObject = {
             id: mockObjectId,
-            org_id: mockOrgId,
+            organization_id: mockOrgId,
             project_id: mockProjectId,
             type: 'Application',
             key: 'my-app',
@@ -303,7 +303,7 @@ describe('GraphService - Type Registry Validation Integration', () => {
         const createDto: any = {
             type: 'Application',
             properties: { name: 'Test' },
-            org_id: mockOrgId,
+            organization_id: mockOrgId,
             project_id: mockProjectId,
         };
 
@@ -316,7 +316,7 @@ describe('GraphService - Type Registry Validation Integration', () => {
                     rowCount: 1,
                     rows: [{
                         id: mockObjectId,
-                        org_id: mockOrgId,
+                        organization_id: mockOrgId,
                         project_id: mockProjectId,
                         type: 'Application',
                         properties: { name: 'Test' },

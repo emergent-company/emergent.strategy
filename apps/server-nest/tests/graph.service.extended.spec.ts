@@ -20,7 +20,7 @@ const mkObj = (o: Partial<any> = {}) => ({
 });
 const mkRel = (r: Partial<any> = {}) => ({
     id: r.id || crypto.randomUUID(),
-    org_id: r.org_id ?? 'org1',
+    organization_id: r.organization_id ?? 'org1',
     project_id: r.project_id ?? 'proj1',
     type: r.type || 'LINKS',
     src_id: r.src_id || crypto.randomUUID(),
@@ -97,7 +97,7 @@ describe('GraphService extended coverage', () => {
                 key: params[1],
                 properties: params[2],
                 labels: params[3],
-                org_id: params[7],
+                organization_id: params[7],
                 project_id: params[8],
                 deleted_at: params[9] ?? null,
             });
@@ -109,7 +109,7 @@ describe('GraphService extended coverage', () => {
         if (sql.startsWith('INSERT INTO kb.graph_relationships')) {
             const isCreate = sql.includes('canonical_id) VALUES');
             const r = mkRel({
-                org_id: params[0],
+                organization_id: params[0],
                 project_id: params[1],
                 type: params[2],
                 src_id: params[3],
