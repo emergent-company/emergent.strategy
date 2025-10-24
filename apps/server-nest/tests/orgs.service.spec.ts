@@ -110,7 +110,7 @@ describe('OrgsService', () => {
                 () => new FakeClient([]),
                 [
                     {
-                        text: /SELECT COUNT\(\*\)::text as count[\s\S]*FROM kb\.orgs o[\s\S]*INNER JOIN kb\.organization_memberships om ON o.id = om.org_id[\s\S]*WHERE om.subject_id = \$1/,
+                        text: /SELECT COUNT\(\*\)::text as count[\s\S]*FROM kb\.orgs o[\s\S]*INNER JOIN kb\.organization_memberships om ON o.id = om.organization_id[\s\S]*WHERE om.subject_id = \$1/,
                         result: { rows: [{ count: '100' }], rowCount: 1 }
                     }
                 ]

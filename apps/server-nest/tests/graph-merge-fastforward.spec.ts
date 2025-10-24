@@ -18,7 +18,7 @@ import { describeWithDb } from './utils/db-describe';
 
 let app: INestApplication | null = null;
 
-async function createBranch(name: string, org_id: string, project_id: string) {
+async function createBranch(name: string, organization_id: string, project_id: string) {
     if (!app) throw new Error('Test application not initialised');
     const res = await request(app.getHttpServer()).post('/graph/branches').send({ name, org_id, project_id });
     if (res.status !== 201) throw new Error('Branch create failed: ' + res.text);
@@ -30,7 +30,7 @@ async function createObject(branchId: string, type: string, key: string, propert
     if (!app) throw new Error('Test application not initialised');
     const res = await request(app.getHttpServer())
         .post('/graph/objects')
-        .send({ type, key, properties, branch_id: branchId, org_id: orgId, project_id: projectId });
+        .send({ type, key, properties, branch_id: branchId, organization_id: orgId, project_id: projectId });
     if (res.status !== 201) throw new Error('Object create failed: ' + res.text);
     return res.body;
 }

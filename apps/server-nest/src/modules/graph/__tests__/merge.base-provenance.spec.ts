@@ -17,12 +17,12 @@ class MockDb implements Partial<DatabaseService> {
 
     constructor() {
         // Seed main object v1
-        this.objects.push({ id: 'obj_v1', type: 'TypeA', key: 'alpha', properties: { a: 1 }, labels: [], org_id: 'o', project_id: 'p', branch_id: 'b_main', canonical_id: 'canon_alpha', version: 1, content_hash: Buffer.from('h1'), change_summary: { paths: ['a'] } });
+        this.objects.push({ id: 'obj_v1', type: 'TypeA', key: 'alpha', properties: { a: 1 }, labels: [], organization_id: 'o', project_id: 'p', branch_id: 'b_main', canonical_id: 'canon_alpha', version: 1, content_hash: Buffer.from('h1'), change_summary: { paths: ['a'] } });
         // Feature branch tip v2 derived from v1 (adds b)
-        this.objects.push({ id: 'obj_v2', type: 'TypeA', key: 'alpha', properties: { a: 1, b: 2 }, labels: [], org_id: 'o', project_id: 'p', branch_id: 'b_feature', canonical_id: 'canon_alpha', version: 2, content_hash: Buffer.from('h2'), change_summary: { paths: ['b'] } });
+        this.objects.push({ id: 'obj_v2', type: 'TypeA', key: 'alpha', properties: { a: 1, b: 2 }, labels: [], organization_id: 'o', project_id: 'p', branch_id: 'b_feature', canonical_id: 'canon_alpha', version: 2, content_hash: Buffer.from('h2'), change_summary: { paths: ['b'] } });
         this.parentEdges['obj_v2'] = ['obj_v1'];
         // Target branch diverged independently from v1 adding c (v3)
-        this.objects.push({ id: 'obj_v3', type: 'TypeA', key: 'alpha', properties: { a: 1, c: 3 }, labels: [], org_id: 'o', project_id: 'p', branch_id: 'b_target', canonical_id: 'canon_alpha', version: 2, content_hash: Buffer.from('h3'), change_summary: { paths: ['c'] } });
+        this.objects.push({ id: 'obj_v3', type: 'TypeA', key: 'alpha', properties: { a: 1, c: 3 }, labels: [], organization_id: 'o', project_id: 'p', branch_id: 'b_target', canonical_id: 'canon_alpha', version: 2, content_hash: Buffer.from('h3'), change_summary: { paths: ['c'] } });
         this.parentEdges['obj_v3'] = ['obj_v1'];
     }
 
@@ -78,7 +78,7 @@ class MockDb implements Partial<DatabaseService> {
             // Object patch INSERT creating new head version (mirror patchObject behavior)
             const [type, key, properties, labels, version, canonicalId, supersedesId, orgId, projectId, branchId] = params;
             const newId = 'obj_v4';
-            const row = { id: newId, type, key, properties, labels, version, canonical_id: canonicalId, supersedes_id: supersedesId, org_id: orgId, project_id: projectId, branch_id: branchId, change_summary: { paths: Object.keys((properties || {})) }, content_hash: Buffer.from('h4') } as any;
+            const row = { id: newId, type, key, properties, labels, version, canonical_id: canonicalId, supersedes_id: supersedesId, organization_id: orgId, project_id: projectId, branch_id: branchId, change_summary: { paths: Object.keys((properties || {})) }, content_hash: Buffer.from('h4') } as any;
             this.objects.push(row);
             // establish parent edge for ancestry graph (supersedes link + feature head)
             this.parentEdges[newId] = [supersedesId, 'obj_v2'];
@@ -95,9 +95,9 @@ class MockDb implements Partial<DatabaseService> {
             this.provenance.push({ child_version_id: params[0], parent_version_id: params[1], role: sql.includes("'source'") ? 'source' : sql.includes("'target'") ? 'target' : sql.includes("'base'") ? 'base' : 'other' });
             return { rows: [], rowCount: 1 };
         }
-        if (norm.startsWith('select type, key, properties, labels, org_id, project_id from kb.graph_objects where id=')) {
+        if (norm.startsWith('select type, key, properties, labels, organization_id, project_id from kb.graph_objects where id=')) {
             const obj = this.objects.find(o => o.id === params[0]);
-            return { rows: obj ? [{ type: obj.type, key: obj.key, properties: obj.properties, labels: obj.labels, org_id: obj.org_id, project_id: obj.project_id }] : [], rowCount: obj ? 1 : 0 };
+            return { rows: obj ? [{ type: obj.type, key: obj.key, properties: obj.properties, labels: obj.labels, organization_id: obj.organization_id, project_id: obj.project_id }] : [], rowCount: obj ? 1 : 0 };
         }
         if (norm.startsWith('insert into kb.graph_objects')) {
             // not used in this scenario

@@ -113,7 +113,7 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
 
                 expect(prompt).toContain('When describing schema changes');
                 expect(prompt).toContain('organize them chronologically');
-                expect(prompt).toContain('highlight the most important modifications');
+                expect(prompt).toContain('Highlight important modifications with **bold text**');
             });
 
             it('should format schema changes list from JSON', async () => {
@@ -164,7 +164,8 @@ describe('ChatGenerationService - Enhanced Prompt Building', () => {
                 const prompt = await service.buildPrompt(options);
 
                 expect(prompt).toContain('When explaining entity types');
-                expect(prompt).toContain('describe their properties, relationships, and use cases clearly');
+                expect(prompt).toContain('use markdown headings (###) for the type name');
+                expect(prompt).toContain('bullet lists (-) for properties and relationships');
             });
 
             it('should format type info with properties and relationships', async () => {

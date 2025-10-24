@@ -34,7 +34,7 @@ describe('Graph FTS Search', () => {
     });
 
     it('returns ranked matches for query term', async () => {
-        const base = { org_id: orgId, project_id: projectId } as any;
+        const base = { organization_id: orgId, project_id: projectId } as any;
         const uniqueToken = 'tok_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
         const suffix = uniqueToken;
         // Clean prior docs with this random key prefix just in case (likely none)
@@ -57,7 +57,7 @@ describe('Graph FTS Search', () => {
     });
 
     it('applies type filter', async () => {
-        await service.createObject({ org_id: orgId, project_id: projectId, type: 'note', key: 'n1_' + Date.now().toString(36), properties: { body: 'lorem ipsum delta' }, labels: ['filter'] } as any);
+        await service.createObject({ organization_id: orgId, project_id: projectId, type: 'note', key: 'n1_' + Date.now().toString(36), properties: { body: 'lorem ipsum delta' }, labels: ['filter'] } as any);
         const resAll = await service.searchObjectsFts({ q: 'delta', limit: 5 });
         const resFiltered = await service.searchObjectsFts({ q: 'delta', type: 'note', limit: 5 });
         expect(resFiltered.items.length).toBeGreaterThan(0);

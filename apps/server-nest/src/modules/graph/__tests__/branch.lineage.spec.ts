@@ -25,7 +25,7 @@ class MockDb implements Partial<DatabaseService> {
             return { rows: row ? [{ id: row.id }] as any : [], rowCount: row ? 1 : 0, command: 'SELECT', fields: [], oid: 0 };
         }
         if (norm.startsWith('insert into kb.branches')) {
-            const row = { id: `b_${this.branches.length + 1}`, org_id: params[0], project_id: params[1], name: params[2], parent_branch_id: params[3], created_at: new Date().toISOString() };
+            const row = { id: `b_${this.branches.length + 1}`, organization_id: params[0], project_id: params[1], name: params[2], parent_branch_id: params[3], created_at: new Date().toISOString() };
             this.branches.push(row);
             return { rows: [row] as any, rowCount: 1, command: 'INSERT', fields: [], oid: 0 };
         }
@@ -90,15 +90,15 @@ describe('BranchService lineage population', () => {
     beforeEach(() => { db = new MockDb(); service = new BranchService(db as any); });
 
     it('creates root branch with self lineage depth=0', async () => {
-        const branch = await service.create({ name: 'main', project_id: 'p1', org_id: 'o1' });
+        const branch = await service.create({ name: 'main', project_id: 'p1', organization_id: 'o1' });
         expect(branch.id).toBeDefined();
         const self = db.lineage.find(l => l.branch_id === branch.id && l.ancestor_branch_id === branch.id && l.depth === 0);
         expect(self).toBeTruthy();
     });
 
     it('creates child branch copying parent lineage and adding parent depth=1', async () => {
-        const parent = await service.create({ name: 'main', project_id: 'p1', org_id: 'o1' });
-        const child = await service.create({ name: 'feature', project_id: 'p1', org_id: 'o1', parent_branch_id: parent.id });
+        const parent = await service.create({ name: 'main', project_id: 'p1', organization_id: 'o1' });
+        const child = await service.create({ name: 'feature', project_id: 'p1', organization_id: 'o1', parent_branch_id: parent.id });
         // Parent self lineage
         expect(db.lineage.find(l => l.branch_id === parent.id && l.ancestor_branch_id === parent.id && l.depth === 0)).toBeTruthy();
         // Child self lineage

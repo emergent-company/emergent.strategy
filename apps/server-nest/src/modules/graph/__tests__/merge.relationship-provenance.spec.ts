@@ -35,7 +35,7 @@ class MockDb {
             return { rowCount: 2, rows: [{ id: 'rel_s_v1', properties: { kind: 'edge', weight: 5 } }, { id: 'rel_t_v1', properties: { kind: 'edge' } }] } as any;
         }
         // Insert patched relationship version
-        if (norm.startsWith('insert into kb.graph_relationships') && norm.includes('select org_id, project_id, branch_id')) {
+        if (norm.startsWith('insert into kb.graph_relationships') && norm.includes('select organization_id, project_id, branch_id')) {
             return { rowCount: 1, rows: [{ id: 'rel_t_v2' }] } as any;
         }
         // Provenance inserts

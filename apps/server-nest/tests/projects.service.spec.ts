@@ -91,7 +91,7 @@ describe('ProjectsService', () => {
         const client = new FakeClient([
             { text: /BEGIN/ },
             { text: /SELECT id FROM kb\.orgs/, result: { rows: [{ id: uuid(1) }], rowCount: 1 } },
-            { text: /INSERT INTO kb\.projects/, result: { rows: [{ id: uuid(4), name: 'Proj3', organization_id: uuid(1) }], rowCount: 1 } },
+            { text: /INSERT INTO kb\.projects/, result: { rows: [{ id: uuid(2), name: 'Proj', organization_id: uuid(1) }], rowCount: 1 } },
             { text: /COMMIT/ },
         ]);
         const templatePacks = noopTemplatePacks();
@@ -133,7 +133,7 @@ describe('ProjectsService', () => {
         const client = new FakeClient([
             { text: /BEGIN/ },
             { text: /SELECT id FROM kb\.orgs/, result: { rows: [{ id: uuid(1) }], rowCount: 1 } },
-            { text: /INSERT INTO kb\.projects/, throw: new Error('insert or update on table "kb.projects" violates foreign key constraint "projects_org_id_fkey"') },
+            { text: /INSERT INTO kb\.projects/, throw: new Error('insert or update on table "kb.projects" violates foreign key constraint "projects_organization_id_fkey"') },
             { text: /ROLLBACK/ },
         ]);
         const svc = new ProjectsService(

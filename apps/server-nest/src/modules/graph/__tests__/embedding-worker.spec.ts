@@ -40,7 +40,7 @@ describe('EmbeddingWorkerService', () => {
         const projectId = proj.rows[0].id;
         // Randomize key to avoid potential advisory lock collisions with parallel tests
         const objKey = 'wk_' + Math.random().toString(36).slice(2, 10);
-        const obj = await graph.createObject({ org_id: orgId, project_id: projectId, type: 'doc', key: objKey, properties: { title: 'Doc Title', body: 'The quick brown fox jumps over the lazy dog.' }, labels: [] } as any);
+        const obj = await graph.createObject({ organization_id: orgId, project_id: projectId, type: 'doc', key: objKey, properties: { title: 'Doc Title', body: 'The quick brown fox jumps over the lazy dog.' }, labels: [] } as any);
         objectId = obj.id;
         // Manually enqueue embedding job (idempotent) to decouple from embeddingsEnabled flag.
         await jobs.enqueue(objectId);

@@ -26,7 +26,7 @@ describe('GraphService.expand', () => {
     });
 
     async function makeObject(key: string, props: any = {}): Promise<string> {
-        const obj = await service.createObject({ type: 'TestType', key, properties: props, labels: ['t'], org_id: orgId as any, project_id: projectId as any } as any);
+        const obj = await service.createObject({ type: 'TestType', key, properties: props, labels: ['t'], organization_id: orgId as any, project_id: projectId as any } as any);
         return obj.id;
     }
 

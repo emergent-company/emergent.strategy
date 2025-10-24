@@ -32,7 +32,7 @@ describe('EmbeddingWorkerService Backoff', () => {
         const projectId = resProj.rows[0].id;
         // Clear any existing jobs from other test files to ensure deterministic dequeue ordering
         await (service as any).db.query('DELETE FROM kb.graph_embedding_jobs');
-        const created = await service.createObject({ org_id: orgId, project_id: projectId, type: 'article', key: 'backoff-obj-' + Date.now(), properties: { body: 'trigger backoff' }, labels: [] } as any);
+        const created = await service.createObject({ organization_id: orgId, project_id: projectId, type: 'article', key: 'backoff-obj-' + Date.now(), properties: { body: 'trigger backoff' }, labels: [] } as any);
         objectId = created.id;
         // No auto-enqueue because embeddings disabled; enqueue manually
         await jobs.enqueue(objectId, { priority: 999 });

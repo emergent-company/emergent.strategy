@@ -59,7 +59,7 @@ describe('DocumentsService extended behaviour', () => {
 
     function makeDoc(id: string, createdOffset = 0) {
         const ts = new Date(Date.now() - createdOffset).toISOString();
-        return { id, org_id: 'org-1', project_id: 'proj-1', filename: `file-${id}.txt`, source_url: null, mime_type: 'text/plain', created_at: ts, updated_at: ts, chunks: 2 };
+        return { id, organization_id: 'org-1', project_id: 'proj-1', filename: `file-${id}.txt`, source_url: null, mime_type: 'text/plain', created_at: ts, updated_at: ts, chunks: 2 };
     }
 
     it('list builds WHERE with org, project, and cursor', async () => {

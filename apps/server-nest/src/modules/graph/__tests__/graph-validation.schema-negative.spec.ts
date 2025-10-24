@@ -38,7 +38,7 @@ describe('Graph Validation - schema negative', () => {
     it('rejects object creation missing required property per schema', async () => {
         let caught: any;
         try {
-            await graph.createObject({ type: 'TypedNode', key: 'k1', properties: { /* missing title */ }, org_id: orgId, project_id: projectId } as any);
+            await graph.createObject({ type: 'TypedNode', key: 'k1', properties: { /* missing title */ }, organization_id: orgId, project_id: projectId } as any);
         } catch (e: any) {
             caught = e;
         }
@@ -49,7 +49,7 @@ describe('Graph Validation - schema negative', () => {
     });
 
     it('allows object creation when schema satisfied', async () => {
-        const obj = await graph.createObject({ type: 'TypedNode', key: 'k2', properties: { title: 'Hello' }, org_id: orgId, project_id: projectId } as any);
+        const obj = await graph.createObject({ type: 'TypedNode', key: 'k2', properties: { title: 'Hello' }, organization_id: orgId, project_id: projectId } as any);
         expect(obj.properties.title).toBe('Hello');
     });
 });

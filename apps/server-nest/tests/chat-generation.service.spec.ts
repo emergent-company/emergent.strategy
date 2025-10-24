@@ -11,6 +11,14 @@ class ConfigMock {
     }
     get chatModelEnabled() { return this._enabled; }
     get googleApiKey() { return this._key; }
+    get vertexAiProjectId() { return 'test-project'; }
+    get vertexAiModel() { return 'gemini-2.5-pro'; }
+    get vertexAiLocation() { return 'us-central1'; }
+}
+
+// Minimal ProjectsService mock
+class ProjectsServiceMock {
+    async getById() { return null; }
 }
 
 describe('ChatGenerationService', () => {
@@ -18,7 +26,7 @@ describe('ChatGenerationService', () => {
 
     it('emits deterministic synthetic tokens when CHAT_TEST_DETERMINISTIC=1 (bypass external model)', async () => {
         process.env.CHAT_TEST_DETERMINISTIC = '1';
-        const svc = new ChatGenerationService(new ConfigMock(true, 'k') as any);
+        const svc = new ChatGenerationService(new ConfigMock(true, 'k') as any, new ProjectsServiceMock() as any);
         const tokens: string[] = [];
         const full = await svc.generateStreaming('Tell me something about planets', t => tokens.push(t));
         expect(tokens).toEqual(['token-0', 'token-1', 'token-2', 'token-3', 'token-4']);
@@ -27,7 +35,7 @@ describe('ChatGenerationService', () => {
     });
 
     it('throws when model disabled (chatModelEnabled=false)', async () => {
-        const svc = new ChatGenerationService(new ConfigMock(false, 'k') as any);
+        const svc = new ChatGenerationService(new ConfigMock(false, 'k') as any, new ProjectsServiceMock() as any);
         await expect(svc.generateStreaming('prompt', () => { })).rejects.toThrow(/disabled/);
     });
 
@@ -36,16 +44,16 @@ describe('ChatGenerationService', () => {
         process.env.E2E_DEBUG_CHAT = '1';
         const mockInvoke = vi.fn().mockResolvedValue('alpha beta gamma');
         vi.resetModules();
-        vi.doMock('@langchain/google-genai', () => ({
-            ChatGoogleGenerativeAI: vi.fn().mockImplementation(() => ({ invoke: mockInvoke })),
-            GoogleGenerativeAIEmbeddings: class { },
+        vi.doMock('@langchain/google-vertexai', () => ({
+            ChatVertexAI: vi.fn().mockImplementation(() => ({ invoke: mockInvoke })),
         }));
         const { ChatGenerationService: FreshService } = await import('../src/modules/chat/chat-generation.service');
-        const svc = new FreshService(new ConfigMock(true, 'fake-key') as any);
+        const svc = new FreshService(new ConfigMock(true, 'fake-key') as any, new ProjectsServiceMock() as any);
         const tokens: string[] = [];
         const full = await svc.generateStreaming('hello world', t => tokens.push(t));
         expect(full).toBe('alpha beta gamma');
-        expect(tokens).toEqual(['alpha', 'beta', 'gamma']);
+        // Tokenization preserves whitespace: "alpha beta gamma" becomes ['alpha', ' ', 'beta', ' ', 'gamma']
+        expect(tokens).toEqual(['alpha', ' ', 'beta', ' ', 'gamma']);
         expect(mockInvoke).toHaveBeenCalled();
         delete process.env.E2E_DEBUG_CHAT;
     });
@@ -57,12 +65,11 @@ describe('ChatGenerationService', () => {
         const mockInvoke = vi.fn().mockRejectedValue(error);
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
         vi.resetModules();
-        vi.doMock('@langchain/google-genai', () => ({
-            ChatGoogleGenerativeAI: vi.fn().mockImplementation(() => ({ invoke: mockInvoke })),
-            GoogleGenerativeAIEmbeddings: class { },
+        vi.doMock('@langchain/google-vertexai', () => ({
+            ChatVertexAI: vi.fn().mockImplementation(() => ({ invoke: mockInvoke })),
         }));
         const { ChatGenerationService: FreshService } = await import('../src/modules/chat/chat-generation.service');
-        const svc = new FreshService(new ConfigMock(true, 'fake-key') as any);
+        const svc = new FreshService(new ConfigMock(true, 'fake-key') as any, new ProjectsServiceMock() as any);
         await expect(svc.generateStreaming('hello world', () => { })).rejects.toThrow('network fail');
         expect(mockInvoke).toHaveBeenCalled();
         warnSpy.mockRestore();

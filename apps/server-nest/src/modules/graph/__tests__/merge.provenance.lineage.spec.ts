@@ -80,16 +80,16 @@ class MockDb implements Partial<DatabaseService> {
             const rows = Array.from(map.values());
             return { rows, rowCount: rows.length };
         }
-        if (norm.startsWith('select type, key, properties, labels, org_id, project_id from kb.graph_objects where id=')) {
+        if (norm.startsWith('select type, key, properties, labels, organization_id, project_id from kb.graph_objects where id=')) {
             const obj = this.objects.find(o => o.id === params[0]);
-            return { rows: obj ? [{ type: obj.type, key: obj.key, properties: obj.properties, labels: obj.labels, org_id: obj.org_id, project_id: obj.project_id }] : [], rowCount: obj ? 1 : 0 };
+            return { rows: obj ? [{ type: obj.type, key: obj.key, properties: obj.properties, labels: obj.labels, organization_id: obj.organization_id, project_id: obj.project_id }] : [], rowCount: obj ? 1 : 0 };
         }
         if (norm.startsWith('select * from kb.graph_objects where id=')) {
             const obj = this.objects.find(o => o.id === params[0]);
             return { rows: obj ? [obj] : [], rowCount: obj ? 1 : 0 };
         }
         if (norm.startsWith('insert into kb.graph_objects')) {
-            const row = { id: 'obj_' + (this.objects.length + 1), type: params[0], key: params[1], properties: params[2], labels: params[3], org_id: params[4], project_id: params[5], branch_id: params[6], canonical_id: 'canon_' + params[1], content_hash: Buffer.from(params[1]), change_summary: { paths: Object.keys(params[2] || {}) } };
+            const row = { id: 'obj_' + (this.objects.length + 1), type: params[0], key: params[1], properties: params[2], labels: params[3], organization_id: params[4], project_id: params[5], branch_id: params[6], canonical_id: 'canon_' + params[1], content_hash: Buffer.from(params[1]), change_summary: { paths: Object.keys(params[2] || {}) } };
             this.objects.push(row);
             return { rows: [row], rowCount: 1 };
         }
@@ -135,8 +135,8 @@ const appConfigStub: any = { get: () => undefined };
 
 function serviceWithTwoObjects(): { service: GraphService; db: MockDb; targetObjId: string; sourceObjId: string } {
     const db = new MockDb();
-    db.objects.push({ id: 'obj_1', type: 'TypeA', key: 'alpha', properties: { a: 1 }, labels: [], org_id: 'o', project_id: 'p', branch_id: 'b_main', canonical_id: 'canon_alpha', content_hash: Buffer.from('alpha_t'), change_summary: { paths: ['a'] } });
-    db.objects.push({ id: 'obj_2', type: 'TypeA', key: 'alpha', properties: { a: 1, b: 2 }, labels: [], org_id: 'o', project_id: 'p', branch_id: 'b_feature', canonical_id: 'canon_alpha', content_hash: Buffer.from('alpha_s'), change_summary: { paths: ['b'] } });
+    db.objects.push({ id: 'obj_1', type: 'TypeA', key: 'alpha', properties: { a: 1 }, labels: [], organization_id: 'o', project_id: 'p', branch_id: 'b_main', canonical_id: 'canon_alpha', content_hash: Buffer.from('alpha_t'), change_summary: { paths: ['a'] } });
+    db.objects.push({ id: 'obj_2', type: 'TypeA', key: 'alpha', properties: { a: 1, b: 2 }, labels: [], organization_id: 'o', project_id: 'p', branch_id: 'b_feature', canonical_id: 'canon_alpha', content_hash: Buffer.from('alpha_s'), change_summary: { paths: ['b'] } });
     return { service: new GraphService(db as any, schemaRegistryStub, embeddingJobsStub, appConfigStub), db, targetObjId: 'obj_1', sourceObjId: 'obj_2' };
 }
 
