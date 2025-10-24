@@ -4,7 +4,7 @@ import { DatabaseService } from '../../common/database/database.service';
 export interface VectorSearchResultRow {
     id: string;
     distance: number;
-    org_id?: string | null;
+    organization_id?: string | null;
     project_id?: string | null;
     branch_id?: string | null;
 }
@@ -45,7 +45,7 @@ export class GraphVectorSearchService {
             filters.push(`id <> ${excludeId.placeholder}`);
         }
         if (opts.type) { filters.push(`type = $${paramIndex++}`); params.push(opts.type); }
-        if (opts.orgId) { filters.push(`org_id = $${paramIndex++}`); params.push(opts.orgId); }
+        if (opts.orgId) { filters.push(`organization_id = $${paramIndex++}`); params.push(opts.orgId); }
         if (opts.projectId) { filters.push(`project_id = $${paramIndex++}`); params.push(opts.projectId); }
         if (opts.branchId) { filters.push(`branch_id = $${paramIndex++}`); params.push(opts.branchId); }
         if (opts.keyPrefix) { filters.push(`key ILIKE $${paramIndex++}`); params.push(opts.keyPrefix + '%'); }
@@ -65,19 +65,19 @@ export class GraphVectorSearchService {
         // Use parameterized literal and cast to vector to avoid operator resolution errors (operator does not exist: vector <=> unknown).
         const baseParams: any[] = [`[${vectorArray}]`];
         const { clause, params: dynamicParams, nextIndex } = this.buildDynamicFilters(opts, 2);
-        const sql = `SELECT id, org_id, project_id, branch_id, (embedding_vec <=> $1::vector) AS distance
+        const sql = `SELECT id, organization_id, project_id, branch_id, (embedding_vec <=> $1::vector) AS distance
                      FROM kb.graph_objects
                      ${clause}
                      ORDER BY embedding_vec <=> $1::vector
                      LIMIT $${nextIndex}`;
         try {
-            const res = await this.db.query<{ id: string; distance: number; org_id: string | null; project_id: string | null; branch_id: string | null }>(sql, [...baseParams, ...dynamicParams, limit]);
+            const res = await this.db.query<{ id: string; distance: number; organization_id: string | null; project_id: string | null; branch_id: string | null }>(sql, [...baseParams, ...dynamicParams, limit]);
             let rows = res.rows || [];
             const threshold = opts.maxDistance != null ? opts.maxDistance : opts.minScore;
             if (threshold != null) {
                 rows = rows.filter(r => r.distance <= threshold);
             }
-            return rows.map(r => ({ id: r.id, distance: r.distance, org_id: r.org_id, project_id: r.project_id, branch_id: r.branch_id }));
+            return rows.map(r => ({ id: r.id, distance: r.distance, organization_id: r.organization_id, project_id: r.project_id, branch_id: r.branch_id }));
         } catch (e) {
             const msg = (e as Error).message || '';
             if (/column "embedding_vec"/.test(msg) || /does not exist/.test(msg)) {
@@ -100,19 +100,19 @@ export class GraphVectorSearchService {
             : `[${(vecRes.rows[0].embedding_vec as number[]).join(',')}]`;
         const limit = Math.max(1, Math.min(100, opts.limit ?? 10));
         const { clause, params: dynamicParams, nextIndex } = this.buildDynamicFilters(opts, 3, { placeholder: '$1' });
-        const sql = `SELECT id, org_id, project_id, branch_id, (embedding_vec <=> $2::vector) AS distance
+        const sql = `SELECT id, organization_id, project_id, branch_id, (embedding_vec <=> $2::vector) AS distance
                      FROM kb.graph_objects
                      ${clause}
                      ORDER BY embedding_vec <=> $2::vector
                      LIMIT $${nextIndex}`;
         try {
-            const res = await this.db.query<{ id: string; distance: number; org_id: string | null; project_id: string | null; branch_id: string | null }>(sql, [objectId, literal, ...dynamicParams, limit]);
+            const res = await this.db.query<{ id: string; distance: number; organization_id: string | null; project_id: string | null; branch_id: string | null }>(sql, [objectId, literal, ...dynamicParams, limit]);
             let rows = res.rows || [];
             const threshold = opts.maxDistance != null ? opts.maxDistance : opts.minScore;
             if (threshold != null) {
                 rows = rows.filter(r => r.distance <= threshold);
             }
-            return rows.map(r => ({ id: r.id, distance: r.distance, org_id: r.org_id, project_id: r.project_id, branch_id: r.branch_id }));
+            return rows.map(r => ({ id: r.id, distance: r.distance, organization_id: r.organization_id, project_id: r.project_id, branch_id: r.branch_id }));
         } catch (e) {
             const msg = (e as Error).message || '';
             if (/column "embedding_vec"/.test(msg) || /does not exist/.test(msg)) {

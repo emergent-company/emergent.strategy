@@ -22,7 +22,7 @@ class MockDb extends DatabaseService {
 
 describe('PermissionService', () => {
     it('grants org_admin full mapped scopes including chat:admin/documents:delete', async () => {
-        const db = new MockDb({ org: [{ org_id: 'o1', role: 'org_admin' }] });
+        const db = new MockDb({ org: [{ organization_id: 'o1', role: 'org_admin' }] });
         const svc = new PermissionService(db as any);
         const perms = await svc.compute('user-1');
         expect(perms.scopes).toContain('chat:admin');

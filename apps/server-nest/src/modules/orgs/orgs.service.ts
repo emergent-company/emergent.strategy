@@ -23,7 +23,7 @@ export class OrgsService {
             const res = await this.db.query<OrgRow>(
                 `SELECT o.id, o.name, o.created_at, o.updated_at 
                  FROM kb.orgs o
-                 INNER JOIN kb.organization_memberships om ON o.id = om.org_id
+                 INNER JOIN kb.organization_memberships om ON o.id = om.organization_id
                  WHERE om.subject_id = $1
                  ORDER BY o.created_at DESC`,
                 [userId]
@@ -106,9 +106,9 @@ export class OrgsService {
                 const countRes = await this.db.query<{ count: string }>(
                     `SELECT COUNT(*)::text as count 
                      FROM kb.orgs o
-                     INNER JOIN kb.organization_memberships om ON o.id = om.org_id
+                     INNER JOIN kb.organization_memberships om ON o.id = om.organization_id
                      WHERE om.subject_id = $1`,
-                    [userId]
+                    [userId],
                 );
                 const count = parseInt(countRes.rows[0]?.count || '0', 10);
                 if (count >= 100) {
@@ -126,7 +126,7 @@ export class OrgsService {
                     // Auto-assign creator as org_admin
                     // Note: user profile must already exist in core.user_profiles (created during authentication)
                     // The FK constraint will enforce this and fail with a meaningful error if missing
-                    await client.query(`INSERT INTO kb.organization_memberships(org_id, subject_id, role) VALUES($1,$2,'org_admin') ON CONFLICT (org_id, subject_id) DO NOTHING`, [r.id, userId]);
+                    await client.query(`INSERT INTO kb.organization_memberships(organization_id, subject_id, role) VALUES($1,$2,'org_admin') ON CONFLICT (organization_id, subject_id) DO NOTHING`, [r.id, userId]);
                 }
                 await client.query('COMMIT');
                 this.tableMissing = false;

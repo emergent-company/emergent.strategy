@@ -65,7 +65,7 @@ export class ChatService {
         if (priv.rows.length === 0) {
             // Diagnostic query to see if row exists with different org/project (should not happen, but helps debug)
             const diag = await this.db.query<any>(`SELECT id, title, created_at, updated_at, owner_subject_id, is_private, org_id, project_id FROM kb.chat_conversations WHERE owner_subject_id = $1`, [userId]);
-            this.logger.log(`[listConversations] diag for owner yields ${diag.rowCount} rows: ${diag.rows.map(r => r.id + ':' + (r.org_id || 'null') + ',' + (r.project_id || 'null')).join(',')}`);
+            this.logger.log(`[listConversations] diag for owner yields ${diag.rowCount} rows: ${diag.rows.map(r => r.id + ':' + (r.organization_id || 'null') + ',' + (r.project_id || 'null')).join(',')}`);
             // Additional focused diagnostics to isolate filter predicate behavior
             const cOwner = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations WHERE owner_subject_id = $1', [userId]);
             const cPrivate = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations WHERE is_private = true');
@@ -267,7 +267,7 @@ export class ChatService {
                  FROM kb.chunks c
                  JOIN kb.documents d ON d.id = c.document_id
                  WHERE ($2::uuid[] IS NULL OR c.document_id = ANY($2::uuid[]))
-                   AND (d.org_id IS NOT DISTINCT FROM $3)
+                   AND (d.organization_id IS NOT DISTINCT FROM $3)
                    AND (d.project_id IS NOT DISTINCT FROM $4)
                  ORDER BY c.embedding <=> (SELECT qvec FROM params)
                  LIMIT (SELECT topk FROM params)
@@ -279,7 +279,7 @@ export class ChatService {
                  JOIN kb.documents d ON d.id = c.document_id
                  WHERE c.tsv @@ (SELECT qts FROM params)
                    AND ($2::uuid[] IS NULL OR c.document_id = ANY($2::uuid[]))
-                   AND (d.org_id IS NOT DISTINCT FROM $3)
+                   AND (d.organization_id IS NOT DISTINCT FROM $3)
                    AND (d.project_id IS NOT DISTINCT FROM $4)
                  ORDER BY ts_rank(c.tsv, (SELECT qts FROM params)) DESC
                  LIMIT (SELECT topk FROM params)

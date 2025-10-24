@@ -33,7 +33,7 @@ export class BranchService {
     }
 
     async create(dto: CreateBranchDto): Promise<BranchRow> {
-        const { name, project_id = null, org_id = null, parent_branch_id = null } = dto;
+        const { name, project_id = null, organization_id = null, parent_branch_id = null } = dto;
         if (!name || !name.trim()) throw new BadRequestException('branch_name_required');
         // Ensure uniqueness per project
         const existing = await this.db.query<{ id: string }>(
@@ -50,10 +50,10 @@ export class BranchService {
         try {
             await client.query('BEGIN');
             const res = await client.query<BranchRow>(
-                `INSERT INTO kb.branches(org_id, project_id, name, parent_branch_id)
+                `INSERT INTO kb.branches(organization_id, project_id, name, parent_branch_id)
          VALUES ($1,$2,$3,$4)
-         RETURNING id, org_id, project_id, name, parent_branch_id, created_at`,
-                [org_id, project_id, name.trim(), parent_branch_id ?? null]
+         RETURNING id, organization_id, project_id, name, parent_branch_id, created_at`,
+                [organization_id, project_id, name.trim(), parent_branch_id ?? null]
             );
             const row = res.rows[0];
             // Insert self lineage depth=0
@@ -85,13 +85,13 @@ export class BranchService {
     async list(project_id?: string | null): Promise<BranchRow[]> {
         if (project_id) {
             const res = await this.db.query<BranchRow>(
-                `SELECT id, org_id, project_id, name, parent_branch_id, created_at FROM kb.branches WHERE project_id IS NOT DISTINCT FROM $1 ORDER BY created_at ASC`,
+                `SELECT id, organization_id, project_id, name, parent_branch_id, created_at FROM kb.branches WHERE project_id IS NOT DISTINCT FROM $1 ORDER BY created_at ASC`,
                 [project_id]
             );
             return res.rows;
         }
         const res = await this.db.query<BranchRow>(
-            `SELECT id, org_id, project_id, name, parent_branch_id, created_at FROM kb.branches ORDER BY created_at ASC`
+            `SELECT id, organization_id, project_id, name, parent_branch_id, created_at FROM kb.branches ORDER BY created_at ASC`
         );
         return res.rows;
     }

@@ -11,8 +11,7 @@ import {
 } from './dto/extraction-job.dto';
 
 interface ExtractionJobSchemaInfo {
-    orgColumn: 'org_id' | 'organization_id';
-    tenantColumn?: 'tenant_id';
+    orgColumn: 'organization_id';
     projectColumn: 'project_id';
     subjectColumn?: 'subject_id' | 'created_by';
     totalItemsColumn?: 'total_items';
@@ -83,9 +82,9 @@ export class ExtractionJobService {
 
                 this.logger.debug(`Detected ${columns.size} columns in object_extraction_jobs: ${Array.from(columns.keys()).join(', ')}`);
 
-                const orgColumn = columns.has('organization_id') ? 'organization_id' : 'org_id';
-                if (!orgColumn) {
-                    throw new Error('object_extraction_jobs missing organization column');
+                const orgColumn = 'organization_id';
+                if (!columns.has(orgColumn)) {
+                    throw new Error('object_extraction_jobs missing organization_id column');
                 }
 
                 if (!columns.has('project_id')) {
@@ -98,7 +97,6 @@ export class ExtractionJobService {
 
                 const schema: ExtractionJobSchemaInfo = {
                     orgColumn,
-                    tenantColumn: columns.has('tenant_id') ? 'tenant_id' : undefined,
                     projectColumn: 'project_id',
                     subjectColumn: columns.has('subject_id')
                         ? 'subject_id'
@@ -133,7 +131,7 @@ export class ExtractionJobService {
      */
     async createJob(dto: CreateExtractionJobDto): Promise<ExtractionJobDto> {
         const schema = await this.getSchemaInfo();
-        const organizationId = dto.organization_id ?? (dto as unknown as { org_id?: string }).org_id ?? null;
+        const organizationId = dto.organization_id ?? null;
         const projectId = dto.project_id ?? null;
 
         if (!organizationId) {
@@ -169,12 +167,6 @@ export class ExtractionJobService {
         if (schema.subjectColumn) {
             columns.push(schema.subjectColumn);
             values.push(dto.subject_id ?? null);
-        }
-
-        if (schema.tenantColumn) {
-            columns.push(schema.tenantColumn);
-            // Default tenant alignment with organization for single-tenant minimal setups
-            values.push(organizationId);
         }
 
         const placeholders = columns.map((_, index) => `$${index + 1}`);
@@ -901,7 +893,7 @@ export class ExtractionJobService {
             throw new Error('Extraction job schema info not initialized');
         }
 
-        const organizationId = row[info.orgColumn] ?? row.organization_id ?? row.org_id;
+        const organizationId = row[info.orgColumn] ?? row.organization_id ?? row.organization_id;
         if (!organizationId) {
             throw new Error('Extraction job row missing organization identifier');
         }
@@ -929,7 +921,6 @@ export class ExtractionJobService {
         return {
             id: row.id,
             organization_id: organizationId,
-            org_id: row.org_id ?? row.organization_id ?? organizationId,
             project_id: row.project_id,
             source_type: row.source_type,
             source_id: row.source_id ?? undefined,

@@ -9,7 +9,7 @@ const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 interface ProjectRow {
     id: string;
     name: string;
-    org_id: string;
+    organization_id: string;
     kb_purpose?: string;
     chat_prompt_template?: string;
     auto_extract_objects?: boolean;
@@ -35,21 +35,21 @@ export class ProjectsService {
                 return [];
             }
             const res = await this.db.query<ProjectRow>(
-                `SELECT id, name, org_id, kb_purpose FROM kb.projects WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2`,
+                `SELECT id, name, organization_id, kb_purpose FROM kb.projects WHERE organization_id = $1 ORDER BY created_at DESC LIMIT $2`,
                 [orgId, limit],
             );
-            return res.rows.map(r => ({ id: r.id, name: r.name, orgId: r.org_id, kb_purpose: r.kb_purpose }));
+            return res.rows.map(r => ({ id: r.id, name: r.name, orgId: r.organization_id, kb_purpose: r.kb_purpose }));
         }
         const res = await this.db.query<ProjectRow>(
-            `SELECT id, name, org_id, kb_purpose FROM kb.projects ORDER BY created_at DESC LIMIT $1`,
+            `SELECT id, name, organization_id, kb_purpose FROM kb.projects ORDER BY created_at DESC LIMIT $1`,
             [limit],
         );
-        return res.rows.map(r => ({ id: r.id, name: r.name, orgId: r.org_id, kb_purpose: r.kb_purpose }));
+        return res.rows.map(r => ({ id: r.id, name: r.name, orgId: r.organization_id, kb_purpose: r.kb_purpose }));
     }
 
     async getById(id: string): Promise<ProjectDto | null> {
         const res = await this.db.query<ProjectRow>(
-            `SELECT id, name, org_id, kb_purpose, chat_prompt_template, auto_extract_objects, auto_extract_config FROM kb.projects WHERE id = $1`,
+            `SELECT id, name, organization_id, kb_purpose, chat_prompt_template, auto_extract_objects, auto_extract_config FROM kb.projects WHERE id = $1`,
             [id],
         );
         if (res.rows.length === 0) {
@@ -59,7 +59,7 @@ export class ProjectsService {
         return {
             id: r.id,
             name: r.name,
-            orgId: r.org_id,
+            orgId: r.organization_id,
             kb_purpose: r.kb_purpose,
             chat_prompt_template: r.chat_prompt_template,
             auto_extract_objects: r.auto_extract_objects,
@@ -91,8 +91,8 @@ export class ProjectsService {
                 await client.query('ROLLBACK');
                 throw new BadRequestException({ error: { code: 'org-not-found', message: 'Organization not found' } });
             }
-            const insProj = await client.query<{ id: string; name: string; org_id: string }>(
-                `INSERT INTO kb.projects(org_id, name) VALUES($1,$2) RETURNING id, name, org_id`,
+            const insProj = await client.query<{ id: string; name: string; organization_id: string }>(
+                `INSERT INTO kb.projects(organization_id, name) VALUES($1,$2) RETURNING id, name, organization_id`,
                 [orgId, name.trim()],
             );
             const p = insProj.rows[0];
@@ -102,12 +102,12 @@ export class ProjectsService {
                 await client.query(`INSERT INTO kb.project_memberships(project_id, subject_id, role) VALUES($1,$2,'project_admin') ON CONFLICT (project_id, subject_id) DO NOTHING`, [p.id, userId]);
             }
             await client.query('COMMIT');
-            project = { id: p.id, name: p.name, orgId: p.org_id };
+            project = { id: p.id, name: p.name, orgId: p.organization_id };
         } catch (e) {
             try { await client.query('ROLLBACK'); } catch { /* ignore */ }
             const msg = (e as Error).message;
             // Translate FK org deletion race into stable org-not-found semantic
-            if (msg.includes('projects_org_id_fkey')) {
+            if (msg.includes('projects_organization_id_fkey')) {
                 throw new BadRequestException({ error: { code: 'org-not-found', message: 'Organization not found (possibly deleted concurrently)' } });
             }
             if (msg.includes('duplicate')) throw new BadRequestException({ error: { code: 'duplicate', message: 'Project with this name exists in org' } });
@@ -178,7 +178,7 @@ export class ProjectsService {
         const result = await this.db.query<{
             id: string;
             name: string;
-            org_id: string;
+            organization_id: string;
             kb_purpose?: string;
             chat_prompt_template?: string;
             auto_extract_objects?: boolean;
@@ -187,7 +187,7 @@ export class ProjectsService {
             `UPDATE kb.projects 
              SET ${fields.join(', ')}, updated_at = now()
              WHERE id = $${paramIndex}
-             RETURNING id, name, org_id, kb_purpose, chat_prompt_template, auto_extract_objects, auto_extract_config`,
+             RETURNING id, name, organization_id, kb_purpose, chat_prompt_template, auto_extract_objects, auto_extract_config`,
             values
         );
 
@@ -199,7 +199,7 @@ export class ProjectsService {
         return {
             id: row.id,
             name: row.name,
-            orgId: row.org_id,
+            orgId: row.organization_id,
             kb_purpose: row.kb_purpose,
             chat_prompt_template: row.chat_prompt_template,
             auto_extract_objects: row.auto_extract_objects,

@@ -28,7 +28,7 @@ async function ensureOrgProject(db: DatabaseService, orgId?: string, projectId?:
     const projRes = await db.query<{ id: string }>('SELECT id FROM kb.projects LIMIT 1');
     let resolvedProj = projRes.rowCount ? projRes.rows[0].id : undefined;
     if (!resolvedProj) {
-        const ins = await db.query<{ id: string }>(`INSERT INTO kb.projects(org_id, name) VALUES($1,'seed-project') RETURNING id`, [resolvedOrg]);
+        const ins = await db.query<{ id: string }>(`INSERT INTO kb.projects(organization_id, name) VALUES($1,'seed-project') RETURNING id`, [resolvedOrg]);
         resolvedProj = ins.rows[0].id;
     }
     return { orgId: resolvedOrg!, projectId: resolvedProj! };
@@ -51,7 +51,7 @@ export async function seedEmbeddings(db: DatabaseService, opts: SeedEmbeddingOpt
         const literal = '[' + vec.join(',') + ']';
         const type = `${typePrefix}${i + 1}`;
         await db.query(
-            `INSERT INTO kb.graph_objects(id, org_id, project_id, type, key, properties, embedding_vec, canonical_id, version)
+            `INSERT INTO kb.graph_objects(id, organization_id, project_id, type, key, properties, embedding_vec, canonical_id, version)
        VALUES ($1,$2,$3,$4,$5,'{}',$6::vector,$1,1)`,
             [id, orgId, projectId, type, type.toLowerCase() + '-key', literal]
         );

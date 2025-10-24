@@ -131,13 +131,12 @@ export class TypeRegistryService {
 
         const result = await this.db.query<ProjectTypeRegistryRow>(
             `INSERT INTO kb.project_object_type_registry (
-                tenant_id, organization_id, project_id, type, source,
+                organization_id, project_id, type, source,
                 json_schema, ui_config, extraction_config, enabled,
                 discovery_confidence, description, created_by
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING *`,
             [
-                tenantId,
                 orgId,
                 projectId,
                 dto.type,

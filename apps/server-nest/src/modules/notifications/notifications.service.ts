@@ -40,16 +40,15 @@ export class NotificationsService {
         const result = await this.db.query<Notification>(
             `
       INSERT INTO kb.notifications (
-        tenant_id, organization_id, project_id, subject_id,
+        organization_id, project_id, subject_id,
         category, importance, title, message, details,
         source_type, source_id, action_url, action_label, group_key,
         type, severity, related_resource_type, related_resource_id,
         read, dismissed, actions, expires_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *
     `,
             [
-                data.tenant_id,
                 data.organization_id || null,
                 data.project_id || null,
                 data.subject_id,
@@ -424,7 +423,6 @@ export class NotificationsService {
 
         return this.create({
             subject_id: params.userId,
-            tenant_id: params.tenantId,
             organization_id: params.organizationId,
             project_id: params.projectId,
             category: hasReview
@@ -521,7 +519,6 @@ export class NotificationsService {
 
         return this.create({
             subject_id: params.userId,
-            tenant_id: params.tenantId,
             organization_id: params.organizationId,
             project_id: params.projectId,
             category: NotificationCategory.EXTRACTION_COMPLETED,
@@ -598,7 +595,6 @@ export class NotificationsService {
 
         return this.create({
             subject_id: params.userId,
-            tenant_id: params.tenantId,
             organization_id: params.organizationId,
             project_id: params.projectId,
             category: NotificationCategory.EXTRACTION_FAILED,
@@ -651,7 +647,6 @@ export class NotificationsService {
     }): Promise<Notification | null> {
         return this.create({
             subject_id: params.userId,
-            tenant_id: params.tenantId,
             organization_id: params.organizationId,
             project_id: params.projectId,
             category: NotificationCategory.MENTION,

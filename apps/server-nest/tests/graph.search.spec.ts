@@ -8,9 +8,9 @@ describe('GraphService search', () => {
         const db = makeFakeGraphDb({ enableSearch: true, enableRelationships: true });
         const schemaRegistryStub = makeSchemaRegistryStub();
         const svc = new GraphService(db as any, schemaRegistryStub as any);
-        await svc.createObject({ type: 'Asset', key: 'key_1', properties: { a: 1 }, labels: ['L1'] });
-        await svc.createObject({ type: 'Asset', key: 'key_2', properties: { a: 2 }, labels: ['L1'] });
-        await svc.createObject({ type: 'Service', key: 'key_3', properties: { a: 3 }, labels: ['L1'] });
+        const obj1 = await svc.createObject({ type: 'Asset', key: 'key_1', properties: { a: 1 }, labels: ['L1'] });
+        const obj2 = await svc.createObject({ type: 'Asset', key: 'key_2', properties: { a: 2 }, labels: ['L1'] });
+        const obj3 = await svc.createObject({ type: 'Service', key: 'key_3', properties: { a: 3 }, labels: ['L1'] });
         const first = await svc.searchObjects({ type: 'Asset', label: 'L1', limit: 1 });
         expect(first.items.length).toBe(1);
         expect(first.next_cursor).toBeTruthy();

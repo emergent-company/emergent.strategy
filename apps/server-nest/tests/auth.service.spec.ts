@@ -98,7 +98,8 @@ describe('AuthService.mapClaims variations', () => {
         // @ts-expect-error private access
         const u2 = svc.mapClaims({ sub: 'alice@example.com' });
         expect(u1?.sub).toBe(u2?.sub);
-        expect(u1?.sub).not.toBe('alice@example.com');
+        // Service now preserves sub as-is for direct ownership comparisons
+        expect(u1?.sub).toBe('alice@example.com');
     });
 
     it('parses scopes from space-separated string', () => {

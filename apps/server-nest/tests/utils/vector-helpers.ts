@@ -3,9 +3,9 @@
 /** Small epsilon used to ensure non-zero norm for cosine distance calculations. */
 export const VECTOR_EPS = 0.000001;
 
-/** Returns a fresh 32-dim base vector with a tiny epsilon in the first dimension. */
+/** Returns a fresh 768-dim base vector with a tiny epsilon in the first dimension. */
 export function baseVec(): number[] {
-    const v = Array(32).fill(0).map(() => 0);
+    const v = Array(768).fill(0).map(() => 0);
     v[0] = VECTOR_EPS;
     return v;
 }

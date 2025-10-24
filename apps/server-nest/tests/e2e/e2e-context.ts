@@ -67,7 +67,7 @@ async function ensureBaseFixtures(pool: Pool): Promise<{ orgId: string; projectI
     let projectId: string | undefined;
     {
         const ins = await pool.query<{ id: string }>(
-            `INSERT INTO kb.projects(org_id, name) VALUES($1,$2)
+            `INSERT INTO kb.projects(organization_id, name) VALUES($1,$2)
              ON CONFLICT DO NOTHING
              RETURNING id`,
             [orgId, 'E2E Project']
@@ -75,7 +75,7 @@ async function ensureBaseFixtures(pool: Pool): Promise<{ orgId: string; projectI
         if (ins.rowCount) {
             projectId = ins.rows[0].id;
         } else {
-            const sel = await pool.query<{ id: string }>(`SELECT id FROM kb.projects WHERE org_id = $1 AND name = $2 LIMIT 1`, [orgId, 'E2E Project']);
+            const sel = await pool.query<{ id: string }>(`SELECT id FROM kb.projects WHERE organization_id = $1 AND name = $2 LIMIT 1`, [orgId, 'E2E Project']);
             if (!sel.rowCount) throw new Error('Failed to locate or create base E2E Project');
             projectId = sel.rows[0].id;
         }
@@ -220,7 +220,7 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
         orgId = orgIns.rows[0].id;
         createdIsolatedOrg = true;
         const projName = `Isolated Project ${userSuffix || 'base'} ${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-        const projIns = await pool.query<{ id: string }>(`INSERT INTO kb.projects(org_id, name) VALUES($1,$2) RETURNING id`, [orgId, projName]);
+        const projIns = await pool.query<{ id: string }>(`INSERT INTO kb.projects(organization_id, name) VALUES($1,$2) RETURNING id`, [orgId, projName]);
         projectId = projIns.rows[0].id;
         createdIsolatedProject = true;
     } else {
@@ -232,7 +232,7 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
             let attempts = 5;
             while (attempts--) {
                 try {
-                    const projIns = await pool.query<{ id: string }>(`INSERT INTO kb.projects(org_id, name) VALUES($1,$2) RETURNING id`, [orgId, uniqueName]);
+                    const projIns = await pool.query<{ id: string }>(`INSERT INTO kb.projects(organization_id, name) VALUES($1,$2) RETURNING id`, [orgId, uniqueName]);
                     projectId = projIns.rows[0].id;
                     break;
                 } catch (e: any) {
@@ -272,9 +272,9 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
             [mappedUserId, email],
         );
         await client.query(
-            `INSERT INTO kb.organization_memberships(org_id, subject_id, role)
+            `INSERT INTO kb.organization_memberships(organization_id, subject_id, role)
              VALUES($1,$2,'org_admin')
-             ON CONFLICT (org_id, subject_id) DO NOTHING`,
+             ON CONFLICT (organization_id, subject_id) DO NOTHING`,
             [orgId, mappedUserId],
         );
         await client.query(

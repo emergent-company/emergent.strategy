@@ -60,7 +60,7 @@ export class GraphObjectsController {
     @ApiResponse({ status: 400, description: 'Validation error' })
     create(@Body() dto: CreateGraphObjectDto, @Req() req: any) {
         const ctx = this.extractContext(req);
-        return this.service.createObject({ ...dto, org_id: dto.org_id ?? ctx?.orgId ?? undefined, project_id: dto.project_id ?? ctx?.projectId ?? undefined }, ctx);
+        return this.service.createObject({ ...dto, org_id: dto.organization_id ?? ctx?.orgId ?? undefined, project_id: dto.project_id ?? ctx?.projectId ?? undefined }, ctx);
     }
 
     @Get('objects/search')
@@ -80,7 +80,7 @@ export class GraphObjectsController {
         const ord = (order && (order.toLowerCase() === 'asc' || order.toLowerCase() === 'desc')) ? order.toLowerCase() as 'asc' | 'desc' : undefined;
         const orgId = (req?.headers['x-org-id'] as string | undefined) || undefined;
         const projectId = (req?.headers['x-project-id'] as string | undefined) || undefined;
-        return this.service.searchObjects({ type, key, label, limit: parsedLimit, cursor, order: ord, org_id: orgId, project_id: projectId }, { orgId, projectId });
+        return this.service.searchObjects({ type, key, label, limit: parsedLimit, cursor, order: ord, organization_id: orgId, project_id: projectId }, { orgId, projectId });
     }
 
     @Get('objects/fts')
@@ -98,7 +98,7 @@ export class GraphObjectsController {
         const parsedLimit = limit ? parseInt(limit, 10) : 20;
         const orgId = (req?.headers['x-org-id'] as string | undefined) || undefined;
         const projectId = (req?.headers['x-project-id'] as string | undefined) || undefined;
-        return this.service.searchObjectsFts({ q, limit: parsedLimit, type, label, branch_id, org_id: orgId, project_id: projectId }, { orgId, projectId });
+        return this.service.searchObjectsFts({ q, limit: parsedLimit, type, label, branch_id, organization_id: orgId, project_id: projectId }, { orgId, projectId });
     }
 
     @Get('objects/tags')
@@ -235,7 +235,7 @@ export class GraphObjectsController {
         const ctx = this.extractContext(req);
         // Derive org/project from src object (authoritative) to avoid requiring client-supplied IDs
         const src = await this.service.getObject(dto.src_id, ctx);
-        const orgId = (src as any).org_id || '00000000-0000-0000-0000-000000000000';
+        const orgId = (src as any).organization_id || '00000000-0000-0000-0000-000000000000';
         const projectId = (src as any).project_id || '00000000-0000-0000-0000-000000000000';
         return this.service.createRelationship(dto, orgId, projectId);
     }

@@ -244,7 +244,6 @@ describe('TemplatePackService', () => {
                     .mockResolvedValueOnce({
                         rows: [{
                             id: 'assignment-1',
-                            tenant_id: tenantId,
                             organization_id: orgId,
                             project_id: projectId,
                             template_pack_id: 'pack-1',
@@ -337,7 +336,6 @@ describe('TemplatePackService', () => {
                     .mockResolvedValueOnce({
                         rows: [{
                             id: 'assignment-1',
-                            tenant_id: tenantId,
                             organization_id: orgId,
                             project_id: projectId,
                             template_pack_id: 'pack-1',
@@ -408,7 +406,6 @@ describe('TemplatePackService', () => {
                     .mockResolvedValueOnce({
                         rows: [{
                             id: 'assignment-1',
-                            tenant_id: tenantId,
                             organization_id: orgId,
                             project_id: projectId,
                             template_pack_id: 'pack-1',
@@ -449,7 +446,6 @@ describe('TemplatePackService', () => {
                     .mockResolvedValueOnce({
                         rows: [{
                             id: 'assignment-1',
-                            tenant_id: 'tenant-1',
                             organization_id: 'org-1',
                             project_id: 'proj-1',
                             template_pack_id: 'pack-1',
@@ -484,7 +480,6 @@ describe('TemplatePackService', () => {
                     .mockResolvedValueOnce({
                         rows: [{
                             id: 'assignment-1',
-                            tenant_id: 'tenant-1',
                             organization_id: 'org-1',
                             project_id: 'proj-1',
                             template_pack_id: 'pack-1',

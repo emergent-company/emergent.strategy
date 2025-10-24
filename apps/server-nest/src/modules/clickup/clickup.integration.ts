@@ -160,7 +160,7 @@ export class ClickUpIntegration extends BaseIntegration {
         return await this.importService.runFullImport(
             this.integration.id,
             this.integration.project_id,
-            this.integration.org_id,
+            this.integration.organization_id,
             this.clickupSettings.workspace_id,
             importConfig
         );
@@ -190,7 +190,7 @@ export class ClickUpIntegration extends BaseIntegration {
         return await this.importService.runFullImportWithProgress(
             this.integration.id,
             this.integration.project_id,
-            this.integration.org_id,
+            this.integration.organization_id,
             this.clickupSettings.workspace_id,
             importConfig,
             onProgress
@@ -208,7 +208,7 @@ export class ClickUpIntegration extends BaseIntegration {
         return await this.webhookHandler.handleWebhook(
             this.integration.id,
             this.integration.project_id,
-            this.integration.org_id,
+            this.integration.organization_id,
             payload
         );
     }

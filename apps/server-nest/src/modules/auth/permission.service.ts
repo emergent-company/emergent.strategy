@@ -65,7 +65,7 @@ export class PermissionService {
             this.logger.error(`Failed ensuring user profile row for ${userId}`, e as Error);
         }
         // Fetch memberships. Ignore org/project name joins for performance (controllers will filter by ids supplied in headers).
-        const orgRows = await this.db.query<{ org_id: string; role: string }>(
+        const orgRows = await this.db.query<{ organization_id: string; role: string }>(
             'SELECT org_id, role FROM kb.organization_memberships WHERE subject_id = $1',
             [userId]
         );
@@ -85,7 +85,7 @@ export class PermissionService {
         const dedup = Array.from(new Set(scopes));
         return {
             userId,
-            orgRoles: orgRows.rows.map(r => ({ orgId: r.org_id, role: r.role as 'org_admin' })),
+            orgRoles: orgRows.rows.map(r => ({ orgId: r.organization_id, role: r.role as 'org_admin' })),
             projectRoles: projectRows.rows.map(r => ({ projectId: r.project_id, role: r.role as 'project_admin' | 'project_user' })),
             scopes: dedup,
         };

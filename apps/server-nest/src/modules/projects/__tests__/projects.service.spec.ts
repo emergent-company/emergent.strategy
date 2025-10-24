@@ -11,7 +11,7 @@ interface MockQueryResult<T = unknown> {
 }
 
 function createMockClient(projectId: string, projectName: string, orgId: string, includeUser = true) {
-    const projectRow = { id: projectId, name: projectName, org_id: orgId };
+    const projectRow = { id: projectId, name: projectName, organization_id: orgId };
     const query = vi.fn(async (sql: string): Promise<MockQueryResult> => {
         const trimmed = sql.trim().toUpperCase();
 

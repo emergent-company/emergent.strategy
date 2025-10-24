@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { GraphService } from '../src/modules/graph/graph.service';
 
 // Minimal in-memory structures to simulate rows
-interface ObjRow { id: string; canonical_id: string; version: number; type: string; key: string | null; properties: any; labels: string[]; deleted_at: Date | null; org_id: string | null; project_id: string | null; supersedes_id: string | null; created_at: Date; }
-interface RelRow { id: string; canonical_id: string; version: number; type: string; src_id: string; dst_id: string; properties: any; deleted_at: Date | null; org_id: string | null; project_id: string | null; supersedes_id: string | null; weight: number | null; valid_from: Date | null; valid_to: Date | null; created_at: Date; }
+interface ObjRow { id: string; canonical_id: string; version: number; type: string; key: string | null; properties: any; labels: string[]; deleted_at: Date | null; organization_id: string | null; project_id: string | null; supersedes_id: string | null; created_at: Date; }
+interface RelRow { id: string; canonical_id: string; version: number; type: string; src_id: string; dst_id: string; properties: any; deleted_at: Date | null; organization_id: string | null; project_id: string | null; supersedes_id: string | null; weight: number | null; valid_from: Date | null; valid_to: Date | null; created_at: Date; }
 
 // Deterministic ID generator sequence
 let idCounter = 0;
@@ -36,7 +36,7 @@ class MockDB {
             const [type, key, properties, labels, version, canonical, supersedes, org, project, maybeDeleted] = params;
             // If the SQL text includes 'now()' treat as tombstone regardless of param (some branches pass NULL param then set now())
             const isTombstone = /now\(\)/i.test(sql) || !!maybeDeleted;
-            const row: ObjRow = { id: newId('obj'), org_id: org, project_id: project, canonical_id: canonical, supersedes_id: supersedes, version, type, key, properties, labels, deleted_at: isTombstone ? new Date() : null, created_at: new Date() } as any;
+            const row: ObjRow = { id: newId('obj'), organization_id: org, project_id: project, canonical_id: canonical, supersedes_id: supersedes, version, type, key, properties, labels, deleted_at: isTombstone ? new Date() : null, created_at: new Date() } as any;
             this.objects.push(row);
             return { rowCount: 1, rows: [row] };
         }
@@ -52,10 +52,10 @@ class MockDB {
             return { rowCount: head ? 1 : 0, rows: head ? [head] : [] };
         }
         // Insert relationship tombstone or restore (tombstone uses now()). Updated signature includes branch_id at position 3.
-        if (/^INSERT INTO kb\.graph_relationships\(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at\)/i.test(sql)) {
+        if (/^INSERT INTO kb\.graph_relationships\((org_id|organization_id), project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at\)/i.test(sql)) {
             const [org, project, branch_id, type, src_id, dst_id, properties, version, canonical, supersedes, maybeDeleted] = params;
             const isTombstone = /now\(\)/i.test(sql) || !!maybeDeleted;
-            const row: RelRow = { id: newId('rel'), org_id: org, project_id: project, type, src_id, dst_id, properties, version, canonical_id: canonical, supersedes_id: supersedes, deleted_at: isTombstone ? new Date() : null, weight: null, valid_from: null, valid_to: null, created_at: new Date() };
+            const row: RelRow = { id: newId('rel'), organization_id: org, project_id: project, type, src_id, dst_id, properties, version, canonical_id: canonical, supersedes_id: supersedes, deleted_at: isTombstone ? new Date() : null, weight: null, valid_from: null, valid_to: null, created_at: new Date() };
             this.rels.push(row);
             return { rowCount: 1, rows: [row] };
         }
@@ -83,12 +83,12 @@ describe('GraphService delete/restore edge paths', () => {
         service = new GraphService(db as any, schema as any);
         // Seed a live object head (version 1)
         const canonical = newId('canon');
-        const row: ObjRow = { id: newId('obj'), canonical_id: canonical, supersedes_id: null, version: 1, type: 'Thing', key: 'k1', properties: {}, labels: [], deleted_at: null, org_id: null, project_id: null, created_at: new Date() } as any;
+        const row: ObjRow = { id: newId('obj'), canonical_id: canonical, supersedes_id: null, version: 1, type: 'Thing', key: 'k1', properties: {}, labels: [], deleted_at: null, organization_id: null, project_id: null, created_at: new Date() } as any;
         (db.objects as ObjRow[]).push(row);
         baseObjId = row.id; objCanonical = canonical;
         // Seed a live relationship head
         const relCanon = newId('rcanon');
-        const relRow: RelRow = { id: newId('rel'), canonical_id: relCanon, supersedes_id: null, version: 1, type: 'LINKS', src_id: baseObjId, dst_id: baseObjId + 'x', properties: {}, deleted_at: null, org_id: null, project_id: 'p1', weight: null, valid_from: null, valid_to: null, created_at: new Date() };
+        const relRow: RelRow = { id: newId('rel'), canonical_id: relCanon, supersedes_id: null, version: 1, type: 'LINKS', src_id: baseObjId, dst_id: baseObjId + 'x', properties: {}, deleted_at: null, organization_id: null, project_id: 'p1', weight: null, valid_from: null, valid_to: null, created_at: new Date() };
         (db.rels as RelRow[]).push(relRow);
         relId = relRow.id; relCanonical = relCanon;
     });

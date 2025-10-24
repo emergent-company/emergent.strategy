@@ -67,7 +67,7 @@ async function seedOrgProject() {
         try {
             const orgRes = await pool.query<{ id: string }>(`INSERT INTO kb.orgs(name) VALUES ($1) RETURNING id`, ['merge-org-' + Date.now()]);
             seededOrgId = orgRes.rows[0].id;
-            const projRes = await pool.query<{ id: string }>(`INSERT INTO kb.projects(org_id, name) VALUES ($1,$2) RETURNING id`, [seededOrgId, 'merge-proj-' + Date.now()]);
+            const projRes = await pool.query<{ id: string }>(`INSERT INTO kb.projects(organization_id, name) VALUES ($1,$2) RETURNING id`, [seededOrgId, 'merge-proj-' + Date.now()]);
             seededProjectId = projRes.rows[0].id;
         } catch (e) {
             // eslint-disable-next-line no-console

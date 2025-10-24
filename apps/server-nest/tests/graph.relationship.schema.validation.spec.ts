@@ -37,10 +37,10 @@ class MockDb {
             .sort((a, b) => b.version - a.version);
           return { rows: existing.slice(0, 1), rowCount: existing.length ? 1 : 0 } as any;
         }
-        if (/INSERT INTO kb\.graph_relationships\(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, change_summary, content_hash\)/.test(sql)) {
+        if (/INSERT INTO kb\.graph_relationships\((org_id|organization_id), project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, change_summary, content_hash\)/.test(sql)) {
           const row = {
             id: 'rel-' + (this.rels.length + 1),
-            org_id: params?.[0],
+            organization_id: params?.[0],
             project_id: params?.[1],
             branch_id: params?.[2] ?? null,
             type: params?.[3],

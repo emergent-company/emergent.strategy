@@ -88,15 +88,9 @@ describe('AuthService mapClaims additional branches', () => {
     });
 
     it('crypto failure fallback UUID path', async () => {
-        // monkey patch require inside mapClaims deterministic path
-        const realCreateHash = require('crypto').createHash;
-        // Force createHash to throw
-        // @ts-ignore
-        require('crypto').createHash = () => { throw new Error('boom'); };
+        // Service now preserves sub as-is without UUID conversion
         // @ts-expect-error private access
         const u = svc.mapClaims({ sub: 'not-a-uuid', scope: MOCK_SCOPES.orgRead });
-        expect(u?.sub).toBe('00000000-0000-0000-0000-000000000001');
-        // restore
-        require('crypto').createHash = realCreateHash;
+        expect(u?.sub).toBe('not-a-uuid');
     });
 });

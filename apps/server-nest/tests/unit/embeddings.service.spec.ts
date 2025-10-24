@@ -15,58 +15,66 @@ vi.mock('@langchain/google-genai', () => {
 
 function build(configOverrides: Record<string, any> = {}) {
     const env = validate({
-        GOOGLE_API_KEY: configOverrides.GOOGLE_API_KEY,
+        EMBEDDING_PROVIDER: configOverrides.EMBEDDING_PROVIDER,
     });
     const config = new AppConfigService(env);
     const svc = new EmbeddingsService(config);
     return { config, svc };
 }
 
-describe('EmbeddingsService', () => {
+describe('EmbeddingsService (Legacy - use Vertex AI in production)', () => {
     const ORIGINAL_ENV = { ...process.env };
-    beforeEach(() => { vi.clearAllMocks(); });
+    beforeEach(() => {
+        vi.clearAllMocks();
+        delete process.env.GOOGLE_API_KEY;
+        delete process.env.EMBEDDING_PROVIDER;
+    });
     afterEach(() => { process.env = { ...ORIGINAL_ENV }; });
 
-    it('is disabled when GOOGLE_API_KEY missing', () => {
+    it('is disabled when EMBEDDING_PROVIDER not set to google/vertex', () => {
         const { svc } = build();
         expect(svc.isEnabled()).toBe(false);
     });
 
-    it('ensureClient throws when disabled', async () => {
+    it('ensureClient throws when disabled (no EMBEDDING_PROVIDER)', async () => {
         const { svc } = build();
         await expect(svc.embedQuery('hi')).rejects.toThrow(/Embeddings disabled/);
     });
 
+    it('ensureClient throws when enabled but GOOGLE_API_KEY missing', async () => {
+        const { svc } = build({ EMBEDDING_PROVIDER: 'google' });
+        await expect(svc.embedQuery('hi')).rejects.toThrow(/GOOGLE_API_KEY not set/);
+    });
+
     it('lazy initializes client and caches for subsequent calls (embedQuery)', async () => {
-        const { svc } = build({ GOOGLE_API_KEY: 'key' });
+        process.env.GOOGLE_API_KEY = 'test-key';
+        const { svc } = build({ EMBEDDING_PROVIDER: 'google' });
         const res = await svc.embedQuery('hello world');
         expect(res).toHaveLength(EMBEDDING_DIMENSION);
-        // Second call should reuse same client (no additional initialization logs detectable here, so rely on import mock call count)
+        // Second call should reuse same client
         const res2 = await svc.embedQuery('second');
         expect(res2).toHaveLength(EMBEDDING_DIMENSION);
-        // Dynamic import executed once. Our mock class methods tracked: embedQuery called twice on same instance.
-        const { GoogleGenerativeAIEmbeddings }: any = await import('@langchain/google-genai');
-        // We cannot directly inspect instance count easily; instead assert output arrays are consistent length.
         expect(res[0]).toBe(0);
     });
 
     it('embedDocuments returns expected shape and uses existing client', async () => {
-        const { svc } = build({ GOOGLE_API_KEY: 'key' });
+        process.env.GOOGLE_API_KEY = 'test-key';
+        const { svc } = build({ EMBEDDING_PROVIDER: 'google' });
         const docs = await svc.embedDocuments(['a', 'b']);
         expect(docs).toHaveLength(2);
         expect(docs[0]).toHaveLength(EMBEDDING_DIMENSION);
         expect(docs[1]).toHaveLength(EMBEDDING_DIMENSION);
         // Call query to confirm reuse
         await svc.embedQuery('c');
-        // No explicit assertion on reuse beyond absence of errors; behavior implicitly covered by mock not re-created.
     });
 
     it('propagates underlying client errors', async () => {
-        const { svc } = build({ GOOGLE_API_KEY: 'key' });
+        process.env.GOOGLE_API_KEY = 'test-key';
+        const { svc } = build({ EMBEDDING_PROVIDER: 'google' });
         // Force client creation
         // @ts-expect-error accessing private for test
         const client = await svc.ensureClient();
-        // Override the instance method (mock class defines embedQuery as instance property not prototype)
+        // Override the instance method
         (client.embedQuery as any) = vi.fn(async () => { throw new Error('underlying fail'); });
         await expect(svc.embedQuery('boom')).rejects.toThrow(/underlying fail/);
     });
