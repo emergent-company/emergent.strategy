@@ -13,7 +13,7 @@ import { BadRequestException } from '@nestjs/common';
 async function upsertRelType(db: DatabaseService, projectId: string | null, type: string, multiplicity: { src: 'one' | 'many'; dst: 'one' | 'many' }) {
     // Insert a base row; simplest approach: always insert new version head
     await db.query(
-        `INSERT INTO kb.relationship_type_schemas(org_id, project_id, type, version, supersedes_id, canonical_id, json_schema, multiplicity)
+        `INSERT INTO kb.relationship_type_schemas(organization_id, project_id, type, version, supersedes_id, canonical_id, json_schema, multiplicity)
      VALUES ($1,$2,$3,1, NULL, gen_random_uuid(), $4, $5)
      ON CONFLICT DO NOTHING`,
         [null, projectId, type, { type: 'object', additionalProperties: true }, multiplicity]
@@ -30,9 +30,9 @@ let seedSeq = 0;
 async function seedObjects(graph: GraphService, orgId: string, projectId: string) {
     // Use a monotonically increasing prefix to ensure (project_id,type,key) uniqueness across tests.
     const prefix = `t${seedSeq++}`;
-    const a = await graph.createObject({ type: 'Node', key: `${prefix}-a`, properties: {}, org_id: orgId, project_id: projectId } as any);
-    const b = await graph.createObject({ type: 'Node', key: `${prefix}-b`, properties: {}, org_id: orgId, project_id: projectId } as any);
-    const c = await graph.createObject({ type: 'Node', key: `${prefix}-c`, properties: {}, org_id: orgId, project_id: projectId } as any);
+    const a = await graph.createObject({ type: 'Node', key: `${prefix}-a`, properties: {}, organization_id: orgId, project_id: projectId } as any);
+    const b = await graph.createObject({ type: 'Node', key: `${prefix}-b`, properties: {}, organization_id: orgId, project_id: projectId } as any);
+    const c = await graph.createObject({ type: 'Node', key: `${prefix}-c`, properties: {}, organization_id: orgId, project_id: projectId } as any);
     return { a, b, c };
 }
 

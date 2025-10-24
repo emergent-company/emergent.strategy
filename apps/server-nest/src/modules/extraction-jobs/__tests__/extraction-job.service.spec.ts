@@ -20,7 +20,7 @@ type MockQueryHandler = (sql: string, params?: any[]) => any;
 
 describe('ExtractionJobService', () => {
     let service: ExtractionJobService;
-    let mockDb: { query: ReturnType<typeof vi.fn>; setTenantContext: ReturnType<typeof vi.fn> };
+    let mockDb: { query: ReturnType<typeof vi.fn>; setTenantContext: ReturnType<typeof vi.fn>; isOnline: ReturnType<typeof vi.fn> };
     let mockConfig: AppConfigService;
     let queuedResponses: MockQueryHandler[];
 
@@ -33,7 +33,6 @@ describe('ExtractionJobService', () => {
         { column_name: 'id', data_type: 'uuid' },
         { column_name: 'organization_id', data_type: 'uuid' },
         { column_name: 'project_id', data_type: 'uuid' },
-        { column_name: 'tenant_id', data_type: 'uuid' },
         { column_name: 'source_type', data_type: 'text' },
         { column_name: 'source_id', data_type: 'uuid' },
         { column_name: 'source_metadata', data_type: 'jsonb' },
@@ -56,7 +55,6 @@ describe('ExtractionJobService', () => {
         id: mockJobId,
         organization_id: mockOrganizationId,
         project_id: mockProjectId,
-        tenant_id: mockOrganizationId,
         source_type: ExtractionSourceType.DOCUMENT,
         source_id: 'doc-123',
         source_metadata: { filename: 'test.pdf' },
@@ -103,10 +101,12 @@ describe('ExtractionJobService', () => {
         });
 
         const setTenantContextMock = vi.fn().mockResolvedValue(undefined);
+        const isOnlineMock = vi.fn().mockReturnValue(true);
 
         mockDb = {
             query: queryMock,
             setTenantContext: setTenantContextMock,
+            isOnline: isOnlineMock,
         };
 
         service = new ExtractionJobService(mockDb as unknown as DatabaseService, mockConfig);
@@ -147,7 +147,6 @@ describe('ExtractionJobService', () => {
                 JSON.stringify(createDto.source_metadata),
                 'doc-123',
                 mockUserId,
-                mockOrganizationId,
             ]);
             expect(result.id).toBe(mockJobId);
             expect(result.organization_id).toBe(mockOrganizationId);

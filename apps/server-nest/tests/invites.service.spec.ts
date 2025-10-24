@@ -15,7 +15,7 @@ class MockDb {
         if (sql.startsWith('INSERT INTO kb.invites')) {
             return Promise.resolve({ rows: [this.insertResult], rowCount: 1 });
         }
-        if (sql.startsWith('SELECT id, org_id, project_id, email, role, status, token FROM kb.invites')) {
+        if (sql.startsWith('SELECT id, organization_id, project_id, email, role, status, token FROM kb.invites')) {
             if (!this.selectInvite) return Promise.resolve({ rows: [], rowCount: 0 });
             return Promise.resolve({ rows: [this.selectInvite], rowCount: 1 });
         }
@@ -51,7 +51,7 @@ describe('InvitesService', () => {
     });
 
     it('creates invite with normalized email', async () => {
-        db.insertResult = { id: 'i1', org_id: 'org1', project_id: null, email: 'user@example.com', role: 'org_admin', status: 'pending', token: 'tkn' };
+        db.insertResult = { id: 'i1', organization_id: 'org1', project_id: null, email: 'user@example.com', role: 'org_admin', status: 'pending', token: 'tkn' };
         const res = await service.create('org1', 'org_admin', 'User@Example.COM', null);
         expect(res).toMatchObject({ id: 'i1', email: 'user@example.com', role: 'org_admin', status: 'pending' });
         // ensure insert recorded
@@ -63,18 +63,18 @@ describe('InvitesService', () => {
     });
 
     it('accepts org_admin invite and creates membership', async () => {
-        db.selectInvite = { id: 'i1', org_id: 'org1', project_id: null, email: 'user@example.com', role: 'org_admin', status: 'pending', token: 'tok' };
+        db.selectInvite = { id: 'i1', organization_id: 'org1', project_id: null, email: 'user@example.com', role: 'org_admin', status: 'pending', token: 'tok' };
         const out = await service.accept('tok', 'user1');
         expect(out).toEqual({ status: 'accepted' });
         const client = await db.getClient();
-        const txSqls = client.queries.map(q => q.sql);
+        const txSqls = client.queries.map((q: any) => q.sql);
         expect(txSqls).toContain('BEGIN');
-        expect(txSqls.some(s => s.startsWith('INSERT INTO kb.organization_memberships'))).toBe(true);
+        expect(txSqls.some((s: any) => s.startsWith('INSERT INTO kb.organization_memberships'))).toBe(true);
         expect(txSqls).toContain('COMMIT');
     });
 
     it('accepts project invite and inserts project membership', async () => {
-        db.selectInvite = { id: 'i2', org_id: 'org1', project_id: 'proj1', email: 'user@example.com', role: 'project_user', status: 'pending', token: 'tok2' };
+        db.selectInvite = { id: 'i2', organization_id: 'org1', project_id: 'proj1', email: 'user@example.com', role: 'project_user', status: 'pending', token: 'tok2' };
         const out = await service.accept('tok2', 'user2');
         expect(out).toEqual({ status: 'accepted' });
         const client = await db.getClient();
@@ -82,7 +82,7 @@ describe('InvitesService', () => {
     });
 
     it('rejects unsupported non-admin org invite without project', async () => {
-        db.selectInvite = { id: 'i3', org_id: 'org1', project_id: null, email: 'user@example.com', role: 'project_user', status: 'pending', token: 'tok3' };
+        db.selectInvite = { id: 'i3', organization_id: 'org1', project_id: null, email: 'user@example.com', role: 'project_user', status: 'pending', token: 'tok3' };
         await expect(service.accept('tok3', 'user3')).rejects.toBeInstanceOf(BadRequestException);
     });
 
@@ -92,7 +92,7 @@ describe('InvitesService', () => {
     });
 
     it('rejects already accepted invite', async () => {
-        db.selectInvite = { id: 'i4', org_id: 'org1', project_id: null, email: 'user@example.com', role: 'org_admin', status: 'accepted', token: 'tok4' };
+        db.selectInvite = { id: 'i4', organization_id: 'org1', project_id: null, email: 'user@example.com', role: 'org_admin', status: 'accepted', token: 'tok4' };
         await expect(service.accept('tok4', 'userZ')).rejects.toBeInstanceOf(BadRequestException);
     });
 });

@@ -27,9 +27,9 @@ class MockDatabaseService implements Partial<DatabaseService> {
             return { rows: found as any, rowCount: found.length, command: 'SELECT', fields: [], oid: 0 };
         }
         if (norm.startsWith('insert into kb.branches')) {
-            const [org_id, project_id, name, parent_branch_id] = params;
+            const [organization_id, project_id, name, parent_branch_id] = params;
             const id = `b_${this.branches.length + 1}`;
-            const row = { id, org_id, project_id, name, parent_branch_id, created_at: new Date().toISOString() };
+            const row = { id, organization_id, project_id, name, parent_branch_id, created_at: new Date().toISOString() };
             this.branches.push(row);
             return { rows: [row] as any, rowCount: 1, command: 'INSERT', fields: [], oid: 0 };
         }
@@ -67,7 +67,7 @@ class MockDatabaseService implements Partial<DatabaseService> {
                 return { rows: [], rowCount: 1, command: 'INSERT', fields: [], oid: 0 };
             }
         }
-        if (norm.startsWith('select id, org_id, project_id')) { // list queries
+        if (norm.startsWith('select id, organization_id, project_id')) { // list queries
             if (norm.includes('where project_id is not distinct from $1')) {
                 const [projectId] = params;
                 const rows = this.branches.filter(b => b.project_id === projectId);
@@ -92,7 +92,7 @@ describe('BranchService', () => {
     });
 
     it('creates a branch successfully', async () => {
-        const created = await service.create({ name: 'main', project_id: 'p1', org_id: 'o1' });
+        const created = await service.create({ name: 'main', project_id: 'p1', organization_id: 'o1' });
         expect(created.name).toBe('main');
         expect(created.project_id).toBe('p1');
         expect(created.id).toMatch(/^b_/);

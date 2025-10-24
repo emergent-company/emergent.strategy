@@ -78,7 +78,7 @@ export class IntegrationsService {
                 display_name,
                 description,
                 enabled,
-                org_id,
+                organization_id,
                 project_id,
                 settings_encrypted,
                 logo_url,
@@ -86,7 +86,7 @@ export class IntegrationsService {
                 created_by
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING 
-                id, name, display_name, description, enabled, org_id, project_id,
+                id, name, display_name, description, enabled, organization_id, project_id,
                 encode(settings_encrypted, 'base64') as settings_encrypted,
                 logo_url, webhook_secret, created_at, updated_at, created_by`,
             [
@@ -119,11 +119,11 @@ export class IntegrationsService {
     ): Promise<IntegrationDto> {
         const result = await this.db.query<any>(
             `SELECT 
-                id, name, display_name, description, enabled, org_id, project_id,
+                id, name, display_name, description, enabled, organization_id, project_id,
                 encode(settings_encrypted, 'base64') as settings_encrypted,
                 logo_url, webhook_secret, created_at, updated_at, created_by
              FROM kb.integrations 
-             WHERE name = $1 AND project_id = $2 AND org_id = $3`,
+             WHERE name = $1 AND project_id = $2 AND organization_id = $3`,
             [name, projectId, orgId]
         );
 
@@ -144,11 +144,11 @@ export class IntegrationsService {
     ): Promise<IntegrationDto> {
         const result = await this.db.query<any>(
             `SELECT 
-                id, name, display_name, description, enabled, org_id, project_id,
+                id, name, display_name, description, enabled, organization_id, project_id,
                 encode(settings_encrypted, 'base64') as settings_encrypted,
                 logo_url, webhook_secret, created_at, updated_at, created_by
              FROM kb.integrations 
-             WHERE id = $1 AND project_id = $2 AND org_id = $3`,
+             WHERE id = $1 AND project_id = $2 AND organization_id = $3`,
             [id, projectId, orgId]
         );
 
@@ -169,11 +169,11 @@ export class IntegrationsService {
     ): Promise<IntegrationDto[]> {
         let query = `
             SELECT 
-                id, name, display_name, description, enabled, org_id, project_id,
+                id, name, display_name, description, enabled, organization_id, project_id,
                 encode(settings_encrypted, 'base64') as settings_encrypted,
                 logo_url, webhook_secret, created_at, updated_at, created_by
             FROM kb.integrations 
-            WHERE project_id = $1 AND org_id = $2
+            WHERE project_id = $1 AND organization_id = $2
         `;
         const params: any[] = [projectId, orgId];
         let paramIndex = 3;
@@ -268,9 +268,9 @@ export class IntegrationsService {
         const result = await this.db.query<any>(
             `UPDATE kb.integrations 
              SET ${updates.join(', ')}
-             WHERE name = $${paramIndex} AND project_id = $${paramIndex + 1} AND org_id = $${paramIndex + 2}
+             WHERE name = $${paramIndex} AND project_id = $${paramIndex + 1} AND organization_id = $${paramIndex + 2}
              RETURNING 
-                id, name, display_name, description, enabled, org_id, project_id,
+                id, name, display_name, description, enabled, organization_id, project_id,
                 encode(settings_encrypted, 'base64') as settings_encrypted,
                 logo_url, webhook_secret, created_at, updated_at, created_by`,
             params
@@ -296,7 +296,7 @@ export class IntegrationsService {
 
         const result = await this.db.query(
             `DELETE FROM kb.integrations 
-             WHERE name = $1 AND project_id = $2 AND org_id = $3`,
+             WHERE name = $1 AND project_id = $2 AND organization_id = $3`,
             [name, projectId, orgId]
         );
 
@@ -607,7 +607,7 @@ export class IntegrationsService {
             display_name: row.display_name,
             description: row.description,
             enabled: row.enabled,
-            org_id: row.org_id,
+            organization_id: row.organization_id,
             project_id: row.project_id,
             logo_url: row.logo_url,
             webhook_secret: row.webhook_secret,

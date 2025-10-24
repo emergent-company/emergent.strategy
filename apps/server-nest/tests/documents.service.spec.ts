@@ -145,7 +145,7 @@ describe('DocumentsService extended behaviour', () => {
         const svc = new DocumentsService(db as any);
         expect(await svc.getProjectOrg('p1')).toBeNull();
         // second handler returns row
-        db.handlers.unshift({ match: 'FROM kb.projects', respond: () => ({ rows: [{ org_id: 'org-77' }], rowCount: 1 }) } as any);
+        db.handlers.unshift({ match: 'FROM kb.projects', respond: () => ({ rows: [{ organization_id: 'org-77' }], rowCount: 1 }) } as any);
         expect(await svc.getProjectOrg('p1')).toBe('org-77');
     });
 

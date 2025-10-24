@@ -32,6 +32,7 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
             extractionWorkerBatchSize: 1,
             extractionWorkerPollIntervalMs: 1000,
             extractionDefaultTemplatePackId: 'pack-default',
+            extractionBasePrompt: 'Default base prompt', // Used as fallback when kb.settings is empty
         } as any;
 
         const dbMock = {
@@ -111,7 +112,6 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
                 source_type: 'document',
                 started_at: '2025-10-16T15:59:53.465Z',
                 organization_id: 'org-123',
-                tenant_id: 'org-123',
                 project_id: 'project-123',
             };
 
@@ -149,7 +149,6 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
                         source_type: 'document',
                         started_at: null,
                         organization_id: null,
-                        tenant_id: null,
                         project_id: null,
                     },
                 ],
@@ -161,29 +160,25 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
             expect(databaseService.query).toHaveBeenCalledTimes(1);
         });
 
-        it('falls back to tenant_id when organization_id is null', async () => {
+        it('skips job when organization_id is null', async () => {
             const orphanJob = {
                 id: 'job-orphan-3',
                 source_type: 'document',
                 started_at: '2025-10-16T15:59:53.465Z',
                 organization_id: null,
-                tenant_id: 'tenant-789',
                 project_id: 'project-789',
             };
 
             databaseService.query
                 .mockResolvedValueOnce({ rowCount: 1, rows: [orphanJob] })
-                .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: orphanJob.id }] });
+                .mockResolvedValueOnce({ rowCount: 0, rows: [] });
 
             databaseService.runWithTenantContext.mockImplementation(async (_org, _project, fn) => fn());
 
             await (service as any).recoverOrphanedJobs();
 
-            expect(databaseService.runWithTenantContext).toHaveBeenCalledWith(
-                orphanJob.tenant_id,
-                orphanJob.project_id,
-                expect.any(Function)
-            );
+            // Should NOT call runWithTenantContext when organization_id is null
+            expect(databaseService.runWithTenantContext).not.toHaveBeenCalled();
         });
     });
 
@@ -264,7 +259,7 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
         const baseJob = {
             id: 'job-1',
             project_id: 'project-123',
-            org_id: 'org-123',
+            organization_id: 'org-123',
             source_type: 'document',
             extraction_config: {},
             subject_id: 'user-999',
@@ -285,7 +280,8 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
                             default_prompt_key: null,
                         },
                     ],
-                });
+                })
+                .mockResolvedValueOnce({ rowCount: 0, rows: [] }); // Base prompt query from kb.settings
 
             templatePackService.assignTemplatePackToProject.mockResolvedValue({ success: true });
 
@@ -293,14 +289,15 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
 
             expect(templatePackService.assignTemplatePackToProject).toHaveBeenCalledWith(
                 baseJob.project_id,
-                baseJob.org_id,
-                baseJob.org_id,
+                baseJob.organization_id,
+                baseJob.organization_id,
                 baseJob.subject_id,
                 { template_pack_id: configService.extractionDefaultTemplatePackId }
             );
-            expect(result.prompt).toBe('Prompt text');
+            // basePrompt comes from config.extractionBasePrompt when kb.settings is empty
+            expect(result.prompt).toBe('Default base prompt');
             expect(result.objectSchemas).toBeDefined();
-            expect(databaseService.query).toHaveBeenCalledTimes(2);
+            expect(databaseService.query).toHaveBeenCalledTimes(3);
         });
 
         it('returns null when no default template pack is configured', async () => {
@@ -337,16 +334,18 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
                             default_prompt_key: null,
                         },
                     ],
-                });
+                })
+                .mockResolvedValueOnce({ rowCount: 0, rows: [] }); // Base prompt query from kb.settings
 
             templatePackService.assignTemplatePackToProject.mockRejectedValueOnce(new ConflictException('already'));
 
             const result = await (service as any).loadExtractionConfig(baseJob);
 
-            expect(result.prompt).toBe('sys\nuser');
+            // basePrompt comes from config.extractionBasePrompt when kb.settings is empty
+            expect(result.prompt).toBe('Default base prompt');
             expect(result.objectSchemas).toBeDefined();
             expect(templatePackService.assignTemplatePackToProject).toHaveBeenCalledTimes(1);
-            expect(databaseService.query).toHaveBeenCalledTimes(2);
+            expect(databaseService.query).toHaveBeenCalledTimes(3);
         });
     });
 

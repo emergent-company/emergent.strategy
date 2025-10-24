@@ -1,6 +1,5 @@
 export interface Notification {
     id: string;
-    tenant_id: string;
     organization_id: string | null;
     project_id: string | null;
     subject_id: string;

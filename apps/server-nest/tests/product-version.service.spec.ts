@@ -44,7 +44,7 @@ describe('ProductVersionService', () => {
             { text: /SELECT id FROM kb\.product_versions WHERE project_id/, result: { rows: [], rowCount: 0 } },
             {
                 text: /INSERT INTO kb\.product_versions/,
-                result: { rows: [{ id: uuid(100), org_id: orgId, project_id: projectId, name: 'v1.0.0', description: 'First release', base_product_version_id: null, created_at: '2025-01-01T00:00:00Z' }], rowCount: 1 },
+                result: { rows: [{ id: uuid(100), organization_id: orgId, project_id: projectId, name: 'v1.0.0', description: 'First release', base_product_version_id: null, created_at: '2025-01-01T00:00:00Z' }], rowCount: 1 },
             },
             {
                 text: /SELECT DISTINCT ON.*canonical_id.*FROM kb\.graph_objects.*WHERE project_id/s,
@@ -101,7 +101,7 @@ describe('ProductVersionService', () => {
             { text: /SELECT id FROM kb\.product_versions WHERE id/, result: { rows: [{ id: baseId }], rowCount: 1 } },
             {
                 text: /INSERT INTO kb\.product_versions/,
-                result: { rows: [{ id: uuid(101), org_id: orgId, project_id: projectId, name: 'v2.0.0', description: null, base_product_version_id: baseId, created_at: '2025-01-02T00:00:00Z' }], rowCount: 1 },
+                result: { rows: [{ id: uuid(101), organization_id: orgId, project_id: projectId, name: 'v2.0.0', description: null, base_product_version_id: baseId, created_at: '2025-01-02T00:00:00Z' }], rowCount: 1 },
             },
             { text: /SELECT DISTINCT ON.*canonical_id.*FROM kb\.graph_objects/s, result: { rows: [{ canonical_id: uuid(10), id: uuid(12) }], rowCount: 1 } },
             { text: /INSERT INTO kb\.product_version_members/ },
@@ -121,7 +121,7 @@ describe('ProductVersionService', () => {
             { text: /SELECT id FROM kb\.product_versions WHERE project_id/, result: { rows: [], rowCount: 0 } },
             {
                 text: /INSERT INTO kb\.product_versions/,
-                result: { rows: [{ id: uuid(102), org_id: orgId, project_id: projectId, name: 'empty', description: null, base_product_version_id: null, created_at: '2025-01-03T00:00:00Z' }], rowCount: 1 },
+                result: { rows: [{ id: uuid(102), organization_id: orgId, project_id: projectId, name: 'empty', description: null, base_product_version_id: null, created_at: '2025-01-03T00:00:00Z' }], rowCount: 1 },
             },
             { text: /SELECT DISTINCT ON.*canonical_id.*FROM kb\.graph_objects/s, result: { rows: [], rowCount: 0 } },
             { text: /COMMIT/ },

@@ -74,12 +74,11 @@ export class DiscoveryJobService {
         // Create discovery job
         const jobResult = await this.db.query(
             `INSERT INTO kb.discovery_jobs (
-                tenant_id, organization_id, project_id,
+                organization_id, project_id,
                 status, config, kb_purpose, progress
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ) VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING id`,
             [
-                tenantId,
                 orgId,
                 projectId,
                 'pending',

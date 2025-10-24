@@ -48,10 +48,12 @@ describe('ChatService (unit)', () => {
         const { svc } = build();
         const uuid = '123e4567-e89b-12d3-a456-426614174000';
         expect(svc.mapUserId(uuid)).toBe(uuid);
-        const derived = svc.mapUserId('user@example.com');
-        expect(derived).toMatch(UUID_RE);
+        const email = 'user@example.com';
+        const derived = svc.mapUserId(email);
+        // Service now preserves sub as-is for direct ownership comparisons
+        expect(derived).toBe(email);
         // deterministic (same input -> same output)
-        expect(svc.mapUserId('user@example.com')).toBe(derived);
+        expect(svc.mapUserId(email)).toBe(email);
     });
 
     it('offline createConversationIfNeeded creates private conversation & listConversations returns it (shared empty)', async () => {

@@ -213,12 +213,11 @@ export class TemplatePackService {
             // Create assignment record
             const assignmentResult = await client.query<ProjectTemplatePackRow>(
                 `INSERT INTO kb.project_template_packs (
-                    tenant_id, organization_id, project_id, template_pack_id,
+                    organization_id, project_id, template_pack_id,
                     installed_by, active, customizations
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                ) VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING *`,
                 [
-                    tenantId,
                     orgId,
                     projectId,
                     dto.template_pack_id,
@@ -236,12 +235,11 @@ export class TemplatePackService {
 
                 await client.query(
                     `INSERT INTO kb.project_object_type_registry (
-                        tenant_id, organization_id, project_id, type, source,
+                        organization_id, project_id, type, source,
                         template_pack_id, json_schema, ui_config, extraction_config,
                         enabled, created_by
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                     [
-                        tenantId,
                         orgId,
                         projectId,
                         type,

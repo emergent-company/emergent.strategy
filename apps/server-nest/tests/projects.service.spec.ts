@@ -46,7 +46,7 @@ describe('ProjectsService', () => {
 
     it('list returns rows mapped when no orgId', async () => {
         const client = new FakeClient([
-            { text: /SELECT id, name, org_id FROM kb\.projects ORDER BY/, result: { rows: [{ id: uuid(1), name: 'P1', org_id: uuid(9) }], rowCount: 1 } },
+            { text: /SELECT id, name, organization_id.* FROM kb\.projects ORDER BY/, result: { rows: [{ id: uuid(1), name: 'P1', organization_id: uuid(9) }], rowCount: 1 } },
         ]);
         const svc = new ProjectsService(
             new FakeDb(() => client) as any,
@@ -91,7 +91,7 @@ describe('ProjectsService', () => {
         const client = new FakeClient([
             { text: /BEGIN/ },
             { text: /SELECT id FROM kb\.orgs/, result: { rows: [{ id: uuid(1) }], rowCount: 1 } },
-            { text: /INSERT INTO kb\.projects/, result: { rows: [{ id: uuid(2), name: 'Proj', org_id: uuid(1) }], rowCount: 1 } },
+            { text: /INSERT INTO kb\.projects/, result: { rows: [{ id: uuid(4), name: 'Proj3', organization_id: uuid(1) }], rowCount: 1 } },
             { text: /COMMIT/ },
         ]);
         const templatePacks = noopTemplatePacks();
@@ -111,7 +111,7 @@ describe('ProjectsService', () => {
         const client = new FakeClient([
             { text: /BEGIN/ },
             { text: /SELECT id FROM kb\.orgs/, result: { rows: [{ id: uuid(1) }], rowCount: 1 } },
-            { text: /INSERT INTO kb\.projects/, result: { rows: [{ id: uuid(3), name: 'Proj2', org_id: uuid(1) }], rowCount: 1 } },
+            { text: /INSERT INTO kb\.projects/, result: { rows: [{ id: uuid(3), name: 'Proj2', organization_id: uuid(1) }], rowCount: 1 } },
             { text: /INSERT INTO core\.user_profiles/ },
             { text: /INSERT INTO kb\.project_memberships/ },
             { text: /COMMIT/ },
@@ -186,7 +186,7 @@ describe('ProjectsService', () => {
         const client = new FakeClient([
             { text: /BEGIN/ },
             { text: /SELECT id FROM kb\.orgs/, result: { rows: [{ id: uuid(5) }], rowCount: 1 } },
-            { text: /INSERT INTO kb\.projects/, result: { rows: [{ id: uuid(6), name: 'Proj-default', org_id: uuid(5) }], rowCount: 1 } },
+            { text: /INSERT INTO kb\.projects/, result: { rows: [{ id: uuid(6), name: 'Proj-default', organization_id: uuid(5) }], rowCount: 1 } },
             { text: /COMMIT/ },
         ]);
         const templatePacks = {

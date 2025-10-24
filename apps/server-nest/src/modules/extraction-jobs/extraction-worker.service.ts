@@ -92,7 +92,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     private stepCounter = 0;
 
     private getOrganizationId(job: ExtractionJobDto): string | null {
-        return job.organization_id ?? job.org_id ?? null;
+        return job.organization_id ?? job.organization_id ?? null;
     }
 
     async onModuleInit() {
@@ -295,7 +295,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             metadata: {
                 source_type: job.source_type,
                 source_id: job.source_id,
-                organization_id: job.organization_id ?? job.org_id,
+                organization_id: job.organization_id ?? job.organization_id,
             },
         });
 
@@ -313,7 +313,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 source_type: job.source_type,
                 source_id: job.source_id,
                 project_id: job.project_id,
-                organization_id: job.organization_id ?? job.org_id,
+                organization_id: job.organization_id ?? job.organization_id,
             },
         });
 
@@ -381,7 +381,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             metadata: {
                 source_type: job.source_type,
                 project_id: job.project_id,
-                organization_id: job.organization_id ?? job.org_id ?? null,
+                organization_id: job.organization_id ?? job.organization_id ?? null,
             },
         });
 
@@ -483,7 +483,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             let availableTags: string[] = [];
             try {
                 const ctx = {
-                    orgId: job.organization_id ?? job.org_id,
+                    orgId: job.organization_id ?? job.organization_id,
                     projectId: job.project_id,
                 };
                 availableTags = await this.graphService.getAllTags(ctx);
@@ -826,7 +826,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
                         try {
                             const graphObject = await this.graphService.createObject({
-                                org_id: job.org_id,
+                                org_id: job.organization_id,
                                 project_id: job.project_id,
                                 type: entity.type_name,
                                 key: objectKey,
@@ -875,7 +875,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                                 },
                                 durationMs: Date.now() - objectCreationStartTime,
                                 metadata: {
-                                    org_id: job.org_id,
+                                    org_id: job.organization_id,
                                     project_id: job.project_id,
                                     confidence: finalConfidence,
                                 },
@@ -919,7 +919,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                                         },
                                         durationMs: Date.now() - objectCreationStartTime,
                                         metadata: {
-                                            org_id: job.org_id,
+                                            org_id: job.organization_id,
                                             project_id: job.project_id,
                                         },
                                     });
@@ -933,7 +933,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                                     try {
                                         // Find the existing object by key
                                         const existingResult = await this.db.runWithTenantContext(
-                                            job.org_id,
+                                            job.organization_id,
                                             job.project_id,
                                             async () => {
                                                 return this.db.query<{
@@ -1047,7 +1047,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                                             },
                                             durationMs: Date.now() - objectCreationStartTime,
                                             metadata: {
-                                                org_id: job.org_id,
+                                                org_id: job.organization_id,
                                                 project_id: job.project_id,
                                                 confidence_before: existingProps._extraction_confidence,
                                                 confidence_after: mergedProperties._extraction_confidence,
@@ -1305,7 +1305,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         debugInfo.provider = providerName;
         debugInfo.job_id = job.id;
         debugInfo.project_id = job.project_id;
-        debugInfo.organization_id = job.organization_id ?? job.org_id ?? null;
+        debugInfo.organization_id = job.organization_id ?? job.organization_id ?? null;
         debugInfo.job_started_at = new Date(startTime).toISOString();
         debugInfo.job_completed_at = new Date(startTime + durationMs).toISOString();
         debugInfo.job_duration_ms = durationMs;
@@ -1444,10 +1444,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 return { prompt: null, objectSchemas: {} };
             }
 
-            const tenantId = (job as unknown as { tenant_id?: string }).tenant_id ?? organizationId;
             const userId = job.subject_id || (job as unknown as { created_by?: string }).created_by || SYSTEM_USER_ID;
 
-            this.logger.debug(`[loadExtractionPrompt] Auto-install params: projectId=${job.project_id}, orgId=${organizationId}, tenantId=${tenantId}, userId=${userId}, templatePackId=${defaultTemplatePackId}`);
+            this.logger.debug(`[loadExtractionPrompt] Auto-install params: projectId=${job.project_id}, orgId=${organizationId}, userId=${userId}, templatePackId=${defaultTemplatePackId}`);
 
             try {
                 this.logger.log(
@@ -1456,7 +1455,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 await this.templatePacks.assignTemplatePackToProject(
                     job.project_id,
                     organizationId,
-                    tenantId,
+                    organizationId,
                     userId,
                     { template_pack_id: defaultTemplatePackId }
                 );

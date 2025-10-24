@@ -30,7 +30,6 @@ export interface TemplatePackRow {
 
 export interface ProjectTemplatePackRow {
     id: string;
-    tenant_id: string;
     organization_id: string;
     project_id: string;
     template_pack_id: string;
@@ -48,7 +47,6 @@ export interface ProjectTemplatePackRow {
 
 export interface ProjectTypeRegistryRow {
     id: string;
-    tenant_id: string;
     organization_id: string;
     project_id: string;
     type: string;

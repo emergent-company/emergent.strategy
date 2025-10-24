@@ -39,7 +39,7 @@ export class MonitoringLoggerService {
             const result = await this.db.query(
                 `INSERT INTO kb.system_process_logs (
                     process_id, process_type, level, message, metadata,
-                    org_id, project_id, timestamp
+                    organization_id, project_id, timestamp
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
                 RETURNING id`,
                 [
@@ -73,7 +73,7 @@ export class MonitoringLoggerService {
             const result = await this.db.query(
                 `INSERT INTO kb.llm_call_logs (
                     process_id, process_type, request_payload, model_name,
-                    status, org_id, project_id, started_at
+                    status, organization_id, project_id, started_at
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
                 RETURNING id`,
                 [
@@ -165,7 +165,7 @@ export class MonitoringLoggerService {
                     response_payload, status, error_message, usage_metrics,
                     input_tokens, output_tokens, total_tokens, cost_usd,
                     started_at, completed_at, duration_ms,
-                    org_id, project_id
+                    organization_id, project_id
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
                 RETURNING id`,
                 [
