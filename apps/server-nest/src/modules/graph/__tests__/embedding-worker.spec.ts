@@ -36,7 +36,7 @@ describe('EmbeddingWorkerService', () => {
         const uniqueOrg = 'embed_worker_org_' + Math.random().toString(36).slice(2, 8);
         const org = await db.query(`INSERT INTO kb.orgs(name) VALUES ($1) RETURNING id`, [uniqueOrg]);
         const orgId = org.rows[0].id;
-        const proj = await db.query(`INSERT INTO kb.projects(org_id, name) VALUES ($1,'embed_worker_proj') RETURNING id`, [orgId]);
+        const proj = await db.query(`INSERT INTO kb.projects(organization_id, name) VALUES ($1,'embed_worker_proj') RETURNING id`, [orgId]);
         const projectId = proj.rows[0].id;
         // Randomize key to avoid potential advisory lock collisions with parallel tests
         const objKey = 'wk_' + Math.random().toString(36).slice(2, 10);

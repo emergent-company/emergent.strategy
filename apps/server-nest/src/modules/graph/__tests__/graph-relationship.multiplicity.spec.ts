@@ -22,7 +22,7 @@ async function upsertRelType(db: DatabaseService, projectId: string | null, type
 
 async function seedProject(db: DatabaseService) {
     const org = await db.query<{ id: string }>(`INSERT INTO kb.orgs(name) VALUES ($1) RETURNING id`, ['mult-org-' + Date.now()]);
-    const project = await db.query<{ id: string }>(`INSERT INTO kb.projects(org_id, name) VALUES ($1,$2) RETURNING id`, [org.rows[0].id, 'proj-' + Date.now()]);
+    const project = await db.query<{ id: string }>(`INSERT INTO kb.projects(organization_id, name) VALUES ($1,$2) RETURNING id`, [org.rows[0].id, 'proj-' + Date.now()]);
     return { orgId: org.rows[0].id, projectId: project.rows[0].id };
 }
 

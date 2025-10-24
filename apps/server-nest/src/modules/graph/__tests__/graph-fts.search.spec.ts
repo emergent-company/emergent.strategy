@@ -25,7 +25,7 @@ describe('Graph FTS Search', () => {
         await db.setTenantContext(null, null);
         const resOrg = await db.query(`INSERT INTO kb.orgs(name) VALUES ('fts_test_org') ON CONFLICT(name) DO UPDATE SET name=EXCLUDED.name RETURNING id`);
         orgId = resOrg.rows[0].id;
-        const resProj = await db.query(`INSERT INTO kb.projects(org_id, name) VALUES ($1,'fts_test_project') ON CONFLICT(org_id, lower(name)) DO UPDATE SET name=EXCLUDED.name RETURNING id`, [orgId]);
+        const resProj = await db.query(`INSERT INTO kb.projects(organization_id, name) VALUES ($1,'fts_test_project') ON CONFLICT(organization_id, lower(name)) DO UPDATE SET name=EXCLUDED.name RETURNING id`, [orgId]);
         projectId = resProj.rows[0].id;
     });
 

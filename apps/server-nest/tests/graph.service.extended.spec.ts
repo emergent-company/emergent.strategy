@@ -6,7 +6,7 @@ import { SchemaRegistryService } from '../src/modules/graph/schema-registry.serv
 // Lightweight helpers to fabricate rows
 const mkObj = (o: Partial<any> = {}) => ({
     id: o.id || crypto.randomUUID(),
-    org_id: o.org_id ?? null,
+    org_id: o.organization_id ?? null,
     project_id: o.project_id ?? null,
     canonical_id: o.canonical_id || o.id || crypto.randomUUID(),
     supersedes_id: o.supersedes_id ?? null,

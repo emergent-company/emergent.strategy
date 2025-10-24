@@ -23,7 +23,7 @@ async function ensureOrgProject(db: DatabaseService) {
     const proj = await db.query<{ id: string }>('SELECT id FROM kb.projects LIMIT 1');
     let projectId = proj.rowCount ? proj.rows[0].id : undefined;
     if (!projectId) {
-        const res = await db.query<{ id: string }>(`INSERT INTO kb.projects(org_id, name) VALUES($1,'test-project') RETURNING id`, [orgId]);
+        const res = await db.query<{ id: string }>(`INSERT INTO kb.projects(organization_id, name) VALUES($1,'test-project') RETURNING id`, [orgId]);
         projectId = res.rows[0].id;
     }
     return { orgId: orgId!, projectId: projectId! };
@@ -33,7 +33,7 @@ async function insertObject(db: DatabaseService, vec: number[], type: string): P
     const { orgId, projectId } = await ensureOrgProject(db);
     const id = uuid();
     const literal = '[' + vec.join(',') + ']';
-    await db.query(`INSERT INTO kb.graph_objects(id, org_id, project_id, type, key, properties, embedding_vec, canonical_id, version) VALUES ($1,$2,$3,$4,$5,'{}',$6::vector,$1,1)`, [id, orgId, projectId, type, type.toLowerCase() + '-key', literal]);
+    await db.query(`INSERT INTO kb.graph_objects(id, organization_id, project_id, type, key, properties, embedding_vec, canonical_id, version) VALUES ($1,$2,$3,$4,$5,'{}',$6::vector,$1,1)`, [id, orgId, projectId, type, type.toLowerCase() + '-key', literal]);
     return id;
 }
 
@@ -90,9 +90,9 @@ describe('GraphVectorSearchService', () => {
         const { orgId: o, projectId: p } = await ensureOrgProject(db); orgId = o; projectId = p;
         const baseLiteral = '[' + baseVec().join(',') + ']';
         const idAll = uuid();
-        await db.query(`INSERT INTO kb.graph_objects(id, org_id, project_id, type, key, labels, properties, embedding_vec, canonical_id, version) VALUES ($1,$2,$3,'LabType','lab-all','$4','{}',$5::vector,$1,1)`, [idAll, orgId, projectId, ['alpha', 'beta', 'shared'], baseLiteral]);
+        await db.query(`INSERT INTO kb.graph_objects(id, organization_id, project_id, type, key, labels, properties, embedding_vec, canonical_id, version) VALUES ($1,$2,$3,'LabType','lab-all','$4','{}',$5::vector,$1,1)`, [idAll, orgId, projectId, ['alpha', 'beta', 'shared'], baseLiteral]);
         const idAny = uuid();
-        await db.query(`INSERT INTO kb.graph_objects(id, org_id, project_id, type, key, labels, properties, embedding_vec, canonical_id, version) VALUES ($1,$2,$3,'LabType','lab-any','$4','{}',$5::vector,$1,1)`, [idAny, orgId, projectId, ['gamma', 'shared'], baseLiteral]);
+        await db.query(`INSERT INTO kb.graph_objects(id, organization_id, project_id, type, key, labels, properties, embedding_vec, canonical_id, version) VALUES ($1,$2,$3,'LabType','lab-any','$4','{}',$5::vector,$1,1)`, [idAny, orgId, projectId, ['gamma', 'shared'], baseLiteral]);
         const contain = await svc.searchByVector(baseVec(), { limit: 10, labelsAll: ['alpha', 'shared'] });
         expect(contain.find(r => r.id === idAll)).toBeTruthy();
         expect(contain.find(r => r.id === idAny)).toBeFalsy();
@@ -106,9 +106,9 @@ describe('GraphVectorSearchService', () => {
         if (!db.isOnline()) return;
         const baseLiteral2 = '[' + baseVec().join(',') + ']';
         const id1 = uuid();
-        await db.query(`INSERT INTO kb.graph_objects(id, org_id, project_id, type, key, properties, embedding_vec, canonical_id, version) VALUES ($1,NULL,NULL,'KeyType','pref-123','{}',$2::vector,$1,1)`, [id1, baseLiteral2]);
+        await db.query(`INSERT INTO kb.graph_objects(id, organization_id, project_id, type, key, properties, embedding_vec, canonical_id, version) VALUES ($1,NULL,NULL,'KeyType','pref-123','{}',$2::vector,$1,1)`, [id1, baseLiteral2]);
         const id2 = uuid();
-        await db.query(`INSERT INTO kb.graph_objects(id, org_id, project_id, type, key, properties, embedding_vec, canonical_id, version) VALUES ($1,NULL,NULL,'KeyType','other-123','{}',$2::vector,$1,1)`, [id2, baseLiteral2]);
+        await db.query(`INSERT INTO kb.graph_objects(id, organization_id, project_id, type, key, properties, embedding_vec, canonical_id, version) VALUES ($1,NULL,NULL,'KeyType','other-123','{}',$2::vector,$1,1)`, [id2, baseLiteral2]);
         const res = await svc.searchByVector(baseVec(), { limit: 10, keyPrefix: 'pref-' });
         expect(res.find(r => r.id === id1)).toBeTruthy();
         expect(res.find(r => r.id === id2)).toBeFalsy();

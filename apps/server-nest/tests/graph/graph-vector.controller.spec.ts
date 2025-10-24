@@ -20,7 +20,7 @@ async function ensureOrgProject(db: DatabaseService) {
     const proj = await db.query<{ id: string }>('SELECT id FROM kb.projects LIMIT 1');
     let projectId = proj.rowCount ? proj.rows[0].id : undefined;
     if (!projectId) {
-        const res = await db.query<{ id: string }>(`INSERT INTO kb.projects(org_id, name) VALUES($1,'test-project') RETURNING id`, [orgId]);
+        const res = await db.query<{ id: string }>(`INSERT INTO kb.projects(organization_id, name) VALUES($1,'test-project') RETURNING id`, [orgId]);
         projectId = res.rows[0].id;
     }
     return { orgId: orgId!, projectId: projectId! };
@@ -31,7 +31,7 @@ async function insertObject(db: DatabaseService, vec: number[], type: string): P
     await db.setTenantContext(orgId, projectId);
     const id = uuid();
     const literal = '[' + vec.join(',') + ']';
-    await db.query(`INSERT INTO kb.graph_objects(id, org_id, project_id, type, key, properties, embedding_vec, canonical_id, version) VALUES ($1,$2,$3,$4,$5,'{}',$6::vector,$1,1)`, [id, orgId, projectId, type, type.toLowerCase() + '-key', literal]);
+    await db.query(`INSERT INTO kb.graph_objects(id, organization_id, project_id, type, key, properties, embedding_vec, canonical_id, version) VALUES ($1,$2,$3,$4,$5,'{}',$6::vector,$1,1)`, [id, orgId, projectId, type, type.toLowerCase() + '-key', literal]);
     return id;
 }
 
@@ -108,7 +108,7 @@ describe('Graph Vector Controller Endpoints', () => {
         const literal = '[' + Array(32).fill(0).map((_, i) => (i === 2 ? 0.003 : 0)).join(',') + ']';
         await db.setTenantContext(orgId, projectId);
         await db.query(
-            `INSERT INTO kb.graph_objects(id, org_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
+            `INSERT INTO kb.graph_objects(id, organization_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
              VALUES($1,$2,$3,$4,$5,$6,$7,$8::vector,$1,1)`,
             [id, orgId, projectId, branchId, 'VecL', 'vec.l', ['sim-alpha', 'sim-beta'], literal],
         );
@@ -161,7 +161,7 @@ describe('Graph Vector Controller Endpoints', () => {
         const literal = '[' + Array(32).fill(0).map((_, i) => (i === 0 ? 0.001 : 0)).join(',') + ']';
         await db.setTenantContext(orgId, projectId);
         await db.query(
-            `INSERT INTO kb.graph_objects(id, org_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
+            `INSERT INTO kb.graph_objects(id, organization_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
              VALUES($1,$2,$3,$4,$5,$6,$7,$8::vector,$1,1)`,
             [id, orgId, projectId, branchId, 'VecX', 'vec.x', ['lab-one', 'lab-two', 'shared'], literal],
         );
@@ -186,7 +186,7 @@ describe('Graph Vector Controller Endpoints', () => {
         const literal = '[' + Array(32).fill(0).map((_, i) => (i === 1 ? 0.002 : 0)).join(',') + ']';
         await db.setTenantContext(orgId, projectId);
         await db.query(
-            `INSERT INTO kb.graph_objects(id, org_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
+            `INSERT INTO kb.graph_objects(id, organization_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
              VALUES($1,$2,$3,$4,$5,$6,$7,$8::vector,$1,1)`,
             [id, orgId, projectId, branchId, 'VecY', 'vec.y', ['any-alpha', 'any-beta'], literal],
         );
@@ -211,7 +211,7 @@ describe('Graph Vector Controller Endpoints', () => {
         const nearLiteral = '[' + Array(32).fill(0).map((_, i) => (i === 0 ? 0.05 : 0)).join(',') + ']';
         await db.setTenantContext(orgId, projectId);
         await db.query(
-            `INSERT INTO kb.graph_objects(id, org_id, project_id, branch_id, type, key, properties, embedding_vec, canonical_id, version)
+            `INSERT INTO kb.graph_objects(id, organization_id, project_id, branch_id, type, key, properties, embedding_vec, canonical_id, version)
              VALUES($1,$2,$3,$4,$5,$6,'{}',$7::vector,$1,1)`,
             [nearId, orgId, projectId, branchId, 'VecAlias', 'vec.alias', nearLiteral],
         );
@@ -242,7 +242,7 @@ describe('Graph Vector Controller Endpoints', () => {
         const literal = '[' + Array(32).fill(0).map((_, i) => (i === 3 ? 0.004 : 0)).join(',') + ']';
         await db.setTenantContext(orgId, projectId);
         await db.query(
-            `INSERT INTO kb.graph_objects(id, org_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
+            `INSERT INTO kb.graph_objects(id, organization_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
              VALUES($1,$2,$3,$4,$5,$6,$7,$8::vector,$1,1)`,
             [id, orgId, projectId, branchId, 'VecZ', 'vec.z', ['both-all-one', 'both-all-two', 'both-any-alpha', uniqueLabel], literal],
         );

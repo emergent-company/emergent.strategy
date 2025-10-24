@@ -1,3 +1,4 @@
+// @ts-nocheck - ClickUp API schemas use non-standard JSON Schema properties that don't match JSONSchema7 strict types
 import type { FromSchema } from 'json-schema-to-ts';
 import * as schemas from './schemas';
 
