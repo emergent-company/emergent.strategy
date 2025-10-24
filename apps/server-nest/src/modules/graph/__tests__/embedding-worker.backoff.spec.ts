@@ -28,7 +28,7 @@ describe('EmbeddingWorkerService Backoff', () => {
         const uniqueOrg = 'embed_backoff_org_' + Math.random().toString(36).slice(2, 8);
         const resOrg = await (service as any).db.query(`INSERT INTO kb.orgs(name) VALUES ($1) ON CONFLICT(name) DO UPDATE SET name=EXCLUDED.name RETURNING id`, [uniqueOrg]);
         const orgId = resOrg.rows[0].id;
-        const resProj = await (service as any).db.query(`INSERT INTO kb.projects(org_id, name) VALUES ($1,'embed_backoff_proj') RETURNING id`, [orgId]);
+        const resProj = await (service as any).db.query(`INSERT INTO kb.projects(organization_id, name) VALUES ($1,'embed_backoff_proj') RETURNING id`, [orgId]);
         const projectId = resProj.rows[0].id;
         // Clear any existing jobs from other test files to ensure deterministic dequeue ordering
         await (service as any).db.query('DELETE FROM kb.graph_embedding_jobs');

@@ -36,7 +36,7 @@ describe('Graph Embedding Enqueue', () => {
         const uniqueOrg = 'embedq_org_' + Math.random().toString(36).slice(2, 8);
         const resOrg = await (service as any).db.query(`INSERT INTO kb.orgs(name) VALUES ($1) ON CONFLICT(name) DO UPDATE SET name=EXCLUDED.name RETURNING id`, [uniqueOrg]);
         orgId = resOrg.rows[0].id;
-        const resProj = await (service as any).db.query(`INSERT INTO kb.projects(org_id, name) VALUES ($1,'embedq_proj') RETURNING id`, [orgId]);
+        const resProj = await (service as any).db.query(`INSERT INTO kb.projects(organization_id, name) VALUES ($1,'embedq_proj') RETURNING id`, [orgId]);
         projectId = resProj.rows[0].id;
         await (service as any).db.setTenantContext(orgId, projectId);
     });
