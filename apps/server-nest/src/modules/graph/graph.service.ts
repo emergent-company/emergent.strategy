@@ -265,7 +265,7 @@ export class GraphService {
                     await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`obj|${project_id}|${type}|${key}`]);
                     // Head = max(version) for (project_id,type,key)
                     const existing = await client.query<GraphObjectRow>(
-                        `SELECT id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, created_at
+                        `SELECT id, organization_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, created_at
                          FROM kb.graph_objects
                          WHERE project_id IS NOT DISTINCT FROM $1 AND branch_id IS NOT DISTINCT FROM $2 AND type=$3 AND key=$4
                          ORDER BY version DESC
@@ -290,9 +290,9 @@ export class GraphService {
                 // string as a later parameter ($11) that is explicitly text.
                 const ftsVectorSql = `to_tsvector('simple', coalesce($1,'') || ' ' || coalesce($2,'') || ' ' || coalesce($10,'') )`;
                 const row = await client.query<GraphObjectRow>(
-                    `INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, org_id, project_id, branch_id, change_summary, content_hash, fts, embedding, embedding_updated_at)
+                    `INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, organization_id, project_id, branch_id, change_summary, content_hash, fts, embedding, embedding_updated_at)
                      VALUES ($1,$2,$11,$3,$4,1,gen_random_uuid(),$5,$6,$7,$8,$9, ${ftsVectorSql}, NULL, NULL)
-                     RETURNING id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
+                     RETURNING id, organization_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
                     [type, key ?? null, properties, dedupedLabels, org_id, project_id, branch_id, changeSummary, hash, JSON.stringify(properties), status ?? null]
                 );
                 await client.query('COMMIT');
@@ -337,7 +337,7 @@ export class GraphService {
         return this.runWithRequestContext(ctx, undefined, undefined, async () => {
             const res = await this.db.query<GraphObjectRow & { revision_count: number }>(
                 `SELECT 
-                    o.id, o.org_id, o.project_id, o.canonical_id, o.supersedes_id, o.version, 
+                    o.id, o.organization_id, o.project_id, o.canonical_id, o.supersedes_id, o.version, 
                     o.type, o.key, o.properties, o.labels, o.deleted_at, o.created_at,
                     o.embedding, o.embedding_updated_at,
                     COALESCE(rc.revision_count, 1) as revision_count
@@ -457,7 +457,7 @@ export class GraphService {
                 JOIN kb.branch_lineage bl ON bl.branch_id = l.id
                 WHERE bl.ancestor_branch_id IS NOT NULL
             )
-            SELECT o.id, o.org_id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, 
+            SELECT o.id, o.organization_id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, 
                    o.version, o.type, o.key, o.properties, o.labels, o.deleted_at, 
                    o.change_summary, o.content_hash, o.created_at
             FROM lineage l
@@ -538,9 +538,9 @@ export class GraphService {
                 // IMPORTANT: Keep serialized properties text parameter separate from JSONB properties to avoid type inference conflicts.
                 const ftsVectorSql = `to_tsvector('simple', coalesce($13,'') || ' ' || coalesce($14,'') || ' ' || coalesce($15,'') )`;
                 const inserted = await client.query<GraphObjectRow>(
-                    `INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, supersedes_id, org_id, project_id, branch_id, deleted_at, change_summary, content_hash, fts, embedding, embedding_updated_at)
+                    `INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, supersedes_id, organization_id, project_id, branch_id, deleted_at, change_summary, content_hash, fts, embedding, embedding_updated_at)
                      VALUES ($1,$2,$16,$3,$4,$5,$6,$7,$8,$9,$10,NULL,$11,$12, ${ftsVectorSql}, NULL, NULL)
-                     RETURNING id, org_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
+                     RETURNING id, organization_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
                     [current.type, current.key, nextProps, nextLabels, current.version + 1, current.canonical_id, current.id, (current as any).org_id ?? null, (current as any).project_id ?? null, (current as any).branch_id ?? null, diff, hash, current.key ?? '', JSON.stringify(nextProps), current.type, nextStatus ?? null]
                 );
                 await client.query('COMMIT');
@@ -672,9 +672,9 @@ export class GraphService {
                     const hash = createHash('sha256').update(stable).digest('base64');
                     const changeSummary = diffProperties({}, properties) || null;
                     const inserted = await client.query<GraphRelationshipRow>(
-                        `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, change_summary, content_hash)
+                        `INSERT INTO kb.graph_relationships(organization_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, change_summary, content_hash)
                      VALUES ($1,$2,$3,$4,$5,$6,$7,1,gen_random_uuid(),$8,$9)
-                     RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, change_summary, content_hash, deleted_at, created_at`,
+                     RETURNING id, organization_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, change_summary, content_hash, deleted_at, created_at`,
                         [orgId, projectId, effectiveBranchId, type, src_id, dst_id, properties, changeSummary, hash]
                     );
                     await client.query('COMMIT');
@@ -696,9 +696,9 @@ export class GraphService {
                 const stable = JSON.stringify(this.sortObject(properties));
                 const hash = createHash('sha256').update(stable).digest('base64');
                 const inserted = await client.query<GraphRelationshipRow>(
-                    `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, change_summary, content_hash)
+                    `INSERT INTO kb.graph_relationships(organization_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, change_summary, content_hash)
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-                 RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, change_summary, content_hash, deleted_at, created_at`,
+                 RETURNING id, organization_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, change_summary, content_hash, deleted_at, created_at`,
                     [orgId, projectId, (current as any).branch_id ?? null, type, src_id, dst_id, properties, nextVersion, current.canonical_id, current.id, diff, hash]
                 );
                 await client.query('COMMIT');
@@ -742,9 +742,9 @@ export class GraphService {
                 const stable = JSON.stringify(this.sortObject(nextProps));
                 const hash = createHash('sha256').update(stable).digest('base64');
                 const inserted = await client.query<GraphRelationshipRow>(
-                    `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at, change_summary, content_hash)
+                    `INSERT INTO kb.graph_relationships(organization_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at, change_summary, content_hash)
                      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL,$11,$12)
-                     RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, deleted_at, change_summary, content_hash, created_at`,
+                     RETURNING id, organization_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, deleted_at, change_summary, content_hash, created_at`,
                     [current.org_id, current.project_id, (current as any).branch_id ?? null, current.type, current.src_id, current.dst_id, nextProps, nextVersion, current.canonical_id, current.id, diff, hash]
                 );
                 await client.query('COMMIT');
@@ -772,9 +772,9 @@ export class GraphService {
                 if (head.rows[0].deleted_at) throw new BadRequestException('already_deleted');
                 const ftsVectorSql = `to_tsvector('simple', coalesce($10,'') || ' ' || coalesce($11,'') || ' ' || coalesce($12,'') )`;
                 const tombstone = await client.query<GraphObjectRow>(
-                    `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, org_id, project_id, deleted_at, fts, embedding, embedding_updated_at)
+                    `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, organization_id, project_id, deleted_at, fts, embedding, embedding_updated_at)
                      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,now(), ${ftsVectorSql}, NULL, NULL)
-                     RETURNING id, org_id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, fts, created_at`,
+                     RETURNING id, organization_id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, fts, created_at`,
                     [head.rows[0].type, head.rows[0].key, head.rows[0].properties, head.rows[0].labels, head.rows[0].version + 1, head.rows[0].canonical_id, head.rows[0].id, (head.rows[0] as any).org_id ?? null, (head.rows[0] as any).project_id ?? null, head.rows[0].key ?? '', JSON.stringify(head.rows[0].properties), head.rows[0].type]
                 );
                 await client.query('COMMIT');
@@ -804,9 +804,9 @@ export class GraphService {
                 if (!prevLive.rowCount) throw new BadRequestException('no_prior_live_version');
                 const ftsVectorSql = `to_tsvector('simple', coalesce($10,'') || ' ' || coalesce($11,'') || ' ' || coalesce($12,'') )`;
                 const restored = await client.query<GraphObjectRow>(
-                    `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, org_id, project_id, deleted_at, fts, embedding, embedding_updated_at)
+                    `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, organization_id, project_id, deleted_at, fts, embedding, embedding_updated_at)
                      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL, ${ftsVectorSql}, NULL, NULL)
-                     RETURNING id, org_id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, fts, created_at`,
+                     RETURNING id, organization_id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, fts, created_at`,
                     [prevLive.rows[0].type, prevLive.rows[0].key, prevLive.rows[0].properties, prevLive.rows[0].labels, head.rows[0].version + 1, canonicalId, head.rows[0].id, (prevLive.rows[0] as any).org_id ?? null, (prevLive.rows[0] as any).project_id ?? null, prevLive.rows[0].key ?? '', JSON.stringify(prevLive.rows[0].properties), prevLive.rows[0].type]
                 );
                 await client.query('COMMIT');
@@ -834,9 +834,9 @@ export class GraphService {
                 const head = headRes.rows[0];
                 if ((head as any).deleted_at) throw new BadRequestException('already_deleted');
                 const tombstone = await client.query<GraphRelationshipRow>(
-                    `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at)
+                    `INSERT INTO kb.graph_relationships(organization_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at)
                      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now())
-                     RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, deleted_at, created_at`,
+                     RETURNING id, organization_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, deleted_at, created_at`,
                     [head.org_id, head.project_id, (head as any).branch_id ?? null, head.type, head.src_id, head.dst_id, head.properties, (head.version || 1) + 1, head.canonical_id, head.id]
                 );
                 await client.query('COMMIT');
@@ -866,9 +866,9 @@ export class GraphService {
                 if (!prevLive.rowCount) throw new BadRequestException('no_prior_live_version');
                 const prev = prevLive.rows[0];
                 const restored = await client.query<GraphRelationshipRow>(
-                    `INSERT INTO kb.graph_relationships(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at)
+                    `INSERT INTO kb.graph_relationships(organization_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at)
                      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL)
-                     RETURNING id, org_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, deleted_at, created_at`,
+                     RETURNING id, organization_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, deleted_at, created_at`,
                     [prev.org_id, prev.project_id, (prev as any).branch_id ?? null, prev.type, prev.src_id, prev.dst_id, prev.properties, (head.version || 1) + 1, canonicalId, head.id]
                 );
                 await client.query('COMMIT');
@@ -890,7 +890,7 @@ export class GraphService {
             // non-deleted version after a tombstone delete. We now select the head (which may be deleted) then
             // filter out deleted heads in an outer query so a deleted relationship is fully hidden.
             const sql = `SELECT * FROM (
-                     SELECT DISTINCT ON (r.canonical_id) r.id, r.org_id, r.project_id, r.type, r.src_id, r.dst_id, r.properties, r.version, r.supersedes_id, r.canonical_id, r.weight, r.valid_from, r.valid_to, r.deleted_at, r.created_at
+                     SELECT DISTINCT ON (r.canonical_id) r.id, r.organization_id, r.project_id, r.type, r.src_id, r.dst_id, r.properties, r.version, r.supersedes_id, r.canonical_id, r.weight, r.valid_from, r.valid_to, r.deleted_at, r.created_at
                      FROM kb.graph_relationships r
                      WHERE ${dirClause}
                      ORDER BY r.canonical_id, r.version DESC
@@ -977,7 +977,7 @@ export class GraphService {
             // Head selection restricted to FTS matches first, then filter deleted heads; rank computed on head row's fts vector.
             const expirationClause = buildExpirationFilterClause('h');
             const buildSql = (expirationFilter: string, includeExpirationColumn: boolean) => {
-                const columnList = `o.id, o.org_id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.status, o.properties, o.labels, o.deleted_at, o.created_at, o.fts, o.embedding, o.embedding_updated_at${includeExpirationColumn ? ', o.expires_at' : ''}`;
+                const columnList = `o.id, o.organization_id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.status, o.properties, o.labels, o.deleted_at, o.created_at, o.fts, o.embedding, o.embedding_updated_at${includeExpirationColumn ? ', o.expires_at' : ''}`;
                 return `WITH heads AS (
               SELECT DISTINCT ON (o.canonical_id) ${columnList}
               FROM kb.graph_objects o
@@ -1164,7 +1164,7 @@ export class GraphService {
             const headParams: any[] = [];
             if (branch_id !== undefined) { headParams.push(branch_id ?? null); headFilters.push(`r.branch_id IS NOT DISTINCT FROM $${headParams.length}`); }
             const headWhere = headFilters.length ? 'WHERE ' + headFilters.join(' AND ') : '';
-            const baseHead = `SELECT DISTINCT ON (r.canonical_id) r.id, r.org_id, r.project_id, r.branch_id, r.type, r.src_id, r.dst_id, r.properties, r.version, r.supersedes_id, r.canonical_id, r.weight, r.valid_from, r.valid_to, r.deleted_at, r.created_at
+            const baseHead = `SELECT DISTINCT ON (r.canonical_id) r.id, r.organization_id, r.project_id, r.branch_id, r.type, r.src_id, r.dst_id, r.properties, r.version, r.supersedes_id, r.canonical_id, r.weight, r.valid_from, r.valid_to, r.deleted_at, r.created_at
                           FROM kb.graph_relationships r
                           ${headWhere}
                           ORDER BY r.canonical_id, r.version DESC`;
@@ -2237,7 +2237,7 @@ export class GraphService {
                         if (o.status === BranchMergeObjectStatus.Added) {
                             appliedObjects++;
                             if (o.source_head_id) {
-                                const srcHead = await this.db.query<any>(`SELECT type, key, properties, labels, org_id, project_id FROM kb.graph_objects WHERE id=$1`, [o.source_head_id]);
+                                const srcHead = await this.db.query<any>(`SELECT type, key, properties, labels, organization_id, project_id FROM kb.graph_objects WHERE id=$1`, [o.source_head_id]);
                                 if (srcHead.rowCount) {
                                     const row = srcHead.rows[0];
                                     const created = await this.createObject({ type: row.type, key: row.key, properties: row.properties, labels: row.labels, org_id: row.org_id, project_id: row.project_id, branch_id: targetBranchId });
@@ -2286,7 +2286,7 @@ export class GraphService {
                     for (const r of relationships) {
                         if (r.status === BranchMergeObjectStatus.Added) {
                             if (r.source_head_id) {
-                                const srcHead = await this.db.query<any>(`SELECT type, src_id, dst_id, properties, org_id, project_id FROM kb.graph_relationships WHERE id=$1`, [r.source_head_id]);
+                                const srcHead = await this.db.query<any>(`SELECT type, src_id, dst_id, properties, organization_id, project_id FROM kb.graph_relationships WHERE id=$1`, [r.source_head_id]);
                                 if (srcHead.rowCount) {
                                     const row = srcHead.rows[0];
                                     // Recreate on target branch as new independent canonical relationship

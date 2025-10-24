@@ -32,7 +32,7 @@ class MockDB {
             return { rowCount: head ? 1 : 0, rows: head ? [head] : [] };
         }
         // Insert tombstone or restore object. Real service now appends fts, embedding, embedding_updated_at columns.
-        if (/^INSERT INTO kb\.graph_objects\(type, key, properties, labels, version, canonical_id, supersedes_id, org_id, project_id, deleted_at(?:, fts, embedding, embedding_updated_at)?\)/i.test(sql)) {
+        if (/^INSERT INTO kb\.graph_objects\(type, key, properties, labels, version, canonical_id, supersedes_id, organization_id, project_id, deleted_at(?:, fts, embedding, embedding_updated_at)?\)/i.test(sql)) {
             const [type, key, properties, labels, version, canonical, supersedes, org, project, maybeDeleted] = params;
             // If the SQL text includes 'now()' treat as tombstone regardless of param (some branches pass NULL param then set now())
             const isTombstone = /now\(\)/i.test(sql) || !!maybeDeleted;

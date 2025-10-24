@@ -29,7 +29,7 @@ describe('Graph Validation - schema negative', () => {
         graph = new GraphService(db as any, schemaRegistry as any);
         // Seed org + project
         const org = await db.query<{ id: string }>(`INSERT INTO kb.orgs(name) VALUES ($1) RETURNING id`, ['org-sx-' + Date.now()]);
-        const proj = await db.query<{ id: string }>(`INSERT INTO kb.projects(org_id, name) VALUES ($1,$2) RETURNING id`, [org.rows[0].id, 'proj-sx-' + Date.now()]);
+        const proj = await db.query<{ id: string }>(`INSERT INTO kb.projects(organization_id, name) VALUES ($1,$2) RETURNING id`, [org.rows[0].id, 'proj-sx-' + Date.now()]);
         orgId = org.rows[0].id; projectId = proj.rows[0].id;
         // Register schema requiring 'title' into object_type_schemas
         await db.query(`INSERT INTO kb.object_type_schemas(project_id, type, json_schema) VALUES ($1,$2,$3)`, [projectId, 'TypedNode', { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] }]);

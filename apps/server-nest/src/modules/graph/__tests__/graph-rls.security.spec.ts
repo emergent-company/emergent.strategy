@@ -8,7 +8,7 @@ import { AppConfigService } from '../../../common/config/config.service';
 /** Utility to seed org + project */
 async function seedTenant(db: DatabaseService, label: string) {
     const org = await db.query<{ id: string }>(`INSERT INTO kb.orgs(name) VALUES ($1) RETURNING id`, ['org-' + label + '-' + Date.now()]);
-    const project = await db.query<{ id: string }>(`INSERT INTO kb.projects(org_id, name) VALUES ($1,$2) RETURNING id`, [org.rows[0].id, 'proj-' + label + '-' + Date.now()]);
+    const project = await db.query<{ id: string }>(`INSERT INTO kb.projects(organization_id, name) VALUES ($1,$2) RETURNING id`, [org.rows[0].id, 'proj-' + label + '-' + Date.now()]);
     return { orgId: org.rows[0].id, projectId: project.rows[0].id };
 }
 
