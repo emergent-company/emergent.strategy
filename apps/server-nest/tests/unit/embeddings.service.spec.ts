@@ -42,12 +42,16 @@ describe('EmbeddingsService (Legacy - use Vertex AI in production)', () => {
     });
 
     it('ensureClient throws when enabled but GOOGLE_API_KEY missing', async () => {
+        // Set EMBEDDING_PROVIDER but not GOOGLE_API_KEY
+        process.env.EMBEDDING_PROVIDER = 'google';
         const { svc } = build({ EMBEDDING_PROVIDER: 'google' });
         await expect(svc.embedQuery('hi')).rejects.toThrow(/GOOGLE_API_KEY not set/);
     });
 
     it('lazy initializes client and caches for subsequent calls (embedQuery)', async () => {
+        // Set GOOGLE_API_KEY before building the service
         process.env.GOOGLE_API_KEY = 'test-key';
+        process.env.EMBEDDING_PROVIDER = 'google';
         const { svc } = build({ EMBEDDING_PROVIDER: 'google' });
         const res = await svc.embedQuery('hello world');
         expect(res).toHaveLength(EMBEDDING_DIMENSION);
@@ -58,7 +62,9 @@ describe('EmbeddingsService (Legacy - use Vertex AI in production)', () => {
     });
 
     it('embedDocuments returns expected shape and uses existing client', async () => {
+        // Set GOOGLE_API_KEY before building the service
         process.env.GOOGLE_API_KEY = 'test-key';
+        process.env.EMBEDDING_PROVIDER = 'google';
         const { svc } = build({ EMBEDDING_PROVIDER: 'google' });
         const docs = await svc.embedDocuments(['a', 'b']);
         expect(docs).toHaveLength(2);
@@ -69,7 +75,9 @@ describe('EmbeddingsService (Legacy - use Vertex AI in production)', () => {
     });
 
     it('propagates underlying client errors', async () => {
+        // Set GOOGLE_API_KEY before building the service
         process.env.GOOGLE_API_KEY = 'test-key';
+        process.env.EMBEDDING_PROVIDER = 'google';
         const { svc } = build({ EMBEDDING_PROVIDER: 'google' });
         // Force client creation
         // @ts-expect-error accessing private for test

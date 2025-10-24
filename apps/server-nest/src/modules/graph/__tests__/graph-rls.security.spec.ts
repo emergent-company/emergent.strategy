@@ -14,7 +14,7 @@ async function seedTenant(db: DatabaseService, label: string) {
 
 async function createObject(graph: GraphService, db: DatabaseService, orgId: string, projectId: string, key: string) {
     await db.setTenantContext(orgId, projectId);
-    return graph.createObject({ type: 'SecNode', key, properties: { v: key }, org_id: orgId, project_id: projectId, labels: [] } as any);
+    return graph.createObject({ type: 'SecNode', key, properties: { v: key }, organization_id: orgId, project_id: projectId, labels: [] } as any);
 }
 
 describe('Graph RLS Security', () => {

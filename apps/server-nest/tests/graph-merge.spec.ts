@@ -9,7 +9,7 @@ import { describeWithDb } from './utils/db-describe';
 // Harness now explicitly bootstraps the full AppModule via tests/setup.ts
 let app: INestApplication | null = null;
 
-async function createBranchOrThrow(name: string, org_id: string, project_id: string): Promise<string> {
+async function createBranchOrThrow(name: string, organization_id: string, project_id: string): Promise<string> {
   const currentApp = app;
   if (!currentApp?.getHttpServer) throw new Error('HTTP server not initialized');
   try {
@@ -27,7 +27,7 @@ async function createObject(branchId: string, type: string, key: string, propert
   const { orgId, projectId } = await getSeededOrgProject();
   const res = await request(currentApp.getHttpServer())
     .post('/graph/objects')
-    .send({ type, key, properties, branch_id: branchId, org_id: orgId ?? null, project_id: projectId ?? null });
+    .send({ type, key, properties, branch_id: branchId, organization_id: orgId ?? null, project_id: projectId ?? null });
   if (res.status !== 201) throw new Error('Failed to create object: ' + res.text);
   return res.body;
 }

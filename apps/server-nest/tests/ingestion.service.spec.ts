@@ -52,7 +52,7 @@ function build(queue: Array<{ rows: any[]; rowCount?: number }>, overrides?: Par
 }
 
 // Common project + org rows
-const projectRow = { id: fakeUuid(1), org_id: fakeUuid(2) };
+const projectRow = { id: fakeUuid(1), organization_id: fakeUuid(2) };
 
 describe('IngestionService.ingestText', () => {
     beforeEach(() => { vi.clearAllMocks(); });
@@ -73,7 +73,7 @@ describe('IngestionService.ingestText', () => {
     });
 
     it('rejects org mismatch', async () => {
-        const mismatched = { id: projectRow.id, org_id: fakeUuid(99) };
+        const mismatched = { id: projectRow.id, organization_id: fakeUuid(99) };
         const { svc } = build([
             { rows: [{ content_hash: 'x' }], rowCount: 1 }, // feature detect consumes first queue item
             { rows: [mismatched], rowCount: 1 }, // project with different org

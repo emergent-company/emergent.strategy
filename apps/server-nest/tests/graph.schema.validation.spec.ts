@@ -25,7 +25,7 @@ class MockDatabaseService {
                         rows: [
                             {
                                 id: `obj-${this.insertCounter}`,
-                                org_id: null,
+                                organization_id: null,
                                 project_id: null,
                                 canonical_id: 'can-1',
                                 supersedes_id: null,

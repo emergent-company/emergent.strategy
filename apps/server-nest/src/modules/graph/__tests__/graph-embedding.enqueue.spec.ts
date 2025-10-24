@@ -44,7 +44,7 @@ describe('Graph Embedding Enqueue', () => {
     it('does not enqueue when embeddings disabled', async () => {
         await (service as any).db.setTenantContext(orgId, projectId);
         // Other test files may have created jobs; focus on absence of job for the new object we create.
-        const o = await service.createObject({ org_id: orgId, project_id: projectId, type: 'article', key: 'noembed_' + Date.now(), properties: { body: 'lorem ipsum' }, labels: [] } as any);
+        const o = await service.createObject({ organization_id: orgId, project_id: projectId, type: 'article', key: 'noembed_' + Date.now(), properties: { body: 'lorem ipsum' }, labels: [] } as any);
         expect(o).toBeTruthy();
         // Ensure no job exists for this specific object id
         const jobForObj = await (service as any).db.query(`SELECT 1 FROM kb.graph_embedding_jobs WHERE object_id=$1`, [o.id]);
@@ -55,7 +55,7 @@ describe('Graph Embedding Enqueue', () => {
         process.env.GOOGLE_API_KEY = 'fake-key'; // set before module re-init
         await initModule(); // reinitialize to pick up new config flag
         await (service as any).db.setTenantContext(orgId, projectId);
-        const o = await service.createObject({ org_id: orgId, project_id: projectId, type: 'article', key: 'with-embed', properties: { body: 'alpha beta gamma' }, labels: [] } as any);
+        const o = await service.createObject({ organization_id: orgId, project_id: projectId, type: 'article', key: 'with-embed', properties: { body: 'alpha beta gamma' }, labels: [] } as any);
         expect(o).toBeTruthy();
         const stats = await jobs.stats();
         expect(stats.pending + stats.processing + stats.failed + stats.completed).toBeGreaterThanOrEqual(1);

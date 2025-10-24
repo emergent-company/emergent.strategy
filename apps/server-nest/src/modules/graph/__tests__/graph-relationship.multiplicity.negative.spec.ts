@@ -19,11 +19,11 @@ let seedSeq = 0;
 async function seedObjects(graph: GraphService, db: DatabaseService, orgId: string, projectId: string) {
     await db.setTenantContext(orgId, projectId);
     const prefix = `n${seedSeq++}`;
-    const a = await graph.createObject({ type: 'Node', key: `${prefix}-a`, properties: {}, org_id: orgId, project_id: projectId } as any);
+    const a = await graph.createObject({ type: 'Node', key: `${prefix}-a`, properties: {}, organization_id: orgId, project_id: projectId } as any);
     await db.setTenantContext(orgId, projectId);
-    const b = await graph.createObject({ type: 'Node', key: `${prefix}-b`, properties: {}, org_id: orgId, project_id: projectId } as any);
+    const b = await graph.createObject({ type: 'Node', key: `${prefix}-b`, properties: {}, organization_id: orgId, project_id: projectId } as any);
     await db.setTenantContext(orgId, projectId);
-    const c = await graph.createObject({ type: 'Node', key: `${prefix}-c`, properties: {}, org_id: orgId, project_id: projectId } as any);
+    const c = await graph.createObject({ type: 'Node', key: `${prefix}-c`, properties: {}, organization_id: orgId, project_id: projectId } as any);
     return { a, b, c };
 }
 

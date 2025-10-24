@@ -6,8 +6,27 @@ export default defineConfig({
     test: {
         globals: true,
         include: ['tests/**/*.spec.ts', 'src/**/__tests__/**/*.spec.ts'],
-        // Exclude E2E specs from the main coverage run; they have a dedicated config (vitest.e2e.config.ts)
-        exclude: ['tests/e2e/**'],
+        // Exclude E2E and integration tests from unit test runs
+        exclude: [
+            'tests/e2e/**',
+            'tests/integration/**',
+            'tests/scenarios/**',
+            '**/clickup-real.integration.spec.ts',
+            // Graph tests requiring database
+            'src/modules/graph/__tests__/embedding-worker.backoff.spec.ts',
+            'src/modules/graph/__tests__/embedding-worker.spec.ts',
+            'src/modules/graph/__tests__/graph-branching.spec.ts',
+            'src/modules/graph/__tests__/graph-embedding.enqueue.spec.ts',
+            'src/modules/graph/__tests__/graph-fts.search.spec.ts',
+            'src/modules/graph/__tests__/graph-relationship.multiplicity.negative.spec.ts',
+            'src/modules/graph/__tests__/graph-relationship.multiplicity.spec.ts',
+            'src/modules/graph/__tests__/graph-rls.policies.spec.ts',
+            'src/modules/graph/__tests__/graph-rls.security.spec.ts',
+            'src/modules/graph/__tests__/graph-rls.strict-init.spec.ts',
+            'src/modules/graph/__tests__/graph-validation.schema-negative.spec.ts',
+            'src/modules/graph/__tests__/graph-validation.spec.ts',
+            'tests/unit/schema.indexes.spec.ts',
+        ],
         coverage: {
             provider: 'v8',
             reporter: ['text', 'json', 'lcov'],
