@@ -46,7 +46,7 @@ export class ChatService {
         // we do NOT filter by that dimension to match documents behavior (org optional; project required at controller level).
         const sharedParams: any[] = [];
         let sharedSQL = `SELECT id, title, created_at, updated_at, owner_subject_id, is_private FROM kb.chat_conversations WHERE is_private = false`;
-        if (orgId) { sharedParams.push(orgId); sharedSQL += ` AND org_id IS NOT DISTINCT FROM $${sharedParams.length}`; }
+        if (orgId) { sharedParams.push(orgId); sharedSQL += ` AND organization_id IS NOT DISTINCT FROM $${sharedParams.length}`; }
         if (projectId) { sharedParams.push(projectId); sharedSQL += ` AND project_id IS NOT DISTINCT FROM $${sharedParams.length}`; }
         sharedSQL += ' ORDER BY updated_at DESC';
         const shared = await this.db.query<ConversationRow>(sharedSQL, sharedParams);
@@ -55,7 +55,7 @@ export class ChatService {
         if (userId) {
             const privParams: any[] = [userId];
             let privSQL = `SELECT id, title, created_at, updated_at, owner_subject_id, is_private FROM kb.chat_conversations WHERE is_private = true AND owner_subject_id = $1`;
-            if (orgId) { privParams.push(orgId); privSQL += ` AND org_id IS NOT DISTINCT FROM $${privParams.length}`; }
+            if (orgId) { privParams.push(orgId); privSQL += ` AND organization_id IS NOT DISTINCT FROM $${privParams.length}`; }
             if (projectId) { privParams.push(projectId); privSQL += ` AND project_id IS NOT DISTINCT FROM $${privParams.length}`; }
             privSQL += ' ORDER BY updated_at DESC';
             priv = await this.db.query<ConversationRow>(privSQL, privParams);
@@ -64,7 +64,7 @@ export class ChatService {
         this.logger.log(`[listConversations] results shared=${shared.rowCount} private=${privCount}`);
         if (priv.rows.length === 0) {
             // Diagnostic query to see if row exists with different org/project (should not happen, but helps debug)
-            const diag = await this.db.query<any>(`SELECT id, title, created_at, updated_at, owner_subject_id, is_private, org_id, project_id FROM kb.chat_conversations WHERE owner_subject_id = $1`, [userId]);
+            const diag = await this.db.query<any>(`SELECT id, title, created_at, updated_at, owner_subject_id, is_private, organization_id, project_id FROM kb.chat_conversations WHERE owner_subject_id = $1`, [userId]);
             this.logger.log(`[listConversations] diag for owner yields ${diag.rowCount} rows: ${diag.rows.map(r => r.id + ':' + (r.organization_id || 'null') + ',' + (r.project_id || 'null')).join(',')}`);
             // Additional focused diagnostics to isolate filter predicate behavior
             const cOwner = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations WHERE owner_subject_id = $1', [userId]);
@@ -204,7 +204,7 @@ export class ChatService {
                 await client.query('BEGIN');
                 await client.query(`INSERT INTO core.user_profiles(subject_id) VALUES($1) ON CONFLICT (subject_id) DO NOTHING`, [owner]);
                 const ins = await client.query<{ id: string }>(
-                    `INSERT INTO kb.chat_conversations (title, owner_subject_id, is_private, org_id, project_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+                    `INSERT INTO kb.chat_conversations (title, owner_subject_id, is_private, organization_id, project_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
                     [title, owner, isPrivate, orgId, projectId],
                 );
                 convId = ins.rows[0].id;
@@ -219,7 +219,7 @@ export class ChatService {
                     // Retry once after ensuring profile out-of-band
                     try { await this.db.query(`INSERT INTO core.user_profiles(subject_id) VALUES($1) ON CONFLICT (subject_id) DO NOTHING`, [owner]); } catch { }
                     const retry = await this.db.query<{ id: string }>(
-                        `INSERT INTO kb.chat_conversations (title, owner_subject_id, is_private, org_id, project_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+                        `INSERT INTO kb.chat_conversations (title, owner_subject_id, is_private, organization_id, project_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
                         [title, owner, isPrivate, orgId, projectId],
                     );
                     convId = retry.rows[0].id;

@@ -27,7 +27,7 @@ describe('Graph History Endpoints (E2E)', () => {
 
     test('object history pagination descending', async () => {
         // Create base object + 2 patches (3 versions total). Provide org/project for NOT NULL columns if enforced.
-        const base = await request.post('/graph/objects').set(contextHeaders()).send({ type: 'Asset', key: 'asset-base', properties: { a: 1 }, org_id: ctx.orgId, project_id: ctx.projectId }).expect(201);
+        const base = await request.post('/graph/objects').set(contextHeaders()).send({ type: 'Asset', key: 'asset-base', properties: { a: 1 }, organization_id: ctx.orgId, project_id: ctx.projectId }).expect(201);
         const v2 = await request.patch(`/graph/objects/${base.body.id}`).set(contextHeaders()).send({ properties: { b: 2 } }).expect(200);
         const v3 = await request.patch(`/graph/objects/${v2.body.id}`).set(contextHeaders()).send({ properties: { c: 3 } }).expect(200);
 
@@ -45,10 +45,10 @@ describe('Graph History Endpoints (E2E)', () => {
 
     test('relationship history descending & bad cursor empty', async () => {
         // Create two endpoint objects to reference in relationship (ensuring valid UUIDs in DB).
-        const src = await request.post('/graph/objects').set(contextHeaders()).send({ type: 'Node', key: 'node-A', properties: { name: 'A' }, org_id: ctx.orgId, project_id: ctx.projectId }).expect(201);
-        const dst = await request.post('/graph/objects').set(contextHeaders()).send({ type: 'Node', key: 'node-B', properties: { name: 'B' }, org_id: ctx.orgId, project_id: ctx.projectId }).expect(201);
+        const src = await request.post('/graph/objects').set(contextHeaders()).send({ type: 'Node', key: 'node-A', properties: { name: 'A' }, organization_id: ctx.orgId, project_id: ctx.projectId }).expect(201);
+        const dst = await request.post('/graph/objects').set(contextHeaders()).send({ type: 'Node', key: 'node-B', properties: { name: 'B' }, organization_id: ctx.orgId, project_id: ctx.projectId }).expect(201);
         // Create relationship and patch twice.
-        const r1 = await request.post('/graph/relationships').set(contextHeaders()).send({ type: 'links', src_id: src.body.id, dst_id: dst.body.id, properties: { w: 1 }, org_id: ctx.orgId, project_id: ctx.projectId }).expect(201);
+        const r1 = await request.post('/graph/relationships').set(contextHeaders()).send({ type: 'links', src_id: src.body.id, dst_id: dst.body.id, properties: { w: 1 }, organization_id: ctx.orgId, project_id: ctx.projectId }).expect(201);
         const r2 = await request.patch(`/graph/relationships/${r1.body.id}`).set(contextHeaders()).send({ properties: { w: 2 } }).expect(200);
         const r3 = await request.patch(`/graph/relationships/${r2.body.id}`).set(contextHeaders()).send({ properties: { w: 3 } }).expect(200);
 

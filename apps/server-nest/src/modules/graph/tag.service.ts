@@ -62,15 +62,15 @@ export class TagService {
             if (!version.rowCount) throw new NotFoundException('product_version_not_found');
 
             // Insert tag
-            const inserted = await client.query<TagRow>(
-                `INSERT INTO kb.tags(project_id, org_id, product_version_id, name, description)
+            const res = await this.db.query<TagRow>(
+                `INSERT INTO kb.tags(project_id, organization_id, product_version_id, name, description)
          VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, org_id, project_id, product_version_id, name, description, created_at, updated_at`,
-                [projectId, orgId, dto.product_version_id, name, dto.description ?? null]
+         RETURNING id, organization_id, project_id, product_version_id, name, description, created_at, updated_at`,
+                [projectId, orgId, dto.product_version_id, dto.name, dto.description || null],
             );
 
             await client.query('COMMIT');
-            return inserted.rows[0];
+            return res.rows[0];
         } catch (e) {
             try {
                 await client.query('ROLLBACK');
@@ -170,7 +170,7 @@ export class TagService {
                 `UPDATE kb.tags
          SET description=$1, updated_at=now()
          WHERE id=$2 AND project_id=$3
-         RETURNING id, org_id, project_id, product_version_id, name, description, created_at, updated_at`,
+         RETURNING id, organization_id, project_id, product_version_id, name, description, created_at, updated_at`,
                 [dto.description ?? null, id, projectId]
             );
 

@@ -2,9 +2,18 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
 
 export class UserProfileDto {
-    @ApiProperty({ description: 'Canonical internal user id (subject id, from identity provider)', format: 'uuid' })
+    @ApiProperty({ description: 'Internal UUID user id (primary key)', format: 'uuid' })
+    @IsUUID()
+    id!: string;
+
+    @ApiProperty({ description: 'Canonical internal user id (subject id, from identity provider) - DEPRECATED: use id', format: 'uuid' })
     @IsUUID()
     subjectId!: string;
+
+    @ApiProperty({ description: 'Zitadel user ID (external auth provider)', required: false })
+    @IsOptional()
+    @IsString()
+    zitadelUserId?: string | null;
 
     @ApiProperty({ required: false })
     @IsOptional()

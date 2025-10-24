@@ -8,7 +8,7 @@ async function createObject(request: supertest.SuperTest<supertest.Test>, header
     const res = await request
         .post('/graph/objects')
         .set(headers)
-        .send({ type: 'Doc', key: `k_${Date.now()}_${Math.random().toString(36).slice(2)}`, properties: {}, labels: [], org_id: ctx.orgId, project_id: ctx.projectId, ...data })
+        .send({ type: 'Doc', key: `k_${Date.now()}_${Math.random().toString(36).slice(2)}`, properties: {}, labels: [], organization_id: ctx.orgId, project_id: ctx.projectId, ...data })
         .expect(201);
     return res.body as any;
 }
@@ -17,7 +17,7 @@ async function createRelationship(request: supertest.SuperTest<supertest.Test>, 
     const res = await request
         .post('/graph/relationships')
         .set(headers)
-        .send({ type: 'relates_to', src_id: srcId, dst_id: dstId, properties: { w: 1 }, org_id: ctx.orgId, project_id: ctx.projectId })
+        .send({ type: 'relates_to', src_id: srcId, dst_id: dstId, properties: { w: 1 }, organization_id: ctx.orgId, project_id: ctx.projectId })
         .expect(201);
     return res.body as any;
 }

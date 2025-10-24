@@ -206,12 +206,12 @@ export class IngestionService {
                     try {
                         const insertDoc = await query<{ id: string }>(
                             `WITH target AS (
-                                SELECT p.id AS project_id, $1::uuid AS org_id
+                                SELECT p.id AS project_id, $1::uuid AS organization_id
                                 FROM kb.projects p
                                 WHERE p.id = $2
                                 LIMIT 1
                             )
-                            INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content, content_hash)
+                            INSERT INTO kb.documents(organization_id, project_id, source_url, filename, mime_type, content, content_hash)
                             SELECT target.organization_id, target.project_id, $3, $4, $5, $6, $7 FROM target
                             RETURNING id`,
                             [tenantOrgId, projectId, sourceUrl || null, filename || null, mimeType || 'text/plain', text, hash],
@@ -252,12 +252,12 @@ export class IngestionService {
                     }
                     const insertDoc = await query<{ id: string }>(
                         `WITH target AS (
-                            SELECT p.id AS project_id, $1::uuid AS org_id
+                            SELECT p.id AS project_id, $1::uuid AS organization_id
                             FROM kb.projects p
                             WHERE p.id = $2
                             LIMIT 1
                         )
-                        INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content)
+                        INSERT INTO kb.documents(organization_id, project_id, source_url, filename, mime_type, content)
                         SELECT target.organization_id, target.project_id, $3, $4, $5, $6 FROM target
                         RETURNING id`,
                         [tenantOrgId, projectId, sourceUrl || null, filename || null, mimeType || 'text/plain', text],

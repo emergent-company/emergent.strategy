@@ -4,6 +4,7 @@ import { GraphService } from '../graph.service';
 import { DatabaseService } from '../../../common/database/database.service';
 import { AppConfigService } from '../../../common/config/config.service';
 import { withMultiplicities } from '../../../tests/helpers/schema-registry.stub';
+import { getTestDbServiceConfig } from '../../../../tests/test-db-config';
 
 // This spec focuses purely on violation scenarios using a stubbed schema registry
 // instead of inserting relationship_type_schemas rows. This keeps the feedback loop
@@ -37,20 +38,12 @@ describe('Graph Relationship Multiplicity (negative via stub)', () => {
 
     beforeAll(async () => {
         process.env.E2E_MINIMAL_DB = 'true';
-        process.env.PGHOST = process.env.PGHOST || 'localhost';
-        process.env.PGPORT = process.env.PGPORT || '5432';
-        process.env.PGUSER = process.env.PGUSER || 'spec';
-        process.env.PGPASSWORD = process.env.PGPASSWORD || 'spec';
-        process.env.PGDATABASE = process.env.PGDATABASE || 'spec';
+        const dbServiceConfig = getTestDbServiceConfig();
         process.env.DB_AUTOINIT = 'true';
         const fakeConfig: any = {
             skipDb: false,
             autoInitDb: true,
-            dbHost: process.env.PGHOST,
-            dbPort: +(process.env.PGPORT || 5432),
-            dbUser: process.env.PGUSER,
-            dbPassword: process.env.PGPASSWORD,
-            dbName: process.env.PGDATABASE,
+            ...dbServiceConfig,
         } satisfies Partial<AppConfigService>;
         db = new DatabaseService(fakeConfig as AppConfigService);
         await db.onModuleInit();

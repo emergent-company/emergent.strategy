@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { DatabaseService } from '../../../common/database/database.service';
 import { AppConfigService } from '../../../common/config/config.service';
 import { EnvVariables, validate } from '../../../common/config/config.schema';
+import { getTestDbConfig } from '../../../../tests/test-db-config';
 
 /**
  * Verifies server startup succeeds (and does not silently downgrade) when RLS_POLICY_STRICT is enabled
@@ -16,11 +17,7 @@ describe('RLS strict initialization', () => {
     beforeAll(async () => {
         process.env.RLS_POLICY_STRICT = 'true';
         process.env.DB_AUTOINIT = 'true';
-        process.env.PGHOST = process.env.PGHOST || 'localhost';
-        process.env.PGPORT = process.env.PGPORT || '5432';
-        process.env.PGUSER = process.env.PGUSER || 'spec';
-        process.env.PGPASSWORD = process.env.PGPASSWORD || 'spec';
-        process.env.PGDATABASE = process.env.PGDATABASE || 'spec';
+        getTestDbConfig(); // Sets PG* env vars
 
         const moduleRef = await Test.createTestingModule({
             providers: [
