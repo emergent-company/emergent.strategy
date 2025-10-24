@@ -33,7 +33,7 @@ export interface IntegrationDto {
     display_name: string;
     description?: string;
     enabled: boolean;
-    org_id: string;
+    organization_id: string;
     project_id: string;
     settings?: IntegrationSettings; // Decrypted settings
     logo_url?: string;

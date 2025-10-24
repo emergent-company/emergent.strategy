@@ -30,7 +30,8 @@ function hashSpecPaths(spec: any): string {
 // Updated after adding vector similarity + FTS endpoints (/graph/objects/vector-search, /graph/objects/{id}/similar, /graph/objects/fts)
 // Updated after fixing predicate evaluation in graph.service.ts (no API changes, rebuild artifact)
 // Updated after adding MCP authentication endpoints and Phase 4 security enhancements (GET /mcp/schema/version, GET /mcp/schema/changelog)
-const EXPECTED_HASH = process.env.OPENAPI_EXPECTED_HASH || '0cbfe3a0a5a6e7cc3a9cc8b395995870a6bcac45b991aea7d5d492c01324919a';
+// Updated after regenerating with ClickUp SDK as ES modules (October 2025)
+const EXPECTED_HASH = process.env.OPENAPI_EXPECTED_HASH || '575e09b3e40395ce4e219e21eeaf3b5aa2d6de1c362a8a143863a6df1e77a946';
 
 describe('OpenAPI regression', () => {
     it('paths+tags hash matches expected (update EXPECTED_HASH intentionally if spec changed)', () => {

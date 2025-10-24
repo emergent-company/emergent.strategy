@@ -5,7 +5,7 @@ import { UpdateTagDto } from './dto/update-tag.dto';
 
 export interface TagRow {
     id: string;
-    org_id: string | null;
+    organization_id: string | null;
     project_id: string;
     product_version_id: string;
     name: string;
@@ -16,7 +16,7 @@ export interface TagRow {
 
 export interface TagDto {
     id: string;
-    org_id: string | null;
+    organization_id: string | null;
     project_id: string;
     product_version_id: string;
     name: string;
@@ -103,7 +103,7 @@ export class TagService {
         // Fetch limit + 1 to determine if there's a next page
         params.push(limit + 1);
         const rows = await this.db.query<TagRow>(
-            `SELECT id, org_id, project_id, product_version_id, name, description, created_at, updated_at
+            `SELECT id, organization_id, project_id, product_version_id, name, description, created_at, updated_at
        FROM kb.tags
        WHERE project_id = $1${cursorClause}
        ORDER BY created_at DESC
@@ -128,7 +128,7 @@ export class TagService {
      */
     async get(projectId: string, id: string): Promise<TagDto | null> {
         const row = await this.db.query<TagRow>(
-            `SELECT id, org_id, project_id, product_version_id, name, description, created_at, updated_at
+            `SELECT id, organization_id, project_id, product_version_id, name, description, created_at, updated_at
        FROM kb.tags
        WHERE id=$1 AND project_id=$2`,
             [id, projectId]
@@ -142,7 +142,7 @@ export class TagService {
      */
     async getByName(projectId: string, name: string): Promise<TagDto | null> {
         const row = await this.db.query<TagRow>(
-            `SELECT id, org_id, project_id, product_version_id, name, description, created_at, updated_at
+            `SELECT id, organization_id, project_id, product_version_id, name, description, created_at, updated_at
        FROM kb.tags
        WHERE project_id=$1 AND LOWER(name)=LOWER($2)`,
             [projectId, name]

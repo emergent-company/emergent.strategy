@@ -32,12 +32,22 @@ class ChunkerMock {
 class HashMock { sha256 = (t: string) => `hash_${t.length}`; }
 class EmbeddingsMock { embedDocuments = vi.fn(async (chunks: string[]) => chunks.map((c, i) => [i, c.length])); }
 class ConfigMock { embeddingsEnabled = true; }
+class ExtractionJobServiceMock {
+    createJobForDocument = vi.fn(async () => ({ id: 'job-id', status: 'pending' }));
+}
 
 // Helper to build service with scripted DB queue
-function build(queue: Array<{ rows: any[]; rowCount?: number }>, overrides?: Partial<{ db: DbMock; config: ConfigMock; embeddings: EmbeddingsMock }>) {
+function build(queue: Array<{ rows: any[]; rowCount?: number }>, overrides?: Partial<{ db: DbMock; config: ConfigMock; embeddings: EmbeddingsMock; extractionJobService: ExtractionJobServiceMock }>) {
     const db = overrides?.db ?? new DbMock();
     queue.forEach(q => db.push(q));
-    const svc = new IngestionService(db as any, new ChunkerMock() as any, new HashMock() as any, (overrides?.embeddings ?? new EmbeddingsMock()) as any, (overrides?.config ?? new ConfigMock()) as any);
+    const svc = new IngestionService(
+        db as any,
+        new ChunkerMock() as any,
+        new HashMock() as any,
+        (overrides?.embeddings ?? new EmbeddingsMock()) as any,
+        (overrides?.config ?? new ConfigMock()) as any,
+        (overrides?.extractionJobService ?? new ExtractionJobServiceMock()) as any
+    );
     return { svc, db };
 }
 

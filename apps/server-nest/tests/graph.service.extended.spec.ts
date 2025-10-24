@@ -156,7 +156,7 @@ describe('GraphService extended coverage', () => {
         }
 
         // History list (objects)
-        if (sql.startsWith('SELECT id, org_id, project_id, canonical_id') && sql.includes('FROM kb.graph_objects WHERE canonical_id=')) {
+        if (sql.startsWith('SELECT id, organization_id, project_id, canonical_id') && sql.includes('FROM kb.graph_objects WHERE canonical_id=')) {
             const canonicalId = params[0];
             const limit = params[params.length - 1];
             const cursorIdx = sql.includes('version < $2') ? 1 : null;
@@ -187,7 +187,7 @@ describe('GraphService extended coverage', () => {
         }
 
         // Relationship history list
-        if (sql.startsWith('SELECT id, org_id, project_id, type, src_id, dst_id')) {
+        if (sql.startsWith('SELECT id, organization_id, project_id, type, src_id, dst_id')) {
             const canonicalId = params[0];
             const limit = params[params.length - 1];
             const cursorIdx = sql.includes('version < $2') ? 1 : null;

@@ -37,7 +37,7 @@ export interface GraphObjectDto extends GraphObjectRow {
 
 export interface GraphRelationshipRow {
     id: string;
-    org_id: string;
+    organization_id: string;
     project_id: string;
     branch_id?: string | null;
     type: string;
@@ -60,14 +60,14 @@ export interface GraphRelationshipDto extends GraphRelationshipRow { diff?: any;
 
 export interface BranchRow {
     id: string;
-    org_id?: string | null;
+    organization_id?: string | null;
     project_id?: string | null;
     name: string;
     parent_branch_id?: string | null;
     created_at: string;
 }
 
-export interface CreateBranchDto { project_id?: string | null; org_id?: string | null; name: string; parent_branch_id?: string | null; }
+export interface CreateBranchDto { project_id?: string | null; organization_id?: string | null; name: string; parent_branch_id?: string | null; }
 
 export interface TraversalNode {
     id: string; // object id

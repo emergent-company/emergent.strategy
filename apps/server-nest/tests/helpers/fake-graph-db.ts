@@ -67,24 +67,28 @@ export class FakeGraphDb {
             const existing = this.objects.find(o => o.type === type && o.key === key && (projectId == null));
             return { rows: existing ? [{ ...existing }] : [], rowCount: existing ? 1 : 0 };
         }
-        // Object create (allow optional org_id, project_id)
-        // Updated real service adds trailing columns: fts, embedding, embedding_updated_at
-        if (/INSERT INTO kb\.graph_objects\(type, key, properties, labels, version, canonical_id, org_id, project_id, branch_id, change_summary, content_hash(?:, fts, embedding, embedding_updated_at)?\)/i.test(sql)) {
+        // Object create (allow optional organization_id, project_id)
+        // SQL: INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, organization_id, project_id, branch_id, change_summary, content_hash, fts, embedding, embedding_updated_at)
+        // Params: [type, key, properties, labels, org_id, project_id, branch_id, changeSummary, hash, JSON.stringify(properties), status]
+        // Note: status is at $11 (index 10), used in FTS expression in SQL but not in column list order
+        if (/INSERT INTO kb\.graph_objects\(type, key, (?:status, )?properties, labels, version, canonical_id, (?:organization_id|org_id), project_id/i.test(sql)) {
+            const hasStatus = /type, key, status,/.test(sql);
             const row: Row = {
                 id: 'o_' + (++this.objSeq),
                 canonical_id: 'co_' + this.objSeq,
                 supersedes_id: null,
                 version: 1,
-                type: params?.[0],
-                key: params?.[1],
-                properties: params?.[2] || {},
-                labels: params?.[3] || [],
-                // NOTE(param order alignment): Service passes [type, key, properties, labels, org_id, project_id, branch_id, change_summary, content_hash]
-                org_id: params?.[4] ?? null,
-                project_id: params?.[5] ?? null,
-                branch_id: params?.[6] ?? null,
-                change_summary: params?.[7] ?? null,
-                content_hash: params?.[8] ?? null,
+                type: params?.[0],           // $1
+                key: params?.[1],            // $2
+                properties: params?.[2] || {},  // $3
+                labels: params?.[3] || [],      // $4
+                organization_id: params?.[4] ?? null,  // $5
+                project_id: params?.[5] ?? null,       // $6
+                branch_id: params?.[6] ?? null,        // $7
+                change_summary: params?.[7] ?? null,   // $8
+                content_hash: params?.[8] ?? null,     // $9
+                // params[9] is JSON.stringify(properties) for FTS ($10)
+                status: hasStatus ? (params?.[10] ?? null) : null,  // $11 (last param)
                 created_at: new Date(Date.now() + this.objSeq * 10).toISOString(),
                 deleted_at: null
             };
@@ -118,7 +122,7 @@ export class FakeGraphDb {
             for (const id of ids) {
                 if (!this.objects.find(o => o.id === id)) {
                     const row = this._insertObject({ id, type: 'Stub', key: null, properties: {}, labels: [] });
-                    (row as any).org_id = 'org';
+                    (row as any).organization_id = 'org';
                     (row as any).project_id = 'proj';
                     (row as any).branch_id = null;
                 }
@@ -134,7 +138,7 @@ export class FakeGraphDb {
                     const obj = this.objects.find(o => o.id === id);
                     if (obj) {
                         (obj as any).project_id = rel.project_id;
-                        (obj as any).org_id = rel.org_id;
+                        (obj as any).organization_id = rel.organization_id;
                         (obj as any).branch_id = rel.branch_id ?? null;
                     }
                 }
@@ -146,7 +150,7 @@ export class FakeGraphDb {
                     const obj = this.objects.find(o => o.id === id);
                     if (obj) {
                         if (this.lastRequestedProject) (obj as any).project_id = this.lastRequestedProject;
-                        if (this.lastRequestedOrg) (obj as any).org_id = this.lastRequestedOrg;
+                        if (this.lastRequestedOrg) (obj as any).organization_id = this.lastRequestedOrg;
                     }
                 }
             }
@@ -164,9 +168,11 @@ export class FakeGraphDb {
             const r = this.objects.find(o => o.id === params?.[0]);
             return { rows: r ? [r] : [], rowCount: r ? 1 : 0 };
         }
-        // Object patch insert (new version; allow optional org_id, project_id, deleted_at) – optional trailing fts/embedding columns
-        if (/INSERT INTO kb\.graph_objects\(type, key, properties, labels, version, canonical_id, supersedes_id, org_id, project_id, branch_id, deleted_at, change_summary, content_hash(?:, fts, embedding, embedding_updated_at)?\)/i.test(sql)) {
+        // Object patch insert (new version; allow optional status, org_id, project_id, deleted_at) – optional trailing fts/embedding columns
+        if (/INSERT INTO kb\.graph_objects\(type, key, (?:status, )?properties, labels, version, canonical_id, supersedes_id, organization_id, project_id, branch_id, deleted_at, change_summary, content_hash(?:, fts, embedding, embedding_updated_at)?\)/i.test(sql)) {
             const prev = this.objects.find(o => o.id === params?.[6]);
+            // Check if status is present in the column list
+            const hasStatus = /\(type, key, status,/.test(sql);
             const row: Row = {
                 id: 'o_' + (++this.objSeq),
                 canonical_id: prev?.canonical_id || 'co_' + this.objSeq,
@@ -174,9 +180,10 @@ export class FakeGraphDb {
                 version: params?.[4],
                 type: params?.[0],
                 key: params?.[1],
+                status: hasStatus ? (params?.[15] ?? null) : null, // param $16 in SQL = index 15 in array
                 properties: params?.[2],
                 labels: params?.[3],
-                org_id: params?.[7] ?? null,
+                organization_id: params?.[7] ?? null,
                 project_id: params?.[8] ?? null,
                 branch_id: params?.[9] ?? null,
                 change_summary: params?.[11] ?? null,
@@ -187,7 +194,7 @@ export class FakeGraphDb {
             this.objects.push(row); return { rows: [row], rowCount: 1 };
         }
         // Object delete tombstone insert variant: columns omit branch/change_summary/content_hash but include deleted_at + fts + embedding columns
-        if (/INSERT INTO kb\.graph_objects\(type, key, properties, labels, version, canonical_id, supersedes_id, org_id, project_id, deleted_at, fts, embedding, embedding_updated_at\)/i.test(sql)) {
+        if (/INSERT INTO kb\.graph_objects\(type, key, properties, labels, version, canonical_id, supersedes_id, organization_id, project_id, deleted_at, fts, embedding, embedding_updated_at\)/i.test(sql)) {
             const prev = this.objects.find(o => o.id === params?.[6]);
             const row: Row = {
                 id: 'o_' + (++this.objSeq),
@@ -198,7 +205,7 @@ export class FakeGraphDb {
                 key: params?.[1],
                 properties: params?.[2],
                 labels: params?.[3],
-                org_id: params?.[7] ?? null,
+                organization_id: params?.[7] ?? null,
                 project_id: params?.[8] ?? null,
                 branch_id: (prev as any)?.branch_id ?? null,
                 change_summary: null,
@@ -233,7 +240,7 @@ export class FakeGraphDb {
         }
 
         // Relationship create first version (with branch_id, change_summary, content_hash)
-        if (/INSERT INTO kb\.graph_relationships\(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, change_summary, content_hash\)/i.test(sql)) {
+        if (/INSERT INTO kb\.graph_relationships\(organization_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, change_summary, content_hash\)/i.test(sql)) {
             // Ensure endpoints carry matching org/project in fake objects
             const orgId = params?.[0];
             const projectId = params?.[1];
@@ -262,15 +269,15 @@ export class FakeGraphDb {
             for (const eid of [srcId, dstId]) {
                 const existing = this.objects.find(o => o.id === eid);
                 if (existing) {
-                    (existing as any).org_id = orgId; (existing as any).project_id = projectId;
+                    (existing as any).organization_id = orgId; (existing as any).project_id = projectId;
                 } else if (eid) {
                     const stub = this._insertObject({ id: eid, type: 'Stub', key: null, properties: {}, labels: [] });
-                    (stub as any).org_id = orgId; (stub as any).project_id = projectId; (stub as any).branch_id = params?.[2] ?? null;
+                    (stub as any).organization_id = orgId; (stub as any).project_id = projectId; (stub as any).branch_id = params?.[2] ?? null;
                 }
             }
             const row: Row = {
                 id: 'r_' + (++this.relSeq),
-                org_id: params?.[0] ?? 'org',
+                organization_id: params?.[0] ?? 'org',
                 project_id: params?.[1] ?? 'proj',
                 branch_id: params?.[2] ?? null,
                 type: params?.[3],
@@ -291,19 +298,19 @@ export class FakeGraphDb {
             this.relationships.push(row); return { rows: [row], rowCount: 1 };
         }
         // Relationship patch insert (with branch_id, change_summary, content_hash; optional deleted_at column)
-        if (/INSERT INTO kb\.graph_relationships\(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, change_summary, content_hash\)/i.test(sql) ||
-            /INSERT INTO kb\.graph_relationships\(org_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at, change_summary, content_hash\)/i.test(sql)) {
+        if (/INSERT INTO kb\.graph_relationships\(organization_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, change_summary, content_hash\)/i.test(sql) ||
+            /INSERT INTO kb\.graph_relationships\(organization_id, project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at, change_summary, content_hash\)/i.test(sql)) {
             const hasDeleted = /deleted_at/.test(sql);
             const orgId = params?.[0];
             const projectId = params?.[1];
             // Sync existing endpoint objects' project/org
             for (const eid of [params?.[4], params?.[5]]) {
                 const existing = this.objects.find(o => o.id === eid);
-                if (existing) { (existing as any).org_id = orgId; (existing as any).project_id = projectId; }
+                if (existing) { (existing as any).organization_id = orgId; (existing as any).project_id = projectId; }
             }
             const row: Row = {
                 id: 'r_' + (++this.relSeq),
-                org_id: params?.[0],
+                organization_id: params?.[0],
                 project_id: params?.[1],
                 branch_id: params?.[2] ?? null,
                 type: params?.[3],
@@ -370,7 +377,7 @@ export class FakeGraphDb {
             return { rows: newer ? [{ id: newer.id }] : [], rowCount: newer ? 1 : 0 };
         }
         // Relationship full fetch by id
-        if (/SELECT id, org_id, project_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id/i.test(sql) && /WHERE id=\$1/i.test(sql)) {
+        if (/SELECT id, organization_id, project_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id/i.test(sql) && /WHERE id=\$1/i.test(sql)) {
             const r = this.relationships.find(r => r.id === params?.[0]);
             return { rows: r ? [r] : [], rowCount: r ? 1 : 0 };
         }
@@ -434,27 +441,27 @@ export class FakeGraphDb {
             const heads = Object.values(headsMap).filter(r => !r.deleted_at).slice(0, 500);
             return { rows: heads, rowCount: heads.length };
         }
-        // Object search (DISTINCT ON heads + outer created_at ASC)
-        if (/SELECT \* FROM \(\s*SELECT DISTINCT ON \(canonical_id\)/i.test(sql) && /FROM kb\.graph_objects/i.test(sql) && /ORDER BY t\.created_at ASC/i.test(sql)) {
+        // Object search (DISTINCT ON heads + outer created_at ASC/DESC)
+        if (/SELECT \* FROM \(\s*SELECT DISTINCT ON \(canonical_id\)/i.test(sql) && /FROM kb\.graph_objects/i.test(sql) && /ORDER BY t\.created_at (ASC|DESC)/i.test(sql)) {
             if (!this.opts.enableSearch) return { rows: [], rowCount: 0 };
             let rows = [...this.objects];
+            const orderDir = /ORDER BY t\.created_at DESC/i.test(sql) ? 'DESC' : 'ASC';
             // Filters are positional: type ($1) optional, key, label, cursor (created_at >)
-            if (/type = \$1/.test(sql) && params && params.length) rows = rows.filter(r => r.type === params[0]);
-            if (sql.includes('key =')) {
-                // key param will be next string that starts with 'key_'
-                const keyParam = (params || []).find(p => typeof p === 'string' && /^key_/.test(p));
-                if (keyParam) rows = rows.filter(r => r.key === keyParam);
+            if (/type = \$\d+/.test(sql) && params && params.length) {
+                const typeMatch = sql.match(/type = \$(\d+)/);
+                if (typeMatch) {
+                    const idx = parseInt(typeMatch[1], 10) - 1;
+                    const typeVal = params[idx];
+                    rows = rows.filter(r => r.type === typeVal);
+                }
             }
-            if (sql.includes('ANY(t.labels)')) {
-                const labelParam = (params || []).find(p => typeof p === 'string' && p === 'L1');
-                if (labelParam) rows = rows.filter(r => r.labels.includes(labelParam));
-            } else if (sql.includes('ANY(t.labels)') === false && sql.includes('ANY(labels)')) { // fallback older pattern
-                const labelParam = (params || []).find(p => p === 'L1');
-                if (labelParam) rows = rows.filter(r => r.labels.includes(labelParam));
-            }
-            if (sql.includes('created_at >')) {
-                const cursorDate = (params || []).find(p => p instanceof Date);
-                if (cursorDate) rows = rows.filter(r => new Date(r.created_at) > cursorDate);
+            if (sql.includes('ANY(t.labels)') && params) {
+                const labelMatch = sql.match(/\$(\d+) = ANY\(t\.labels\)/);
+                if (labelMatch) {
+                    const idx = parseInt(labelMatch[1], 10) - 1;
+                    const labelVal = params[idx];
+                    rows = rows.filter(r => r.labels.includes(labelVal));
+                }
             }
             // Simulate DISTINCT ON head selection by picking highest version per canonical
             const headMap: Record<string, Row> = {};
@@ -462,7 +469,12 @@ export class FakeGraphDb {
                 const existing = headMap[o.canonical_id];
                 if (!existing || (o.version || 1) > (existing.version || 1)) headMap[o.canonical_id] = o;
             }
-            const heads = Object.values(headMap).filter(h => !h.deleted_at).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+            let heads = Object.values(headMap).filter(h => !h.deleted_at);
+            heads.sort((a, b) => {
+                const da = new Date(a.created_at).getTime();
+                const db = new Date(b.created_at).getTime();
+                return orderDir === 'ASC' ? da - db : db - da;
+            });
             return { rows: heads, rowCount: heads.length };
         }
         // Relationship search (heads + created_at ordered) supports ASC (oldest-first) and DESC (newest-first)

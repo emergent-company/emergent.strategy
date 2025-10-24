@@ -73,12 +73,12 @@ export class IngestionService {
     async ingestUrl(url: string, orgId: string | undefined, projectId: string): Promise<IngestResult> {
         // Early validation: avoid outbound fetch if project already deleted / invalid
         if (this.db.isOnline()) {
-            const proj = await this.db.query<{ id: string; org_id: string }>('SELECT id, org_id FROM kb.projects WHERE id = $1 LIMIT 1', [projectId]);
+            const proj = await this.db.query<{ id: string; organization_id: string }>('SELECT id, organization_id FROM kb.projects WHERE id = $1 LIMIT 1', [projectId]);
             if (!proj.rowCount) {
                 throw new BadRequestException({ error: { code: 'project-not-found', message: 'Project not found (ingestion)' } });
             }
             const row = proj.rows[0];
-            if (orgId && row.org_id !== orgId) {
+            if (orgId && row.organization_id !== orgId) {
                 throw new BadRequestException({ error: { code: 'org-project-mismatch', message: 'Provided orgId does not match project org' } });
             }
         }
@@ -152,7 +152,7 @@ export class IngestionService {
         // Validate project & derive org (if not provided). If DB offline, allow ingestion but set nulls.
         let derivedOrg: string | null = null;
         if (this.db.isOnline()) {
-            const projRes = await this.db.query<{ id: string; org_id: string }>('SELECT id, org_id FROM kb.projects WHERE id = $1 LIMIT 1', [projectId]);
+            const projRes = await this.db.query<{ id: string; organization_id: string }>('SELECT id, organization_id FROM kb.projects WHERE id = $1 LIMIT 1', [projectId]);
             if (!projRes.rowCount || !projRes.rows.length) {
                 throw new BadRequestException({ error: { code: 'project-not-found', message: 'Project not found (ingestion)' } });
             }
@@ -160,7 +160,7 @@ export class IngestionService {
             if (!row || !row.id) {
                 throw new BadRequestException({ error: { code: 'project-load-failed', message: 'Failed to load project metadata' } });
             }
-            derivedOrg = row.org_id;
+            derivedOrg = row.organization_id;
             if (orgId && orgId !== derivedOrg) {
                 throw new BadRequestException({ error: { code: 'org-project-mismatch', message: 'Provided orgId does not match project org' } });
             }
@@ -212,7 +212,7 @@ export class IngestionService {
                                 LIMIT 1
                             )
                             INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content, content_hash)
-                            SELECT target.org_id, target.project_id, $3, $4, $5, $6, $7 FROM target
+                            SELECT target.organization_id, target.project_id, $3, $4, $5, $6, $7 FROM target
                             RETURNING id`,
                             [tenantOrgId, projectId, sourceUrl || null, filename || null, mimeType || 'text/plain', text, hash],
                         );
@@ -258,7 +258,7 @@ export class IngestionService {
                             LIMIT 1
                         )
                         INSERT INTO kb.documents(org_id, project_id, source_url, filename, mime_type, content)
-                        SELECT target.org_id, target.project_id, $3, $4, $5, $6 FROM target
+                        SELECT target.organization_id, target.project_id, $3, $4, $5, $6 FROM target
                         RETURNING id`,
                         [tenantOrgId, projectId, sourceUrl || null, filename || null, mimeType || 'text/plain', text],
                     );

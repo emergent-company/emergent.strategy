@@ -62,10 +62,6 @@ export enum NotificationSeverity {
 }
 
 export class CreateNotificationDto {
-    @ApiProperty()
-    @IsUUID()
-    tenant_id!: string;
-
     @ApiPropertyOptional()
     @IsUUID()
     @IsOptional()

@@ -16,7 +16,6 @@ describe('TypeRegistryService', () => {
 
     const mockTypeRow = {
         id: 'type-id-123',
-        tenant_id: mockTenantId,
         organization_id: mockOrgId,
         project_id: mockProjectId,
         type: 'Application',

@@ -3,7 +3,7 @@ import { DatabaseService } from '../../common/database/database.service';
 import { CreateProductVersionDto } from './dto/create-product-version.dto';
 
 export interface ProductVersionRow {
-  id: string; org_id: string | null; project_id: string; name: string; description: string | null; base_product_version_id: string | null; created_at: string;
+  id: string; organization_id: string | null; project_id: string; name: string; description: string | null; base_product_version_id: string | null; created_at: string;
 }
 export interface ProductVersionMemberRow { product_version_id: string; object_canonical_id: string; object_version_id: string; created_at: string }
 

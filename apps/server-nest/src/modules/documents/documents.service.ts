@@ -4,7 +4,7 @@ import { DocumentDto } from './dto/document.dto';
 
 interface DocumentRow {
     id: string;
-    org_id: string | null;
+    organization_id: string | null;
     project_id: string | null;
     filename: string | null;
     source_url: string | null;
@@ -32,7 +32,7 @@ export class DocumentsService {
         let paramIdx = 2; // because $1 reserved for limit
         if (filter?.orgId) {
             params.push(filter.orgId);
-            conds.push(`d.org_id = $${paramIdx++}`);
+            conds.push(`d.organization_id = $${paramIdx++}`);
         }
         if (filter?.projectId) {
             params.push(filter.projectId);
@@ -45,7 +45,7 @@ export class DocumentsService {
         }
         const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
         const res = await this.db.query<DocumentRow>(
-            `SELECT d.id, d.org_id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
+            `SELECT d.id, d.organization_id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
                     d.integration_metadata,
                     LENGTH(d.content) AS content_length,
                     COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
@@ -80,7 +80,7 @@ export class DocumentsService {
 
     async get(id: string): Promise<DocumentDto | null> {
         const res = await this.db.query<DocumentRow>(
-            `SELECT d.id, d.org_id, d.project_id, d.filename, d.source_url, d.mime_type, d.content, d.created_at, d.updated_at,
+            `SELECT d.id, d.organization_id, d.project_id, d.filename, d.source_url, d.mime_type, d.content, d.created_at, d.updated_at,
                     d.integration_metadata,
                     COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
                     ej.status AS extraction_status,
@@ -109,14 +109,14 @@ export class DocumentsService {
         // Atomic existence + insert to avoid race causing FK violation (uses CTE)
         const ins = await this.db.query<DocumentRow>(
             `WITH target AS (
-                SELECT p.id AS project_id, $1::uuid AS org_id
+                SELECT p.id AS project_id, $1::uuid AS organization_id
                 FROM kb.projects p
                 WHERE p.id = $2
                 LIMIT 1
             )
-            INSERT INTO kb.documents(org_id, project_id, filename, content)
-            SELECT target.org_id, target.project_id, $3, $4 FROM target
-            RETURNING id, org_id, project_id, filename, source_url, mime_type, created_at, updated_at, 0 as chunks`,
+            INSERT INTO kb.documents(organization_id, project_id, filename, content)
+            SELECT target.organization_id, target.project_id, $3, $4 FROM target
+            RETURNING id, organization_id, project_id, filename, source_url, mime_type, created_at, updated_at, 0 as chunks`,
             [body.orgId || null, projectId, body.filename || 'unnamed.txt', body.content || ''],
         );
         if (!ins.rowCount) {
@@ -126,9 +126,9 @@ export class DocumentsService {
     }
 
     async getProjectOrg(projectId: string): Promise<string | null> {
-        const res = await this.db.query<{ org_id: string | null }>('SELECT org_id FROM kb.projects WHERE id=$1 LIMIT 1', [projectId]);
+        const res = await this.db.query<{ organization_id: string | null }>('SELECT organization_id FROM kb.projects WHERE id=$1 LIMIT 1', [projectId]);
         if (!res.rowCount) return null;
-        return res.rows[0].org_id;
+        return res.rows[0].organization_id;
     }
 
     async delete(id: string): Promise<boolean> {
@@ -150,7 +150,7 @@ export class DocumentsService {
     private mapRow(r: DocumentRow): DocumentDto {
         return {
             id: r.id,
-            orgId: r.org_id || undefined,
+            orgId: r.organization_id || undefined,
             projectId: r.project_id || undefined,
             name: r.filename || r.source_url || 'unknown',
             sourceUrl: r.source_url,
