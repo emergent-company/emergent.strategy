@@ -6,13 +6,15 @@ export default defineConfig({
     test: {
         globals: true,
         include: ['tests/**/*.spec.ts', 'src/**/__tests__/**/*.spec.ts'],
-        // Exclude E2E and integration tests from unit test runs
+        // Exclude all tests requiring external infrastructure (DB, APIs, services)
+        // These run via vitest.e2e.config.ts with: npm run test:e2e
         exclude: [
             'tests/e2e/**',
-            'tests/integration/**',
             'tests/scenarios/**',
             '**/clickup-real.integration.spec.ts',
-            // Graph tests requiring database
+            '**/schema.indexes.spec.ts',
+            // Graph tests requiring database (suffix pattern or explicit)
+            'src/modules/graph/__tests__/*-integration.spec.ts',
             'src/modules/graph/__tests__/embedding-worker.backoff.spec.ts',
             'src/modules/graph/__tests__/embedding-worker.spec.ts',
             'src/modules/graph/__tests__/graph-branching.spec.ts',
@@ -25,7 +27,6 @@ export default defineConfig({
             'src/modules/graph/__tests__/graph-rls.strict-init.spec.ts',
             'src/modules/graph/__tests__/graph-validation.schema-negative.spec.ts',
             'src/modules/graph/__tests__/graph-validation.spec.ts',
-            'tests/unit/schema.indexes.spec.ts',
         ],
         coverage: {
             provider: 'v8',

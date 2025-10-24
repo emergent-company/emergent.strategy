@@ -1,90 +1,32 @@
-# Integration Tests
+# Integration Tests (Deprecated Location)
 
-This directory contains tests that require external services or infrastructure.
+**This directory is deprecated.** Integration tests have been consolidated with E2E tests.
 
-## Categories
+## New Location
 
-### Database-Dependent Tests (`./graph/`)
-Tests that require a PostgreSQL database connection:
-- Graph validation tests
-- RLS (Row Level Security) tests
-- Embedding worker tests
-- Graph relationship tests
-- Full-text search tests
+All tests requiring external infrastructure (database, services, APIs) now run together:
 
-**Requirements:**
-- PostgreSQL running on port 5432
-- Database migrations applied (`migrations/0001_init.sql`)
-- Test database schema initialized
+📂 **New location**: `tests/e2e/integration/`
 
-### External API Tests (`./clickup/`)
-Tests that make real API calls to external services:
-- ClickUp integration tests
+## Run All Infrastructure Tests
 
-**Requirements:**
-- Valid API credentials (e.g., `CLICKUP_API_TOKEN`)
-- Network connectivity
-- API rate limits considered
-
-### E2E Scenario Tests (`./scenarios/`)
-Full end-to-end tests requiring complete infrastructure:
-- User journey tests
-- Multi-service integration tests
-
-**Requirements:**
-- All services running
-- Database initialized
-- Test data seeded
-
-## Running Integration Tests
-
-### All integration tests:
 ```bash
-npm run test:integration
+npm run test:e2e
 ```
 
-### Specific category:
-```bash
-npm run test:integration -- tests/integration/graph
-```
+This command now runs:
+- HTTP endpoint tests (`tests/e2e/**/*.e2e.spec.ts`)
+- Service integration tests (`tests/e2e/integration/**/*.spec.ts`)
+- Scenario tests (`tests/scenarios/**/*.spec.ts`)
+- Graph DB tests (`src/modules/graph/__tests__/*-integration.spec.ts`)
 
-### Single test file:
-```bash
-npm run test:integration -- tests/integration/graph/graph-validation.spec.ts
-```
+## Why Consolidated?
 
-## Setup for Local Testing
+Both E2E and integration tests require the same infrastructure (PostgreSQL database). Maintaining separate configurations and commands was unnecessary complexity.
 
-1. **Start PostgreSQL:**
-   ```bash
-   nx run workspace-cli:workspace:deps:start
-   ```
+**Simplified model**:
+- **Unit tests** (`npm run test` or `npm run test:unit`): Fast, no external dependencies
+- **E2E tests** (`npm run test:e2e`): All tests requiring database/services/APIs
 
-2. **Apply migrations:**
-   ```bash
-   nx run server-nest:migrate
-   ```
+See `tests/e2e/integration/README.md` for details on integration test organization.
 
-3. **Run integration tests:**
-   ```bash
-   npm run test:integration
-   ```
-
-## CI/CD
-
-Integration tests should run:
-- On PR merge (not on every commit)
-- On scheduled nightly builds
-- Before releases
-
-Unit tests (without integration) run on every commit.
-
-## Moving Tests to Integration
-
-If you create a test that requires:
-- Database connection
-- External API calls
-- Real file system operations
-- Long-running operations (>5s)
-
-Move it to `tests/integration/` and it will be excluded from unit test runs.
