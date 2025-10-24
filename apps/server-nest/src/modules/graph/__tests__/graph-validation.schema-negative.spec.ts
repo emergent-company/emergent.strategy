@@ -4,6 +4,7 @@ import { DatabaseService } from '../../../common/database/database.service';
 import { SchemaRegistryService } from '../schema-registry.service';
 import { GraphService } from '../graph.service';
 import { AppConfigService } from '../../../common/config/config.service';
+import { getTestDbServiceConfig } from '../../../../tests/test-db-config';
 
 /** Negative schema validation test using object_type_schemas table */
 
@@ -13,15 +14,10 @@ describe('Graph Validation - schema negative', () => {
     beforeAll(async () => {
         process.env.E2E_MINIMAL_DB = 'true';
         process.env.DB_AUTOINIT = 'true';
-        process.env.PGHOST = process.env.PGHOST || 'localhost';
-        process.env.PGPORT = process.env.PGPORT || '5432';
-        process.env.PGUSER = process.env.PGUSER || 'spec';
-        process.env.PGPASSWORD = process.env.PGPASSWORD || 'spec';
-        process.env.PGDATABASE = process.env.PGDATABASE || 'spec';
+        const dbServiceConfig = getTestDbServiceConfig();
         const fakeConfig: any = {
             skipDb: false, autoInitDb: true,
-            dbHost: process.env.PGHOST, dbPort: +(process.env.PGPORT || 5432),
-            dbUser: process.env.PGUSER, dbPassword: process.env.PGPASSWORD, dbName: process.env.PGDATABASE,
+            ...dbServiceConfig,
         } satisfies Partial<AppConfigService>;
         db = new DatabaseService(fakeConfig as AppConfigService);
         await db.onModuleInit();

@@ -40,7 +40,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
         const res = await request
             .post('/graph/objects')
             .set(contextHeaders())
-            .send({ type, key, properties, labels, org_id: ctx.orgId, project_id: ctx.projectId })
+            .send({ type, key, properties, labels, organization_id: ctx.orgId, project_id: ctx.projectId })
             .expect(201);
         return res.body;
     }
@@ -49,7 +49,7 @@ describe('Graph Advanced Traversal (E2E) - Phase 3', () => {
         const res = await request
             .post('/graph/relationships')
             .set(contextHeaders())
-            .send({ type, src_id: src, dst_id: dst, properties, org_id: ctx.orgId, project_id: ctx.projectId })
+            .send({ type, src_id: src, dst_id: dst, properties, organization_id: ctx.orgId, project_id: ctx.projectId })
             .expect(201);
         return res.body;
     }

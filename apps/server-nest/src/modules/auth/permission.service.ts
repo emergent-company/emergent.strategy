@@ -66,7 +66,7 @@ export class PermissionService {
         }
         // Fetch memberships. Ignore org/project name joins for performance (controllers will filter by ids supplied in headers).
         const orgRows = await this.db.query<{ organization_id: string; role: string }>(
-            'SELECT org_id, role FROM kb.organization_memberships WHERE subject_id = $1',
+            'SELECT organization_id, role FROM kb.organization_memberships WHERE subject_id = $1',
             [userId]
         );
         const projectRows = await this.db.query<{ project_id: string; role: string }>(

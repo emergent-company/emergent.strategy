@@ -37,6 +37,12 @@ beforeAll(async () => {
 
 afterAll(async () => {
     try {
+        // Safety check: if context creation failed, nothing to cleanup
+        if (!ctx || !ctx.baseUrl) {
+            if (originalFetch) globalThis.fetch = originalFetch;
+            return;
+        }
+
         // Attempt explicit deletion of any still-tracked orgs
         await Promise.all(Array.from(trackedOrgIds).map(async id => {
             try { await originalFetch(`${ctx.baseUrl}/orgs/${id}`, { method: 'DELETE', headers: authHeader('all', 'global-org') }); } catch { /* ignore */ }
@@ -61,6 +67,8 @@ afterAll(async () => {
         }
     } finally {
         globalThis.fetch = originalFetch; // restore
-        await ctx.close();
+        if (ctx && typeof ctx.close === 'function') {
+            await ctx.close();
+        }
     }
 });

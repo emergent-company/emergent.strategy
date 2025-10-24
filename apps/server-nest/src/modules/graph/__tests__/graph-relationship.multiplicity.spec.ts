@@ -5,6 +5,7 @@ import { DatabaseService } from '../../../common/database/database.service';
 import { SchemaRegistryService } from '../schema-registry.service';
 import { AppConfigService } from '../../../common/config/config.service';
 import { BadRequestException } from '@nestjs/common';
+import { getTestDbServiceConfig } from '../../../../tests/test-db-config';
 
 // We rely on the real AppConfigModule to construct AppConfigService with validation so that
 // DatabaseService receives a properly wired instance. Environment defaults are injected below.
@@ -43,20 +44,12 @@ describe('Graph Relationship Multiplicity', () => {
 
     beforeAll(async () => {
         process.env.E2E_MINIMAL_DB = 'true';
-        process.env.PGHOST = process.env.PGHOST || 'localhost';
-        process.env.PGPORT = process.env.PGPORT || '5432';
-        process.env.PGUSER = process.env.PGUSER || 'spec';
-        process.env.PGPASSWORD = process.env.PGPASSWORD || 'spec';
-        process.env.PGDATABASE = process.env.PGDATABASE || 'spec';
+        const dbServiceConfig = getTestDbServiceConfig();
         process.env.DB_AUTOINIT = 'true';
         const fakeConfig: any = {
             skipDb: false,
             autoInitDb: true,
-            dbHost: process.env.PGHOST,
-            dbPort: +(process.env.PGPORT || 5432),
-            dbUser: process.env.PGUSER,
-            dbPassword: process.env.PGPASSWORD,
-            dbName: process.env.PGDATABASE,
+            ...dbServiceConfig,
         } satisfies Partial<AppConfigService>;
         db = new DatabaseService(fakeConfig as AppConfigService);
         await db.onModuleInit();

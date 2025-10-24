@@ -7,6 +7,7 @@ import { bootstrapTestApp } from '../utils/test-app';
 // Instead we create a dedicated pg Pool for fixture setup & cleanup after the app bootstraps.
 import { Pool } from 'pg';
 import crypto from 'node:crypto';
+import { getTestDbConfig } from '../test-db-config';
 
 export interface E2EContext {
     app: INestApplication;
@@ -171,22 +172,21 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
     // Enable static test tokens mode explicitly (Option 3) so fixtures like e2e-* are accepted
     process.env.AUTH_TEST_STATIC_TOKENS = process.env.AUTH_TEST_STATIC_TOKENS || '1';
     process.env.SCOPES_DISABLED = '0';
-    process.env.PGHOST = process.env.PGHOST || 'localhost';
-    process.env.PGPORT = process.env.PGPORT || '5432';
-    process.env.PGUSER = process.env.PGUSER || 'spec';
-    process.env.PGPASSWORD = process.env.PGPASSWORD || 'spec';
-    process.env.PGDATABASE = process.env.PGDATABASE || process.env.PGDATABASE_E2E || 'spec';
+
+    // Use unified test database configuration
+    const dbConfig = getTestDbConfig();
+
     process.env.DB_AUTOINIT = process.env.DB_AUTOINIT || 'true';
     // Force minimal schema consistently across all contexts to avoid mixed-mode races.
     process.env.E2E_MINIMAL_DB = 'true';
     const boot = await bootstrapTestApp();
     // Create dedicated pool for direct SQL (schema already ensured by app bootstrap)
     const pool = new Pool({
-        host: process.env.PGHOST,
-        port: Number(process.env.PGPORT || 5432),
-        user: process.env.PGUSER,
-        password: process.env.PGPASSWORD,
-        database: process.env.PGDATABASE,
+        host: dbConfig.host,
+        port: dbConfig.port,
+        user: dbConfig.user,
+        password: dbConfig.password,
+        database: dbConfig.database,
     });
     const online = await waitForConnectivity(pool);
     if (!online) throw new Error('Database connectivity failed for E2E tests');

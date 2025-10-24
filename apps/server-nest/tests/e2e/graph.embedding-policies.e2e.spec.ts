@@ -271,7 +271,7 @@ describe('Graph Embedding Policies (E2E)', () => {
                     type: 'DisabledType',
                     key: 'test-disabled',
                     properties: { content: 'This should not be embedded' },
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                 })
                 .expect(201);
@@ -301,7 +301,7 @@ describe('Graph Embedding Policies (E2E)', () => {
                     type: 'EnabledType',
                     key: 'test-enabled',
                     properties: { content: 'This should be embedded' },
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                 })
                 .expect(201);
@@ -331,7 +331,7 @@ describe('Graph Embedding Policies (E2E)', () => {
                     key: 'missing-labels',
                     properties: { content: 'Missing labels' },
                     labels: ['draft'], // Missing 'verified' and 'approved'
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                 })
                 .expect(201);
@@ -349,7 +349,7 @@ describe('Graph Embedding Policies (E2E)', () => {
                     key: 'has-labels',
                     properties: { content: 'Has labels' },
                     labels: ['verified', 'approved', 'extra'],
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                 })
                 .expect(201);
@@ -379,7 +379,7 @@ describe('Graph Embedding Policies (E2E)', () => {
                     key: 'has-excluded',
                     properties: { content: 'Draft content' },
                     labels: ['draft'],
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                 })
                 .expect(201);
@@ -409,7 +409,7 @@ describe('Graph Embedding Policies (E2E)', () => {
                     type: 'SizeLimitType',
                     key: 'large-object',
                     properties: { content: largeContent },
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                 })
                 .expect(201);
@@ -426,7 +426,7 @@ describe('Graph Embedding Policies (E2E)', () => {
                     type: 'UnpolicedType',
                     key: 'no-policy',
                     properties: { content: 'No policy defined' },
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                 })
                 .expect(201);
@@ -463,7 +463,7 @@ describe('Graph Embedding Policies (E2E)', () => {
                         internalData: 'Should be filtered out by relevantPaths'
                     },
                     labels: ['reviewed', 'published'],
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                 })
                 .expect(201);
@@ -493,7 +493,7 @@ describe('Graph Embedding Policies (E2E)', () => {
                     type: 'DynamicType',
                     key: 'before-update',
                     properties: { content: 'Before policy update' },
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                 })
                 .expect(201);
@@ -515,7 +515,7 @@ describe('Graph Embedding Policies (E2E)', () => {
                     type: 'DynamicType',
                     key: 'after-update',
                     properties: { content: 'After policy update' },
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                 })
                 .expect(201);
@@ -543,7 +543,7 @@ describe('Graph Embedding Policies (E2E)', () => {
                     type: 'DeletableType',
                     key: 'before-delete',
                     properties: { content: 'Before policy delete' },
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                 })
                 .expect(201);
@@ -564,7 +564,7 @@ describe('Graph Embedding Policies (E2E)', () => {
                     type: 'DeletableType',
                     key: 'after-delete',
                     properties: { content: 'After policy delete' },
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                 })
                 .expect(201);

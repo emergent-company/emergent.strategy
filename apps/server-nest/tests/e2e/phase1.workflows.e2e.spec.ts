@@ -80,7 +80,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const packId = created.id;
 
             // Step 2: List template packs
-            const listRes = await fetch(`${ctx.baseUrl}/template-packs?org_id=${ctx.orgId}`, {
+            const listRes = await fetch(`${ctx.baseUrl}/template-packs?organization_id=${ctx.orgId}`, {
                 headers
             });
 
@@ -93,7 +93,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(found.name).toBe('Test Template Pack');
 
             // Step 3: Get single template pack
-            const getRes = await fetch(`${ctx.baseUrl}/template-packs/${packId}?org_id=${ctx.orgId}`, {
+            const getRes = await fetch(`${ctx.baseUrl}/template-packs/${packId}?organization_id=${ctx.orgId}`, {
                 headers
             });
 
@@ -104,7 +104,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
 
             // Step 4: Get statistics (SKIPPED - endpoint not implemented yet)
             // TODO: Implement GET /template-packs/:id/statistics endpoint
-            // const statsRes = await fetch(`${ctx.baseUrl}/template-packs/${packId}/statistics?org_id=${ctx.orgId}`, {
+            // const statsRes = await fetch(`${ctx.baseUrl}/template-packs/${packId}/statistics?organization_id=${ctx.orgId}`, {
             //     headers
             // });
             // expect(statsRes.status).toBe(200);
@@ -114,7 +114,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
 
             // Step 5: Verify template pack is immutable (no DELETE endpoint)
             // Template packs are global resources and should not be deletable
-            const deleteRes = await fetch(`${ctx.baseUrl}/template-packs/${packId}?org_id=${ctx.orgId}`, {
+            const deleteRes = await fetch(`${ctx.baseUrl}/template-packs/${packId}?organization_id=${ctx.orgId}`, {
                 method: 'DELETE',
                 headers
             });
@@ -123,7 +123,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect([404, 405]).toContain(deleteRes.status);
 
             // Step 6: Verify template pack still exists and is accessible
-            const verifyRes = await fetch(`${ctx.baseUrl}/template-packs/${packId}?org_id=${ctx.orgId}`, {
+            const verifyRes = await fetch(`${ctx.baseUrl}/template-packs/${packId}?organization_id=${ctx.orgId}`, {
                 headers
             });
 
@@ -168,12 +168,12 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const pack = await createRes.json();
 
             // Install to project
-            const installRes = await fetch(`${ctx.baseUrl}/template-packs/projects/${ctx.projectId}/assign?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
+            const installRes = await fetch(`${ctx.baseUrl}/template-packs/projects/${ctx.projectId}/assign?organization_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     template_pack_id: pack.id,
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     tenant_id: ctx.orgId,
                     user_id: ctx.orgId
                 })
@@ -190,7 +190,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(result.installed_types.length).toBeGreaterThan(0);
 
             // Verify types were created in Type Registry
-            const typesRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
+            const typesRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}?organization_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
                 headers
             });
 
@@ -209,7 +209,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const headers = contextHeaders();
 
             // Step 1: Create custom type
-            const createRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
+            const createRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types?organization_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -244,7 +244,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const typeName = created.type;
 
             // Step 2: Get type by name
-            const getRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types/${typeName}?org_id=${ctx.orgId}`, {
+            const getRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types/${typeName}?organization_id=${ctx.orgId}`, {
                 headers
             });
 
@@ -253,7 +253,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(fetched.type).toBe('CustomTask');
 
             // Step 3: Update type
-            const updateRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types/${typeName}?org_id=${ctx.orgId}`, {
+            const updateRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types/${typeName}?organization_id=${ctx.orgId}`, {
                 method: 'PATCH',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -266,7 +266,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(updated.description).toBe('An updated task type description');
 
             // Step 4: Disable type
-            const disableRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types/${typeName}/toggle?org_id=${ctx.orgId}`, {
+            const disableRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types/${typeName}/toggle?organization_id=${ctx.orgId}`, {
                 method: 'PATCH',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ enabled: false })
@@ -277,7 +277,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(disabled.enabled).toBe(false);
 
             // Step 5: Re-enable type
-            const enableRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types/${typeName}/toggle?org_id=${ctx.orgId}`, {
+            const enableRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types/${typeName}/toggle?organization_id=${ctx.orgId}`, {
                 method: 'PATCH',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ enabled: true })
@@ -288,7 +288,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(enabled.enabled).toBe(true);
 
             // Step 6: Get statistics
-            const statsRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/stats?org_id=${ctx.orgId}`, {
+            const statsRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/stats?organization_id=${ctx.orgId}`, {
                 headers
             });
 
@@ -298,7 +298,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(stats.enabled_types).toBeGreaterThanOrEqual(1);
 
             // Step 7: Delete type
-            const deleteRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types/${typeName}?org_id=${ctx.orgId}`, {
+            const deleteRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types/${typeName}?organization_id=${ctx.orgId}`, {
                 method: 'DELETE',
                 headers
             });
@@ -306,7 +306,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(deleteRes.status).toBe(204);
 
             // Step 8: Verify deletion
-            const getDeletedRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types/${typeName}?org_id=${ctx.orgId}`, {
+            const getDeletedRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types/${typeName}?organization_id=${ctx.orgId}`, {
                 headers
             });
 
@@ -324,7 +324,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     name: 'FieldTest',
                     display_name: 'Field Test',
@@ -345,7 +345,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const type = await createTypeRes.json();
 
             // Add field
-            const addFieldRes = await fetch(`${ctx.baseUrl}/type-registry/${type.id}/fields?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            const addFieldRes = await fetch(`${ctx.baseUrl}/type-registry/${type.id}/fields?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -362,7 +362,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(withField.json_schema.required).toContain('priority');
 
             // Update field
-            const updateFieldRes = await fetch(`${ctx.baseUrl}/type-registry/${type.id}/fields/priority?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            const updateFieldRes = await fetch(`${ctx.baseUrl}/type-registry/${type.id}/fields/priority?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'PATCH',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -377,7 +377,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(updated.json_schema.properties.priority.enum).toContain('critical');
 
             // Remove field
-            const removeFieldRes = await fetch(`${ctx.baseUrl}/type-registry/${type.id}/fields/priority?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            const removeFieldRes = await fetch(`${ctx.baseUrl}/type-registry/${type.id}/fields/priority?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'DELETE',
                 headers
             });
@@ -393,7 +393,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const headers = contextHeaders();
 
             // Create custom type with strict schema
-            const createTypeRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
+            const createTypeRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types?organization_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -423,7 +423,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     type: 'ValidatedObject',
                     key: 'test-valid-object',
@@ -445,7 +445,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     type: 'ValidatedObject',
                     key: 'invalid-object',
@@ -466,7 +466,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     type: 'ValidatedObject',
                     key: 'invalid-enum-object',
@@ -486,7 +486,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     type: 'ValidatedObject',
                     key: 'constraint-violation',
@@ -540,7 +540,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const headers = contextHeaders();
 
             // Create type
-            const createTypeRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
+            const createTypeRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types?organization_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -563,7 +563,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const type = await createTypeRes.json();
 
             // Disable type
-            const disableRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types/DisabledType?org_id=${ctx.orgId}`, {
+            const disableRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types/DisabledType?organization_id=${ctx.orgId}`, {
                 method: 'PATCH',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ enabled: false })
@@ -576,7 +576,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     type: 'DisabledType',
                     key: 'object-with-disabled-type',
@@ -601,7 +601,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     source_type: 'document',
                     // source_id omitted (optional field, avoiding UUID validation)
@@ -629,7 +629,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const jobId = created.id;
 
             // Step 2: Update job to running status
-            const updateToRunningRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${jobId}?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            const updateToRunningRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${jobId}?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'PATCH',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -645,7 +645,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(running.started_at).toBeDefined();
 
             // Step 3: Update progress
-            const updateProgressRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${jobId}?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            const updateProgressRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${jobId}?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'PATCH',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -666,7 +666,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(progress.created_objects).toHaveLength(3);
 
             // Step 4: Complete job
-            const completeRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${jobId}?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            const completeRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${jobId}?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'PATCH',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -684,7 +684,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(completed.completed_at).toBeDefined();
 
             // Step 5: List jobs
-            const listRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/projects/${ctx.projectId}?org_id=${ctx.orgId}`, {
+            const listRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/projects/${ctx.projectId}?organization_id=${ctx.orgId}`, {
                 headers
             });
 
@@ -697,7 +697,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(foundJob.status).toBe('completed');
 
             // Step 6: Get job by ID
-            const getRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${jobId}?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            const getRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${jobId}?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 headers
             });
 
@@ -707,7 +707,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(fetched.status).toBe('completed');
 
             // Step 7: Get statistics
-            const statsRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/projects/${ctx.projectId}/statistics?org_id=${ctx.orgId}`, {
+            const statsRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/projects/${ctx.projectId}/statistics?organization_id=${ctx.orgId}`, {
                 headers
             });
 
@@ -718,7 +718,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(stats.by_source_type.document).toBeGreaterThanOrEqual(1);
 
             // Step 8: Delete job
-            const deleteRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${jobId}?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            const deleteRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${jobId}?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'DELETE',
                 headers
             });
@@ -726,7 +726,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(deleteRes.status).toBe(204);
 
             // Step 9: Verify deletion
-            const getDeletedRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${jobId}?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            const getDeletedRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${jobId}?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 headers
             });
 
@@ -741,7 +741,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     source_type: 'api',
                     extraction_config: {}
@@ -753,14 +753,14 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const job = await createRes.json();
 
             // Update to running
-            await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'PATCH',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'running', total_items: 50 })
             });
 
             // Cancel job
-            const cancelRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}/cancel?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            const cancelRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}/cancel?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'POST',
                 headers
             });
@@ -779,7 +779,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     source_type: 'manual',
                     extraction_config: {}
@@ -790,14 +790,14 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const job = await createRes.json();
 
             // Update to running
-            await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'PATCH',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'running', total_items: 10 })
             });
 
             // Try to delete running job
-            const deleteRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            const deleteRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'DELETE',
                 headers
             });
@@ -822,7 +822,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     source_type: 'bulk_import',
                     extraction_config: {}
@@ -833,14 +833,14 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const job = await createRes.json();
 
             // Start job
-            await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'PATCH',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'running', total_items: 20 })
             });
 
             // Fail job with error details
-            const failRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            const failRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'PATCH',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -876,7 +876,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     name: 'Integration Test Pack',
                     description: 'Complete integration test',
                     version: '1.0.0',
@@ -905,12 +905,12 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const pack = await packRes.json();
 
             // Install template pack to project
-            const installRes = await fetch(`${ctx.baseUrl}/template-packs/projects/${ctx.projectId}/assign?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
+            const installRes = await fetch(`${ctx.baseUrl}/template-packs/projects/${ctx.projectId}/assign?organization_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     template_pack_id: pack.id,
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     tenant_id: ctx.orgId,
                     user_id: ctx.orgId
                 })
@@ -922,7 +922,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
 
             // === Part 2: Create Custom Type in Type Registry ===
 
-            const customTypeRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
+            const customTypeRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types?organization_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -953,7 +953,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     type: 'IntegrationRequirement',
                     key: 'req-001',
@@ -973,7 +973,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     type: 'IntegrationFeature',
                     key: 'fea-001-login-flow',
@@ -993,7 +993,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     type: 'IntegrationFeature',
                     key: 'invalid-feature',
@@ -1012,7 +1012,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     source_type: 'document',
                     // source_id omitted (optional field, avoiding UUID validation)
@@ -1028,13 +1028,13 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const job = await jobRes.json();
 
             // Simulate extraction process
-            await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'PATCH',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'running', total_items: 2 })
             });
 
-            await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=${ctx.projectId}&org_id=${ctx.orgId}`, {
+            await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=${ctx.projectId}&organization_id=${ctx.orgId}`, {
                 method: 'PATCH',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1050,7 +1050,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             // === Verification: Check all components ===
 
             // TODO: Verify template pack statistics (endpoint not implemented yet)
-            // const packStatsRes = await fetch(`${ctx.baseUrl}/template-packs/${pack.id}/statistics?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
+            // const packStatsRes = await fetch(`${ctx.baseUrl}/template-packs/${pack.id}/statistics?organization_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
             //     headers
             // });
             // expect(packStatsRes.status).toBe(200);
@@ -1058,7 +1058,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             // expect(packStats.installed_projects).toBeGreaterThanOrEqual(1);
 
             // Verify type registry statistics
-            const typeStatsRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/stats?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
+            const typeStatsRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/stats?organization_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
                 headers
             });
             expect(typeStatsRes.status).toBe(200);
@@ -1066,7 +1066,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(typeStats.total_types).toBeGreaterThanOrEqual(2);
 
             // Verify extraction job statistics
-            const jobStatsRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/projects/${ctx.projectId}/statistics?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
+            const jobStatsRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/projects/${ctx.projectId}/statistics?organization_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
                 headers
             });
             expect(jobStatsRes.status).toBe(200);
@@ -1089,7 +1089,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     name: 'RLS Test Pack',
                     description: 'Pack for RLS testing',
                     version: '1.0.0',
@@ -1114,8 +1114,8 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             expect(createRes.status).toBe(201);
             const pack = await createRes.json();
 
-            // Try to access with wrong org_id (should fail RLS)
-            const wrongOrgRes = await fetch(`${ctx.baseUrl}/template-packs/${pack.id}?org_id=00000000-0000-0000-0000-000000000000`, {
+            // Try to access with wrong organization_id (should fail RLS)
+            const wrongOrgRes = await fetch(`${ctx.baseUrl}/template-packs/${pack.id}?organization_id=00000000-0000-0000-0000-000000000000`, {
                 headers
             });
 
@@ -1126,7 +1126,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const headers = contextHeaders();
 
             // Create type
-            const createRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types?org_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
+            const createRes = await fetch(`${ctx.baseUrl}/type-registry/projects/${ctx.projectId}/types?organization_id=${ctx.orgId}&tenant_id=${ctx.orgId}&user_id=${ctx.orgId}`, {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1143,7 +1143,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const type = await createRes.json();
 
             // Try to access with wrong project_id (should fail RLS)
-            const wrongProjectRes = await fetch(`${ctx.baseUrl}/type-registry/${type.id}?project_id=00000000-0000-0000-0000-000000000000&org_id=${ctx.orgId}`, {
+            const wrongProjectRes = await fetch(`${ctx.baseUrl}/type-registry/${type.id}?project_id=00000000-0000-0000-0000-000000000000&organization_id=${ctx.orgId}`, {
                 headers
             });
 
@@ -1158,7 +1158,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
                 method: 'POST',
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    org_id: ctx.orgId,
+                    organization_id: ctx.orgId,
                     project_id: ctx.projectId,
                     source_type: 'manual',
                     extraction_config: {}
@@ -1170,7 +1170,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const job = await createRes.json();
 
             // Try to access with wrong project_id (should fail RLS)
-            const wrongProjectRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=00000000-0000-0000-0000-000000000000&org_id=${ctx.orgId}`, {
+            const wrongProjectRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=00000000-0000-0000-0000-000000000000&organization_id=${ctx.orgId}`, {
                 headers
             });
 
