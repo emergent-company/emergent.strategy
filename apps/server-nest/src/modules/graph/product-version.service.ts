@@ -33,9 +33,9 @@ export class ProductVersionService {
         baseId = base.rows[0].id;
       }
       const inserted = await client.query<ProductVersionRow>(
-        `INSERT INTO kb.product_versions(project_id, org_id, name, description, base_product_version_id)
+        `INSERT INTO kb.product_versions(project_id, organization_id, name, description, base_product_version_id)
          VALUES ($1,$2,$3,$4,$5)
-         RETURNING id, org_id, project_id, name, description, base_product_version_id, created_at`,
+         RETURNING id, organization_id, project_id, name, description, base_product_version_id, created_at`,
         [projectId, orgId, name, dto.description ?? null, baseId]
       );
       const pv = inserted.rows[0];
