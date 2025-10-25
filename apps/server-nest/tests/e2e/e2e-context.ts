@@ -90,13 +90,28 @@ async function cleanupUserData(pool: Pool, projectId: string, userSub: string) {
         const r = await pool.query(`SELECT to_regclass($1) as exists`, [name]);
         return !!r.rows[0].exists;
     };
-    // Derive uuid form for owner_subject_id (since chat schema stores UUID not raw sub)
-    const mappedUserId = mapUserSubToUuid(userSub);
+
+    // Map token to external Zitadel user ID (matches AuthService logic)
+    const zitadelUserId = userSub.startsWith('test-user-') ? userSub : `test-user-${userSub}`;
+
+    // Get internal UUID for the user
+    const userResult = await pool.query<{ id: string }>(
+        `SELECT id FROM core.user_profiles WHERE zitadel_user_id = $1`,
+        [zitadelUserId]
+    ).catch(() => ({ rows: [] }));
+
+    if (userResult.rows.length === 0) {
+        // User doesn't exist, nothing to clean
+        return;
+    }
+
+    const userUuid = userResult.rows[0].id;
+
     if (await tableCheck('kb.chat_messages')) {
-        await pool.query(`DELETE FROM kb.chat_messages WHERE conversation_id IN (SELECT id FROM kb.chat_conversations WHERE owner_subject_id = $1)`, [mappedUserId]);
+        await pool.query(`DELETE FROM kb.chat_messages WHERE conversation_id IN (SELECT id FROM kb.chat_conversations WHERE owner_id = $1)`, [userUuid]);
     }
     if (await tableCheck('kb.chat_conversations')) {
-        await pool.query(`DELETE FROM kb.chat_conversations WHERE owner_subject_id = $1`, [mappedUserId]);
+        await pool.query(`DELETE FROM kb.chat_conversations WHERE owner_id = $1`, [userUuid]);
     }
     if (await tableCheck('kb.chunks')) {
         await pool.query(`DELETE FROM kb.chunks WHERE document_id IN (SELECT id FROM kb.documents WHERE project_id = $1)`, [projectId]);
@@ -249,40 +264,56 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
     // Default remains the historical fixed UUID-like suffix for backward compatibility.
     const tokenSeed = userSuffix ? `e2e-${userSuffix}` : 'e2e-all';
     const contextUserLabel = userSuffix ?? 'all';
-    const mappedUserId = mapUserSubToUuid(tokenSeed);
-    const legacyWithScopeUserId = mapUserSubToUuid('with-scope');
+    // Map token to external Zitadel user ID (matches AuthService logic)
+    const zitadelUserId = `test-user-${tokenSeed}`;
+    const legacyWithScopeZitadelId = 'test-user-with-scope';
 
     // Ensure deterministic test user has a profile + memberships so org/project listings respect RLS policies.
     const client = await pool.connect();
+    let userUuid: string;
     try {
         await client.query('BEGIN');
         const displayName = userSuffix ? `E2E User ${userSuffix}` : 'E2E User';
         const emailLocal = tokenSeed.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
         const email = `${emailLocal || 'e2e-user'}@example.test`;
-        await client.query(
-            `INSERT INTO core.user_profiles(subject_id, display_name)
+
+        // Insert/update user profile using zitadel_user_id (external ID)
+        const profileResult = await client.query<{ id: string }>(
+            `INSERT INTO core.user_profiles(zitadel_user_id, display_name)
              VALUES($1,$2)
-             ON CONFLICT (subject_id) DO UPDATE SET display_name = EXCLUDED.display_name`,
-            [mappedUserId, displayName],
+             ON CONFLICT (zitadel_user_id) DO UPDATE SET display_name = EXCLUDED.display_name
+             RETURNING id`,
+            [zitadelUserId, displayName],
         );
+        userUuid = profileResult.rows[0].id;
+
+        // Insert user email - use a simple INSERT without ON CONFLICT
+        // (tests create fresh users, so collisions are rare)
         await client.query(
-            `INSERT INTO core.user_emails(subject_id, email, verified)
-             VALUES($1,$2,true)
-             ON CONFLICT (subject_id, email) DO NOTHING`,
-            [mappedUserId, email],
-        );
+            `INSERT INTO core.user_emails(user_id, email, verified)
+             VALUES($1,$2,true)`,
+            [userUuid, email],
+        ).catch(() => {
+            // Ignore duplicate email errors (user already has this email from previous run)
+        });
+
+        // Insert organization membership using internal UUID
         await client.query(
-            `INSERT INTO kb.organization_memberships(organization_id, subject_id, role)
-             VALUES($1,$2,'org_admin')
-             ON CONFLICT (organization_id, subject_id) DO NOTHING`,
-            [orgId, mappedUserId],
-        );
+            `INSERT INTO kb.organization_memberships(organization_id, user_id, role)
+             VALUES($1,$2,'org_admin')`,
+            [orgId, userUuid],
+        ).catch(() => {
+            // Ignore duplicate membership errors
+        });
+
+        // Insert project membership using internal UUID
         await client.query(
-            `INSERT INTO kb.project_memberships(project_id, subject_id, role)
-             VALUES($1,$2,'project_admin')
-             ON CONFLICT (project_id, subject_id) DO NOTHING`,
-            [projectId, mappedUserId],
-        );
+            `INSERT INTO kb.project_memberships(project_id, user_id, role)
+             VALUES($1,$2,'project_admin')`,
+            [projectId, userUuid],
+        ).catch(() => {
+            // Ignore duplicate membership errors
+        });
         await client.query('COMMIT');
     } catch (error) {
         try { await client.query('ROLLBACK'); } catch { /* ignore */ }
@@ -293,8 +324,16 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
 
     // Ensure legacy static token users (e.g. "with-scope") do not retain elevated memberships from prior runs.
     // Scope denial specs rely on that subject having no org/project roles so ScopesGuard enforces properly.
-    await pool.query(`DELETE FROM kb.organization_memberships WHERE subject_id = $1`, [legacyWithScopeUserId]).catch(() => { /* ignore */ });
-    await pool.query(`DELETE FROM kb.project_memberships WHERE subject_id = $1`, [legacyWithScopeUserId]).catch(() => { /* ignore */ });
+    // First get the UUID for the legacy user
+    const legacyUserResult = await pool.query<{ id: string }>(
+        `SELECT id FROM core.user_profiles WHERE zitadel_user_id = $1`,
+        [legacyWithScopeZitadelId]
+    ).catch(() => ({ rows: [] }));
+    if (legacyUserResult.rows.length > 0) {
+        const legacyUserUuid = legacyUserResult.rows[0].id;
+        await pool.query(`DELETE FROM kb.organization_memberships WHERE user_id = $1`, [legacyUserUuid]).catch(() => { /* ignore */ });
+        await pool.query(`DELETE FROM kb.project_memberships WHERE user_id = $1`, [legacyUserUuid]).catch(() => { /* ignore */ });
+    }
 
     return {
         app: boot.app,

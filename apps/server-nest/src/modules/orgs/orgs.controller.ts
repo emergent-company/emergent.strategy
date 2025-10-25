@@ -29,7 +29,7 @@ export class OrgsController {
     @ApiBadRequestResponse({ description: 'Bad request', schema: { example: { error: { code: 'bad-request', message: 'Invalid filter' } } } })
     @ApiStandardErrors()
     async list(@Req() req: any): Promise<OrgDto[]> {
-        const userId: string | undefined = req?.user?.sub;
+        const userId: string | undefined = req?.user?.id; // Use internal UUID, not external sub
         return this.orgs.list(userId);
     }
 
@@ -52,7 +52,7 @@ export class OrgsController {
     @ApiBadRequestResponse({ description: 'Invalid body', schema: { example: { error: { code: 'validation-failed', message: 'Validation failed', details: { name: ['must be a string'] } } } } })
     @ApiStandardErrors()
     async create(@Body(new ValidationPipe({ whitelist: true, transform: true })) dto: CreateOrgDto, @Req() req: any): Promise<OrgDto> {
-        const userId: string | undefined = req?.user?.sub;
+        const userId: string | undefined = req?.user?.id; // Use internal UUID, not external sub
         return this.orgs.create(dto.name.trim(), userId);
     }
 

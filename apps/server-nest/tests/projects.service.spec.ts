@@ -112,7 +112,6 @@ describe('ProjectsService', () => {
             { text: /BEGIN/ },
             { text: /SELECT id FROM kb\.orgs/, result: { rows: [{ id: uuid(1) }], rowCount: 1 } },
             { text: /INSERT INTO kb\.projects/, result: { rows: [{ id: uuid(3), name: 'Proj2', organization_id: uuid(1) }], rowCount: 1 } },
-            { text: /INSERT INTO core\.user_profiles/ },
             { text: /INSERT INTO kb\.project_memberships/ },
             { text: /COMMIT/ },
         ]);
@@ -124,7 +123,8 @@ describe('ProjectsService', () => {
         );
         const res = await svc.create('Proj2', uuid(1), 'user-123');
         expect(res).toEqual({ id: uuid(3), name: 'Proj2', orgId: uuid(1) });
-        expect(client.queries.some(q => /user_profiles/.test(q.text))).toBe(true);
+        // User profile creation was removed - now handled separately by auth flow
+        expect(client.queries.some(q => /user_profiles/.test(q.text))).toBe(false);
         expect(client.queries.some(q => /project_memberships/.test(q.text))).toBe(true);
         expect(templatePacks.assignTemplatePackToProject).not.toHaveBeenCalled();
     });
