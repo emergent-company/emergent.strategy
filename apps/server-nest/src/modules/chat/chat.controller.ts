@@ -211,7 +211,7 @@ export class ChatController {
     // Listing conversations = chat usage scope
     @Scopes('chat:use')
     async listConversations(@Req() req: any) {
-        const userId = this.chat.mapUserId(req.user?.sub);
+        const userId = req.user?.id || null;
         const orgId = (req.headers['x-org-id'] as string | undefined) || null;
         const projectId = (req.headers['x-project-id'] as string | undefined) || null;
         if (!projectId) throw new BadRequestException({ error: { code: 'bad-request', message: 'x-project-id header required' } });
@@ -228,7 +228,7 @@ export class ChatController {
     async createConversation(@Body() body: { message?: string; isPrivate?: boolean }, @Req() req: any, @Res() res: Response) {
         const message = String(body?.message || '').trim();
         if (!message) return res.status(HttpStatus.BAD_REQUEST).json({ error: { code: 'bad-request', message: 'message required' } });
-        const userId = this.chat.mapUserId(req.user?.sub);
+        const userId = req.user?.id || null;
         const orgId = (req.headers['x-org-id'] as string | undefined) || null;
         const projectId = (req.headers['x-project-id'] as string | undefined) || null;
         if (!projectId) return res.status(HttpStatus.BAD_REQUEST).json({ error: { code: 'bad-request', message: 'x-project-id header required' } });
@@ -250,7 +250,7 @@ export class ChatController {
     // Reading a conversation requires chat:use
     @Scopes('chat:use')
     async getConversation(@Param('id') id: string, @Req() req: any, @Res() res: Response) {
-        const userId = this.chat.mapUserId(req.user?.sub);
+        const userId = req.user?.id || null;
         const orgId = (req.headers['x-org-id'] as string | undefined) || null;
         const projectId = (req.headers['x-project-id'] as string | undefined) || null;
         const conv = await this.chat.getConversation(id, userId, orgId, projectId);
@@ -300,7 +300,7 @@ export class ChatController {
             return res.status(HttpStatus.NOT_FOUND).json({ error: { code: 'not-found', message: 'Conversation not found' } });
         }
         // Check conversation existence & access BEFORE switching to SSE headers to return proper JSON errors.
-        const userId = this.chat.mapUserId(req.user?.sub);
+        const userId = req.user?.id || null;
         const orgId = (req.headers['x-org-id'] as string | undefined) || null;
         const conv = await this.chat.getConversation(id, userId, orgId, projectId);
         if (conv === null) {
@@ -552,7 +552,7 @@ export class ChatController {
         const title = String(body?.title || '').trim();
         if (!title) return res.status(HttpStatus.BAD_REQUEST).json({ error: { code: 'bad-request', message: 'title required' } });
         // For real UUID conversations, persist via service
-        const userId = this.chat.mapUserId(req.user?.sub);
+        const userId = req.user?.id || null;
         const orgId = (req.headers['x-org-id'] as string | undefined) || null;
         const projectId = (req.headers['x-project-id'] as string | undefined) || null;
         if (!ChatController.UUID_RE.test(id)) {
@@ -570,7 +570,7 @@ export class ChatController {
     // Deleting conversation = admin
     @Scopes('chat:admin')
     async delete(@Param('id') id: string, @Req() req: any, @Res() res: Response) {
-        const userId = this.chat.mapUserId(req.user?.sub);
+        const userId = req.user?.id || null;
         const orgId = (req.headers['x-org-id'] as string | undefined) || null;
         const projectId = (req.headers['x-project-id'] as string | undefined) || null;
         if (!ChatController.UUID_RE.test(id)) {
@@ -623,7 +623,7 @@ export class ChatController {
         const projectId = (req.headers['x-project-id'] as string | undefined) || null;
         if (!projectId) return res.status(HttpStatus.BAD_REQUEST).json({ error: { code: 'bad-request', message: 'x-project-id header required' } });
         const orgId = (req.headers['x-org-id'] as string | undefined) || null;
-        const userId = this.chat.mapUserId(req.user?.sub);
+        const userId = req.user?.id || null;
         const topK = Math.min(Math.max(Number(body?.topK || 5), 1), 20);
         const filterIds = Array.isArray(body?.documentIds) && body.documentIds.length ? body.documentIds : null;
         let convId: string;

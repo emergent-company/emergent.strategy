@@ -7792,6 +7792,11 @@
             "firstName": {
               "type": "object"
             },
+            "id": {
+              "description": "Internal UUID user id (primary key)",
+              "format": "uuid",
+              "type": "string"
+            },
             "lastName": {
               "type": "object"
             },
@@ -7800,12 +7805,17 @@
               "type": "object"
             },
             "subjectId": {
-              "description": "Canonical internal user id (subject id, from identity provider)",
+              "description": "Canonical internal user id (subject id, from identity provider) - DEPRECATED: use id",
               "format": "uuid",
               "type": "string"
+            },
+            "zitadelUserId": {
+              "description": "Zitadel user ID (external auth provider)",
+              "type": "object"
             }
           },
           "required": [
+            "id",
             "subjectId"
           ],
           "type": "object"

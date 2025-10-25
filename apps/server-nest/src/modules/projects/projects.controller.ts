@@ -51,7 +51,7 @@ export class ProjectsController {
     // Creating a project now requires org:project:create (org-level capability)
     @Scopes('org:project:create')
     async create(@Body() dto: CreateProjectDto, @Req() req: any) {
-        const userId: string | undefined = req?.user?.sub;
+        const userId: string | undefined = req?.user?.id; // Use internal UUID, not external sub
         // Validate orgId using same pipe logic (body field so apply manually)
         const validator = new UuidParamPipe({ paramName: 'orgId' });
         dto.orgId = validator.transform(dto.orgId)!; // CreateProjectDto requires orgId

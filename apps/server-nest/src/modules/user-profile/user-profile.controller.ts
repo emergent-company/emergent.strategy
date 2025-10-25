@@ -17,10 +17,9 @@ export class UserProfileController {
     @ApiOkResponse({ type: UserProfileDto })
     @ApiStandardErrors()
     async getSelf(@Req() req: any) {
-        const sub: string | undefined = req?.user?.sub;
-        if (!sub) return null;
-        await this.profiles.upsertBase(sub);
-        return this.profiles.get(sub);
+        const userId: string | undefined = req?.user?.id; // Use internal UUID
+        if (!userId) return null;
+        return this.profiles.getById(userId); // Use getById for UUID lookup
     }
 
     @Put()
@@ -28,16 +27,16 @@ export class UserProfileController {
     @ApiBadRequestResponse({ description: 'Validation error' })
     @ApiStandardErrors()
     async updateSelf(@Req() req: any, @Body() dto: UpdateUserProfileDto) {
-        const sub: string | undefined = req?.user?.sub;
-        return this.profiles.update(sub!, dto);
+        const userId: string | undefined = req?.user?.id; // Use internal UUID
+        return this.profiles.update(userId!, dto);
     }
 
     @Get('emails')
     @ApiOkResponse({ type: AlternativeEmailDto, isArray: true })
     @ApiStandardErrors()
     async listEmails(@Req() req: any) {
-        const sub: string | undefined = req?.user?.sub;
-        return this.profiles.listAlternativeEmails(sub!);
+        const userId: string | undefined = req?.user?.id; // Use internal UUID
+        return this.profiles.listAlternativeEmails(userId!);
     }
 
     @Post('emails')
@@ -45,15 +44,15 @@ export class UserProfileController {
     @ApiOkResponse({ type: AlternativeEmailDto })
     @ApiStandardErrors()
     async addEmail(@Req() req: any, @Body() dto: AddAlternativeEmailDto) {
-        const sub: string | undefined = req?.user?.sub;
-        return this.profiles.addAlternativeEmail(sub!, dto.email);
+        const userId: string | undefined = req?.user?.id; // Use internal UUID
+        return this.profiles.addAlternativeEmail(userId!, dto.email);
     }
 
     @Delete('emails/:email')
     @ApiOkResponse({ schema: { example: { status: 'deleted' } } })
     @ApiStandardErrors()
     async removeEmail(@Req() req: any, @Param('email') email: string) {
-        const sub: string | undefined = req?.user?.sub;
-        return this.profiles.deleteAlternativeEmail(sub!, decodeURIComponent(email));
+        const userId: string | undefined = req?.user?.id; // Use internal UUID
+        return this.profiles.deleteAlternativeEmail(userId!, decodeURIComponent(email));
     }
 }

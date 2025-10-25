@@ -97,9 +97,14 @@ export class ProjectsService {
             );
             const p = insProj.rows[0];
             if (userId) {
-                // Ensure user profile exists before inserting membership (mirrors org + chat creation flows)
-                await client.query(`INSERT INTO core.user_profiles(subject_id) VALUES($1) ON CONFLICT (subject_id) DO NOTHING`, [userId]);
-                await client.query(`INSERT INTO kb.project_memberships(project_id, subject_id, role) VALUES($1,$2,'project_admin') ON CONFLICT (project_id, subject_id) DO NOTHING`, [p.id, userId]);
+                // userId is now the internal UUID from req.user.id
+                // User profile already exists from auth flow, just insert membership
+                await client.query(
+                    `INSERT INTO kb.project_memberships(project_id, user_id, role) VALUES($1,$2,'project_admin')`,
+                    [p.id, userId]
+                ).catch(() => {
+                    // Ignore duplicate membership errors
+                });
             }
             await client.query('COMMIT');
             project = { id: p.id, name: p.name, orgId: p.organization_id };

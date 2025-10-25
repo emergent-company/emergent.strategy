@@ -51,26 +51,16 @@ export class PermissionService {
             return { userId, orgRoles: [], projectRoles: [], scopes: ['org:read'] };
         }
         // Membership tables assumed to exist (ensured during schema bootstrap / upgrade).
-        // Lazy ensure a user profile row exists (idempotent). subject_id is canonical internal id.
-        this.logger.log(`Computing permissions for user ${userId} - ensuring profile exists`);
-        try {
-            await this.db.query(
-                `INSERT INTO core.user_profiles(subject_id)
-                             VALUES($1)
-                             ON CONFLICT (subject_id) DO NOTHING`,
-                [userId],
-            );
-            this.logger.log(`Successfully ensured user profile exists for ${userId}`);
-        } catch (e) {
-            this.logger.error(`Failed ensuring user profile row for ${userId}`, e as Error);
-        }
+        // userId is now the internal UUID from req.user.id. User profile already exists from auth flow.
+        this.logger.log(`Computing permissions for user ${userId}`);
+
         // Fetch memberships. Ignore org/project name joins for performance (controllers will filter by ids supplied in headers).
         const orgRows = await this.db.query<{ organization_id: string; role: string }>(
-            'SELECT organization_id, role FROM kb.organization_memberships WHERE subject_id = $1',
+            'SELECT organization_id, role FROM kb.organization_memberships WHERE user_id = $1',
             [userId]
         );
         const projectRows = await this.db.query<{ project_id: string; role: string }>(
-            'SELECT project_id, role FROM kb.project_memberships WHERE subject_id = $1',
+            'SELECT project_id, role FROM kb.project_memberships WHERE user_id = $1',
             [userId]
         );
         const scopes: string[] = [];
