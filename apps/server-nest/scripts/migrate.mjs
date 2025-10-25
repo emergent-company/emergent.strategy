@@ -29,13 +29,13 @@ const execAsync = promisify(exec);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = join(__dirname, '../migrations');
 
-// Require explicit configuration - no defaults!
+// Support both POSTGRES_* and PG* environment variables (PG* used by test suite)
 const CONTAINER_NAME = process.env.DB_CONTAINER_NAME;
-const DB_USER = process.env.POSTGRES_USER;
-const DB_NAME = process.env.POSTGRES_DB;
-const DB_PASSWORD = process.env.POSTGRES_PASSWORD;
-const DB_HOST = process.env.POSTGRES_HOST;
-const DB_PORT = process.env.POSTGRES_PORT;
+const DB_USER = process.env.POSTGRES_USER || process.env.PGUSER;
+const DB_NAME = process.env.POSTGRES_DB || process.env.PGDATABASE;
+const DB_PASSWORD = process.env.POSTGRES_PASSWORD || process.env.PGPASSWORD;
+const DB_HOST = process.env.POSTGRES_HOST || process.env.PGHOST;
+const DB_PORT = process.env.POSTGRES_PORT || process.env.PGPORT;
 
 // Validate required configuration
 if (!DB_USER) throw new Error('POSTGRES_USER environment variable is required');
