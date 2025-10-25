@@ -267,7 +267,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         // Grant access to core.user_profiles for user profile creation during authentication
         await this.pool.query(`GRANT USAGE ON SCHEMA core TO app_rls`);
         await this.pool.query(`GRANT CREATE ON SCHEMA core TO app_rls`);
-        await this.pool.query(`GRANT SELECT, INSERT ON core.user_profiles TO app_rls`);
+        await this.pool.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON core.user_profiles TO app_rls`);
+        await this.pool.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON core.user_emails TO app_rls`);
         // Rotate password each startup so updating APP_RLS_PASSWORD takes effect without manual intervention.
         try {
             // ALTER ROLE doesn't support parameterized queries, so we must use string literal
