@@ -1,5 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AuthService, MOCK_SCOPES } from '../src/modules/auth/auth.service';
+
+// Mock UserProfileService
+const createMockUserProfileService = () => ({
+    upsertBase: vi.fn(),
+    get: vi.fn(async (zitadelUserId: string) => ({
+        id: `uuid-for-${zitadelUserId}`,
+        zitadelUserId,
+        subjectId: zitadelUserId,
+        displayName: 'Test User',
+        email: 'test@example.com',
+    })),
+}) as any;
 
 // Helper to run service with controlled env (mock mode => no issuer/jwks)
 function createService(env: Record<string, string | undefined> = {}) {
@@ -13,7 +25,7 @@ function createService(env: Record<string, string | undefined> = {}) {
             process.env[k] = val;
         }
     }
-    const svc = new AuthService();
+    const svc = new AuthService(createMockUserProfileService());
     return {
         svc,
         restore: () => {
@@ -40,7 +52,9 @@ describe('AuthService.validateToken (mock/static mode)', () => {
 
     it('static token: no-scope', async () => {
         const res = await svc.validateToken('no-scope');
-        expect(res).toEqual({ sub: '00000000-0000-0000-0000-000000000001', scopes: [] });
+        expect(res?.sub).toBe('test-user-no-scope'); // Zitadel ID from token
+        expect(res?.id).toBeTruthy(); // Internal UUID from user_profiles.id
+        expect(res?.scopes).toEqual([]);
     });
 
     it('static token: with-scope', async () => {
@@ -80,55 +94,55 @@ describe('AuthService.mapClaims variations', () => {
     beforeEach(() => { ({ svc, restore } = createService({ AUTH_ISSUER: 'issuer', AUTH_JWKS_URI: 'https://jwks.example' })); });
     afterEach(() => restore());
 
-    it('returns null if no sub', () => {
+    it('returns null if no sub', async () => {
         // @ts-expect-error private access for testing
-        expect(svc.mapClaims({})).toBeNull();
+        expect(await svc.mapClaims({})).toBeNull();
     });
 
-    it('preserves UUID sub', () => {
+    it('preserves UUID sub', async () => {
         const sub = '11111111-2222-3333-4444-555555555555';
         // @ts-expect-error private access
-        const u = svc.mapClaims({ sub });
+        const u = await svc.mapClaims({ sub });
         expect(u?.sub).toBe(sub);
     });
 
-    it('normalizes non-uuid sub deterministically', () => {
+    it('normalizes non-uuid sub deterministically', async () => {
         // @ts-expect-error private access
-        const u1 = svc.mapClaims({ sub: 'alice@example.com' });
+        const u1 = await svc.mapClaims({ sub: 'alice@example.com' });
         // @ts-expect-error private access
-        const u2 = svc.mapClaims({ sub: 'alice@example.com' });
+        const u2 = await svc.mapClaims({ sub: 'alice@example.com' });
         expect(u1?.sub).toBe(u2?.sub);
         // Service now preserves sub as-is for direct ownership comparisons
         expect(u1?.sub).toBe('alice@example.com');
     });
 
-    it('parses scopes from space-separated string', () => {
+    it('parses scopes from space-separated string', async () => {
         // @ts-expect-error private access
-        const u = svc.mapClaims({ sub: 's', scope: `${MOCK_SCOPES.orgRead} ${MOCK_SCOPES.chatUse}` });
+        const u = await svc.mapClaims({ sub: 's', scope: `${MOCK_SCOPES.orgRead} ${MOCK_SCOPES.chatUse}` });
         expect(u?.scopes).toEqual([MOCK_SCOPES.orgRead, MOCK_SCOPES.chatUse]);
     });
 
-    it('parses scopes from comma-separated string', () => {
+    it('parses scopes from comma-separated string', async () => {
         // @ts-expect-error private access
-        const u = svc.mapClaims({ sub: 's', scope: `${MOCK_SCOPES.orgRead},${MOCK_SCOPES.chatUse}` });
+        const u = await svc.mapClaims({ sub: 's', scope: `${MOCK_SCOPES.orgRead},${MOCK_SCOPES.chatUse}` });
         expect(u?.scopes).toEqual([MOCK_SCOPES.orgRead, MOCK_SCOPES.chatUse]);
     });
 
-    it('deduplicates scopes', () => {
+    it('deduplicates scopes', async () => {
         // @ts-expect-error private access
-        const u = svc.mapClaims({ sub: 's', scope: `${MOCK_SCOPES.orgRead} ${MOCK_SCOPES.orgRead}` });
+        const u = await svc.mapClaims({ sub: 's', scope: `${MOCK_SCOPES.orgRead} ${MOCK_SCOPES.orgRead}` });
         expect(u?.scopes).toEqual([MOCK_SCOPES.orgRead]);
     });
 
-    it('accepts array scopes', () => {
+    it('accepts array scopes', async () => {
         // @ts-expect-error private access
-        const u = svc.mapClaims({ sub: 's', scopes: [MOCK_SCOPES.orgRead, MOCK_SCOPES.chatUse] });
+        const u = await svc.mapClaims({ sub: 's', scopes: [MOCK_SCOPES.orgRead, MOCK_SCOPES.chatUse] });
         expect(u?.scopes).toEqual([MOCK_SCOPES.orgRead, MOCK_SCOPES.chatUse]);
     });
 
-    it('handles no scopes gracefully', () => {
+    it('handles no scopes gracefully', async () => {
         // @ts-expect-error private access
-        const u = svc.mapClaims({ sub: 's' });
+        const u = await svc.mapClaims({ sub: 's' });
         expect(u?.scopes).toBeUndefined();
     });
 });

@@ -38,7 +38,19 @@ function withEnv(vars: Record<string, string>) {
 describe('AuthService real JWT mode (mocked jose)', () => {
     withEnv({ AUTH_ISSUER: 'issuer', AUTH_JWKS_URI: 'https://example/jwks', AUTH_AUDIENCE: 'aud' });
     let svc: AuthService;
-    beforeEach(() => { svc = new AuthService(); });
+    beforeEach(() => {
+        // Mock UserProfileService
+        const mockUserProfileService = {
+            upsertBase: vi.fn(),
+            get: vi.fn(async (zitadelUserId: string) => ({
+                id: `uuid-${zitadelUserId}`,
+                zitadelUserId,
+                displayName: 'Test User',
+                email: 'test@example.com',
+            })),
+        } as any;
+        svc = new AuthService(mockUserProfileService);
+    });
 
     it('fast-path static token bypass still works when real mode configured', async () => {
         const u = await svc.validateToken('with-scope');
@@ -77,20 +89,31 @@ describe('AuthService real JWT mode (mocked jose)', () => {
 describe('AuthService mapClaims additional branches', () => {
     withEnv({ AUTH_ISSUER: 'issuer', AUTH_JWKS_URI: 'https://example/jwks' });
     let svc: AuthService;
-    beforeEach(() => { svc = new AuthService(); });
+    beforeEach(() => {
+        // Mock UserProfileService
+        const mockUserProfileService = {
+            upsertBase: vi.fn(),
+            get: vi.fn(async (zitadelUserId: string) => ({
+                id: `uuid-${zitadelUserId}`,
+                zitadelUserId,
+                displayName: 'Test User',
+                email: 'test@example.com',
+            })),
+        } as any;
+        svc = new AuthService(mockUserProfileService);
+    });
 
-    it('debug scope source none', () => {
+    it('debug scope source none', async () => {
         process.env.DEBUG_AUTH_CLAIMS = '1';
         // @ts-expect-error private access
-        const u = svc.mapClaims({ sub: 'abc-no-scope' });
+        const u = await svc.mapClaims({ sub: 'abc-no-scope' });
         expect(u?._debugScopeSource).toBe('none');
         delete process.env.DEBUG_AUTH_CLAIMS;
     });
 
     it('crypto failure fallback UUID path', async () => {
-        // Service now preserves sub as-is without UUID conversion
         // @ts-expect-error private access
-        const u = svc.mapClaims({ sub: 'not-a-uuid', scope: MOCK_SCOPES.orgRead });
+        const u = await svc.mapClaims({ sub: 'not-a-uuid' });
         expect(u?.sub).toBe('not-a-uuid');
     });
 });

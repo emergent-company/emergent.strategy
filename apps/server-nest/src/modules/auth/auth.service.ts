@@ -1,7 +1,11 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import type { JWTPayload, JWTVerifyGetKey } from 'jose';
+import { UserProfileService } from '../user-profile/user-profile.service';
 
 export interface AuthUser {
+    /** Internal UUID primary key from user_profiles.id */
+    id: string;
+    /** External auth provider ID (e.g., Zitadel subject) from user_profiles.zitadel_user_id */
     sub: string;
     email?: string;
     scopes?: string[];
@@ -49,6 +53,8 @@ export class AuthService implements OnModuleInit {
     private audience = process.env.AUTH_AUDIENCE;
     private jwksUri = process.env.AUTH_JWKS_URI;
 
+    constructor(private readonly userProfileService: UserProfileService) { }
+
     onModuleInit(): void {
         if (!this.jwksUri || !this.issuer) {
             Logger.warn(
@@ -65,68 +71,96 @@ export class AuthService implements OnModuleInit {
 
     async validateToken(token: string | undefined): Promise<AuthUser | null> {
         if (!token) return null;
+
+        // Helper to create deterministic UUID from seed (for mock/test tokens)
+        const toUuid = (seed: string) => {
+            try {
+                const { createHash } = require('crypto');
+                const h: Buffer = createHash('sha1').update(seed).digest();
+                const bytes = Buffer.from(h.slice(0, 16));
+                bytes[6] = (bytes[6] & 0x0f) | 0x50; // version 5 style
+                bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
+                const hex = bytes.toString('hex');
+                return `${hex.substr(0, 8)}-${hex.substr(8, 4)}-${hex.substr(12, 4)}-${hex.substr(16, 4)}-${hex.substr(20)}`;
+            } catch {
+                return '00000000-0000-0000-0000-000000000001';
+            }
+        };
+
         // NOTE: staticTokenMode / looksLikeStaticE2EToken previously used for branching; logic now simplified
         // so those variables were removed as part of cleanup (no functional change).
         // Unconditional static token bypass (Option 3) so E2E suite is decoupled from live IdP while roles model is pending.
         if (/^(no-scope|with-scope|graph-read|schema-read-token|data-read-token|data-write-token|mcp-admin-token|e2e-all|e2e-[A-Za-z0-9_-]+)$/.test(token)) {
-            // Normalize all mock subjects to valid UUIDs to satisfy DB subject_id UUID columns.
-            const toUuid = (seed: string) => {
-                // Deterministic UUID (v5‑style) derived from SHA-1(seed). Ensures:
-                // 1. Stable identity per token across test runs (repeatable seeding / cleanup)
-                // 2. Guaranteed RFC‑4122 compliant shape for subject_id FK inserts
-                // 3. No leakage of internal user-specific semantics (hash is one-way for our purposes)
-                // Deterministic SHA-1 hash -> RFC4122 v5-like UUID formatting
-                try {
-                    const { createHash } = require('crypto');
-                    const h: Buffer = createHash('sha1').update(seed).digest();
-                    const bytes = Buffer.from(h.slice(0, 16));
-                    // Set version (5) and variant bits
-                    bytes[6] = (bytes[6] & 0x0f) | 0x50; // 0x5x
-                    bytes[8] = (bytes[8] & 0x3f) | 0x80; // 10xxxxxx
-                    const hex = bytes.toString('hex');
-                    return `${hex.substr(0, 8)}-${hex.substr(8, 4)}-${hex.substr(12, 4)}-${hex.substr(16, 4)}-${hex.substr(20)}`;
-                } catch {
-                    return '00000000-0000-0000-0000-000000000001';
-                }
-            };
-            if (token === 'no-scope') return { sub: '00000000-0000-0000-0000-000000000001', scopes: [] };
-            if (token === 'with-scope') return { sub: '00000000-0000-0000-0000-000000000001', scopes: [MOCK_SCOPES.orgRead] };
-            if (token === 'graph-read') return { sub: toUuid('graph-read'), scopes: [MOCK_SCOPES.orgRead, MOCK_SCOPES.graphSearchRead] };
-            // MCP-specific test tokens
-            if (token === 'schema-read-token') return { sub: toUuid('schema-read'), scopes: [MOCK_SCOPES.schemaRead] };
-            if (token === 'data-read-token') return { sub: toUuid('data-read'), scopes: [MOCK_SCOPES.schemaRead, MOCK_SCOPES.dataRead] };
-            if (token === 'data-write-token') return { sub: toUuid('data-write'), scopes: [MOCK_SCOPES.schemaRead, MOCK_SCOPES.dataRead, MOCK_SCOPES.dataWrite] };
-            if (token === 'mcp-admin-token') return { sub: toUuid('mcp-admin'), scopes: [MOCK_SCOPES.mcpAdmin] };
-            if (token === 'e2e-all') return { sub: toUuid('e2e-all'), scopes: Object.values(MOCK_SCOPES) };
-            if (token.startsWith('e2e-')) return { sub: toUuid(token), scopes: Object.values(MOCK_SCOPES) };
+            // Normalize all mock subjects to valid strings (zitadel_user_id format)
+            let zitadelUserId: string;
+            let scopes: string[];
+
+            if (token === 'no-scope') {
+                zitadelUserId = 'test-user-no-scope';
+                scopes = [];
+            } else if (token === 'with-scope') {
+                zitadelUserId = 'test-user-with-scope';
+                scopes = [MOCK_SCOPES.orgRead];
+            } else if (token === 'graph-read') {
+                zitadelUserId = 'test-user-graph-read';
+                scopes = [MOCK_SCOPES.orgRead, MOCK_SCOPES.graphSearchRead];
+            } else if (token === 'schema-read-token') {
+                zitadelUserId = 'test-user-schema-read';
+                scopes = [MOCK_SCOPES.schemaRead];
+            } else if (token === 'data-read-token') {
+                zitadelUserId = 'test-user-data-read';
+                scopes = [MOCK_SCOPES.schemaRead, MOCK_SCOPES.dataRead];
+            } else if (token === 'data-write-token') {
+                zitadelUserId = 'test-user-data-write';
+                scopes = [MOCK_SCOPES.schemaRead, MOCK_SCOPES.dataRead, MOCK_SCOPES.dataWrite];
+            } else if (token === 'mcp-admin-token') {
+                zitadelUserId = 'test-user-mcp-admin';
+                scopes = [MOCK_SCOPES.mcpAdmin];
+            } else if (token === 'e2e-all') {
+                zitadelUserId = 'test-user-e2e-all';
+                scopes = Object.values(MOCK_SCOPES);
+            } else if (token.startsWith('e2e-')) {
+                zitadelUserId = `test-user-${token}`;
+                scopes = Object.values(MOCK_SCOPES);
+            } else {
+                return null;
+            }
+
+            return await this.ensureUserProfile(zitadelUserId, undefined, scopes);
         }
+
         if (!this.jwksUri || !this.issuer) {
             // Fallback mock mode with simple token-based branching for tests:
             // 'no-scope' => user without scopes (to trigger 403 in tests)
             // 'with-scope' => user with read:me scope
             // Treat clearly malformed tokens containing forbidden punctuation as invalid -> null
             if (/[^A-Za-z0-9\-_:]/.test(token)) return null;
-            const toUuid = (seed: string) => {
-                // Same deterministic UUID helper as above (duplicated intentionally to keep each block self-contained
-                // and avoid minor runtime overhead of hoisting when running in production mock mode).
-                try {
-                    const { createHash } = require('crypto');
-                    const h: Buffer = createHash('sha1').update(seed).digest();
-                    const bytes = Buffer.from(h.slice(0, 16));
-                    bytes[6] = (bytes[6] & 0x0f) | 0x50; // version 5 style
-                    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-                    const hex = bytes.toString('hex');
-                    return `${hex.substr(0, 8)}-${hex.substr(8, 4)}-${hex.substr(12, 4)}-${hex.substr(16, 4)}-${hex.substr(20)}`;
-                } catch {
-                    return '00000000-0000-0000-0000-000000000001';
-                }
-            };
-            if (token === 'no-scope') return { sub: '00000000-0000-0000-0000-000000000001', scopes: [] };
-            if (token === 'with-scope') return { sub: '00000000-0000-0000-0000-000000000001', scopes: [MOCK_SCOPES.orgRead] };
-            if (token === 'graph-read') return { sub: toUuid('graph-read'), scopes: [MOCK_SCOPES.orgRead, MOCK_SCOPES.graphSearchRead] };
-            if (token === 'e2e-all') return { sub: toUuid('e2e-all'), scopes: Object.values(MOCK_SCOPES) };
-            if (token.startsWith('e2e-') && token !== 'e2e-all') return { sub: toUuid(token), scopes: Object.values(MOCK_SCOPES) };
-            return { sub: '00000000-0000-0000-0000-000000000001', scopes: [MOCK_SCOPES.orgRead] };
+
+            let zitadelUserId: string;
+            let scopes: string[];
+
+            if (token === 'no-scope') {
+                zitadelUserId = 'test-user-no-scope';
+                scopes = [];
+            } else if (token === 'with-scope') {
+                zitadelUserId = 'test-user-with-scope';
+                scopes = [MOCK_SCOPES.orgRead];
+            } else if (token === 'graph-read') {
+                zitadelUserId = 'test-user-graph-read';
+                scopes = [MOCK_SCOPES.orgRead, MOCK_SCOPES.graphSearchRead];
+            } else if (token === 'e2e-all') {
+                zitadelUserId = 'test-user-e2e-all';
+                scopes = Object.values(MOCK_SCOPES);
+            } else if (token.startsWith('e2e-') && token !== 'e2e-all') {
+                zitadelUserId = `test-user-${token}`;
+                scopes = Object.values(MOCK_SCOPES);
+            } else {
+                // Default: any other token gets basic read scope
+                zitadelUserId = 'test-user-default';
+                scopes = [MOCK_SCOPES.orgRead];
+            }
+
+            return await this.ensureUserProfile(zitadelUserId, undefined, scopes);
         }
         try {
             const { createRemoteJWKSet, jwtVerify } = await import('jose');
@@ -137,7 +171,7 @@ export class AuthService implements OnModuleInit {
                 issuer: this.issuer,
                 audience: this.audience,
             });
-            const mapped = this.mapClaims(result.payload);
+            const mapped = await this.mapClaims(result.payload);
             if (process.env.DEBUG_AUTH_CLAIMS === '1' && mapped) {
                 mapped._debugClaimKeys = Object.keys(result.payload);
             }
@@ -147,7 +181,35 @@ export class AuthService implements OnModuleInit {
         }
     }
 
-    private mapClaims(payload: JWTPayload): AuthUser | null {
+    /**
+     * Ensure user profile exists for the given Zitadel subject ID and return full AuthUser.
+     * Creates profile if it doesn't exist (upsert). Returns null if lookup fails.
+     */
+    private async ensureUserProfile(zitadelUserId: string, email?: string, scopes?: string[]): Promise<AuthUser | null> {
+        try {
+            // Ensure profile exists (creates if missing)
+            await this.userProfileService.upsertBase(zitadelUserId);
+
+            // Look up the internal UUID
+            const profile = await this.userProfileService.get(zitadelUserId);
+            if (!profile || !profile.id) {
+                Logger.error(`Failed to get user profile for zitadel_user_id: ${zitadelUserId}`, 'AuthService');
+                return null;
+            }
+
+            return {
+                id: profile.id,              // Internal UUID (primary key)
+                sub: zitadelUserId,          // External Zitadel ID
+                email,
+                scopes,
+            };
+        } catch (error) {
+            Logger.error(`Error ensuring user profile for ${zitadelUserId}: ${error}`, 'AuthService');
+            return null;
+        }
+    }
+
+    private async mapClaims(payload: JWTPayload): Promise<AuthUser | null> {
         if (!payload.sub) return null;
         // Use the subject ID as-is from the JWT payload, without UUID conversion.
         // This allows ownership checks to compare user.sub directly with stored identifiers.
@@ -165,7 +227,13 @@ export class AuthService implements OnModuleInit {
             // Normalize & de-duplicate
             scopes = Array.from(new Set(scopes.map(s => s.trim())));
         }
-        const user: AuthUser = { sub: normalizedSub, email: typeof payload.email === 'string' ? payload.email : undefined, scopes };
+
+        const email = typeof payload.email === 'string' ? payload.email : undefined;
+
+        // Ensure user profile exists and get internal UUID
+        const user = await this.ensureUserProfile(normalizedSub, email, scopes);
+        if (!user) return null;
+
         if (process.env.DEBUG_AUTH_CLAIMS === '1') {
             user._debugScopeSource = Array.isArray(scopesCandidate) ? 'array' : typeof scopesCandidate === 'string' ? 'string' : 'none';
         }

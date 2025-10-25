@@ -29,10 +29,11 @@ export class InvitesService {
         const client = await this.db.getClient();
         try {
             await client.query('BEGIN');
+            // userId is now the internal UUID from req.user.id
             if (invite.project_id) {
-                await client.query(`INSERT INTO kb.project_memberships(project_id, subject_id, role) VALUES($1,$2,$3) ON CONFLICT (project_id, subject_id) DO NOTHING`, [invite.project_id, userId, invite.role]);
+                await client.query(`INSERT INTO kb.project_memberships(project_id, user_id, role) VALUES($1,$2,$3) ON CONFLICT (project_id, user_id) DO NOTHING`, [invite.project_id, userId, invite.role]);
             } else if (invite.role === 'org_admin') {
-                await client.query(`INSERT INTO kb.organization_memberships(organization_id, subject_id, role) VALUES($1,$2,'org_admin') ON CONFLICT (organization_id, subject_id) DO NOTHING`, [invite.organization_id, userId]);
+                await client.query(`INSERT INTO kb.organization_memberships(organization_id, user_id, role) VALUES($1,$2,'org_admin') ON CONFLICT (organization_id, user_id) DO NOTHING`, [invite.organization_id, userId]);
             } else {
                 // non-admin org-level roles not yet implemented, treat as project-level requirement missing
                 throw new BadRequestException({ error: { code: 'unsupported', message: 'Non-admin org invite unsupported without project' } });

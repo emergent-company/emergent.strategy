@@ -91,6 +91,258 @@ paths:
         - Auth
       security:
         - bearer: []
+  /user/profile:
+    get:
+      operationId: getSelf
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: &ref_0
+        - UserProfile
+    put:
+      operationId: updateSelf
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserProfileDto'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileDto'
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_0
+  /user/profile/emails:
+    get:
+      operationId: listEmails
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AlternativeEmailDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_0
+    post:
+      operationId: addEmail
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddAlternativeEmailDto'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlternativeEmailDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_0
+  /user/profile/emails/{email}:
+    delete:
+      operationId: removeEmail
+      parameters:
+        - name: email
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                example:
+                  status: deleted
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_0
   /settings:
     get:
       operationId: list
@@ -140,7 +392,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_0
+      tags: &ref_1
         - Settings
   /settings/{key}:
     get:
@@ -205,7 +457,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_0
+      tags: *ref_1
     put:
       operationId: update
       parameters:
@@ -266,7 +518,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_0
+      tags: *ref_1
   /orgs:
     get:
       operationId: list
@@ -316,7 +568,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_1
+      tags: &ref_2
         - Orgs
     post:
       operationId: create
@@ -390,7 +642,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_2
   /orgs/{id}:
     get:
       operationId: getOne
@@ -452,7 +704,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_2
     delete:
       operationId: delete
       parameters:
@@ -511,7 +763,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_2
   /projects:
     get:
       operationId: list
@@ -574,7 +826,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_2
+      tags: &ref_3
         - Projects
     post:
       operationId: create
@@ -628,7 +880,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_3
   /projects/{id}:
     get:
       operationId: getById
@@ -681,7 +933,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_3
     patch:
       operationId: update
       parameters:
@@ -739,7 +991,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_3
     delete:
       operationId: delete
       parameters:
@@ -792,7 +1044,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_3
   /template-packs:
     post:
       operationId: createTemplatePack
@@ -1121,7 +1373,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_3
+      tags: &ref_4
         - Documents
     post:
       operationId: create
@@ -1182,7 +1434,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_3
+      tags: *ref_4
   /documents/{id}:
     get:
       operationId: get
@@ -1236,7 +1488,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_3
+      tags: *ref_4
     delete:
       operationId: delete
       parameters:
@@ -1248,7 +1500,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_3
+      tags: *ref_4
   /chunks:
     get:
       operationId: list
@@ -1365,7 +1617,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_4
+      tags: &ref_5
         - Ingestion
   /ingest/url:
     post:
@@ -1426,7 +1678,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
+      tags: *ref_5
   /admin/extraction-jobs:
     post:
       operationId: createJob
@@ -1452,9 +1704,9 @@ paths:
           description: Invalid request data
         '401':
           description: Unauthorized
-      tags: &ref_5
+      tags: &ref_6
         - Extraction Jobs
-      security: &ref_6
+      security: &ref_7
         - bearer: []
   /admin/extraction-jobs/projects/{projectId}:
     get:
@@ -1523,8 +1775,8 @@ paths:
                 $ref: '#/components/schemas/ExtractionJobListDto'
         '401':
           description: Unauthorized
-      tags: *ref_5
-      security: *ref_6
+      tags: *ref_6
+      security: *ref_7
   /admin/extraction-jobs/{jobId}:
     get:
       operationId: getJob
@@ -1548,8 +1800,8 @@ paths:
           description: Unauthorized
         '404':
           description: Job not found
-      tags: *ref_5
-      security: *ref_6
+      tags: *ref_6
+      security: *ref_7
     patch:
       operationId: updateJob
       summary: Update extraction job
@@ -1580,8 +1832,8 @@ paths:
           description: Unauthorized
         '404':
           description: Job not found
-      tags: *ref_5
-      security: *ref_6
+      tags: *ref_6
+      security: *ref_7
     delete:
       operationId: deleteJob
       summary: Delete extraction job
@@ -1602,8 +1854,8 @@ paths:
           description: Unauthorized
         '404':
           description: Job not found
-      tags: *ref_5
-      security: *ref_6
+      tags: *ref_6
+      security: *ref_7
   /admin/extraction-jobs/{jobId}/retry:
     post:
       operationId: retryJob
@@ -1631,8 +1883,8 @@ paths:
           description: Unauthorized
         '404':
           description: Job not found
-      tags: *ref_5
-      security: *ref_6
+      tags: *ref_6
+      security: *ref_7
   /admin/extraction-jobs/{jobId}/cancel:
     post:
       operationId: cancelJob
@@ -1658,8 +1910,8 @@ paths:
           description: Unauthorized
         '404':
           description: Job not found
-      tags: *ref_5
-      security: *ref_6
+      tags: *ref_6
+      security: *ref_7
   /admin/extraction-jobs/projects/{projectId}/bulk-cancel:
     post:
       operationId: bulkCancelJobs
@@ -1688,8 +1940,8 @@ paths:
                     example: Cancelled 5 jobs
         '401':
           description: Unauthorized
-      tags: *ref_5
-      security: *ref_6
+      tags: *ref_6
+      security: *ref_7
   /admin/extraction-jobs/projects/{projectId}/bulk-delete:
     delete:
       operationId: bulkDeleteJobs
@@ -1718,8 +1970,8 @@ paths:
                     example: Deleted 10 jobs
         '401':
           description: Unauthorized
-      tags: *ref_5
-      security: *ref_6
+      tags: *ref_6
+      security: *ref_7
   /admin/extraction-jobs/projects/{projectId}/bulk-retry:
     post:
       operationId: bulkRetryJobs
@@ -1748,8 +2000,8 @@ paths:
                     example: Retrying 3 jobs
         '401':
           description: Unauthorized
-      tags: *ref_5
-      security: *ref_6
+      tags: *ref_6
+      security: *ref_7
   /admin/extraction-jobs/projects/{projectId}/statistics:
     get:
       operationId: getStatistics
@@ -1799,8 +2051,8 @@ paths:
                     example: 15
         '401':
           description: Unauthorized
-      tags: *ref_5
-      security: *ref_6
+      tags: *ref_6
+      security: *ref_7
   /admin/extraction-jobs/_debug/available-models:
     get:
       operationId: listAvailableModels
@@ -1843,8 +2095,8 @@ paths:
                           type: number
         '500':
           description: Failed to fetch models from API
-      tags: *ref_5
-      security: *ref_6
+      tags: *ref_6
+      security: *ref_7
   /admin/extraction-jobs/{jobId}/logs:
     get:
       operationId: getExtractionLogs
@@ -1943,8 +2195,8 @@ paths:
           description: Access denied to this extraction job
         '404':
           description: Extraction job not found
-      tags: *ref_5
-      security: *ref_6
+      tags: *ref_6
+      security: *ref_7
   /graph/objects:
     post:
       operationId: create
@@ -1961,7 +2213,7 @@ paths:
           description: Created
         '400':
           description: Validation error
-      tags: &ref_7
+      tags: &ref_8
         - Graph
   /graph/objects/search:
     get:
@@ -2011,7 +2263,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_7
+      tags: *ref_8
   /graph/objects/fts:
     get:
       operationId: ftsSearch
@@ -2050,7 +2302,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_7
+      tags: *ref_8
   /graph/objects/tags:
     get:
       operationId: getTags
@@ -2065,7 +2317,7 @@ paths:
                 type: array
                 items:
                   type: string
-      tags: *ref_7
+      tags: *ref_8
   /graph/objects/{id}:
     get:
       operationId: get
@@ -2081,7 +2333,7 @@ paths:
           description: ''
         '404':
           description: Not found
-      tags: *ref_7
+      tags: *ref_8
     patch:
       operationId: patch
       summary: Patch (create new version) of a graph object
@@ -2104,7 +2356,7 @@ paths:
           description: No effective change
         '404':
           description: Not found
-      tags: *ref_7
+      tags: *ref_8
     delete:
       operationId: deleteObject
       summary: Soft delete (tombstone) an object (creates new version with deleted_at)
@@ -2117,7 +2369,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_7
+      tags: *ref_8
   /graph/objects/bulk-update-status:
     post:
       operationId: bulkUpdateStatus
@@ -2158,7 +2410,7 @@ paths:
                           type: boolean
                         error:
                           type: string
-      tags: *ref_7
+      tags: *ref_8
   /graph/objects/{id}/restore:
     post:
       operationId: restoreObject
@@ -2172,7 +2424,7 @@ paths:
       responses:
         '201':
           description: Restored (new version created)
-      tags: *ref_7
+      tags: *ref_8
   /graph/objects/{id}/history:
     get:
       operationId: history
@@ -2202,7 +2454,7 @@ paths:
                 $ref: '#/components/schemas/ObjectHistoryResponseDto'
         '404':
           description: Not found
-      tags: *ref_7
+      tags: *ref_8
   /graph/relationships:
     post:
       operationId: createRel
@@ -2219,7 +2471,7 @@ paths:
       responses:
         '201':
           description: ''
-      tags: *ref_7
+      tags: *ref_8
   /graph/relationships/{id}:
     get:
       operationId: getRel
@@ -2233,7 +2485,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_7
+      tags: *ref_8
     patch:
       operationId: patchRel
       summary: Patch (create new version) of a relationship (only head version allowed)
@@ -2252,7 +2504,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_7
+      tags: *ref_8
     delete:
       operationId: deleteRel
       summary: Soft delete a relationship (tombstone version)
@@ -2265,7 +2517,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_7
+      tags: *ref_8
   /graph/relationships/search:
     get:
       operationId: searchRels
@@ -2313,7 +2565,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_7
+      tags: *ref_8
   /graph/relationships/{id}/restore:
     post:
       operationId: restoreRel
@@ -2327,7 +2579,7 @@ paths:
       responses:
         '201':
           description: Restored (new version created)
-      tags: *ref_7
+      tags: *ref_8
   /graph/relationships/{id}/history:
     get:
       operationId: historyRel
@@ -2355,7 +2607,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RelationshipHistoryResponseDto'
-      tags: *ref_7
+      tags: *ref_8
   /graph/objects/{id}/edges:
     get:
       operationId: edges
@@ -2379,7 +2631,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_7
+      tags: *ref_8
   /graph/traverse:
     post:
       operationId: traverse
@@ -2394,7 +2646,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_7
+      tags: *ref_8
   /graph/expand:
     post:
       operationId: expand
@@ -2411,7 +2663,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_7
+      tags: *ref_8
   /graph/objects/vector-search:
     post:
       operationId: vectorSearch
@@ -2431,7 +2683,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_7
+      tags: *ref_8
   /graph/objects/{id}/similar:
     get:
       operationId: similar
@@ -2518,7 +2770,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_7
+      tags: *ref_8
   /graph/search-with-neighbors:
     post:
       operationId: searchWithNeighbors
@@ -2596,7 +2848,7 @@ paths:
                       type: array
                       items:
                         type: object
-      tags: *ref_7
+      tags: *ref_8
   /graph/embedding-policies:
     post:
       operationId: createEmbeddingPolicy
@@ -2617,7 +2869,7 @@ paths:
                 $ref: '#/components/schemas/EmbeddingPolicyResponseDto'
         '400':
           description: Validation error or duplicate policy
-      tags: *ref_7
+      tags: *ref_8
     get:
       operationId: listEmbeddingPolicies
       summary: List all embedding policies for a project
@@ -2643,7 +2895,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/EmbeddingPolicyResponseDto'
-      tags: *ref_7
+      tags: *ref_8
   /graph/embedding-policies/{id}:
     get:
       operationId: getEmbeddingPolicy
@@ -2669,7 +2921,7 @@ paths:
                 $ref: '#/components/schemas/EmbeddingPolicyResponseDto'
         '404':
           description: Policy not found
-      tags: *ref_7
+      tags: *ref_8
     patch:
       operationId: updateEmbeddingPolicy
       summary: Update an embedding policy
@@ -2702,7 +2954,7 @@ paths:
           description: Validation error
         '404':
           description: Policy not found
-      tags: *ref_7
+      tags: *ref_8
     delete:
       operationId: deleteEmbeddingPolicy
       summary: Delete an embedding policy
@@ -2723,7 +2975,7 @@ paths:
           description: Policy deleted
         '404':
           description: Policy not found
-      tags: *ref_7
+      tags: *ref_8
   /graph/branches/{targetBranchId}/merge:
     post:
       operationId: mergeDryRun
@@ -2760,7 +3012,7 @@ paths:
           description: Missing sourceBranchId or validation error
         '404':
           description: Branch not found
-      tags: *ref_7
+      tags: *ref_8
   /graph/branches:
     post:
       operationId: create
@@ -2808,7 +3060,7 @@ paths:
                   error:
                     code: product_version_name_exists
                     message: Name already exists
-      tags: &ref_8
+      tags: &ref_9
         - Product Versions
     get:
       operationId: list
@@ -2842,7 +3094,7 @@ paths:
                       member_count: 42
                       base_product_version_id: null
                   next_cursor: '2025-01-01T00:00:00Z'
-      tags: *ref_8
+      tags: *ref_9
   /product-versions/{id}:
     get:
       operationId: get
@@ -2855,7 +3107,7 @@ paths:
       responses:
         '200':
           description: Get product version snapshot
-      tags: *ref_8
+      tags: *ref_9
   /product-versions/{id}/diff/{otherId}:
     get:
       operationId: diff
@@ -2887,7 +3139,7 @@ paths:
                     removed: 2
                     modified: 10
                     unchanged: 100
-      tags: *ref_8
+      tags: *ref_9
   /tags:
     post:
       operationId: create
@@ -2919,7 +3171,7 @@ paths:
                   error:
                     code: tag_name_exists
                     message: Tag name already exists
-      tags: &ref_9
+      tags: &ref_10
         - Tags
     get:
       operationId: list
@@ -2950,7 +3202,7 @@ paths:
                       description: null
                       created_at: '2025-09-30T00:00:00Z'
                   next_cursor: '2025-09-30T00:00:00Z'
-      tags: *ref_9
+      tags: *ref_10
   /tags/{id}:
     get:
       operationId: get
@@ -2965,7 +3217,7 @@ paths:
           description: Get tag by ID
         '404':
           description: Tag not found
-      tags: *ref_9
+      tags: *ref_10
     put:
       operationId: update
       parameters:
@@ -2985,7 +3237,7 @@ paths:
           description: Update tag
         '404':
           description: Tag not found
-      tags: *ref_9
+      tags: *ref_10
     delete:
       operationId: delete
       parameters:
@@ -2999,7 +3251,7 @@ paths:
           description: Tag deleted
         '404':
           description: Tag not found
-      tags: *ref_9
+      tags: *ref_10
   /tags/by-name/{name}:
     get:
       operationId: getByName
@@ -3014,7 +3266,7 @@ paths:
           description: Get tag by name
         '404':
           description: Tag not found
-      tags: *ref_9
+      tags: *ref_10
   /type-registry/projects/{projectId}:
     get:
       operationId: getProjectTypes
@@ -3231,9 +3483,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_10
+      tags: &ref_11
         - Notifications
-      security: &ref_11
+      security: &ref_12
         - bearer: []
     delete:
       operationId: clearAll
@@ -3287,8 +3539,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_10
-      security: *ref_11
+      tags: *ref_11
+      security: *ref_12
   /notifications/counts:
     get:
       operationId: getUnreadCounts
@@ -3333,8 +3585,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_10
-      security: *ref_11
+      tags: *ref_11
+      security: *ref_12
   /notifications/stats:
     get:
       operationId: getStats
@@ -3379,8 +3631,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_10
-      security: *ref_11
+      tags: *ref_11
+      security: *ref_12
   /notifications/{id}/read:
     post:
       operationId: markRead
@@ -3431,8 +3683,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_10
-      security: *ref_11
+      tags: *ref_11
+      security: *ref_12
   /notifications/{id}/unread:
     post:
       operationId: markUnread
@@ -3483,8 +3735,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_10
-      security: *ref_11
+      tags: *ref_11
+      security: *ref_12
   /notifications/{id}/dismiss:
     post:
       operationId: dismiss
@@ -3535,8 +3787,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_10
-      security: *ref_11
+      tags: *ref_11
+      security: *ref_12
   /notifications/{id}:
     delete:
       operationId: clear
@@ -3587,8 +3839,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_10
-      security: *ref_11
+      tags: *ref_11
+      security: *ref_12
   /notifications/{id}/unclear:
     post:
       operationId: unclear
@@ -3639,8 +3891,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_10
-      security: *ref_11
+      tags: *ref_11
+      security: *ref_12
   /notifications/{id}/snooze:
     post:
       operationId: snooze
@@ -3697,8 +3949,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_10
-      security: *ref_11
+      tags: *ref_11
+      security: *ref_12
   /notifications/{id}/unsnooze:
     post:
       operationId: unsnooze
@@ -3749,8 +4001,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_10
-      security: *ref_11
+      tags: *ref_11
+      security: *ref_12
   /monitoring/extraction-jobs:
     get:
       operationId: listExtractionJobs
@@ -3814,9 +4066,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourceListResponseDto'
-      tags: &ref_12
+      tags: &ref_13
         - monitoring
-      security: &ref_13
+      security: &ref_14
         - bearer: []
   /monitoring/extraction-jobs/{id}:
     get:
@@ -3837,8 +4089,8 @@ paths:
                 $ref: '#/components/schemas/ResourceDetailResponseDto'
         '404':
           description: Job not found
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_13
+      security: *ref_14
   /monitoring/extraction-jobs/{id}/logs:
     get:
       operationId: getExtractionJobLogs
@@ -3890,8 +4142,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LogEntryDto'
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_13
+      security: *ref_14
   /monitoring/extraction-jobs/{id}/llm-calls:
     get:
       operationId: getExtractionJobLLMCalls
@@ -3911,8 +4163,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LLMCallDto'
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_13
+      security: *ref_14
   /chat/conversations:
     get:
       operationId: listConversations
@@ -3963,7 +4215,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_14
+      tags: &ref_15
         - Chat
     post:
       operationId: createConversation
@@ -3987,7 +4239,7 @@ paths:
                   error:
                     code: bad-request
                     message: message required
-      tags: *ref_14
+      tags: *ref_15
   /chat/{id}:
     get:
       operationId: getConversation
@@ -4045,7 +4297,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_14
+      tags: *ref_15
     patch:
       operationId: rename
       parameters:
@@ -4082,7 +4334,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_14
+      tags: *ref_15
     delete:
       operationId: delete
       parameters:
@@ -4109,7 +4361,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_14
+      tags: *ref_15
   /chat/{id}/stream:
     get:
       operationId: streamGet
@@ -4180,7 +4432,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_14
+      tags: *ref_15
   /chat/stream:
     post:
       operationId: streamPost
@@ -4278,7 +4530,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_14
+      tags: *ref_15
   /invites:
     post:
       operationId: create
@@ -4305,258 +4557,6 @@ paths:
       responses:
         '201':
           description: ''
-  /user/profile:
-    get:
-      operationId: getSelf
-      parameters: []
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserProfileDto'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: bad-request
-                    message: Invalid request
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: unauthorized
-                    message: Missing or invalid credentials
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: forbidden
-                    message: Insufficient permissions
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: internal
-                    message: Unexpected error
-      tags: &ref_15
-        - UserProfile
-    put:
-      operationId: updateSelf
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateUserProfileDto'
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserProfileDto'
-        '400':
-          description: Validation error
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: unauthorized
-                    message: Missing or invalid credentials
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: forbidden
-                    message: Insufficient permissions
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: internal
-                    message: Unexpected error
-      tags: *ref_15
-  /user/profile/emails:
-    get:
-      operationId: listEmails
-      parameters: []
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AlternativeEmailDto'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: bad-request
-                    message: Invalid request
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: unauthorized
-                    message: Missing or invalid credentials
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: forbidden
-                    message: Insufficient permissions
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: internal
-                    message: Unexpected error
-      tags: *ref_15
-    post:
-      operationId: addEmail
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AddAlternativeEmailDto'
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AlternativeEmailDto'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: bad-request
-                    message: Invalid request
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: unauthorized
-                    message: Missing or invalid credentials
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: forbidden
-                    message: Insufficient permissions
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: internal
-                    message: Unexpected error
-      tags: *ref_15
-  /user/profile/emails/{email}:
-    delete:
-      operationId: removeEmail
-      parameters:
-        - name: email
-          required: true
-          in: path
-          schema:
-            type: string
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                example:
-                  status: deleted
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: bad-request
-                    message: Invalid request
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: unauthorized
-                    message: Missing or invalid credentials
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: forbidden
-                    message: Insufficient permissions
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: internal
-                    message: Unexpected error
-      tags: *ref_15
   /graph/search:
     post:
       operationId: search
@@ -5156,6 +5156,60 @@ components:
       bearerFormat: JWT
       type: http
   schemas:
+    UserProfileDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Internal UUID user id (primary key)
+          format: uuid
+        subjectId:
+          type: string
+          description: >-
+            Canonical internal user id (subject id, from identity provider) -
+            DEPRECATED: use id
+          format: uuid
+        zitadelUserId:
+          type: object
+          description: Zitadel user ID (external auth provider)
+        firstName:
+          type: object
+        lastName:
+          type: object
+        displayName:
+          type: object
+          description: Display name fallback (explicit) or derived (first + last)
+        phoneE164:
+          type: object
+          description: E.164 formatted phone number, leading + and digits
+        avatarObjectKey:
+          type: object
+          description: Object storage key for avatar (if stored internally)
+      required:
+        - id
+        - subjectId
+    UpdateUserProfileDto:
+      type: object
+      properties: {}
+    AlternativeEmailDto:
+      type: object
+      properties:
+        email:
+          type: string
+          description: Email address (lowercased canonical form)
+        verified:
+          type: boolean
+          description: Verification status
+        createdAt:
+          type: string
+          description: ISO timestamp created
+      required:
+        - email
+        - verified
+        - createdAt
+    AddAlternativeEmailDto:
+      type: object
+      properties: {}
     OrgDto:
       type: object
       properties:
@@ -6879,60 +6933,6 @@ components:
       type: object
       properties: {}
     AcceptInviteDto:
-      type: object
-      properties: {}
-    UserProfileDto:
-      type: object
-      properties:
-        id:
-          type: string
-          description: Internal UUID user id (primary key)
-          format: uuid
-        subjectId:
-          type: string
-          description: >-
-            Canonical internal user id (subject id, from identity provider) -
-            DEPRECATED: use id
-          format: uuid
-        zitadelUserId:
-          type: object
-          description: Zitadel user ID (external auth provider)
-        firstName:
-          type: object
-        lastName:
-          type: object
-        displayName:
-          type: object
-          description: Display name fallback (explicit) or derived (first + last)
-        phoneE164:
-          type: object
-          description: E.164 formatted phone number, leading + and digits
-        avatarObjectKey:
-          type: object
-          description: Object storage key for avatar (if stored internally)
-      required:
-        - id
-        - subjectId
-    UpdateUserProfileDto:
-      type: object
-      properties: {}
-    AlternativeEmailDto:
-      type: object
-      properties:
-        email:
-          type: string
-          description: Email address (lowercased canonical form)
-        verified:
-          type: boolean
-          description: Verification status
-        createdAt:
-          type: string
-          description: ISO timestamp created
-      required:
-        - email
-        - verified
-        - createdAt
-    AddAlternativeEmailDto:
       type: object
       properties: {}
     GraphSearchFiltersDto:

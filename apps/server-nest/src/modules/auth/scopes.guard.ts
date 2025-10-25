@@ -24,7 +24,8 @@ export class ScopesGuard implements CanActivate {
         const user: UserWithScopes | undefined = req.user;
         if (!user) return false;
 
-        const computed = await this.perms.compute(user.sub);
+        // Use internal UUID for permission lookup, not external Zitadel ID
+        const computed = await this.perms.compute(user.id);
         req.effectivePermissions = computed;
         const dynamicScopes = computed.scopes || [];
         user.permissions = { ...(user.permissions || {}), scopes: dynamicScopes };
@@ -64,7 +65,7 @@ export class ScopesGuard implements CanActivate {
     private logAuthzAllowed(req: any, user: UserWithScopes, requiredScopes: string[], effectiveScopes: string[]): void {
         try {
             this.audit.logAuthzAllowed({
-                userId: user.sub,
+                userId: user.id, // Use internal UUID for audit logs
                 userEmail: user.email,
                 endpoint: req.route?.path || req.url,
                 httpMethod: req.method,
@@ -84,7 +85,7 @@ export class ScopesGuard implements CanActivate {
     private logAuthzDenied(req: any, user: UserWithScopes, requiredScopes: string[], effectiveScopes: string[], missingScopes: string[]): void {
         try {
             this.audit.logAuthzDenied({
-                userId: user.sub,
+                userId: user.id, // Use internal UUID for audit logs
                 userEmail: user.email,
                 endpoint: req.route?.path || req.url,
                 httpMethod: req.method,

@@ -51,7 +51,7 @@ describe('OrgsService', () => {
                 () => new FakeClient([]),
                 [
                     {
-                        text: /SELECT o.id, o.name, o.created_at, o.updated_at[\s\S]*FROM kb\.orgs o[\s\S]*WHERE om.subject_id = \$1[\s\S]*ORDER BY o.created_at DESC/,
+                        text: /SELECT o.id, o.name, o.created_at, o.updated_at[\s\S]*FROM kb\.orgs o[\s\S]*INNER JOIN kb\.organization_memberships om[\s\S]*WHERE om.user_id = \$1[\s\S]*ORDER BY o.created_at DESC/,
                         result: { rows: [{ id: uuid(1), name: 'Acme', created_at: '', updated_at: '' }], rowCount: 1 }
                     },
                 ]
@@ -67,7 +67,7 @@ describe('OrgsService', () => {
             new FakeDb(
                 true,
                 () => new FakeClient([]),
-                [{ text: /SELECT o.id, o.name, o.created_at, o.updated_at[\s\S]*FROM kb\.orgs o[\s\S]*WHERE om.subject_id = \$1/, throw: pgError('42P01') }]
+                [{ text: /SELECT o.id, o.name, o.created_at, o.updated_at[\s\S]*FROM kb\.orgs o[\s\S]*INNER JOIN kb\.organization_memberships om[\s\S]*WHERE om.user_id = \$1/, throw: pgError('42P01') }]
             ) as any,
             {} as any
         );
@@ -110,7 +110,7 @@ describe('OrgsService', () => {
                 () => new FakeClient([]),
                 [
                     {
-                        text: /SELECT COUNT\(\*\)::text as count[\s\S]*FROM kb\.orgs o[\s\S]*INNER JOIN kb\.organization_memberships om ON o.id = om.organization_id[\s\S]*WHERE om.subject_id = \$1/,
+                        text: /SELECT COUNT\(\*\)::text as count[\s\S]*FROM kb\.orgs o[\s\S]*INNER JOIN kb\.organization_memberships om ON o.id = om.organization_id[\s\S]*WHERE om.user_id = \$1/,
                         result: { rows: [{ count: '100' }], rowCount: 1 }
                     }
                 ]

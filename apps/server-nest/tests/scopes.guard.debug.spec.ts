@@ -17,7 +17,7 @@ function makeContext() {
     const response = { setHeader: (k: string, v: string) => { resHeaders[k] = v; } };
     const ctx = {
         switchToHttp: () => ({
-            getRequest: () => ({ user: { sub: 'u1', scopes: [] } }),
+            getRequest: () => ({ user: { id: 'uuid-u1', sub: 'u1', scopes: [] } }),
             getResponse: () => response,
         }),
         getHandler: () => ({}),
@@ -28,8 +28,15 @@ function makeContext() {
 
 describe('ScopesGuard debug headers', () => {
     let reflector: Reflector;
-    beforeEach(() => { reflector = new Reflector(); process.env.DEBUG_AUTH_SCOPES = '1'; });
-    afterEach(() => { delete process.env.DEBUG_AUTH_SCOPES; });
+    beforeEach(() => {
+        reflector = new Reflector();
+        process.env.DEBUG_AUTH_SCOPES = '1';
+        process.env.SCOPES_DISABLED = '0'; // Ensure scopes are enforced for this test
+    });
+    afterEach(() => {
+        delete process.env.DEBUG_AUTH_SCOPES;
+        delete process.env.SCOPES_DISABLED;
+    });
 
     it('sets debug headers when scopes missing', async () => {
         (reflector as any).getAllAndOverride = () => ['docs:write'];
