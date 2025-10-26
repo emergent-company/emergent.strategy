@@ -16,7 +16,7 @@ describe('EmbeddingWorkerService', () => {
 
     beforeAll(async () => {
         process.env.DB_AUTOINIT = '1';
-        process.env.E2E_MINIMAL_DB = 'true';
+        process.env.NODE_ENV = 'test';
         // Do NOT set GOOGLE_API_KEY here – we want the test to be independent of embeddingsEnabled gating.
         // We manually enqueue the job below regardless of config flag. The worker implementation deliberately
         // still drains jobs when embeddings are disabled (so pipelines don't stall). This avoids flakiness

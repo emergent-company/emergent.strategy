@@ -12987,6 +12987,9 @@
           "summary": "MCP JSON-RPC 2.0 Endpoint",
           "tags": [
             "MCP Server (JSON-RPC 2.0)"
+          ],
+          "x-required-scopes": [
+            "schema:read"
           ]
         }
       },

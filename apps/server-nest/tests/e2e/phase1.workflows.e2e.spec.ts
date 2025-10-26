@@ -112,25 +112,24 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             // expect(stats.total_types).toBe(1);
             // expect(stats.installed_projects).toBe(0);
 
-            // Step 5: Verify template pack is immutable (no DELETE endpoint)
-            // Template packs are global resources and should not be deletable
+            // Step 5: Verify user-created template packs are deletable (but not if installed)
+            // Built-in/seeded packs (source='system') are protected from deletion
+            // User-created packs (source='custom') can be deleted by the user
             const deleteRes = await fetch(`${ctx.baseUrl}/template-packs/${packId}?organization_id=${ctx.orgId}`, {
                 method: 'DELETE',
                 headers
             });
 
-            // Expect 404 (route not found) or 405 (method not allowed) - DELETE is not supported
-            expect([404, 405]).toContain(deleteRes.status);
+            // Should succeed - user-created packs are deletable
+            expect(deleteRes.status).toBe(204);
 
-            // Step 6: Verify template pack still exists and is accessible
+            // Step 6: Verify template pack no longer exists
             const verifyRes = await fetch(`${ctx.baseUrl}/template-packs/${packId}?organization_id=${ctx.orgId}`, {
                 headers
             });
 
-            expect(verifyRes.status).toBe(200);
-            const verifyPack = await verifyRes.json();
-            expect(verifyPack.id).toBe(packId);
-            expect(verifyPack.name).toBe('Test Template Pack');
+            expect(verifyRes.status).toBe(404);
+            // Pack has been deleted, no longer accessible
         });
 
         it('should install template pack to project', async () => {
@@ -1079,7 +1078,7 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
 
     describe('RLS Policy Enforcement', () => {
         it.skip('should enforce project-level isolation for template packs', async () => {
-            // NOTE: Skipped in E2E_MINIMAL_DB mode - RLS policies are intentionally disabled
+            // NOTE: Skipped in test mode - RLS policies are intentionally disabled
             // when AuthGuard is bypassed (see database.service.ts line 464-466)
             // This test would pass in full integration mode with RLS enabled
             const headers = contextHeaders();
@@ -1170,8 +1169,13 @@ describe('Phase 1: Complete Workflow Integration (E2E)', () => {
             const job = await createRes.json();
 
             // Try to access with wrong project_id (should fail RLS)
-            const wrongProjectRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=00000000-0000-0000-0000-000000000000&organization_id=${ctx.orgId}`, {
-                headers
+            // Note: Must override X-Project-ID header, not query param, since controller reads from headers
+            const wrongProjectRes = await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}`, {
+                headers: {
+                    ...authHeader('all', 'phase1-workflow'),
+                    'x-org-id': ctx.orgId,
+                    'x-project-id': '00000000-0000-0000-0000-000000000000', // Wrong project in header
+                }
             });
 
             expect(wrongProjectRes.status).toBe(404);

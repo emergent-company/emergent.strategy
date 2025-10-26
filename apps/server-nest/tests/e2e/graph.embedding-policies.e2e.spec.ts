@@ -613,7 +613,7 @@ describe('Graph Embedding Policies (E2E)', () => {
                     enabled: true,
                     maxPropertySize: -100,
                 })
-                .expect(422);
+                .expect(400); // ValidationPipe returns 400 for DTO validation errors
         });
 
         test('reject missing required fields', async () => {
@@ -624,7 +624,7 @@ describe('Graph Embedding Policies (E2E)', () => {
                     // Missing projectId and objectType
                     enabled: true,
                 })
-                .expect(422);
+                .expect(400); // ValidationPipe returns 400 for DTO validation errors
         });
 
         test('handle empty arrays gracefully', async () => {

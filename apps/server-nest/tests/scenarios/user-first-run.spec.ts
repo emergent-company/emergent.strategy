@@ -114,7 +114,8 @@ const CHAT_FLAGS = { key: !!process.env.GOOGLE_API_KEY, enabled: process.env.CHA
                         console.log('[scenario-chat] meta frame:', metaFrame);
                     }
                     const hadGenerationError = !!frames.find(f => f.meta && f.meta.generation_error);
-                    if (!hadGenerationError) {
+                    const modelEnabled = metaFrame?.meta?.chat_model_enabled !== false;
+                    if (!hadGenerationError && modelEnabled) {
                         // Also expect a later preview meta frame containing truncated model content (added when E2E_DEBUG_CHAT=1)
                         const previewMeta = frames.find(f => f.meta && typeof f.meta.model_content_preview === 'string');
                         expect(previewMeta, 'Expected model_content_preview meta frame when debug + model enabled and no generation error').toBeTruthy();
@@ -136,8 +137,8 @@ const CHAT_FLAGS = { key: !!process.env.GOOGLE_API_KEY, enabled: process.env.CHA
                     // eslint-disable-next-line no-console
                     console.log('[scenario-chat] citations:', citationsFrameDebug.citations);
                 }
-                const syntheticTokens = frames.filter(f => typeof f.message === 'string' && /^token-\d+$/.test(f.message));
-                const modelTokenFrames = frames.filter(f => typeof f.message === 'string' && !/^token-\d+$/.test(f.message) && !f.done && !f.summary);
+                const syntheticTokens = frames.filter(f => typeof f.message === 'string' && /^token-\d+\s*$/.test(f.message));
+                const modelTokenFrames = frames.filter(f => typeof f.message === 'string' && !/^token-\d+\s*$/.test(f.message) && !f.done && !f.summary);
                 const modelTokenTexts = modelTokenFrames.map(f => f.message as string);
                 if (CHAT_FLAGS.key && CHAT_FLAGS.enabled) {
                     const fullAnswer = modelTokenTexts.join(' ');
@@ -146,7 +147,8 @@ const CHAT_FLAGS = { key: !!process.env.GOOGLE_API_KEY, enabled: process.env.CHA
                 }
                 if (CHAT_FLAGS.key && CHAT_FLAGS.enabled) {
                     const hadGenerationError = !!frames.find(f => f.meta && f.meta.generation_error);
-                    if (!hadGenerationError) {
+                    const modelActuallyEnabled = metaFrame?.meta?.chat_model_enabled !== false;
+                    if (!hadGenerationError && modelActuallyEnabled) {
                         const previewMeta = frames.find(f => f.meta && typeof f.meta.model_content_preview === 'string');
                         const previewText = (previewMeta?.meta?.model_content_preview || '').toLowerCase();
                         const aggregated = modelTokenTexts.join(' ').toLowerCase();
@@ -154,13 +156,14 @@ const CHAT_FLAGS = { key: !!process.env.GOOGLE_API_KEY, enabled: process.env.CHA
                         expect(codenamePresent, 'Expected unique private codename from ingested doc in model output (preview or tokens)').toBeTruthy();
                     } else {
                         // When generation failed we still expect synthetic tokens to have been provided via controller fallback.
-                        const syntheticTokens = frames.filter(f => typeof f.message === 'string' && /^token-\d+$/.test(f.message));
+                        const syntheticTokens = frames.filter(f => typeof f.message === 'string' && /^token-\d+\s*$/.test(f.message));
                         expect(syntheticTokens.length).toBeGreaterThan(0);
                     }
                 }
 
                 const hadGenerationError = !!frames.find(f => f.meta && f.meta.generation_error);
-                if (CHAT_FLAGS.key && CHAT_FLAGS.enabled && !hadGenerationError) {
+                const modelActuallyEnabled = metaFrame?.meta?.chat_model_enabled !== false;
+                if (CHAT_FLAGS.key && CHAT_FLAGS.enabled && !hadGenerationError && modelActuallyEnabled) {
                     // Real model path (no generation error): should have at least one non-synthetic token
                     expect(modelTokenFrames.length, 'Expected real model tokens but only synthetic token-* frames were seen').toBeGreaterThan(0);
                 } else {

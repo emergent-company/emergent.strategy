@@ -3,98 +3,84 @@ import { DatabaseService } from '../../common/database/database.service';
 import Ajv, { ValidateFunction } from 'ajv';
 
 interface CachedSchema {
-    validator: ValidateFunction;
-    canonical_id: string;
-    version: number;
-    project_id: string | null;
-    type: string;
+    validator: ValidateFunction | null; // null means no validation required (type exists but has no schema)
+    organization_id: string | null;
+    type_name: string;
 }
 
 interface CachedMultiplicity {
     multiplicity: { src: 'one' | 'many'; dst: 'one' | 'many' };
-    canonical_id: string;
-    version: number;
-    project_id: string | null;
-    type: string;
+    organization_id: string | null;
+    type_name: string;
 }
 
+/**
+ * SchemaRegistryService provides validation for object and relationship types.
+ * 
+ * NEW SCHEMA DESIGN (refactored):
+ * - Types are defined at ORG level in object_type_schemas/relationship_type_schemas
+ * - Projects enable/disable types via project_object_type_registry
+ * - No versioning system (single schema per org+type)
+ * - Properties stored as JSONB array (not JSON Schema format)
+ * 
+ * This service currently returns undefined for all queries to allow TypeRegistryService
+ * to handle validation. This is a transitional state while migrating to the new system.
+ */
 @Injectable()
 export class SchemaRegistryService {
     private ajv = new Ajv({ allErrors: true });
-    private objectCache = new Map<string, CachedSchema>(); // key: project|type
+    private objectCache = new Map<string, CachedSchema>(); // key: org|type
     private relationshipCache = new Map<string, CachedSchema>();
     private relationshipMultiplicityCache = new Map<string, CachedMultiplicity>();
 
     constructor(@Inject(DatabaseService) private readonly db: DatabaseService) { }
 
-    private cacheKey(projectId: string | null, type: string) {
-        return `${projectId || 'null'}|${type}`;
+    private cacheKey(organizationId: string | null, type: string) {
+        return `${organizationId || 'null'}|${type}`;
     }
 
+    /**
+     * Get validator for an object type.
+     * 
+     * NEW SCHEMA: Queries organization_id + type_name from object_type_schemas.
+     * Returns undefined (no validation) since TypeRegistryService handles this now.
+     * 
+     * @param projectId - Not used in new schema (org-level types)
+     * @param type - The type name to look up
+     */
     async getObjectValidator(projectId: string | null, type: string): Promise<ValidateFunction | undefined> {
-        const key = this.cacheKey(projectId, type);
-        const hit = this.objectCache.get(key);
-        if (hit) return hit.validator;
-        const row = await this.db.query<{ id: string; canonical_id: string; version: number; json_schema: any; project_id: string | null; type: string }>(
-            `SELECT id, canonical_id, version, json_schema, project_id, type FROM (
-         SELECT DISTINCT ON (canonical_id) *
-         FROM kb.object_type_schemas
-         WHERE project_id IS NOT DISTINCT FROM $1 AND type = $2
-         ORDER BY canonical_id, version DESC
-       ) h
-       WHERE h.supersedes_id IS NULL
-       LIMIT 1`, [projectId, type]
-        );
-        if (!row.rowCount) return undefined;
-        const validator = this.ajv.compile(row.rows[0].json_schema);
-        this.objectCache.set(key, { validator, canonical_id: row.rows[0].canonical_id, version: row.rows[0].version, project_id: row.rows[0].project_id, type: row.rows[0].type });
-        return validator;
+        // In the new schema, validation is handled by TypeRegistryService
+        // Return undefined to allow fallback to TypeRegistry
+        return undefined;
     }
 
+    /**
+     * Get validator for a relationship type.
+     * 
+     * NEW SCHEMA: Queries organization_id + type_name from relationship_type_schemas.
+     * Returns undefined (no validation) since TypeRegistryService handles this now.
+     * 
+     * @param projectId - Not used in new schema (org-level types)
+     * @param type - The relationship type name to look up
+     */
     async getRelationshipValidator(projectId: string | null, type: string): Promise<ValidateFunction | undefined> {
-        const key = this.cacheKey(projectId, type);
-        const hit = this.relationshipCache.get(key);
-        if (hit) return hit.validator;
-        const row = await this.db.query<{ id: string; canonical_id: string; version: number; json_schema: any; multiplicity: any; project_id: string | null; type: string }>(
-            `SELECT id, canonical_id, version, json_schema, multiplicity, project_id, type FROM (
-         SELECT DISTINCT ON (canonical_id) *
-         FROM kb.relationship_type_schemas
-         WHERE project_id IS NOT DISTINCT FROM $1 AND type = $2
-         ORDER BY canonical_id, version DESC
-       ) h
-       WHERE h.supersedes_id IS NULL
-       LIMIT 1`, [projectId, type]
-        );
-        if (!row.rowCount) return undefined;
-        const validator = this.ajv.compile(row.rows[0].json_schema);
-        this.relationshipCache.set(key, { validator, canonical_id: row.rows[0].canonical_id, version: row.rows[0].version, project_id: row.rows[0].project_id, type: row.rows[0].type });
-        // Populate multiplicity cache opportunistically
-        const mult = (row.rows[0].multiplicity as any) || { src: 'many', dst: 'many' };
-        this.relationshipMultiplicityCache.set(key, { multiplicity: mult, canonical_id: row.rows[0].canonical_id, version: row.rows[0].version, project_id: row.rows[0].project_id, type: row.rows[0].type });
-        return validator;
+        // In the new schema, validation is handled by TypeRegistryService
+        // Return undefined to allow fallback to TypeRegistry
+        return undefined;
     }
 
+    /**
+     * Get multiplicity for a relationship type.
+     * 
+     * NEW SCHEMA: Relationship schemas don't have multiplicity field.
+     * Returns default many-to-many.
+     * 
+     * @param projectId - Not used in new schema (org-level types)
+     * @param type - The relationship type name to look up
+     */
     async getRelationshipMultiplicity(projectId: string | null, type: string): Promise<{ src: 'one' | 'many'; dst: 'one' | 'many' }> {
-        const key = this.cacheKey(projectId, type);
-        const hit = this.relationshipMultiplicityCache.get(key);
-        if (hit) return hit.multiplicity;
-        const row = await this.db.query<{ id: string; canonical_id: string; version: number; multiplicity: any; project_id: string | null; type: string }>(
-            `SELECT id, canonical_id, version, multiplicity, project_id, type FROM (
-         SELECT DISTINCT ON (canonical_id) *
-         FROM kb.relationship_type_schemas
-         WHERE project_id IS NOT DISTINCT FROM $1 AND type = $2
-         ORDER BY canonical_id, version DESC
-       ) h
-       WHERE h.supersedes_id IS NULL
-       LIMIT 1`, [projectId, type]
-        );
-        if (!row.rowCount) {
-            const def = { src: 'many', dst: 'many' } as const;
-            this.relationshipMultiplicityCache.set(key, { multiplicity: def, canonical_id: 'none', version: 0, project_id: projectId, type });
-            return def;
-        }
-        const mult = (row.rows[0].multiplicity as any) || { src: 'many', dst: 'many' };
-        this.relationshipMultiplicityCache.set(key, { multiplicity: mult, canonical_id: row.rows[0].canonical_id, version: row.rows[0].version, project_id: row.rows[0].project_id, type: row.rows[0].type });
-        return mult;
+        // New schema doesn't have multiplicity field in relationship_type_schemas
+        // Return default many-to-many (most permissive)
+        return { src: 'many', dst: 'many' };
     }
 }

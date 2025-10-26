@@ -492,7 +492,7 @@ export class ChatController {
                 try { res.write(`data: ${JSON.stringify({ meta: { generation_error: (e as Error).message } })}\n\n`); } catch { /* ignore */ }
                 // Fallback to synthetic if generation fails
                 for (let i = 0; i < 5; i++) {
-                    const t = `token-${i}`;
+                    const t = `token-${i} `;
                     tokens.push(t);
                     res.write(`data: ${JSON.stringify({ message: t, index: i, total: 5 })}\n\n`);
                 }
@@ -504,7 +504,7 @@ export class ChatController {
             }
             try { res.write(`data: ${JSON.stringify({ meta: { generation_disabled: true } })}\n\n`); } catch { /* ignore */ }
             for (let i = 0; i < 5; i++) {
-                const t = `token-${i}`;
+                const t = `token-${i} `;
                 tokens.push(t);
                 res.write(`data: ${JSON.stringify({ message: t, index: i, total: 5 })}\n\n`);
             }
@@ -732,7 +732,7 @@ export class ChatController {
 
         // Emit meta frame first with conversationId and graph objects
         try {
-            const meta: any = { type: 'meta', conversationId: convId };
+            const meta: any = { type: 'meta', conversationId: convId, citations: [] };
             if (citationsEnabled && citations.length) {
                 meta.citations = citations;
             }
