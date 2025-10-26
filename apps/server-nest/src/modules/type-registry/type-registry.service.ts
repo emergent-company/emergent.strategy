@@ -24,9 +24,9 @@ export class TypeRegistryService {
         orgId: string,
         query: ListObjectTypesQueryDto
     ): Promise<TypeRegistryEntryDto[]> {
-        let whereConditions = ['ptr.project_id = $1', 'ptr.organization_id = $2'];
-        const params: any[] = [projectId, orgId];
-        let paramIndex = 3;
+        let whereConditions = ['ptr.project_id = $1'];
+        const params: any[] = [projectId];
+        let paramIndex = 2;
 
         if (query.enabled_only) {
             whereConditions.push('ptr.enabled = true');
@@ -38,24 +38,40 @@ export class TypeRegistryService {
         }
 
         if (query.search) {
-            whereConditions.push(`(ptr.type ILIKE $${paramIndex} OR ptr.description ILIKE $${paramIndex})`);
+            whereConditions.push(`(ptr.type_name ILIKE $${paramIndex} OR ptr.description ILIKE $${paramIndex})`);
             params.push(`%${query.search}%`);
             paramIndex++;
         }
 
         const sql = `
             SELECT 
-                ptr.*,
+                ptr.id,
+                ptr.type_name as type,
+                ptr.source,
+                ptr.template_pack_id,
+                ptr.schema_version,
+                ptr.json_schema,
+                ptr.ui_config,
+                ptr.extraction_config,
+                ptr.enabled,
+                ptr.discovery_confidence,
+                ptr.description,
+                ptr.created_by,
+                ptr.created_at,
+                ptr.updated_at,
                 tp.name as template_pack_name,
                 COUNT(go.id) FILTER (WHERE go.deleted_at IS NULL) as object_count
             FROM kb.project_object_type_registry ptr
             LEFT JOIN kb.graph_template_packs tp ON ptr.template_pack_id = tp.id
-            LEFT JOIN kb.graph_objects go ON go.type = ptr.type 
+            LEFT JOIN kb.graph_objects go ON go.type = ptr.type_name 
                 AND go.project_id = ptr.project_id 
                 AND go.deleted_at IS NULL
             WHERE ${whereConditions.join(' AND ')}
-            GROUP BY ptr.id, tp.name
-            ORDER BY ptr.type
+            GROUP BY ptr.id, ptr.type_name, ptr.source, ptr.template_pack_id, 
+                     ptr.schema_version, ptr.json_schema, ptr.ui_config, 
+                     ptr.extraction_config, ptr.enabled, ptr.discovery_confidence, 
+                     ptr.description, ptr.created_by, ptr.created_at, ptr.updated_at, tp.name
+            ORDER BY ptr.type_name
         `;
 
         const result = await this.db.query<TypeRegistryEntryDto>(sql, params);
@@ -72,19 +88,34 @@ export class TypeRegistryService {
     ): Promise<TypeRegistryEntryDto> {
         const result = await this.db.query<TypeRegistryEntryDto>(
             `SELECT 
-                ptr.*,
+                ptr.id,
+                ptr.type_name as type,
+                ptr.source,
+                ptr.template_pack_id,
+                ptr.schema_version,
+                ptr.json_schema,
+                ptr.ui_config,
+                ptr.extraction_config,
+                ptr.enabled,
+                ptr.discovery_confidence,
+                ptr.description,
+                ptr.created_by,
+                ptr.created_at,
+                ptr.updated_at,
                 tp.name as template_pack_name,
                 COUNT(go.id) FILTER (WHERE go.deleted_at IS NULL) as object_count
             FROM kb.project_object_type_registry ptr
             LEFT JOIN kb.graph_template_packs tp ON ptr.template_pack_id = tp.id
-            LEFT JOIN kb.graph_objects go ON go.type = ptr.type 
+            LEFT JOIN kb.graph_objects go ON go.type = ptr.type_name 
                 AND go.project_id = ptr.project_id 
                 AND go.deleted_at IS NULL
             WHERE ptr.project_id = $1 
-                AND ptr.organization_id = $2 
-                AND ptr.type = $3
-            GROUP BY ptr.id, tp.name`,
-            [projectId, orgId, typeName]
+                AND ptr.type_name = $2
+            GROUP BY ptr.id, ptr.type_name, ptr.source, ptr.template_pack_id, 
+                     ptr.schema_version, ptr.json_schema, ptr.ui_config, 
+                     ptr.extraction_config, ptr.enabled, ptr.discovery_confidence, 
+                     ptr.description, ptr.created_by, ptr.created_at, ptr.updated_at, tp.name`,
+            [projectId, typeName]
         );
 
         if (result.rows.length === 0) {
@@ -121,8 +152,8 @@ export class TypeRegistryService {
         // Check if type already exists
         const existing = await this.db.query<{ id: string }>(
             `SELECT id FROM kb.project_object_type_registry 
-             WHERE project_id = $1 AND organization_id = $2 AND type = $3`,
-            [projectId, orgId, dto.type]
+             WHERE project_id = $1 AND type_name = $2`,
+            [projectId, dto.type]
         );
 
         if (existing.rows.length > 0) {
@@ -131,13 +162,27 @@ export class TypeRegistryService {
 
         const result = await this.db.query<ProjectTypeRegistryRow>(
             `INSERT INTO kb.project_object_type_registry (
-                organization_id, project_id, type, source,
+                project_id, type_name, source,
                 json_schema, ui_config, extraction_config, enabled,
                 discovery_confidence, description, created_by
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            RETURNING *`,
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING 
+                id,
+                project_id,
+                type_name as type,
+                source,
+                template_pack_id,
+                schema_version,
+                json_schema,
+                ui_config,
+                extraction_config,
+                enabled,
+                discovery_confidence,
+                description,
+                created_by,
+                created_at,
+                updated_at`,
             [
-                orgId,
                 projectId,
                 dto.type,
                 dto.source,
@@ -226,15 +271,29 @@ export class TypeRegistryService {
         }
 
         updates.push(`updated_at = now()`);
-        params.push(projectId, orgId, typeName);
+        params.push(projectId, typeName);
 
         const result = await this.db.query<ProjectTypeRegistryRow>(
             `UPDATE kb.project_object_type_registry 
              SET ${updates.join(', ')}
              WHERE project_id = $${paramIndex} 
-                AND organization_id = $${paramIndex + 1} 
-                AND type = $${paramIndex + 2}
-             RETURNING *`,
+                AND type_name = $${paramIndex + 1}
+             RETURNING 
+                id,
+                project_id,
+                type_name as type,
+                source,
+                template_pack_id,
+                schema_version,
+                json_schema,
+                ui_config,
+                extraction_config,
+                enabled,
+                discovery_confidence,
+                description,
+                created_by,
+                created_at,
+                updated_at`,
             params
         );
 
@@ -271,8 +330,8 @@ export class TypeRegistryService {
 
         await this.db.query(
             `DELETE FROM kb.project_object_type_registry 
-             WHERE project_id = $1 AND organization_id = $2 AND type = $3`,
-            [projectId, orgId, typeName]
+             WHERE project_id = $1 AND type_name = $2`,
+            [projectId, typeName]
         );
 
         this.logger.log(`Deleted type: ${typeName} from project ${projectId}`);
@@ -387,10 +446,10 @@ export class TypeRegistryService {
                 COUNT(go.id) FILTER (WHERE go.deleted_at IS NULL) as total_objects,
                 COUNT(DISTINCT go.type) FILTER (WHERE go.deleted_at IS NULL) as types_with_objects
             FROM kb.project_object_type_registry ptr
-            LEFT JOIN kb.graph_objects go ON go.type = ptr.type 
+            LEFT JOIN kb.graph_objects go ON go.type = ptr.type_name 
                 AND go.project_id = ptr.project_id
-            WHERE ptr.project_id = $1 AND ptr.organization_id = $2`,
-            [projectId, orgId]
+            WHERE ptr.project_id = $1`,
+            [projectId]
         );
 
         const row = result.rows[0];

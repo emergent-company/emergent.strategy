@@ -297,6 +297,16 @@ export class ExtractionJobService {
 
         if (dto.status !== undefined) {
             pushUpdate('status', dto.status);
+
+            // Auto-set started_at when transitioning to running
+            if (dto.status === ExtractionJobStatus.RUNNING) {
+                updates.push('started_at = COALESCE(started_at, NOW())');
+            }
+
+            // Auto-set completed_at when transitioning to completed/failed/cancelled
+            if ([ExtractionJobStatus.COMPLETED, ExtractionJobStatus.FAILED, ExtractionJobStatus.CANCELLED].includes(dto.status as ExtractionJobStatus)) {
+                updates.push('completed_at = NOW()');
+            }
         }
 
         if (schema.totalItemsColumn && dto.total_items !== undefined) {
@@ -316,12 +326,14 @@ export class ExtractionJobService {
         }
 
         if (schema.discoveredTypesColumn && dto.discovered_types !== undefined) {
-            pushUpdate(schema.discoveredTypesColumn, dto.discovered_types);
+            // JSONB column requires JSON string
+            pushUpdate(schema.discoveredTypesColumn, JSON.stringify(dto.discovered_types));
         }
 
         if (schema.createdObjectsColumn && dto.created_objects !== undefined) {
             if (schema.createdObjectsIsArray) {
-                pushUpdate(schema.createdObjectsColumn, dto.created_objects);
+                // JSONB column requires JSON string
+                pushUpdate(schema.createdObjectsColumn, JSON.stringify(dto.created_objects));
             } else {
                 const count = Array.isArray(dto.created_objects) ? dto.created_objects.length : Number(dto.created_objects) || 0;
                 pushUpdate(schema.createdObjectsColumn, count);
@@ -817,7 +829,7 @@ export class ExtractionJobService {
 
         const totalObjectsExpression = schema.createdObjectsColumn
             ? (schema.createdObjectsIsArray
-                ? `SUM(COALESCE(array_length(${schema.createdObjectsColumn}, 1), 0))`
+                ? `SUM(COALESCE(jsonb_array_length(${schema.createdObjectsColumn}), 0))`
                 : `SUM(COALESCE(${schema.createdObjectsColumn}, 0))`)
             : '0';
 
@@ -866,9 +878,9 @@ export class ExtractionJobService {
         let total_types_discovered = 0;
         if (schema.discoveredTypesColumn) {
             const typesResult = await this.db.query<{ type_name: string }>(
-                `SELECT DISTINCT unnest(${schema.discoveredTypesColumn}) as type_name
+                `SELECT DISTINCT jsonb_array_elements_text(${schema.discoveredTypesColumn}) as type_name
                  FROM kb.object_extraction_jobs
-                 WHERE ${schema.projectColumn} = $1 AND ${schema.orgColumn} = $2 AND array_length(${schema.discoveredTypesColumn}, 1) > 0`,
+                 WHERE ${schema.projectColumn} = $1 AND ${schema.orgColumn} = $2 AND jsonb_array_length(${schema.discoveredTypesColumn}) > 0`,
                 [projectId, orgId]
             );
             total_types_discovered = typesResult.rowCount || 0;

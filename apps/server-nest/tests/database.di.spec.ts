@@ -6,7 +6,7 @@ import { DatabaseService } from '../src/common/database/database.service';
 
 describe('DatabaseService DI', () => {
     test('AppConfigService is injected', async () => {
-        process.env.E2E_MINIMAL_DB = 'true';
+        process.env.NODE_ENV = 'test';
         process.env.DB_AUTOINIT = 'false';
         const mod = await Test.createTestingModule({
             imports: [AppConfigModule, DatabaseModule],

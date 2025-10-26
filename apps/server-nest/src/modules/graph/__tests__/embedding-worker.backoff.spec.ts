@@ -15,7 +15,7 @@ describe('EmbeddingWorkerService Backoff', () => {
 
     beforeAll(async () => {
         process.env.DB_AUTOINIT = '1';
-        process.env.E2E_MINIMAL_DB = 'true';
+        process.env.NODE_ENV = 'test';
         delete process.env.GOOGLE_API_KEY; // disable embeddings; we'll force failure via extractText
         const mod = await Test.createTestingModule({ imports: [AppConfigModule, DatabaseModule, GraphModule] }).compile();
         service = mod.get(GraphService);

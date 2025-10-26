@@ -56,7 +56,7 @@ describe('Chat Streaming SSE E2E', () => {
         expect(payloads.length).toBeGreaterThanOrEqual(7);
         const tokens = payloads.filter(p => p.message && p.message.startsWith('token-'));
         for (let i = 0; i < 5; i++) {
-            const frame = tokens.find(t => t.message === `token-${i}`);
+            const frame = tokens.find(t => t.message && t.message.trim() === `token-${i}`);
             expect(frame).toBeTruthy();
             if (frame) {
                 expect(frame.index).toBe(i);

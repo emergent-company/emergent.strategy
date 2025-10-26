@@ -31,7 +31,7 @@ if (fs.existsSync(envPath)) {
     console.log(`[migrate] Loaded environment from ${envPath}`);
 }
 
-const MIGRATIONS_DIR = path.join(PROJECT_ROOT, 'apps/server-nest/src/migrations');
+const MIGRATIONS_DIR = path.join(PROJECT_ROOT, 'apps/server-nest/migrations');
 const MIGRATIONS_TABLE = 'schema_migrations';
 
 interface Migration {
@@ -96,9 +96,10 @@ function getAvailableMigrations(): Migration[] {
         .sort(); // Alphabetical sort ensures 0001, 0002, etc. run in order
 
     return files.map(filename => {
-        // Extract version from filename (e.g., 0001_name.sql -> 0001)
-        const match = filename.match(/^(\d+)_/);
-        const version = match ? match[1] : filename.replace('.sql', '');
+        // Use the entire filename (without .sql) as the version to ensure uniqueness
+        // e.g., 0001_init.sql -> 0001_init
+        //       20251025_add_integration_metadata.sql -> 20251025_add_integration_metadata
+        const version = filename.replace('.sql', '');
 
         return {
             filename,

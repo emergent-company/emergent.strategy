@@ -151,6 +151,27 @@ export class TemplatePackService {
         // Verify template pack exists
         const templatePack = await this.getTemplatePackById(dto.template_pack_id);
 
+        // Look up actual user_profiles.id if userId is provided
+        // userId might be a Zitadel user ID or a hashed UUID that doesn't exist in user_profiles
+        let actualUserId: string | null = null;
+        if (userId) {
+            try {
+                // Try to find user by zitadel_user_id or by id
+                const userResult = await this.db.query(
+                    `SELECT id FROM core.user_profiles 
+                     WHERE id = $1 OR zitadel_user_id = $1 
+                     LIMIT 1`,
+                    [userId]
+                );
+                if (userResult.rows.length > 0) {
+                    actualUserId = userResult.rows[0].id;
+                }
+            } catch (err) {
+                this.logger.warn(`Could not look up user ${userId}: ${err instanceof Error ? err.message : String(err)}`);
+                // Continue with null - user doesn't exist yet
+            }
+        }
+
         // Check if already installed
         const existing = await this.db.query<ProjectTemplatePackRow>(
             `SELECT * FROM kb.project_template_packs 
@@ -180,8 +201,8 @@ export class TemplatePackService {
         // Check for conflicts with existing types
         const conflicts: AssignTemplatePackResponse['conflicts'] = [];
         const existingTypes = await this.db.query<{ type: string }>(
-            `SELECT type FROM kb.project_object_type_registry 
-             WHERE project_id = $1 AND type = ANY($2)`,
+            `SELECT type_name AS type FROM kb.project_object_type_registry 
+             WHERE project_id = $1 AND type_name = ANY($2)`,
             [projectId, typesToInstall]
         );
 
@@ -210,18 +231,17 @@ export class TemplatePackService {
             await client.query(`SELECT set_config('app.current_organization_id', $1, true)`, [orgId]);
             await client.query(`SELECT set_config('app.current_project_id', $1, true)`, [projectId]);
 
-            // Create assignment record
+            // Create assignment record (pack is scoped to project, not org)
             const assignmentResult = await client.query<ProjectTemplatePackRow>(
                 `INSERT INTO kb.project_template_packs (
-                    organization_id, project_id, template_pack_id,
+                    project_id, template_pack_id,
                     installed_by, active, customizations
-                ) VALUES ($1, $2, $3, $4, $5, $6)
+                ) VALUES ($1, $2, $3, $4, $5)
                 RETURNING *`,
                 [
-                    orgId,
                     projectId,
                     dto.template_pack_id,
-                    userId,
+                    actualUserId, // Use looked-up user_profiles.id or null if user doesn't exist
                     true,
                     JSON.stringify(customizations),
                 ]
@@ -235,12 +255,11 @@ export class TemplatePackService {
 
                 await client.query(
                     `INSERT INTO kb.project_object_type_registry (
-                        organization_id, project_id, type, source,
+                        project_id, type_name, source,
                         template_pack_id, json_schema, ui_config, extraction_config,
                         enabled, created_by
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
                     [
-                        orgId,
                         projectId,
                         type,
                         'template',
@@ -249,7 +268,7 @@ export class TemplatePackService {
                         JSON.stringify(uiConfig),
                         JSON.stringify(extractionConfig),
                         true,
-                        userId,
+                        actualUserId,
                     ]
                 );
             }
@@ -291,9 +310,9 @@ export class TemplatePackService {
                 row_to_json(tp.*) as template_pack
             FROM kb.project_template_packs ptp
             JOIN kb.graph_template_packs tp ON ptp.template_pack_id = tp.id
-            WHERE ptp.project_id = $1 AND ptp.organization_id = $2
+            WHERE ptp.project_id = $1
             ORDER BY ptp.installed_at DESC`,
-            [projectId, orgId]
+            [projectId]
         );
 
         // Transform object_type_schemas object into object_types array for frontend
@@ -325,8 +344,8 @@ export class TemplatePackService {
         // Get installed packs for this project
         const installedResult = await this.db.query<{ template_pack_id: string }>(
             `SELECT template_pack_id FROM kb.project_template_packs 
-             WHERE project_id = $1 AND organization_id = $2 AND active = true`,
-            [projectId, orgId]
+             WHERE project_id = $1 AND active = true`,
+            [projectId]
         );
         const installedIds = new Set(installedResult.rows.map(r => r.template_pack_id));
 
@@ -468,7 +487,7 @@ export class TemplatePackService {
             const objectsResult = await client.query<{ count: string }>(
                 `SELECT COUNT(*) as count 
                  FROM kb.graph_objects go
-                 JOIN kb.project_object_type_registry ptr ON go.type = ptr.type AND go.project_id = ptr.project_id
+                 JOIN kb.project_object_type_registry ptr ON go.type = ptr.type_name AND go.project_id = ptr.project_id
                  WHERE ptr.template_pack_id = $1 AND go.project_id = $2 AND go.deleted_at IS NULL`,
                 [assignment.template_pack_id, projectId]
             );
@@ -593,8 +612,8 @@ export class TemplatePackService {
         // Get all active template pack assignments for this project
         const assignmentsResult = await this.db.query<ProjectTemplatePackRow>(
             `SELECT * FROM kb.project_template_packs 
-             WHERE project_id = $1 AND organization_id = $2 AND active = true`,
-            [projectId, orgId]
+             WHERE project_id = $1 AND active = true`,
+            [projectId]
         );
 
         if (assignmentsResult.rows.length === 0) {

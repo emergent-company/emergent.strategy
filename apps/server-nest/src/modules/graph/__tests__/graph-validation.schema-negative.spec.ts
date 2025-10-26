@@ -12,7 +12,7 @@ describe('Graph Validation - schema negative', () => {
     let db: DatabaseService; let graph: GraphService; let orgId: string; let projectId: string; let schemaRegistry: SchemaRegistryService;
 
     beforeAll(async () => {
-        process.env.E2E_MINIMAL_DB = 'true';
+        process.env.NODE_ENV = 'test';
         process.env.DB_AUTOINIT = 'true';
         const dbServiceConfig = getTestDbServiceConfig();
         const fakeConfig: any = {

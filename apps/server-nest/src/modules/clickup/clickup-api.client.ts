@@ -163,10 +163,31 @@ export class ClickUpApiClient {
      * Get all workspaces (teams)
      */
     async getWorkspaces(): Promise<ClickUpWorkspacesResponse> {
-        return this.sdkCall(
-            () => this.sdk.getAuthorizedTeams(),
-            'getWorkspaces'
-        ) as Promise<ClickUpWorkspacesResponse>;
+        if (!this.apiToken) {
+            throw new Error('ClickUp API client not configured. Call configure() first.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            const response = await fetch('https://api.clickup.com/api/v2/team', {
+                headers: {
+                    'Authorization': this.apiToken,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data as ClickUpWorkspacesResponse;
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`ClickUp API error in getWorkspaces: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
+        }
     }
 
     /**
@@ -174,10 +195,36 @@ export class ClickUpApiClient {
      * Note: ClickUp API may paginate results, but doesn't document pagination for spaces endpoint
      */
     async getSpaces(workspaceId: string, archived: boolean = false): Promise<ClickUpSpacesResponse> {
-        return this.sdkCall(
-            () => this.sdk.getSpaces({ team_id: parseInt(workspaceId), archived }),
-            'getSpaces'
-        ) as unknown as Promise<ClickUpSpacesResponse>;
+        if (!this.apiToken) {
+            throw new Error('ClickUp API client not configured. Call configure() first.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            const url = new URL(`https://api.clickup.com/api/v2/team/${workspaceId}/space`);
+            if (archived) {
+                url.searchParams.set('archived', 'true');
+            }
+
+            const response = await fetch(url.toString(), {
+                headers: {
+                    'Authorization': this.apiToken,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data as ClickUpSpacesResponse;
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`ClickUp API error in getSpaces: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
+        }
     }
 
     /**
@@ -185,10 +232,36 @@ export class ClickUpApiClient {
      * Note: ClickUp API may paginate results, but doesn't document pagination for folders endpoint
      */
     async getFolders(spaceId: string, archived: boolean = false): Promise<ClickUpFoldersResponse> {
-        return this.sdkCall(
-            () => this.sdk.getFolders({ space_id: parseInt(spaceId), archived }),
-            'getFolders'
-        ) as unknown as Promise<ClickUpFoldersResponse>;
+        if (!this.apiToken) {
+            throw new Error('ClickUp API client not configured. Call configure() first.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            const url = new URL(`https://api.clickup.com/api/v2/space/${spaceId}/folder`);
+            if (archived) {
+                url.searchParams.set('archived', 'true');
+            }
+
+            const response = await fetch(url.toString(), {
+                headers: {
+                    'Authorization': this.apiToken,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data as ClickUpFoldersResponse;
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`ClickUp API error in getFolders: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
+        }
     }
 
     /**
@@ -196,10 +269,36 @@ export class ClickUpApiClient {
      * Note: ClickUp API may paginate results, but doesn't document pagination for lists endpoint
      */
     async getListsInFolder(folderId: string, archived: boolean = false): Promise<ClickUpListsResponse> {
-        return this.sdkCall(
-            () => this.sdk.getLists({ folder_id: parseInt(folderId), archived }),
-            'getListsInFolder'
-        ) as unknown as Promise<ClickUpListsResponse>;
+        if (!this.apiToken) {
+            throw new Error('ClickUp API client not configured. Call configure() first.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            const url = new URL(`https://api.clickup.com/api/v2/folder/${folderId}/list`);
+            if (archived) {
+                url.searchParams.set('archived', 'true');
+            }
+
+            const response = await fetch(url.toString(), {
+                headers: {
+                    'Authorization': this.apiToken,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data as ClickUpListsResponse;
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`ClickUp API error in getListsInFolder: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
+        }
     }
 
     /**
@@ -207,10 +306,36 @@ export class ClickUpApiClient {
      * Note: ClickUp API may paginate results, but doesn't document pagination for lists endpoint
      */
     async getFolderlessLists(spaceId: string, archived: boolean = false): Promise<ClickUpListsResponse> {
-        return this.sdkCall(
-            () => this.sdk.getFolderlessLists({ space_id: parseInt(spaceId), archived }),
-            'getFolderlessLists'
-        ) as unknown as Promise<ClickUpListsResponse>;
+        if (!this.apiToken) {
+            throw new Error('ClickUp API client not configured. Call configure() first.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            const url = new URL(`https://api.clickup.com/api/v2/space/${spaceId}/list`);
+            if (archived) {
+                url.searchParams.set('archived', 'true');
+            }
+
+            const response = await fetch(url.toString(), {
+                headers: {
+                    'Authorization': this.apiToken,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data as ClickUpListsResponse;
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`ClickUp API error in getFolderlessLists: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
+        }
     }
 
     /**
@@ -238,27 +363,79 @@ export class ClickUpApiClient {
             dateUpdatedLt?: number;
         } = {}
     ): Promise<ClickUpTasksResponse> {
-        return this.sdkCall(
-            () => this.sdk.getTasks({
-                list_id: parseInt(listId),
-                archived: options.archived,
-                page: options.page,
-                order_by: options.orderBy,
-                reverse: options.reverse,
-                subtasks: options.subtasks,
-                statuses: options.statuses,
-                include_closed: options.includeClosed,
-                assignees: options.assignees,
-                tags: options.tags,
-                due_date_gt: options.dueDateGt,
-                due_date_lt: options.dueDateLt,
-                date_created_gt: options.dateCreatedGt,
-                date_created_lt: options.dateCreatedLt,
-                date_updated_gt: options.dateUpdatedGt,
-                date_updated_lt: options.dateUpdatedLt,
-            }),
-            'getTasksInList'
-        ) as unknown as Promise<ClickUpTasksResponse>;
+        if (!this.apiToken) {
+            throw new Error('ClickUp API client not configured. Call configure() first.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            const url = new URL(`https://api.clickup.com/api/v2/list/${listId}/task`);
+
+            if (options.archived !== undefined) {
+                url.searchParams.set('archived', String(options.archived));
+            }
+            if (options.page !== undefined) {
+                url.searchParams.set('page', String(options.page));
+            }
+            if (options.orderBy) {
+                url.searchParams.set('order_by', options.orderBy);
+            }
+            if (options.reverse !== undefined) {
+                url.searchParams.set('reverse', String(options.reverse));
+            }
+            if (options.subtasks !== undefined) {
+                url.searchParams.set('subtasks', String(options.subtasks));
+            }
+            if (options.includeClosed !== undefined) {
+                url.searchParams.set('include_closed', String(options.includeClosed));
+            }
+            if (options.statuses && options.statuses.length > 0) {
+                options.statuses.forEach(status => url.searchParams.append('statuses[]', status));
+            }
+            if (options.assignees && options.assignees.length > 0) {
+                options.assignees.forEach(assignee => url.searchParams.append('assignees[]', assignee));
+            }
+            if (options.tags && options.tags.length > 0) {
+                options.tags.forEach(tag => url.searchParams.append('tags[]', tag));
+            }
+            if (options.dueDateGt) {
+                url.searchParams.set('due_date_gt', String(options.dueDateGt));
+            }
+            if (options.dueDateLt) {
+                url.searchParams.set('due_date_lt', String(options.dueDateLt));
+            }
+            if (options.dateCreatedGt) {
+                url.searchParams.set('date_created_gt', String(options.dateCreatedGt));
+            }
+            if (options.dateCreatedLt) {
+                url.searchParams.set('date_created_lt', String(options.dateCreatedLt));
+            }
+            if (options.dateUpdatedGt) {
+                url.searchParams.set('date_updated_gt', String(options.dateUpdatedGt));
+            }
+            if (options.dateUpdatedLt) {
+                url.searchParams.set('date_updated_lt', String(options.dateUpdatedLt));
+            }
+
+            const response = await fetch(url.toString(), {
+                headers: {
+                    'Authorization': this.apiToken,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data as ClickUpTasksResponse;
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`ClickUp API error in getTasksInList: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
+        }
     }
 
     /**

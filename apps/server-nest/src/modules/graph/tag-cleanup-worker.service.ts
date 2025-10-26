@@ -18,6 +18,7 @@ export class TagCleanupWorkerService implements OnModuleInit, OnModuleDestroy {
     private intervalHandle?: NodeJS.Timeout;
     private readonly intervalMs: number;
     private isProcessing = false;
+    private currentCleanup: Promise<void> | null = null;
 
     constructor(
         private readonly db: DatabaseService,
@@ -27,26 +28,45 @@ export class TagCleanupWorkerService implements OnModuleInit, OnModuleDestroy {
     }
 
     onModuleInit() {
-        // Start the worker
+        // Disable during tests unless explicitly enabled
+        if (process.env.NODE_ENV === 'test' && process.env.ENABLE_WORKERS_IN_TESTS !== 'true') {
+            this.logger.debug('Tag cleanup worker disabled during tests (set ENABLE_WORKERS_IN_TESTS=true to enable)');
+            return;
+        }
+
         this.logger.log(`Tag cleanup worker starting (interval=${this.intervalMs}ms)`);
         this.startWorker();
     }
 
-    onModuleDestroy() {
+    async onModuleDestroy() {
         // Stop the worker
         if (this.intervalHandle) {
             clearInterval(this.intervalHandle);
-            this.logger.log('Tag cleanup worker stopped');
+            this.intervalHandle = undefined;
         }
+
+        // Wait for current cleanup to finish to avoid orphaned promises
+        if (this.currentCleanup) {
+            this.logger.debug('Waiting for current cleanup to complete before stopping...');
+            try {
+                await this.currentCleanup;
+            } catch (error) {
+                this.logger.warn('Current cleanup failed during shutdown', error);
+            } finally {
+                this.currentCleanup = null;
+            }
+        }
+
+        this.logger.log('Tag cleanup worker stopped');
     }
 
     private startWorker() {
         // Run cleanup immediately on startup
-        void this.cleanupUnusedTags();
+        this.currentCleanup = this.cleanupUnusedTags();
 
         // Schedule periodic cleanup
         this.intervalHandle = setInterval(() => {
-            void this.cleanupUnusedTags();
+            this.currentCleanup = this.cleanupUnusedTags();
         }, this.intervalMs);
     }
 

@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../../common/database/database.service';
+import { HashService } from '../../common/utils/hash.service';
 import { DocumentDto } from './dto/document.dto';
 
 interface DocumentRow {
@@ -22,7 +23,10 @@ interface DocumentRow {
 
 @Injectable()
 export class DocumentsService {
-    constructor(private readonly db: DatabaseService) { }
+    constructor(
+        private readonly db: DatabaseService,
+        private readonly hash: HashService,
+    ) { }
 
     async list(limit = 100, cursor?: { createdAt: string; id: string }, filter?: { orgId?: string; projectId?: string }): Promise<{ items: DocumentDto[]; nextCursor: string | null }> {
         // Fetch one extra row (limit + 1) to determine if another page exists. This avoids issuing
@@ -106,6 +110,11 @@ export class DocumentsService {
         if (!projectId) {
             throw new BadRequestException({ error: { code: 'bad-request', message: 'Unknown projectId' } });
         }
+
+        // Generate content hash from content
+        const content = body.content || '';
+        const contentHash = this.hash.sha256(content);
+
         // Atomic existence + insert to avoid race causing FK violation (uses CTE)
         const ins = await this.db.query<DocumentRow>(
             `WITH target AS (
@@ -114,10 +123,10 @@ export class DocumentsService {
                 WHERE p.id = $2
                 LIMIT 1
             )
-            INSERT INTO kb.documents(organization_id, project_id, filename, content)
-            SELECT target.organization_id, target.project_id, $3, $4 FROM target
+            INSERT INTO kb.documents(organization_id, project_id, filename, content, content_hash)
+            SELECT target.organization_id, target.project_id, $3, $4, $5 FROM target
             RETURNING id, organization_id, project_id, filename, source_url, mime_type, created_at, updated_at, 0 as chunks`,
-            [body.orgId || null, projectId, body.filename || 'unnamed.txt', body.content || ''],
+            [body.orgId || null, projectId, body.filename || 'unnamed.txt', content, contentHash],
         );
         if (!ins.rowCount) {
             throw new BadRequestException({ error: { code: 'bad-request', message: 'Unknown projectId' } });

@@ -43,7 +43,7 @@ describe.sequential('Graph Branching', () => {
     let projectId: string; let orgId: string;
 
     beforeAll(async () => {
-        process.env.E2E_MINIMAL_DB = 'true';
+        process.env.NODE_ENV = 'test';
         process.env.DB_AUTOINIT = 'true';
 
         // Use unified test database configuration

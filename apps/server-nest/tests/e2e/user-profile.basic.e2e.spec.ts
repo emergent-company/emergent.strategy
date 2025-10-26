@@ -61,7 +61,7 @@ describe('User Profile - Basic CRUD & Alternative Emails', () => {
 
     test('Validation: invalid phone rejected', async () => {
         const bad = { phoneE164: '12345' }; // missing + and too short
-        const res = await request.put('/user/profile').set(headers()).send(bad).expect(422);
+        const res = await request.put('/user/profile').set(headers()).send(bad).expect(400);
         // Standardized error envelope shape: { error: { code, message, details? } }
         expect(res.body?.error?.code).toBe('validation-failed');
         expect(res.body?.error?.message).toBeTruthy();

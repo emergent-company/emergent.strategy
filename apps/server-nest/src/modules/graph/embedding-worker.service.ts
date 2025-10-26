@@ -19,6 +19,7 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(EmbeddingWorkerService.name);
     private timer: NodeJS.Timeout | null = null;
     private running = false;
+    private currentBatch: Promise<void> | null = null;
     // Lightweight in-memory metrics (reset on process restart). Suitable for tests & basic diagnostics.
     private processedCount = 0;
     private successCount = 0;
@@ -37,24 +38,56 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
             this.logger.warn('Database offline at worker init; embedding worker idle.');
             return;
         }
+
+        // Disable during tests unless explicitly enabled
+        if (process.env.NODE_ENV === 'test' && process.env.ENABLE_WORKERS_IN_TESTS !== 'true') {
+            this.logger.debug('Embedding worker disabled during tests (set ENABLE_WORKERS_IN_TESTS=true to enable)');
+            return;
+        }
+
         this.start();
     }
 
-    onModuleDestroy() { this.stop(); }
+    async onModuleDestroy() { await this.stop(); }
 
     start(intervalMs: number = parseInt(process.env.EMBEDDING_WORKER_INTERVAL_MS || '2000', 10)) {
         if (this.timer) return; // already started
         this.running = true;
         const tick = async () => {
             if (!this.running) return;
-            try { await this.processBatch(); } catch (e) { this.logger.warn('processBatch failed: ' + (e as Error).message); }
+            try {
+                this.currentBatch = this.processBatch();
+                await this.currentBatch;
+            } catch (e) {
+                this.logger.warn('processBatch failed: ' + (e as Error).message);
+            } finally {
+                this.currentBatch = null;
+            }
             this.timer = setTimeout(tick, intervalMs);
         };
         this.timer = setTimeout(tick, intervalMs);
         this.logger.log(`Embedding worker started (interval=${intervalMs}ms)`);
     }
 
-    stop() { if (this.timer) { clearTimeout(this.timer); this.timer = null; } this.running = false; }
+    async stop() {
+        if (this.timer) {
+            clearTimeout(this.timer);
+            this.timer = null;
+        }
+        this.running = false;
+
+        // Wait for current batch to finish to avoid orphaned promises
+        if (this.currentBatch) {
+            this.logger.debug('Waiting for current batch to complete before stopping...');
+            try {
+                await this.currentBatch;
+            } catch (error) {
+                this.logger.warn('Current batch failed during shutdown', error);
+            }
+        }
+
+        this.logger.log('Embedding worker stopped');
+    }
 
     // Exposed for tests (invoke directly to avoid timer delay)
     async processBatch() {

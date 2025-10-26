@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nes
 import { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
+import { Scopes } from '../auth/scopes.decorator';
 import { SchemaVersionService } from './services/schema-version.service';
 import { DatabaseService } from '../../common/database/database.service';
 
@@ -108,6 +109,7 @@ export class McpServerController {
 
     @Post('rpc')
     @UseGuards(AuthGuard, ScopesGuard)
+    @Scopes('schema:read')
     @ApiOperation({
         summary: 'MCP JSON-RPC 2.0 Endpoint',
         description: `
@@ -700,7 +702,7 @@ Model Context Protocol (MCP) server endpoint.
                     go.type as type_name,
                     tr.description as type_description
                 FROM kb.graph_objects go
-                LEFT JOIN kb.project_object_type_registry tr ON tr.type = go.type
+                LEFT JOIN kb.project_object_type_registry tr ON tr.type_name = go.type
                 WHERE go.type = $1
                   AND go.deleted_at IS NULL
                 ORDER BY go.${safeSortBy} ${safeSortOrder}

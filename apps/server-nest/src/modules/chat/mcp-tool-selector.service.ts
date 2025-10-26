@@ -130,14 +130,14 @@ export class McpToolSelectorService {
             const types = await this.db.runWithTenantContext(orgId, projectId, async () => {
                 const result = await this.db.query(`
                     SELECT 
-                        tr.type as name,
+                        tr.type_name as name,
                         tr.description,
                         COUNT(go.id) as instance_count
                     FROM kb.project_object_type_registry tr
-                    LEFT JOIN kb.graph_objects go ON go.type = tr.type AND go.deleted_at IS NULL
+                    LEFT JOIN kb.graph_objects go ON go.type = tr.type_name AND go.deleted_at IS NULL
                     WHERE tr.enabled = true
-                    GROUP BY tr.type, tr.description
-                    ORDER BY tr.type
+                    GROUP BY tr.type_name, tr.description
+                    ORDER BY tr.type_name
                 `);
                 return result.rows;
             });

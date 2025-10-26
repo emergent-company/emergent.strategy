@@ -6,7 +6,7 @@ import { AppConfigModule } from '../../../common/config/config.module';
 import { GraphService } from '../../graph/graph.service';
 
 // Basic FTS search tests verifying ranking & filtering using inline-populated tsvector.
-// Uses minimal DB (E2E_MINIMAL_DB) path; relies on autoInit to build schema.
+// Relies on autoInit to build schema in test mode.
 
 describe('Graph FTS Search', () => {
     let service: GraphService;
@@ -15,7 +15,7 @@ describe('Graph FTS Search', () => {
     let orgId: string; let projectId: string;
     beforeAll(async () => {
         process.env.DB_AUTOINIT = '1';
-        process.env.E2E_MINIMAL_DB = 'true';
+        process.env.NODE_ENV = 'test';
         const mod = await Test.createTestingModule({
             imports: [AppConfigModule, DatabaseModule, GraphModule],
         }).compile();

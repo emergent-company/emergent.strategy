@@ -28,11 +28,24 @@ export default defineConfig({
         watch: false,
         setupFiles: ['tests/e2e/global-org-cleanup.ts'],
         env: {
-            E2E_MINIMAL_DB: 'true',
+            NODE_ENV: 'test',
+            // Explicitly disable extraction worker (has its own config flag)
+            EXTRACTION_WORKER_ENABLED: 'false',
+            // Other workers disabled via NODE_ENV check in onModuleInit
+            // Set ENABLE_WORKERS_IN_TESTS=true if specific tests need workers
         },
         // Longer timeout for tests that hit real databases/APIs
         testTimeout: 30000,
         hookTimeout: 30000,
         teardownTimeout: 10000,
+        // Use forks pool with limited workers to prevent orphaned processes
+        pool: 'forks',
+        poolOptions: {
+            forks: {
+                singleFork: false,
+                minForks: 1,
+                maxForks: 4,
+            },
+        },
     },
 });

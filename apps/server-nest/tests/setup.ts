@@ -22,9 +22,9 @@ let seeding: Promise<void> | null = null;
 
 export async function getTestApp(): Promise<INestApplication> {
     if (app) return app;
-    // Ensure deterministic minimal DB bootstrap for integration tests.
-    // Use minimal schema path to keep setup fast; enable autoinit unless explicitly disabled.
-    process.env.E2E_MINIMAL_DB = process.env.E2E_MINIMAL_DB || 'true';
+    // Ensure deterministic test bootstrap for integration tests.
+    // Enable autoinit unless explicitly disabled.
+    process.env.NODE_ENV = 'test';
     process.env.DB_AUTOINIT = process.env.DB_AUTOINIT || 'true';
     // Never skip DB in these integration tests.
     if (process.env.SKIP_DB) delete process.env.SKIP_DB;
