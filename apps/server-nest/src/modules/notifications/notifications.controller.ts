@@ -70,7 +70,7 @@ export class NotificationsController {
         unreadOnly?: boolean,
         @Query('search') search?: string,
     ) {
-        const userId = req.user?.sub;
+        const userId = req.user?.id;
         const notifications = await this.notificationsService.getForUser(
             userId,
             tab,
@@ -90,7 +90,7 @@ export class NotificationsController {
     @ApiStandardErrors()
     @Scopes('notifications:read')
     async getUnreadCounts(@Req() req: any) {
-        const userId = req.user?.sub;
+        const userId = req.user?.id;
         const counts = await this.notificationsService.getUnreadCounts(userId);
         return { success: true, data: counts };
     }
@@ -101,7 +101,7 @@ export class NotificationsController {
     @ApiStandardErrors()
     @Scopes('notifications:read')
     async getStats(@Req() req: any) {
-        const userId = req.user?.sub;
+        const userId = req.user?.id;
         const stats = await this.notificationsService.getCounts(userId);
         return { success: true, data: stats };
     }
@@ -113,7 +113,7 @@ export class NotificationsController {
     @ApiStandardErrors()
     @Scopes('notifications:write')
     async markRead(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
-        const userId = req.user?.sub;
+        const userId = req.user?.id;
         await this.notificationsService.markRead(id, userId);
         return { success: true };
     }
@@ -125,7 +125,7 @@ export class NotificationsController {
     @ApiStandardErrors()
     @Scopes('notifications:write')
     async markUnread(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
-        const userId = req.user?.sub;
+        const userId = req.user?.id;
         await this.notificationsService.markUnread(id, userId);
         return { success: true };
     }
@@ -137,7 +137,7 @@ export class NotificationsController {
     @ApiStandardErrors()
     @Scopes('notifications:write')
     async dismiss(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
-        const userId = req.user?.sub;
+        const userId = req.user?.id;
         await this.notificationsService.dismiss(id, userId);
         return { success: true };
     }
@@ -149,7 +149,7 @@ export class NotificationsController {
     @ApiStandardErrors()
     @Scopes('notifications:write')
     async clear(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
-        const userId = req.user?.sub;
+        const userId = req.user?.id;
         await this.notificationsService.clear(id, userId);
         return { success: true };
     }
@@ -161,7 +161,7 @@ export class NotificationsController {
     @ApiStandardErrors()
     @Scopes('notifications:write')
     async unclear(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
-        const userId = req.user?.sub;
+        const userId = req.user?.id;
         await this.notificationsService.unclear(id, userId);
         return { success: true };
     }
@@ -182,7 +182,7 @@ export class NotificationsController {
         @Query('tab', new DefaultValuePipe('important'))
         tab: 'important' | 'other',
     ) {
-        const userId = req.user?.sub;
+        const userId = req.user?.id;
         const count = await this.notificationsService.clearAll(userId, tab);
         return { success: true, cleared: count };
     }
@@ -198,7 +198,7 @@ export class NotificationsController {
         @Param('id', ParseUUIDPipe) id: string,
         @Body() body: SnoozeNotificationDto,
     ) {
-        const userId = req.user?.sub;
+        const userId = req.user?.id;
         const until = new Date(body.until);
         await this.notificationsService.snooze(id, userId, until);
         return { success: true };
@@ -211,7 +211,7 @@ export class NotificationsController {
     @ApiStandardErrors()
     @Scopes('notifications:write')
     async unsnooze(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
-        const userId = req.user?.sub;
+        const userId = req.user?.id;
         await this.notificationsService.unsnooze(id, userId);
         return { success: true };
     }

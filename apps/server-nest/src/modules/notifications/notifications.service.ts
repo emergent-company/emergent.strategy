@@ -40,7 +40,7 @@ export class NotificationsService {
         const result = await this.db.query<Notification>(
             `
       INSERT INTO kb.notifications (
-        organization_id, project_id, subject_id,
+        organization_id, project_id, user_id,
         category, importance, title, message, details,
         source_type, source_id, action_url, action_label, group_key,
         type, severity, related_resource_type, related_resource_id,
@@ -51,7 +51,7 @@ export class NotificationsService {
             [
                 data.organization_id || null,
                 data.project_id || null,
-                data.subject_id,
+                data.subject_id, // Maps to user_id column (recipient)
                 data.category,
                 importance,
                 data.title,
@@ -95,7 +95,7 @@ export class NotificationsService {
         tab: NotificationTab,
         filters: NotificationFilter = {},
     ): Promise<Notification[]> {
-        const conditions: string[] = ['subject_id = $1'];
+        const conditions: string[] = ['user_id = $1'];
         const params: any[] = [userId];
         let paramIndex = 2;
 
@@ -163,7 +163,7 @@ export class NotificationsService {
           COUNT(*) FILTER (WHERE importance = 'other' AND read_at IS NULL AND cleared_at IS NULL AND (snoozed_until IS NULL OR snoozed_until < now())) as other,
           COUNT(*) FILTER (WHERE snoozed_until > now() AND cleared_at IS NULL) as snoozed
         FROM kb.notifications
-        WHERE subject_id = $1
+        WHERE user_id = $1
       `,
                 [userId],
             );
@@ -190,7 +190,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET read_at = now()
-      WHERE id = $1 AND subject_id = $2
+      WHERE id = $1 AND user_id = $2
       RETURNING id
     `,
             [notificationId, userId],
@@ -209,7 +209,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET read_at = NULL
-      WHERE id = $1 AND subject_id = $2
+      WHERE id = $1 AND user_id = $2
       RETURNING id
     `,
             [notificationId, userId],
@@ -228,7 +228,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET cleared_at = now()
-      WHERE id = $1 AND subject_id = $2
+      WHERE id = $1 AND user_id = $2
       RETURNING id
     `,
             [notificationId, userId],
@@ -250,7 +250,7 @@ export class NotificationsService {
         COUNT(*) FILTER (WHERE cleared_at IS NOT NULL) as dismissed,
         COUNT(*) as total
       FROM kb.notifications
-      WHERE subject_id = $1
+      WHERE user_id = $1
     `,
             [userId],
         );
@@ -270,7 +270,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET cleared_at = now(), snoozed_until = NULL
-      WHERE id = $1 AND subject_id = $2
+      WHERE id = $1 AND user_id = $2
       RETURNING id
     `,
             [notificationId, userId],
@@ -289,7 +289,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET cleared_at = NULL
-      WHERE id = $1 AND subject_id = $2
+      WHERE id = $1 AND user_id = $2
       RETURNING id
     `,
             [notificationId, userId],
@@ -308,7 +308,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET cleared_at = now()
-      WHERE subject_id = $1
+      WHERE user_id = $1
         AND importance = $2
         AND cleared_at IS NULL
         AND (snoozed_until IS NULL OR snoozed_until < now())
@@ -332,7 +332,7 @@ export class NotificationsService {
             `
       UPDATE kb.notifications
       SET snoozed_until = $3
-      WHERE id = $1 AND subject_id = $2
+      WHERE id = $1 AND user_id = $2
       RETURNING id
     `,
             [notificationId, userId, until],
@@ -346,17 +346,19 @@ export class NotificationsService {
     /**
      * Unsnooze notification
      */
-    async unsnooze(notificationId: string, userId: string): Promise<void> {
+    async unsnooze(
+        notificationId: string,
+        userId: string,
+    ): Promise<void> {
         const result = await this.db.query(
             `
       UPDATE kb.notifications
       SET snoozed_until = NULL
-      WHERE id = $1 AND subject_id = $2
+      WHERE id = $1 AND user_id = $2
       RETURNING id
     `,
             [notificationId, userId],
         );
-
         if (result.rows.length === 0) {
             throw new NotFoundException('Notification not found');
         }
@@ -369,16 +371,37 @@ export class NotificationsService {
         userId: string,
         category: string,
     ): Promise<NotificationPreferences> {
-        const result = await this.db.query<NotificationPreferences>(
-            `
+        try {
+            const result = await this.db.query<NotificationPreferences>(
+                `
       SELECT * FROM kb.user_notification_preferences
-      WHERE subject_id = $1 AND category = $2
+      WHERE user_id = $1 AND category = $2
     `,
-            [userId, category],
-        );
+                [userId, category],
+            );
 
-        // Return defaults if not found
-        if (result.rows.length === 0) {
+            // Return defaults if not found
+            if (result.rows.length === 0) {
+                return {
+                    id: '',
+                    subject_id: userId,
+                    category,
+                    in_app_enabled: true,
+                    email_enabled: false,
+                    email_digest: false,
+                    force_important: false,
+                    force_other: false,
+                    auto_mark_read: false,
+                    auto_clear_after_days: null,
+                    created_at: new Date(),
+                    updated_at: new Date(),
+                };
+            }
+
+            return result.rows[0];
+        } catch (error) {
+            // Table doesn't exist yet, return defaults
+            this.logger.debug(`user_notification_preferences table not found, using defaults`);
             return {
                 id: '',
                 subject_id: userId,
@@ -394,8 +417,6 @@ export class NotificationsService {
                 updated_at: new Date(),
             };
         }
-
-        return result.rows[0];
     }
 
     /**
