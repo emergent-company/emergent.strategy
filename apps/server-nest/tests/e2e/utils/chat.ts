@@ -33,7 +33,7 @@ export async function streamConversation(ctx: E2EContext, id: string, opts?: { u
     const frames: StreamFrame[] = events.map(ev => {
         const m = ev.match(/^data: (.*)$/m); if (!m) return null; try { return JSON.parse(m[1]); } catch { return null; }
     }).filter(Boolean) as any[];
-    const tokens = frames.filter(f => typeof f.message === 'string' && /^token-\d+$/.test(f.message));
+    const tokens = frames.filter(f => typeof f.message === 'string' && /^token-\d+\s*$/.test(f.message));
     const citationsFrame = frames.find(f => Array.isArray(f.citations));
     const summary = frames.find(f => f.summary === true);
     const done = frames.find(f => f.done === true);

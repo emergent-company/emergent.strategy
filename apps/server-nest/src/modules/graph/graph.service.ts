@@ -715,7 +715,7 @@ export class GraphService {
     async getRelationship(id: string, ctx?: GraphTenantContext): Promise<GraphRelationshipDto> {
         return this.runWithRequestContext(ctx, undefined, undefined, async () => {
             const res = await this.db.query<GraphRelationshipRow>(
-                `SELECT id, organization_id, project_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, deleted_at, created_at
+                `SELECT id, organization_id, project_id, branch_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, deleted_at, created_at, change_summary, content_hash
                  FROM kb.graph_relationships WHERE id=$1 AND deleted_at IS NULL`, [id]);
             if (!res.rowCount) throw new NotFoundException('relationship_not_found');
             return res.rows[0];
@@ -802,12 +802,14 @@ export class GraphService {
                 const prevLive = await client.query<GraphObjectRow>(
                     `SELECT * FROM kb.graph_objects WHERE canonical_id=$1 AND deleted_at IS NULL ORDER BY version DESC LIMIT 1`, [canonicalId]);
                 if (!prevLive.rowCount) throw new BadRequestException('no_prior_live_version');
+                // The restored version becomes the new HEAD (supersedes_id IS NULL)
+                // FTS parameters use positions at end of array (after branch_id)
                 const ftsVectorSql = `to_tsvector('simple', coalesce($10,'') || ' ' || coalesce($11,'') || ' ' || coalesce($12,'') )`;
                 const restored = await client.query<GraphObjectRow>(
-                    `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, organization_id, project_id, deleted_at, fts, embedding, embedding_updated_at)
+                    `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, organization_id, project_id, branch_id, deleted_at, fts, embedding, embedding_updated_at)
                      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL, ${ftsVectorSql}, NULL, NULL)
-                     RETURNING id, organization_id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, fts, created_at`,
-                    [prevLive.rows[0].type, prevLive.rows[0].key, prevLive.rows[0].properties, prevLive.rows[0].labels, head.rows[0].version + 1, canonicalId, head.rows[0].id, (prevLive.rows[0] as any).organization_id ?? null, (prevLive.rows[0] as any).project_id ?? null, prevLive.rows[0].key ?? '', JSON.stringify(prevLive.rows[0].properties), prevLive.rows[0].type]
+                     RETURNING id, organization_id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, fts, created_at`,
+                    [prevLive.rows[0].type, prevLive.rows[0].key, prevLive.rows[0].properties, prevLive.rows[0].labels, head.rows[0].version + 1, canonicalId, (prevLive.rows[0] as any).organization_id ?? null, (prevLive.rows[0] as any).project_id ?? null, (prevLive.rows[0] as any).branch_id ?? null, prevLive.rows[0].key ?? '', JSON.stringify(prevLive.rows[0].properties), prevLive.rows[0].type]
                 );
                 await client.query('COMMIT');
                 return restored.rows[0];
@@ -890,7 +892,7 @@ export class GraphService {
             // non-deleted version after a tombstone delete. We now select the head (which may be deleted) then
             // filter out deleted heads in an outer query so a deleted relationship is fully hidden.
             const sql = `SELECT * FROM (
-                     SELECT DISTINCT ON (r.canonical_id) r.id, r.organization_id, r.project_id, r.type, r.src_id, r.dst_id, r.properties, r.version, r.supersedes_id, r.canonical_id, r.weight, r.valid_from, r.valid_to, r.deleted_at, r.created_at
+                     SELECT DISTINCT ON (r.canonical_id) r.id, r.organization_id, r.project_id, r.type, r.src_id, r.dst_id, r.properties, r.version, r.supersedes_id, r.canonical_id, r.deleted_at, r.created_at, r.branch_id, r.change_summary, r.content_hash
                      FROM kb.graph_relationships r
                      WHERE ${dirClause}
                      ORDER BY r.canonical_id, r.version DESC
@@ -1164,7 +1166,7 @@ export class GraphService {
             const headParams: any[] = [];
             if (branch_id !== undefined) { headParams.push(branch_id ?? null); headFilters.push(`r.branch_id IS NOT DISTINCT FROM $${headParams.length}`); }
             const headWhere = headFilters.length ? 'WHERE ' + headFilters.join(' AND ') : '';
-            const baseHead = `SELECT DISTINCT ON (r.canonical_id) r.id, r.organization_id, r.project_id, r.branch_id, r.type, r.src_id, r.dst_id, r.properties, r.version, r.supersedes_id, r.canonical_id, r.weight, r.valid_from, r.valid_to, r.deleted_at, r.created_at
+            const baseHead = `SELECT DISTINCT ON (r.canonical_id) r.id, r.organization_id, r.project_id, r.branch_id, r.type, r.src_id, r.dst_id, r.properties, r.version, r.supersedes_id, r.canonical_id, r.deleted_at, r.created_at, r.change_summary, r.content_hash
                           FROM kb.graph_relationships r
                           ${headWhere}
                           ORDER BY r.canonical_id, r.version DESC`;
@@ -1218,7 +1220,7 @@ export class GraphService {
             }
             params.push(limit + 1);
             const res = await this.db.query<GraphRelationshipRow>(
-                `SELECT id, organization_id, project_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, weight, valid_from, valid_to, deleted_at, created_at
+                `SELECT id, organization_id, project_id, type, src_id, dst_id, properties, version, supersedes_id, canonical_id, deleted_at, created_at, branch_id, change_summary, content_hash
              FROM kb.graph_relationships WHERE canonical_id=$1${cursorClause}
              ORDER BY version DESC
              LIMIT $${params.length}`, params);

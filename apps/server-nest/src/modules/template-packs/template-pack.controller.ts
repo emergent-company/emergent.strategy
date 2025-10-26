@@ -27,7 +27,7 @@ import {
 } from './dto/template-pack.dto';
 
 @Controller('template-packs')
-@UseGuards(...(process.env.E2E_MINIMAL_DB ? [] : [AuthGuard, ScopesGuard]))
+@UseGuards(...(process.env.NODE_ENV === 'test' ? [] : [AuthGuard, ScopesGuard]))
 export class TemplatePackController {
     private readonly logger = new Logger(TemplatePackController.name);
 
@@ -171,7 +171,7 @@ export class TemplatePackController {
         @Query('tenant_id') queryTenantId?: string,
         @Query('user_id') queryUserId?: string
     ) {
-        // In E2E_MINIMAL_DB mode, context may come from query params instead of headers
+        // In test mode, context may come from query params instead of headers
         const orgId = (req.headers['x-org-id'] as string | undefined) || queryOrgId;
         const tenantId = (req.headers['x-tenant-id'] as string | undefined) || queryTenantId || orgId; // Use orgId as tenant for development
         const userId = this.resolveUserId(req, queryUserId);

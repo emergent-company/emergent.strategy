@@ -29,7 +29,7 @@ describe('Graph Embedding Enqueue', () => {
 
     beforeAll(async () => {
         process.env.DB_AUTOINIT = '1';
-        process.env.E2E_MINIMAL_DB = 'true';
+        process.env.NODE_ENV = 'test';
         // Start with embeddings disabled (no GOOGLE_API_KEY)
         delete process.env.GOOGLE_API_KEY;
         await initModule();

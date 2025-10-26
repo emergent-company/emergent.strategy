@@ -23,7 +23,7 @@ describe('Graph RLS Security', () => {
     let tenantA: { orgId: string; projectId: string }; let tenantB: { orgId: string; projectId: string };
 
     beforeAll(async () => {
-        process.env.E2E_MINIMAL_DB = 'true';
+        process.env.NODE_ENV = 'test';
         process.env.DB_AUTOINIT = 'true';
         const dbServiceConfig = getTestDbServiceConfig();
         const fakeConfig: any = {

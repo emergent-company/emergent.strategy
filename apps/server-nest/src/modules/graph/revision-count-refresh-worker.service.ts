@@ -15,6 +15,7 @@ import { DatabaseService } from '../../common/database/database.service';
 export class RevisionCountRefreshWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(RevisionCountRefreshWorkerService.name);
     private intervalHandle: NodeJS.Timeout | null = null;
+    private currentRefresh: Promise<number> | null = null;
     private readonly refreshIntervalMs: number;
 
     constructor(private readonly db: DatabaseService) {
@@ -25,35 +26,55 @@ export class RevisionCountRefreshWorkerService implements OnModuleInit, OnModule
     }
 
     onModuleInit() {
+        // Disable during tests unless explicitly enabled
+        if (process.env.NODE_ENV === 'test' && process.env.ENABLE_WORKERS_IN_TESTS !== 'true') {
+            this.logger.debug('Revision count refresh worker disabled during tests (set ENABLE_WORKERS_IN_TESTS=true to enable)');
+            return;
+        }
+
         this.logger.log(
             `Revision count refresh worker starting (interval=${this.refreshIntervalMs}ms)`,
         );
         this.startRefreshLoop();
     }
 
-    onModuleDestroy() {
+    async onModuleDestroy() {
         this.logger.log('Revision count refresh worker stopping');
-        this.stopRefreshLoop();
+        await this.stopRefreshLoop();
     }
 
     private startRefreshLoop() {
         // Run immediately on startup
-        this.refreshRevisionCounts().catch((err) => {
+        this.currentRefresh = this.refreshRevisionCounts();
+        this.currentRefresh.catch((err) => {
             this.logger.error('Initial revision count refresh failed:', err);
         });
 
         // Then run periodically
         this.intervalHandle = setInterval(() => {
-            this.refreshRevisionCounts().catch((err) => {
+            this.currentRefresh = this.refreshRevisionCounts();
+            this.currentRefresh.catch((err) => {
                 this.logger.error('Scheduled revision count refresh failed:', err);
             });
         }, this.refreshIntervalMs);
     }
 
-    private stopRefreshLoop() {
+    private async stopRefreshLoop() {
         if (this.intervalHandle) {
             clearInterval(this.intervalHandle);
             this.intervalHandle = null;
+        }
+
+        // Wait for current refresh to finish to avoid orphaned promises
+        if (this.currentRefresh) {
+            this.logger.debug('Waiting for current refresh to complete before stopping...');
+            try {
+                await this.currentRefresh;
+            } catch (error) {
+                this.logger.warn('Current refresh failed during shutdown', error);
+            } finally {
+                this.currentRefresh = null;
+            }
         }
     }
 

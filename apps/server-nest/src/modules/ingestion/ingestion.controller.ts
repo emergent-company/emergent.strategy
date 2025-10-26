@@ -77,17 +77,17 @@ export class IngestionController {
     @Scopes('ingest:write')
     // NOTE: Using Express.Multer.File can error if global augmentation not picked; rely on MulterFile alias.
     upload(@Body() dto: IngestionUploadDto, @UploadedFile() file?: UploadedMulterFile): Promise<IngestResult> {
-        if (!file) throw new BadRequestException({ message: 'File is required', error: 'file-required' });
+        if (!file) throw new BadRequestException({ error: { code: 'file-required', message: 'File is required' } });
         // Basic binary / unsupported type detection BEFORE attempting to interpret as UTF-8 to avoid downstream PG errors (e.g. 0x00 in text columns)
         const declaredMime = dto.mimeType || file.mimetype || 'application/octet-stream';
         const isLikelyTextMime = declaredMime.startsWith('text/') || ['application/json'].includes(declaredMime);
         // Heuristic: reject if buffer contains a null byte or if mime not recognised as textual
         if (!isLikelyTextMime || file.buffer.includes(0x00)) {
-            throw new UnsupportedMediaTypeException({ message: 'Binary or unsupported file type. Please upload a text-based document.', error: 'unsupported-type' });
+            throw new UnsupportedMediaTypeException({ error: { code: 'unsupported-type', message: 'Binary or unsupported file type. Please upload a text-based document.' } });
         }
         const text = file.buffer.toString('utf-8');
         if (!text.trim()) {
-            throw new BadRequestException({ message: 'File content is empty', error: 'empty-content' });
+            throw new BadRequestException({ error: { code: 'empty', message: 'File content is empty' } });
         }
         const effectiveFilename = dto.filename && dto.filename.trim() ? dto.filename : (file.originalname || 'upload');
         return this.ingestion.ingestText({ text, filename: effectiveFilename, mimeType: dto.mimeType || file.mimetype, orgId: dto.orgId, projectId: dto.projectId });

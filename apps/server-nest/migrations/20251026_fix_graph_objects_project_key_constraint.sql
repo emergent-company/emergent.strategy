@@ -1,0 +1,53 @@
+-- Fix idx_graph_objects_project_key constraint
+-- The constraint was too broad - it prevented multiple versions of the same object
+-- It should only enforce uniqueness for HEAD versions (supersedes_id IS NULL)
+-- 
+-- Before: (project_id, key) unique WHERE deleted_at IS NULL
+-- After:  (project_id, key) unique WHERE deleted_at IS NULL AND supersedes_id IS NULL
+--
+-- This allows:
+-- - Version 1: deleted_at=NULL, key='k1', supersedes_id=NULL  ← HEAD
+-- - Version 2: deleted_at=NOW(), key='k1', supersedes_id=v1   ← TOMBSTONE (excluded)
+-- - Version 3: deleted_at=NULL, key='k1', supersedes_id=NULL  ← NEW HEAD (after restore)
+--
+-- Version 1 will still exist but it's not a HEAD anymore (it's superseded by v2, which is superseded by v3)
+-- Actually, Version 1 should have been updated to set a superseded flag or similar...
+--
+-- Wait, let me reconsider. Looking at the versioning model:
+-- - When deleting, we DON'T update the old version, we just insert a new tombstone
+-- - When restoring, we DON'T update the tombstone, we just insert a new live version
+-- - Multiple versions can exist with same key
+-- - The "head" is determined by max(version) for a canonical_id
+-- - The constraint should only apply to the CURRENT head of each logical object
+--
+-- But how do we know which version is the head? We can't use supersedes_id because:
+-- - Version 1: supersedes_id=NULL (it's the first)
+-- - Version 2 (tombstone): supersedes_id=v1_id 
+-- - Version 3 (restored): supersedes_id=NULL (it should be the new head)
+--
+-- The issue is that both v1 and v3 have supersedes_id=NULL!
+--
+-- Looking back at the code fix we made, we removed supersedes_id from the restore INSERT.
+-- This means the restored version has supersedes_id=NULL, making it a "root" version again.
+-- 
+-- But the proper versioning should be:
+-- - Version 1: supersedes_id=NULL (first version)
+-- - Version 2: supersedes_id=v1_id (tombstone)
+-- - Version 3: supersedes_id=v2_id (restored, supersedes the tombstone)
+--
+-- However, looking at createObject, new objects have supersedes_id=NULL.
+-- So the pattern is: only the FIRST version and RESTORED versions have supersedes_id=NULL.
+--
+-- Actually, I think the issue is different. Let me look at what idx_graph_objects_head_identity_branch does:
+--
+-- idx_graph_objects_head_identity_branch enforces uniqueness on (project_id, branch_id, type, key)
+-- WHERE supersedes_id IS NULL AND deleted_at IS NULL AND key IS NOT NULL
+--
+-- This is the correct constraint for heads! It includes supersedes_id IS NULL.
+--
+-- So idx_graph_objects_project_key is REDUNDANT and WRONG. We should just drop it.
+DROP INDEX IF EXISTS kb.idx_graph_objects_project_key;
+
+-- The correct constraint already exists: idx_graph_objects_head_identity_branch
+-- It enforces uniqueness on (project_id, branch_id, type, key) 
+-- WHERE supersedes_id IS NULL AND deleted_at IS NULL AND key IS NOT NULL

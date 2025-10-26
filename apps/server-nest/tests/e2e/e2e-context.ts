@@ -133,7 +133,14 @@ async function cleanupUserData(pool: Pool, projectId: string, userSub: string) {
         await pool.query(`DELETE FROM kb.project_template_packs WHERE project_id = $1`, [projectId]);
     }
     if (await tableCheck('kb.graph_embedding_jobs')) {
-        await pool.query(`DELETE FROM kb.graph_embedding_jobs WHERE object_id IN (SELECT id FROM kb.graph_objects WHERE project_id = $1)`, [projectId]);
+        // graph_embedding_jobs doesn't have project_id, it has object_id
+        // Delete jobs for objects in this project
+        await pool.query(`
+            DELETE FROM kb.graph_embedding_jobs 
+            WHERE object_id IN (
+                SELECT id FROM kb.graph_objects WHERE project_id = $1
+            )
+        `, [projectId]);
     }
     if (await tableCheck('kb.graph_relationships')) {
         await pool.query(`DELETE FROM kb.graph_relationships WHERE project_id = $1`, [projectId]);
@@ -192,8 +199,8 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
     const dbConfig = getTestDbConfig();
 
     process.env.DB_AUTOINIT = process.env.DB_AUTOINIT || 'true';
-    // Force minimal schema consistently across all contexts to avoid mixed-mode races.
-    process.env.E2E_MINIMAL_DB = 'true';
+    // Set NODE_ENV to 'test' for consistent test behavior
+    process.env.NODE_ENV = 'test';
     const boot = await bootstrapTestApp();
     // Create dedicated pool for direct SQL (schema already ensured by app bootstrap)
     const pool = new Pool({
@@ -287,33 +294,27 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
         );
         userUuid = profileResult.rows[0].id;
 
-        // Insert user email - use a simple INSERT without ON CONFLICT
-        // (tests create fresh users, so collisions are rare)
+        // Insert user email - use ON CONFLICT DO NOTHING to handle duplicates gracefully
         await client.query(
             `INSERT INTO core.user_emails(user_id, email, verified)
-             VALUES($1,$2,true)`,
+             VALUES($1,$2,true)
+             ON CONFLICT (user_id, email) DO NOTHING`,
             [userUuid, email],
-        ).catch(() => {
-            // Ignore duplicate email errors (user already has this email from previous run)
-        });
+        );
 
         // Insert organization membership using internal UUID
         await client.query(
             `INSERT INTO kb.organization_memberships(organization_id, user_id, role)
              VALUES($1,$2,'org_admin')`,
             [orgId, userUuid],
-        ).catch(() => {
-            // Ignore duplicate membership errors
-        });
+        );
 
         // Insert project membership using internal UUID
         await client.query(
             `INSERT INTO kb.project_memberships(project_id, user_id, role)
              VALUES($1,$2,'project_admin')`,
             [projectId, userUuid],
-        ).catch(() => {
-            // Ignore duplicate membership errors
-        });
+        );
         await client.query('COMMIT');
     } catch (error) {
         try { await client.query('ROLLBACK'); } catch { /* ignore */ }

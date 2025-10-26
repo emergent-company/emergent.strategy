@@ -63,6 +63,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(ExtractionWorkerService.name);
     private timer: NodeJS.Timeout | null = null;
     private running = false;
+    private currentBatch: Promise<void> | null = null;
 
     // In-memory metrics (reset on restart)
     private processedCount = 0;
@@ -118,8 +119,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         this.start();
     }
 
-    onModuleDestroy() {
-        this.stop();
+    async onModuleDestroy() {
+        await this.stop();
     }
 
     /**
@@ -234,9 +235,12 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             if (!this.running) return;
 
             try {
-                await this.processBatch();
+                this.currentBatch = this.processBatch();
+                await this.currentBatch;
             } catch (error) {
                 this.logger.error('processBatch failed', error);
+            } finally {
+                this.currentBatch = null;
             }
 
             this.timer = setTimeout(tick, pollInterval);
@@ -249,12 +253,23 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     /**
      * Stop the polling loop
      */
-    stop() {
+    async stop() {
         if (this.timer) {
             clearTimeout(this.timer);
             this.timer = null;
         }
         this.running = false;
+
+        // Wait for current batch to finish to avoid orphaned promises
+        if (this.currentBatch) {
+            this.logger.debug('Waiting for current batch to complete before stopping...');
+            try {
+                await this.currentBatch;
+            } catch (error) {
+                this.logger.warn('Current batch failed during shutdown', error);
+            }
+        }
+
         this.logger.log('Extraction worker stopped');
     }
 

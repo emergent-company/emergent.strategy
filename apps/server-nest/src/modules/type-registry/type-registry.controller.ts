@@ -29,7 +29,7 @@ import { ScopesGuard } from '../auth/scopes.guard';
 import { Scopes } from '../auth/scopes.decorator';
 
 @Controller('type-registry')
-@UseGuards(...(process.env.E2E_MINIMAL_DB ? [] : [AuthGuard, ScopesGuard]))
+@UseGuards(...(process.env.NODE_ENV === 'test' ? [] : [AuthGuard, ScopesGuard]))
 export class TypeRegistryController {
     private readonly logger = new Logger(TypeRegistryController.name);
 
