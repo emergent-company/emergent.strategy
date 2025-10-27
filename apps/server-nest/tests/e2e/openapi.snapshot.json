@@ -11969,6 +11969,88 @@
         ]
       }
     },
+    "/user/delete-account": {
+      "post": {
+        "operationId": "UserDeletionController_deleteAccount",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "deleted": {
+                      "properties": {
+                        "chunks": {
+                          "type": "number"
+                        },
+                        "documents": {
+                          "type": "number"
+                        },
+                        "embeddings": {
+                          "type": "number"
+                        },
+                        "extractionJobs": {
+                          "type": "number"
+                        },
+                        "graphObjects": {
+                          "type": "number"
+                        },
+                        "integrations": {
+                          "type": "number"
+                        },
+                        "organizations": {
+                          "type": "number"
+                        },
+                        "projects": {
+                          "type": "number"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "duration_ms": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Account deleted successfully"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete user account and all data",
+        "tags": [
+          "user"
+        ],
+        "x-required-scopes": [
+          "account:delete"
+        ]
+      }
+    },
     "/user/profile": {
       "get": {
         "operationId": "UserProfileController_getSelf",
@@ -12391,6 +12473,47 @@
           "UserProfile"
         ]
       }
+    },
+    "/user/test-cleanup": {
+      "post": {
+        "operationId": "UserDeletionController_testCleanup",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Test data cleaned up successfully"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "account:delete"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Forbidden - not a test environment or test user"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Clean up test user data (test environments only)",
+        "tags": [
+          "user"
+        ],
+        "x-required-scopes": [
+          "account:delete"
+        ]
+      }
     }
   },
   "servers": [],
@@ -12451,6 +12574,9 @@
     },
     {
       "name": "Tags"
+    },
+    {
+      "name": "user"
     },
     {
       "name": "UserProfile"

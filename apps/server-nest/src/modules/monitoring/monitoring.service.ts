@@ -58,7 +58,8 @@ export class MonitoringService {
         const sql = `
             SELECT 
                 j.id,
-                j.document_id,
+                j.source_type,
+                j.source_id,
                 j.status,
                 j.total_items,
                 j.processed_items,
@@ -83,7 +84,7 @@ export class MonitoringService {
 
         const items: ExtractionJobResourceDto[] = result.rows.map((row) => ({
             id: row.id,
-            documentId: row.document_id,
+            documentId: row.source_type === 'document' ? row.source_id : undefined,
             status: row.status,
             totalItems: row.total_items,
             processedItems: row.processed_items,
@@ -108,7 +109,8 @@ export class MonitoringService {
         const jobSql = `
             SELECT 
                 j.id,
-                j.document_id,
+                j.source_type,
+                j.source_id,
                 j.status,
                 j.total_items,
                 j.processed_items,
@@ -136,7 +138,7 @@ export class MonitoringService {
         const jobRow = jobResult.rows[0];
         const resource: ExtractionJobResourceDto = {
             id: jobRow.id,
-            documentId: jobRow.document_id,
+            documentId: jobRow.source_type === 'document' ? jobRow.source_id : undefined,
             status: jobRow.status,
             totalItems: jobRow.total_items,
             processedItems: jobRow.processed_items,

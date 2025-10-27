@@ -167,16 +167,20 @@ export class AuthService implements OnModuleInit {
             if (!this.jwks) {
                 this.jwks = createRemoteJWKSet(new URL(this.jwksUri));
             }
+            Logger.log(`[AUTH] Verifying JWT token (starts: ${token.substring(0, 20)}...)`, 'AuthService');
             const result = await jwtVerify(token, this.jwks, {
                 issuer: this.issuer,
                 audience: this.audience,
             });
+            Logger.log(`[AUTH] JWT verified, payload keys: ${Object.keys(result.payload).join(', ')}`, 'AuthService');
             const mapped = await this.mapClaims(result.payload);
+            Logger.log(`[AUTH] Mapped claims - email: ${mapped?.email}, sub: ${mapped?.sub}`, 'AuthService');
             if (process.env.DEBUG_AUTH_CLAIMS === '1' && mapped) {
                 mapped._debugClaimKeys = Object.keys(result.payload);
             }
             return mapped;
         } catch (e) {
+            Logger.error(`[AUTH] JWT verification failed: ${e}`, 'AuthService');
             return null;
         }
     }

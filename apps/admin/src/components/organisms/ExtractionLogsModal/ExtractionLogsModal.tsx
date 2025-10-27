@@ -107,9 +107,11 @@ export function ExtractionLogsModal({ open, onOpenChange, jobId }: ExtractionLog
 
     const getStatusBadgeClass = (status: string): string => {
         switch (status) {
-            case 'success': return 'badge-success';
-            case 'error': return 'badge-error';
-            case 'warning': return 'badge-warning';
+            case 'completed': return 'badge-success';
+            case 'failed': return 'badge-error';
+            case 'running': return 'badge-info';
+            case 'pending': return 'badge-warning';
+            case 'skipped': return 'badge-ghost';
             default: return 'badge-ghost';
         }
     };
