@@ -58,7 +58,8 @@ export class TemplatePackController {
     }
 
     private resolveUserId(req: any, queryUserId?: string): string {
-        const resolvedFromRequest = this.normalizeUserId(req?.user?.sub);
+        // Use internal UUID, not external Zitadel ID
+        const resolvedFromRequest = this.normalizeUserId(req?.user?.id);
         if (resolvedFromRequest) {
             return resolvedFromRequest;
         }

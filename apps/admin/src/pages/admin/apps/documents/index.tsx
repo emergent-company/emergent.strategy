@@ -4,7 +4,6 @@ import { Icon } from "@/components/atoms/Icon";
 import { useAuth } from "@/contexts/auth";
 import { useApi } from "@/hooks/use-api";
 import { useConfig } from "@/contexts/config";
-import { OrgAndProjectGate } from "@/components/organisms/OrgAndProjectGate";
 import { ExtractionConfigModal, type ExtractionConfig } from "@/components/organisms/ExtractionConfigModal";
 import { DocumentMetadataModal } from "@/components/organisms/DocumentMetadataModal";
 import { createExtractionJobsClient } from "@/api/extraction-jobs";
@@ -383,314 +382,304 @@ export default function DocumentsPage() {
         fileInputRef.current?.click();
     }
 
-    const ready = !!config.activeOrgId && !!config.activeProjectId;
-
-    // Until gate selects/creates org & project, just show gate (children ignored).
-    if (!ready) {
-        return <OrgAndProjectGate><div /></OrgAndProjectGate>;
-    }
-
     return (
-        <OrgAndProjectGate>
-            <div data-testid="page-documents" className="mx-auto p-6 max-w-7xl container">
-                {/* Header */}
-                <div className="mb-6">
-                    <h1 className="font-bold text-2xl">Documents</h1>
-                    <p className="mt-1 text-base-content/70">
-                        Upload and manage documents for knowledge extraction
-                    </p>
-                </div>
+        <div data-testid="page-documents" className="mx-auto p-6 max-w-7xl container">
+            {/* Header */}
+            <div className="mb-6">
+                <h1 className="font-bold text-2xl">Documents</h1>
+                <p className="mt-1 text-base-content/70">
+                    Upload and manage documents for knowledge extraction
+                </p>
+            </div>
 
-                {/* Upload controls */}
-                <div
-                    className={
-                        "mt-4 border-2 border-dashed rounded-box p-6 transition-colors " +
-                        (dragOver ? "border-primary bg-primary/5" : "border-base-300 bg-base-200/50")
+            {/* Upload controls */}
+            <div
+                className={
+                    "mt-4 border-2 border-dashed rounded-box p-6 transition-colors " +
+                    (dragOver ? "border-primary bg-primary/5" : "border-base-300 bg-base-200/50")
+                }
+                onDragOver={onDragOver}
+                onDragEnter={onDragOver}
+                onDragLeave={onDragLeave}
+                onDrop={onDrop}
+                role="button"
+                aria-label="Upload document. Click to choose a file or drag and drop."
+                tabIndex={0}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openChooser();
                     }
-                    onDragOver={onDragOver}
-                    onDragEnter={onDragOver}
-                    onDragLeave={onDragLeave}
-                    onDrop={onDrop}
-                    role="button"
-                    aria-label="Upload document. Click to choose a file or drag and drop."
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            openChooser();
-                        }
-                    }}
-                >
-                    <div className="flex justify-between items-center gap-4">
-                        <div className="flex items-center gap-3">
-                            <Icon icon="lucide--upload-cloud" className="size-6" aria-hidden />
-                            <div>
-                                <div className="font-medium">Click to upload or drag & drop</div>
-                                <div className="opacity-70 text-sm">
-                                    Accepted: pdf, docx, pptx, xlsx, md, html, txt. Max 10MB.
-                                </div>
+                }}
+            >
+                <div className="flex justify-between items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        <Icon icon="lucide--upload-cloud" className="size-6" aria-hidden />
+                        <div>
+                            <div className="font-medium">Click to upload or drag & drop</div>
+                            <div className="opacity-70 text-sm">
+                                Accepted: pdf, docx, pptx, xlsx, md, html, txt. Max 10MB.
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <button className="btn btn-primary" onClick={openChooser} disabled={uploading}>
-                                {uploading ? (
-                                    <>
-                                        <span className="loading loading-spinner loading-sm" />
-                                        Uploading...
-                                    </>
-                                ) : (
-                                    "Upload document"
-                                )}
-                            </button>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                className="hidden"
-                                accept={[
-                                    ...acceptedMimeTypes,
-                                    ...acceptedExtensions,
-                                ].join(",")}
-                                onChange={onFileInputChange}
-                            />
-                        </div>
                     </div>
-                    {uploadError && (
-                        <div role="alert" className="mt-4 alert alert-error">
-                            <Icon icon="lucide--alert-circle" className="size-5" aria-hidden />
-                            <span>{uploadError}</span>
-                        </div>
-                    )}
-                    {uploadSuccess && (
-                        <div role="alert" className="mt-4 alert alert-success">
-                            <Icon icon="lucide--check-circle" className="size-5" aria-hidden />
-                            <span>{uploadSuccess}</span>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                        <button className="btn btn-primary" onClick={openChooser} disabled={uploading}>
+                            {uploading ? (
+                                <>
+                                    <span className="loading loading-spinner loading-sm" />
+                                    Uploading...
+                                </>
+                            ) : (
+                                "Upload document"
+                            )}
+                        </button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            className="hidden"
+                            accept={[
+                                ...acceptedMimeTypes,
+                                ...acceptedExtensions,
+                            ].join(",")}
+                            onChange={onFileInputChange}
+                        />
+                    </div>
                 </div>
-
-                {/* Show subtle info alert when uploading/refreshing */}
-                {uploading && (
-                    <div role="alert" className="mt-4 alert alert-info">
-                        <span className="loading loading-spinner loading-sm" />
-                        <span>Uploading document and refreshing list...</span>
+                {uploadError && (
+                    <div role="alert" className="mt-4 alert alert-error">
+                        <Icon icon="lucide--alert-circle" className="size-5" aria-hidden />
+                        <span>{uploadError}</span>
                     </div>
                 )}
+                {uploadSuccess && (
+                    <div role="alert" className="mt-4 alert alert-success">
+                        <Icon icon="lucide--check-circle" className="size-5" aria-hidden />
+                        <span>{uploadSuccess}</span>
+                    </div>
+                )}
+            </div>
 
-                {/* Documents Table */}
-                <div className={`mt-4 ${uploading || isDeleting ? 'opacity-60 pointer-events-none' : ''}`}>
-                    <DataTable<DocumentRow>
-                        data={data || []}
-                        columns={[
-                            {
-                                key: 'filename',
-                                label: 'Filename',
-                                sortable: true,
-                                render: (doc) => (
-                                    <span className="font-medium">{doc.filename || "(no name)"}</span>
-                                ),
+            {/* Show subtle info alert when uploading/refreshing */}
+            {uploading && (
+                <div role="alert" className="mt-4 alert alert-info">
+                    <span className="loading loading-spinner loading-sm" />
+                    <span>Uploading document and refreshing list...</span>
+                </div>
+            )}
+
+            {/* Documents Table */}
+            <div className={`mt-4 ${uploading || isDeleting ? 'opacity-60 pointer-events-none' : ''}`}>
+                <DataTable<DocumentRow>
+                    data={data || []}
+                    columns={[
+                        {
+                            key: 'filename',
+                            label: 'Filename',
+                            sortable: true,
+                            render: (doc) => (
+                                <span className="font-medium">{doc.filename || "(no name)"}</span>
+                            ),
+                        },
+                        {
+                            key: 'size',
+                            label: 'Size',
+                            sortable: true,
+                            width: 'w-24',
+                            render: (doc) => {
+                                // Use contentLength from API (camelCase or snake_case)
+                                const contentLength = doc.contentLength ?? doc.content_length ?? 0;
+                                if (contentLength === 0) {
+                                    return <span className="text-sm text-base-content/40">—</span>;
+                                }
+
+                                // Format size in human-readable format
+                                const formatSize = (bytes: number): string => {
+                                    if (bytes < 1024) return `${bytes} B`;
+                                    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+                                    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+                                };
+
+                                return (
+                                    <span className="text-sm text-base-content/70">
+                                        {formatSize(contentLength)}
+                                    </span>
+                                );
                             },
-                            {
-                                key: 'size',
-                                label: 'Size',
-                                sortable: true,
-                                width: 'w-24',
-                                render: (doc) => {
-                                    // Use contentLength from API (camelCase or snake_case)
-                                    const contentLength = doc.contentLength ?? doc.content_length ?? 0;
-                                    if (contentLength === 0) {
-                                        return <span className="text-sm text-base-content/40">—</span>;
-                                    }
-
-                                    // Format size in human-readable format
-                                    const formatSize = (bytes: number): string => {
-                                        if (bytes < 1024) return `${bytes} B`;
-                                        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-                                        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-                                    };
-
+                        },
+                        {
+                            key: 'source_url',
+                            label: 'Source',
+                            width: 'max-w-96',
+                            render: (doc) => {
+                                if (!doc.source_url) {
                                     return (
-                                        <span className="text-sm text-base-content/70">
-                                            {formatSize(contentLength)}
+                                        <span className="inline-flex items-center gap-1.5 text-sm text-base-content/70">
+                                            <Icon icon="lucide--upload" className="w-4 h-4" />
+                                            Upload
                                         </span>
                                     );
-                                },
-                            },
-                            {
-                                key: 'source_url',
-                                label: 'Source',
-                                width: 'max-w-96',
-                                render: (doc) => {
-                                    if (!doc.source_url) {
-                                        return (
-                                            <span className="inline-flex items-center gap-1.5 text-sm text-base-content/70">
-                                                <Icon icon="lucide--upload" className="w-4 h-4" />
-                                                Upload
-                                            </span>
-                                        );
-                                    }
+                                }
 
-                                    const isClickUp = doc.source_url.includes('clickup.com') || doc.source_url.includes('app.clickup.com');
+                                const isClickUp = doc.source_url.includes('clickup.com') || doc.source_url.includes('app.clickup.com');
 
-                                    if (isClickUp) {
-                                        return (
-                                            <a
-                                                href={doc.source_url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="inline-flex items-center gap-1.5 transition-colors link hover:link-primary"
-                                                title={doc.source_url}
-                                            >
-                                                <Icon icon="simple-icons--clickup" className="w-4 h-4 text-purple-500" />
-                                                <span>ClickUp</span>
-                                            </a>
-                                        );
-                                    }
-
+                                if (isClickUp) {
                                     return (
                                         <a
                                             href={doc.source_url}
                                             target="_blank"
-                                            className="inline-flex items-center gap-1.5 transition-colors link hover:link-primary"
                                             rel="noreferrer"
+                                            className="inline-flex items-center gap-1.5 transition-colors link hover:link-primary"
                                             title={doc.source_url}
                                         >
-                                            <Icon icon="lucide--link" className="w-4 h-4" />
-                                            <span className="max-w-xs truncate">Link</span>
+                                            <Icon icon="simple-icons--clickup" className="w-4 h-4 text-purple-500" />
+                                            <span>ClickUp</span>
                                         </a>
                                     );
-                                },
-                            },
-                            {
-                                key: 'mime_type',
-                                label: 'Mime Type',
-                                render: (doc) => (
-                                    <span className="text-sm text-base-content/70">
-                                        {doc.mime_type || "text/plain"}
-                                    </span>
-                                ),
-                            },
-                            {
-                                key: 'chunks',
-                                label: 'Chunks',
-                                sortable: true,
-                                render: (doc) => (
+                                }
+
+                                return (
                                     <a
-                                        href={`/admin/apps/chunks?docId=${doc.id}`}
-                                        className="badge-outline hover:underline no-underline badge"
-                                        title="View chunks for this document"
+                                        href={doc.source_url}
+                                        target="_blank"
+                                        className="inline-flex items-center gap-1.5 transition-colors link hover:link-primary"
+                                        rel="noreferrer"
+                                        title={doc.source_url}
                                     >
-                                        {doc.chunks}
+                                        <Icon icon="lucide--link" className="w-4 h-4" />
+                                        <span className="max-w-xs truncate">Link</span>
                                     </a>
-                                ),
+                                );
                             },
-                            {
-                                key: 'extractionStatus',
-                                label: 'Extraction',
-                                width: 'w-32',
-                                render: (doc) => {
-                                    if (!doc.extractionStatus) {
+                        },
+                        {
+                            key: 'mime_type',
+                            label: 'Mime Type',
+                            render: (doc) => (
+                                <span className="text-sm text-base-content/70">
+                                    {doc.mime_type || "text/plain"}
+                                </span>
+                            ),
+                        },
+                        {
+                            key: 'chunks',
+                            label: 'Chunks',
+                            sortable: true,
+                            render: (doc) => (
+                                <a
+                                    href={`/admin/apps/chunks?docId=${doc.id}`}
+                                    className="badge-outline hover:underline no-underline badge"
+                                    title="View chunks for this document"
+                                >
+                                    {doc.chunks}
+                                </a>
+                            ),
+                        },
+                        {
+                            key: 'extractionStatus',
+                            label: 'Extraction',
+                            width: 'w-32',
+                            render: (doc) => {
+                                if (!doc.extractionStatus) {
+                                    return <span className="text-sm text-base-content/40">—</span>;
+                                }
+
+                                let statusColor = '';
+                                let statusIcon = '';
+                                let tooltipText = '';
+
+                                switch (doc.extractionStatus) {
+                                    case 'completed':
+                                        statusColor = 'bg-success';
+                                        statusIcon = 'lucide--check-circle';
+                                        tooltipText = `Completed: ${doc.extractionCompletedAt ? new Date(doc.extractionCompletedAt).toLocaleString() : 'N/A'}${doc.extractionObjectsCount ? ` | ${doc.extractionObjectsCount} objects` : ''}`;
+                                        break;
+                                    case 'running':
+                                        statusColor = 'bg-warning';
+                                        statusIcon = 'lucide--loader-circle';
+                                        tooltipText = 'Extraction in progress...';
+                                        break;
+                                    case 'pending':
+                                        statusColor = 'bg-info';
+                                        statusIcon = 'lucide--clock';
+                                        tooltipText = 'Extraction pending';
+                                        break;
+                                    case 'failed':
+                                        statusColor = 'bg-error';
+                                        statusIcon = 'lucide--x-circle';
+                                        tooltipText = 'Extraction failed';
+                                        break;
+                                    default:
                                         return <span className="text-sm text-base-content/40">—</span>;
-                                    }
+                                }
 
-                                    let statusColor = '';
-                                    let statusIcon = '';
-                                    let tooltipText = '';
-
-                                    switch (doc.extractionStatus) {
-                                        case 'completed':
-                                            statusColor = 'bg-success';
-                                            statusIcon = 'lucide--check-circle';
-                                            tooltipText = `Completed: ${doc.extractionCompletedAt ? new Date(doc.extractionCompletedAt).toLocaleString() : 'N/A'}${doc.extractionObjectsCount ? ` | ${doc.extractionObjectsCount} objects` : ''}`;
-                                            break;
-                                        case 'running':
-                                            statusColor = 'bg-warning';
-                                            statusIcon = 'lucide--loader-circle';
-                                            tooltipText = 'Extraction in progress...';
-                                            break;
-                                        case 'pending':
-                                            statusColor = 'bg-info';
-                                            statusIcon = 'lucide--clock';
-                                            tooltipText = 'Extraction pending';
-                                            break;
-                                        case 'failed':
-                                            statusColor = 'bg-error';
-                                            statusIcon = 'lucide--x-circle';
-                                            tooltipText = 'Extraction failed';
-                                            break;
-                                        default:
-                                            return <span className="text-sm text-base-content/40">—</span>;
-                                    }
-
-                                    return (
-                                        <div className="tooltip-left tooltip" data-tip={tooltipText}>
-                                            <div className="flex items-center gap-2">
-                                                <span className={`w-2 h-2 rounded-full ${statusColor}`} />
-                                                <Icon icon={statusIcon} className="size-4 text-base-content/70" />
-                                            </div>
+                                return (
+                                    <div className="tooltip-left tooltip" data-tip={tooltipText}>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`w-2 h-2 rounded-full ${statusColor}`} />
+                                            <Icon icon={statusIcon} className="size-4 text-base-content/70" />
                                         </div>
-                                    );
-                                },
+                                    </div>
+                                );
                             },
-                            {
-                                key: 'created_at',
-                                label: 'Created',
-                                sortable: true,
-                                render: (doc) => (
-                                    <span className="text-sm text-base-content/70">
-                                        {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : "—"}
-                                    </span>
-                                ),
-                            },
-                        ] as ColumnDef<DocumentRow>[]}
-                        rowActions={[
-                            {
-                                label: 'Preview',
-                                icon: 'lucide--eye',
-                                onAction: (doc) => setPreview(doc),
-                            },
-                            {
-                                label: 'Extract',
-                                icon: 'lucide--sparkles',
-                                onAction: handleExtractObjects,
-                            },
-                            {
-                                label: 'View chunks',
-                                icon: 'lucide--list',
-                                asLink: true,
-                                href: (doc) => `/admin/apps/chunks?docId=${doc.id}`,
-                            },
-                            {
-                                label: 'View metadata',
-                                icon: 'lucide--info',
-                                onAction: handleViewMetadata,
-                                hidden: (doc: DocumentRow) => !doc.integrationMetadata,
-                            },
-                        ] as RowAction<DocumentRow>[]}
-                        bulkActions={[
-                            {
-                                key: 'delete',
-                                label: 'Delete',
-                                icon: 'lucide--trash-2',
-                                variant: 'error',
-                                style: 'outline',
-                                onAction: handleBulkDelete,
-                            },
-                        ] as BulkAction<DocumentRow>[]}
-                        loading={loading}
-                        error={error}
-                        enableSelection={true}
-                        enableSearch={true}
-                        searchPlaceholder="Search documents..."
-                        getSearchText={(doc) => `${doc.filename || ''} ${doc.source_url || ''} ${doc.mime_type || ''}`}
-                        emptyMessage="No documents uploaded yet. Upload a document to get started."
-                        emptyIcon="lucide--file-text"
-                        formatDate={(date) => new Date(date).toLocaleDateString()}
-                        useDropdownActions={true}
-                    />
-                </div>
+                        },
+                        {
+                            key: 'created_at',
+                            label: 'Created',
+                            sortable: true,
+                            render: (doc) => (
+                                <span className="text-sm text-base-content/70">
+                                    {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : "—"}
+                                </span>
+                            ),
+                        },
+                    ] as ColumnDef<DocumentRow>[]}
+                    rowActions={[
+                        {
+                            label: 'Preview',
+                            icon: 'lucide--eye',
+                            onAction: (doc) => setPreview(doc),
+                        },
+                        {
+                            label: 'Extract',
+                            icon: 'lucide--sparkles',
+                            onAction: handleExtractObjects,
+                        },
+                        {
+                            label: 'View chunks',
+                            icon: 'lucide--list',
+                            asLink: true,
+                            href: (doc) => `/admin/apps/chunks?docId=${doc.id}`,
+                        },
+                        {
+                            label: 'View metadata',
+                            icon: 'lucide--info',
+                            onAction: handleViewMetadata,
+                            hidden: (doc: DocumentRow) => !doc.integrationMetadata,
+                        },
+                    ] as RowAction<DocumentRow>[]}
+                    bulkActions={[
+                        {
+                            key: 'delete',
+                            label: 'Delete',
+                            icon: 'lucide--trash-2',
+                            variant: 'error',
+                            style: 'outline',
+                            onAction: handleBulkDelete,
+                        },
+                    ] as BulkAction<DocumentRow>[]}
+                    loading={loading}
+                    error={error}
+                    enableSelection={true}
+                    enableSearch={true}
+                    searchPlaceholder="Search documents..."
+                    getSearchText={(doc) => `${doc.filename || ''} ${doc.source_url || ''} ${doc.mime_type || ''}`}
+                    emptyMessage="No documents uploaded yet. Upload a document to get started."
+                    emptyIcon="lucide--file-text"
+                    formatDate={(date) => new Date(date).toLocaleDateString()}
+                    useDropdownActions={true}
+                />
             </div>
 
-            {/* Extraction Configuration Modal */}
             {/* Extraction Configuration Modal */}
             <ExtractionConfigModal
                 isOpen={isExtractionModalOpen}
@@ -777,6 +766,6 @@ export default function DocumentsPage() {
                     </form>
                 </dialog>
             )}
-        </OrgAndProjectGate>
+        </div>
     );
 }

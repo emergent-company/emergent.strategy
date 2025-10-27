@@ -3,6 +3,7 @@ import { Route, RouteProps, Routes } from "react-router";
 
 import AdminLayout from "@/pages/admin/layout";
 import AuthLayout from "@/pages/auth/layout";
+import { SetupGuard } from "@/components/guards/SetupGuard";
 
 import { registerRoutes } from "./register";
 import { useAuth } from "@/contexts/auth";
@@ -11,7 +12,11 @@ import { Navigate } from "react-router";
 function GuardedAdmin({ children }: { children: React.ReactNode }) {
     const { isAuthenticated } = useAuth();
     if (!isAuthenticated) return <Navigate to="/auth/login" replace />;
-    return <>{children}</>;
+    return (
+        <SetupGuard>
+            {children}
+        </SetupGuard>
+    );
 }
 
 export const Router = (props: RouteProps) => {
@@ -43,6 +48,17 @@ export const Router = (props: RouteProps) => {
                                 <Suspense>{route.element}</Suspense>
                             </AuthLayout>
                         }
+                    />
+                ))}
+            </Route>
+
+            {/* Setup routes - not guarded, entry point for new users */}
+            <Route>
+                {registerRoutes.setup.map((route, index) => (
+                    <Route
+                        key={"setup-" + index}
+                        path={route.path}
+                        element={<Suspense>{route.element}</Suspense>}
                     />
                 ))}
             </Route>

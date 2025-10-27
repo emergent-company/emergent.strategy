@@ -51,6 +51,12 @@ const authRoutes: IRoutesProps[] = [
     { path: "/auth/reset-password", element: cw(lazy(() => import("@/pages/auth/reset-password"))) },
 ];
 
+// Setup routes for org/project creation (not guarded - entry point for new users)
+const setupRoutes: IRoutesProps[] = [
+    { path: "/setup/organization", element: cw(lazy(() => import("@/pages/setup/organization"))) },
+    { path: "/setup/project", element: cw(lazy(() => import("@/pages/setup/project"))) },
+];
+
 const pagesRoutes: IRoutesProps[] = [];
 
 const otherRoutes: IRoutesProps[] = [
@@ -62,5 +68,6 @@ const otherRoutes: IRoutesProps[] = [
 export const registerRoutes = {
     admin: [...dashboardRoutes, ...appRoutes, ...pagesRoutes],
     auth: authRoutes,
+    setup: setupRoutes,
     other: otherRoutes,
 };

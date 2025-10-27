@@ -14,7 +14,7 @@ type OrgsResponseFlexible = Organization[] | { orgs: Organization[] };
 export function useOrganizations() {
     const { apiBase, fetchJson } = useApi();
     const [orgs, setOrgs] = useState<Organization[] | undefined>(undefined);
-    const [loading, setLoading] = useState<boolean>(false);
+    const [loading, setLoading] = useState<boolean>(true); // Start as true to prevent guards from checking before first load
     const [error, setError] = useState<string | undefined>(undefined);
 
     const refresh = useCallback(async () => {

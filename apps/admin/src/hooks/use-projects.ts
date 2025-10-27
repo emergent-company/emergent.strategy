@@ -32,7 +32,7 @@ export const useProjects = () => {
     const { apiBase, fetchJson, buildHeaders } = useApi();
 
     const [projects, setProjects] = useState<Project[] | undefined>(undefined);
-    const [loading, setLoading] = useState<boolean>(false);
+    const [loading, setLoading] = useState<boolean>(true); // Start as true to prevent guards from checking before first load
     const [error, setError] = useState<string | undefined>(undefined);
 
     const headers = useMemo(() => buildHeaders({ json: true }), [buildHeaders]);
@@ -41,6 +41,7 @@ export const useProjects = () => {
         if (!activeOrgId) {
             setProjects([]);
             setError(undefined);
+            setLoading(false); // No org selected, so we're "done loading" (with empty result)
             return;
         }
         try {
