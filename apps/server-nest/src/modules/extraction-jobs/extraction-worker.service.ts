@@ -323,7 +323,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             stepIndex: this.stepCounter++,
             operationType: 'validation',
             operationName: 'job_started',
-            status: 'success',
+            status: 'completed',
             inputData: {
                 source_type: job.source_type,
                 source_id: job.source_id,
@@ -581,7 +581,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
                 // Update log entry with success
                 await this.extractionLogger.updateLogStep(llmLogId, {
-                    status: 'success',
+                    status: 'completed',
                     outputData: {
                         entities_count: result.entities.length,
                         entities: result.entities.map(e => ({
@@ -591,15 +591,13 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                         })),
                         discovered_types: result.discovered_types,
                         raw_response: result.raw_response, // Full LLM response for inspection
-                    },
-                    durationMs: Date.now() - llmCallStartTime,
-                    tokensUsed: result.usage?.total_tokens ?? undefined,
-                    metadata: {
                         provider: providerName,
                         model: this.config.vertexAiModel,
                         prompt_tokens: result.usage?.prompt_tokens,
                         completion_tokens: result.usage?.completion_tokens,
                     },
+                    durationMs: Date.now() - llmCallStartTime,
+                    tokensUsed: result.usage?.total_tokens ?? undefined,
                 });
 
                 llmStep('success', {
@@ -616,7 +614,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
                 // Update log entry with error
                 await this.extractionLogger.updateLogStep(llmLogId, {
-                    status: 'error',
+                    status: 'failed',
                     errorMessage: message,
                     errorStack: (error as Error).stack,
                     durationMs: Date.now() - llmCallStartTime,
@@ -626,11 +624,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                         finish_reason: responseMetadata.finishReason,
                         extracted_json_preview: responseMetadata.extractedJsonPreview,
                         parse_error: responseMetadata.parseError,
-                    } : undefined,
-                    metadata: {
                         provider: providerName,
-                        ...metadata,
-                    },
+                    } : { provider: providerName },
                 });
 
                 llmStep('error', {
@@ -871,7 +866,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                                 stepIndex: this.stepCounter++,
                                 operationType: 'object_creation',
                                 operationName: 'create_graph_object',
-                                status: 'success',
+                                status: 'completed',
                                 inputData: {
                                     entity_type: entity.type_name,
                                     entity_name: entity.name,
@@ -921,7 +916,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                                         stepIndex: this.stepCounter++,
                                         operationType: 'object_creation',
                                         operationName: 'create_graph_object',
-                                        status: 'warning',
+                                        status: 'skipped',
                                         inputData: {
                                             entity_type: entity.type_name,
                                             entity_name: entity.name,
@@ -933,10 +928,6 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                                             duplicate_strategy: duplicateStrategy,
                                         },
                                         durationMs: Date.now() - objectCreationStartTime,
-                                        metadata: {
-                                            org_id: job.organization_id,
-                                            project_id: job.project_id,
-                                        },
                                     });
 
                                     this.logger.debug(
@@ -1044,7 +1035,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                                             stepIndex: this.stepCounter++,
                                             operationType: 'object_creation',
                                             operationName: 'create_graph_object',
-                                            status: 'success',
+                                            status: 'completed',
                                             inputData: {
                                                 entity_type: entity.type_name,
                                                 entity_name: entity.name,
@@ -1103,7 +1094,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                         stepIndex: this.stepCounter++,
                         operationType: 'error',
                         operationName: 'create_graph_object',
-                        status: 'error',
+                        status: 'failed',
                         errorMessage: err.message,
                         errorStack: err.stack,
                         metadata: {

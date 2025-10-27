@@ -127,14 +127,66 @@ Ports: Postgres 5432, Zitadel 8080, API 3001, Admin 5175. Stop everything with `
 ## Debugging Failures
 
 ### Playwright
-Artifacts are written under `apps/admin/test-results/<slug>/<browser>/`:
-1. `error-context.md` — first stop (URL, console, snapshot)
-2. `test-failed-*.png` — final frame screenshot
-3. `video.webm` — execution recording
 
-When triaging:
-- Rerun focused spec with `E2E_FORCE_TOKEN=1 nx run admin:e2e -- e2e/specs/<file>.spec.ts`
-- Use `nx run admin:e2e-ui` for interactive debugging only (never in CI)
+**ALWAYS check Playwright logs and reports after test runs - most errors are visible there without asking the user.**
+
+#### Viewing Test Reports and Logs
+After any Playwright test run (pass or fail), IMMEDIATELY check the HTML report:
+
+```bash
+# Open the interactive HTML report in browser
+npx playwright show-report apps/admin/e2e/test-results/html-report
+```
+
+The HTML report contains:
+- **Screenshots** - visual state when test failed or at key steps
+- **Trace viewer** - DOM snapshots, network calls, console logs at each action
+- **Video recordings** - full playback of test execution (if enabled)
+- **Network tab** - all HTTP requests/responses with status codes
+- **Console logs** - JavaScript errors and console output
+- **Timing information** - how long each step took
+
+**Always check the report before asking the user what went wrong.**
+
+#### Test Artifacts Locations
+Artifacts are written under `apps/admin/e2e/test-results/`:
+1. `html-report/` — interactive report with screenshots, traces, videos
+2. `test-results.json` — machine-readable test results
+3. Individual test directories may contain:
+   - `error-context.md` — URL, console errors, page snapshot
+   - `test-failed-*.png` — final frame screenshot
+   - `video.webm` — execution recording
+   - `trace.zip` — detailed trace for Playwright trace viewer
+
+#### Viewing Traces
+For detailed debugging, open trace files directly:
+```bash
+# Open a specific trace file
+npx playwright show-trace apps/admin/e2e/test-results/<test-name>/trace.zip
+```
+
+Trace viewer shows:
+- DOM snapshots at each action
+- localStorage, sessionStorage, cookies at each step
+- Network requests and responses (with bodies)
+- Console messages
+- Source code with execution highlight
+- Screenshot timeline
+
+#### When Triaging Failures
+**Required workflow for AI assistants:**
+1. **First**: Open and examine the HTML report: `npx playwright show-report apps/admin/e2e/test-results/html-report`
+2. **Check**: Screenshot shows what page actually rendered
+3. **Check**: Network tab shows API calls and status codes
+4. **Check**: Console shows JavaScript errors
+5. **Check**: Trace shows exact DOM state when test failed
+6. **Then**: Diagnose root cause from artifacts (don't guess or ask user)
+7. **Finally**: Rerun focused spec if needed: `E2E_FORCE_TOKEN=1 nx run admin:e2e -- e2e/specs/<file>.spec.ts`
+
+Additional debugging:
+- Use `nx run admin:e2e-ui` for interactive debugging with headed browser (never in CI)
+- Add `--headed` flag to see browser during test execution
+- Add `--debug` flag to pause test and open Playwright Inspector
 
 ### Jest/Vitest
 - Add `--runInBand` if parallelism hides logs
@@ -146,9 +198,10 @@ When triaging:
 ### AI Assistants
 1. Default to Workspace CLI and Nx commands; avoid legacy MCP language.
 2. Confirm dependencies are running before advising Playwright runs.
-3. Never parallelize Playwright specs unless suites are explicitly isolated.
-4. Point users to artifact folders instead of guessing failure causes.
-5. For Nest specs touching the database, require `describeWithDb` and explicit teardown.
+3. **ALWAYS check Playwright HTML report after test runs** - most errors are visible in screenshots/traces without asking the user.
+4. Never parallelize Playwright specs unless suites are explicitly isolated.
+5. Point users to artifact folders and open the HTML report to diagnose failures.
+6. For Nest specs touching the database, require `describeWithDb` and explicit teardown.
 
 ### Developers
 1. Run unit tests + type checks before every commit.

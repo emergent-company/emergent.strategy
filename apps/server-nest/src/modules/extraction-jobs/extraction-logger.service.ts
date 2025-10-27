@@ -12,7 +12,7 @@ export type ExtractionLogOperationType =
     | 'validation'
     | 'error';
 
-export type ExtractionLogStatus = 'pending' | 'success' | 'error' | 'warning';
+export type ExtractionLogStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
 
 export interface LogExtractionStepParams {
     extractionJobId: string;
@@ -32,7 +32,8 @@ export interface LogExtractionStepParams {
 export interface ExtractionLogRow {
     id: string;
     extraction_job_id: string;
-    logged_at: Date;
+    started_at: Date;
+    completed_at: Date | null;
     step_index: number;
     operation_type: string;
     operation_name: string | null;
@@ -43,8 +44,11 @@ export interface ExtractionLogRow {
     error_stack: string | null;
     duration_ms: number | null;
     tokens_used: number | null;
-    metadata: any;
-    created_at: Date;
+    step: string;
+    message: string | null;
+    entity_count: number | null;
+    relationship_count: number | null;
+    error_details: any;
 }
 
 @Injectable()
@@ -69,7 +73,7 @@ export class ExtractionLoggerService {
             stepIndex,
             operationType,
             operationName,
-            status = 'success',
+            status = 'completed',
             inputData,
             outputData,
             errorMessage,
@@ -79,6 +83,10 @@ export class ExtractionLoggerService {
             metadata,
         } = params;
 
+        // Generate step name and message based on operation
+        const step = operationName || operationType;
+        const message = errorMessage || (status === 'completed' ? `${operationType} completed successfully` : `${operationType} ${status}`);
+
         const result = await this.db.query<{ id: string }>(
             `
             INSERT INTO kb.object_extraction_logs (
@@ -86,15 +94,16 @@ export class ExtractionLoggerService {
                 step_index,
                 operation_type,
                 operation_name,
+                step,
                 status,
+                message,
                 input_data,
                 output_data,
                 error_message,
                 error_stack,
                 duration_ms,
-                tokens_used,
-                metadata
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                tokens_used
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING id
             `,
             [
@@ -102,14 +111,15 @@ export class ExtractionLoggerService {
                 stepIndex,
                 operationType,
                 operationName || null,
+                step,
                 status,
+                message,
                 inputData ? JSON.stringify(inputData) : null,
                 outputData ? JSON.stringify(outputData) : null,
                 errorMessage || null,
                 errorStack || null,
                 durationMs || null,
                 tokensUsed || null,
-                metadata ? JSON.stringify(metadata) : null,
             ]
         );
 
@@ -128,7 +138,7 @@ export class ExtractionLoggerService {
         errorStack?: string;
         durationMs?: number;
         tokensUsed?: number;
-        metadata?: Record<string, any>;
+        message?: string;
     }): Promise<void> {
         const setClauses: string[] = [];
         const values: any[] = [];
@@ -137,6 +147,9 @@ export class ExtractionLoggerService {
         if (updates.status !== undefined) {
             setClauses.push(`status = $${paramIndex++}`);
             values.push(updates.status);
+
+            // Update completed_at when status changes
+            setClauses.push(`completed_at = NOW()`);
         }
 
         if (updates.outputData !== undefined) {
@@ -164,9 +177,9 @@ export class ExtractionLoggerService {
             values.push(updates.tokensUsed);
         }
 
-        if (updates.metadata !== undefined) {
-            setClauses.push(`metadata = $${paramIndex++}`);
-            values.push(JSON.stringify(updates.metadata));
+        if (updates.message !== undefined) {
+            setClauses.push(`message = $${paramIndex++}`);
+            values.push(updates.message);
         }
 
         if (setClauses.length === 0) {
@@ -216,7 +229,8 @@ export class ExtractionLoggerService {
             SELECT 
                 id,
                 extraction_job_id,
-                logged_at,
+                started_at,
+                completed_at,
                 step_index,
                 operation_type,
                 operation_name,
@@ -227,11 +241,14 @@ export class ExtractionLoggerService {
                 error_stack,
                 duration_ms,
                 tokens_used,
-                metadata,
-                created_at
+                step,
+                message,
+                entity_count,
+                relationship_count,
+                error_details
             FROM kb.object_extraction_logs
             WHERE extraction_job_id = $1
-            ORDER BY step_index ASC, logged_at ASC
+            ORDER BY step_index ASC, started_at ASC
             `,
             [extractionJobId]
         );
@@ -248,7 +265,8 @@ export class ExtractionLoggerService {
             SELECT 
                 id,
                 extraction_job_id,
-                logged_at,
+                started_at,
+                completed_at,
                 step_index,
                 operation_type,
                 operation_name,
@@ -259,11 +277,14 @@ export class ExtractionLoggerService {
                 error_stack,
                 duration_ms,
                 tokens_used,
-                metadata,
-                created_at
+                step,
+                message,
+                entity_count,
+                relationship_count,
+                error_details
             FROM kb.object_extraction_logs
             WHERE extraction_job_id = $1 AND operation_type = $2
-            ORDER BY step_index ASC, logged_at ASC
+            ORDER BY step_index ASC, started_at ASC
             `,
             [extractionJobId, operationType]
         );
@@ -277,7 +298,8 @@ export class ExtractionLoggerService {
             SELECT 
                 id,
                 extraction_job_id,
-                logged_at,
+                started_at,
+                completed_at,
                 step_index,
                 operation_type,
                 operation_name,
@@ -288,11 +310,14 @@ export class ExtractionLoggerService {
                 error_stack,
                 duration_ms,
                 tokens_used,
-                metadata,
-                created_at
+                step,
+                message,
+                entity_count,
+                relationship_count,
+                error_details
             FROM kb.object_extraction_logs
-            WHERE extraction_job_id = $1 AND status = 'error'
-            ORDER BY step_index ASC, logged_at ASC
+            WHERE extraction_job_id = $1 AND status = 'failed'
+            ORDER BY step_index ASC, started_at ASC
             `,
             [extractionJobId]
         );

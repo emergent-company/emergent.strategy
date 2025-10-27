@@ -2,10 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-
-// Canonical admin port: ADMIN_PORT (fallback 5175)
-const DEV_PORT = Number(process.env.ADMIN_PORT || 5175);
-const baseURL = process.env.E2E_BASE_URL || `http://localhost:${DEV_PORT}`;
+import { existsSync } from 'node:fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -19,9 +16,21 @@ dotenv.config({ path: resolve(ADMIN_DIR, '.env') });
 // 3. App-level .env.local (developer machine overrides)
 dotenv.config({ path: resolve(ADMIN_DIR, '.env.local') });
 // 4. Optional dedicated E2E env file (put secret test creds here). Name chosen to be explicit.
-dotenv.config({ path: resolve(ADMIN_DIR, '.env.e2e') });
+const e2eEnvPath = resolve(ADMIN_DIR, '.env.e2e');
+console.log('[playwright.config] Loading E2E env from:', e2eEnvPath);
+console.log('[playwright.config] File exists:', existsSync(e2eEnvPath));
+dotenv.config({ path: e2eEnvPath });
+console.log('[playwright.config] E2E_TEST_USER_EMAIL:', process.env.E2E_TEST_USER_EMAIL);
+console.log('[playwright.config] E2E_TEST_USER_PASSWORD:', process.env.E2E_TEST_USER_PASSWORD ? '***' : 'NOT SET');
 // 5. Final generic lookup (.env in CWD, etc.)
 dotenv.config();
+
+// Canonical admin port: ADMIN_PORT (fallback 5175)
+// Note: Read AFTER dotenv.config() to pick up environment variables
+const DEV_PORT = Number(process.env.ADMIN_PORT || 5175);
+const baseURL = process.env.E2E_BASE_URL || `http://localhost:${DEV_PORT}`;
+
+console.log(`[playwright.config] ADMIN_PORT=${process.env.ADMIN_PORT}, DEV_PORT=${DEV_PORT}, baseURL=${baseURL}`);
 
 // Note: dotenv won't overwrite already-set env vars. To ensure a later file wins, unset the var before running tests.
 
@@ -44,7 +53,7 @@ export default defineConfig({
     use: {
         baseURL,
         actionTimeout: 5_000, // 5 seconds for individual actions (click, fill, etc.)
-        trace: 'on-first-retry',
+        trace: 'retain-on-failure', // Changed from 'on-first-retry' to capture on first failure
         screenshot: 'only-on-failure',
         video: 'retain-on-failure',
     },
@@ -75,6 +84,16 @@ export default defineConfig({
                 storageState: resolve(__dirname, '.auth/state.json'),
             },
             dependencies: ['setup'],
+        },
+        // Clean user tests (no auth setup dependency, fixture handles own login)
+        {
+            name: 'chromium-clean',
+            testMatch: /setup-guard\.spec\.ts/, // Tests that use cleanUser fixture
+            use: {
+                ...devices['Desktop Chrome'],
+                // No storageState - cleanUser fixture handles login
+            },
+            // No dependencies - cleanUser handles its own auth
         },
         // { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
         // { name: 'webkit', use: { ...devices['Desktop Safari'] } },

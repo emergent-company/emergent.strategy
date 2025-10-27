@@ -48,7 +48,7 @@ export const test = base.extend<AppFixtures>({
         const token = await extractAuthToken(page);
         await use(token);
     },
-    serverErrors: async (_unusedFixture, use, testInfo) => {
+    serverErrors: async ({ page }, use, testInfo) => {
         const logDir = process.env.ERROR_LOG_DIR || path.resolve(process.cwd(), 'apps', 'server-nest', 'logs');
         const logFile = path.join(logDir, 'errors.log');
         let baselineSize = 0;
