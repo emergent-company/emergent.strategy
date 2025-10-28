@@ -14,6 +14,12 @@ class FakeDb {
     }
 }
 
+class FakeHashService {
+    sha256(content: string): string {
+        return `mock-hash-${content.length}`;
+    }
+}
+
 function makeRow(id: number) {
     const ts = new Date(Date.now() - id * 1000).toISOString();
     return { id: `00000000-0000-4000-8000-${id.toString().padStart(12, '0')}`, filename: `f${id}.md`, source_url: null, mime_type: 'text/markdown', created_at: ts, updated_at: ts };
@@ -22,7 +28,7 @@ function makeRow(id: number) {
 describe('DocumentsService pagination', () => {
     it('returns nextCursor when results hit limit', async () => {
         const rows = [makeRow(1), makeRow(2), makeRow(3)];
-        const svc = new DocumentsService(new FakeDb(rows) as any);
+        const svc = new DocumentsService(new FakeDb(rows) as any, new FakeHashService() as any);
         const { items, nextCursor } = await svc.list(2);
         expect(items.length).toBe(2);
         expect(nextCursor).toBeTruthy();
@@ -32,14 +38,14 @@ describe('DocumentsService pagination', () => {
 
     it('omits nextCursor when fewer than limit', async () => {
         const rows = [makeRow(1)];
-        const svc = new DocumentsService(new FakeDb(rows) as any);
+        const svc = new DocumentsService(new FakeDb(rows) as any, new FakeHashService() as any);
         const { items, nextCursor } = await svc.list(5);
         expect(items.length).toBe(1);
         expect(nextCursor).toBeNull();
     });
 
     it('decodeCursor handles invalid input gracefully', () => {
-        const svc = new DocumentsService(new FakeDb([]) as any);
+        const svc = new DocumentsService(new FakeDb([]) as any, new FakeHashService() as any);
         expect(svc.decodeCursor('invalid$$')).toBeUndefined();
     });
 });
@@ -74,7 +80,7 @@ describe('DocumentsService extended behaviour', () => {
                 },
             },
         ]);
-        const svc = new DocumentsService(db as any);
+        const svc = new DocumentsService(db as any, new FakeHashService() as any);
         const cursor = Buffer.from(JSON.stringify({ createdAt: rows[1].created_at, id: rows[1].id }), 'utf8').toString('base64url');
         const decoded = svc.decodeCursor(cursor)!; // ensure decode path success
         const res = await svc.list(2, decoded, { orgId: 'org-1', projectId: 'proj-1' });
@@ -86,7 +92,7 @@ describe('DocumentsService extended behaviour', () => {
 
     it('create throws when projectId missing', async () => {
         const db = new ScriptableDb([]);
-        const svc = new DocumentsService(db as any);
+        const svc = new DocumentsService(db as any, new FakeHashService() as any);
         await expect(svc.create({ orgId: 'o1', filename: 'a.txt', content: 'x' })).rejects.toBeInstanceOf(BadRequestException);
     });
 
@@ -97,7 +103,7 @@ describe('DocumentsService extended behaviour', () => {
                 respond: () => ({ rows: [], rowCount: 0 }),
             },
         ]);
-        const svc = new DocumentsService(db as any);
+        const svc = new DocumentsService(db as any, new FakeHashService() as any);
         await expect(svc.create({ orgId: 'o1', projectId: 'p-x', filename: 'a.txt', content: 'x' })).rejects.toBeInstanceOf(BadRequestException);
     });
 
@@ -111,7 +117,7 @@ describe('DocumentsService extended behaviour', () => {
                 respond: () => ({ rows: [inserted], rowCount: 1 }),
             },
         ]);
-        const svc = new DocumentsService(db as any);
+        const svc = new DocumentsService(db as any, new FakeHashService() as any);
         const doc = await svc.create({ orgId: 'o1', projectId: 'p1', filename: 'f.txt', content: 'hello' });
         expect(doc.id).toBe('new-id');
         expect(doc.chunks).toBe(0);
@@ -122,7 +128,7 @@ describe('DocumentsService extended behaviour', () => {
         const db = new ScriptableDb([
             { match: 'WHERE d.id =', respond: () => ({ rows: [], rowCount: 0 }) },
         ]);
-        const svc = new DocumentsService(db as any);
+        const svc = new DocumentsService(db as any, new FakeHashService() as any);
         expect(await svc.get('x')).toBeNull();
     });
 
@@ -133,7 +139,7 @@ describe('DocumentsService extended behaviour', () => {
         const db = new ScriptableDb([
             { match: 'WHERE d.id =', respond: () => ({ rows: [doc], rowCount: 1 }) },
         ]);
-        const svc = new DocumentsService(db as any);
+        const svc = new DocumentsService(db as any, new FakeHashService() as any);
         const got = await svc.get('r1');
         expect(got?.name).toBe('https://example.com/file.pdf');
     });
@@ -142,7 +148,7 @@ describe('DocumentsService extended behaviour', () => {
         const db = new ScriptableDb([
             { match: 'FROM kb.projects', respond: () => ({ rows: [], rowCount: 0 }) },
         ]);
-        const svc = new DocumentsService(db as any);
+        const svc = new DocumentsService(db as any, new FakeHashService() as any);
         expect(await svc.getProjectOrg('p1')).toBeNull();
         // second handler returns row
         db.handlers.unshift({ match: 'FROM kb.projects', respond: () => ({ rows: [{ organization_id: 'org-77' }], rowCount: 1 }) } as any);
@@ -154,7 +160,7 @@ describe('DocumentsService extended behaviour', () => {
             { match: 'DELETE FROM kb.chunks', respond: () => ({ rows: [], rowCount: 0 }) },
             { match: 'DELETE FROM kb.documents', respond: () => ({ rows: [], rowCount: 1 }) },
         ]);
-        const svc = new DocumentsService(db as any);
+        const svc = new DocumentsService(db as any, new FakeHashService() as any);
         expect(await svc.delete('d1')).toBe(true);
         // swap documents delete to return 0
         db.handlers = [

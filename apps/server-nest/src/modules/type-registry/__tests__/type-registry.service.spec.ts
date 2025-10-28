@@ -84,7 +84,7 @@ describe('TypeRegistryService', () => {
             expect(result[1].type).toBe('Service');
             expect(mockDb.query).toHaveBeenCalledWith(
                 expect.stringContaining('FROM kb.project_object_type_registry ptr'),
-                [mockProjectId, mockOrgId]
+                [mockProjectId]
             );
         });
 
@@ -95,7 +95,7 @@ describe('TypeRegistryService', () => {
 
             expect(mockDb.query).toHaveBeenCalledWith(
                 expect.stringContaining('ptr.enabled = true'),
-                [mockProjectId, mockOrgId]
+                [mockProjectId]
             );
         });
 
@@ -105,8 +105,8 @@ describe('TypeRegistryService', () => {
             await service.getProjectTypes(mockProjectId, mockOrgId, { source: 'custom' });
 
             expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('ptr.source = $3'),
-                [mockProjectId, mockOrgId, 'custom']
+                expect.stringContaining('ptr.source = $2'),
+                [mockProjectId, 'custom']
             );
         });
     });
@@ -122,7 +122,7 @@ describe('TypeRegistryService', () => {
             expect(result.object_count).toBe('5');
             expect(mockDb.query).toHaveBeenCalledWith(
                 expect.stringContaining('WHERE ptr.project_id = $1'),
-                [mockProjectId, mockOrgId, 'Application']
+                [mockProjectId, 'Application']
             );
         });
 
@@ -172,7 +172,7 @@ describe('TypeRegistryService', () => {
             expect(mockDb.query).toHaveBeenNthCalledWith(
                 2, // Second call
                 expect.stringContaining('INSERT INTO kb.project_object_type_registry'),
-                expect.arrayContaining([mockProjectId, mockOrgId, createDto.type, 'custom'])
+                expect.arrayContaining([mockProjectId, createDto.type, 'custom'])
             );
         });
 
@@ -244,7 +244,7 @@ describe('TypeRegistryService', () => {
 
             expect(mockDb.query).toHaveBeenCalledWith(
                 expect.stringContaining('UPDATE kb.project_object_type_registry'),
-                expect.arrayContaining([mockProjectId, mockOrgId, 'Application'])
+                expect.arrayContaining([mockProjectId, 'Application'])
             );
         });
 
@@ -286,7 +286,7 @@ describe('TypeRegistryService', () => {
 
             expect(mockDb.query).toHaveBeenCalledWith(
                 expect.stringContaining('DELETE FROM kb.project_object_type_registry'),
-                [mockProjectId, mockOrgId, 'Application']
+                [mockProjectId, 'Application']
             );
         });
 
@@ -392,7 +392,7 @@ describe('TypeRegistryService', () => {
 
             expect(mockDb.query).toHaveBeenCalledWith(
                 expect.stringContaining('UPDATE kb.project_object_type_registry'),
-                expect.arrayContaining([true, mockProjectId, mockOrgId, 'Application'])
+                expect.arrayContaining([true, mockProjectId, 'Application'])
             );
         });
 

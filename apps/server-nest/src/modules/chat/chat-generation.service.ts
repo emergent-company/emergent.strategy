@@ -285,13 +285,16 @@ Your markdown formatted answer:`;
     }
 
     async generateStreaming(prompt: string, onToken: (t: string) => void): Promise<string> {
+        // Validate model is enabled first, before any other checks
+        if (!this.enabled) throw new Error('chat model disabled');
+        
         // Deterministic synthetic mode for tests: bypass external model and emit fixed token sequence
         if (process.env.CHAT_TEST_DETERMINISTIC === '1') {
-            const synthetic: string[] = ['token-0 ', 'token-1 ', 'token-2 ', 'token-3 ', 'token-4'];
+            const synthetic: string[] = ['token-0', 'token-1', 'token-2', 'token-3', 'token-4'];
             synthetic.forEach(t => onToken(t));
-            return synthetic.join('');
+            return synthetic.join(' ');
         }
-        if (!this.enabled) throw new Error('chat model disabled');
+        
         try {
             if (process.env.E2E_DEBUG_CHAT === '1') {
                 this.logger.log(`[gen] start enabled=${this.enabled} model=gemini-2.5-pro promptPreview="${prompt.slice(0, 80).replace(/\n/g, ' ')}"`);

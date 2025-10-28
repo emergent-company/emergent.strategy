@@ -2,6 +2,7 @@ import { expect } from '@playwright/test';
 import { test } from '../fixtures/consoleGate';
 import { navigate } from '../utils/navigation';
 import { expectNoRuntimeErrors } from '../utils/assertions';
+import { ensureOrgAndProject } from '../helpers/test-user';
 
 /**
  * Comprehensive E2E Test: Console Errors Across All Pages
@@ -60,6 +61,14 @@ const FLATTENED_ROUTES: RouteConfig[] = Object.values(ALL_ROUTES).flat();
 test.describe('Console Errors - All Pages (Real API)', () => {
     // NO MOCKS - This test makes REAL API calls to catch actual errors
     // Requires: Backend server running on localhost:3001
+
+    // Ensure org and project exist before running any tests
+    test.beforeAll(async ({ browser }) => {
+        const context = await browser.newContext();
+        const page = await context.newPage();
+        await ensureOrgAndProject(page);
+        await context.close();
+    });
 
     // Generate one test per route
     for (const route of FLATTENED_ROUTES) {

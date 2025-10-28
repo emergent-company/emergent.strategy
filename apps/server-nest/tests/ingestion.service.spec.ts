@@ -215,7 +215,7 @@ describe('IngestionService.ingestText', () => {
         const origQuery = db.query.bind(db);
         let threw = false;
         (db as any).query = async (sql: string, params?: any[]) => {
-            if (/INSERT INTO kb.documents\(org_id, project_id, source_url, filename, mime_type, content, content_hash\)/.test(sql) && !threw) {
+            if (/INSERT INTO kb.documents\(organization_id, project_id, source_url, filename, mime_type, content, content_hash\)/.test(sql) && !threw) {
                 threw = true; const err: any = new Error('col missing mid-flight'); err.code = '42703'; throw err;
             }
             return origQuery(sql, params);

@@ -11,4 +11,4 @@ import { UserDeletionController } from './user-deletion.controller';
     providers: [UserDeletionService],
     exports: [UserDeletionService],
 })
-export class UserModule {}
+export class UserModule { }

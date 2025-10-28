@@ -289,6 +289,12 @@ describe('TemplatePackService', () => {
                 rowCount: 1,
             } as any);
 
+            // Mock user lookup
+            mockDb.query.mockResolvedValueOnce({
+                rows: [{ id: 'user-1' }],
+                rowCount: 1,
+            } as any);
+
             // Mock existing assignment
             mockDb.query.mockResolvedValueOnce({
                 rows: [{ id: 'existing-assignment' }],
@@ -320,6 +326,8 @@ describe('TemplatePackService', () => {
 
             // Mock template pack exists
             mockDb.query.mockResolvedValueOnce({ rows: [mockPack], rowCount: 1 } as any);
+            // Mock user lookup
+            mockDb.query.mockResolvedValueOnce({ rows: [{ id: 'user-1' }], rowCount: 1 } as any);
             // Mock no existing assignment
             mockDb.query.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
             // Mock existing Requirement type

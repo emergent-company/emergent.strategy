@@ -25,9 +25,12 @@ console.log('[playwright.config] E2E_TEST_USER_PASSWORD:', process.env.E2E_TEST_
 // 5. Final generic lookup (.env in CWD, etc.)
 dotenv.config();
 
-// Canonical admin port: ADMIN_PORT (fallback 5175)
+// Canonical admin port: ADMIN_PORT (required - must be set in .env)
 // Note: Read AFTER dotenv.config() to pick up environment variables
-const DEV_PORT = Number(process.env.ADMIN_PORT || 5175);
+const DEV_PORT = Number(process.env.ADMIN_PORT);
+if (!DEV_PORT) {
+    throw new Error('ADMIN_PORT environment variable is required but not set');
+}
 const baseURL = process.env.E2E_BASE_URL || `http://localhost:${DEV_PORT}`;
 
 console.log(`[playwright.config] ADMIN_PORT=${process.env.ADMIN_PORT}, DEV_PORT=${DEV_PORT}, baseURL=${baseURL}`);

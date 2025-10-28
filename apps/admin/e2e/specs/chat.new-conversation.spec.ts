@@ -1,21 +1,34 @@
-import { test, expect } from '../fixtures/app';
+import { test, expect } from '../fixtures/consoleGate';
 import { navigate } from '../utils/navigation';
 import { expectNoRuntimeErrors } from '../utils/assertions';
-import { stubChatBackend, seedOrgProject } from '../utils/chat';
+import { ensureOrgAndProject } from '../helpers/test-user';
 
 /**
  * NOTE: Auth is now established via the dedicated auth.setup.ts (OIDC/Zitadel UI login or token injection).
- * This spec assumes storageState already contains a valid session. Do NOT inject dev auth here; that path
- * hides real regressions in hosted login redirects.
+ * This spec assumes storageState already contains a valid session. Uses real backend API for integration testing.
  */
 
 test.describe('Chat - new conversation flow', () => {
+    let testOrgId: string;
+    let testProjectId: string;
+
+    // Ensure org and project exist in database, store IDs for test contexts
+    test.beforeAll(async ({ browser }) => {
+        const storageFile = 'apps/admin/e2e/.auth/state.json';
+        const context = await browser.newContext({ storageState: storageFile });
+        const page = await context.newPage();
+        const { orgId, projectId } = await ensureOrgAndProject(page);
+        testOrgId = orgId;
+        testProjectId = projectId;
+        await context.close();
+    });
 
     test('navigates to /admin/apps/chat/c/new without 404', async ({ page, consoleErrors, pageErrors }) => {
-        await test.step('Network stubs (chat) + seed config', async () => {
-            await stubChatBackend(page);
-            await seedOrgProject(page); // ensure active org/project before navigation
-        });
+        // Set org/project in this page's localStorage before navigating
+        await page.addInitScript(({ orgId, projectId }) => {
+            window.localStorage.setItem('activeOrgId', orgId);
+            window.localStorage.setItem('activeProjectId', projectId);
+        }, { orgId: testOrgId, projectId: testProjectId });
 
         await test.step('Navigate to new conversation route', async () => {
             await navigate(page, '/admin/apps/chat/c/new');
@@ -23,12 +36,6 @@ test.describe('Chat - new conversation flow', () => {
         });
 
         await test.step('Expect chat UI heading and composer present', async () => {
-            // Debug: verify config storage seeded
-            const cfg = await page.evaluate(() => ({
-                v3: localStorage.getItem('__NEXUS_CONFIG_v3.0__'),
-                legacy: localStorage.getItem('__nexus_config_v1__')
-            }));
-            console.log('Config debug', cfg); // intentional debug
             // Accept either the hero heading or the contextual h1
             const heroHeading = page.getByRole('heading', { name: /ask your knowledge base/i }).first();
             const breadcrumbLabel = page.getByText(/AI Chat/i).first();
@@ -50,23 +57,19 @@ test.describe('Chat - new conversation flow', () => {
     });
 
     test('sends first message via CTA composer + SSE stream', async ({ page, consoleErrors, pageErrors }) => {
-        const prompt = 'E2E manual send ping';
+        // Set org/project in this page's localStorage before navigating
+        await page.addInitScript(({ orgId, projectId }) => {
+            window.localStorage.setItem('activeOrgId', orgId);
+            window.localStorage.setItem('activeProjectId', projectId);
+        }, { orgId: testOrgId, projectId: testProjectId });
 
-        await test.step('Network stubs (chat) + seed config', async () => {
-            await stubChatBackend(page);
-            await seedOrgProject(page);
-        });
+        const prompt = 'E2E manual send ping';
 
         await test.step('Open new chat route', async () => {
             await navigate(page, '/admin/apps/chat/c/new');
         });
 
         await test.step('Fill composer and send', async () => {
-            const cfg = await page.evaluate(() => ({
-                v3: localStorage.getItem('__NEXUS_CONFIG_v3.0__'),
-                legacy: localStorage.getItem('__nexus_config_v1__')
-            }));
-            console.log('Config debug (send step)', cfg); // intentional debug
             const ctaComposer = page.getByPlaceholder(/let us know what you need/i);
             await ctaComposer.waitFor({ state: 'visible', timeout: 10_000 });
             await ctaComposer.fill(prompt);
@@ -84,5 +87,5 @@ test.describe('Chat - new conversation flow', () => {
         });
     });
 
-    test.skip('chat lifecycle (auto-send + delete) – to be implemented against real backend', () => { /* placeholder */ });
+    test.skip('chat lifecycle (auto-send + delete) – covered in chat.lifecycle.spec.ts', () => { /* placeholder */ });
 });
