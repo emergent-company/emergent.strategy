@@ -6,15 +6,12 @@ import { fileURLToPath } from 'node:url';
 /**
  * Auth setup test
  * -----------------------------------------------
- * Deterministically authenticates a test user and writes a storage state file
+ * Authenticates a test user via UI login and writes a storage state file
  * that can be re-used via `storageState` in other tests.
  *
- * Modes:
- * 1) UI credential login (preferred) – fills email + password on /auth/login and clicks primary auth button.
- *    Env: E2E_LOGIN_EMAIL, E2E_LOGIN_PASSWORD
- *    Works with VITE_AUTH_MODE=credentials (button text: "Sign In") OR OIDC ("Continue with SSO").
- * 2) Token injection (fallback / forced) – if credentials absent OR E2E_FORCE_TOKEN=1, inject a dev token.
- *    Env: E2E_AUTH_TOKEN overrides generated token, E2E_INCLUDE_IDTOKEN=1 to also store idToken.
+ * Performs real UI credential login – fills email + password on /auth/login and clicks auth button.
+ * Env: E2E_LOGIN_EMAIL, E2E_LOGIN_PASSWORD (required)
+ * Works with VITE_AUTH_MODE=credentials (button text: "Sign In") OR OIDC ("Continue with SSO").
  *
  * The UI login path intentionally uses strict, accessible locators (getByRole / label / name) per guidelines.
  */
@@ -23,13 +20,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const authDir = path.resolve(__dirname, '..', '.auth');
 const storageFile = path.join(authDir, 'state.json');
-
-function generateDevToken(email: string): string {
-    // Use static test token that backend explicitly supports (e2e-all)
-    // This bypasses JWT validation and provides all scopes for E2E testing
-    // The backend converts this to a deterministic UUID via SHA-1 hash
-    return 'e2e-all';
-}
 
 // Centralised selectors grounded in the Login page implementation.
 // Email input is inside a fieldset with legend "Email Address" and has name=id=email.
@@ -90,35 +80,17 @@ async function resolveNextLocator(page: Page) { return waitForFirstVisible(page,
 
 setup.describe.configure({ mode: 'serial' });
 
-setup('auth: login (or inject) and save storage state', async ({ page, context }) => {
+setup('auth: login and save storage state', async ({ page, context }) => {
     await fs.mkdir(authDir, { recursive: true });
 
     const email = process.env.E2E_LOGIN_EMAIL?.trim();
     const password = process.env.E2E_LOGIN_PASSWORD?.trim();
-    const tokenOverride = process.env.E2E_AUTH_TOKEN?.trim();
-    const forceToken = (process.env.E2E_FORCE_TOKEN || '').toLowerCase() === '1';
-    const includeIdToken = (process.env.E2E_INCLUDE_IDTOKEN || '').toLowerCase() === '1';
-    const useTokenInjection = forceToken || !email || !password;
 
-    // Log auth mode without exposing credentials
-    const authMode = useTokenInjection ? 'token-injection' : 'ui-login';
-    const hasCredentials = !!(email && password);
-    console.log(`[auth.setup] mode=${authMode} force=${forceToken} credentials=${hasCredentials ? 'present' : 'missing'}`);
-
-    if (useTokenInjection) {
-        const token = tokenOverride || generateDevToken(email || 'dev@example.com');
-        await page.goto('/', { waitUntil: 'domcontentloaded' });
-        await page.evaluate(({ tokenValue, includeIdToken }) => {
-            const STORAGE_KEY = '__nexus_auth_v1__';
-            const now = Date.now();
-            const expiresAt = now + 60 * 60 * 1000;
-            const state: any = { accessToken: tokenValue, expiresAt };
-            if (includeIdToken) state.idToken = tokenValue;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        }, { tokenValue: token, includeIdToken });
-        await context.storageState({ path: storageFile });
-        return;
+    if (!email || !password) {
+        throw new Error('E2E_LOGIN_EMAIL and E2E_LOGIN_PASSWORD are required for authentication');
     }
+
+    console.log(`[auth.setup] Logging in with email: ${email}`);
 
     // UI Login Flow
     await page.goto('/auth/login');

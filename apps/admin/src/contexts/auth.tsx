@@ -19,7 +19,7 @@ type AuthContextType = {
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const STORAGE_KEY = 'spec-server-auth';
+const STORAGE_KEY = '__nexus_auth_v1__';
 
 function getConfigFromEnv(): OidcConfig {
     const env: any = (import.meta as any).env || {};

@@ -130,6 +130,7 @@ const EXPECTED: Record<string, string[]> = {
     'post /notifications/{id}/unsnooze': ['notifications:write'],
     'post /invites': ['org:invite:create', 'project:invite:create'],
     'post /invites/accept': ['org:read'],
+    'post /mcp/rpc': ['schema:read'],
     'post /product-versions': ['graph:write'],
     'post /projects': ['org:project:create'],
     'post /tags': ['graph:write'],
@@ -137,6 +138,8 @@ const EXPECTED: Record<string, string[]> = {
     'post /template-packs/projects/{projectId}/assign': ['graph:write'],
     'post /type-registry/projects/{projectId}/types': ['graph:write'],
     'post /type-registry/projects/{projectId}/validate': ['graph:read'],
+    'post /user/delete-account': ['account:delete'],
+    'post /user/test-cleanup': ['account:delete'],
     'put /integrations/{name}': ['integrations:write'],
     'put /tags/{id}': ['graph:write'],
 };
