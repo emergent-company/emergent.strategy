@@ -26,46 +26,46 @@ import { cleanupTestUser, getTestUserCredentials } from '../helpers/test-user';
  */
 async function loginTestUser(page: import('@playwright/test').Page): Promise<void> {
     const { email, password } = getTestUserCredentials();
-    
+
     console.log('[FIXTURE] cleanUser: Starting OIDC login for test user');
     console.log('[FIXTURE] cleanUser: Email:', email);
     console.log('[FIXTURE] cleanUser: Password:', password); // Show full password for debugging
     console.log('[FIXTURE] cleanUser: Password length:', password.length);
-    
+
     // Navigate to admin (will redirect to Zitadel)
     await page.goto('http://localhost:5176/admin');
-    
+
     // Wait for Zitadel login page
     await page.waitForURL(/localhost:8200.*login/, { timeout: 15000 });
     console.log('[FIXTURE] cleanUser: Redirected to Zitadel login');
-    
+
     // Fill email
     const emailInput = page.locator('input[name="loginName"], input[type="email"]').first();
     await emailInput.waitFor({ state: 'visible', timeout: 5000 });
     await emailInput.fill(email);
     console.log('[FIXTURE] cleanUser: Email filled');
-    
+
     // Click Next
     const nextButton = page.locator('button:has-text("Next"), button:has-text("Weiter")').first();
     await nextButton.click();
     console.log('[FIXTURE] cleanUser: Next button clicked');
-    
+
     // Wait for password screen
     await page.waitForTimeout(1000);
     const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
     await passwordInput.waitFor({ state: 'visible', timeout: 5000 });
     await passwordInput.fill(password);
     console.log('[FIXTURE] cleanUser: Password filled');
-    
+
     // Click Next on password screen
     const passwordNextButton = page.locator('button:has-text("Next"), button:has-text("Weiter")').first();
     await passwordNextButton.click();
     console.log('[FIXTURE] cleanUser: Password Next clicked');
-    
+
     // Wait for OAuth callback
     await page.waitForURL(/localhost:5176/, { timeout: 15000 });
     console.log('[FIXTURE] cleanUser: OAuth callback completed');
-    
+
     // Wait for auth token to be stored (key is 'spec-server-auth')
     console.log('[FIXTURE] cleanUser: Waiting for auth token storage...');
     await page.waitForFunction(
@@ -76,14 +76,14 @@ async function loginTestUser(page: import('@playwright/test').Page): Promise<voi
         { timeout: 10000 }
     );
     console.log('[FIXTURE] cleanUser: Auth token stored successfully');
-    
+
     // Debug: Log the auth data structure and decode JWT claims
     const authData = await page.evaluate(() => {
         const data = localStorage.getItem('spec-server-auth');
         if (!data) return null;
         const parsed = JSON.parse(data);
         const tokenParts = parsed.accessToken?.split('.');
-        
+
         // Decode BOTH accessToken AND idToken to compare
         const decodeToken = (token: string) => {
             if (!token) return null;
@@ -95,10 +95,10 @@ async function loginTestUser(page: import('@playwright/test').Page): Promise<voi
                 return { error: 'Failed to decode' };
             }
         };
-        
+
         const accessTokenClaims = parsed.accessToken ? decodeToken(parsed.accessToken) : null;
         const idTokenClaims = parsed.idToken ? decodeToken(parsed.idToken) : null;
-        
+
         return {
             keys: Object.keys(parsed),
             userEmail: parsed.user?.email,
@@ -140,11 +140,11 @@ async function loginTestUser(page: import('@playwright/test').Page): Promise<voi
 export const test = consoleGateTest.extend<{ cleanupComplete: boolean }>({
     cleanupComplete: async ({ page }, use) => {
         let cleanupSuccess = false;
-        
+
         // Step 1: Login as test user
         console.log('[FIXTURE] cleanUser: Logging in as test user');
         await loginTestUser(page);
-        
+
         // Step 2: Cleanup any existing data for test user (BEFORE test)
         console.log('[FIXTURE] cleanUser: Starting cleanup BEFORE test');
         try {

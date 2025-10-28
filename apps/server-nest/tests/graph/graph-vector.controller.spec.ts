@@ -105,7 +105,7 @@ describe('Graph Vector Controller Endpoints', () => {
         if (!db.isOnline()) return; // skip
         // Seed a labeled object similar-ish vector
         const id = randomUUID();
-        const literal = '[' + Array(32).fill(0).map((_, i) => (i === 2 ? 0.003 : 0)).join(',') + ']';
+        const literal = '[' + Array(768).fill(0).map((_, i) => (i === 2 ? 0.003 : 0)).join(',') + ']';
         await db.setTenantContext(orgId, projectId);
         await db.query(
             `INSERT INTO kb.graph_objects(id, organization_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
@@ -158,7 +158,7 @@ describe('Graph Vector Controller Endpoints', () => {
         // Seed an object with labels we can target
         const id = randomUUID();
         // Use a slightly perturbed vector to avoid being pushed out of result set by identical zero-vectors.
-        const literal = '[' + Array(32).fill(0).map((_, i) => (i === 0 ? 0.001 : 0)).join(',') + ']';
+        const literal = '[' + Array(768).fill(0).map((_, i) => (i === 0 ? 0.001 : 0)).join(',') + ']';
         await db.setTenantContext(orgId, projectId);
         await db.query(
             `INSERT INTO kb.graph_objects(id, organization_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
@@ -183,7 +183,7 @@ describe('Graph Vector Controller Endpoints', () => {
     it('POST /graph/objects/vector-search labelsAny returns objects having any label', async () => {
         if (!db.isOnline()) return; // skip
         const id = randomUUID();
-        const literal = '[' + Array(32).fill(0).map((_, i) => (i === 1 ? 0.002 : 0)).join(',') + ']';
+        const literal = '[' + Array(768).fill(0).map((_, i) => (i === 1 ? 0.002 : 0)).join(',') + ']';
         await db.setTenantContext(orgId, projectId);
         await db.query(
             `INSERT INTO kb.graph_objects(id, organization_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)
@@ -208,7 +208,7 @@ describe('Graph Vector Controller Endpoints', () => {
         if (!db.isOnline()) return; // skip
         // Seed a near-identical vector to increase likelihood of a result within 0.15
         const nearId = randomUUID();
-        const nearLiteral = '[' + Array(32).fill(0).map((_, i) => (i === 0 ? 0.05 : 0)).join(',') + ']';
+        const nearLiteral = '[' + Array(768).fill(0).map((_, i) => (i === 0 ? 0.05 : 0)).join(',') + ']';
         await db.setTenantContext(orgId, projectId);
         await db.query(
             `INSERT INTO kb.graph_objects(id, organization_id, project_id, branch_id, type, key, properties, embedding_vec, canonical_id, version)
@@ -239,7 +239,7 @@ describe('Graph Vector Controller Endpoints', () => {
         if (!db.isOnline()) return; // skip
         const id = randomUUID();
         const uniqueLabel = `both-unique-${randomUUID()}`;
-        const literal = '[' + Array(32).fill(0).map((_, i) => (i === 3 ? 0.004 : 0)).join(',') + ']';
+        const literal = '[' + Array(768).fill(0).map((_, i) => (i === 3 ? 0.004 : 0)).join(',') + ']';
         await db.setTenantContext(orgId, projectId);
         await db.query(
             `INSERT INTO kb.graph_objects(id, organization_id, project_id, branch_id, type, key, labels, embedding_vec, canonical_id, version)

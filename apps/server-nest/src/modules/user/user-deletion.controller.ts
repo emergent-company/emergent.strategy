@@ -27,7 +27,7 @@ import { UserDeletionService, DeletionResult } from './user-deletion.service';
 export class UserDeletionController {
     private readonly logger = new Logger(UserDeletionController.name);
 
-    constructor(private readonly deletionService: UserDeletionService) {}
+    constructor(private readonly deletionService: UserDeletionService) { }
 
     /**
      * Delete the authenticated user's account and all associated data.

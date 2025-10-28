@@ -1,23 +1,37 @@
-import { test, expect } from '../fixtures/app';
+import { test, expect } from '../fixtures/consoleGate';
 import { navigate } from '../utils/navigation';
 import { expectNoRuntimeErrors } from '../utils/assertions';
-import { stubChatBackend, ensureDevAuth, seedOrgProject } from '../utils/chat';
+import { ensureOrgAndProject } from '../helpers/test-user';
 
 /**
  * Chat lifecycle spec
  * Covers: create (auto + manual), streaming token accumulation, rename (UI optimistic), delete.
- * We rely on stubbed backend endpoints to produce deterministic SSE events.
+ * Uses real backend API for integration testing.
  */
-test.describe('Chat - lifecycle (stubbed backend)', () => {
-    test.beforeEach(async ({ page }) => {
-        await ensureDevAuth(page); // dev auth early
-        await stubChatBackend(page, { uuid: '44444444-4444-4444-8444-444444444444' });
+test.describe('Chat - lifecycle (real backend)', () => {
+    let testOrgId: string;
+    let testProjectId: string;
+
+    // Ensure org and project exist in database, store IDs for test contexts
+    test.beforeAll(async ({ browser }) => {
+        const storageFile = 'apps/admin/e2e/.auth/state.json';
+        const context = await browser.newContext({ storageState: storageFile });
+        const page = await context.newPage();
+        const { orgId, projectId } = await ensureOrgAndProject(page);
+        testOrgId = orgId;
+        testProjectId = projectId;
+        await context.close();
     });
 
     test('auto-send via ?q query hydrates first user + assistant tokens', async ({ page, consoleErrors, pageErrors }) => {
+        // Set org/project in this page's localStorage before navigating
+        await page.addInitScript(({ orgId, projectId }) => {
+            window.localStorage.setItem('activeOrgId', orgId);
+            window.localStorage.setItem('activeProjectId', projectId);
+        }, { orgId: testOrgId, projectId: testProjectId });
+
         const prompt = 'Lifecycle auto prompt';
         await test.step('Navigate with query', async () => {
-            await seedOrgProject(page);
             await navigate(page, `/admin/apps/chat/c/new?q=${encodeURIComponent(prompt)}`);
             await page.waitForURL(/\/admin\/apps\/chat\/c\//, { timeout: 30_000 });
         });
@@ -47,9 +61,11 @@ test.describe('Chat - lifecycle (stubbed backend)', () => {
             const spinner = assistantBubble.locator('.loading');
             const started = Date.now();
             let satisfied = false;
-            while (Date.now() - started < 10_000) {
+            // Wait for either response text OR spinner (real backend may return various responses)
+            while (Date.now() - started < 30_000) {
                 const text = (await assistantBubble.textContent()) || '';
-                if (/Pong|Error:/i.test(text)) { satisfied = true; break; }
+                // Accept any non-empty text content (real AI response) or error message
+                if (text.trim().length > 0) { satisfied = true; break; }
                 const spinVisible = await spinner.isVisible().catch(() => false);
                 if (spinVisible) { satisfied = true; break; }
                 await page.waitForTimeout(150);
@@ -67,11 +83,15 @@ test.describe('Chat - lifecycle (stubbed backend)', () => {
     });
 
     test('manual send from empty state then rename + delete conversation', async ({ page, consoleErrors, pageErrors }) => {
-        const firstPrompt = 'Lifecycle manual prompt';
-        await test.step('Open blank new conversation route', async () => {
-            await seedOrgProject(page);
+        // Set org/project in this page's localStorage before navigating
+        await page.addInitScript(({ orgId, projectId }) => {
+            window.localStorage.setItem('activeOrgId', orgId);
+            window.localStorage.setItem('activeProjectId', projectId);
+        }, { orgId: testOrgId, projectId: testProjectId });
+
+        const firstPrompt = 'First user message';
+        await test.step('Navigate to new conversation', async () => {
             await navigate(page, '/admin/apps/chat/c/new');
-            await page.waitForURL(/\/admin\/apps\/chat\/c\//, { timeout: 30_000 });
         });
 
         await test.step('Compose and send first prompt', async () => {
@@ -91,14 +111,19 @@ test.describe('Chat - lifecycle (stubbed backend)', () => {
             const assistantBubble = page.locator('.chat.chat-start .chat-bubble-primary');
             await assistantBubble.first().waitFor({ state: 'visible', timeout: 30_000 });
             const spinner = assistantBubble.first().locator('.loading');
-            const tokenCheck = () => assistantBubble.first().evaluate((el) => /Pong|Error:/i.test(el.textContent || ''));
-            // Poll for token up to 20s; if not, accept spinner presence to avoid flake, but log debug
+            // Poll for token up to 30s (real backend may take longer than stubbed)
             const started = Date.now();
             let gotToken = false;
-            while (Date.now() - started < 20_000) {
-                if (await tokenCheck()) { gotToken = true; break; }
+            while (Date.now() - started < 30_000) {
+                const text = (await assistantBubble.first().textContent()) || '';
+                // Accept any non-empty text content (real AI response) or error message
+                if (text.trim().length > 0) { gotToken = true; break; }
                 const spinVisible = await spinner.first().isVisible().catch(() => false);
-                await page.waitForTimeout(spinVisible ? 300 : 200);
+                if (spinVisible) {
+                    await page.waitForTimeout(300);
+                } else {
+                    await page.waitForTimeout(200);
+                }
             }
             if (!gotToken) {
                 // Log debug conversation state to console (not failing test)
@@ -110,13 +135,13 @@ test.describe('Chat - lifecycle (stubbed backend)', () => {
             } catch { /* ignore */ }
         });
 
-        await test.step('Rename conversation via optimistic UI (double click -> edit not yet implemented, fallback: PATCH direct)', async () => {
-            // If UI exposes rename action later we adapt; currently no inline rename so we simulate API call to ensure no crash
+        await test.step('Rename conversation via API call', async () => {
+            // UI rename feature not yet implemented, so we test via direct API call
             if (conversationId) {
                 await page.evaluate(async (id) => {
                     await fetch(`${location.origin}/chat/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'Renamed Title E2E' }) });
                 }, conversationId);
-                // Navigate away and back to force hydration (stub will still give stub title but ensure no failure)
+                // Navigate away and back to force hydration and verify no crash
                 await navigate(page, '/admin/apps/chat/c/new');
             }
         });

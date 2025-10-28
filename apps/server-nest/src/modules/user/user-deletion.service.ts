@@ -29,7 +29,7 @@ export class UserDeletionService {
     constructor(
         private readonly db: DatabaseService,
         private readonly userProfileService: UserProfileService,
-    ) {}
+    ) { }
 
     /**
      * Delete all data associated with a user.
