@@ -5,9 +5,10 @@
  * - Credentials management
  * - User data cleanup
  * - Test org/project creation
+ * - Conditional auth/setup based on page state
  */
 
-import { Page } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 import path from 'node:path';
 
 /**
@@ -370,4 +371,213 @@ export async function ensureOrgAndProject(
     console.log('[TEST] Init script added - config will be set on page load');
 
     return { orgId, projectId };
+}
+
+/**
+ * Ensure the test is ready to proceed by checking for auth/org/project guards
+ * This function checks what's on screen and handles it conditionally:
+ * - If login page → perform login
+ * - If org creation guard → create org
+ * - If project creation guard → create project
+ * - Otherwise → proceed (already authenticated and set up)
+ * 
+ * @param page - Playwright Page object
+ * @param options - Optional test IDs to check for specific guards
+ * @returns Promise that resolves when ready to proceed
+ */
+export async function ensureReadyToTest(
+    page: Page,
+    options?: {
+        loginTestId?: string;
+        orgFormTestId?: string;
+        projectFormTestId?: string;
+        maxRetries?: number;
+    }
+): Promise<void> {
+    const {
+        loginTestId = 'login-form',
+        orgFormTestId = 'setup-org-form',
+        projectFormTestId = 'setup-project-form',
+        maxRetries = 5  // Increased to handle org + project + navigation checks
+    } = options || {};
+
+    const baseUrl = process.env.E2E_BASE_URL || 'http://localhost:5176';
+    let retries = 0;
+
+    while (retries < maxRetries) {
+        // Wait for page to be stable
+        await page.waitForLoadState('domcontentloaded');
+
+        // Check what's on screen
+        const url = page.url();
+        console.log('[ensureReadyToTest] Current URL:', url);
+
+        // Success case: We're on an admin page (not setup/onboarding/login)
+        if (url.includes('/admin/apps/') && !url.includes('/setup') && !url.includes('/onboarding') && !url.includes('oauth')) {
+            console.log('[ensureReadyToTest] ✅ Already on admin page, success!');
+            return;
+        }
+
+        // Check for login page (Zitadel or app login)
+        if (url.includes('oauth/authorize') || url.includes('login')) {
+            console.log('[ensureReadyToTest] Login page detected, performing login...');
+            const credentials = getTestUserCredentials();
+
+            // Try to find and fill login form
+            const emailInput = page.locator('input[name="loginName"], input[type="email"]').first();
+            if (await emailInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+                await emailInput.fill(credentials.email);
+                await page.locator('button:has-text("Next"), button[type="submit"]').first().click();
+                await page.waitForTimeout(1000);
+            }
+
+            const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+            if (await passwordInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+                await passwordInput.fill(credentials.password);
+                await page.locator('button:has-text("Next"), button:has-text("Sign in"), button[type="submit"]').first().click();
+                await page.waitForTimeout(2000);
+            }
+
+            retries++;
+            continue;
+        }
+
+        // Check for org creation guard
+        const orgForm = page.getByTestId(orgFormTestId);
+        if (await orgForm.isVisible({ timeout: 1000 }).catch(() => false)) {
+            console.log('[ensureReadyToTest] Org creation form detected, creating org...');
+
+            // Fill org creation form
+            const orgNameInput = page.getByTestId('setup-org-name-input');
+            await orgNameInput.fill(`E2E Test Org ${Date.now()}`);
+
+            // Wait for button to become enabled
+            const createButton = page.getByTestId('setup-org-create-button');
+            await expect(createButton).toBeEnabled({ timeout: 3000 });
+
+            await createButton.click();
+
+            await page.waitForTimeout(2000);
+            retries++;
+            continue;
+        }
+
+        // Check for project creation guard
+        const projectForm = page.getByTestId(projectFormTestId);
+        if (await projectForm.isVisible({ timeout: 1000 }).catch(() => false)) {
+            console.log('[ensureReadyToTest] Project creation form detected, creating project...');
+
+            // Fill project creation form
+            const projectNameInput = page.getByTestId('setup-project-name-input');
+            const projectName = `E2E Test Project ${Date.now()}`;
+            console.log('[ensureReadyToTest] Filling project name:', projectName);
+            await projectNameInput.fill(projectName);
+
+            // Verify the value was set
+            const inputValue = await projectNameInput.inputValue();
+            console.log('[ensureReadyToTest] Project name input value after fill:', inputValue);
+
+            // Wait for button to become enabled (button is disabled when name.trim().length < 2)
+            const createButton = page.getByTestId('setup-project-create-button');
+            const isDisabled = await createButton.isDisabled();
+            console.log('[ensureReadyToTest] Create button disabled?', isDisabled);
+
+            if (isDisabled) {
+                console.log('[ensureReadyToTest] Button still disabled after fill, checking why...');
+                // Check if there's an error message
+                const errorAlert = page.getByTestId('setup-project-error');
+                const hasError = await errorAlert.isVisible().catch(() => false);
+                if (hasError) {
+                    const errorText = await errorAlert.textContent();
+                    console.log('[ensureReadyToTest] Error alert visible:', errorText);
+                }
+            }
+
+            await expect(createButton).toBeEnabled({ timeout: 3000 });
+
+            console.log('[ensureReadyToTest] Triggering form submission via JavaScript...');
+            // Use JavaScript to submit the form directly as Playwright clicks aren't working
+            await page.evaluate(() => {
+                const form = document.querySelector('[data-testid="setup-project-form"]') as HTMLFormElement;
+                if (form) {
+                    console.log('[E2E] Found form, submitting...');
+                    form.requestSubmit(); // Triggers onSubmit handler
+                } else {
+                    console.error('[E2E] Form not found!');
+                }
+            });
+
+            // Also wait for URL change or timeout
+            console.log('[ensureReadyToTest] Waiting for navigation after project creation...');
+            try {
+                // Wait for URL to change away from setup/project (max 5 seconds)
+                await page.waitForURL(url => !url.toString().includes('/setup/project'), { timeout: 5000 });
+                console.log('[ensureReadyToTest] Navigation detected!');
+
+                // window.location causes full page reload - wait for it
+                console.log('[ensureReadyToTest] Waiting for page to fully load...');
+                await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+                await page.waitForLoadState('load', { timeout: 10000 });
+                console.log('[ensureReadyToTest] Page loaded');
+
+                // After window.location navigation, Playwright's page object can become stale.
+                // Force a refresh by doing a fresh page.goto() to the current URL to ensure
+                // Playwright properly reinitializes the page context.
+                const currentUrl = page.url();
+                console.log('[ensureReadyToTest] Doing fresh page.goto() to reinitialize page context');
+                await page.goto(currentUrl, { waitUntil: 'networkidle', timeout: 15000 });
+                console.log('[ensureReadyToTest] Fresh page.goto() complete');
+
+                // Now wait for React to mount
+                console.log('[ensureReadyToTest] Waiting for React to mount...');
+                await page.waitForFunction(
+                    () => {
+                        const root = document.querySelector('#root');
+                        return root && root.innerHTML.length > 0;
+                    },
+                    { timeout: 10000 }
+                ).catch(() => {
+                    console.log('[ensureReadyToTest] Warning: Root still empty after 10s wait');
+                });
+
+                // Give React a moment to settle
+                await page.waitForTimeout(1000);
+            } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                console.log('[ensureReadyToTest] Navigation/load error:', msg);
+            }
+
+            await page.waitForTimeout(500);
+
+            const newUrl = page.url();
+            console.log('[ensureReadyToTest] URL after project creation:', newUrl);
+
+            // Check for error after submit
+            const errorAlert = page.getByTestId('setup-project-error');
+            const hasError = await errorAlert.isVisible().catch(() => false);
+            if (hasError) {
+                const errorText = await errorAlert.textContent();
+                console.log('[ensureReadyToTest] ERROR AFTER SUBMIT:', errorText);
+            }
+
+            retries++;
+            continue;
+        }
+
+        // Check if we're on setup/onboarding pages
+        if (url.includes('/setup') || url.includes('/onboarding')) {
+            console.log('[ensureReadyToTest] Setup/onboarding page detected, trying to navigate to admin...');
+            await page.goto(`${baseUrl}/admin`);
+            await page.waitForTimeout(1000);
+            retries++;
+            continue;
+        }
+
+        // If none of the guards are visible, we're ready to proceed
+        console.log('[ensureReadyToTest] Ready to proceed - no guards detected');
+        return;
+    }
+
+    // If we exhausted retries, throw an error
+    throw new Error(`Failed to ensure ready state after ${maxRetries} retries. Current URL: ${page.url()}`);
 }

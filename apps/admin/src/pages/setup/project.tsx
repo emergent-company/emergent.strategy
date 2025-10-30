@@ -8,11 +8,12 @@ import { Icon } from '@/components/atoms/Icon';
 
 export default function SetupProjectPage() {
     const navigate = useNavigate();
-    const { createProject } = useProjects();
+    const { createProject, refresh } = useProjects();
     const { config, setActiveProject } = useConfig();
     const [name, setName] = useState('');
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [shouldNavigate, setShouldNavigate] = useState(false);
 
     // Redirect to org setup if no org
     useEffect(() => {
@@ -21,24 +22,57 @@ export default function SetupProjectPage() {
         }
     }, [config.activeOrgId, navigate]);
 
+    // Navigate after project is set in config
+    useEffect(() => {
+        console.log('[SetupProjectPage] useEffect fired - shouldNavigate:', shouldNavigate, 'activeProjectId:', config.activeProjectId);
+        if (shouldNavigate && config.activeProjectId) {
+            console.log('[SetupProjectPage] Config updated with project, navigating now');
+            navigate('/admin/apps/documents', { replace: true });
+            setShouldNavigate(false);
+        }
+    }, [shouldNavigate, config.activeProjectId, navigate]);
+
     async function handleCreate(e: React.FormEvent) {
+        console.log('[SetupProjectPage] handleCreate called!');
         e.preventDefault();
+        console.log('[SetupProjectPage] preventDefault called');
+
         const trimmed = name.trim();
-        if (!trimmed || trimmed.length < 2) return;
+        console.log('[SetupProjectPage] trimmed name:', trimmed, 'length:', trimmed.length);
+
+        if (!trimmed || trimmed.length < 2) {
+            console.log('[SetupProjectPage] Name too short, returning');
+            return;
+        }
 
         setError(null);
         setCreating(true);
+        console.log('[SetupProjectPage] Set creating=true');
 
         try {
+            console.log('[SetupProjectPage] Creating project:', trimmed);
             const proj = await createProject(trimmed);
-            setActiveProject(proj.id, proj.name);
+            console.log('[SetupProjectPage] Project created:', proj);
 
-            // After project created, redirect to main app
-            navigate('/admin/apps/documents', { replace: true });
+            // Set the active project in config/localStorage
+            setActiveProject(proj.id, proj.name);
+            console.log('[SetupProjectPage] Set active project:', proj.id, proj.name);
+
+            // CRITICAL: Refresh the projects list so SetupGuard sees the new project
+            console.log('[SetupProjectPage] Refreshing projects list...');
+            await refresh();
+            console.log('[SetupProjectPage] Projects list refreshed');
+
+            // Small delay to ensure state updates propagate
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Use window.location to force full page reload (ensures clean state)
+            console.log('[SetupProjectPage] Using window.location to navigate');
+            window.location.href = '/admin/apps/documents';
         } catch (err) {
+            console.error('[SetupProjectPage] Error creating project:', err);
             const msg = err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err);
             setError(msg || 'Failed to create project');
-        } finally {
             setCreating(false);
         }
     }
