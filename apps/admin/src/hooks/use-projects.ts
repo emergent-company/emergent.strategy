@@ -38,7 +38,9 @@ export const useProjects = () => {
     const headers = useMemo(() => buildHeaders({ json: true }), [buildHeaders]);
 
     const fetchProjects = useCallback(async () => {
+        console.log('[useProjects] fetchProjects() called, activeOrgId:', activeOrgId);
         if (!activeOrgId) {
+            console.log('[useProjects] No activeOrgId, setting empty projects');
             setProjects([]);
             setError(undefined);
             setLoading(false); // No org selected, so we're "done loading" (with empty result)
@@ -52,16 +54,20 @@ export const useProjects = () => {
             let data: Project[] = [];
             if (uuidRegex.test(activeOrgId)) {
                 const url = `${apiBase}/api/projects?limit=500&orgId=${encodeURIComponent(activeOrgId)}`;
+                console.log('[useProjects] Fetching filtered projects from:', url);
                 data = await fetchJson<Project[]>(url, { credentials: "include", headers, method: "GET", json: false });
             } else {
                 // fallback: fetch global list
                 const url = `${apiBase}/api/projects?limit=500`;
+                console.log('[useProjects] Fetching all projects from:', url);
                 data = await fetchJson<Project[]>(url, { credentials: "include", headers, method: "GET", json: false });
             }
+            console.log('[useProjects] Response:', data.length, 'projects');
             // Normalize project orgId fields for consistent comparisons
             const normalized = data.map(p => ({ ...p, orgId: p.orgId ? normalizeOrgId(p.orgId) : p.orgId }));
             setProjects(normalized);
         } catch (e) {
+            console.error('[useProjects] Error:', e);
             setError((e as Error).message || "Failed to load projects");
         } finally {
             setLoading(false);

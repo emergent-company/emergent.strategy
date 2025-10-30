@@ -30,7 +30,13 @@ export class OrgsController {
     @ApiStandardErrors()
     async list(@Req() req: any): Promise<OrgDto[]> {
         const userId: string | undefined = req?.user?.id; // Use internal UUID, not external sub
-        return this.orgs.list(userId);
+        console.log('[OrgsController.list] Called with userId:', userId);
+        console.log('[OrgsController.list] req.user:', JSON.stringify(req?.user, null, 2));
+
+        const orgs = await this.orgs.list(userId);
+        console.log('[OrgsController.list] Found', orgs.length, 'orgs:', orgs.map(o => ({ id: o.id, name: o.name })));
+
+        return orgs;
     }
 
     @Get(':id')
