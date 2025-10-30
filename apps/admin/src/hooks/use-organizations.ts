@@ -18,18 +18,23 @@ export function useOrganizations() {
     const [error, setError] = useState<string | undefined>(undefined);
 
     const refresh = useCallback(async () => {
+        console.log('[useOrganizations] refresh() called');
         setLoading(true);
         setError(undefined);
         try {
+            console.log('[useOrganizations] Fetching from:', `${apiBase}/api/orgs`);
             const data = await fetchJson<OrgsResponseFlexible>(`${apiBase}/api/orgs`, { credentials: "include" });
+            console.log('[useOrganizations] Response:', data);
             const rawList: Organization[] = Array.isArray(data)
                 ? data
                 : Array.isArray((data as any)?.orgs)
                     ? (data as any).orgs
                     : [];
             const list = rawList.map(o => ({ ...o, id: normalizeOrgId(o.id) || o.id }));
+            console.log('[useOrganizations] Processed orgs:', list.length, 'orgs');
             setOrgs(list);
         } catch (e) {
+            console.error('[useOrganizations] Error:', e);
             setError(e instanceof Error ? e.message : "Unknown error");
         } finally {
             setLoading(false);

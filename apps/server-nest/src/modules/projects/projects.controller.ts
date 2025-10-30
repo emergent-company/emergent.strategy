@@ -25,7 +25,12 @@ export class ProjectsController {
     @Scopes('project:read')
     async list(@Query('limit') limit?: string, @Query('orgId', new UuidParamPipe({ nullable: true, paramName: 'orgId' })) orgId?: string) {
         const n = limit ? Math.min(Math.max(parseInt(limit, 10) || 100, 1), 500) : 100;
-        return this.projects.list(n, orgId);
+        console.log('[ProjectsController.list] Called with limit:', n, 'orgId:', orgId);
+
+        const projects = await this.projects.list(n, orgId);
+        console.log('[ProjectsController.list] Found', projects.length, 'projects:', projects.map(p => ({ id: p.id, name: p.name, orgId: p.orgId })));
+
+        return projects;
     }
 
     @Get(':id')

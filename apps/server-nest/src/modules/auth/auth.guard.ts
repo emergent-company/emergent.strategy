@@ -9,27 +9,39 @@ export class AuthGuard implements CanActivate {
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const req = context.switchToHttp().getRequest<any>();
         const headerRaw = req.headers['authorization'];
+        const path = req.path;
+
+        console.log('[AuthGuard] Request to:', path);
 
         // 1. Missing header entirely
         if (!headerRaw) {
+            console.log('[AuthGuard] Missing Authorization header');
             throw new UnauthorizedException({ error: { code: 'missing_token', message: 'Missing Authorization bearer token' } });
         }
 
         const header = Array.isArray(headerRaw) ? headerRaw[0] : headerRaw;
         if (typeof header !== 'string') {
+            console.log('[AuthGuard] Authorization header not a string:', typeof header);
             throw new UnauthorizedException({ error: { code: 'malformed_authorization', message: 'Authorization header must be a string' } });
         }
 
         // 2. Wrong scheme / malformed value
         if (!/^Bearer\s+.+/i.test(header)) {
+            console.log('[AuthGuard] Invalid Bearer format');
             throw new UnauthorizedException({ error: { code: 'malformed_authorization', message: 'Authorization header must be: Bearer <token>' } });
         }
 
         const token = header.replace(/^Bearer\s+/i, '');
+        console.log('[AuthGuard] Token present, validating... (length:', token.length, ')');
+
         const user = await this.auth.validateToken(token);
         if (!user) {
+            console.log('[AuthGuard] Token validation failed');
             throw new UnauthorizedException({ error: { code: 'invalid_token', message: 'Invalid or expired access token' } });
         }
+
+        console.log('[AuthGuard] User validated:', { id: user.id, email: user.email, scopes: user.scopes?.slice(0, 3) });
+
         req.user = user;
         if (process.env.DEBUG_AUTH_SCOPES === '1') {
             try {

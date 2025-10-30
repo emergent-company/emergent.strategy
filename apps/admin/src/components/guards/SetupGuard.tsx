@@ -115,9 +115,28 @@ export function SetupGuard({ children }: SetupGuardProps) {
     }
 
     // Only render children if setup complete
-    // Check API arrays - the source of truth for what exists in database
-    const hasOrg = orgs && orgs.length > 0;
-    const hasProject = projects && projects.length > 0;
+    // Check API arrays first - the source of truth for what exists in database
+    let hasOrg = orgs && orgs.length > 0;
+    let hasProject = projects && projects.length > 0;
+
+    // Fallback: If API shows empty but localStorage has values, trust localStorage
+    // This handles the case where browser cache returns stale empty data
+    if (!hasProject || !hasOrg) {
+        try {
+            const stored = window.localStorage.getItem('spec-server');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (!hasOrg && parsed.activeOrgId) {
+                    hasOrg = true;
+                }
+                if (!hasProject && parsed.activeProjectId) {
+                    hasProject = true;
+                }
+            }
+        } catch (e) {
+            // Ignore localStorage errors in render
+        }
+    }
 
     if (!hasOrg || !hasProject) {
         // Return null while redirect is processing
