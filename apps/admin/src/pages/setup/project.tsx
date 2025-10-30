@@ -66,9 +66,9 @@ export default function SetupProjectPage() {
             // Small delay to ensure state updates propagate
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Use window.location to force full page reload (ensures clean state)
-            console.log('[SetupProjectPage] Using window.location to navigate');
-            window.location.href = '/admin/apps/documents';
+            // Use React Router navigate instead of window.location to preserve React state
+            console.log('[SetupProjectPage] Navigating with React Router');
+            navigate('/admin/apps/documents', { replace: true });
         } catch (err) {
             console.error('[SetupProjectPage] Error creating project:', err);
             const msg = err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err);

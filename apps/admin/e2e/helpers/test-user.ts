@@ -520,23 +520,9 @@ export async function ensureReadyToTest(
                 await page.waitForLoadState('load', { timeout: 10000 });
                 console.log('[ensureReadyToTest] Page loaded');
 
-                // After window.location navigation, Playwright's page object can become stale.
-                // Force a refresh by doing a fresh page.goto() to the current URL to ensure
-                // Playwright properly reinitializes the page context.
-                const currentUrl = page.url();
-                console.log('[ensureReadyToTest] Doing fresh page.goto() to reinitialize page context');
-                await page.goto(currentUrl, { waitUntil: 'networkidle', timeout: 15000 });
-                console.log('[ensureReadyToTest] Fresh page.goto() complete');
-
-                // Now wait for React to mount
+                // Wait for React to mount
                 console.log('[ensureReadyToTest] Waiting for React to mount...');
-                await page.waitForFunction(
-                    () => {
-                        const root = document.querySelector('#root');
-                        return root && root.innerHTML.length > 0;
-                    },
-                    { timeout: 10000 }
-                ).catch(() => {
+                await page.waitForSelector('#root:not(:empty)', { timeout: 10000 }).catch(() => {
                     console.log('[ensureReadyToTest] Warning: Root still empty after 10s wait');
                 });
 
@@ -567,7 +553,16 @@ export async function ensureReadyToTest(
         // Check if we're on setup/onboarding pages
         if (url.includes('/setup') || url.includes('/onboarding')) {
             console.log('[ensureReadyToTest] Setup/onboarding page detected, trying to navigate to admin...');
-            await page.goto(`${baseUrl}/admin`);
+            await page.goto(`${baseUrl}/admin/apps/documents`);
+            await page.waitForTimeout(1000);
+            retries++;
+            continue;
+        }
+
+        // If we're on /admin but not /admin/apps/*, navigate to a specific app page to trigger guards
+        if (url === `${baseUrl}/admin` || url === `${baseUrl}/admin/`) {
+            console.log('[ensureReadyToTest] On admin landing page, navigating to app page to trigger guards...');
+            await page.goto(`${baseUrl}/admin/apps/documents`);
             await page.waitForTimeout(1000);
             retries++;
             continue;
