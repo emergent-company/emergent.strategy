@@ -166,7 +166,24 @@ export function OrgAndProjectGateRedirect({ children }: OrgAndProjectGateRedirec
     const { config } = useConfig();
     const navigate = useNavigate();
     const location = useLocation();
-    const ready = !!config.activeOrgId && !!config.activeProjectId;
+
+    // Check both React state AND localStorage (in case React state hasn't propagated yet)
+    let ready = !!config.activeOrgId && !!config.activeProjectId;
+
+    // Fallback: check localStorage directly if React state shows not ready
+    if (!ready) {
+        try {
+            const stored = window.localStorage.getItem('spec-server');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                ready = !!parsed.activeOrgId && !!parsed.activeProjectId;
+                console.log('[OrgAndProjectGateRedirect] localStorage fallback check - ready:', ready, 'org:', parsed.activeOrgId, 'project:', parsed.activeProjectId);
+            }
+        } catch (e) {
+            console.error('[OrgAndProjectGateRedirect] Error reading localStorage:', e);
+        }
+    }
+
     const redirectedRef = useRef(false);
     useEffect(() => {
         if (!ready) return;

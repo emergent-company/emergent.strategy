@@ -4,6 +4,7 @@ import { AppModule } from './modules/app.module';
 import { AppConfigService } from './common/config/config.service';
 import { ValidationPipe, HttpStatus, UnprocessableEntityException } from '@nestjs/common';
 import { DatabaseReadinessInterceptor } from './common/interceptors/database-readiness.interceptor';
+import { HttpLoggerInterceptor } from './common/interceptors/http-logger.interceptor';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { FileLogger } from './common/logger/file-logger.service';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -119,7 +120,10 @@ async function bootstrap() {
 
     SwaggerModule.setup('api', app, () => document);
     app.useGlobalFilters(new GlobalHttpExceptionFilter());
-    app.useGlobalInterceptors(app.get(DatabaseReadinessInterceptor));
+    app.useGlobalInterceptors(
+        app.get(DatabaseReadinessInterceptor),
+        new HttpLoggerInterceptor()  // Log all HTTP requests
+    );
 
     const configService = app.get(AppConfigService);
     // Log chat model enablement state (always) for clarity during startup
