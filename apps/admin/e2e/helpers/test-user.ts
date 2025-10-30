@@ -404,6 +404,27 @@ export async function ensureReadyToTest(
     const baseUrl = process.env.E2E_BASE_URL || 'http://localhost:5176';
     let retries = 0;
 
+    // FIRST: Check if already authenticated by looking for auth token in localStorage
+    const hasAuth = await page.evaluate(() => {
+        try {
+            const raw = localStorage.getItem('__nexus_auth_v1__');
+            if (!raw) return false;
+            const authData = JSON.parse(raw);
+            return !!(authData.idToken || authData.accessToken);
+        } catch {
+            return false;
+        }
+    }).catch(() => false);
+
+    console.log('[ensureReadyToTest] Auth check:', hasAuth ? '✅ Already authenticated' : '❌ Not authenticated');
+
+    // If page is on about:blank (fresh context), navigate to trigger auth/setup flow
+    if (page.url() === 'about:blank') {
+        console.log('[ensureReadyToTest] Starting on about:blank, navigating to /admin/apps/documents to trigger guards...');
+        await page.goto(`${baseUrl}/admin/apps/documents`);
+        await page.waitForLoadState('domcontentloaded');
+    }
+
     while (retries < maxRetries) {
         // Wait for page to be stable
         await page.waitForLoadState('domcontentloaded');
@@ -414,12 +435,46 @@ export async function ensureReadyToTest(
 
         // Success case: We're on an admin page (not setup/onboarding/login)
         if (url.includes('/admin/apps/') && !url.includes('/setup') && !url.includes('/onboarding') && !url.includes('oauth')) {
-            console.log('[ensureReadyToTest] ✅ Already on admin page, success!');
+            console.log('[ensureReadyToTest] On admin page, verifying state persistence...');
+
+            // Verify localStorage has org and project set
+            const hasState = await page.evaluate(() => {
+                try {
+                    const raw = localStorage.getItem('spec-server');
+                    if (!raw) return false;
+                    const config = JSON.parse(raw);
+                    return !!(config.activeOrgId && config.activeProjectId);
+                } catch {
+                    return false;
+                }
+            });
+
+            if (!hasState) {
+                console.log('[ensureReadyToTest] ⚠️  No org/project in localStorage, continuing setup...');
+                retries++;
+                continue;
+            }
+
+            // Additional safety: Navigate to a different admin route to verify state persists across routes
+            // This ensures SetupGuard won't redirect when tests navigate to their target routes
+            console.log('[ensureReadyToTest] State found, testing navigation to different route...');
+            const testUrl = `${baseUrl}/admin/apps/templates`;
+            await page.goto(testUrl);
+            await page.waitForTimeout(1000);
+
+            const finalUrl = page.url();
+            if (finalUrl.includes('/setup')) {
+                console.log('[ensureReadyToTest] ⚠️  Redirected to setup on navigation test, state not persisting');
+                retries++;
+                continue;
+            }
+
+            console.log('[ensureReadyToTest] ✅ State verified and persists across routes!');
             return;
         }
 
-        // Check for login page (Zitadel or app login)
-        if (url.includes('oauth/authorize') || url.includes('login')) {
+        // Check for login page (Zitadel or app login) - ONLY if not already authenticated
+        if (!hasAuth && (url.includes('oauth/authorize') || url.includes('login'))) {
             console.log('[ensureReadyToTest] Login page detected, performing login...');
             const credentials = getTestUserCredentials();
 
@@ -442,11 +497,82 @@ export async function ensureReadyToTest(
             continue;
         }
 
+        // If already authenticated but on login/oauth page, just navigate away
+        if (hasAuth && (url.includes('oauth/authorize') || url.includes('login'))) {
+            console.log('[ensureReadyToTest] Already authenticated but on login page, navigating to admin...');
+            await page.goto(`${baseUrl}/admin/apps/documents`);
+            await page.waitForTimeout(1000);
+            retries++;
+            continue;
+        }
+
         // Check for org creation guard
         const orgForm = page.getByTestId(orgFormTestId);
         if (await orgForm.isVisible({ timeout: 1000 }).catch(() => false)) {
-            console.log('[ensureReadyToTest] Org creation form detected, creating org...');
+            console.log('[ensureReadyToTest] Org creation form detected');
 
+            // Check if we have orgs but no active org selected (409 conflict scenario)
+            // Try to get the first org from API and set it as active
+            const orgsFromAPI = await page.evaluate(async () => {
+                try {
+                    const response = await fetch('/api/orgs');
+                    if (response.ok) {
+                        const orgs = await response.json();
+                        return orgs;
+                    }
+                } catch (e) {
+                    console.log('[E2E] Failed to fetch orgs:', e);
+                }
+                return null;
+            });
+
+            if (orgsFromAPI && orgsFromAPI.length > 0) {
+                console.log('[ensureReadyToTest] Found existing orgs, selecting first one instead of creating new');
+                const firstOrg = orgsFromAPI[0];
+
+                // Set active org properly - merge with existing config
+                await page.evaluate(({ orgId, orgName }) => {
+                    try {
+                        const defaultConfig = {
+                            theme: "system",
+                            direction: "ltr",
+                            fontFamily: "default",
+                            sidebarTheme: "light",
+                            fullscreen: false,
+                        };
+
+                        const raw = localStorage.getItem('spec-server');
+                        const existingConfig = raw ? JSON.parse(raw) : {};
+
+                        // Merge: defaults <- existing <- new org selection
+                        const newConfig = {
+                            ...defaultConfig,
+                            ...existingConfig,
+                            activeOrgId: orgId,
+                            activeOrgName: orgName,
+                            // Clear project when changing org
+                            activeProjectId: undefined,
+                            activeProjectName: undefined
+                        };
+
+                        localStorage.setItem('spec-server', JSON.stringify(newConfig));
+                        console.log('[E2E] Set activeOrgId:', orgId);
+                    } catch (e) {
+                        console.log('[E2E] Error setting org:', e);
+                    }
+                }, { orgId: firstOrg.id, orgName: firstOrg.name });
+
+                // Navigate to project setup instead of reloading
+                // Since we have an org now, skip to project setup
+                console.log('[ensureReadyToTest] Active org set, navigating to project setup...');
+                await page.goto('/setup/project');
+                await page.waitForTimeout(1000);
+
+                retries++;
+                continue;
+            }
+
+            console.log('[ensureReadyToTest] No existing orgs, creating new one...');
             // Fill org creation form
             const orgNameInput = page.getByTestId('setup-org-name-input');
             await orgNameInput.fill(`E2E Test Org ${Date.now()}`);
