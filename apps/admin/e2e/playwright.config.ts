@@ -73,13 +73,13 @@ export default defineConfig({
         }
         : undefined,
     projects: [
-        // Setup project to create an authenticated storage state (if E2E_AUTH_TOKEN is provided, it injects it)
+        // Setup project to authenticate and ensure org/project exist
         {
             name: 'setup',
             testMatch: /auth\.setup\.ts/,
             use: { ...devices['Desktop Chrome'] },
         },
-        // Authenticated tests re-use storage state when present
+        // All tests re-use authenticated storage state from setup
         {
             name: 'chromium',
             use: {
@@ -87,16 +87,6 @@ export default defineConfig({
                 storageState: resolve(__dirname, '.auth/state.json'),
             },
             dependencies: ['setup'],
-        },
-        // Clean user tests (no auth setup dependency, fixture handles own login)
-        {
-            name: 'chromium-clean',
-            testMatch: /setup-guard\.spec\.ts/, // Tests that use cleanUser fixture
-            use: {
-                ...devices['Desktop Chrome'],
-                // No storageState - cleanUser fixture handles login
-            },
-            // No dependencies - cleanUser handles its own auth
         },
         // { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
         // { name: 'webkit', use: { ...devices['Desktop Safari'] } },

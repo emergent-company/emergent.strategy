@@ -54,10 +54,30 @@ export function SetupGuard({ children }: SetupGuardProps) {
             return;
         }
 
-        // ALWAYS check API arrays - don't trust localStorage alone
-        // localStorage might have stale IDs from previous sessions
-        const hasOrg = orgs && orgs.length > 0;
-        const hasProject = projects && projects.length > 0;
+        // Check API arrays first - the source of truth for what exists in database
+        let hasOrg = orgs && orgs.length > 0;
+        let hasProject = projects && projects.length > 0;
+
+        // Fallback: If API shows empty but localStorage has values, trust localStorage
+        // This handles the case where browser cache returns stale empty data
+        if (!hasProject || !hasOrg) {
+            try {
+                const stored = window.localStorage.getItem('spec-server');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (!hasOrg && parsed.activeOrgId) {
+                        console.log('[SetupGuard] localStorage shows org exists, trusting it');
+                        hasOrg = true;
+                    }
+                    if (!hasProject && parsed.activeProjectId) {
+                        console.log('[SetupGuard] localStorage shows project exists, trusting it');
+                        hasProject = true;
+                    }
+                }
+            } catch (e) {
+                console.error('[SetupGuard] Error reading localStorage:', e);
+            }
+        }
 
         console.log('[SetupGuard] Check complete', { hasOrg, hasProject });
 

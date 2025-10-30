@@ -73,11 +73,13 @@ const apps = [
       WORKSPACE_SERVICE_ID: 'server',
       WORKSPACE_PROCESS_NAMESPACE: 'workspace-cli',
       WORKSPACE_RESTART_MAX: String(DEFAULT_MAX_RESTARTS),
-      WORKSPACE_RESTART_WINDOW_SEC: '600'
+      WORKSPACE_RESTART_WINDOW_SEC: '600',
+      HTTP_LOG_PATH: path.join(repoRoot, 'logs', 'http.log')
     },
     env_development: {
       NODE_ENV: 'development',
-      LOG_LEVEL: 'debug'
+      LOG_LEVEL: 'debug',
+      HTTP_LOG_PATH: path.join(repoRoot, 'logs', 'http.log')
     },
     env_staging: {
       NODE_ENV: 'staging',

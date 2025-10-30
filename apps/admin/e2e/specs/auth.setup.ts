@@ -217,6 +217,7 @@ setup('auth: login and save storage state', async ({ page, context }) => {
 
     // Persist storage state for subsequent tests.
     await context.storageState({ path: storageFile });
+    console.log('[auth.setup] Storage state saved to:', storageFile);
 });
 
 // Helper wrapper using test.step for structured reporting.
