@@ -137,6 +137,54 @@ export async function stubChatBackend(page: Page, opts: { uuid?: string } = {}):
             }
         }),
     }));
+    // Stub chat streaming with a fetch interceptor (since Playwright route.fulfill doesn't support true streaming)
+    await page.addInitScript(({ _uuid }: { _uuid: string }) => {
+        console.log('[fetch-intercept] Init script running, uuid:', _uuid);
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+            const url = typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+            console.log('[fetch-intercept] Fetch called:', url, init?.method || 'GET');
+
+            // Intercept /chat/stream POST requests
+            if (url.includes('/chat/stream')) {
+                console.log('[fetch-intercept] Matched /chat/stream, method:', init?.method);
+                if (!init || init.method === 'POST' || !init.method) {
+                    console.log('[fetch-intercept] Intercepting /chat/stream POST');
+                    const sse = [
+                        `data: ${JSON.stringify({ type: 'meta', conversationId: _uuid })}`,
+                        `data: ${JSON.stringify({ type: 'token', token: ' Pong' })}`,
+                        `data: ${JSON.stringify({ type: 'done' })}`,
+                        '',
+                    ].join('\n\n');
+
+                    console.log('[fetch-intercept] SSE data:', sse.substring(0, 100));
+
+                    // Create a ReadableStream that delivers the SSE data
+                    const stream = new ReadableStream({
+                        start(controller) {
+                            console.log('[fetch-intercept] Stream started, enqueuing data');
+                            controller.enqueue(new TextEncoder().encode(sse));
+                            controller.close();
+                            console.log('[fetch-intercept] Stream closed');
+                        }
+                    });
+
+                    return Promise.resolve(new Response(stream, {
+                        status: 200,
+                        headers: {
+                            'Content-Type': 'text/event-stream',
+                            'Cache-Control': 'no-cache',
+                            'Connection': 'keep-alive',
+                        }
+                    }));
+                }
+            }
+
+            return originalFetch(input as any, init);
+        };
+    }, { _uuid: uuid });
+
+    // Keep the route stub as a fallback but it won't be used now
     await page.route(/\/chat\/stream$/, async (route) => {
         const sse = [
             `data: ${JSON.stringify({ type: 'meta', conversationId: uuid })}`,
@@ -144,7 +192,18 @@ export async function stubChatBackend(page: Page, opts: { uuid?: string } = {}):
             `data: ${JSON.stringify({ type: 'done' })}`,
             '',
         ].join('\n\n');
-        await route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream', Connection: 'keep-alive', 'Cache-Control': 'no-cache' }, body: sse });
+
+        // Use a proper ReadableStream to simulate true streaming
+        await route.fulfill({
+            status: 200,
+            headers: {
+                'Content-Type': 'text/event-stream',
+                'Connection': 'keep-alive',
+                'Cache-Control': 'no-cache',
+                // Do NOT include Content-Length to allow streaming
+            },
+            body: sse,
+        });
     });
     // Same-origin PATCH / DELETE (rename / delete) stubs to avoid 404 console errors
     await page.route('**/chat/*', async (route) => {
@@ -187,9 +246,27 @@ export async function seedOrgProject(page: Page): Promise<void> {
 export async function ensureActiveOrgAndProject(page: Page, opts: { orgId?: string; projectId?: string } = {}): Promise<void> {
     const orgId = opts.orgId || '22222222-2222-4222-8222-222222222222';
     const projectId = opts.projectId || '33333333-3333-4333-8333-333333333333';
+
+    // Set localStorage on current page context immediately
+    await page.evaluate(({ _orgId, _projectId }) => {
+        try {
+            const CONFIG_KEYS = ['__NEXUS_CONFIG_v3.0__', '__nexus_config_v1__', 'spec-server'];
+            for (const key of CONFIG_KEYS) {
+                const raw = localStorage.getItem(key);
+                const state: any = raw ? JSON.parse(raw) : {};
+                state.activeOrgId = _orgId;
+                state.activeOrgName = 'E2E Org';
+                state.activeProjectId = _projectId;
+                state.activeProjectName = 'E2E Project';
+                localStorage.setItem(key, JSON.stringify(state));
+            }
+        } catch { /* ignore */ }
+    }, { _orgId: orgId, _projectId: projectId });
+
+    // Also add init script for future page loads
     await page.addInitScript(({ _orgId, _projectId }) => {
         try {
-            const CONFIG_KEYS = ['__NEXUS_CONFIG_v3.0__', '__nexus_config_v1__'];
+            const CONFIG_KEYS = ['__NEXUS_CONFIG_v3.0__', '__nexus_config_v1__', 'spec-server'];
             for (const key of CONFIG_KEYS) {
                 const raw = localStorage.getItem(key);
                 const state: any = raw ? JSON.parse(raw) : {};

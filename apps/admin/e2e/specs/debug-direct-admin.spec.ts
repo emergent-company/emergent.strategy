@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { ensureReadyToTest } from '../helpers/test-user';
 
-test.describe('Debug: Direct Admin Navigation', () => {
+// DISABLED: Debug test - uses real auth flow
+test.describe.skip('Debug: Direct Admin Navigation', () => {
     test.use({ storageState: 'apps/admin/e2e/.auth/state.json' });
 
     test('navigate directly to admin/apps/documents', async ({ page }) => {

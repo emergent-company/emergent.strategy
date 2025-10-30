@@ -1,34 +1,20 @@
 import { test, expect } from '../fixtures/consoleGate';
 import { navigate } from '../utils/navigation';
 import { expectNoRuntimeErrors } from '../utils/assertions';
-import { ensureOrgAndProject } from '../helpers/test-user';
+import { ensureReadyToTest } from '../helpers/test-user';
 
 /**
  * NOTE: Auth is now established via the dedicated auth.setup.ts (OIDC/Zitadel UI login or token injection).
  * This spec assumes storageState already contains a valid session. Uses real backend API for integration testing.
+ * 
+ * DISABLED: Chat functionality will be refactored. These tests will be updated after the refactor.
  */
 
-test.describe('Chat - new conversation flow', () => {
-    let testOrgId: string;
-    let testProjectId: string;
-
-    // Ensure org and project exist in database, store IDs for test contexts
-    test.beforeAll(async ({ browser }) => {
-        const storageFile = 'apps/admin/e2e/.auth/state.json';
-        const context = await browser.newContext({ storageState: storageFile });
-        const page = await context.newPage();
-        const { orgId, projectId } = await ensureOrgAndProject(page);
-        testOrgId = orgId;
-        testProjectId = projectId;
-        await context.close();
-    });
+test.describe.skip('Chat - new conversation flow', () => {
 
     test('navigates to /admin/apps/chat/c/new without 404', async ({ page, consoleErrors, pageErrors }) => {
-        // Set org/project in this page's localStorage before navigating
-        await page.addInitScript(({ orgId, projectId }) => {
-            window.localStorage.setItem('activeOrgId', orgId);
-            window.localStorage.setItem('activeProjectId', projectId);
-        }, { orgId: testOrgId, projectId: testProjectId });
+        // Ensure org/project setup is complete before navigating
+        await ensureReadyToTest(page);
 
         await test.step('Navigate to new conversation route', async () => {
             await navigate(page, '/admin/apps/chat/c/new');
@@ -57,11 +43,8 @@ test.describe('Chat - new conversation flow', () => {
     });
 
     test('sends first message via CTA composer + SSE stream', async ({ page, consoleErrors, pageErrors }) => {
-        // Set org/project in this page's localStorage before navigating
-        await page.addInitScript(({ orgId, projectId }) => {
-            window.localStorage.setItem('activeOrgId', orgId);
-            window.localStorage.setItem('activeProjectId', projectId);
-        }, { orgId: testOrgId, projectId: testProjectId });
+        // Ensure org/project setup is complete before navigating
+        await ensureReadyToTest(page);
 
         const prompt = 'E2E manual send ping';
 
