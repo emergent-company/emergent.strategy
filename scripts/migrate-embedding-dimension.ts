@@ -32,6 +32,7 @@
 
 import { Pool } from 'pg';
 import * as readline from 'readline';
+import { validateEnvVars, DB_REQUIREMENTS, getDbConfig } from './lib/env-validator.js';
 
 interface MigrationConfig {
     fromDimension: number;
@@ -121,13 +122,12 @@ For detailed documentation, see: docs/EMBEDDING_MIGRATION.md
 }
 
 async function createPool(): Promise<Pool> {
-    const pool = new Pool({
-        host: process.env.PGHOST || 'localhost',
-        port: parseInt(process.env.PGPORT || '5432', 10),
-        user: process.env.PGUSER || 'postgres',
-        password: process.env.PGPASSWORD || 'postgres',
-        database: process.env.PGDATABASE || 'spec_server',
-    });
+    // Validate required environment variables with helpful error messages
+    validateEnvVars(DB_REQUIREMENTS);
+    
+    // Use validated env vars with no fallbacks
+    const dbConfig = getDbConfig();
+    const pool = new Pool(dbConfig);
 
     // Test connection
     try {

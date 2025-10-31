@@ -44,10 +44,14 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
 
     private initialize() {
         const projectId = process.env.VERTEX_EMBEDDING_PROJECT;
-        const location = process.env.VERTEX_EMBEDDING_LOCATION || 'us-central1';
+        const location = process.env.VERTEX_EMBEDDING_LOCATION;
 
-        if (!projectId) {
-            this.logger.warn('Vertex AI Embeddings not configured: VERTEX_EMBEDDING_PROJECT missing');
+        if (!projectId || !location) {
+            this.logger.warn(
+                'Vertex AI Embeddings not configured. Required: ' +
+                'VERTEX_EMBEDDING_PROJECT, VERTEX_EMBEDDING_LOCATION. ' +
+                'Check your .env file.'
+            );
             return;
         }
 
@@ -61,8 +65,11 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
                 project: projectId,
                 location: location,
             });
-            const model = process.env.VERTEX_EMBEDDING_MODEL || 'text-embedding-004';
-            this.logger.log(`Vertex AI Embeddings initialized: project=${projectId}, location=${location}, model=${model}`);
+            const model = process.env.VERTEX_EMBEDDING_MODEL;
+            if (!model) {
+                this.logger.warn('VERTEX_EMBEDDING_MODEL not set, defaulting to text-embedding-004');
+            }
+            this.logger.log(`Vertex AI Embeddings initialized: project=${projectId}, location=${location}, model=${model || 'text-embedding-004'}`);
         } catch (error) {
             this.logger.error('Failed to initialize Vertex AI for embeddings', error);
             this.vertexAI = null;
@@ -85,7 +92,12 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
 
         const model = process.env.VERTEX_EMBEDDING_MODEL || 'text-embedding-004';
         const projectId = process.env.VERTEX_EMBEDDING_PROJECT;
-        const location = process.env.VERTEX_EMBEDDING_LOCATION || 'us-central1';
+        const location = process.env.VERTEX_EMBEDDING_LOCATION;
+
+        if (!projectId || !location) {
+            this.logger.error('Vertex AI configuration missing at runtime. Required: VERTEX_EMBEDDING_PROJECT, VERTEX_EMBEDDING_LOCATION');
+            return this.deterministicStub(text, 'vertex:config-missing:');
+        }
 
         try {
             // Use the REST API approach directly with ADC

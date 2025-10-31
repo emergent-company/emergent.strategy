@@ -18,7 +18,7 @@ export class AppConfigService {
             // eslint-disable-next-line no-console
             console.log('Config initialized:',
                 'PORT=', this.env.PORT,
-                'PGHOST=', this.env.PGHOST,
+                'POSTGRES_HOST=', this.env.POSTGRES_HOST,
                 'EMBEDDING_PROVIDER=', process.env.EMBEDDING_PROVIDER || 'unset',
                 'GCP_PROJECT_ID=', this.env.GCP_PROJECT_ID || 'unset',
                 'computed chatModelEnabled=', (!!this.env.GCP_PROJECT_ID) && (process.env.CHAT_MODEL_ENABLED === 'true' || process.env.CHAT_MODEL_ENABLED === '1'));
@@ -35,11 +35,11 @@ export class AppConfigService {
     }
 
     get port() { return this.env.PORT; }
-    get dbHost() { return this.env.PGHOST; }
-    get dbPort() { return this.env.PGPORT; }
-    get dbUser() { return this.env.PGUSER; }
-    get dbPassword() { return this.env.PGPASSWORD; }
-    get dbName() { return this.env.PGDATABASE; }
+    get dbHost() { return this.env.POSTGRES_HOST; }
+    get dbPort() { return this.env.POSTGRES_PORT; }
+    get dbUser() { return this.env.POSTGRES_USER; }
+    get dbPassword() { return this.env.POSTGRES_PASSWORD; }
+    get dbName() { return this.env.POSTGRES_DB; }
 
     /**
      * Embeddings are enabled if EMBEDDING_PROVIDER is set to 'vertex' or 'google'

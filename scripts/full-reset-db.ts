@@ -15,7 +15,7 @@
  *
  * Environment variables:
  *   DATABASE_URL            - (preferred) standard Postgres URL
- *   DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME - fallback pieces
+ *   Or POSTGRES_* variables - host, port, user, password, database
  *
  * Safety:
  *   - Acquires advisory lock 4815162342 to prevent concurrent runs
@@ -27,6 +27,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import * as dotenv from 'dotenv';
+import { validateEnvVars, DB_REQUIREMENTS, getDbConfig } from './lib/env-validator.js';
 
 // Load .env early (allow override via DOTENV_PATH); ignore if missing.
 (() => {
@@ -45,16 +46,23 @@ function buildPool(): Pool {
   if (process.env.DATABASE_URL) {
     return new Pool({ connectionString: process.env.DATABASE_URL });
   }
-  const host = process.env.DB_HOST || process.env.PGHOST || 'localhost';
-  const port = +(process.env.DB_PORT || process.env.PGPORT || 5432);
-  const user = process.env.DB_USER || process.env.PGUSER || 'postgres';
-  const password = process.env.DB_PASSWORD || process.env.PGPASSWORD || 'postgres';
-  const database = process.env.DB_NAME || process.env.PGDATABASE || 'postgres';
+  
+  // Validate required environment variables with helpful error messages
+  validateEnvVars(DB_REQUIREMENTS);
+  
+  // Use validated env vars with no fallbacks
+  const dbConfig = getDbConfig();
   if (process.env.FULL_RESET_DB_DEBUG === '1') {
     // eslint-disable-next-line no-console
-    console.log('[full-reset-db] Using connection params', { host, port, user, database, password: password ? '***' : '(empty)' });
+    console.log('[full-reset-db] Using connection params', { 
+      host: dbConfig.host, 
+      port: dbConfig.port, 
+      user: dbConfig.user, 
+      database: dbConfig.database, 
+      password: dbConfig.password ? '***' : '(empty)' 
+    });
   }
-  return new Pool({ host, port, user, password, database });
+  return new Pool(dbConfig);
 }
 
 async function exec(pool: Pool, sql: string) {

@@ -1,0 +1,207 @@
+# Production Docker Compose (Coolify Compatible)
+#
+# This is the main production Docker Compose file optimized for Coolify deployment.
+# - No port mappings (Coolify handles routing via Traefik)
+# - Uses app-level Dockerfiles for proper build context
+# - Environment variables managed by Coolify
+#
+# For local development, use: docker/docker-compose.yml
+#
+# Services:
+#   - db: PostgreSQL 16 with pgvector extension
+#   - zitadel-db: PostgreSQL for Zitadel
+#   - zitadel: Identity provider
+#   - server: NestJS backend API
+#   - admin: React frontend (Vite + Nginx)
+
+services:
+  # PostgreSQL Database with pgvector
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-spec}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-spec}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-spec} -d ${POSTGRES_DB:-spec}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # Zitadel Database
+  zitadel-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: zitadel
+      PGUSER: postgres
+    volumes:
+      - zitadel-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d zitadel -U postgres"]
+      interval: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # Zitadel IAM
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:latest
+    restart: unless-stopped
+    command: 'start-from-init --masterkey "${ZITADEL_MASTERKEY:-MasterkeyNeedsToHave32Characters}" --tlsMode external'
+    environment:
+      # Database configuration
+      ZITADEL_DATABASE_POSTGRES_HOST: zitadel-db
+      ZITADEL_DATABASE_POSTGRES_PORT: 5432
+      ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
+      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: postgres
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: postgres
+      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
+      
+      # External domain configuration
+      ZITADEL_EXTERNALDOMAIN: ${ZITADEL_DOMAIN}
+      ZITADEL_EXTERNALPORT: 443
+      ZITADEL_EXTERNALSECURE: "true"
+      ZITADEL_TLS_ENABLED: "false"
+      
+      # First instance setup (only used on initial deployment)
+      ZITADEL_FIRSTINSTANCE_ORG_NAME: ${ZITADEL_ORG_NAME:-Spec Server}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: ${ZITADEL_ADMIN_USERNAME:-admin@spec-server.local}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: ${ZITADEL_ADMIN_PASSWORD:-Password1!}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_FIRSTNAME: ${ZITADEL_ADMIN_FIRSTNAME:-Admin}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_LASTNAME: ${ZITADEL_ADMIN_LASTNAME:-User}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORDCHANGEREQUIRED: "false"
+      
+      # Logging
+      ZITADEL_LOG_LEVEL: info
+      ZITADEL_LOGSTORE_ACCESS_STDOUT_ENABLED: "true"
+    depends_on:
+      zitadel-db:
+        condition: service_healthy
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "/app/zitadel", "ready"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # Backend API (NestJS)
+  server:
+    build:
+      context: ./apps/server-nest
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # Database
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-spec}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-spec}
+      
+      # Server
+      PORT: 3002
+      NODE_ENV: ${NODE_ENV:-production}
+      DB_AUTOINIT: ${DB_AUTOINIT:-true}
+      
+      # Google AI
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1536}
+      
+      # Zitadel Auth
+      ZITADEL_ISSUER: ${ZITADEL_ISSUER}
+      ZITADEL_INTROSPECTION_URL: ${ZITADEL_INTROSPECTION_URL}
+      ZITADEL_CLIENT_ID: ${ZITADEL_CLIENT_ID}
+      ZITADEL_CLIENT_SECRET: ${ZITADEL_CLIENT_SECRET}
+      ZITADEL_MAIN_ORG_ID: ${ZITADEL_MAIN_ORG_ID}
+      
+      # Optional features
+      ORGS_DEMO_SEED: ${ORGS_DEMO_SEED:-false}
+      CHAT_ENABLE_MCP: ${CHAT_ENABLE_MCP:-1}
+      
+      # CORS
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    depends_on:
+      db:
+        condition: service_healthy
+      zitadel:
+        condition: service_healthy
+    expose:
+      - "3002"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.server.loadbalancer.server.port=3002"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # Frontend App (React + Vite)
+  admin:
+    build:
+      context: ./apps/admin
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_ZITADEL_ISSUER: ${VITE_ZITADEL_ISSUER}
+        VITE_ZITADEL_CLIENT_ID: ${VITE_ZITADEL_CLIENT_ID}
+        VITE_APP_ENV: ${VITE_APP_ENV:-production}
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+      zitadel:
+        condition: service_healthy
+    expose:
+      - "3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.admin.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+volumes:
+  postgres-data:
+  zitadel-db-data:

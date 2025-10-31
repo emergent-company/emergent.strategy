@@ -3,6 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import * as dotenv from 'dotenv';
 import { Pool, PoolClient } from 'pg';
+import { validateEnvVars, DB_REQUIREMENTS, getDbConfig } from './lib/env-validator.js';
 
 const DEFAULT_TEMPLATE_PACK_ID = '1f6f6267-0d2c-4e2f-9fdb-7f0481219775';
 const DEFAULT_SEED_USER_ID = '00000000-0000-0000-0000-000000000001';
@@ -15,13 +16,11 @@ if (fs.existsSync(envPath)) {
     console.warn('[seed-extraction] No .env file found at project root – proceeding with process env values only');
 }
 
-const pool = new Pool({
-    host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432', 10),
-    user: process.env.PGUSER || process.env.DB_USER || 'spec',
-    password: process.env.PGPASSWORD || process.env.DB_PASSWORD || 'spec',
-    database: process.env.PGDATABASE || process.env.DB_NAME || 'spec',
-});
+// Validate required environment variables with helpful error messages
+validateEnvVars(DB_REQUIREMENTS);
+
+// Use validated env vars with no fallbacks
+const pool = new Pool(getDbConfig());
 
 const orgName = process.env.EXTRACTION_SEED_ORG_NAME || 'Extraction Demo Org';
 const projectName = process.env.EXTRACTION_SEED_PROJECT_NAME || 'Extraction Demo Project';

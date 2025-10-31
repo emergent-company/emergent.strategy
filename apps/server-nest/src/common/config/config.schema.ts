@@ -9,19 +9,19 @@ export class EnvVariables {
     CHAT_MODEL_ENABLED?: boolean; // when true and GCP_PROJECT_ID present, stream real model output
 
     @IsString()
-    PGHOST!: string;
+    POSTGRES_HOST!: string;
 
     @IsNumber()
-    PGPORT: number = 5432;
+    POSTGRES_PORT: number = 5432;
 
     @IsString()
-    PGUSER!: string;
+    POSTGRES_USER!: string;
 
     @IsString()
-    PGPASSWORD!: string;
+    POSTGRES_PASSWORD!: string;
 
     @IsString()
-    PGDATABASE!: string;
+    POSTGRES_DB!: string;
 
     @IsString()
     @IsOptional()
@@ -62,6 +62,23 @@ export class EnvVariables {
     @IsString()
     @IsOptional()
     VERTEX_AI_MODEL?: string;
+
+    // --- Vertex AI Embedding Configuration ---
+    @IsString()
+    @IsOptional()
+    VERTEX_EMBEDDING_LOCATION?: string;
+
+    @IsString()
+    @IsOptional()
+    VERTEX_EMBEDDING_MODEL?: string;
+
+    @IsString()
+    @IsOptional()
+    VERTEX_EMBEDDING_PROJECT?: string;  // Alternative to GCP_PROJECT_ID
+
+    @IsString()
+    @IsOptional()
+    EMBEDDING_PROVIDER?: string;
 
     // --- Chat System Prompts ---
     @IsString()
@@ -126,11 +143,11 @@ export class EnvVariables {
 export function validate(config: Record<string, unknown>): EnvVariables {
     // Provide safe defaults for OpenAPI generation or test contexts without full env
     const withDefaults: Record<string, unknown> = {
-        PGHOST: 'localhost',
-        PGPORT: 5432,
-        PGUSER: 'spec',
-        PGPASSWORD: 'spec',
-        PGDATABASE: 'spec',
+        POSTGRES_HOST: 'localhost',
+        POSTGRES_PORT: 5432,
+        POSTGRES_USER: 'spec',
+        POSTGRES_PASSWORD: 'spec',
+        POSTGRES_DB: 'spec',
         APP_RLS_PASSWORD: process.env.APP_RLS_PASSWORD,
         DB_AUTOINIT: false,
         SKIP_DB: process.env.SKIP_DB,
@@ -141,6 +158,11 @@ export function validate(config: Record<string, unknown>): EnvVariables {
         GCP_PROJECT_ID: process.env.GCP_PROJECT_ID,
         VERTEX_AI_LOCATION: process.env.VERTEX_AI_LOCATION,
         VERTEX_AI_MODEL: process.env.VERTEX_AI_MODEL,
+        // Vertex AI Embedding config - NO FALLBACKS (must be explicitly set)
+        VERTEX_EMBEDDING_LOCATION: process.env.VERTEX_EMBEDDING_LOCATION,
+        VERTEX_EMBEDDING_MODEL: process.env.VERTEX_EMBEDDING_MODEL,
+        VERTEX_EMBEDDING_PROJECT: process.env.VERTEX_EMBEDDING_PROJECT || process.env.GCP_PROJECT_ID,
+        EMBEDDING_PROVIDER: process.env.EMBEDDING_PROVIDER,
         CHAT_SYSTEM_PROMPT: process.env.CHAT_SYSTEM_PROMPT,
         EXTRACTION_WORKER_ENABLED: process.env.EXTRACTION_WORKER_ENABLED,
         EXTRACTION_WORKER_POLL_INTERVAL_MS: process.env.EXTRACTION_WORKER_POLL_INTERVAL_MS || '5000',
@@ -165,7 +187,7 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     };
     const transformed = plainToInstance(EnvVariables, {
         ...withDefaults,
-        PGPORT: withDefaults.PGPORT ? Number(withDefaults.PGPORT) : 5432,
+        POSTGRES_PORT: withDefaults.POSTGRES_PORT ? Number(withDefaults.POSTGRES_PORT) : 5432,
         PORT: withDefaults.PORT ? Number(withDefaults.PORT) : 3002,
         DB_AUTOINIT: withDefaults.DB_AUTOINIT === 'true' || withDefaults.DB_AUTOINIT === true,
         CHAT_MODEL_ENABLED: withDefaults.CHAT_MODEL_ENABLED === 'true' || withDefaults.CHAT_MODEL_ENABLED === true,
