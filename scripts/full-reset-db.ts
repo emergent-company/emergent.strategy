@@ -46,20 +46,20 @@ function buildPool(): Pool {
   if (process.env.DATABASE_URL) {
     return new Pool({ connectionString: process.env.DATABASE_URL });
   }
-  
+
   // Validate required environment variables with helpful error messages
   validateEnvVars(DB_REQUIREMENTS);
-  
+
   // Use validated env vars with no fallbacks
   const dbConfig = getDbConfig();
   if (process.env.FULL_RESET_DB_DEBUG === '1') {
     // eslint-disable-next-line no-console
-    console.log('[full-reset-db] Using connection params', { 
-      host: dbConfig.host, 
-      port: dbConfig.port, 
-      user: dbConfig.user, 
-      database: dbConfig.database, 
-      password: dbConfig.password ? '***' : '(empty)' 
+    console.log('[full-reset-db] Using connection params', {
+      host: dbConfig.host,
+      port: dbConfig.port,
+      user: dbConfig.user,
+      database: dbConfig.database,
+      password: dbConfig.password ? '***' : '(empty)'
     });
   }
   return new Pool(dbConfig);

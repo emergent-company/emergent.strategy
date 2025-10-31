@@ -11,19 +11,19 @@ export interface EnvRequirement {
 
 export function validateEnvVars(requirements: EnvRequirement[]): void {
     const missing: EnvRequirement[] = [];
-    
+
     for (const req of requirements) {
         if (!process.env[req.name]) {
             missing.push(req);
         }
     }
-    
+
     if (missing.length === 0) {
         return; // All good!
     }
-    
+
     console.error('❌ Missing Required Environment Variables:\n');
-    
+
     for (const req of missing) {
         console.error(`  ${req.name}`);
         if (req.description) {
@@ -34,12 +34,12 @@ export function validateEnvVars(requirements: EnvRequirement[]): void {
         }
         console.error('');
     }
-    
+
     console.error('💡 Solutions:');
     console.error('  1. Create .env file: cp .env.example .env');
     console.error('  2. Edit .env and set the required values');
     console.error('  3. Run: source .env && npm run <script>\n');
-    
+
     process.exit(1);
 }
 
@@ -81,7 +81,7 @@ export const DB_REQUIREMENTS: EnvRequirement[] = [
  */
 export function getDbConfig() {
     validateEnvVars(DB_REQUIREMENTS);
-    
+
     return {
         host: process.env.POSTGRES_HOST!,
         port: Number(process.env.POSTGRES_PORT!),

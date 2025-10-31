@@ -963,7 +963,7 @@ const TOGAF_TEMPLATE_PACK: CreateTemplatePackDto = {
 async function createDbConnection(): Promise<Client> {
     // Validate required environment variables with helpful error messages
     validateEnvVars(DB_REQUIREMENTS);
-    
+
     // Use validated env vars with no fallbacks
     const dbConfig = getDbConfig();
     const client = new Client({
