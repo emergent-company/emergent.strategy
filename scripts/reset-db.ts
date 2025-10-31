@@ -27,12 +27,12 @@ async function main() {
     // Use validated env vars with no fallbacks
     const dbConfig = getDbConfig();
     if (process.env.RESET_DB_DEBUG === '1') {
-        console.log('[reset-db] Using connection params', { 
-            host: dbConfig.host, 
-            port: dbConfig.port, 
-            user: dbConfig.user, 
-            database: dbConfig.database, 
-            password: dbConfig.password ? '***' : '(empty)' 
+        console.log('[reset-db] Using connection params', {
+            host: dbConfig.host,
+            port: dbConfig.port,
+            user: dbConfig.user,
+            database: dbConfig.database,
+            password: dbConfig.password ? '***' : '(empty)'
         });
     }
     const pool = new Pool(dbConfig);

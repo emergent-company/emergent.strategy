@@ -124,7 +124,7 @@ For detailed documentation, see: docs/EMBEDDING_MIGRATION.md
 async function createPool(): Promise<Pool> {
     // Validate required environment variables with helpful error messages
     validateEnvVars(DB_REQUIREMENTS);
-    
+
     // Use validated env vars with no fallbacks
     const dbConfig = getDbConfig();
     const pool = new Pool(dbConfig);

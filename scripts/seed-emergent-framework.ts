@@ -296,7 +296,7 @@ const EPF_TEMPLATE_PACK: CreateTemplatePackDto = {
 async function createDbConnection(): Promise<Client> {
     // Validate required environment variables with helpful error messages
     validateEnvVars(DB_REQUIREMENTS);
-    
+
     // Use validated env vars with no fallbacks
     const dbConfig = getDbConfig();
     const client = new Client({
@@ -363,7 +363,7 @@ async function main() {
         console.log(`   Relationship Types: ${relationshipCount}`);
         console.log(`   Canonical Value Models: 3 (Strategy, OrgOps, Commercial)`);
         console.log(`   Example Artifacts: OKR, Assumption, Work Package`);
-        
+
         console.log('\n🏁 EPF Template Pack seeding completed successfully!');
         console.log('   You can now assign this template pack to projects via the admin interface.');
         console.log('   📚 See docs/emergent_framework.md for detailed canonical value models.');

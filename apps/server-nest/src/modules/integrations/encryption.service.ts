@@ -46,11 +46,11 @@ export class EncryptionService implements OnModuleInit {
                 );
             }
         } else if (this.encryptionKey.length < 32) {
-            const warning = 
+            const warning =
                 `INTEGRATION_ENCRYPTION_KEY is only ${this.encryptionKey.length} characters. ` +
                 'For AES-256, use at least 32 characters. ' +
                 'Generate a new key: openssl rand -base64 24';
-            
+
             if (isProduction) {
                 throw new Error(warning);
             } else {
