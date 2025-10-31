@@ -1,9 +1,1 @@
-[submodule "reference/nexus"]
-	path = reference/nexus
-	url = git@github.com:eyedea-io/Nexus-React-3.0.0.git
-	branch = master
-
 [submodule "apps/server-nest/reference/unstract"]
-	path = apps/server-nest/reference/unstract
-	url = https://github.com/Zipstack/unstract.git
-	branch = main
