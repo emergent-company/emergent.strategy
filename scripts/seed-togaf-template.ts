@@ -9,6 +9,7 @@
 import { config } from 'dotenv';
 import { Client } from 'pg';
 import { exit } from 'process';
+import { validateEnvVars, DB_REQUIREMENTS, getDbConfig } from './lib/env-validator.js';
 
 // Load environment variables
 config();
@@ -960,12 +961,13 @@ const TOGAF_TEMPLATE_PACK: CreateTemplatePackDto = {
  * Initialize database connection
  */
 async function createDbConnection(): Promise<Client> {
+    // Validate required environment variables with helpful error messages
+    validateEnvVars(DB_REQUIREMENTS);
+    
+    // Use validated env vars with no fallbacks
+    const dbConfig = getDbConfig();
     const client = new Client({
-        host: process.env.PGHOST || 'localhost',
-        port: parseInt(process.env.PGPORT || '5432'),
-        database: process.env.PGDATABASE || 'spec',
-        user: process.env.PGUSER || 'spec',
-        password: process.env.PGPASSWORD || 'spec',
+        ...dbConfig,
         ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
     });
 

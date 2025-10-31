@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 import { Client, Pool } from 'pg';
 import { config } from 'dotenv';
+import { validateEnvVars, DB_REQUIREMENTS, getDbConfig } from './lib/env-validator.js';
 
 // Load environment variables
 config();
@@ -9,12 +10,13 @@ const PACK_ID = '9f8d7e6c-5b4a-3c2d-1e0f-9a8b7c6d5e4f';
 
 // Import the schemas directly - simplified for script execution
 async function seedMeetingDecisionPack(): Promise<void> {
+    // Validate required environment variables with helpful error messages
+    validateEnvVars(DB_REQUIREMENTS);
+    
+    // Use validated env vars with no fallbacks
+    const dbConfig = getDbConfig();
     const pool = new Pool({
-        host: process.env.PGHOST || 'localhost',
-        port: parseInt(process.env.PGPORT || '5432'),
-        database: process.env.PGDATABASE || 'spec',
-        user: process.env.PGUSER || 'spec',
-        password: process.env.PGPASSWORD || 'spec',
+        ...dbConfig,
         ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
     });
 
@@ -24,12 +26,13 @@ async function seedMeetingDecisionPack(): Promise<void> {
 }
 
 async function createDbClient() {
+    // Validate required environment variables with helpful error messages
+    validateEnvVars(DB_REQUIREMENTS);
+    
+    // Use validated env vars with no fallbacks
+    const dbConfig = getDbConfig();
     const client = new Client({
-        host: process.env.PGHOST || 'localhost',
-        port: parseInt(process.env.PGPORT || '5432'),
-        database: process.env.PGDATABASE || 'spec',
-        user: process.env.PGUSER || 'spec',
-        password: process.env.PGPASSWORD || 'spec',
+        ...dbConfig,
         ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
     });
 

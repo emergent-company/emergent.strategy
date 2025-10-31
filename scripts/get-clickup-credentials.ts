@@ -10,18 +10,16 @@
  */
 
 import { Client } from 'pg';
+import { validateEnvVars, DB_REQUIREMENTS, getDbConfig } from './lib/env-validator.js';
 
 async function main() {
     const integrationName = process.argv[2] || 'clickup';
 
-    // Database connection (adjust if needed)
-    const client = new Client({
-        host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
-        database: process.env.PGDATABASE || process.env.DB_NAME || 'spec',
-        user: process.env.PGUSER || process.env.DB_USER || 'spec',
-        password: process.env.PGPASSWORD || process.env.DB_PASSWORD || 'spec',
-    });
+    // Validate required environment variables with helpful error messages
+    validateEnvVars(DB_REQUIREMENTS);
+    
+    // Use validated env vars with no fallbacks
+    const client = new Client(getDbConfig());
 
     try {
         await client.connect();

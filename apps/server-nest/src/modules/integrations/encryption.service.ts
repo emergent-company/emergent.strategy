@@ -27,16 +27,35 @@ export class EncryptionService implements OnModuleInit {
     onModuleInit() {
         this.encryptionKey = process.env.INTEGRATION_ENCRYPTION_KEY || '';
 
+        // Validate encryption key
+        const isProduction = process.env.NODE_ENV === 'production';
+        const isTest = process.env.NODE_ENV === 'test';
+
         if (!this.encryptionKey) {
-            this.logger.warn(
-                'INTEGRATION_ENCRYPTION_KEY not set. Integration credentials will not be encrypted. ' +
-                'This is insecure for production environments!'
-            );
+            if (isProduction) {
+                throw new Error(
+                    'INTEGRATION_ENCRYPTION_KEY is required in production. ' +
+                    'Set a 32-character key for AES-256 encryption. ' +
+                    'Generate with: openssl rand -base64 24'
+                );
+            } else if (!isTest) {
+                this.logger.error(
+                    '⚠️  CRITICAL: INTEGRATION_ENCRYPTION_KEY not set! ' +
+                    'Integration credentials will NOT be encrypted. ' +
+                    'Generate a key: openssl rand -base64 24'
+                );
+            }
         } else if (this.encryptionKey.length < 32) {
-            this.logger.warn(
+            const warning = 
                 `INTEGRATION_ENCRYPTION_KEY is only ${this.encryptionKey.length} characters. ` +
-                'For AES-256, use at least 32 characters.'
-            );
+                'For AES-256, use at least 32 characters. ' +
+                'Generate a new key: openssl rand -base64 24';
+            
+            if (isProduction) {
+                throw new Error(warning);
+            } else {
+                this.logger.warn(warning);
+            }
         }
     }
 

@@ -2,6 +2,11 @@ import 'reflect-metadata';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { Pool } from 'pg';
+import { setupTestEnvironment } from './test-env';
+
+// Configure test environment FIRST (before any modules are loaded)
+setupTestEnvironment();
+
 // IMPORTANT: Do NOT import providers from src/ when using the dist AppModule – class identity mismatch
 // will cause app.get(ProviderClass) lookups to fail. Always import from the same compiled output tree.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -23,9 +28,8 @@ let seeding: Promise<void> | null = null;
 export async function getTestApp(): Promise<INestApplication> {
     if (app) return app;
     // Ensure deterministic test bootstrap for integration tests.
-    // Enable autoinit unless explicitly disabled.
+    // Test environment already configured by setupTestEnvironment()
     process.env.NODE_ENV = 'test';
-    process.env.DB_AUTOINIT = process.env.DB_AUTOINIT || 'true';
     // Never skip DB in these integration tests.
     if (process.env.SKIP_DB) delete process.env.SKIP_DB;
     const moduleRef = await Test.createTestingModule({
@@ -57,12 +61,13 @@ async function seedOrgProject() {
     if (seeding) return seeding;
     seeding = (async () => {
         // Ensure schema has been created by AppModule initialization first
+        // Use validated env vars (no fallbacks)
         const pool = new Pool({
-            host: process.env.PGHOST || '127.0.0.1',
-            port: Number(process.env.PGPORT) || 5432,
-            user: process.env.PGUSER || 'postgres',
-            password: process.env.PGPASSWORD || '',
-            database: process.env.PGDATABASE || 'postgres',
+            host: process.env.POSTGRES_HOST!,
+            port: Number(process.env.POSTGRES_PORT!),
+            user: process.env.POSTGRES_USER!,
+            password: process.env.POSTGRES_PASSWORD!,
+            database: process.env.POSTGRES_DB!,
         });
         try {
             const orgRes = await pool.query<{ id: string }>(`INSERT INTO kb.orgs(name) VALUES ($1) RETURNING id`, ['merge-org-' + Date.now()]);

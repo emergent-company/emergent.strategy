@@ -7,6 +7,7 @@ import { Pool } from 'pg';
 import path from 'node:path';
 import fs from 'node:fs';
 import * as dotenv from 'dotenv';
+import { validateEnvVars, DB_REQUIREMENTS, getDbConfig } from './lib/env-validator.js';
 
 // Load .env early (allow override via DOTENV_PATH)
 (() => {
@@ -19,23 +20,22 @@ import * as dotenv from 'dotenv';
     }
 })();
 
-const required = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'] as const;
-for (const k of required) {
-    if (!process.env[k]) {
-        console.error(`Missing env ${k}`);
-    }
-}
+// Validate required environment variables with helpful error messages
+validateEnvVars(DB_REQUIREMENTS);
 
 async function main() {
-    const host = process.env.DB_HOST || process.env.PGHOST || 'localhost';
-    const port = +(process.env.DB_PORT || process.env.PGPORT || 5432);
-    const user = process.env.DB_USER || process.env.PGUSER || 'postgres';
-    const password = process.env.DB_PASSWORD || process.env.PGPASSWORD || 'postgres';
-    const database = process.env.DB_NAME || process.env.PGDATABASE || 'postgres';
+    // Use validated env vars with no fallbacks
+    const dbConfig = getDbConfig();
     if (process.env.RESET_DB_DEBUG === '1') {
-        console.log('[reset-db] Using connection params', { host, port, user, database, password: password ? '***' : '(empty)' });
+        console.log('[reset-db] Using connection params', { 
+            host: dbConfig.host, 
+            port: dbConfig.port, 
+            user: dbConfig.user, 
+            database: dbConfig.database, 
+            password: dbConfig.password ? '***' : '(empty)' 
+        });
     }
-    const pool = new Pool({ host, port, user, password, database });
+    const pool = new Pool(dbConfig);
     try {
         console.log('[reset-db] acquiring advisory lock');
         await pool.query('SELECT pg_advisory_lock(77777777)');

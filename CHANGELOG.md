@@ -2,6 +2,41 @@
 
 ## [Unreleased]
 
+### BREAKING CHANGES
+
+**Database Environment Variables Renamed** (v2.0.0)
+
+All database environment variables have been standardized from `PG*` to `POSTGRES_*` format for consistency with Docker conventions and better clarity.
+
+**Migration Required:**
+
+| Old Variable (deprecated) | New Variable (required) |
+|---------------------------|-------------------------|
+| `PGHOST` | `POSTGRES_HOST` |
+| `PGPORT` | `POSTGRES_PORT` |
+| `PGUSER` | `POSTGRES_USER` |
+| `PGPASSWORD` | `POSTGRES_PASSWORD` |
+| `PGDATABASE` | `POSTGRES_DB` |
+| `PGDATABASE_E2E` | `POSTGRES_DB_E2E` |
+
+**Action Required:**
+Update your `.env` file with new variable names. See `.env.example` for reference.
+
+```bash
+# Backup your current config
+cp .env .env.backup
+
+# Update variables in .env from PG* to POSTGRES_*
+# Use .env.example as template
+```
+
+**Impact:**
+- All scripts now require `POSTGRES_*` variables
+- Configuration schema updated
+- Docker compose production deployment uses `POSTGRES_*`
+- Tests use `POSTGRES_*` variables
+- No backward compatibility - old variables will not work
+
 ### Security
 - Hardened multi-tenant Graph RLS enforcement:
 	- Introduced dedicated non-bypass application role `app_rls` with scoped CRUD grants; automatic post-schema role switch prevents `rolbypassrls` leakage.

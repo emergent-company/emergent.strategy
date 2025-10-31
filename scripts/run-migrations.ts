@@ -9,7 +9,7 @@
  *   tsx scripts/run-migrations.ts
  * 
  * Environment:
- *   PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE - PostgreSQL connection
+ *   POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
  *   or DATABASE_URL - Full connection string
  */
 
@@ -18,6 +18,7 @@ import fs from 'node:fs';
 import { Client } from 'pg';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
+import { validateEnvVars, DB_REQUIREMENTS, getDbConfig } from './lib/env-validator.js';
 
 // Find project root (where package.json with workspace exists)
 const __filename = fileURLToPath(import.meta.url);
@@ -44,13 +45,12 @@ interface Migration {
  * Get database client
  */
 async function getClient(): Promise<Client> {
-    const client = new Client({
-        host: process.env.PGHOST || 'localhost',
-        port: parseInt(process.env.PGPORT || '5432'),
-        user: process.env.PGUSER || 'postgres',
-        password: process.env.PGPASSWORD || 'postgres',
-        database: process.env.PGDATABASE || 'postgres',
-    });
+    // Validate required environment variables with helpful error messages
+    validateEnvVars(DB_REQUIREMENTS);
+    
+    // Use validated env vars with no fallbacks
+    const dbConfig = getDbConfig();
+    const client = new Client(dbConfig);
 
     await client.connect();
     return client;

@@ -24,7 +24,7 @@ function buildLogConfig(dependencyId: string) {
 
 const DEFAULT_ENV_PROFILE: EnvironmentProfileId = 'development';
 
-const PGPORT = process.env.PGPORT || '5432';
+const POSTGRES_PORT = process.env.POSTGRES_PORT || '5432';
 const ZITADEL_HTTP_PORT = process.env.ZITADEL_HTTP_PORT || '8100';
 const ZITADEL_LOGIN_PORT = process.env.ZITADEL_LOGIN_PORT || '8101';
 
@@ -41,7 +41,7 @@ const DEPENDENCY_PROFILES: readonly DependencyProcessProfile[] = [
     },
     logs: buildLogConfig('postgres'),
     restartPolicy: DEFAULT_RESTART_POLICY,
-    exposedPorts: [PGPORT]
+    exposedPorts: [POSTGRES_PORT]
   },
   {
     dependencyId: 'zitadel',

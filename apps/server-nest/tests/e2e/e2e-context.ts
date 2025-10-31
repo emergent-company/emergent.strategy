@@ -192,13 +192,14 @@ export async function createE2EContext(userSuffix?: string): Promise<E2EContext>
     // Explicitly disable SKIP_DB for scenario/e2e contexts; tests rely on minimal schema being created.
     if (process.env.SKIP_DB) delete process.env.SKIP_DB;
     // Enable static test tokens mode explicitly (Option 3) so fixtures like e2e-* are accepted
+    // No fallbacks here - test-env.ts should have set defaults already
     process.env.AUTH_TEST_STATIC_TOKENS = process.env.AUTH_TEST_STATIC_TOKENS || '1';
     process.env.SCOPES_DISABLED = '0';
 
     // Use unified test database configuration
     const dbConfig = getTestDbConfig();
 
-    process.env.DB_AUTOINIT = process.env.DB_AUTOINIT || 'true';
+    // No fallback - test-env.ts should set DB_AUTOINIT=true by default
     // Set NODE_ENV to 'test' for consistent test behavior
     process.env.NODE_ENV = 'test';
     const boot = await bootstrapTestApp();

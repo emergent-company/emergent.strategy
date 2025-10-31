@@ -1,5 +1,6 @@
 import { describe } from 'vitest';
 import { Pool } from 'pg';
+import { getTestDbConfig } from '../test-db-config';
 
 let cachedResult: boolean | null = null;
 
@@ -14,12 +15,14 @@ async function checkDatabaseAvailability(): Promise<boolean> {
         return cachedResult;
     }
 
+    // Use centralized test database configuration (no fallbacks)
+    const dbConfig = getTestDbConfig();
     const pool = new Pool({
-        host: process.env.PGHOST || '127.0.0.1',
-        port: Number(process.env.PGPORT) || 5432,
-        user: process.env.PGUSER || 'spec',
-        password: process.env.PGPASSWORD || 'spec',
-        database: process.env.PGDATABASE || 'spec',
+        host: dbConfig.host,
+        port: dbConfig.port,
+        user: dbConfig.user,
+        password: dbConfig.password,
+        database: dbConfig.database,
         connectionTimeoutMillis: 500,
     });
 
