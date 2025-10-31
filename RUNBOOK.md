@@ -601,8 +601,8 @@ coolify app exec <APP_UUID> <SERVICE> -- <COMMAND>
 
 ### References
 
-- **Deployment Guide**: [COOLIFY_DEPLOYMENT_READY.md](./COOLIFY_DEPLOYMENT_READY.md)
-- **Deployment Plan**: [docs/COOLIFY_DEPLOYMENT_PLAN.md](./docs/COOLIFY_DEPLOYMENT_PLAN.md)
+- **Deployment Guide**: [Coolify Deployment](./docs/deployment/coolify/deployment-ready.md)
+- **Deployment Plan**: [docs/plans/coolify-deployment.md](./docs/plans/coolify-deployment.md)
 - **Environment Variables**: [.env.production.example](./.env.production.example)
 - **Coolify Docs**: https://coolify.io/docs
 - **Docker Compose**: https://docs.docker.com/compose/

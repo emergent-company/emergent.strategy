@@ -187,7 +187,7 @@ export COOLIFY_TOKEN=your-api-token
 
 ### Documentation
 
-- **[COOLIFY_DEPLOYMENT_READY.md](./COOLIFY_DEPLOYMENT_READY.md)** - Complete deployment guide with step-by-step instructions
+- **[Coolify Deployment Guide](./docs/deployment/coolify/deployment-ready.md)** - Complete deployment guide with step-by-step instructions
 - **[docs/COOLIFY_DEPLOYMENT_PLAN.md](./docs/COOLIFY_DEPLOYMENT_PLAN.md)** - Detailed implementation plan and architecture
 - **[.env.production.example](./.env.production.example)** - Environment variable reference
 
