@@ -47,7 +47,7 @@ interface Migration {
 async function getClient(): Promise<Client> {
     // Validate required environment variables with helpful error messages
     validateEnvVars(DB_REQUIREMENTS);
-    
+
     // Use validated env vars with no fallbacks
     const dbConfig = getDbConfig();
     const client = new Client(dbConfig);

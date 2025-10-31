@@ -12,7 +12,7 @@ const PACK_ID = '9f8d7e6c-5b4a-3c2d-1e0f-9a8b7c6d5e4f';
 async function seedMeetingDecisionPack(): Promise<void> {
     // Validate required environment variables with helpful error messages
     validateEnvVars(DB_REQUIREMENTS);
-    
+
     // Use validated env vars with no fallbacks
     const dbConfig = getDbConfig();
     const pool = new Pool({
@@ -28,7 +28,7 @@ async function seedMeetingDecisionPack(): Promise<void> {
 async function createDbClient() {
     // Validate required environment variables with helpful error messages
     validateEnvVars(DB_REQUIREMENTS);
-    
+
     // Use validated env vars with no fallbacks
     const dbConfig = getDbConfig();
     const client = new Client({

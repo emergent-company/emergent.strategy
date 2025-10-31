@@ -33,7 +33,7 @@ function env(name: string, fallback?: string) {
 async function main() {
     const dryRun = process.argv.includes('--dry-run');
     const start = Date.now();
-    
+
     // Use standardized POSTGRES_* environment variables (no fallbacks)
     const client = new Client({
         connectionString: process.env.DATABASE_URL || undefined,
