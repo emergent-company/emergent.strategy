@@ -13,7 +13,81 @@ import { join } from 'node:path';
 import yaml from 'js-yaml';
 import { execSync } from 'node:child_process';
 
+/**
+ * Validate critical environment variables before starting the server
+ * Fails fast with clear error messages if required vars are missing
+ */
+function validateEnvironment() {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isTest = process.env.NODE_ENV === 'test';
+
+    // Skip validation in test environment (tests set their own env)
+    if (isTest) {
+        return;
+    }
+
+    // Critical: Database connection (ALWAYS required)
+    const requiredVars = [
+        'POSTGRES_HOST',
+        'POSTGRES_PORT',
+        'POSTGRES_USER',
+        'POSTGRES_PASSWORD',
+        'POSTGRES_DB',
+    ];
+
+    for (const varName of requiredVars) {
+        if (!process.env[varName]) {
+            errors.push(`❌ ${varName} is required`);
+        }
+    }
+
+    // Critical in production: Encryption key
+    if (isProduction && !process.env.INTEGRATION_ENCRYPTION_KEY) {
+        errors.push('❌ INTEGRATION_ENCRYPTION_KEY is required in production (32+ chars)');
+    }
+
+    // Required if using Vertex AI embeddings
+    if (process.env.EMBEDDING_PROVIDER === 'vertex') {
+        if (!process.env.VERTEX_EMBEDDING_LOCATION) {
+            errors.push('❌ VERTEX_EMBEDDING_LOCATION is required when EMBEDDING_PROVIDER=vertex');
+        }
+        if (!process.env.VERTEX_EMBEDDING_MODEL) {
+            errors.push('❌ VERTEX_EMBEDDING_MODEL is required when EMBEDDING_PROVIDER=vertex');
+        }
+        if (!process.env.GCP_PROJECT_ID && !process.env.VERTEX_EMBEDDING_PROJECT) {
+            errors.push('❌ GCP_PROJECT_ID or VERTEX_EMBEDDING_PROJECT is required for Vertex AI');
+        }
+    }
+
+    // Warnings for missing optional but recommended vars
+    if (!process.env.INTEGRATION_ENCRYPTION_KEY && !isProduction) {
+        warnings.push('⚠️  INTEGRATION_ENCRYPTION_KEY not set - credentials will be stored unencrypted');
+        warnings.push('   Generate with: openssl rand -base64 24');
+    }
+
+    // Print results
+    if (errors.length > 0) {
+        console.error('\n❌ Environment Validation Failed:\n');
+        errors.forEach(err => console.error(`  ${err}`));
+        console.error('\n💡 Tip: Copy .env.example to .env and fill in the values');
+        console.error('💡 See docs/ENV_FALLBACK_AUDIT.md for details\n');
+        process.exit(1);
+    }
+
+    if (warnings.length > 0) {
+        console.warn('\n⚠️  Environment Warnings:\n');
+        warnings.forEach(warn => console.warn(`  ${warn}`));
+        console.warn('');
+    }
+
+    console.log('✅ Environment validation passed\n');
+}
+
 async function bootstrap() {
+    // Validate environment before doing anything else
+    validateEnvironment();
     // Create file logger instance
     const fileLogger = new FileLogger();
 

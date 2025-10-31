@@ -6,6 +6,30 @@ Minimal ingestion server aligned with the spec:
 
 See `SETUP.md` for end-to-end local setup (DB, Zitadel auth, API server, Admin SPA) and `RUNBOOK.md` for operational details.
 
+## ⚠️ Breaking Change: Database Environment Variables (v2.0.0)
+
+**Database environment variables have been renamed for consistency:**
+
+```bash
+# OLD (no longer supported)
+PGHOST=localhost
+PGPORT=5432
+PGUSER=spec
+PGPASSWORD=spec
+PGDATABASE=spec
+
+# NEW (required)
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_USER=spec
+POSTGRES_PASSWORD=spec
+POSTGRES_DB=spec
+```
+
+**To migrate**: Update your `.env` file with the new variable names. See `.env.example` for the complete template.
+
+See `CHANGELOG.md` for full details.
+
 ## Authentication
 
 The system now uses only standard OIDC flows via Zitadel's hosted UI. Previous experimental Passkey / WebAuthn endpoints and helpers were removed (2025-09) to reduce surface area. The deprecated spec document (`docs/spec/15-passkey-auth.md`) is retained only as a short tombstone note. No passwordless-specific environment variables are required anymore.
@@ -118,6 +142,86 @@ When copying from `react-daisyui`, keep attribution headers and adapt to use our
 ## Changelog
 
 See `CHANGELOG.md` for notable removals and additions.
+
+## Production Deployment
+
+Spec Server 2 is ready for production deployment on Coolify with Docker Compose.
+
+### Quick Deploy
+
+```bash
+# 1. Configure environment
+cp .env.production.example .env.production
+# Edit .env.production with your values
+
+# 2. Run pre-flight checks
+./scripts/preflight-check.sh
+
+# 3. Sync environment to Coolify
+export COOLIFY_APP_UUID=your-app-uuid
+export COOLIFY_TOKEN=your-api-token
+./scripts/sync-coolify-env.sh
+
+# 4. Deploy
+./scripts/deploy-coolify.sh
+```
+
+### Architecture
+
+**Production Stack:**
+- **Frontend**: React + Vite (Nginx container)
+- **Backend**: NestJS (Node.js container)
+- **Database**: PostgreSQL 16 with pgvector extension
+- **Auth**: Zitadel (self-hosted IAM)
+- **Deployment**: Coolify (Docker Compose orchestration)
+- **Proxy**: Traefik (managed by Coolify)
+
+**Services:**
+| Service | Port | Public Access | Health Check |
+|---------|------|---------------|--------------|
+| admin | 3000 | Via proxy | ✅ /health |
+| server | 3002 | Via proxy | ✅ /health |
+| db | 5432 | Internal only | ✅ pg_isready |
+| zitadel | 8080 | Via proxy | ✅ /ready |
+| zitadel-db | 5432 | Internal only | ✅ pg_isready |
+
+### Documentation
+
+- **[COOLIFY_DEPLOYMENT_READY.md](./COOLIFY_DEPLOYMENT_READY.md)** - Complete deployment guide with step-by-step instructions
+- **[docs/COOLIFY_DEPLOYMENT_PLAN.md](./docs/COOLIFY_DEPLOYMENT_PLAN.md)** - Detailed implementation plan and architecture
+- **[.env.production.example](./.env.production.example)** - Environment variable reference
+
+### Local Docker Testing
+
+Test the production Docker setup locally before deploying:
+
+```bash
+# Test complete stack
+./scripts/test-docker-local.sh
+
+# Or manually:
+docker compose up -d
+curl http://localhost:3002/health
+curl http://localhost:3000/
+docker compose down -v
+```
+
+### Environment Variables
+
+See `.env.production.example` for the complete list. Critical variables:
+
+- `POSTGRES_PASSWORD` - Database credentials
+- `GOOGLE_API_KEY` - AI services (embeddings, chat)
+- `ZITADEL_*` - Authentication and authorization
+- `VITE_*` - Frontend build-time configuration (baked into image)
+- `CORS_ORIGIN` - Frontend domain for CORS
+
+### Deployment Scripts
+
+- `scripts/deploy-coolify.sh` - Deploy to Coolify
+- `scripts/sync-coolify-env.sh` - Sync environment variables via API
+- `scripts/preflight-check.sh` - Validate configuration before deploy
+- `scripts/test-docker-local.sh` - Test Docker setup locally
 
 ## Documentation
 

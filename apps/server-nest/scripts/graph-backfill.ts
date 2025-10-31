@@ -33,13 +33,15 @@ function env(name: string, fallback?: string) {
 async function main() {
     const dryRun = process.argv.includes('--dry-run');
     const start = Date.now();
+    
+    // Use standardized POSTGRES_* environment variables (no fallbacks)
     const client = new Client({
         connectionString: process.env.DATABASE_URL || undefined,
-        host: process.env.PGHOST || 'localhost',
-        port: +(process.env.PGPORT || 5432),
-        user: env('PGUSER', 'postgres'),
-        password: env('PGPASSWORD', 'postgres'),
-        database: env('PGDATABASE', 'postgres')
+        host: env('POSTGRES_HOST'),
+        port: +(env('POSTGRES_PORT')),
+        user: env('POSTGRES_USER'),
+        password: env('POSTGRES_PASSWORD'),
+        database: env('POSTGRES_DB')
     });
     await client.connect();
 

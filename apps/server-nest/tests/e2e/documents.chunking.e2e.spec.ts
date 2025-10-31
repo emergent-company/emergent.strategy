@@ -20,11 +20,11 @@ describe('Document Chunk Generation E2E', () => {
     beforeAll(async () => {
         ctx = await createE2EContext('chunks-gen');
         pool = new Pool({
-            host: process.env.PGHOST || 'localhost',
-            port: Number(process.env.PGPORT || 5432),
-            user: process.env.PGUSER || 'spec',
-            password: process.env.PGPASSWORD || 'spec',
-            database: process.env.PGDATABASE || 'spec'
+            host: process.env.POSTGRES_HOST || 'localhost',
+            port: Number(process.env.POSTGRES_PORT || 5432),
+            user: process.env.POSTGRES_USER || 'spec',
+            password: process.env.POSTGRES_PASSWORD || 'spec',
+            database: process.env.POSTGRES_DB || 'spec'
         });
     });
     beforeEach(async () => { await ctx.cleanup(); });
