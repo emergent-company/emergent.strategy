@@ -90,34 +90,23 @@ async function bootstrap() {
     // Create file logger instance
     const fileLogger = new FileLogger();
 
+    // Bootstrap the NestJS application first
+    const app = await NestFactory.create(AppModule, {
+        cors: false,
+        // Use both default logger (for console) and file logger
+        bufferLogs: true,
+    });
+
+    // Set up file logger to capture all logs
+    app.useLogger(fileLogger);
+
     // Run database migrations automatically on startup
     if (process.env.SKIP_MIGRATIONS !== '1') {
         try {
             fileLogger.log('[startup] Running database migrations...', 'Bootstrap');
-            // Determine correct working directory (handles both monorepo root and apps/server-nest)
-            const migrateDir = process.cwd().endsWith('server-nest')
-                ? process.cwd()
-                : join(process.cwd(), 'apps/server-nest');
-            
-            const migrationScriptPath = join(migrateDir, 'scripts', 'migrate.mjs');
-            
-            // Use spawnSync with node directly (no shell) to avoid /bin/sh dependency
-            // Use 'node' from PATH instead of process.execPath to ensure runtime path is used
-            const { spawnSync } = require('child_process');
-            const result = spawnSync('node', [migrationScriptPath], {
-                cwd: migrateDir,
-                stdio: 'inherit',
-                env: { ...process.env }
-            });
-            
-            if (result.error) {
-                throw result.error;
-            }
-            
-            if (result.status !== 0) {
-                throw new Error(`Migration script exited with code ${result.status}`);
-            }
-            
+            // Get database service from the application context
+            const databaseService = app.get('DatabaseService');
+            await databaseService.runMigrations();
             fileLogger.log('[startup] Database migrations completed successfully', 'Bootstrap');
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
@@ -127,15 +116,6 @@ async function bootstrap() {
     } else {
         fileLogger.log('[startup] Skipping migrations (SKIP_MIGRATIONS=1)', 'Bootstrap');
     }
-
-    const app = await NestFactory.create(AppModule, {
-        cors: false,
-        // Use both default logger (for console) and file logger
-        bufferLogs: true,
-    });
-
-    // Set up file logger to capture all logs
-    app.useLogger(fileLogger);
 
     // Fine-grained CORS: allow credentials for local dev origins only
     const allowedOrigins = new Set([
