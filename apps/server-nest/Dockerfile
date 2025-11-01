@@ -19,10 +19,29 @@ ENV NODE_ENV=development
 
 WORKDIR /build
 
+# DEBUG: List what's in the build context root
+RUN echo "=== DEBUG: Listing root directory ===" && \
+    ls -la / && \
+    echo "=== DEBUG: Listing current directory ===" && \
+    pwd && ls -la
+
 # Copy root workspace package files first
 COPY package.json package-lock.json ./
+RUN echo "=== DEBUG: After copying root package files ===" && ls -la
+
+# DEBUG: Check if apps directory exists in build context
+RUN echo "=== DEBUG: Checking for apps directory ===" && \
+    if [ -d "apps" ]; then \
+        echo "apps directory EXISTS" && ls -la apps/; \
+    else \
+        echo "apps directory DOES NOT EXIST"; \
+    fi
+
 # Copy server-nest package files
 COPY apps/server-nest/package.json apps/server-nest/package-lock.json ./apps/server-nest/
+RUN echo "=== DEBUG: After copying server-nest package files ===" && \
+    ls -la apps/server-nest/
+
 # Copy root tsconfig.json (extended by server-nest tsconfig)
 COPY tsconfig.json ./
 
@@ -30,8 +49,24 @@ COPY tsconfig.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --workspace=apps/server-nest
 
+RUN echo "=== DEBUG: After npm ci ===" && \
+    ls -la && \
+    echo "=== DEBUG: node_modules ===" && \
+    ls -la node_modules/ | head -20 && \
+    echo "=== DEBUG: apps/server-nest/node_modules ===" && \
+    ls -la apps/server-nest/node_modules/ | head -20
+
 # Copy server-nest source code (includes .api directory)
 COPY apps/server-nest ./apps/server-nest
+
+RUN echo "=== DEBUG: After copying server-nest source ===" && \
+    ls -la apps/server-nest/ && \
+    echo "=== DEBUG: Checking for .api directory ===" && \
+    if [ -d "apps/server-nest/.api" ]; then \
+        echo ".api directory EXISTS" && ls -la apps/server-nest/.api/; \
+    else \
+        echo ".api directory DOES NOT EXIST"; \
+    fi
 
 # Manually create symlink for @api/clickup (npm ci doesn't handle file: deps in Docker)
 # Use absolute path for the symlink target
