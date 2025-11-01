@@ -2,14 +2,9 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
-import fs from 'fs';
-import dotenv from 'dotenv';
 
-// Load root .env early so proxy picks up API_* vars when running from package script
-const rootEnvPath = path.resolve(process.cwd(), '../../.env');
-if (fs.existsSync(rootEnvPath)) {
-    dotenv.config({ path: rootEnvPath });
-}
+// In dev mode, the root .env is loaded by the npm script (via dotenv-cli or similar)
+// In production Docker builds, all env vars come from --build-arg, so dotenv is not needed
 
 // Single canonical admin dev port env: ADMIN_PORT (fallback 5175)
 const DEV_PORT = Number(process.env.ADMIN_PORT || 5175);
