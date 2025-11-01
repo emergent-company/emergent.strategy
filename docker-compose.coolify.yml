@@ -1,0 +1,93 @@
+# Docker Compose for Coolify Deployment
+# This file explicitly sets build contexts to help Coolify
+# understand the repository structure
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-spec}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-spec}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-spec}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # NestJS Backend API
+  server:
+    build:
+      context: .  # EXPLICIT: Build from repository root
+      dockerfile: apps/server-nest/Dockerfile  # EXPLICIT: Path to Dockerfile
+      args:
+        NODE_ENV: production
+    ports:
+      - "3002:3002"
+    environment:
+      # Database
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-spec}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-spec}
+      
+      # Zitadel
+      ZITADEL_ISSUER: ${ZITADEL_ISSUER}
+      ZITADEL_CLIENT_ID: ${ZITADEL_CLIENT_ID}
+      ZITADEL_CLIENT_SECRET: ${ZITADEL_CLIENT_SECRET}
+      ZITADEL_MAIN_ORG_ID: ${ZITADEL_MAIN_ORG_ID}
+      
+      # Server
+      PORT: 3002
+      NODE_ENV: production
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      
+      # Google AI
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1536}
+      
+      # Security
+      INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY}
+      
+      # Features
+      DB_AUTOINIT: ${DB_AUTOINIT:-true}
+      ORGS_DEMO_SEED: ${ORGS_DEMO_SEED:-false}
+      CHAT_ENABLE_MCP: ${CHAT_ENABLE_MCP:-1}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # React Admin Frontend
+  admin:
+    build:
+      context: .  # EXPLICIT: Build from repository root
+      dockerfile: apps/admin/Dockerfile  # EXPLICIT: Path to Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_ZITADEL_ISSUER: ${VITE_ZITADEL_ISSUER}
+        VITE_ZITADEL_CLIENT_ID: ${VITE_ZITADEL_CLIENT_ID}
+        VITE_APP_ENV: ${VITE_APP_ENV:-production}
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
