@@ -270,7 +270,7 @@ export class AuditService {
             [...values, limit, offset]
         );
 
-        return rows.map(row => this.rowToAuditEntry(row));
+        return rows.map((row: any) => this.rowToAuditEntry(row));
     }
 
     /**

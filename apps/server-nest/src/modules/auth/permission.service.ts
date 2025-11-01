@@ -75,8 +75,8 @@ export class PermissionService {
         const dedup = Array.from(new Set(scopes));
         return {
             userId,
-            orgRoles: orgRows.rows.map(r => ({ orgId: r.organization_id, role: r.role as 'org_admin' })),
-            projectRoles: projectRows.rows.map(r => ({ projectId: r.project_id, role: r.role as 'project_admin' | 'project_user' })),
+            orgRoles: orgRows.rows.map((r: any) => ({ orgId: r.organization_id, role: r.role as 'org_admin' })),
+            projectRoles: projectRows.rows.map((r: any) => ({ projectId: r.project_id, role: r.role as 'project_admin' | 'project_user' })),
             scopes: dedup,
         };
     }
