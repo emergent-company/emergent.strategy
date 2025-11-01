@@ -10,6 +10,8 @@ apps/server-nest/dist-openapi/
 **/dist-openapi/
 
 .env
+.env.staging
+.env.production
 .DS_Store
 
 # Playwright / E2E artifacts

@@ -32,18 +32,45 @@ ENV VITE_APP_ENV=${VITE_APP_ENV}
 
 WORKDIR /build
 
-# Copy package files
+# Copy root package files for workspace
 COPY package*.json ./
 
-# Install dependencies with npm cache mount
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+# Copy admin app package files
+COPY apps/admin/package*.json ./apps/admin/
 
-# Copy source code and configuration
-COPY . .
+# Debug: Show what was copied
+RUN echo "====== BUILD CONTEXT DEBUG ======" && \
+    echo "Working directory: $(pwd)" && \
+    echo "Root files:" && \
+    ls -la && \
+    echo "Admin files:" && \
+    ls -la apps/admin/ && \
+    echo "Root package-lock.json exists:" && \
+    test -f package-lock.json && echo "YES ($(wc -l < package-lock.json) lines)" || echo "NO" && \
+    echo "================================="
+
+# Install dependencies with npm cache mount (with verbose output for debugging)
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --workspace=apps/admin --verbose 2>&1 || { \
+        echo "====== NPM CI FAILED ======"; \
+        echo "Node version: $(node --version)"; \
+        echo "NPM version: $(npm --version)"; \
+        echo "Working directory: $(pwd)"; \
+        echo "Package files:"; \
+        ls -la package*.json || echo "No package files found"; \
+        echo "Admin package files:"; \
+        ls -la apps/admin/package*.json || echo "No admin package files found"; \
+        echo "Environment variables (filtered):"; \
+        env | grep -E "NODE|NPM|VITE|PATH" | sort; \
+        echo "==========================="; \
+        exit 1; \
+    }
+
+# Copy application source
+COPY apps/admin ./apps/admin
 
 # Build the application
-RUN npm run build
+RUN cd apps/admin && npm run build
 
 # Production stage - serve with nginx
 FROM nginx:alpine
@@ -52,7 +79,7 @@ FROM nginx:alpine
 RUN apk add --no-cache curl
 
 # Copy built application
-COPY --from=builder /build/dist /usr/share/nginx/html
+COPY --from=builder /build/apps/admin/dist /usr/share/nginx/html
 
 # Create nginx configuration for SPA routing
 RUN cat > /etc/nginx/conf.d/default.conf <<'EOF'
