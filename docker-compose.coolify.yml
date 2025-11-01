@@ -2,7 +2,7 @@
 # This file explicitly sets build contexts to help Coolify
 # understand the repository structure
 
-version: '3.8'
+version: "3.8"
 
 services:
   # PostgreSQL Database
@@ -23,8 +23,8 @@ services:
   # NestJS Backend API
   server:
     build:
-      context: .  # EXPLICIT: Build from repository root
-      dockerfile: apps/server-nest/Dockerfile  # EXPLICIT: Path to Dockerfile
+      context: . # EXPLICIT: Build from repository root
+      dockerfile: apps/server-nest/Dockerfile # EXPLICIT: Path to Dockerfile
       args:
         NODE_ENV: production
     ports:
@@ -36,25 +36,25 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-spec}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-spec}
-      
+
       # Zitadel
       ZITADEL_ISSUER: ${ZITADEL_ISSUER}
       ZITADEL_CLIENT_ID: ${ZITADEL_CLIENT_ID}
       ZITADEL_CLIENT_SECRET: ${ZITADEL_CLIENT_SECRET}
       ZITADEL_MAIN_ORG_ID: ${ZITADEL_MAIN_ORG_ID}
-      
+
       # Server
       PORT: 3002
       NODE_ENV: production
       CORS_ORIGIN: ${CORS_ORIGIN}
-      
+
       # Google AI
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1536}
-      
+
       # Security
       INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY}
-      
+
       # Features
       DB_AUTOINIT: ${DB_AUTOINIT:-true}
       ORGS_DEMO_SEED: ${ORGS_DEMO_SEED:-false}
@@ -63,7 +63,15 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3002/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -71,19 +79,27 @@ services:
   # React Admin Frontend
   admin:
     build:
-      context: .  # EXPLICIT: Build from repository root
-      dockerfile: apps/admin/Dockerfile  # EXPLICIT: Path to Dockerfile
+      context: . # EXPLICIT: Build from repository root
+      dockerfile: apps/admin/Dockerfile # EXPLICIT: Path to Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL}
         VITE_ZITADEL_ISSUER: ${VITE_ZITADEL_ISSUER}
         VITE_ZITADEL_CLIENT_ID: ${VITE_ZITADEL_CLIENT_ID}
         VITE_APP_ENV: ${VITE_APP_ENV:-production}
     ports:
-      - "${ADMIN_PORT:-80}:3000"  # Map configurable host port to container port 3000
+      - "${ADMIN_PORT:-80}:3000" # Map configurable host port to container port 3000
     depends_on:
       - server
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
