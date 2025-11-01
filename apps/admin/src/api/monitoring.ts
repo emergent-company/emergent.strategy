@@ -106,6 +106,85 @@ export interface ListExtractionJobsParams {
 }
 
 /**
+ * Chat session summary for list views
+ */
+export interface ChatSessionSummary {
+    id: string;
+    user_id: string;
+    created_at: string;
+    updated_at: string;
+    message_count: number;
+    tool_call_count: number;
+    total_tokens?: number;
+    total_cost_usd?: number;
+    status: 'active' | 'completed' | 'error';
+}
+
+/**
+ * MCP tool call log entry
+ */
+export interface McpToolCallLog {
+    id: string;
+    session_id: string;
+    tool_name: string;
+    input_params: Record<string, any>;
+    output_result?: Record<string, any>;
+    status: 'success' | 'error' | 'pending';
+    duration_ms?: number;
+    error_message?: string;
+    created_at: string;
+}
+
+/**
+ * Full chat session details with messages and tool calls
+ */
+export interface ChatSessionDetail {
+    id: string;
+    user_id: string;
+    created_at: string;
+    updated_at: string;
+    status: 'active' | 'completed' | 'error';
+    messages: Array<{
+        id: string;
+        role: 'user' | 'assistant' | 'system';
+        content: string;
+        created_at: string;
+    }>;
+    tool_calls: McpToolCallLog[];
+    metrics: {
+        total_messages: number;
+        total_tool_calls: number;
+        total_tokens: number;
+        total_cost_usd: number;
+    };
+}
+
+/**
+ * Query parameters for listing chat sessions
+ */
+export interface ListChatSessionsParams {
+    user_id?: string;
+    status?: 'active' | 'completed' | 'error';
+    date_from?: string;
+    date_to?: string;
+    page?: number;
+    limit?: number;
+    sort_by?: 'created_at' | 'message_count' | 'total_cost_usd';
+    sort_order?: 'asc' | 'desc';
+}
+
+/**
+ * Paginated chat session list response
+ */
+export interface ChatSessionListResponse {
+    items: ChatSessionSummary[];
+    total: number;
+    page: number;
+    page_size: number;
+    has_more: boolean;
+}
+
+/**
  * API client interface
  */
 export interface MonitoringClient {
@@ -128,6 +207,16 @@ export interface MonitoringClient {
      * Get LLM calls for a specific extraction job
      */
     getExtractionJobLLMCalls(jobId: string, limit?: number): Promise<LLMCallLog[]>;
+
+    /**
+     * List chat sessions with filtering and pagination
+     */
+    listChatSessions(params?: ListChatSessionsParams): Promise<ChatSessionListResponse>;
+
+    /**
+     * Get full details for a specific chat session
+     */
+    getChatSessionDetail(sessionId: string): Promise<ChatSessionDetail>;
 }
 
 /**
@@ -208,6 +297,45 @@ export function createMonitoringClient(
                 `${baseUrl}/extraction-jobs/${jobId}/llm-calls${query}`
             );
             return response.llm_calls;
+        },
+
+        async listChatSessions(params?: ListChatSessionsParams) {
+            const queryParams = new URLSearchParams();
+
+            if (params?.user_id) queryParams.set('user_id', params.user_id);
+            if (params?.status) queryParams.set('status', params.status);
+            if (params?.date_from) queryParams.set('date_from', params.date_from);
+            if (params?.date_to) queryParams.set('date_to', params.date_to);
+
+            // Convert page-based to offset-based pagination
+            const limit = params?.limit ?? 20;
+            const page = params?.page ?? 1;
+            const offset = (page - 1) * limit;
+
+            queryParams.set('limit', limit.toString());
+            queryParams.set('offset', offset.toString());
+
+            if (params?.sort_by) queryParams.set('sort_by', params.sort_by);
+            if (params?.sort_order) queryParams.set('sort_order', params.sort_order);
+
+            const query = queryParams.toString();
+            const url = `${baseUrl}/chat-sessions${query ? `?${query}` : ''}`;
+
+            // Backend returns { items, total, limit, offset }
+            // Convert to frontend format { items, total, page, page_size, has_more }
+            const response = await fetchJson<{ items: ChatSessionSummary[]; total: number; limit: number; offset: number }>(url);
+
+            return {
+                items: response.items,
+                total: response.total,
+                page: page,
+                page_size: limit,
+                has_more: offset + limit < response.total
+            };
+        },
+
+        async getChatSessionDetail(sessionId: string) {
+            return fetchJson<ChatSessionDetail>(`${baseUrl}/chat-sessions/${sessionId}`);
         },
     };
 }
