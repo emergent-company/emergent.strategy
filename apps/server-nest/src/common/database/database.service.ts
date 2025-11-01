@@ -26,6 +26,14 @@ type GraphPolicyDefinition = {
     sql: string;
 };
 
+interface PgPolicyRow {
+    policyname: string;
+    tablename: string;
+    command: string | null;
+    qual: string | null;
+    with_check: string | null;
+}
+
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     private pool!: Pool;
@@ -301,14 +309,14 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         if (!this.pool || !this.online) return { policies_ok: false, count: 0, hash: null };
         try {
             const res = await this.pool.query<{ policyname: string }>(`SELECT policyname FROM pg_policies WHERE schemaname='kb' AND tablename IN ('graph_objects','graph_relationships')`);
-            const names = res.rows.map(r => r.policyname).sort();
+            const names = res.rows.map((r: any) => r.policyname).sort();
             const expected = [
                 'graph_objects_delete', 'graph_objects_insert', 'graph_objects_select', 'graph_objects_update',
                 'graph_relationships_delete', 'graph_relationships_insert', 'graph_relationships_select', 'graph_relationships_update'
             ].sort();
-            const ok = names.length === expected.length && names.every((v, i) => v === expected[i]);
+            const ok = names.length === expected.length && names.every((v: any, i: any) => v === expected[i]);
             // Simple hash (stable) without pulling crypto for lightweight status: join + length; crypto not required here.
-            const hash = 'policies:' + names.join(',').length + ':' + names.join(',').split('').reduce((a, c) => (a + c.charCodeAt(0)) % 65536, 0).toString(16);
+            const hash = 'policies:' + names.join(',').length + ':' + names.join(',').split('').reduce((a: any, c: any) => (a + c.charCodeAt(0)) % 65536, 0).toString(16);
             return { policies_ok: ok, count: names.length, hash };
         } catch {
             return { policies_ok: false, count: 0, hash: null };
@@ -467,7 +475,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
         // Drop any legacy policies that are no longer part of the canonical set
         const existingRes = await fetchPolicies();
-        const existingMap = new Map(existingRes.rows.map(row => [`${row.tablename}:${row.policyname}`, row]));
+        const existingMap = new Map(existingRes.rows.map((row: PgPolicyRow) => [`${row.tablename}:${row.policyname}`, row]));
         for (const row of existingRes.rows) {
             const key = `${row.tablename}:${row.policyname}`;
             if (!canonicalKeys.has(key)) {
@@ -540,7 +548,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
         // Final verification pass to ensure canonical set is present
         const postEnsure = await fetchPolicies();
-        const finalKeys = new Set(postEnsure.rows.map(r => `${r.tablename}:${r.policyname}`));
+        const finalKeys = new Set(postEnsure.rows.map((r: PgPolicyRow) => `${r.tablename}:${r.policyname}`));
         for (const policy of canonical) {
             const key = `${policy.table}:${policy.name}`;
             if (!finalKeys.has(key)) {
