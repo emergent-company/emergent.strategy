@@ -16,7 +16,9 @@ console.log(`[vite] dev server on :${DEV_PORT} proxy /api -> ${API_TARGET}`);
 // https://vite.dev/config/
 export default defineConfig({
     plugins: [
+        // @ts-expect-error Vite version mismatch between root and apps/admin node_modules (doesn't affect runtime)
         tailwindcss(),
+        // @ts-expect-error Vite version mismatch between root and apps/admin node_modules (doesn't affect runtime)
         react({
             babel: {
                 plugins: [
