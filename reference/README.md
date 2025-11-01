@@ -18,12 +18,6 @@ react-daisyui
 - Purpose: Source reference for standalone React component patterns aligned with daisyUI 5. Used to manually copy specific component implementations when a richer baseline than our existing code is helpful.
 - Location: `reference/react-daisyui`
 
-Unstract (main)
-- Repo: https://github.com/Zipstack/unstract.git
-- Purpose: Reference for large-scale agentic / LLM-powered document data extraction platform design (Prompt Studio, connector ecosystem, multi-provider LLM + embedding abstractions, ETL orchestration, human review workflows). We study orchestration patterns, multi-provider abstractions, and review UX—not to import code directly.
-- Location (recommended): `reference/unstract`
-- Extraction Checklist: `reference/unstract-extraction-checklist.md`
-
 Suggested setup (submodule)
 1) Add the submodule:
    git submodule add -b master git@github.com:eyedea-io/Nexus-React-3.0.0.git reference/nexus
