@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.4
 # Dockerfile for NestJS Backend API
-# Build context: apps/server-nest directory
+# Build context: REPOSITORY ROOT (.) - workspace-aware build
+# Usage: docker build -f apps/server-nest/Dockerfile .
 # 
 # BuildKit optimizations:
 # - Cache mounts for npm (50-80% faster dependency installs)
@@ -11,42 +12,45 @@
 # - Build stage: NODE_ENV=development (installs devDependencies needed for build)
 # - Runtime stage: NODE_ENV=production (optimized runtime, no dev tools)
 
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 # Set NODE_ENV to development for build stage
 ENV NODE_ENV=development
 
 WORKDIR /build
 
-# Copy package files
+# Copy root workspace package files first
 COPY package*.json ./
+# Copy server-nest package files
+COPY apps/server-nest/package*.json ./apps/server-nest/
 
-# Install dependencies with npm cache mount
+# Install dependencies with npm cache mount (workspace-aware)
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+    npm ci --workspace=apps/server-nest
 
-# Copy source code
-COPY . .
+# Copy server-nest source code
+COPY apps/server-nest ./apps/server-nest
 
 # Build the application
-RUN npm run build
+RUN cd apps/server-nest && npm run build
 
 # Production stage
-FROM node:20-alpine
+FROM node:20-slim
 
 # Set NODE_ENV to production for runtime
 ENV NODE_ENV=production
 
 WORKDIR /app
 
-# Install tini for proper signal handling
-RUN apk add --no-cache tini curl
+# Install tini and curl for proper signal handling and health checks
+RUN apt-get update && apt-get install -y --no-install-recommends tini curl && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy built application and dependencies from builder
 COPY --from=builder /build/node_modules ./node_modules
-COPY --from=builder /build/dist ./dist
-COPY --from=builder /build/src/common/database/migrations ./src/common/database/migrations
-COPY --from=builder /build/package*.json ./
+COPY --from=builder /build/apps/server-nest/dist ./dist
+COPY --from=builder /build/apps/server-nest/src/common/database/migrations ./src/common/database/migrations
+COPY --from=builder /build/apps/server-nest/package*.json ./
 
 # Expose port
 EXPOSE 3002
@@ -56,7 +60,7 @@ HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=30s \
   CMD curl -f http://localhost:3002/health || exit 1
 
 # Use tini as entrypoint for proper signal handling
-ENTRYPOINT ["/sbin/tini", "--"]
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # Start application
 CMD ["node", "dist/main.js"]
