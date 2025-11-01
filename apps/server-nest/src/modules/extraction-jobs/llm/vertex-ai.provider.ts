@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { VertexAI } from '@google-cloud/vertexai';
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { AppConfigService } from '../../../common/config/config.service';
 import { MonitoringLoggerService } from '../../monitoring/monitoring-logger.service';
 import {
