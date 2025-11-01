@@ -1,0 +1,151 @@
+# ============================================================================
+# Docker Build Context Exclusions
+# ============================================================================
+# This file controls what gets sent to Docker build context
+# Smaller context = faster builds and less cache invalidation
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Version Control
+# ----------------------------------------------------------------------------
+.git
+.gitignore
+.gitmodules
+.specify/
+.github/
+
+# ----------------------------------------------------------------------------
+# IDE & Editor
+# ----------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.dev-pids/
+
+# ----------------------------------------------------------------------------
+# Node.js
+# ----------------------------------------------------------------------------
+node_modules/
+**/node_modules/
+# Note: dist/ excluded from build context but created during build
+# Don't use wildcards that might exclude source directories
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.npm/
+.pnpm-store/
+
+# ----------------------------------------------------------------------------
+# Testing & Coverage
+# ----------------------------------------------------------------------------
+coverage/
+**/coverage/
+.vitest/
+**/.vitest/
+playwright-report/
+**/playwright-report/
+test-results/
+**/test-results/
+**/*.spec.ts
+**/*.test.ts
+**/e2e/
+**/__tests__/
+
+# ----------------------------------------------------------------------------
+# Environment & Secrets
+# ----------------------------------------------------------------------------
+.env
+.env.*
+*.local
+!.env.example
+!.env.production.example
+!.env.test.local.example
+*.key
+*.pem
+
+# ----------------------------------------------------------------------------
+# Logs
+# ----------------------------------------------------------------------------
+apps/logs/
+logs/
+*.log
+**/*.log
+
+# ----------------------------------------------------------------------------
+# Database & Backups
+# ----------------------------------------------------------------------------
+*.sql
+backup_*.sql
+*-schema-dump.sql
+
+# ----------------------------------------------------------------------------
+# Docker
+# ----------------------------------------------------------------------------
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+docker/
+
+# ----------------------------------------------------------------------------
+# Build & Development Tools
+# ----------------------------------------------------------------------------
+.prettierrc
+.prettierignore
+.eslintrc*
+# Keep tsconfig.json files needed for builds (root + apps)
+# Exclude only build-specific and test configs
+tsconfig.build.json
+**/tsconfig.build.json
+vitest*.config.ts
+playwright.config.ts
+
+# ----------------------------------------------------------------------------
+# Documentation
+# ----------------------------------------------------------------------------
+docs/
+*.md
+!README.md
+
+# ----------------------------------------------------------------------------
+# CI/CD
+# ----------------------------------------------------------------------------
+.github/
+.circleci/
+.gitlab-ci.yml
+
+# ----------------------------------------------------------------------------
+# OS Files
+# ----------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ----------------------------------------------------------------------------
+# Project Specific
+# ----------------------------------------------------------------------------
+# Reference projects (read-only, not needed in container)
+reference/
+
+# Specs and planning
+specs/
+
+# Tools and scripts (unless needed in container)
+tools/
+
+# Backup files
+backups/
+
+# Test data
+test-*.mjs
+test-*.sh
+test-*.ts
+
+# OpenAPI artifacts (regenerated)
+openapi.json
+openapi.yaml
+openapi.diff.*.json
+
+# Nx cache
+.nx/
