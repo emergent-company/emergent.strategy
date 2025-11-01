@@ -63,7 +63,7 @@ export class UserProfileService {
 
     async listAlternativeEmails(userId: string): Promise<AlternativeEmailDto[]> {
         const q = await this.db.query<any>(`SELECT email, verified, created_at FROM core.user_emails WHERE user_id = $1 ORDER BY created_at ASC`, [userId]);
-        return q.rows.map(r => ({ email: r.email, verified: r.verified, createdAt: r.created_at.toISOString?.() || r.created_at }));
+        return q.rows.map((r: any) => ({ email: r.email, verified: r.verified, createdAt: r.created_at.toISOString?.() || r.created_at }));
     }
 
     async addAlternativeEmail(userId: string, emailRaw: string): Promise<AlternativeEmailDto> {

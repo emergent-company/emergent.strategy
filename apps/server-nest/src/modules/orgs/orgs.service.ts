@@ -29,7 +29,7 @@ export class OrgsService {
                 [userId]
             );
             if (!res.rowCount) return [];
-            return res.rows.map(r => ({ id: r.id, name: r.name }));
+            return res.rows.map((r: any) => ({ id: r.id, name: r.name }));
         };
 
         if (this.tableMissing) {
