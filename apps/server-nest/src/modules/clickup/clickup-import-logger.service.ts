@@ -440,7 +440,7 @@ export class ClickUpImportLoggerService {
             [integrationId, limit]
         );
 
-        return result.rows.map(row => ({
+        return result.rows.map((row: any) => ({
             import_session_id: row.import_session_id,
             started_at: row.started_at,
             total_steps: parseInt(row.total_steps, 10),

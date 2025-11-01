@@ -72,7 +72,7 @@ export class DocumentsService {
         const rows = res.rows;
         const hasMore = rows.length > limit;
         const slice = hasMore ? rows.slice(0, limit) : rows;
-        const items = slice.map(r => this.mapRow(r));
+        const items = slice.map((r: any) => this.mapRow(r));
         if (hasMore) {
             const last = items[items.length - 1];
             const nextCursor = Buffer.from(JSON.stringify({ createdAt: last.createdAt, id: last.id }), 'utf8').toString('base64url');
