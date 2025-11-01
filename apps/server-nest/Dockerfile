@@ -85,7 +85,8 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 # Install tini and curl for proper signal handling and health checks
-RUN apt-get update && apt-get install -y --no-install-recommends tini curl && \
+# Also install postgresql-client for database migrations
+RUN apt-get update && apt-get install -y --no-install-recommends tini curl postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
 # Create a minimal package.json for production (without "type": "module")
