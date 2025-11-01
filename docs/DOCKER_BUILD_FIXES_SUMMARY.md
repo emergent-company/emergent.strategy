@@ -182,60 +182,103 @@ docker build \
 # Result: ✓ built in 7.37s
 ```
 
-## Server Backend (`apps/server-nest`) - PARTIALLY FIXED ⚠️
+## Server Backend (`apps/server-nest`) - FULLY FIXED ✅
 
-### Issues Fixed
-1. **npm ci failure**: Same workspace issue as admin
-2. **SIGBUS error**: @swc/core postinstall failing on Alpine Linux
+### Issues Found & Fixed
+1. **npm ci failure**: Same workspace issue as admin (package-lock.json not found)
+2. **@swc/core SIGBUS on Alpine**: Native module crash due to Alpine Linux's musl libc incompatibility
+3. **TypeScript compilation errors**: Missing type packages and 50+ implicit any errors
+4. **Missing root tsconfig.json**: server-nest extends root config but it wasn't copied to Docker
+5. **@api/clickup module not found**: npm ci doesn't create symlinks for local file: dependencies in Docker
 
-### Solution Applied (Commit b2f875b)
+### Solution Applied (Complete)
 
-#### Dockerfile Workspace Structure + Debian Base
+#### 1. Dockerfile Workspace Structure + Alpine→Debian (Commit b2f875b)
 ```dockerfile
-# Switch from Alpine to Debian slim (fixes @swc/core SIGBUS)
-FROM node:20-slim AS builder
+# Build context changed from apps/server-nest to repository root
+# Base image changed from node:20-alpine to node:20-slim (Debian)
+# Usage: docker build -f apps/server-nest/Dockerfile .
+
+FROM node:20-slim AS builder  # Changed from alpine due to @swc/core compatibility
 
 WORKDIR /build
 
 # Copy root workspace files FIRST
 COPY package*.json ./
 
-# Copy server-nest package files
+# Then copy server-nest package files
 COPY apps/server-nest/package*.json ./apps/server-nest/
+
+# Copy root tsconfig.json (server-nest extends it)
+COPY tsconfig.json ./
 
 # Use workspace-aware npm ci
 RUN npm ci --workspace=apps/server-nest
 
-# Copy server-nest source
+# Copy server-nest source (includes .api directory)
 COPY apps/server-nest ./apps/server-nest
+
+# Manually create symlink for @api/clickup (npm ci doesn't handle file: deps)
+RUN mkdir -p apps/server-nest/node_modules/@api && \
+    ln -sf /build/apps/server-nest/.api/apis/clickup apps/server-nest/node_modules/@api/clickup
 
 # Build from subdirectory
 RUN cd apps/server-nest && npm run build
 
-# Production stage
+# Runtime stage also uses slim (Debian)
 FROM node:20-slim
-
-# Install tini and curl (Debian paths)
-RUN apt-get update && apt-get install -y --no-install-recommends tini curl && \
-    rm -rf /var/lib/apt/lists/*
-
-# Copy from correct paths
-COPY --from=builder /build/node_modules ./node_modules
-COPY --from=builder /build/apps/server-nest/dist ./dist
-COPY --from=builder /build/apps/server-nest/src/common/database/migrations ./src/common/database/migrations
-COPY --from=builder /build/apps/server-nest/package*.json ./
-
-# Update tini path for Debian
-ENTRYPOINT ["/usr/bin/tini", "--"]
+RUN apt-get update && apt-get install -y tini curl && rm -rf /var/lib/apt/lists/*
+# ... rest of runtime setup
 ```
 
-### Remaining Issues
-TypeScript compilation errors (35 errors):
-- Parameter implicitly has 'any' type (multiple files)
-- Could not find declaration file for module 'pg'
-- Spread types issues in template-pack.service.ts
+#### 2. TypeScript Fixes (Commits d7fbc6f, 52b7f3f, 0d8acbe, 2508037)
 
-These are **code quality issues** that need fixing in the source code, not Docker/build configuration issues.
+**Added Missing Type Packages:**
+- `@types/pg@8.15.6` - Fixed ~10 pg module import errors
+- `@langchain/textsplitters@1.0.0` - Replaced deprecated `langchain/text_splitter`
+- `@types/html-to-text@1.0.0` - Fixed html-to-text type declarations
+
+**Fixed 50+ Implicit Any Errors:**
+
+*database.service.ts*:
+- Added `PgPolicyRow` interface for pg_policies query results
+- Fixed 11 implicit any parameters in map/every/reduce callbacks
+
+*Service Files (batch fixes)*:
+- audit.service.ts: Fixed 1 map callback
+- permission.service.ts: Fixed 2 map callbacks
+- chat.service.ts: Fixed 5 map callbacks
+- clickup-import-logger.service.ts: Fixed 1 map callback
+- documents.service.ts: Fixed 1 map callback
+- graph-vector-search.service.ts: Fixed 4 filter/map callbacks
+- graph.service.ts: Fixed 18 implicit any parameters (sed batch)
+- orgs.service.ts: Fixed implicit any (sed batch)
+- projects.service.ts: Fixed implicit any (sed batch)
+- search.service.ts: Fixed implicit any (sed batch)
+- user-profile.service.ts: Fixed implicit any (sed batch)
+- template-pack.service.ts: Fixed implicit any (sed batch)
+
+*vertex-ai.provider.ts*:
+- Updated import: `langchain/text_splitter` → `@langchain/textsplitters`
+
+#### 3. Local File Dependency Fix (Commits ceffed3, 6701fa0)
+
+**Problem**: npm ci doesn't create symlinks for `file:` dependencies
+- Package.json has: `"@api/clickup": "file:.api/apis/clickup"`
+- npm ci expects the directory to exist when it runs
+- Even copying .api before npm ci didn't work reliably
+
+**Solution**: Manual symlink creation after source COPY
+- Create @api directory in node_modules
+- Use absolute path for symlink target (relative paths didn't work)
+- Ensures TypeScript can resolve the module during compilation
+
+### Build Results
+- ✅ npm ci successful (25.8s)
+- ✅ TypeScript compilation successful (12.9s)  
+- ✅ Docker build complete (~49 seconds total)
+- ✅ All 50+ TypeScript errors resolved
+- ✅ @api/clickup module properly linked and resolved
 
 ## Coolify Deployment Configuration
 
@@ -327,26 +370,48 @@ docker build -f apps/server-nest/Dockerfile .
 
 ### Before
 - Admin build: Failed at npm ci (missing package-lock.json)
-- Server build: Failed at npm ci OR @swc/core SIGBUS
+- Server-nest build: Failed at npm ci OR @swc/core SIGBUS OR TypeScript errors
 
-### After
-- Admin build: ✅ Success in ~20 seconds (including npm ci, TypeScript compile, Vite build)
-- Server build: ⚠️ Progresses past npm ci, fails at TypeScript compile (needs code fixes)
+### After  
+- Admin build: ✅ Success in ~33 seconds (npm ci, TypeScript, Vite build)
+- Server-nest build: ✅ Success in ~49 seconds (npm ci, symlink, TypeScript compile)
 
 ## Files Modified
 
 ### Docker Configuration
 - `apps/admin/Dockerfile` - Complete workspace restructure
-- `apps/server-nest/Dockerfile` - Workspace + Alpine→Debian switch
+- `apps/server-nest/Dockerfile` - Workspace + Alpine→Debian + manual symlink for @api/clickup
 
 ### TypeScript/Application Code
-- `apps/admin/src/api/monitoring.ts` - Added 170+ lines of type definitions and implementations
+**Admin**:
+- `apps/admin/src/api/monitoring.ts` - Added 170+ lines of type definitions
 - `apps/admin/src/pages/admin/pages/monitoring/ChatSessionsListPage.tsx` - Null safety fixes
 - `apps/admin/vite.config.ts` - Removed dotenv, suppressed plugin warnings
+
+**Server-Nest**:
+- `apps/server-nest/package.json` - Added @types/pg, @langchain/textsplitters, @types/html-to-text
+- `apps/server-nest/src/common/database/database.service.ts` - Added PgPolicyRow interface, fixed 11 implicit any
+- `apps/server-nest/src/modules/*/**.service.ts` - Fixed 40+ implicit any parameters across 15+ files
+- `apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` - Updated langchain import path
 
 ### Files Deleted
 - `apps/admin/package-lock.json` - Conflicts with workspace, use root lock file
 
+## Testing Commands
+
+```bash
+# Test from repository root (build context = .)
+docker build -f apps/admin/Dockerfile -t test-admin:latest .
+docker build -f apps/server-nest/Dockerfile -t test-server-nest:latest .
+```
+
+## Next Steps for Deployment
+
+1. ✅ Both Dockerfiles working and tested
+2. ⚠️ Update Coolify Build Context to `.` (root) for BOTH applications
+3. ⚠️ Trigger deployments and monitor build logs
+4. ⚠️ Verify applications start successfully in production
+
 ## Related Documentation
-- [COOLIFY_DOCKER_BUILD_FIX.md](./COOLIFY_DOCKER_BUILD_FIX.md) - In-depth explanation of workspace fix
-- [COOLIFY_MANUAL_ENV_CONFIG.md](./COOLIFY_MANUAL_ENV_CONFIG.md) - Manual env var configuration guide
+- [COOLIFY_DOCKER_BUILD_FIX.md](./COOLIFY_DOCKER_BUILD_FIX.md) - In-depth workspace fix explanation
+- [COOLIFY_MANUAL_ENV_CONFIG.md](./COOLIFY_MANUAL_ENV_CONFIG.md) - Manual env var configuration
