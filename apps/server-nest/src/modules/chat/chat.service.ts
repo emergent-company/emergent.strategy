@@ -65,7 +65,7 @@ export class ChatService {
         if (priv.rows.length === 0) {
             // Diagnostic query to see if row exists with different org/project (should not happen, but helps debug)
             const diag = await this.db.query<any>(`SELECT id, title, created_at, updated_at, owner_id, is_private, organization_id, project_id FROM kb.chat_conversations WHERE owner_id = $1`, [userId]);
-            this.logger.log(`[listConversations] diag for owner yields ${diag.rowCount} rows: ${diag.rows.map(r => r.id + ':' + (r.organization_id || 'null') + ',' + (r.project_id || 'null')).join(',')}`);
+            this.logger.log(`[listConversations] diag for owner yields ${diag.rowCount} rows: ${diag.rows.map((r: any) => r.id + ':' + (r.organization_id || 'null') + ',' + (r.project_id || 'null')).join(',')}`);
             // Additional focused diagnostics to isolate filter predicate behavior
             const cOwner = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations WHERE owner_id = $1', [userId]);
             const cPrivate = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations WHERE is_private = true');
@@ -73,7 +73,7 @@ export class ChatService {
             this.logger.log(`[listConversations] counts owner=${cOwner.rows[0].c} privateAll=${cPrivate.rows[0].c} both=${cBoth.rows[0].c}`);
             // Peek at recent rows regardless of owner
             const recent = await this.db.query<any>('SELECT id, owner_id, is_private, created_at FROM kb.chat_conversations ORDER BY created_at DESC LIMIT 5');
-            this.logger.log(`[listConversations] recent head: ${recent.rows.map(r => r.id.substring(0, 8) + ' owner=' + (r.owner_id || 'null') + ' priv=' + r.is_private).join(' | ')}`);
+            this.logger.log(`[listConversations] recent head: ${recent.rows.map((r: any) => r.id.substring(0, 8) + ' owner=' + (r.owner_id || 'null') + ' priv=' + r.is_private).join(' | ')}`);
         }
         return { shared: shared.rows, private: priv.rows };
     }
@@ -97,7 +97,7 @@ export class ChatService {
             try {
                 const total = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations');
                 const recent = await this.db.query<any>('SELECT id, owner_id, is_private, created_at FROM kb.chat_conversations ORDER BY created_at DESC LIMIT 3');
-                this.logger.warn(`[getConversation] not-found id=${id} totalConvs=${total.rows[0].c} recent=${recent.rows.map(r => r.id.substring(0, 8) + ':' + (r.owner_id || 'null')).join(',')}`);
+                this.logger.warn(`[getConversation] not-found id=${id} totalConvs=${total.rows[0].c} recent=${recent.rows.map((r: any) => r.id.substring(0, 8) + ':' + (r.owner_id || 'null')).join(',')}`);
             } catch (e) {
                 this.logger.warn(`[getConversation] diag failure for id=${id}: ${(e as Error).message}`);
             }
@@ -120,7 +120,7 @@ export class ChatService {
             updatedAt: conv.updated_at,
             ownerUserId: conv.owner_id,
             isPrivate: conv.is_private,
-            messages: msgsQ.rows.map(m => ({ id: m.id, role: m.role, content: m.content, citations: m.citations || undefined, createdAt: m.created_at })),
+            messages: msgsQ.rows.map((m: any) => ({ id: m.id, role: m.role, content: m.content, citations: m.citations || undefined, createdAt: m.created_at })),
         };
     }
 
@@ -281,7 +281,7 @@ export class ChatService {
              LIMIT (SELECT topk FROM params)`,
             [vecLiteral, filterIds, orgId, projectId, topK, message],
         );
-        return rows.map(r => ({
+        return rows.map((r: any) => ({
             documentId: r.document_id,
             chunkId: r.chunk_id,
             chunkIndex: r.chunk_index,
