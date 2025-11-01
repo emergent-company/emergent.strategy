@@ -115,7 +115,7 @@ export function ChatSessionsListPage() {
 
     // Format cost
     const formatCost = (cost?: number | null) => {
-        if (cost === null || cost === 0) return '-';
+        if (cost === null || cost === undefined || cost === 0) return '-';
         return `$${cost.toFixed(4)}`;
     };
 
