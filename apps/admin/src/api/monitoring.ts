@@ -110,13 +110,18 @@ export interface ListExtractionJobsParams {
  */
 export interface ChatSessionSummary {
     id: string;
+    session_id: string;  // Also exposed as session_id
     user_id: string;
     created_at: string;
     updated_at: string;
+    started_at: string;  // Alias for created_at
+    last_activity_at?: string;  // Last activity timestamp
     message_count: number;
+    total_turns: number;  // Number of conversation turns
     tool_call_count: number;
+    log_count: number;  // Number of log entries
     total_tokens?: number;
-    total_cost_usd?: number;
+    total_cost?: number;  // Cost in USD (not usd suffix)
     status: 'active' | 'completed' | 'error';
 }
 
@@ -126,11 +131,15 @@ export interface ChatSessionSummary {
 export interface McpToolCallLog {
     id: string;
     session_id: string;
+    turn_number?: number;  // Turn number in conversation
     tool_name: string;
-    input_params: Record<string, any>;
-    output_result?: Record<string, any>;
+    tool_parameters?: Record<string, any>;  // Input parameters (also as input_params for compat)
+    input_params?: Record<string, any>;  // Alias for tool_parameters
+    tool_result?: Record<string, any>;  // Output result (also as output_result for compat)
+    output_result?: Record<string, any>;  // Alias for tool_result
     status: 'success' | 'error' | 'pending';
     duration_ms?: number;
+    execution_time_ms?: number;  // Alias for duration_ms
     error_message?: string;
     created_at: string;
 }
@@ -140,15 +149,44 @@ export interface McpToolCallLog {
  */
 export interface ChatSessionDetail {
     id: string;
+    session_id: string;  // Also exposed as session_id for backward compatibility
     user_id: string;
     created_at: string;
     updated_at: string;
+    started_at: string;  // Alias for created_at
+    completed_at?: string;  // When session ended
+    duration_ms?: number;  // Duration in milliseconds
+    total_turns: number;  // Number of conversation turns
+    total_cost: number;  // Total cost in USD
     status: 'active' | 'completed' | 'error';
     messages: Array<{
         id: string;
         role: 'user' | 'assistant' | 'system';
         content: string;
         created_at: string;
+    }>;
+    logs: Array<{
+        id: string;
+        timestamp: string;
+        level: 'debug' | 'info' | 'warn' | 'error';
+        message: string;
+        metadata?: Record<string, any>;
+        processType?: string;  // e.g., 'chat_turn'
+    }>;
+    llm_calls: Array<{
+        id: string;
+        model_name: string;
+        status: 'success' | 'error' | 'timeout' | 'pending';
+        input_tokens?: number;
+        output_tokens?: number;
+        total_tokens?: number;
+        cost_usd?: number;
+        duration_ms?: number;
+        started_at: string;
+        completed_at?: string;
+        request_payload?: Record<string, any>;
+        response_payload?: Record<string, any>;
+        error_message?: string;
     }>;
     tool_calls: McpToolCallLog[];
     metrics: {
@@ -165,8 +203,11 @@ export interface ChatSessionDetail {
 export interface ListChatSessionsParams {
     user_id?: string;
     status?: 'active' | 'completed' | 'error';
-    date_from?: string;
-    date_to?: string;
+    start_date?: string;  // Date range start
+    end_date?: string;  // Date range end
+    date_from?: string;  // Alias for start_date
+    date_to?: string;  // Alias for end_date
+    offset?: number;  // Offset for pagination (alternative to page)
     page?: number;
     limit?: number;
     sort_by?: 'created_at' | 'message_count' | 'total_cost_usd';
