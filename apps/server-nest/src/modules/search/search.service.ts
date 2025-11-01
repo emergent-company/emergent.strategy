@@ -43,7 +43,7 @@ export class SearchService {
             // Generate path summaries if requested
             let pathSummaries: Map<string, any> | undefined;
             if (includePaths && rows.length > 0) {
-                const documentIds = Array.from(new Set(rows.map(r => r.document_id)));
+                const documentIds = Array.from(new Set(rows.map((r: any) => r.document_id)));
                 pathSummaries = await this.pathSummary.generatePathSummaries(documentIds);
             }
 
@@ -65,7 +65,7 @@ export class SearchService {
             // Generate path summaries if requested
             let pathSummaries: Map<string, any> | undefined;
             if (includePaths && rows.length > 0) {
-                const documentIds = Array.from(new Set(rows.map(r => r.document_id)));
+                const documentIds = Array.from(new Set(rows.map((r: any) => r.document_id)));
                 pathSummaries = await this.pathSummary.generatePathSummaries(documentIds);
             }
 
@@ -85,7 +85,7 @@ export class SearchService {
             // Generate path summaries if requested
             let pathSummaries: Map<string, any> | undefined;
             if (includePaths && rows.length > 0) {
-                const documentIds = Array.from(new Set(rows.map(r => r.document_id)));
+                const documentIds = Array.from(new Set(rows.map((r: any) => r.document_id)));
                 pathSummaries = await this.pathSummary.generatePathSummaries(documentIds);
             }
 
@@ -115,8 +115,8 @@ export class SearchService {
         );
 
         // Step 3: Calculate statistics for each channel
-        const lexicalScores = lexicalResults.rows.map(r => r.score || 0);
-        const vectorScores = vectorResults.rows.map(r => r.score || 0);
+        const lexicalScores = lexicalResults.rows.map((r: any) => r.score || 0);
+        const vectorScores = vectorResults.rows.map((r: any) => r.score || 0);
 
         const lexicalStats = calculateStatistics(lexicalScores);
         const vectorStats = calculateStatistics(vectorScores);
@@ -164,7 +164,7 @@ export class SearchService {
         // Step 6: Generate path summaries if requested
         let pathSummaries: Map<string, any> | undefined;
         if (includePaths && sortedResults.length > 0) {
-            const documentIds = Array.from(new Set(sortedResults.map(r => r.document_id)));
+            const documentIds = Array.from(new Set(sortedResults.map((r: any) => r.document_id)));
             pathSummaries = await this.pathSummary.generatePathSummaries(documentIds);
         }
 

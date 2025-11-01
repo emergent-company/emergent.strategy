@@ -207,7 +207,7 @@ export class TemplatePackService {
         );
 
         if (existingTypes.rows.length > 0) {
-            const conflictingTypes = existingTypes.rows.map(r => r.type);
+            const conflictingTypes = existingTypes.rows.map((r: any) => r.type);
             this.logger.warn(`Type conflicts detected for project ${projectId}: ${conflictingTypes.join(', ')}`);
 
             // For now, skip conflicting types
@@ -347,7 +347,7 @@ export class TemplatePackService {
              WHERE project_id = $1 AND active = true`,
             [projectId]
         );
-        const installedIds = new Set(installedResult.rows.map(r => r.template_pack_id));
+        const installedIds = new Set(installedResult.rows.map((r: any) => r.template_pack_id));
 
         // Get object counts per type for this project
         const countsResult = await this.db.query<{ type: string; count: string }>(
@@ -357,7 +357,7 @@ export class TemplatePackService {
              GROUP BY type`,
             [projectId]
         );
-        const typeCounts = new Map(countsResult.rows.map(r => [r.type, parseInt(r.count)]));
+        const typeCounts = new Map(countsResult.rows.map((r: any) => [r.type, parseInt(r.count)]));
 
         // Build response
         return packsResult.rows.map(pack => {

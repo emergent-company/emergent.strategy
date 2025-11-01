@@ -1003,7 +1003,7 @@ export class GraphService {
                     throw error;
                 }
             }
-            const items = res.rows.map(r => {
+            const items = res.rows.map((r: any) => {
                 const { rank, fts: _fts, ...rest } = r; // strip internal vector
                 return { ...rest, rank } as GraphObjectDto & { rank: number };
             });

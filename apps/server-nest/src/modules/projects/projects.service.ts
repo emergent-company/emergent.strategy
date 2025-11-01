@@ -40,14 +40,14 @@ export class ProjectsService {
                     `SELECT id, name, organization_id, kb_purpose FROM kb.projects WHERE organization_id = $1 ORDER BY created_at DESC LIMIT $2`,
                     [orgId, limit],
                 );
-                return res.rows.map(r => ({ id: r.id, name: r.name, orgId: r.organization_id, kb_purpose: r.kb_purpose }));
+                return res.rows.map((r: any) => ({ id: r.id, name: r.name, orgId: r.organization_id, kb_purpose: r.kb_purpose }));
             });
         }
         const res = await this.db.query<ProjectRow>(
             `SELECT id, name, organization_id, kb_purpose FROM kb.projects ORDER BY created_at DESC LIMIT $1`,
             [limit],
         );
-        return res.rows.map(r => ({ id: r.id, name: r.name, orgId: r.organization_id, kb_purpose: r.kb_purpose }));
+        return res.rows.map((r: any) => ({ id: r.id, name: r.name, orgId: r.organization_id, kb_purpose: r.kb_purpose }));
     }
 
     async getById(id: string): Promise<ProjectDto | null> {
