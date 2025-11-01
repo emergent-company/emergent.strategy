@@ -88,11 +88,34 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends tini curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy built application and dependencies from builder
+# Create a minimal package.json for production (without "type": "module")
+RUN echo '{\n\
+  "name": "server-nest",\n\
+  "version": "0.1.0",\n\
+  "private": true,\n\
+  "main": "dist/main.js",\n\
+  "scripts": {\n\
+    "start": "node dist/main.js"\n\
+  },\n\
+  "engines": {\n\
+    "node": ">=20.0.0"\n\
+  }\n\
+}' > /app/package.json
+
+# Copy node_modules from both root and workspace
 COPY --from=builder /build/node_modules ./node_modules
+COPY --from=builder /build/apps/server-nest/node_modules ./node_modules
+
+# Copy the @api/clickup module (which is a local file dependency)
+COPY --from=builder /build/apps/server-nest/.api ./.api
+
+# Recreate the symlink for @api/clickup in production
+RUN mkdir -p node_modules/@api && \
+    ln -sf /app/.api/apis/clickup node_modules/@api/clickup
+
+# Copy built application
 COPY --from=builder /build/apps/server-nest/dist ./dist
 COPY --from=builder /build/apps/server-nest/src/common/database/migrations ./src/common/database/migrations
-COPY --from=builder /build/apps/server-nest/package.json /build/apps/server-nest/package-lock.json ./
 
 # Expose port
 EXPOSE 3002

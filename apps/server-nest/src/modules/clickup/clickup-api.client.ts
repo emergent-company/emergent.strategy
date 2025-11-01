@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import clickupSdk from '@api/clickup';
+// Dynamic import for ES module SDK
+// import clickupSdk from '@api/clickup';
 import {
     ClickUpWorkspacesResponse,
     ClickUpSpacesResponse,
@@ -89,21 +90,53 @@ class RateLimiter {
 @Injectable()
 export class ClickUpApiClient {
     private readonly logger = new Logger(ClickUpApiClient.name);
-    private sdk = clickupSdk;
+    private sdk: any = null; // Will be dynamically imported
     private rateLimiter: RateLimiter;
     private apiToken: string | null = null;
+    private sdkInitPromise: Promise<void> | null = null;
 
     constructor() {
         this.rateLimiter = new RateLimiter(100, 60000); // 100 req/min
+        // Start SDK initialization immediately
+        this.sdkInitPromise = this.initializeSdk();
+    }
+
+    /**
+     * Dynamically import the ES module SDK
+     */
+    private async initializeSdk(): Promise<void> {
+        try {
+            const module = await import('@api/clickup');
+            this.sdk = module.default;
+            this.logger.log('ClickUp SDK loaded successfully');
+        } catch (error) {
+            this.logger.error('Failed to load ClickUp SDK:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Ensure SDK is loaded before use
+     */
+    private async ensureSdkLoaded(): Promise<void> {
+        if (this.sdkInitPromise) {
+            await this.sdkInitPromise;
+        }
+        if (!this.sdk) {
+            throw new Error('ClickUp SDK failed to initialize');
+        }
     }
 
     /**
      * Initialize the API client with an API token
      */
-    configure(apiToken: string): void {
+    async configure(apiToken: string): Promise<void> {
         if (!apiToken) {
             throw new Error('ClickUp API token is required');
         }
+
+        // Ensure SDK is loaded first
+        await this.ensureSdkLoaded();
 
         this.apiToken = apiToken;
 
@@ -124,6 +157,9 @@ export class ClickUpApiClient {
         if (!this.apiToken) {
             throw new Error('ClickUp API client not configured. Call configure() first.');
         }
+
+        // Ensure SDK is loaded
+        await this.ensureSdkLoaded();
 
         // Wait for rate limiter
         await this.rateLimiter.waitForSlot();
