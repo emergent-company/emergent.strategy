@@ -23,6 +23,8 @@ WORKDIR /build
 COPY package*.json ./
 # Copy server-nest package files
 COPY apps/server-nest/package*.json ./apps/server-nest/
+# Copy root tsconfig.json (extended by server-nest tsconfig)
+COPY tsconfig.json ./
 
 # Install dependencies with npm cache mount (workspace-aware)
 RUN --mount=type=cache,target=/root/.npm \
@@ -30,6 +32,10 @@ RUN --mount=type=cache,target=/root/.npm \
 
 # Copy server-nest source code
 COPY apps/server-nest ./apps/server-nest
+
+# Reinstall to link local file: dependencies (like @api/clickup)
+RUN --mount=type=cache,target=/root/.npm \
+    npm install --workspace=apps/server-nest --package-lock-only=false
 
 # Build the application
 RUN cd apps/server-nest && npm run build
