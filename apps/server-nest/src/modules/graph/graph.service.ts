@@ -369,7 +369,7 @@ export class GraphService {
                  AND deleted_at IS NULL
                  ORDER BY tag`
             );
-            return res.rows.map(row => row.tag);
+            return res.rows.map((row: any) => row.tag);
         });
     }
 
@@ -411,7 +411,7 @@ export class GraphService {
             );
 
             // Map to version DTOs
-            return versionsRes.rows.map((row, idx) => {
+            return versionsRes.rows.map((row: any, idx: any) => {
                 // Extract user info from properties if available
                 const createdBy = row.properties?._created_by as string | undefined;
                 const extractionJobId = row.properties?._extraction_job_id as string | undefined;

@@ -75,9 +75,9 @@ export class GraphVectorSearchService {
             let rows = res.rows || [];
             const threshold = opts.maxDistance != null ? opts.maxDistance : opts.minScore;
             if (threshold != null) {
-                rows = rows.filter(r => r.distance <= threshold);
+                rows = rows.filter((r: any) => r.distance <= threshold);
             }
-            return rows.map(r => ({ id: r.id, distance: r.distance, organization_id: r.organization_id, project_id: r.project_id, branch_id: r.branch_id }));
+            return rows.map((r: any) => ({ id: r.id, distance: r.distance, organization_id: r.organization_id, project_id: r.project_id, branch_id: r.branch_id }));
         } catch (e) {
             const msg = (e as Error).message || '';
             if (/column "embedding_vec"/.test(msg) || /does not exist/.test(msg)) {
@@ -110,9 +110,9 @@ export class GraphVectorSearchService {
             let rows = res.rows || [];
             const threshold = opts.maxDistance != null ? opts.maxDistance : opts.minScore;
             if (threshold != null) {
-                rows = rows.filter(r => r.distance <= threshold);
+                rows = rows.filter((r: any) => r.distance <= threshold);
             }
-            return rows.map(r => ({ id: r.id, distance: r.distance, organization_id: r.organization_id, project_id: r.project_id, branch_id: r.branch_id }));
+            return rows.map((r: any) => ({ id: r.id, distance: r.distance, organization_id: r.organization_id, project_id: r.project_id, branch_id: r.branch_id }));
         } catch (e) {
             const msg = (e as Error).message || '';
             if (/column "embedding_vec"/.test(msg) || /does not exist/.test(msg)) {
