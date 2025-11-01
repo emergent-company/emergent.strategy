@@ -11,7 +11,6 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import yaml from 'js-yaml';
-import { execSync } from 'node:child_process';
 
 /**
  * Validate critical environment variables before starting the server
@@ -99,11 +98,25 @@ async function bootstrap() {
             const migrateDir = process.cwd().endsWith('server-nest')
                 ? process.cwd()
                 : join(process.cwd(), 'apps/server-nest');
-            execSync('node scripts/migrate.mjs', {
+            
+            const migrationScriptPath = join(migrateDir, 'scripts', 'migrate.mjs');
+            
+            // Use spawnSync with node directly (no shell) to avoid /bin/sh dependency
+            const { spawnSync } = require('child_process');
+            const result = spawnSync(process.execPath, [migrationScriptPath], {
                 cwd: migrateDir,
                 stdio: 'inherit',
                 env: { ...process.env }
             });
+            
+            if (result.error) {
+                throw result.error;
+            }
+            
+            if (result.status !== 0) {
+                throw new Error(`Migration script exited with code ${result.status}`);
+            }
+            
             fileLogger.log('[startup] Database migrations completed successfully', 'Bootstrap');
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
