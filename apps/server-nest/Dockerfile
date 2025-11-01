@@ -30,12 +30,13 @@ COPY tsconfig.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --workspace=apps/server-nest
 
-# Copy server-nest source code
+# Copy server-nest source code (includes .api directory)
 COPY apps/server-nest ./apps/server-nest
 
-# Reinstall to link local file: dependencies (like @api/clickup)
-RUN --mount=type=cache,target=/root/.npm \
-    npm install --workspace=apps/server-nest --package-lock-only=false
+# Manually create symlink for @api/clickup (npm ci doesn't handle file: deps in Docker)
+# Use absolute path for the symlink target
+RUN mkdir -p apps/server-nest/node_modules/@api && \
+    ln -sf /build/apps/server-nest/.api/apis/clickup apps/server-nest/node_modules/@api/clickup
 
 # Build the application
 RUN cd apps/server-nest && npm run build
