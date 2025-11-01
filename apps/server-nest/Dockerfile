@@ -20,9 +20,9 @@ ENV NODE_ENV=development
 WORKDIR /build
 
 # Copy root workspace package files first
-COPY package*.json ./
+COPY package.json package-lock.json ./
 # Copy server-nest package files
-COPY apps/server-nest/package*.json ./apps/server-nest/
+COPY apps/server-nest/package.json apps/server-nest/package-lock.json ./apps/server-nest/
 # Copy root tsconfig.json (extended by server-nest tsconfig)
 COPY tsconfig.json ./
 
@@ -57,7 +57,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends tini curl && \
 COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/apps/server-nest/dist ./dist
 COPY --from=builder /build/apps/server-nest/src/common/database/migrations ./src/common/database/migrations
-COPY --from=builder /build/apps/server-nest/package*.json ./
+COPY --from=builder /build/apps/server-nest/package.json /build/apps/server-nest/package-lock.json ./
 
 # Expose port
 EXPOSE 3002
