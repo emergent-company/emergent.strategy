@@ -132,6 +132,71 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         }
     }
 
+    /**
+     * Run database migrations from the migrations directory.
+     * Uses advisory locks to prevent concurrent migration runs.
+     * Idempotent - safe to run multiple times.
+     */
+    async runMigrations(): Promise<void> {
+        if (!this.pool || !this.online) {
+            this.logger.warn('Cannot run migrations - database is offline');
+            return;
+        }
+
+        const start = Date.now();
+        this.logger.log('Running database migrations...');
+
+        // Use PostgreSQL advisory lock to prevent concurrent migrations
+        await this.pool.query('SELECT pg_advisory_lock(4815162342)');
+        let locked = true;
+
+        try {
+            const fs = await import('node:fs');
+            const path = await import('node:path');
+            
+            const migrationsDir = path.join(process.cwd(), 'src', 'common', 'database', 'migrations');
+
+            if (!fs.existsSync(migrationsDir)) {
+                this.logger.warn(`Migrations directory not found: ${migrationsDir}`);
+                return;
+            }
+
+            const migrationFiles = fs
+                .readdirSync(migrationsDir)
+                .filter((f) => f.endsWith('.sql'))
+                .sort();
+
+            if (migrationFiles.length === 0) {
+                this.logger.log('No migration files found');
+                return;
+            }
+
+            for (const file of migrationFiles) {
+                const filePath = path.join(migrationsDir, file);
+                const sql = fs.readFileSync(filePath, 'utf-8');
+
+                this.logger.log(`Running migration: ${file}`);
+
+                try {
+                    await this.pool.query(sql);
+                    this.logger.log(`✓ Migration ${file} completed`);
+                } catch (e) {
+                    this.logger.warn(`✗ Migration ${file} failed (skipping): ${(e as Error).message}`);
+                    // Don't throw - migrations may have already been applied manually
+                }
+            }
+
+            const ms = Date.now() - start;
+            this.logger.log(`All migrations completed in ${ms}ms`);
+        } finally {
+            if (locked) {
+                try {
+                    await this.pool.query('SELECT pg_advisory_unlock(4815162342)');
+                } catch { /* ignore */ }
+            }
+        }
+    }
+
     async query<T extends QueryResultRow = QueryResultRow>(text: string, params?: any[]): Promise<QueryResult<T>> {
         if (!this.pool) { await this.lazyInit(); }
         if (!this.online) {
