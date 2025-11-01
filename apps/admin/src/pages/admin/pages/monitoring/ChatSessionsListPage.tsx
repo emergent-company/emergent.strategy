@@ -102,7 +102,8 @@ export function ChatSessionsListPage() {
     const totalPages = Math.ceil(total / limit);
 
     // Format duration (seconds to readable string)
-    const formatDuration = (started: string, lastActivity: string) => {
+    const formatDuration = (started: string, lastActivity?: string) => {
+        if (!lastActivity) return 'N/A';
         const start = new Date(started).getTime();
         const end = new Date(lastActivity).getTime();
         const durationSeconds = Math.floor((end - start) / 1000);
@@ -113,7 +114,7 @@ export function ChatSessionsListPage() {
     };
 
     // Format cost
-    const formatCost = (cost: number | null) => {
+    const formatCost = (cost?: number | null) => {
         if (cost === null || cost === 0) return '-';
         return `$${cost.toFixed(4)}`;
     };
