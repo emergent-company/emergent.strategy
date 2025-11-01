@@ -102,8 +102,9 @@ async function bootstrap() {
             const migrationScriptPath = join(migrateDir, 'scripts', 'migrate.mjs');
             
             // Use spawnSync with node directly (no shell) to avoid /bin/sh dependency
+            // Use 'node' from PATH instead of process.execPath to ensure runtime path is used
             const { spawnSync } = require('child_process');
-            const result = spawnSync(process.execPath, [migrationScriptPath], {
+            const result = spawnSync('node', [migrationScriptPath], {
                 cwd: migrateDir,
                 stdio: 'inherit',
                 env: { ...process.env }
