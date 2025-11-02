@@ -166,15 +166,26 @@ DECLARE
     refresh_start TIMESTAMPTZ;
     refresh_end TIMESTAMPTZ;
     refresh_duration INTERVAL;
+    is_populated BOOLEAN;
 BEGIN
     refresh_start := clock_timestamp();
     
-    REFRESH MATERIALIZED VIEW CONCURRENTLY kb.graph_object_revision_counts;
+    -- Check if the materialized view is populated
+    SELECT ispopulated INTO is_populated
+    FROM pg_matviews
+    WHERE schemaname = 'kb' AND matviewname = 'graph_object_revision_counts';
+    
+    -- Use CONCURRENTLY only if already populated, otherwise do regular refresh
+    IF is_populated THEN
+        REFRESH MATERIALIZED VIEW CONCURRENTLY kb.graph_object_revision_counts;
+    ELSE
+        REFRESH MATERIALIZED VIEW kb.graph_object_revision_counts;
+    END IF;
     
     refresh_end := clock_timestamp();
     refresh_duration := refresh_end - refresh_start;
     
-    RAISE NOTICE 'Revision counts refreshed in %', refresh_duration;
+    RAISE NOTICE 'Revision counts refreshed in % (concurrent: %)', refresh_duration, is_populated;
     
     RETURN (SELECT COUNT(*)::INTEGER FROM kb.graph_object_revision_counts);
 END;
