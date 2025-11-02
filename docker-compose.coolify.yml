@@ -79,8 +79,14 @@ services:
         VITE_ZITADEL_ISSUER: ${VITE_ZITADEL_ISSUER}
         VITE_ZITADEL_CLIENT_ID: ${VITE_ZITADEL_CLIENT_ID}
         VITE_APP_ENV: ${VITE_APP_ENV:-production}
-    ports:
-      - "${ADMIN_PORT:-80}:3000" # Map configurable host port to container port 3000
+    expose:
+      - "3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.admin.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.admin.entrypoints=web"
+      - "traefik.http.services.admin.loadbalancer.server.port=3000"
+      - "traefik.http.routers.admin.service=admin"
     depends_on:
       - server
     healthcheck:
