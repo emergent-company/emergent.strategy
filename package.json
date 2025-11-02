@@ -9,6 +9,7 @@
   ],
   "type": "module",
   "scripts": {
+    "prepare": "husky",
     "nx": "nx",
     "clean": "npm --prefix apps/server-nest run clean || true && rimraf apps/admin/dist || true",
     "dev:server-nest": "nx run server-nest:start-dev",
@@ -98,6 +99,7 @@
     "concurrently": "^9.1.2",
     "dotenv-cli": "^10.0.0",
     "execa": "^9.6.0",
+    "husky": "^9.1.7",
     "nx": "^21.6.5",
     "prettier": "^2.6.2",
     "rimraf": "^5.0.5",
