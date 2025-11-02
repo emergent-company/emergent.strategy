@@ -105,7 +105,14 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                 database: this.config.dbName,
             });
             await this.pool.query('SELECT 1');
-            // Schema is now managed entirely by migrations (no ensureSchema)
+            
+            // Run migrations automatically on startup
+            if (process.env.SKIP_MIGRATIONS !== '1') {
+                await this.runMigrations();
+            } else {
+                this.logger.log('Skipping migrations (SKIP_MIGRATIONS=1)');
+            }
+            
             // Post-schema: switch to non-bypass role (no-op if already non-bypass)
             try {
                 await this.switchToRlsApplicationRole();
