@@ -24,9 +24,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-spec}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-spec} -d ${POSTGRES_DB:-spec}"]
+      test: ["CMD-SHELL", "pg_isready -U spec -d spec"]
       interval: 5s
-      timeout: 5s
+      timeout: 3s
       retries: 10
       start_period: 10s
     volumes:

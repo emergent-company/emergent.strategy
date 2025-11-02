@@ -15,10 +15,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-spec}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "pg_isready -U spec -d spec"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
   # NestJS Backend API
   server:

@@ -104,7 +104,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                 password: this.config.dbPassword,
                 database: this.config.dbName,
             });
-            await this.pool.query('SELECT 1');
+            
+            // Wait for database to be ready with retries
+            await this.waitForDatabase();
             
             // Run migrations automatically on startup
             if (process.env.SKIP_MIGRATIONS !== '1') {
@@ -140,14 +142,47 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     }
 
     /**
+     * Wait for database to be ready with exponential backoff.
+     * Retries connection until successful or max attempts reached.
+     */
+    private async waitForDatabase(maxAttempts = 30, initialDelayMs = 1000): Promise<void> {
+        let attempt = 0;
+        let delay = initialDelayMs;
+
+        while (attempt < maxAttempts) {
+            try {
+                attempt++;
+                this.logger.log(`Attempting database connection (${attempt}/${maxAttempts})...`);
+                await this.pool.query('SELECT 1');
+                this.logger.log('✓ Database connection successful');
+                return;
+            } catch (error) {
+                const isLastAttempt = attempt >= maxAttempts;
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                
+                if (isLastAttempt) {
+                    this.logger.error(`✗ Database connection failed after ${maxAttempts} attempts: ${errorMessage}`);
+                    throw new Error(`Database connection failed after ${maxAttempts} attempts: ${errorMessage}`);
+                }
+                
+                this.logger.warn(`Database not ready (attempt ${attempt}/${maxAttempts}): ${errorMessage}. Retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
+                // Exponential backoff with cap at 10 seconds
+                delay = Math.min(delay * 1.5, 10000);
+            }
+        }
+    }
+
+    /**
      * Run database migrations from the migrations directory.
      * Uses advisory locks to prevent concurrent migration runs.
      * Idempotent - safe to run multiple times.
      */
     async runMigrations(): Promise<void> {
-        if (!this.pool || !this.online) {
-            this.logger.warn('Cannot run migrations - database is offline');
-            return;
+        if (!this.pool) {
+            this.logger.error('Cannot run migrations - database pool not initialized');
+            throw new Error('Database pool not initialized');
         }
 
         const start = Date.now();
