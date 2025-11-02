@@ -110,11 +110,6 @@
   "overrides": {
     "@modelcontextprotocol/sdk": {
       "express": "4.21.2"
-    },
-    "server-nest": {
-      "@rekog/mcp-nest": {
-        "path-to-regexp": "3.3.0"
-      }
     }
   }
 }
