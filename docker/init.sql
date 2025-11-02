@@ -40,13 +40,13 @@ CREATE INDEX IF NOT EXISTS idx_chunks_tsv ON kb.chunks USING GIN (tsv);
 CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON kb.chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
 -- Trigger function to keep tsvector updated (idempotent)
-CREATE OR REPLACE FUNCTION kb.update_tsv() 
-RETURNS trigger 
-LANGUAGE plpgsql 
+CREATE OR REPLACE FUNCTION kb.update_tsv()
+RETURNS trigger
+LANGUAGE plpgsql
 AS $$
-BEGIN 
-  NEW.tsv := to_tsvector('simple', NEW.text);
-  RETURN NEW;
+BEGIN
+    NEW.tsv := to_tsvector('simple', NEW.text);
+    RETURN NEW;
 END;
 $$;
 
