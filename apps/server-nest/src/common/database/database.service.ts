@@ -161,7 +161,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             const fs = await import('node:fs');
             const path = await import('node:path');
             
-            const migrationsDir = path.join(process.cwd(), 'src', 'common', 'database', 'migrations');
+            const migrationsDir = path.join(process.cwd(), 'migrations');
 
             if (!fs.existsSync(migrationsDir)) {
                 this.logger.warn(`Migrations directory not found: ${migrationsDir}`);
