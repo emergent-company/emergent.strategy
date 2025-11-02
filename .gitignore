@@ -51,3 +51,4 @@ apps/server-nest/logs/
 
 storybook-static
 logs
+apps/server-nest/migrations/_archive_*/
