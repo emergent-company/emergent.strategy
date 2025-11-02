@@ -137,7 +137,7 @@ COMMENT ON COLUMN kb.system_process_logs.process_id IS 'Reference ID to specific
 -- 5. GRANT PERMISSIONS (if needed)
 -- =====================================================
 -- Ensure application role has access to new table
-DO $ $ BEGIN IF EXISTS (
+DO $$ BEGIN IF EXISTS (
     SELECT
         1
     FROM
@@ -159,4 +159,4 @@ SELECT
 
 END IF;
 
-END $ $;
+END $$;
