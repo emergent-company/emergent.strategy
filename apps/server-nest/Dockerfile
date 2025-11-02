@@ -118,9 +118,6 @@ RUN mkdir -p node_modules/@api && \
 COPY --from=builder /build/apps/server-nest/dist ./dist
 COPY --from=builder /build/apps/server-nest/src/common/database/migrations ./src/common/database/migrations
 
-# Copy migration script
-COPY --from=builder /build/apps/server-nest/scripts/migrate.mjs ./scripts/migrate.mjs
-
 # Expose port
 EXPOSE 3002
 
