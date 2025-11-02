@@ -49,22 +49,10 @@ RUN echo "====== BUILD CONTEXT DEBUG ======" && \
     test -f package-lock.json && echo "YES ($(wc -l < package-lock.json) lines)" || echo "NO" && \
     echo "================================="
 
-# Install dependencies with npm cache mount (with verbose output for debugging)
+# Install dependencies with npm cache mount (skip prepare scripts like husky in Docker)
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --workspace=apps/admin --verbose 2>&1 || { \
-        echo "====== NPM CI FAILED ======"; \
-        echo "Node version: $(node --version)"; \
-        echo "NPM version: $(npm --version)"; \
-        echo "Working directory: $(pwd)"; \
-        echo "Package files:"; \
-        ls -la package*.json || echo "No package files found"; \
-        echo "Admin package files:"; \
-        ls -la apps/admin/package*.json || echo "No admin package files found"; \
-        echo "Environment variables (filtered):"; \
-        env | grep -E "NODE|NPM|VITE|PATH" | sort; \
-        echo "==========================="; \
-        exit 1; \
-    }
+    npm ci --workspace=apps/admin --ignore-scripts && \
+    echo "Dependencies installed successfully"
 
 # Copy application source
 COPY apps/admin ./apps/admin

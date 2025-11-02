@@ -45,9 +45,9 @@ RUN echo "=== DEBUG: After copying server-nest package files ===" && \
 # Copy root tsconfig.json (extended by server-nest tsconfig)
 COPY tsconfig.json ./
 
-# Install dependencies with npm cache mount (workspace-aware)
+# Install dependencies with npm cache mount (workspace-aware, skip prepare scripts like husky)
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --workspace=apps/server-nest
+    npm ci --workspace=apps/server-nest --ignore-scripts
 
 RUN echo "=== DEBUG: After npm ci ===" && \
     ls -la && \
