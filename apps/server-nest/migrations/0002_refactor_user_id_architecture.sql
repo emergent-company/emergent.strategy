@@ -269,7 +269,7 @@ SET
     NULL;
 
 -- Step 20: Update extraction jobs if they have subject_id column
-DO $ $ BEGIN IF EXISTS (
+DO $$ BEGIN IF EXISTS (
     SELECT
         1
     FROM
@@ -315,7 +315,7 @@ END IF;
 
 END IF;
 
-END $ $;
+END $$;
 
 -- Final step: Add comments for documentation
 COMMENT ON COLUMN core.user_profiles.id IS 'Internal UUID primary key for user profiles';
