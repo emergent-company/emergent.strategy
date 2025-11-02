@@ -915,6 +915,12 @@ CREATE MATERIALIZED VIEW kb.graph_object_revision_counts AS
 
 COMMENT ON MATERIALIZED VIEW kb.graph_object_revision_counts IS 'Pre-computed revision counts for graph objects. Refresh periodically to keep current.';
 
+--
+-- Populate the materialized view initially (required before CONCURRENTLY can be used)
+--
+
+REFRESH MATERIALIZED VIEW kb.graph_object_revision_counts;
+
 
 --
 -- Name: graph_relationships; Type: TABLE; Schema: kb; Owner: -
