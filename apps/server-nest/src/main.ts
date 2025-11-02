@@ -100,23 +100,6 @@ async function bootstrap() {
     // Set up file logger to capture all logs
     app.useLogger(fileLogger);
 
-    // Run database migrations automatically on startup
-    if (process.env.SKIP_MIGRATIONS !== '1') {
-        try {
-            fileLogger.log('[startup] Running database migrations...', 'Bootstrap');
-            // Get database service from the application context
-            const databaseService = app.get('DatabaseService');
-            await databaseService.runMigrations();
-            fileLogger.log('[startup] Database migrations completed successfully', 'Bootstrap');
-        } catch (error) {
-            const errMsg = error instanceof Error ? error.message : String(error);
-            fileLogger.error(`[startup] Database migration failed: ${errMsg}`, 'Bootstrap');
-            throw new Error('Failed to run database migrations');
-        }
-    } else {
-        fileLogger.log('[startup] Skipping migrations (SKIP_MIGRATIONS=1)', 'Bootstrap');
-    }
-
     // Fine-grained CORS: allow credentials for local dev origins only
     const allowedOrigins = new Set([
         'http://localhost:3000', // common alt
