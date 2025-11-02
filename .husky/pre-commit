@@ -1,45 +1,92 @@
 #!/usr/bin/env sh
 
-# Pre-commit hook to validate SQL migration syntax
+# Pre-commit hook to validate code quality
+ERRORS=0
 
+# ============================================================================
+# TypeScript Type Checking
+# ============================================================================
+echo "🔍 Running TypeScript type checks..."
+
+# Get list of staged TypeScript files
+TS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' || true)
+
+if [ -n "$TS_FILES" ]; then
+  echo "Found staged TypeScript files, checking types..."
+  
+  # Check server TypeScript files
+  if echo "$TS_FILES" | grep -q '^apps/server-nest/'; then
+    echo "  Checking server-nest types..."
+    if ! npm --prefix apps/server-nest run build > /dev/null 2>&1; then
+      echo "❌ ERROR: TypeScript errors in server-nest"
+      echo "   Run 'npm --prefix apps/server-nest run build' to see details"
+      ERRORS=$((ERRORS + 1))
+    else
+      echo "  ✓ Server types OK"
+    fi
+  fi
+  
+  # Check admin TypeScript files
+  if echo "$TS_FILES" | grep -q '^apps/admin/'; then
+    echo "  Checking admin types..."
+    if ! npm --prefix apps/admin run build > /dev/null 2>&1; then
+      echo "❌ ERROR: TypeScript errors in admin"
+      echo "   Run 'npm --prefix apps/admin run build' to see details"
+      ERRORS=$((ERRORS + 1))
+    else
+      echo "  ✓ Admin types OK"
+    fi
+  fi
+else
+  echo "  ✓ No TypeScript files to check"
+fi
+
+# ============================================================================
+# SQL Migration Validation
+# ============================================================================
+echo ""
 echo "🔍 Checking SQL migration files for syntax errors..."
 
 # Get list of staged SQL migration files
 MIGRATION_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^apps/server-nest/migrations/.*\.sql$' || true)
 
 if [ -z "$MIGRATION_FILES" ]; then
-  echo "✓ No migration files to check"
-  exit 0
+  echo "  ✓ No migration files to check"
+else
+  for file in $MIGRATION_FILES; do
+    echo "  Checking: $file"
+    
+    # Check for invalid backslash metacommands
+    if grep -q '^\\' "$file"; then
+      echo "❌ ERROR: Found backslash metacommand in $file"
+      echo "   SQL migrations should not contain psql metacommands (lines starting with \\)"
+      grep -n '^\\' "$file"
+      ERRORS=$((ERRORS + 1))
+    fi
+    
+    # Check for spaced dollar quotes
+    if grep -q '\$ \$' "$file"; then
+      echo "❌ ERROR: Found spaced dollar quotes in $file"
+      echo "   Dollar quotes should be $$ not $ $"
+      grep -n '\$ \$' "$file" | head -5
+      ERRORS=$((ERRORS + 1))
+    fi
+  done
+  
+  if [ $(echo "$MIGRATION_FILES" | wc -l) -gt 0 ] && [ $ERRORS -eq 0 ]; then
+    echo "  ✅ All SQL migration files look good!"
+  fi
 fi
 
-ERRORS=0
-
-for file in $MIGRATION_FILES; do
-  echo "Checking: $file"
-  
-  # Check for invalid backslash metacommands
-  if grep -q '^\\' "$file"; then
-    echo "❌ ERROR: Found backslash metacommand in $file"
-    echo "   SQL migrations should not contain psql metacommands (lines starting with \\)"
-    grep -n '^\\' "$file"
-    ERRORS=$((ERRORS + 1))
-  fi
-  
-  # Check for spaced dollar quotes
-  if grep -q '\$ \$' "$file"; then
-    echo "❌ ERROR: Found spaced dollar quotes in $file"
-    echo "   Dollar quotes should be $$ not $ $"
-    grep -n '\$ \$' "$file" | head -5
-    ERRORS=$((ERRORS + 1))
-  fi
-done
-
+# ============================================================================
+# Final Result
+# ============================================================================
+echo ""
 if [ $ERRORS -gt 0 ]; then
-  echo ""
-  echo "❌ Found $ERRORS error(s) in SQL migration files"
+  echo "❌ Pre-commit checks failed with $ERRORS error(s)"
   echo "Please fix the issues above before committing"
   exit 1
 fi
 
-echo "✅ All SQL migration files look good!"
+echo "✅ All pre-commit checks passed!"
 exit 0
