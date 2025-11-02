@@ -95,7 +95,9 @@ COPY --from=builder /build/apps/server-nest/node_modules ./node_modules
 
 # Copy built application
 COPY --from=builder /build/apps/server-nest/dist ./dist
-COPY --from=builder /build/apps/server-nest/src/common/database/migrations ./src/common/database/migrations
+
+# Copy migrations directory from repository root location
+COPY --from=builder /build/apps/server-nest/migrations ./migrations
 
 # Expose port
 EXPOSE 3002
