@@ -60,9 +60,19 @@ Based on `.env.coolify.example`, you need to set these in Coolify:
 
 ### Critical (Service won't start without these):
 - ✅ `POSTGRES_PASSWORD` - (appears to be set, db is running)
-- ❌ **`ZITADEL_DB_PASSWORD`** - **MISSING - SET THIS NOW**
-- ❌ `ZITADEL_MASTERKEY` - Must be exactly 32 characters
-- ❌ `ZITADEL_EXTERNALDOMAIN` - Your auth domain
+- ✅ `ZITADEL_DB_PASSWORD` - **FIXED - Password authentication now working**
+- ❌ **`ZITADEL_MASTERKEY`** - **CURRENT ERROR: Only 9 bytes, must be exactly 32 characters**
+  
+  Current value: `Test1234!` (9 chars) ❌
+  
+  Generate a proper 32-character key:
+  ```bash
+  openssl rand -base64 24 | tr -d '\n' && echo
+  # Or use a fixed string exactly 32 chars:
+  # MasterkeyNeedsToHave32Characters
+  ```
+  
+- ❌ `ZITADEL_EXTERNALDOMAIN` - Your auth domain (e.g., auth.kucharz.net)
 - ❌ `ZITADEL_ADMIN_PASSWORD` - First admin user password
 
 ### Required for Application:
