@@ -63,31 +63,5 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_chunks_doc_chunkindex ON kb.chunks(documen
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_content_hash ON kb.documents(content_hash);
 
--- Pre-create Zitadel role for local dev (idempotent)
-DO $$
-BEGIN 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_roles
-    WHERE rolname = 'zitadel'
-  ) THEN 
-    CREATE ROLE zitadel LOGIN PASSWORD 'zitadel';
-  END IF;
-END;
-$$;
-
--- Create database if missing (cannot run CREATE DATABASE inside a transaction/DO)
-SELECT
-    'CREATE DATABASE zitadel OWNER zitadel'
-WHERE
-    NOT EXISTS (
-        SELECT
-            1
-        FROM
-            pg_database
-        WHERE
-            datname = 'zitadel'
-    );
-\gexec
-
-GRANT CONNECT, CREATE, TEMP ON DATABASE zitadel TO zitadel;
+-- Zitadel user and database creation moved to 01-init-zitadel.sh
+-- (allows using ZITADEL_DB_PASSWORD environment variable)
