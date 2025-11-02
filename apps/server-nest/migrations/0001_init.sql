@@ -99,7 +99,7 @@ ALTER SCHEMA kb OWNER TO spec;
 --
 -- Name: compute_document_content_hash(); Type: FUNCTION; Schema: kb; Owner: spec
 --
-CREATE FUNCTION kb.compute_document_content_hash() RETURNS trigger LANGUAGE plpgsql AS $ $ BEGIN NEW.content_hash := encode(
+CREATE FUNCTION kb.compute_document_content_hash() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN NEW.content_hash := encode(
     digest(coalesce(NEW.content, ''), 'sha256'),
     'hex'
 );
@@ -108,20 +108,20 @@ RETURN NEW;
 
 END;
 
-$ $;
+$$;
 
 ALTER FUNCTION kb.compute_document_content_hash() OWNER TO spec;
 
 --
 -- Name: update_tsv(); Type: FUNCTION; Schema: kb; Owner: spec
 --
-CREATE FUNCTION kb.update_tsv() RETURNS trigger LANGUAGE plpgsql AS $ $ BEGIN NEW.tsv := to_tsvector('simple', NEW.text);
+CREATE FUNCTION kb.update_tsv() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN NEW.tsv := to_tsvector('simple', NEW.text);
 
 RETURN NEW;
 
 END;
 
-$ $;
+$$;
 
 ALTER FUNCTION kb.update_tsv() OWNER TO spec;
 

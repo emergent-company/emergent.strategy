@@ -65,7 +65,7 @@ CREATE POLICY extraction_jobs_delete_policy ON kb.object_extraction_jobs FOR DEL
 );
 
 -- Verify policies were created
-DO $ $ DECLARE policy_count INTEGER;
+DO $$ DECLARE policy_count INTEGER;
 
 BEGIN
 SELECT
@@ -83,4 +83,4 @@ policy_count;
 
 END IF;
 
-END $ $;
+END $$;
