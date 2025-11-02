@@ -14,12 +14,82 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-spec}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U spec -d spec"]
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 10s
+
+  # Zitadel Identity Provider
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Master key (must be 32 characters)
+      ZITADEL_MASTERKEY: ${ZITADEL_MASTERKEY}
+      
+      # External access
+      ZITADEL_EXTERNALDOMAIN: ${ZITADEL_EXTERNALDOMAIN}
+      ZITADEL_EXTERNALSECURE: ${ZITADEL_EXTERNALSECURE:-true}
+      ZITADEL_TLS_ENABLED: ${ZITADEL_TLS_ENABLED:-false}
+      
+      # Database connection
+      ZITADEL_DATABASE_POSTGRES_HOST: db
+      ZITADEL_DATABASE_POSTGRES_PORT: 5432
+      ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${ZITADEL_DB_PASSWORD}
+      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
+      
+      # Admin connection (for initialization)
+      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: ${POSTGRES_USER:-spec}
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${POSTGRES_PASSWORD}
+      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
+      ZITADEL_DATABASE_POSTGRES_ADMIN_HOST: db
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PORT: 5432
+      
+      # First instance setup
+      ZITADEL_FIRSTINSTANCE_ORG_NAME: ${ZITADEL_ORG_NAME:-Spec, Inc.}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: ${ZITADEL_ADMIN_USERNAME:-admin}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: ${ZITADEL_ADMIN_PASSWORD}
+      
+      # Login v2 configuration
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "true"
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_BASEURI: ${ZITADEL_LOGIN_URL}/ui/v2/login
+      ZITADEL_OIDC_DEFAULTLOGINURLV2: ${ZITADEL_LOGIN_URL}/ui/v2/login/login?authRequest=
+      ZITADEL_OIDC_DEFAULTLOGOUTURLV2: ${ZITADEL_LOGIN_URL}/ui/v2/login/logout?post_logout_redirect=
+    command: ["start-from-init", "--masterkeyFromEnv"]
+    expose:
+      - "8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.zitadel.rule=Host(`${ZITADEL_EXTERNALDOMAIN}`)"
+      - "traefik.http.routers.zitadel.entrypoints=web"
+      - "traefik.http.services.zitadel.loadbalancer.server.port=8080"
+      - "traefik.http.routers.zitadel.service=zitadel"
+    healthcheck:
+      test: ["CMD", "/app/zitadel", "ready"]
+      interval: 10s
+      timeout: 60s
+      retries: 5
+      start_period: 30s
+    user: "0"
+
+  # Zitadel Login UI v2
+  zitadel-login:
+    image: ghcr.io/zitadel/zitadel-login:latest
+    restart: unless-stopped
+    environment:
+      ZITADEL_API_URL: http://zitadel:8080
+      NEXT_PUBLIC_BASE_PATH: /ui/v2/login
+    network_mode: service:zitadel
+    depends_on:
+      zitadel:
+        condition: service_healthy
 
   # NestJS Backend API
   server:
@@ -62,6 +132,8 @@ services:
       CHAT_ENABLE_MCP: ${CHAT_ENABLE_MCP:-1}
     depends_on:
       db:
+        condition: service_healthy
+      zitadel:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
