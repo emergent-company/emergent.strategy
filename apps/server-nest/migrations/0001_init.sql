@@ -3902,7 +3902,8 @@ UPDATE
 --
 -- PostgreSQL database dump complete
 --
-\ unrestrict jKMNXMzEwfNT8vIdSxrL7R1afwOwVIa1tMGBrEBfDpbVc5DoETxpKcBjZ3Hp4nW -- ============================================================================
+
+-- ============================================================================
 -- Tags Table
 -- ============================================================================
 CREATE TABLE kb.tags (
