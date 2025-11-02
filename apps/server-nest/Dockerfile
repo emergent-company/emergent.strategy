@@ -56,22 +56,8 @@ RUN echo "=== DEBUG: After npm ci ===" && \
     echo "=== DEBUG: apps/server-nest/node_modules ===" && \
     ls -la apps/server-nest/node_modules/ | head -20
 
-# Copy server-nest source code (includes .api directory)
+# Copy server-nest source code
 COPY apps/server-nest ./apps/server-nest
-
-RUN echo "=== DEBUG: After copying server-nest source ===" && \
-    ls -la apps/server-nest/ && \
-    echo "=== DEBUG: Checking for .api directory ===" && \
-    if [ -d "apps/server-nest/.api" ]; then \
-        echo ".api directory EXISTS" && ls -la apps/server-nest/.api/; \
-    else \
-        echo ".api directory DOES NOT EXIST"; \
-    fi
-
-# Manually create symlink for @api/clickup (npm ci doesn't handle file: deps in Docker)
-# Use absolute path for the symlink target
-RUN mkdir -p apps/server-nest/node_modules/@api && \
-    ln -sf /build/apps/server-nest/.api/apis/clickup apps/server-nest/node_modules/@api/clickup
 
 # Build the application
 RUN cd apps/server-nest && npm run build
@@ -106,13 +92,6 @@ RUN echo '{\n\
 # Copy node_modules from both root and workspace
 COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/apps/server-nest/node_modules ./node_modules
-
-# Copy the @api/clickup module (which is a local file dependency)
-COPY --from=builder /build/apps/server-nest/.api ./.api
-
-# Recreate the symlink for @api/clickup in production
-RUN mkdir -p node_modules/@api && \
-    ln -sf /app/.api/apis/clickup node_modules/@api/clickup
 
 # Copy built application
 COPY --from=builder /build/apps/server-nest/dist ./dist
