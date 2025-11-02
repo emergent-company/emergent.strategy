@@ -10,5 +10,8 @@
         ".specify/scripts/bash/": true,
         ".specify/scripts/powershell/": true
     },
-    "djlint.showInstallError": false
+    "djlint.showInstallError": false,
+    "[sql]": {
+        "editor.formatOnSave": false
+    }
 }
