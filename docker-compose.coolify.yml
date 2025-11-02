@@ -18,11 +18,11 @@ services:
       - ./docker/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
       - ./docker/01-init-zitadel.sh:/docker-entrypoint-initdb.d/01-init-zitadel.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U spec -d spec"]
+      test: ["CMD-SHELL", "pg_isready -U spec -d spec && pg_isready -U zitadel -d zitadel"]
       interval: 5s
       timeout: 3s
-      retries: 10
-      start_period: 10s
+      retries: 15
+      start_period: 15s
 
   # Zitadel Identity Provider
   zitadel:
@@ -33,12 +33,12 @@ services:
     environment:
       # Master key (must be 32 characters)
       ZITADEL_MASTERKEY: ${ZITADEL_MASTERKEY}
-      
+
       # External access
       ZITADEL_EXTERNALDOMAIN: ${ZITADEL_EXTERNALDOMAIN}
       ZITADEL_EXTERNALSECURE: ${ZITADEL_EXTERNALSECURE:-true}
       ZITADEL_TLS_ENABLED: ${ZITADEL_TLS_ENABLED:-false}
-      
+
       # Database connection
       ZITADEL_DATABASE_POSTGRES_HOST: db
       ZITADEL_DATABASE_POSTGRES_PORT: 5432
@@ -46,19 +46,19 @@ services:
       ZITADEL_DATABASE_POSTGRES_USER_USERNAME: zitadel
       ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${ZITADEL_DB_PASSWORD}
       ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
-      
+
       # Admin connection (for initialization)
       ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: ${POSTGRES_USER:-spec}
       ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${POSTGRES_PASSWORD}
       ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
       ZITADEL_DATABASE_POSTGRES_ADMIN_HOST: db
       ZITADEL_DATABASE_POSTGRES_ADMIN_PORT: 5432
-      
+
       # First instance setup
       ZITADEL_FIRSTINSTANCE_ORG_NAME: ${ZITADEL_ORG_NAME:-Spec, Inc.}
       ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: ${ZITADEL_ADMIN_USERNAME:-admin}
       ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: ${ZITADEL_ADMIN_PASSWORD}
-      
+
       # Login v2 configuration
       ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "true"
       ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_BASEURI: ${ZITADEL_LOGIN_URL}/ui/v2/login
