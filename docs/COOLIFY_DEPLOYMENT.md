@@ -296,50 +296,61 @@ ERROR: process '/bin/sh -c npm ci' did not complete successfully: exit code: 1
 level=fatal msg="unable to initialize ZITADEL" error="failed to connect to `user=zitadel database=zitadel`: failed SASL auth: FATAL: password authentication failed for user \"zitadel\""
 ```
 
+Or you see:
+```
+ERROR:  role "zitadel" already exists
+FATAL:  password authentication failed for user "zitadel"
+DETAIL:  User "zitadel" has no password assigned.
+```
+
 **Causes:**
 - `ZITADEL_DB_PASSWORD` environment variable not set or incorrect
-- Race condition between database init scripts and Zitadel startup
-- Database volumes from previous deployment with different password
+- Zitadel user exists from previous deployment but has no password assigned
+- Database volumes persist between deployments with different passwords
 
 **Solution:**
-1. **Verify password is set correctly:**
+
+The init script (`docker/01-init-zitadel.sh`) now automatically handles existing users:
+- If user doesn't exist: creates it with password
+- If user exists: updates the password (using `ALTER ROLE`)
+
+**To apply the fix:**
+
+1. **Ensure password is set in environment:**
    ```bash
-   # In Coolify environment variables
+   # In Coolify environment variables or .env file
    ZITADEL_DB_PASSWORD=your-secure-password
    ```
 
-2. **Ensure init script runs before Zitadel:**
-   - The healthcheck now verifies both `spec` and `zitadel` databases are ready
-   - Database init scripts in `/docker-entrypoint-initdb.d/` create the zitadel user
-   
-3. **If still failing, clean volumes and redeploy:**
+2. **Restart the database service to run init scripts:**
    ```bash
-   # Stop services
-   docker-compose down
+   docker-compose restart db
+   ```
    
-   # Remove database volumes (WARNING: destroys all data)
-   docker volume rm <project>_postgres_data
-   
-   # Start fresh
-   docker-compose up -d
+   The init script will see the existing user and update its password.
+
+3. **Then restart Zitadel:**
+   ```bash
+   docker-compose restart zitadel
    ```
 
-4. **Verify password in database:**
+4. **If still failing, manually set the password:**
    ```bash
    # Connect to postgres
    docker exec -it <postgres-container> psql -U spec -d spec
    
-   # Check if zitadel user exists
-   \du zitadel
-   
-   # Manually set password if needed
-   ALTER USER zitadel WITH PASSWORD 'your-password';
+   # Update password
+   ALTER USER zitadel WITH LOGIN PASSWORD 'your-password-here';
    ```
 
+**For fresh deployment (no existing volumes):**
+- Simply set `ZITADEL_DB_PASSWORD` before first `docker-compose up`
+- Init script will create everything correctly
+
 **Prevention:**
-- Always set `ZITADEL_DB_PASSWORD` in environment variables before first deployment
-- Use the improved healthcheck in `docker-compose.coolify.yml` that waits for both databases
-- Keep database volumes persistent across deployments
+- Always set `ZITADEL_DB_PASSWORD` in environment variables
+- The init script now handles both new and existing user scenarios
+- Database healthcheck waits for both `spec` and `zitadel` databases to be ready
 
 ### Authentication Not Working
 
