@@ -104,17 +104,17 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                 password: this.config.dbPassword,
                 database: this.config.dbName,
             });
-            
+
             // Wait for database to be ready with retries
             await this.waitForDatabase();
-            
+
             // Run migrations automatically on startup
             if (process.env.SKIP_MIGRATIONS !== '1') {
                 await this.runMigrations();
             } else {
                 this.logger.log('Skipping migrations (SKIP_MIGRATIONS=1)');
             }
-            
+
             // Post-schema: switch to non-bypass role (no-op if already non-bypass)
             try {
                 await this.switchToRlsApplicationRole();
@@ -159,15 +159,15 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             } catch (error) {
                 const isLastAttempt = attempt >= maxAttempts;
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                
+
                 if (isLastAttempt) {
                     this.logger.error(`✗ Database connection failed after ${maxAttempts} attempts: ${errorMessage}`);
                     throw new Error(`Database connection failed after ${maxAttempts} attempts: ${errorMessage}`);
                 }
-                
+
                 this.logger.warn(`Database not ready (attempt ${attempt}/${maxAttempts}): ${errorMessage}. Retrying in ${delay}ms...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
-                
+
                 // Exponential backoff with cap at 10 seconds
                 delay = Math.min(delay * 1.5, 10000);
             }
@@ -195,7 +195,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         try {
             const fs = await import('node:fs');
             const path = await import('node:path');
-            
+
             const migrationsDir = path.join(process.cwd(), 'migrations');
 
             if (!fs.existsSync(migrationsDir)) {
