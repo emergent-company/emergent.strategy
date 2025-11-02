@@ -67,10 +67,8 @@ services:
       test:
         [
           "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
+          "curl",
+          "-f",
           "http://localhost:3002/health",
         ]
       interval: 30s
@@ -95,10 +93,8 @@ services:
       test:
         [
           "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
+          "curl",
+          "-f",
           "http://localhost:3000/health",
         ]
       interval: 30s
