@@ -9,7 +9,7 @@
   ],
   "type": "module",
   "scripts": {
-    "prepare": "husky",
+    "prepare": "husky || true",
     "nx": "nx",
     "clean": "npm --prefix apps/server-nest run clean || true && rimraf apps/admin/dist || true",
     "dev:server-nest": "nx run server-nest:start-dev",
