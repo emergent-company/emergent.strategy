@@ -1,65 +1,104 @@
 # Database Migration Quick Reference
 
-## Most Common Commands
+## Automatic Migration System
 
+**Migrations run automatically on application startup** via `DatabaseService.onModuleInit()`.
+
+No manual commands needed - just start the server:
 ```bash
-# Check migration status
-npx nx run server-nest:migrate -- --list
-
-# Preview what would be applied (dry run)
-npx nx run server-nest:migrate -- --dry-run
-
-# Apply all pending migrations
-npx nx run server-nest:migrate
+npm --prefix apps/server-nest run start:dev
 ```
+
+Migrations execute before the app accepts requests, ensuring schema is always up-to-date.
 
 ## Creating a New Migration
 
 ```bash
-# Create migration file
-touch apps/server-nest/migrations/$(date +%Y%m%d)_your_description.sql
+# 1. Create migration file in the migrations directory
+touch apps/server-nest/src/common/database/migrations/$(date +%Y%m%d)_your_description.sql
 
-# Edit the file with your SQL
-# Test with dry run
-npx nx run server-nest:migrate -- --dry-run
+# 2. Edit the file with your SQL (make it idempotent!)
+# Example: CREATE TABLE IF NOT EXISTS ...
 
-# Apply it
-npx nx run server-nest:migrate
+# 3. Restart the server - migrations run automatically
+npm --prefix apps/server-nest run start:dev
 ```
 
-## Query Migration History
+## Skipping Migrations (Development Only)
 
+If you need to skip migrations temporarily:
+```bash
+SKIP_MIGRATIONS=1 npm --prefix apps/server-nest run start:dev
+```
+
+## Migration Flow
+
+```
+1. Application starts
+2. DatabaseService.onModuleInit() is called
+3. runMigrations() reads .sql files from src/common/database/migrations/
+4. Files are sorted alphabetically and executed in order
+5. Advisory lock prevents concurrent runs
+6. Each migration is executed (warnings logged on errors, but continues)
+7. Application becomes ready for requests
+```
+
+## Monitoring Migrations
+
+Check the application logs:
+```bash
+# Look for migration execution logs
+[DatabaseService] Running database migrations...
+[DatabaseService] Running migration: 20251018_add_extraction_progress_columns.sql
+[DatabaseService] ✓ Migration 20251018_add_extraction_progress_columns.sql completed
+[DatabaseService] All migrations completed in 156ms
+```
+
+## Migration File Best Practices
+
+1. **Idempotent**: Use `IF NOT EXISTS`, `IF EXISTS`, etc.
+2. **Alphabetical ordering**: Use date prefix `YYYYMMDD_description.sql`
+3. **Single purpose**: One logical change per file
+4. **Safe operations**: Avoid destructive changes without backups
+
+Example:
 ```sql
--- See all applied migrations
-SELECT filename, applied_at, execution_time_ms 
-FROM kb.schema_migrations 
-ORDER BY applied_at DESC;
+-- 20251102_add_user_preferences.sql
+CREATE TABLE IF NOT EXISTS kb.user_preferences (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id TEXT NOT NULL,
+    preferences JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP DEFAULT NOW()
+);
 
--- Find failures
-SELECT filename, error_message 
-FROM kb.schema_migrations 
-WHERE success = FALSE;
+CREATE INDEX IF NOT EXISTS idx_user_preferences_user_id 
+ON kb.user_preferences(user_id);
 ```
 
 ## Troubleshooting
 
-**Migration shows as pending but was already applied:**
-```sql
--- Manually mark as applied
-INSERT INTO kb.schema_migrations (filename, checksum, success)
-VALUES ('YOUR_FILE.sql', 'MANUAL', TRUE);
-```
+**Migrations not running:**
+- Check logs for "Running database migrations..." message
+- Verify files are in `apps/server-nest/src/common/database/migrations/`
+- Ensure files end with `.sql` extension
+- Check for `SKIP_MIGRATIONS=1` environment variable
 
-**Connection issues:**
+**Migration errors:**
+- Check application logs for error details
+- Migrations log warnings but continue (non-blocking)
+- Advisory lock prevents concurrent runs
+
+## Legacy Migration Script (Removed)
+
+Previous versions used `scripts/migrate.mjs` with Nx commands:
 ```bash
-# Check Docker container
-docker ps | grep spec_pg
-docker start spec_pg
-
-# Test connection
-docker exec -it spec_pg psql -U spec -d spec -c '\dt kb.*'
+# OBSOLETE - No longer available
+npx nx run server-nest:migrate
 ```
 
-## Full Documentation
+This script was removed as migrations now run automatically in the application lifecycle.
 
-See [DATABASE_MIGRATIONS.md](./DATABASE_MIGRATIONS.md) for complete guide.
+## Related Documentation
+
+- [Migration Lifecycle Fix](../MIGRATION_LIFECYCLE_FIX.md) - How automatic migrations were implemented
+- [Migration Naming Conventions](../../apps/server-nest/MIGRATION_NAMING_CONVENTIONS.md) - File naming patterns
