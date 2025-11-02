@@ -48,5 +48,9 @@
   },
   "instructions": [
     ".opencode/instructions.md"
-  ]
+  ],
+  "tools": {
+    "todowrite": true,
+    "webfetch": true
+  }
 }

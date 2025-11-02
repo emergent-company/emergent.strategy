@@ -1,6 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-// Dynamic import for ES module SDK
-// import clickupSdk from '@api/clickup';
 import {
     ClickUpWorkspacesResponse,
     ClickUpSpacesResponse,
@@ -74,111 +72,40 @@ class RateLimiter {
 /**
  * ClickUp API Client
  * 
- * Handles all communication with the ClickUp API using the official SDK.
- * Implements rate limiting for additional safety on top of SDK functionality.
+ * Handles all communication with the ClickUp API using plain HTTP fetch calls.
+ * Implements rate limiting to stay within ClickUp's API limits.
  * 
  * Rate Limits:
  * - 100 requests per minute per workspace
  * - Automatically waits when limit is reached
  * 
  * Error Handling:
- * - SDK handles retries and errors internally
- * - Rate limiter provides additional safety layer
+ * - All methods include comprehensive error handling
+ * - Failed requests are logged with detailed error messages
  * 
  * @see https://clickup.com/api
  */
 @Injectable()
 export class ClickUpApiClient {
     private readonly logger = new Logger(ClickUpApiClient.name);
-    private sdk: any = null; // Will be dynamically imported
     private rateLimiter: RateLimiter;
     private apiToken: string | null = null;
-    private sdkInitPromise: Promise<void> | null = null;
 
     constructor() {
         this.rateLimiter = new RateLimiter(100, 60000); // 100 req/min
-        // Start SDK initialization immediately
-        this.sdkInitPromise = this.initializeSdk();
-    }
-
-    /**
-     * Dynamically import the ES module SDK
-     */
-    private async initializeSdk(): Promise<void> {
-        try {
-            const module = await import('@api/clickup');
-            this.sdk = module.default;
-            this.logger.log('ClickUp SDK loaded successfully');
-        } catch (error) {
-            this.logger.error('Failed to load ClickUp SDK:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Ensure SDK is loaded before use
-     */
-    private async ensureSdkLoaded(): Promise<void> {
-        if (this.sdkInitPromise) {
-            await this.sdkInitPromise;
-        }
-        if (!this.sdk) {
-            throw new Error('ClickUp SDK failed to initialize');
-        }
     }
 
     /**
      * Initialize the API client with an API token
      */
-    async configure(apiToken: string): Promise<void> {
+    configure(apiToken: string): void {
         if (!apiToken) {
             throw new Error('ClickUp API token is required');
         }
 
-        // Ensure SDK is loaded first
-        await this.ensureSdkLoaded();
-
         this.apiToken = apiToken;
 
-        // Configure SDK with authentication and timeout
-        this.sdk.auth(apiToken);
-        this.sdk.config({ timeout: 30000 }); // 30 seconds
-
         this.logger.log(`ClickUp API client configured with token: ${apiToken.substring(0, 10)}...`);
-    }
-
-    /**
-     * Helper method to wrap SDK calls with rate limiting and error handling
-     */
-    private async sdkCall<T>(
-        sdkMethod: () => Promise<{ data: T; status: number }>,
-        methodName: string
-    ): Promise<T> {
-        if (!this.apiToken) {
-            throw new Error('ClickUp API client not configured. Call configure() first.');
-        }
-
-        // Ensure SDK is loaded
-        await this.ensureSdkLoaded();
-
-        // Wait for rate limiter
-        await this.rateLimiter.waitForSlot();
-
-        try {
-            const response = await sdkMethod();
-
-            // Log API responses for debugging (redact sensitive data)
-            if (process.env.NODE_ENV !== 'production') {
-                this.logger.debug(`SDK Call: ${methodName}`);
-                this.logger.debug(`Response data: ${JSON.stringify(response.data).substring(0, 500)}...`);
-            }
-
-            return response.data;
-        } catch (error) {
-            const err = error as Error;
-            this.logger.error(`ClickUp SDK error in ${methodName}: ${err.message}`);
-            throw new Error(`ClickUp API request failed: ${err.message}`);
-        }
     }
 
     /**
@@ -478,33 +405,104 @@ export class ClickUpApiClient {
      * Get a single task by ID
      */
     async getTask(taskId: string, includeSubtasks: boolean = false): Promise<ClickUpTask> {
-        return this.sdkCall(
-            () => this.sdk.getTask({
-                task_id: taskId,
-                include_subtasks: includeSubtasks
-            }),
-            'getTask'
-        ) as unknown as Promise<ClickUpTask>;
+        if (!this.apiToken) {
+            throw new Error('ClickUp API client not configured. Call configure() first.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            const url = new URL(`https://api.clickup.com/api/v2/task/${taskId}`);
+            if (includeSubtasks) {
+                url.searchParams.set('include_subtasks', 'true');
+            }
+
+            const response = await fetch(url.toString(), {
+                headers: {
+                    'Authorization': this.apiToken,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data as ClickUpTask;
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`ClickUp API error in getTask: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
+        }
     }
 
     /**
      * Get comments for a task
      */
     async getTaskComments(taskId: string): Promise<ClickUpCommentsResponse> {
-        return this.sdkCall(
-            () => this.sdk.getTaskComments({ task_id: taskId }),
-            'getTaskComments'
-        ) as unknown as Promise<ClickUpCommentsResponse>;
+        if (!this.apiToken) {
+            throw new Error('ClickUp API client not configured. Call configure() first.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            const response = await fetch(
+                `https://api.clickup.com/api/v2/task/${taskId}/comment`,
+                {
+                    headers: {
+                        'Authorization': this.apiToken,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data as ClickUpCommentsResponse;
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`ClickUp API error in getTaskComments: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
+        }
     }
 
     /**
      * Get comments for a list
      */
     async getListComments(listId: string): Promise<ClickUpCommentsResponse> {
-        return this.sdkCall(
-            () => this.sdk.getListComments({ list_id: parseInt(listId) }),
-            'getListComments'
-        ) as unknown as Promise<ClickUpCommentsResponse>;
+        if (!this.apiToken) {
+            throw new Error('ClickUp API client not configured. Call configure() first.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            const response = await fetch(
+                `https://api.clickup.com/api/v2/list/${listId}/comment`,
+                {
+                    headers: {
+                        'Authorization': this.apiToken,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data as ClickUpCommentsResponse;
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`ClickUp API error in getListComments: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
+        }
     }
 
     /**
@@ -519,16 +517,43 @@ export class ClickUpApiClient {
             reverse?: boolean;
         } = {}
     ): Promise<ClickUpTasksResponse> {
-        return this.sdkCall(
-            () => this.sdk.getFilteredTeamTasks({
-                team_Id: parseInt(workspaceId),
-                query,
-                page: options.page,
-                order_by: options.orderBy,
-                reverse: options.reverse,
-            }),
-            'searchTasks'
-        ) as unknown as Promise<ClickUpTasksResponse>;
+        if (!this.apiToken) {
+            throw new Error('ClickUp API client not configured. Call configure() first.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            const url = new URL(`https://api.clickup.com/api/v2/team/${workspaceId}/task`);
+            url.searchParams.set('query', query);
+            if (options.page !== undefined) {
+                url.searchParams.set('page', options.page.toString());
+            }
+            if (options.orderBy) {
+                url.searchParams.set('order_by', options.orderBy);
+            }
+            if (options.reverse !== undefined) {
+                url.searchParams.set('reverse', options.reverse.toString());
+            }
+
+            const response = await fetch(url.toString(), {
+                headers: {
+                    'Authorization': this.apiToken,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data as ClickUpTasksResponse;
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`ClickUp API error in searchTasks: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
+        }
     }
 
     /**
@@ -563,15 +588,42 @@ export class ClickUpApiClient {
         parentId?: string,
         parentType?: string
     ): Promise<{ docs: ClickUpDoc[]; next_cursor?: string }> {
-        return this.sdkCall(
-            () => this.sdk.searchDocs({
-                workspaceId: parseInt(workspaceId),
-                next_cursor: cursor,
-                parent_id: parentId,
-                parent_type: parentType,
-            }),
-            'getDocs'
-        ) as unknown as Promise<{ docs: ClickUpDoc[]; next_cursor?: string }>;
+        if (!this.apiToken) {
+            throw new Error('ClickUp API client not configured. Call configure() first.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            const url = new URL(`https://api.clickup.com/api/v3/workspaces/${workspaceId}/docs`);
+            if (cursor) {
+                url.searchParams.set('cursor', cursor);
+            }
+            if (parentId) {
+                url.searchParams.set('parent', parentId);
+            }
+            if (parentType) {
+                url.searchParams.set('parent_type', parentType);
+            }
+
+            const response = await fetch(url.toString(), {
+                headers: {
+                    'Authorization': this.apiToken,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data as { docs: ClickUpDoc[]; next_cursor?: string };
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`ClickUp API error in getDocs: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
+        }
     }
 
     /**
@@ -581,13 +633,33 @@ export class ClickUpApiClient {
      * @returns Doc details
      */
     async getDoc(workspaceId: string, docId: string): Promise<ClickUpDoc> {
-        return this.sdkCall(
-            () => this.sdk.getDoc({
-                workspaceId: parseInt(workspaceId),
-                docId: docId,
-            }),
-            'getDoc'
-        ) as unknown as Promise<ClickUpDoc>;
+        if (!this.apiToken) {
+            throw new Error('ClickUp API client not configured. Call configure() first.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            const url = `https://api.clickup.com/api/v3/workspaces/${workspaceId}/docs/${docId}`;
+
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': this.apiToken,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data as ClickUpDoc;
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`ClickUp API error in getDoc: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
+        }
     }
 
     /**
@@ -597,13 +669,33 @@ export class ClickUpApiClient {
      * @returns Array of pages (may be nested with child pages)
      */
     async getDocPages(workspaceId: string, docId: string): Promise<ClickUpPage[]> {
-        return this.sdkCall(
-            () => this.sdk.getDocPages({
-                workspaceId: parseInt(workspaceId),
-                docId: docId,
-            }),
-            'getDocPages'
-        ) as unknown as Promise<ClickUpPage[]>;
+        if (!this.apiToken) {
+            throw new Error('ClickUp API client not configured. Call configure() first.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            const url = `https://api.clickup.com/api/v3/workspaces/${workspaceId}/docs/${docId}/pages`;
+
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': this.apiToken,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data as ClickUpPage[];
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`ClickUp API error in getDocPages: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
+        }
     }
 
     /**
@@ -618,13 +710,32 @@ export class ClickUpApiClient {
         docId: string,
         pageId: string
     ): Promise<ClickUpPage> {
-        return this.sdkCall(
-            () => this.sdk.getPage({
-                workspaceId: parseInt(workspaceId),
-                docId: docId,
-                pageId: pageId,
-            }),
-            'getPage'
-        ) as unknown as Promise<ClickUpPage>;
+        if (!this.apiToken) {
+            throw new Error('ClickUp API client not configured. Call configure() first.');
+        }
+
+        await this.rateLimiter.waitForSlot();
+
+        try {
+            const url = `https://api.clickup.com/api/v3/workspaces/${workspaceId}/docs/${docId}/pages/${pageId}`;
+
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': this.apiToken,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data as ClickUpPage;
+        } catch (error) {
+            const err = error as Error;
+            this.logger.error(`ClickUp API error in getPage: ${err.message}`);
+            throw new Error(`ClickUp API request failed: ${err.message}`);
+        }
     }
 }
