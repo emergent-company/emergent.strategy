@@ -289,6 +289,58 @@ ERROR: process '/bin/sh -c npm ci' did not complete successfully: exit code: 1
 4. Check database connectivity
 5. Verify domain DNS records point to Coolify
 
+### Zitadel Database Authentication Failures
+
+**Symptom:** Zitadel container repeatedly logs:
+```
+level=fatal msg="unable to initialize ZITADEL" error="failed to connect to `user=zitadel database=zitadel`: failed SASL auth: FATAL: password authentication failed for user \"zitadel\""
+```
+
+**Causes:**
+- `ZITADEL_DB_PASSWORD` environment variable not set or incorrect
+- Race condition between database init scripts and Zitadel startup
+- Database volumes from previous deployment with different password
+
+**Solution:**
+1. **Verify password is set correctly:**
+   ```bash
+   # In Coolify environment variables
+   ZITADEL_DB_PASSWORD=your-secure-password
+   ```
+
+2. **Ensure init script runs before Zitadel:**
+   - The healthcheck now verifies both `spec` and `zitadel` databases are ready
+   - Database init scripts in `/docker-entrypoint-initdb.d/` create the zitadel user
+   
+3. **If still failing, clean volumes and redeploy:**
+   ```bash
+   # Stop services
+   docker-compose down
+   
+   # Remove database volumes (WARNING: destroys all data)
+   docker volume rm <project>_postgres_data
+   
+   # Start fresh
+   docker-compose up -d
+   ```
+
+4. **Verify password in database:**
+   ```bash
+   # Connect to postgres
+   docker exec -it <postgres-container> psql -U spec -d spec
+   
+   # Check if zitadel user exists
+   \du zitadel
+   
+   # Manually set password if needed
+   ALTER USER zitadel WITH PASSWORD 'your-password';
+   ```
+
+**Prevention:**
+- Always set `ZITADEL_DB_PASSWORD` in environment variables before first deployment
+- Use the improved healthcheck in `docker-compose.coolify.yml` that waits for both databases
+- Keep database volumes persistent across deployments
+
 ### Authentication Not Working
 
 **Symptom:** Login redirects fail or show "unauthorized" errors.
