@@ -6,12 +6,38 @@ import { ScopesGuard } from './scopes.guard';
 import { PermissionService } from './permission.service';
 import { AuditService } from './audit.service';
 import { AuditInterceptor } from './audit.interceptor';
+import { PostgresCacheService } from './postgres-cache.service';
+import { CacheCleanupService } from './cache-cleanup.service';
+import { ZitadelService } from './zitadel.service';
 import { UserProfileModule } from '../user-profile/user-profile.module';
+import { DatabaseModule } from '../../common/database/database.module';
 
 @Module({
-    imports: [forwardRef(() => UserProfileModule)],
-    providers: [AuthService, AuthGuard, ScopesGuard, PermissionService, AuditService, AuditInterceptor],
+    imports: [
+        forwardRef(() => UserProfileModule),
+        DatabaseModule,
+    ],
+    providers: [
+        AuthService,
+        AuthGuard,
+        ScopesGuard,
+        PermissionService,
+        AuditService,
+        AuditInterceptor,
+        PostgresCacheService,
+        CacheCleanupService,
+        ZitadelService,
+    ],
     controllers: [AuthController],
-    exports: [AuthService, AuthGuard, ScopesGuard, PermissionService, AuditService, AuditInterceptor],
+    exports: [
+        AuthService,
+        AuthGuard,
+        ScopesGuard,
+        PermissionService,
+        AuditService,
+        AuditInterceptor,
+        PostgresCacheService,
+        ZitadelService,
+    ],
 })
 export class AuthModule { }
