@@ -1,4 +1,5 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards, Req } from '@nestjs/common';
+import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { ApiOkResponse, ApiTags, ApiUnauthorizedResponse, ApiBearerAuth, ApiForbiddenResponse } from '@nestjs/swagger';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import { Scopes } from './scopes.decorator';
@@ -19,5 +20,18 @@ export class AuthController {
     @ApiStandardErrors({})
     me(): { sub: string; email?: string } {
         return { sub: 'mock-user-id', email: 'demo@example.com' };
+    }
+
+    @Get('test-passport')
+    @UseGuards(PassportAuthGuard('zitadel'))
+    @ApiBearerAuth()
+    @ApiOkResponse({ description: 'Test passport-zitadel introspection' })
+    @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token' })
+    @ApiStandardErrors({})
+    testPassport(@Req() req: any): any {
+        return {
+            message: 'Passport authentication successful!',
+            user: req.user,
+        };
     }
 }
