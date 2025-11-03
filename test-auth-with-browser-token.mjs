@@ -46,13 +46,13 @@ function decodeJWT(token) {
         }
 
         const [headerB64, payloadB64, signature] = parts;
-        
+
         // Decode header
         const header = JSON.parse(Buffer.from(headerB64, 'base64url').toString());
-        
+
         // Decode payload
         const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString());
-        
+
         return { header, payload, signature };
     } catch (error) {
         throw new Error(`JWT decode failed: ${error.message}`);
@@ -61,13 +61,13 @@ function decodeJWT(token) {
 
 try {
     const { header, payload, signature } = decodeJWT(TOKEN);
-    
+
     console.log('   ✅ Token Structure Valid\n');
     console.log('   📋 Header:');
     console.log('   ' + JSON.stringify(header, null, 2).replace(/\n/g, '\n   '));
     console.log('\n   📋 Payload (Claims):');
     console.log('   ' + JSON.stringify(payload, null, 2).replace(/\n/g, '\n   '));
-    
+
     // Check expiration
     const now = Math.floor(Date.now() / 1000);
     if (payload.exp) {
@@ -78,25 +78,25 @@ try {
             console.log(`\n   ❌ Token EXPIRED ${Math.floor(-expiresIn / 60)} minutes ago`);
         }
     }
-    
+
     // Check issuer
     if (payload.iss) {
         console.log(`   📍 Issued by: ${payload.iss}`);
     }
-    
+
     // Check subject (user ID)
     if (payload.sub) {
         console.log(`   👤 Subject (User ID): ${payload.sub}`);
     }
-    
+
     // Check scopes
     if (payload.scope) {
-        const scopes = typeof payload.scope === 'string' 
-            ? payload.scope.split(' ') 
+        const scopes = typeof payload.scope === 'string'
+            ? payload.scope.split(' ')
             : payload.scope;
         console.log(`   🔑 Scopes: ${Array.isArray(scopes) ? scopes.join(', ') : scopes}`);
     }
-    
+
     console.log('\n');
 } catch (error) {
     console.log(`   ❌ Token Decode Failed: ${error.message}\n`);
@@ -116,17 +116,17 @@ async function testEndpoint(url, token, description) {
                 'Content-Type': 'application/json',
             },
         });
-        
+
         const status = response.status;
         const statusText = response.statusText;
-        
+
         let body;
         try {
             body = await response.json();
         } catch {
             body = await response.text();
         }
-        
+
         return {
             success: response.ok,
             status,
@@ -190,15 +190,15 @@ console.log('4️⃣  Testing Token Exchange Support...\n');
 try {
     const discoveryUrl = `http://${ZITADEL_DOMAIN}/.well-known/openid-configuration`;
     const discoveryRes = await fetch(discoveryUrl);
-    
+
     if (discoveryRes.ok) {
         const config = await discoveryRes.json();
-        
+
         if (config.grant_types_supported) {
             const hasTokenExchange = config.grant_types_supported.includes(
                 'urn:ietf:params:oauth:grant-type:token-exchange'
             );
-            
+
             if (hasTokenExchange) {
                 console.log('   ✅ Token Exchange IS supported by Zitadel');
                 console.log('   You can implement impersonation/delegation');
@@ -207,7 +207,7 @@ try {
                 console.log('   Enable it in Zitadel application settings');
             }
         }
-        
+
         console.log(`\n   📍 Endpoints:`);
         console.log(`   Authorization: ${config.authorization_endpoint}`);
         console.log(`   Token: ${config.token_endpoint}`);

@@ -18,7 +18,7 @@ try {
     const { stdout, stderr } = await execAsync(
         'docker logs spec-server-2-zitadel-1 --since 1h 2>&1 | grep -i "delegation\\|impersonat" || echo "No delegation errors found"'
     );
-    
+
     if (stdout.includes('No delegation errors found')) {
         console.log('   ✅ No delegation errors in last hour\n');
     } else {
@@ -67,13 +67,13 @@ console.log('4️⃣  Testing Zitadel connectivity...');
 try {
     const zitadelUrl = `http://${zitadelDomain || 'localhost:8080'}/.well-known/openid-configuration`;
     const response = await fetch(zitadelUrl);
-    
+
     if (response.ok) {
         const config = await response.json();
         console.log('   ✅ Zitadel is accessible');
         console.log(`   📍 Token endpoint: ${config.token_endpoint}`);
         console.log(`   📍 Authorization endpoint: ${config.authorization_endpoint}`);
-        
+
         // Check if token exchange is mentioned in supported grant types
         if (config.grant_types_supported) {
             const hasTokenExchange = config.grant_types_supported.includes(

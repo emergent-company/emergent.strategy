@@ -21,7 +21,10 @@ export class UserProfileService {
 
     async get(zitadelUserId: string): Promise<UserProfileDto | null> {
         // Used by auth service - accepts Zitadel ID
-        const q = await this.db.query<any>(`SELECT id, zitadel_user_id, first_name, last_name, display_name, phone_e164, avatar_object_key FROM core.user_profiles WHERE zitadel_user_id = $1`, [zitadelUserId]);
+        // Use pool directly to bypass tenant RLS context (core schema doesn't use RLS)
+        const pool = (this.db as any).pool;
+        if (!pool) return null;
+        const q = await pool.query(`SELECT id, zitadel_user_id, first_name, last_name, display_name, phone_e164, avatar_object_key FROM core.user_profiles WHERE zitadel_user_id = $1`, [zitadelUserId]);
         if (!q.rowCount) return null;
         return this.map(q.rows[0]);
     }
@@ -34,8 +37,11 @@ export class UserProfileService {
     }
 
     async upsertBase(subjectId: string): Promise<void> {
-        // Legacy method - still uses Zitadel ID for backwards compatibility
-        await this.db.query(`INSERT INTO core.user_profiles(zitadel_user_id) VALUES ($1) ON CONFLICT (zitadel_user_id) DO NOTHING`, [subjectId]);
+        // Minimal upsert for auth service: just create row if not exists
+        // Use pool directly to bypass tenant RLS context
+        const pool = (this.db as any).pool;
+        if (!pool) return;
+        await pool.query(`INSERT INTO core.user_profiles(zitadel_user_id) VALUES ($1) ON CONFLICT (zitadel_user_id) DO NOTHING`, [subjectId]);
     }
 
     async update(userId: string, patch: UpdateUserProfileDto): Promise<UserProfileDto> {
