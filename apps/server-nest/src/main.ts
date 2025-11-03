@@ -109,13 +109,13 @@ async function bootstrap() {
         'http://localhost:5175', // legacy admin dev port
         'http://localhost:5176', // current admin dev port
     ]);
-    
+
     // Add production origin from CORS_ORIGIN env var (can be comma-separated)
     const corsOriginEnv = process.env.CORS_ORIGIN;
     if (corsOriginEnv) {
         corsOriginEnv.split(',').forEach(origin => allowedOrigins.add(origin.trim()));
     }
-    
+
     app.enableCors({
         origin: (origin, cb) => {
             if (!origin) return cb(null, true); // non-browser or curl
