@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
 import { AuthController } from './auth.controller';
@@ -9,11 +10,13 @@ import { AuditInterceptor } from './audit.interceptor';
 import { PostgresCacheService } from './postgres-cache.service';
 import { CacheCleanupService } from './cache-cleanup.service';
 import { ZitadelService } from './zitadel.service';
+import { ZitadelStrategy } from './strategies/zitadel.strategy';
 import { UserProfileModule } from '../user-profile/user-profile.module';
 import { DatabaseModule } from '../../common/database/database.module';
 
 @Module({
     imports: [
+        PassportModule,
         forwardRef(() => UserProfileModule),
         DatabaseModule,
     ],
@@ -27,6 +30,7 @@ import { DatabaseModule } from '../../common/database/database.module';
         PostgresCacheService,
         CacheCleanupService,
         ZitadelService,
+        ZitadelStrategy,
     ],
     controllers: [AuthController],
     exports: [
