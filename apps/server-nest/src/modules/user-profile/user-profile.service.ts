@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '../../common/database/database.service';
 import { UserProfileDto, UpdateUserProfileDto, AlternativeEmailDto } from './dto/profile.dto';
 
 @Injectable()
 export class UserProfileService {
+    private readonly logger = new Logger(UserProfileService.name);
     constructor(private readonly db: DatabaseService) { }
 
     private map(row: any): UserProfileDto {
@@ -23,6 +24,7 @@ export class UserProfileService {
         // Used by auth service - accepts Zitadel ID
         // Use pool directly to bypass tenant RLS context (core schema doesn't use RLS)
         const pool = this.db.getPool();
+        this.logger.log(`[get] Pool is ${pool ? 'available' : 'NULL'} for user ${zitadelUserId}`);
         if (!pool) return null;
         const q = await pool.query(`SELECT id, zitadel_user_id, first_name, last_name, display_name, phone_e164, avatar_object_key FROM core.user_profiles WHERE zitadel_user_id = $1`, [zitadelUserId]);
         if (!q.rowCount) return null;
