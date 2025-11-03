@@ -62,7 +62,7 @@ services:
 
   # Zitadel IAM
   zitadel:
-    image: ghcr.io/zitadel/zitadel:latest
+    image: ghcr.io/zitadel/zitadel:v4.6.2
     restart: unless-stopped
     command: 'start-from-init --masterkey "${ZITADEL_MASTERKEY:-MasterkeyNeedsToHave32Characters}" --tlsMode external'
     environment:
