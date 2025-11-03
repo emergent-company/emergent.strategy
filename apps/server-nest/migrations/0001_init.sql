@@ -390,7 +390,7 @@ CREATE TABLE kb.branches (
 CREATE TABLE kb.chat_conversations (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     title text NOT NULL,
-    owner_user_id uuid,
+    owner_id uuid,
     is_private boolean DEFAULT true NOT NULL,
     organization_id uuid,
     project_id uuid,
@@ -2441,9 +2441,9 @@ CREATE INDEX idx_chat_conversations_org_proj ON kb.chat_conversations USING btre
 --
 -- Name: idx_chat_conversations_owner; Type: INDEX; Schema: kb; Owner: -
 --
-CREATE INDEX idx_chat_conversations_owner ON kb.chat_conversations USING btree (owner_subject_id)
+CREATE INDEX idx_chat_conversations_owner ON kb.chat_conversations USING btree (owner_id)
 WHERE
-    (owner_subject_id IS NOT NULL);
+    (owner_id IS NOT NULL);
 
 --
 -- Name: idx_chat_messages_conv; Type: INDEX; Schema: kb; Owner: -
@@ -3461,12 +3461,12 @@ SET
     NULL;
 
 --
--- Name: chat_conversations chat_conversations_owner_subject_id_fkey; Type: FK CONSTRAINT; Schema: kb; Owner: -
+-- Name: chat_conversations chat_conversations_owner_id_fkey; Type: FK CONSTRAINT; Schema: kb; Owner: -
 --
 ALTER TABLE
     ONLY kb.chat_conversations
 ADD
-    CONSTRAINT chat_conversations_owner_subject_id_fkey FOREIGN KEY (owner_user_id) REFERENCES core.user_profiles(id) ON DELETE
+    CONSTRAINT chat_conversations_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES core.user_profiles(id) ON DELETE
 SET
     NULL;
 
