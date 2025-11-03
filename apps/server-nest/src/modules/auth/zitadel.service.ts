@@ -635,14 +635,14 @@ export class ZitadelService implements OnModuleInit {
             this.logger.debug(
                 `First parse attempt failed, trying to unescape: ${(firstError as Error).message}`
             );
-            
+
             try {
                 // Second attempt: Unescape double-escaped strings
                 // Replace \\n with \n and \" with "
                 const unescaped = keyJson
                     .replace(/\\\\n/g, '\\n')  // Fix double-escaped newlines
                     .replace(/\\"/g, '"');      // Fix escaped quotes
-                
+
                 this.serviceAccountKey = JSON.parse(unescaped);
                 this.logger.debug('Successfully parsed after unescaping');
             } catch (secondError) {
@@ -656,23 +656,23 @@ export class ZitadelService implements OnModuleInit {
         // (Coolify double-escapes newlines, so after JSON.parse they become literal \n)
         if (this.serviceAccountKey?.key) {
             const originalKey = this.serviceAccountKey.key;
-            
+
             // Log first 100 chars to see what we're working with
             this.logger.log(
                 `[KEY_DEBUG] Original key first 100 chars: ${originalKey.substring(0, 100).replace(/\n/g, '\\n')}`
             );
-            
+
             // Replace literal \n, \r, \t with actual escape sequences
             this.serviceAccountKey.key = originalKey
                 .replace(/\\n/g, '\n')
                 .replace(/\\r/g, '\r')
                 .replace(/\\t/g, '\t');
-            
+
             // Log after replacement
             this.logger.log(
                 `[KEY_DEBUG] Fixed key first 100 chars: ${this.serviceAccountKey.key.substring(0, 100).replace(/\n/g, '\\n')}`
             );
-            
+
             if (originalKey !== this.serviceAccountKey.key) {
                 this.logger.log('[KEY_DEBUG] Fixed escape sequences in RSA private key');
             } else {
@@ -723,10 +723,10 @@ export class ZitadelService implements OnModuleInit {
 
         // Dynamically import jose library
         const jose = await import('jose');
-        
+
         let privateKey: any;
         let keyToImport = this.serviceAccountKey.key;
-        
+
         // Check if this is PKCS#1 format (BEGIN RSA PRIVATE KEY)
         // If so, convert to PKCS#8 format using Node.js crypto module
         if (keyToImport.includes('BEGIN RSA PRIVATE KEY')) {
@@ -750,7 +750,7 @@ export class ZitadelService implements OnModuleInit {
                 throw new Error(`Key format conversion failed: ${(conversionError as Error).message}`);
             }
         }
-        
+
         try {
             // Import PKCS#8 key (either original or converted)
             privateKey = await jose.importPKCS8(keyToImport, 'RS256');

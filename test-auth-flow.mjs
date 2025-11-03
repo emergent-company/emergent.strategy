@@ -71,7 +71,7 @@ async function testTokenWithInvalidAuth() {
         const text = await response.text();
         console.log(`   Status: ${response.status}`);
         console.log(`   Response: ${text.substring(0, 200)}\n`);
-        
+
         if (response.status === 401) {
             console.log('   ℹ️  This is expected - invalid token should be rejected\n');
         }
@@ -87,19 +87,19 @@ async function getZitadelToken() {
     console.log('   ⚠️  To test with a real token, you need to:');
     console.log('   1. Get a valid access token from Zitadel');
     console.log('   2. Set TOKEN env var: TOKEN="your-token" node test-auth-flow.mjs\n');
-    
+
     const token = process.env.TOKEN;
     if (!token) {
         console.log('   ℹ️  No TOKEN provided, skipping introspection test\n');
         return null;
     }
-    
+
     return token;
 }
 
 async function testTokenIntrospection(token) {
     if (!token) return;
-    
+
     console.log('6. Testing with provided token...');
     try {
         const response = await fetch(`${API_URL}/api/projects`, {
@@ -108,9 +108,9 @@ async function testTokenIntrospection(token) {
                 'Content-Type': 'application/json',
             },
         });
-        
+
         console.log(`   Status: ${response.status}`);
-        
+
         if (response.ok) {
             const data = await response.json();
             console.log(`   ✅ Auth successful! Got ${data.length || 0} projects\n`);
@@ -138,7 +138,7 @@ async function runTests() {
     const token = await getZitadelToken();
     await testTokenIntrospection(token);
     await checkServerLogs();
-    
+
     console.log('=== Test Complete ===');
     console.log('\nNOTE: If you\'re getting "Invalid or expired access token":');
     console.log('1. Check that ZITADEL_CLIENT_JWT has proper newlines (\\n not \\\\n)');
