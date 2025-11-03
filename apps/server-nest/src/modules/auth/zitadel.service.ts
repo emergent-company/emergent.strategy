@@ -721,12 +721,38 @@ export class ZitadelService implements OnModuleInit {
             throw new Error('Service account key not loaded');
         }
 
-        const { SignJWT, importPKCS8 } = await import('jose');
-
-        const privateKey = await importPKCS8(
-            this.serviceAccountKey.key,
-            'RS256'
-        );
+        // Dynamically import jose library
+        // Note: Zitadel provides PKCS#1 format keys (BEGIN RSA PRIVATE KEY)
+        // but we try PKCS#8 import first, then fall back to generic import
+        const jose = await import('jose');
+        
+        let privateKey: any;
+        try {
+            // Try PKCS#8 import first
+            privateKey = await jose.importPKCS8(
+                this.serviceAccountKey.key,
+                'RS256'
+            );
+        } catch (pkcs8Error) {
+            this.logger.debug(
+                `PKCS#8 import failed (${(pkcs8Error as Error).message}), trying generic PEM import...`
+            );
+            // Fall back to generic PEM import which handles both PKCS#1 and PKCS#8
+            privateKey = await jose.importPKCS8(
+                this.serviceAccountKey.key.replace(
+                    /-----BEGIN RSA PRIVATE KEY-----/,
+                    '-----BEGIN PRIVATE KEY-----'
+                ).replace(
+                    /-----END RSA PRIVATE KEY-----/,
+                    '-----END PRIVATE KEY-----'
+                ),
+                'RS256'
+            ).catch(async () => {
+                // If that also fails, use importPKCS1 if available, or throw
+                this.logger.warn('Both PKCS#8 and header replacement failed, key might need conversion');
+                throw new Error(`Failed to import private key: ${(pkcs8Error as Error).message}`);
+            });
+        }
 
         const now = Math.floor(Date.now() / 1000);
         const issuer =
@@ -735,7 +761,7 @@ export class ZitadelService implements OnModuleInit {
             this.serviceAccountKey.userId || this.serviceAccountKey.clientId!;
         const audience = `https://${process.env.ZITADEL_DOMAIN}`;
 
-        const jwt = await new SignJWT({})
+        const jwt = await new jose.SignJWT({})
             .setProtectedHeader({
                 alg: 'RS256',
                 kid: this.serviceAccountKey.keyId,
