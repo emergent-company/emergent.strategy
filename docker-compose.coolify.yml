@@ -123,11 +123,20 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-spec}
 
-      # Zitadel
+      # Zitadel - Frontend App (for token validation)
       ZITADEL_ISSUER: ${ZITADEL_ISSUER}
-      ZITADEL_CLIENT_ID: ${ZITADEL_CLIENT_ID}
-      ZITADEL_CLIENT_SECRET: ${ZITADEL_CLIENT_SECRET}
+      ZITADEL_FRONTEND_CLIENT_ID: ${ZITADEL_FRONTEND_CLIENT_ID}
+
+      # Zitadel - Backend Service Account (for Management API)
+      ZITADEL_SERVICE_CLIENT_ID: ${ZITADEL_SERVICE_CLIENT_ID}
+      ZITADEL_SERVICE_CLIENT_SECRET: ${ZITADEL_SERVICE_CLIENT_SECRET}
       ZITADEL_MAIN_ORG_ID: ${ZITADEL_MAIN_ORG_ID}
+      ZITADEL_PROJECT_ID: ${ZITADEL_PROJECT_ID}
+
+      # Auth (JWT validation - validates tokens from frontend)
+      AUTH_ISSUER: ${ZITADEL_ISSUER}
+      AUTH_AUDIENCE: ${ZITADEL_FRONTEND_CLIENT_ID}
+      AUTH_JWKS_URI: ${ZITADEL_ISSUER}/oauth/v2/keys
 
       # Server
       PORT: 3002

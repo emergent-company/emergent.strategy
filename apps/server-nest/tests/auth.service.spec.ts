@@ -1,5 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AuthService, MOCK_SCOPES } from '../src/modules/auth/auth.service';
+import type { IntrospectionResult } from '../src/modules/auth/zitadel.service';
+
+// Mock ZitadelService
+const createMockZitadelService = () => ({
+    isConfigured: vi.fn(() => false),
+    introspect: vi.fn(),
+    getAccessToken: vi.fn(),
+    createUser: vi.fn(),
+    getUserByEmail: vi.fn(),
+    updateUserMetadata: vi.fn(),
+    sendSetPasswordNotification: vi.fn(),
+    grantProjectRole: vi.fn(),
+    getUserProjectRoles: vi.fn(),
+}) as any;
 
 // Mock UserProfileService
 const createMockUserProfileService = () => ({
@@ -25,7 +39,10 @@ function createService(env: Record<string, string | undefined> = {}) {
             process.env[k] = val;
         }
     }
-    const svc = new AuthService(createMockUserProfileService());
+    const svc = new AuthService(
+        createMockUserProfileService(),
+        createMockZitadelService()
+    );
     return {
         svc,
         restore: () => {
@@ -144,5 +161,152 @@ describe('AuthService.mapClaims variations', () => {
         // @ts-expect-error private access
         const u = await svc.mapClaims({ sub: 's' });
         expect(u?.scopes).toBeUndefined();
+    });
+});
+
+describe('AuthService Zitadel Introspection Integration', () => {
+    let svc: AuthService;
+    let restore: () => void;
+    let mockZitadelService: any;
+    let mockUserProfileService: any;
+
+    beforeEach(() => {
+        mockUserProfileService = createMockUserProfileService();
+        mockZitadelService = createMockZitadelService();
+        
+        // Create service with JWKS configured to enable introspection flow
+        ({ restore } = createService({ 
+            AUTH_ISSUER: 'https://zitadel.example.com',
+            AUTH_JWKS_URI: 'https://zitadel.example.com/.well-known/jwks'
+        }));
+        
+        // Manually inject mocks (constructor dependency injection in test setup)
+        svc = new AuthService(mockUserProfileService, mockZitadelService);
+    });
+
+    afterEach(() => restore());
+
+    describe('introspection when Zitadel configured', () => {
+        it('should use introspection if Zitadel is configured', async () => {
+            mockZitadelService.isConfigured.mockReturnValue(true);
+            mockZitadelService.introspect.mockResolvedValue({
+                active: true,
+                sub: 'zitadel-user-123',
+                email: 'user@example.com',
+                scope: 'openid profile email',
+            } as IntrospectionResult);
+
+            const result = await svc.validateToken('real-bearer-token');
+
+            expect(mockZitadelService.isConfigured).toHaveBeenCalled();
+            expect(mockZitadelService.introspect).toHaveBeenCalledWith('real-bearer-token');
+            expect(result).not.toBeNull();
+            expect(result?.sub).toBe('zitadel-user-123');
+            expect(result?.email).toBe('user@example.com');
+        });
+
+        it('should return null if introspection returns inactive token', async () => {
+            mockZitadelService.isConfigured.mockReturnValue(true);
+            mockZitadelService.introspect.mockResolvedValue({
+                active: false,
+            } as IntrospectionResult);
+
+            const result = await svc.validateToken('inactive-token');
+
+            expect(result).toBeNull();
+            expect(mockZitadelService.introspect).toHaveBeenCalledWith('inactive-token');
+        });
+
+        it('should parse scopes from introspection result', async () => {
+            mockZitadelService.isConfigured.mockReturnValue(true);
+            mockZitadelService.introspect.mockResolvedValue({
+                active: true,
+                sub: 'zitadel-user-456',
+                email: 'admin@example.com',
+                scope: 'org:read org:project:create chat:use',
+            } as IntrospectionResult);
+
+            const result = await svc.validateToken('admin-token');
+
+            expect(result?.scopes).toEqual(['org:read', 'org:project:create', 'chat:use']);
+        });
+
+        it('should handle introspection with array scopes', async () => {
+            mockZitadelService.isConfigured.mockReturnValue(true);
+            mockZitadelService.introspect.mockResolvedValue({
+                active: true,
+                sub: 'zitadel-user-789',
+                email: 'dev@example.com',
+                scopes: ['documents:read', 'documents:write'],
+            } as IntrospectionResult);
+
+            const result = await svc.validateToken('dev-token');
+
+            expect(result?.scopes).toEqual(['documents:read', 'documents:write']);
+        });
+
+        it('should fall back to JWKS if introspection fails', async () => {
+            mockZitadelService.isConfigured.mockReturnValue(true);
+            mockZitadelService.introspect.mockRejectedValue(new Error('Network error'));
+
+            // Mock token doesn't match static patterns, so should attempt JWKS
+            // (which will fail in test env, but we verify introspection was attempted)
+            const result = await svc.validateToken('some-jwt-token');
+
+            expect(mockZitadelService.introspect).toHaveBeenCalled();
+            // Result will be null because JWKS validation not mocked in this test
+        });
+
+        it('should ensure user profile exists with introspection data', async () => {
+            mockZitadelService.isConfigured.mockReturnValue(true);
+            mockZitadelService.introspect.mockResolvedValue({
+                active: true,
+                sub: 'new-zitadel-user',
+                email: 'newuser@example.com',
+                scope: 'openid',
+            } as IntrospectionResult);
+
+            const result = await svc.validateToken('new-user-token');
+
+            expect(mockUserProfileService.upsertBase).toHaveBeenCalledWith('new-zitadel-user');
+            expect(mockUserProfileService.get).toHaveBeenCalledWith('new-zitadel-user');
+            expect(result?.id).toBe('uuid-for-new-zitadel-user');
+            expect(result?.sub).toBe('new-zitadel-user');
+        });
+    });
+
+    describe('introspection when Zitadel not configured', () => {
+        it('should skip introspection if Zitadel not configured', async () => {
+            mockZitadelService.isConfigured.mockReturnValue(false);
+
+            // Use a non-static token to test introspection path
+            // (static tokens like 'no-scope' bypass introspection entirely)
+            const result = await svc.validateToken('some-real-token');
+
+            expect(mockZitadelService.isConfigured).toHaveBeenCalled();
+            expect(mockZitadelService.introspect).not.toHaveBeenCalled();
+            // Result will be null because JWKS validation not mocked
+        });
+    });
+
+    describe('static tokens always bypass introspection', () => {
+        it('should not attempt introspection for e2e-* tokens', async () => {
+            mockZitadelService.isConfigured.mockReturnValue(true);
+
+            const result = await svc.validateToken('e2e-test-user');
+
+            expect(mockZitadelService.introspect).not.toHaveBeenCalled();
+            expect(result?.sub).toBe('test-user-e2e-test-user');
+            expect(result?.scopes?.length).toBe(Object.values(MOCK_SCOPES).length);
+        });
+
+        it('should not attempt introspection for named static tokens', async () => {
+            mockZitadelService.isConfigured.mockReturnValue(true);
+
+            const result = await svc.validateToken('with-scope');
+
+            expect(mockZitadelService.introspect).not.toHaveBeenCalled();
+            expect(result?.scopes).toEqual([MOCK_SCOPES.orgRead]);
+        });
     });
 });
