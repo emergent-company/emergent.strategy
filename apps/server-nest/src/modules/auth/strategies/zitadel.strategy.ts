@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ZitadelIntrospectionStrategy } from 'passport-zitadel';
+import * as fs from 'fs';
 
 /**
  * Zitadel Passport Strategy
@@ -12,7 +13,7 @@ import { ZitadelIntrospectionStrategy } from 'passport-zitadel';
  * 3. Calling introspection endpoint to validate token and get user info
  * 4. Returning validated user payload
  * 
- * Configuration is loaded from ZITADEL_CLIENT_JWT environment variable.
+ * Configuration is loaded from ZITADEL_CLIENT_JWT or ZITADEL_CLIENT_JWT_PATH.
  */
 @Injectable()
 export class ZitadelStrategy extends PassportStrategy(
@@ -22,8 +23,31 @@ export class ZitadelStrategy extends PassportStrategy(
     private readonly logger = new Logger(ZitadelStrategy.name);
 
     constructor() {
-        // Parse service account key from environment
-        const serviceAccountKey = JSON.parse(process.env.ZITADEL_CLIENT_JWT || '{}');
+        // Load service account key from environment or file
+        let serviceAccountKey: any;
+        
+        const clientJwt = process.env.ZITADEL_CLIENT_JWT;
+        const clientJwtPath = process.env.ZITADEL_CLIENT_JWT_PATH;
+        
+        if (clientJwt) {
+            try {
+                serviceAccountKey = JSON.parse(clientJwt);
+            } catch (error) {
+                const errMsg = error instanceof Error ? error.message : String(error);
+                throw new Error(`Failed to parse ZITADEL_CLIENT_JWT: ${errMsg}`);
+            }
+        } else if (clientJwtPath) {
+            try {
+                const fileContent = fs.readFileSync(clientJwtPath, 'utf8');
+                serviceAccountKey = JSON.parse(fileContent);
+            } catch (error) {
+                const errMsg = error instanceof Error ? error.message : String(error);
+                throw new Error(`Failed to read/parse ZITADEL_CLIENT_JWT_PATH: ${errMsg}`);
+            }
+        } else {
+            throw new Error('Either ZITADEL_CLIENT_JWT or ZITADEL_CLIENT_JWT_PATH must be set');
+        }
+        
         const authority = process.env.ZITADEL_DOMAIN;
 
         if (!authority) {
@@ -31,7 +55,7 @@ export class ZitadelStrategy extends PassportStrategy(
         }
 
         if (!serviceAccountKey.keyId || !serviceAccountKey.key || !serviceAccountKey.clientId) {
-            throw new Error('ZITADEL_CLIENT_JWT must contain keyId, key, and clientId');
+            throw new Error('Service account key must contain keyId, key, and clientId');
         }
 
         super({
