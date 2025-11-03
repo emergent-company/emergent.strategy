@@ -626,8 +626,33 @@ export class ZitadelService implements OnModuleInit {
             );
         }
 
+        // Handle different JSON escaping formats from environment variables
+        // Some platforms (like Coolify) may double-escape quotes and newlines
         try {
+            // First attempt: Parse as-is
             this.serviceAccountKey = JSON.parse(keyJson);
+        } catch (firstError) {
+            this.logger.debug(
+                `First parse attempt failed, trying to unescape: ${(firstError as Error).message}`
+            );
+            
+            try {
+                // Second attempt: Unescape double-escaped strings
+                // Replace \\n with \n and \" with "
+                const unescaped = keyJson
+                    .replace(/\\\\n/g, '\\n')  // Fix double-escaped newlines
+                    .replace(/\\"/g, '"');      // Fix escaped quotes
+                
+                this.serviceAccountKey = JSON.parse(unescaped);
+                this.logger.debug('Successfully parsed after unescaping');
+            } catch (secondError) {
+                throw new Error(
+                    `Failed to parse Zitadel key after trying multiple formats: ${(secondError as Error).message}`
+                );
+            }
+        }
+
+        try {
             if (
                 !this.serviceAccountKey?.keyId ||
                 !this.serviceAccountKey?.key
@@ -647,7 +672,7 @@ export class ZitadelService implements OnModuleInit {
             );
         } catch (error) {
             throw new Error(
-                `Failed to parse Zitadel key: ${(error as Error).message}`
+                `Failed to validate Zitadel key: ${(error as Error).message}`
             );
         }
     }
