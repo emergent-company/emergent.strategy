@@ -24,7 +24,7 @@ export class CacheCleanupService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(CacheCleanupService.name);
     private cleanupInterval?: NodeJS.Timeout;
 
-    constructor(private readonly cacheService: PostgresCacheService) {}
+    constructor(private readonly cacheService: PostgresCacheService) { }
 
     /**
      * Start cleanup service when module initializes
