@@ -40,7 +40,7 @@ describe('ZitadelService', () => {
         }).compile();
 
         service = module.get<ZitadelService>(ZitadelService);
-        
+
         // Manually assign mock for Vitest DI limitation
         (service as any).cacheService = mockCacheService;
 
