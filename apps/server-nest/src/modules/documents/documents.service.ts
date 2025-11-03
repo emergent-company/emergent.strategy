@@ -55,10 +55,10 @@ export class DocumentsService {
                     COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
                     ej.status AS extraction_status,
                     ej.completed_at AS extraction_completed_at,
-                    ej.created_objects AS extraction_objects_count
+                    ej.objects_created AS extraction_objects_count
              FROM kb.documents d
              LEFT JOIN LATERAL (
-                 SELECT status, completed_at, created_objects
+                 SELECT status, completed_at, objects_created
                  FROM kb.object_extraction_jobs
                  WHERE source_type = 'document' AND source_id::uuid = d.id
                  ORDER BY created_at DESC
@@ -89,10 +89,10 @@ export class DocumentsService {
                     COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
                     ej.status AS extraction_status,
                     ej.completed_at AS extraction_completed_at,
-                    ej.created_objects AS extraction_objects_count
+                    ej.objects_created AS extraction_objects_count
              FROM kb.documents d
              LEFT JOIN LATERAL (
-                 SELECT status, completed_at, created_objects
+                 SELECT status, completed_at, objects_created
                  FROM kb.object_extraction_jobs
                  WHERE source_type = 'document' AND source_id::uuid = d.id
                  ORDER BY created_at DESC
