@@ -30,7 +30,7 @@ services:
 
   # Zitadel Identity Provider
   zitadel:
-    image: ghcr.io/zitadel/zitadel:latest
+    image: ghcr.io/zitadel/zitadel:v4.6.2
     depends_on:
       db:
         condition: service_healthy
