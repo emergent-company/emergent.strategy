@@ -58,6 +58,7 @@
         "passport-azure-ad-oauth2": "^0.0.4",
         "passport-github": "^1.1.0",
         "passport-google-oauth20": "^2.0.0",
+        "passport-zitadel": "^1.2.3",
         "path-to-regexp": "3.3.0",
         "pg": "^8.16.3",
         "reflect-metadata": "^0.2.2",
