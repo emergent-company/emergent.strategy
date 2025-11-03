@@ -173,13 +173,13 @@ describe('AuthService Zitadel Introspection Integration', () => {
     beforeEach(() => {
         mockUserProfileService = createMockUserProfileService();
         mockZitadelService = createMockZitadelService();
-        
+
         // Create service with JWKS configured to enable introspection flow
-        ({ restore } = createService({ 
+        ({ restore } = createService({
             AUTH_ISSUER: 'https://zitadel.example.com',
             AUTH_JWKS_URI: 'https://zitadel.example.com/.well-known/jwks'
         }));
-        
+
         // Manually inject mocks (constructor dependency injection in test setup)
         svc = new AuthService(mockUserProfileService, mockZitadelService);
     });

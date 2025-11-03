@@ -28,7 +28,7 @@ describe('PostgresCacheService', () => {
         }).compile();
 
         service = module.get<PostgresCacheService>(PostgresCacheService);
-        
+
         // Ensure private field is populated in case Nest injection metadata is stripped during unit tests
         (service as any).db = mockDatabaseService;
     });
@@ -208,7 +208,7 @@ describe('PostgresCacheService', () => {
 
             expect(result).toBe(3);
             expect(mockDatabaseService.query).toHaveBeenCalledTimes(1);
-            
+
             // Verify the single query contains all necessary parts
             const actualQuery = mockDatabaseService.query.mock.calls[0][0];
             expect(actualQuery).toContain('DELETE FROM kb.auth_introspection_cache');

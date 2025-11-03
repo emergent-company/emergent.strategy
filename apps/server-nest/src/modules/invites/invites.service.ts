@@ -133,7 +133,7 @@ export class InvitesService {
         if (!res.rowCount) throw new NotFoundException({ error: { code: 'not-found', message: 'Invite not found' } });
         const invite = res.rows[0];
         if (invite.status !== 'pending') throw new BadRequestException({ error: { code: 'invalid-state', message: 'Invite not pending' } });
-        
+
         // Get user's zitadel_user_id for role granting
         const userResult = await this.db.query(
             `SELECT zitadel_user_id FROM core.user_profiles WHERE id = $1`,
@@ -145,11 +145,11 @@ export class InvitesService {
         }
 
         const zitadelUserId = userResult.rows[0].zitadel_user_id;
-        
+
         const client = await this.db.getClient();
         try {
             await client.query('BEGIN');
-            
+
             // Grant role in Zitadel if project invite
             if (invite.project_id && this.zitadelService.isConfigured()) {
                 const projectId = process.env.ZITADEL_PROJECT_ID;
@@ -169,7 +169,7 @@ export class InvitesService {
                     }
                 }
             }
-            
+
             // userId is now the internal UUID from req.user.id
             if (invite.project_id) {
                 await client.query(`INSERT INTO kb.project_memberships(project_id, user_id, role) VALUES($1,$2,$3) ON CONFLICT (project_id, user_id) DO NOTHING`, [invite.project_id, userId, invite.role]);
@@ -181,7 +181,7 @@ export class InvitesService {
             }
             await client.query(`UPDATE kb.invites SET status='accepted', accepted_at = now() WHERE id = $1`, [invite.id]);
             await client.query('COMMIT');
-            
+
             this.logger.log(`User ${userId} accepted invitation ${invite.id}`);
         } catch (e) {
             try { await client.query('ROLLBACK'); } catch { /* ignore */ }

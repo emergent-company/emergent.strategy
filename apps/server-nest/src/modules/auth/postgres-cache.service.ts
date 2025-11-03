@@ -28,7 +28,7 @@ export interface CachedIntrospection {
 export class PostgresCacheService {
     private readonly logger = new Logger(PostgresCacheService.name);
 
-    constructor(private readonly db: DatabaseService) {}
+    constructor(private readonly db: DatabaseService) { }
 
     /**
      * Retrieve cached introspection result for a token
@@ -60,7 +60,7 @@ export class PostgresCacheService {
 
             const row = result.rows[0];
             this.logger.debug('Cache hit');
-            
+
             return {
                 data: row.introspection_data,
                 expiresAt: new Date(row.expires_at),

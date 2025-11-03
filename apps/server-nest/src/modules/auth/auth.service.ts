@@ -139,7 +139,7 @@ export class AuthService implements OnModuleInit {
             try {
                 Logger.log(`[AUTH] Attempting Zitadel introspection for token`, 'AuthService');
                 const introspection = await this.zitadelService.introspect(token);
-                
+
                 if (introspection?.active) {
                     Logger.log(`[AUTH] Zitadel introspection successful (sub: ${introspection.sub})`, 'AuthService');
                     const mapped = await this.mapIntrospectionToAuthUser(introspection);
@@ -281,7 +281,7 @@ export class AuthService implements OnModuleInit {
         }
 
         const normalizedSub = String(introspection.sub);
-        
+
         // Extract scopes from introspection (Zitadel returns scope as space-separated string)
         let scopes: string[] | undefined;
         const scopesClaim = introspection.scope || introspection.scopes;
@@ -300,7 +300,7 @@ export class AuthService implements OnModuleInit {
         if (process.env.DEBUG_AUTH_CLAIMS === '1') {
             user._debugScopeSource = 'introspection';
         }
-        
+
         return user;
     }
 }
