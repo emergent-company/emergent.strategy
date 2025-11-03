@@ -100,7 +100,7 @@ async function bootstrap() {
     // Set up file logger to capture all logs
     app.useLogger(fileLogger);
 
-    // Fine-grained CORS: allow credentials for local dev origins only
+    // Fine-grained CORS: allow credentials for local dev origins + production origin from env
     const allowedOrigins = new Set([
         'http://localhost:3000', // common alt
         'http://localhost:3001', // same-port (if ever served together)
@@ -109,10 +109,18 @@ async function bootstrap() {
         'http://localhost:5175', // legacy admin dev port
         'http://localhost:5176', // current admin dev port
     ]);
+    
+    // Add production origin from CORS_ORIGIN env var (can be comma-separated)
+    const corsOriginEnv = process.env.CORS_ORIGIN;
+    if (corsOriginEnv) {
+        corsOriginEnv.split(',').forEach(origin => allowedOrigins.add(origin.trim()));
+    }
+    
     app.enableCors({
         origin: (origin, cb) => {
             if (!origin) return cb(null, true); // non-browser or curl
             if (allowedOrigins.has(origin)) return cb(null, true);
+            fileLogger.warn(`CORS blocked for origin ${origin}. Allowed: ${Array.from(allowedOrigins).join(', ')}`);
             return cb(new Error(`CORS blocked for origin ${origin}`));
         },
         credentials: true,
