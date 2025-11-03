@@ -722,36 +722,42 @@ export class ZitadelService implements OnModuleInit {
         }
 
         // Dynamically import jose library
-        // Note: Zitadel provides PKCS#1 format keys (BEGIN RSA PRIVATE KEY)
-        // but we try PKCS#8 import first, then fall back to generic import
         const jose = await import('jose');
         
         let privateKey: any;
+        let keyToImport = this.serviceAccountKey.key;
+        
+        // Check if this is PKCS#1 format (BEGIN RSA PRIVATE KEY)
+        // If so, convert to PKCS#8 format using Node.js crypto module
+        if (keyToImport.includes('BEGIN RSA PRIVATE KEY')) {
+            this.logger.debug('Detected PKCS#1 format key, converting to PKCS#8...');
+            try {
+                const crypto = await import('crypto');
+                // Import PKCS#1 key
+                const keyObject = crypto.createPrivateKey({
+                    key: keyToImport,
+                    format: 'pem',
+                    type: 'pkcs1'
+                });
+                // Export as PKCS#8
+                keyToImport = keyObject.export({
+                    type: 'pkcs8',
+                    format: 'pem'
+                }) as string;
+                this.logger.debug('Successfully converted PKCS#1 to PKCS#8');
+            } catch (conversionError) {
+                this.logger.error('Failed to convert PKCS#1 to PKCS#8:', conversionError);
+                throw new Error(`Key format conversion failed: ${(conversionError as Error).message}`);
+            }
+        }
+        
         try {
-            // Try PKCS#8 import first
-            privateKey = await jose.importPKCS8(
-                this.serviceAccountKey.key,
-                'RS256'
-            );
-        } catch (pkcs8Error) {
-            this.logger.debug(
-                `PKCS#8 import failed (${(pkcs8Error as Error).message}), trying generic PEM import...`
-            );
-            // Fall back to generic PEM import which handles both PKCS#1 and PKCS#8
-            privateKey = await jose.importPKCS8(
-                this.serviceAccountKey.key.replace(
-                    /-----BEGIN RSA PRIVATE KEY-----/,
-                    '-----BEGIN PRIVATE KEY-----'
-                ).replace(
-                    /-----END RSA PRIVATE KEY-----/,
-                    '-----END PRIVATE KEY-----'
-                ),
-                'RS256'
-            ).catch(async () => {
-                // If that also fails, use importPKCS1 if available, or throw
-                this.logger.warn('Both PKCS#8 and header replacement failed, key might need conversion');
-                throw new Error(`Failed to import private key: ${(pkcs8Error as Error).message}`);
-            });
+            // Import PKCS#8 key (either original or converted)
+            privateKey = await jose.importPKCS8(keyToImport, 'RS256');
+            this.logger.debug('Successfully imported private key');
+        } catch (importError) {
+            this.logger.error('Failed to import private key:', importError);
+            throw new Error(`Failed to import private key: ${(importError as Error).message}`);
         }
 
         const now = Math.floor(Date.now() / 1000);
