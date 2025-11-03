@@ -286,7 +286,7 @@ SET
 -- Name: user_emails; Type: TABLE; Schema: core; Owner: -
 --
 CREATE TABLE core.user_emails (
-    zitadel_user_id text NOT NULL,
+    user_id uuid NOT NULL,
     email text NOT NULL,
     verified boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
@@ -390,7 +390,7 @@ CREATE TABLE kb.branches (
 CREATE TABLE kb.chat_conversations (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     title text NOT NULL,
-    owner_subject_id text,
+    owner_user_id uuid,
     is_private boolean DEFAULT true NOT NULL,
     organization_id uuid,
     project_id uuid,
@@ -1166,7 +1166,7 @@ CREATE TABLE kb.notifications (
     tenant_id uuid NOT NULL,
     organization_id uuid NOT NULL,
     project_id uuid DEFAULT gen_random_uuid() NOT NULL,
-    user_id text NOT NULL,
+    user_id uuid NOT NULL,
     category text NOT NULL,
     importance text DEFAULT 'other' :: text NOT NULL,
     title text NOT NULL,
@@ -1536,7 +1536,7 @@ ALTER TABLE
 CREATE TABLE kb.organization_memberships (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     organization_id uuid NOT NULL,
-    zitadel_user_id text NOT NULL,
+    user_id uuid NOT NULL,
     role text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT organization_memberships_role_check CHECK ((role = 'org_admin' :: text))
@@ -1581,7 +1581,7 @@ CREATE TABLE kb.product_versions (
 CREATE TABLE kb.project_memberships (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
-    zitadel_user_id text NOT NULL,
+    user_id uuid NOT NULL,
     role text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT project_memberships_role_check CHECK (
@@ -1882,7 +1882,7 @@ COMMENT ON COLUMN kb.tags.description IS 'Optional description of what this tag 
 --
 CREATE TABLE kb.user_notification_preferences (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    zitadel_user_id text NOT NULL,
+    user_id uuid NOT NULL,
     category text NOT NULL,
     in_app_enabled boolean DEFAULT true,
     email_enabled boolean DEFAULT false,
@@ -1920,7 +1920,7 @@ SET
 ALTER TABLE
     ONLY core.user_emails
 ADD
-    CONSTRAINT user_emails_pkey PRIMARY KEY (zitadel_user_id, email);
+    CONSTRAINT user_emails_pkey PRIMARY KEY (user_id, email);
 
 --
 -- Name: user_profiles user_profiles_pkey; Type: CONSTRAINT; Schema: core; Owner: -
@@ -2368,7 +2368,7 @@ ADD
 ALTER TABLE
     ONLY kb.user_notification_preferences
 ADD
-    CONSTRAINT user_notification_preferences_subject_id_category_key UNIQUE (zitadel_user_id, category);
+    CONSTRAINT user_notification_preferences_subject_id_category_key UNIQUE (user_id, category);
 
 --
 -- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
@@ -2972,7 +2972,7 @@ CREATE INDEX idx_mcp_tool_calls_tool_name ON kb.mcp_tool_calls USING btree (tool
 --
 -- Name: idx_notif_prefs_user; Type: INDEX; Schema: kb; Owner: -
 --
-CREATE INDEX idx_notif_prefs_user ON kb.user_notification_preferences USING btree (zitadel_user_id);
+CREATE INDEX idx_notif_prefs_user ON kb.user_notification_preferences USING btree (user_id);
 
 --
 -- Name: idx_notifications_active; Type: INDEX; Schema: kb; Owner: -
@@ -3134,7 +3134,7 @@ WHERE
 --
 -- Name: idx_org_membership_unique; Type: INDEX; Schema: kb; Owner: -
 --
-CREATE UNIQUE INDEX idx_org_membership_unique ON kb.organization_memberships USING btree (organization_id, zitadel_user_id);
+CREATE UNIQUE INDEX idx_org_membership_unique ON kb.organization_memberships USING btree (organization_id, user_id);
 
 --
 -- Name: idx_orgs_name; Type: INDEX; Schema: kb; Owner: -
@@ -3154,7 +3154,7 @@ CREATE UNIQUE INDEX idx_product_versions_project_name ON kb.product_versions USI
 --
 -- Name: idx_project_membership_unique; Type: INDEX; Schema: kb; Owner: -
 --
-CREATE UNIQUE INDEX idx_project_membership_unique ON kb.project_memberships USING btree (project_id, zitadel_user_id);
+CREATE UNIQUE INDEX idx_project_membership_unique ON kb.project_memberships USING btree (project_id, user_id);
 
 --
 -- Name: idx_project_template_packs_org; Type: INDEX; Schema: kb; Owner: -
@@ -3432,7 +3432,7 @@ UPDATE
 ALTER TABLE
     ONLY core.user_emails
 ADD
-    CONSTRAINT user_emails_subject_id_fkey FOREIGN KEY (zitadel_user_id) REFERENCES core.user_profiles(zitadel_user_id) ON DELETE CASCADE;
+    CONSTRAINT user_emails_subject_id_fkey FOREIGN KEY (user_id) REFERENCES core.user_profiles(id) ON DELETE CASCADE;
 
 --
 -- Name: branch_lineage branch_lineage_ancestor_branch_id_fkey; Type: FK CONSTRAINT; Schema: kb; Owner: -
@@ -3466,7 +3466,7 @@ SET
 ALTER TABLE
     ONLY kb.chat_conversations
 ADD
-    CONSTRAINT chat_conversations_owner_subject_id_fkey FOREIGN KEY (owner_subject_id) REFERENCES core.user_profiles(zitadel_user_id) ON DELETE
+    CONSTRAINT chat_conversations_owner_subject_id_fkey FOREIGN KEY (owner_user_id) REFERENCES core.user_profiles(id) ON DELETE
 SET
     NULL;
 
@@ -3756,7 +3756,7 @@ ADD
 ALTER TABLE
     ONLY kb.notifications
 ADD
-    CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES core.user_profiles(zitadel_user_id) ON DELETE CASCADE;
+    CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES core.user_profiles(id) ON DELETE CASCADE;
 
 --
 -- Name: object_extraction_jobs object_extraction_jobs_chunk_id_fkey; Type: FK CONSTRAINT; Schema: kb; Owner: -
@@ -3820,7 +3820,7 @@ ADD
 ALTER TABLE
     ONLY kb.organization_memberships
 ADD
-    CONSTRAINT organization_memberships_subject_id_fkey FOREIGN KEY (zitadel_user_id) REFERENCES core.user_profiles(zitadel_user_id) ON DELETE CASCADE;
+    CONSTRAINT organization_memberships_subject_id_fkey FOREIGN KEY (user_id) REFERENCES core.user_profiles(id) ON DELETE CASCADE;
 
 --
 -- Name: product_version_members product_version_members_product_version_id_fkey; Type: FK CONSTRAINT; Schema: kb; Owner: -
@@ -3862,7 +3862,7 @@ ADD
 ALTER TABLE
     ONLY kb.project_memberships
 ADD
-    CONSTRAINT project_memberships_subject_id_fkey FOREIGN KEY (zitadel_user_id) REFERENCES core.user_profiles(zitadel_user_id) ON DELETE CASCADE;
+    CONSTRAINT project_memberships_subject_id_fkey FOREIGN KEY (user_id) REFERENCES core.user_profiles(id) ON DELETE CASCADE;
 
 --
 -- Name: project_object_type_registry project_object_type_registry_project_id_fkey; Type: FK CONSTRAINT; Schema: kb; Owner: -
@@ -3918,7 +3918,7 @@ ADD
 ALTER TABLE
     ONLY kb.user_notification_preferences
 ADD
-    CONSTRAINT user_notification_preferences_subject_id_fkey FOREIGN KEY (zitadel_user_id) REFERENCES core.user_profiles(zitadel_user_id) ON DELETE CASCADE;
+    CONSTRAINT user_notification_preferences_subject_id_fkey FOREIGN KEY (user_id) REFERENCES core.user_profiles(id) ON DELETE CASCADE;
 
 --
 -- Name: extraction_jobs; Type: ROW SECURITY; Schema: kb; Owner: -
