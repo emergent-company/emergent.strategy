@@ -656,14 +656,27 @@ export class ZitadelService implements OnModuleInit {
         // (Coolify double-escapes newlines, so after JSON.parse they become literal \n)
         if (this.serviceAccountKey?.key) {
             const originalKey = this.serviceAccountKey.key;
+            
+            // Log first 100 chars to see what we're working with
+            this.logger.log(
+                `[KEY_DEBUG] Original key first 100 chars: ${originalKey.substring(0, 100).replace(/\n/g, '\\n')}`
+            );
+            
             // Replace literal \n, \r, \t with actual escape sequences
             this.serviceAccountKey.key = originalKey
                 .replace(/\\n/g, '\n')
                 .replace(/\\r/g, '\r')
                 .replace(/\\t/g, '\t');
             
+            // Log after replacement
+            this.logger.log(
+                `[KEY_DEBUG] Fixed key first 100 chars: ${this.serviceAccountKey.key.substring(0, 100).replace(/\n/g, '\\n')}`
+            );
+            
             if (originalKey !== this.serviceAccountKey.key) {
-                this.logger.debug('Fixed escape sequences in RSA private key');
+                this.logger.log('[KEY_DEBUG] Fixed escape sequences in RSA private key');
+            } else {
+                this.logger.log('[KEY_DEBUG] No escape sequences to fix (key unchanged)');
             }
         }
 
