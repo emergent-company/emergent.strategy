@@ -1931,6 +1931,14 @@ ADD
     CONSTRAINT user_profiles_pkey PRIMARY KEY (zitadel_user_id);
 
 --
+-- Name: user_profiles user_profiles_id_unique; Type: CONSTRAINT; Schema: core; Owner: -
+--
+ALTER TABLE
+    ONLY core.user_profiles
+ADD
+    CONSTRAINT user_profiles_id_unique UNIQUE (id);
+
+--
 -- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: kb; Owner: -
 --
 ALTER TABLE
