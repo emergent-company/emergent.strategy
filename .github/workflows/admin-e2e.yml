@@ -49,7 +49,7 @@ jobs:
       - name: Run database migrations
         env:
           DATABASE_URL: postgresql://spec:spec@localhost:5432/spec
-        run: tsx scripts/run-migrations.ts
+        run: npx tsx scripts/run-migrations.ts
 
       - name: Start API server
         working-directory: apps/server-nest
