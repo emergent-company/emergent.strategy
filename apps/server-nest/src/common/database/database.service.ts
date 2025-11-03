@@ -68,6 +68,14 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         }
     }
 
+    /**
+     * Get the raw connection pool for operations that need to bypass tenant RLS context.
+     * Used by UserProfileService for authentication operations that happen before tenant context exists.
+     */
+    getPool(): Pool | null {
+        return this.pool || null;
+    }
+
     private resolveAppRlsPassword(): string {
         if (!this.config) {
             return 'app_rls_pw';
