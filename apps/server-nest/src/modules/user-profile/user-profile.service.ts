@@ -22,7 +22,7 @@ export class UserProfileService {
     async get(zitadelUserId: string): Promise<UserProfileDto | null> {
         // Used by auth service - accepts Zitadel ID
         // Use pool directly to bypass tenant RLS context (core schema doesn't use RLS)
-        const pool = (this.db as any).pool;
+        const pool = this.db.getPool();
         if (!pool) return null;
         const q = await pool.query(`SELECT id, zitadel_user_id, first_name, last_name, display_name, phone_e164, avatar_object_key FROM core.user_profiles WHERE zitadel_user_id = $1`, [zitadelUserId]);
         if (!q.rowCount) return null;
@@ -39,7 +39,7 @@ export class UserProfileService {
     async upsertBase(subjectId: string): Promise<void> {
         // Minimal upsert for auth service: just create row if not exists
         // Use pool directly to bypass tenant RLS context
-        const pool = (this.db as any).pool;
+        const pool = this.db.getPool();
         if (!pool) return;
         await pool.query(`INSERT INTO core.user_profiles(zitadel_user_id) VALUES ($1) ON CONFLICT (zitadel_user_id) DO NOTHING`, [subjectId]);
     }
