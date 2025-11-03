@@ -104,8 +104,17 @@ services:
       dockerfile: apps/server-nest/Dockerfile # EXPLICIT: Path to Dockerfile
       args:
         NODE_ENV: production
-    ports:
-      - "3002:3002"
+    expose:
+      - "3002"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.server.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.server.entrypoints=web"
+      - "traefik.http.routers.server.priority=100"
+      - "traefik.http.middlewares.api-strip.stripprefix.prefixes=/api"
+      - "traefik.http.routers.server.middlewares=api-strip"
+      - "traefik.http.services.server.loadbalancer.server.port=3002"
+      - "traefik.http.routers.server.service=server"
     environment:
       # Database
       POSTGRES_HOST: db
@@ -163,6 +172,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.admin.rule=PathPrefix(`/`)"
       - "traefik.http.routers.admin.entrypoints=web"
+      - "traefik.http.routers.admin.priority=1"
       - "traefik.http.services.admin.loadbalancer.server.port=3000"
       - "traefik.http.routers.admin.service=admin"
     depends_on:
