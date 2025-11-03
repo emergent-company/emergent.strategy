@@ -761,10 +761,9 @@ export class ZitadelService implements OnModuleInit {
         }
 
         const now = Math.floor(Date.now() / 1000);
-        const issuer =
-            this.serviceAccountKey.userId || this.serviceAccountKey.appId!;
-        const subject =
-            this.serviceAccountKey.userId || this.serviceAccountKey.clientId!;
+        // Use clientId for both issuer and subject (matches Zitadel SDK implementation)
+        const issuer = this.serviceAccountKey.clientId!;
+        const subject = this.serviceAccountKey.clientId!;
         const audience = `https://${process.env.ZITADEL_DOMAIN}`;
 
         const jwt = await new jose.SignJWT({})
@@ -804,7 +803,7 @@ export class ZitadelService implements OnModuleInit {
             body: new URLSearchParams({
                 grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                 assertion,
-                scope: 'openid profile email urn:zitadel:iam:org:project:id:zitadel:aud',
+                scope: 'openid',
             }),
         });
 
