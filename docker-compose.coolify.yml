@@ -104,6 +104,8 @@ services:
       dockerfile: apps/server-nest/Dockerfile # EXPLICIT: Path to Dockerfile
       args:
         NODE_ENV: production
+    volumes:
+      - /home/spec-server/zitadel-service-account.json:/app/zitadel-service-account.json:ro
     expose:
       - "3002"
     labels:
@@ -132,6 +134,7 @@ services:
       ZITADEL_SERVICE_CLIENT_SECRET: ${ZITADEL_SERVICE_CLIENT_SECRET}
       ZITADEL_MAIN_ORG_ID: ${ZITADEL_MAIN_ORG_ID}
       ZITADEL_PROJECT_ID: ${ZITADEL_PROJECT_ID}
+      ZITADEL_CLIENT_JWT_PATH: /app/zitadel-service-account.json
 
       # Auth (JWT validation - validates tokens from frontend)
       AUTH_ISSUER: ${ZITADEL_ISSUER}
