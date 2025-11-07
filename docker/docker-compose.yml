@@ -57,6 +57,7 @@ services:
     user: "0"
     volumes:
       - .:/current-dir:delegated
+      - ../secrets/bootstrap:/machinekey
 
   login:
     image: ghcr.io/zitadel/zitadel-login:latest

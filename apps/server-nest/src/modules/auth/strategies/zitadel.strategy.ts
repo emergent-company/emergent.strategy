@@ -25,10 +25,10 @@ export class ZitadelStrategy extends PassportStrategy(
     constructor() {
         // Load service account key from environment or file
         let serviceAccountKey: any;
-        
+
         const clientJwt = process.env.ZITADEL_CLIENT_JWT;
         const clientJwtPath = process.env.ZITADEL_CLIENT_JWT_PATH;
-        
+
         if (clientJwt) {
             try {
                 serviceAccountKey = JSON.parse(clientJwt);
@@ -47,7 +47,7 @@ export class ZitadelStrategy extends PassportStrategy(
         } else {
             throw new Error('Either ZITADEL_CLIENT_JWT or ZITADEL_CLIENT_JWT_PATH must be set');
         }
-        
+
         const authority = process.env.ZITADEL_DOMAIN;
 
         if (!authority) {
@@ -88,7 +88,7 @@ export class ZitadelStrategy extends PassportStrategy(
      */
     async validate(payload: any): Promise<any> {
         this.logger.debug(`Token validated for user: ${payload.sub || payload.username || 'unknown'}`);
-        
+
         // Log available claims for debugging
         if (process.env.NODE_ENV !== 'production') {
             this.logger.debug(`Available claims: ${Object.keys(payload).join(', ')}`);
