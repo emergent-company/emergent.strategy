@@ -14,6 +14,10 @@ apps/server-nest/dist-openapi/
 .env.production
 .DS_Store
 
+# Secrets directory (service account JSON keys)
+secrets/
+!secrets/README.md
+
 # Playwright / E2E artifacts
 playwright-report/
 **/playwright-report/

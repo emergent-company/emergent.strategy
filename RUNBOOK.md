@@ -131,7 +131,7 @@ SPA/server integration
 - Server-side validation: set the same issuer and fetch JWKS from `http://localhost:8080` (see `apps/server-nest/.env.example`).
 
 More details
-- See `docker/README-zitadel.md` for the full walkthrough, roles, and troubleshooting.
+- See [Zitadel Setup Guide](docs/setup/ZITADEL_SETUP_GUIDE.md) for the complete walkthrough, configuration, and troubleshooting.
 
 ## Schema Resilience & Dual Mode Behavior
 
