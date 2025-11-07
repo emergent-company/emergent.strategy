@@ -39,10 +39,10 @@ const apps = [
         autorestart: true,
         env: {
             WORKSPACE_DEPENDENCY_ID: 'postgres',
-            WORKSPACE_PROCESS_NAMESPACE: 'workspace-cli-deps',
+            WORKSPACE_PROCESS_NAMESPACE: WORKSPACE_DEPENDENCY_NAMESPACE,
             WORKSPACE_RESTART_MAX: String(DEFAULT_MAX_RESTARTS),
             WORKSPACE_RESTART_WINDOW_SEC: '900',
-            NAMESPACE: process.env.NAMESPACE || 'workspace-cli'
+            NAMESPACE: NAMESPACE_PREFIX
         }
     },
     {
@@ -63,10 +63,10 @@ const apps = [
         autorestart: true,
         env: {
             WORKSPACE_DEPENDENCY_ID: 'zitadel',
-            WORKSPACE_PROCESS_NAMESPACE: 'workspace-cli-deps',
+            WORKSPACE_PROCESS_NAMESPACE: WORKSPACE_DEPENDENCY_NAMESPACE,
             WORKSPACE_RESTART_MAX: String(DEFAULT_MAX_RESTARTS),
             WORKSPACE_RESTART_WINDOW_SEC: '900',
-            NAMESPACE: process.env.NAMESPACE || 'workspace-cli'
+            NAMESPACE: NAMESPACE_PREFIX
         }
     }
 ];

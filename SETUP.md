@@ -69,7 +69,7 @@ Key endpoints once the stack is healthy:
 - Zitadel issuer (API): http://localhost:8080
 - Login v2 UI: http://localhost:3000/ui/v2/login
 
-Troubleshooting, role creation, and resets are in `docker/README-zitadel.md` and `RUNBOOK.md` → "Local Auth (Zitadel)".
+Troubleshooting, role creation, and resets are in [Zitadel Setup Guide](docs/setup/ZITADEL_SETUP_GUIDE.md) and `RUNBOOK.md` → "Local Auth (Zitadel)".
 
 ## 4) Create a Public (PKCE) OIDC client in Zitadel
 
@@ -135,12 +135,12 @@ Or via HTTP:
 ## 8) Common pitfalls
 - Tailwind/daisyUI classes not applying in Admin: restart the dev server and avoid dynamic class strings
 - Vite port changed: update SPA redirect URIs and Allowed Origins in Zitadel
-- Zitadel startup errors: master key length, SSL mode, or missing `zitadel` role/db → see `docker/README-zitadel.md`
+- Zitadel startup errors: master key length, SSL mode, or missing `zitadel` role/db → see [Zitadel Setup Guide](docs/setup/ZITADEL_SETUP_GUIDE.md)
 - Node version warnings: ensure Node >= 20.19 for Vite and React 19
 
 ## References
 - RUNBOOK: `RUNBOOK.md`
-- Local Auth deep-dive: `docker/README-zitadel.md`
+- Local Auth deep-dive: [Zitadel Setup Guide](docs/setup/ZITADEL_SETUP_GUIDE.md)
 - Docker Compose: `docker/docker-compose.yml`
 - Admin SPA quickstart: `apps/admin/README.md`
 - Server quickstart: `apps/server-nest/README.md`

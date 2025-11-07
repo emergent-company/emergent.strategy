@@ -27,6 +27,7 @@ import {
 } from '../pm2/client.js';
 import { parseCliArgs } from '../utils/parse-args.js';
 import { waitForProcessStability } from './lifecycle-utils.js';
+import { runStatusCommand } from '../status/render.js';
 
 const require = createRequire(import.meta.url);
 
@@ -427,5 +428,8 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
     }
   }
 
-  process.stdout.write('✅ Start command complete\n');
+  process.stdout.write('✅ Start command complete\n\n');
+  
+  // Display status after starting
+  await runStatusCommand(argv);
 }

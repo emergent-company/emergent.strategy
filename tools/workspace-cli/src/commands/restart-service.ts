@@ -16,6 +16,7 @@ import { WorkspaceCliError } from '../errors.js';
 import { restartProcess } from '../pm2/client.js';
 import { parseCliArgs } from '../utils/parse-args.js';
 import { ensureProcessDescription, waitForProcessStability } from './lifecycle-utils.js';
+import { runStatusCommand } from '../status/render.js';
 
 const require = createRequire(import.meta.url);
 
@@ -39,12 +40,14 @@ interface DependencyEcosystemModule {
 const dependencyEcosystemModule = require('../../pm2/ecosystem.dependencies.cjs') as DependencyEcosystemModule;
 
 function resolveProcessName(serviceId: string): EcosystemProcessConfig {
-    const entry = ecosystemModule.apps.find((app) => app.name === serviceId);
+    const namespace = process.env.NAMESPACE || 'workspace-cli';
+    const expectedName = `${namespace}-${serviceId}`;
+    const entry = ecosystemModule.apps.find((app) => app.name === expectedName);
 
     if (!entry) {
         throw new WorkspaceCliError(
             'ECOSYSTEM_ENTRY_MISSING',
-            `No PM2 ecosystem configuration registered for ${serviceId} (expected name: ${serviceId}).`,
+            `No PM2 ecosystem configuration registered for ${serviceId} (expected name: ${expectedName}).`,
             {
                 serviceId,
                 recommendation: 'Add an entry to tools/workspace-cli/pm2/ecosystem.apps.cjs'
@@ -56,7 +59,8 @@ function resolveProcessName(serviceId: string): EcosystemProcessConfig {
 }
 
 function resolveDependencyProcessName(dependencyId: string): DependencyEcosystemProcessConfig {
-    const expectedName = `${dependencyId}-dependency`;
+    const namespace = process.env.NAMESPACE || 'workspace-cli';
+    const expectedName = `${namespace}-${dependencyId}-dependency`;
     const entry = dependencyEcosystemModule.apps.find(
         (app) => app.name === expectedName
     );
@@ -218,5 +222,8 @@ export async function runRestartCommand(argv: readonly string[]): Promise<void> 
         }
     }
 
-    process.stdout.write('✅ Restart command complete\n');
+    process.stdout.write('✅ Restart command complete\n\n');
+    
+    // Display status after restarting
+    await runStatusCommand(argv);
 }

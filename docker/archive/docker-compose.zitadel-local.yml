@@ -1,0 +1,79 @@
+# docker-compose.zitadel-local.yml
+# Local Zitadel instance for testing dual service account setup
+#
+# Usage:
+#   docker-compose -f docker-compose.zitadel-local.yml up -d
+#
+# Access:
+#   http://localhost:8200 (Zitadel Console)
+#
+# First-time setup:
+#   1. Open http://localhost:8200
+#   2. Complete setup wizard (create admin account)
+#   3. Create Personal Access Token in admin profile
+#   4. Run: ./scripts/bootstrap-zitadel.sh
+#      - Domain: localhost:8200
+#      - Admin PAT: (from step 3)
+#
+
+services:
+  zitadel-db:
+    image: postgres:17-alpine
+    container_name: zitadel-local-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zitadel
+      POSTGRES_PASSWORD: zitadel
+      POSTGRES_DB: zitadel
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zitadel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - zitadel-db-data:/var/lib/postgresql/data
+    networks:
+      - zitadel-local
+
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:v2.64.1
+    container_name: zitadel-local
+    restart: unless-stopped
+    command: start-from-init --masterkeyFromEnv --tlsMode disabled
+    depends_on:
+      zitadel-db:
+        condition: service_healthy
+    environment:
+      ZITADEL_MASTERKEY: MasterkeyNeedsToHave32Characters
+      ZITADEL_DATABASE_POSTGRES_HOST: zitadel-db
+      ZITADEL_DATABASE_POSTGRES_PORT: 5432
+      ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
+      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: zitadel
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: zitadel
+      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
+      ZITADEL_EXTERNALSECURE: "false"
+      ZITADEL_EXTERNALPORT: 8200
+      ZITADEL_TLS_ENABLED: "false"
+      ZITADEL_FIRSTINSTANCE_ORG_NAME: "Spec Server Test"
+      # Create admin machine user with PAT for bootstrap automation
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: zitadel-admin-sa
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: "Bootstrap Admin Service Account"
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINEKEY_TYPE: 1
+      ZITADEL_FIRSTINSTANCE_PATPATH: /machinekey/pat.txt
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2030-12-31T23:59:59Z"
+    ports:
+      - "8200:8080"
+    volumes:
+      - ./secrets/bootstrap:/machinekey
+    networks:
+      - zitadel-local
+
+volumes:
+  zitadel-db-data:
+
+networks:
+  zitadel-local:
+    name: zitadel-local

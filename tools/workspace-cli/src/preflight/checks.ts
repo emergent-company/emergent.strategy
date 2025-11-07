@@ -44,6 +44,9 @@ export async function runPreflightChecks(command: string, argv: readonly string[
     const args = parseCliArgs(argv);
     const profile = resolveProfile(args.profile);
 
+    // Ensure NAMESPACE is set before proceeding
+    ensureNamespaceSet();
+
     await ensureHostTooling(
         command,
         profile,
@@ -60,6 +63,20 @@ export async function runPreflightChecks(command: string, argv: readonly string[
 
     if (command === 'start' || command === 'restart') {
         await enforcePortAvailability(command, argv, profile);
+    }
+}
+
+function ensureNamespaceSet(): void {
+    const namespace = process.env.NAMESPACE;
+
+    if (!namespace || namespace.trim().length === 0) {
+        throw new WorkspaceCliError(
+            'PRECHECK_NAMESPACE_MISSING',
+            'NAMESPACE environment variable is not set. This is required to namespace PM2 processes.',
+            {
+                recommendation: 'Set NAMESPACE in your .env file (e.g., NAMESPACE=spec-server-2). See .env.example for reference.'
+            }
+        );
     }
 }
 

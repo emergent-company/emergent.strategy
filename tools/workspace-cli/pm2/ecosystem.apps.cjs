@@ -23,9 +23,10 @@ const apps = [
   {
     name: `${WORKSPACE_NAMESPACE}-admin`,
     namespace: WORKSPACE_NAMESPACE,
-    script: 'npm',
-    args: ['run', 'dev'],
+    script: 'npm run dev',
     cwd: resolveCwd('apps/admin'),
+    interpreter: '/bin/bash',
+    interpreter_args: '-c',
     max_restarts: DEFAULT_MAX_RESTARTS,
     min_uptime: DEFAULT_MIN_UPTIME_MS,
     restart_delay: DEFAULT_RESTART_DELAY_MS,
@@ -37,7 +38,7 @@ const apps = [
     autorestart: true,
     env: {
       WORKSPACE_SERVICE_ID: 'admin',
-      WORKSPACE_PROCESS_NAMESPACE: 'workspace-cli',
+      WORKSPACE_PROCESS_NAMESPACE: WORKSPACE_NAMESPACE,
       WORKSPACE_RESTART_MAX: String(DEFAULT_MAX_RESTARTS),
       WORKSPACE_RESTART_WINDOW_SEC: '600'
     },
@@ -57,9 +58,10 @@ const apps = [
   {
     name: `${WORKSPACE_NAMESPACE}-server`,
     namespace: WORKSPACE_NAMESPACE,
-    script: 'npm',
-    args: ['run', 'start:dev'],
+    script: 'npm run start:dev',
     cwd: resolveCwd('apps/server-nest'),
+    interpreter: '/bin/bash',
+    interpreter_args: '-c',
     max_restarts: DEFAULT_MAX_RESTARTS,
     min_uptime: DEFAULT_MIN_UPTIME_MS,
     restart_delay: DEFAULT_RESTART_DELAY_MS,
@@ -71,7 +73,7 @@ const apps = [
     autorestart: true,
     env: {
       WORKSPACE_SERVICE_ID: 'server',
-      WORKSPACE_PROCESS_NAMESPACE: 'workspace-cli',
+      WORKSPACE_PROCESS_NAMESPACE: WORKSPACE_NAMESPACE,
       WORKSPACE_RESTART_MAX: String(DEFAULT_MAX_RESTARTS),
       WORKSPACE_RESTART_WINDOW_SEC: '600',
       HTTP_LOG_PATH: path.join(repoRoot, 'logs', 'http.log')

@@ -30,9 +30,28 @@ POSTGRES_DB=spec
 
 See `CHANGELOG.md` for full details.
 
-## Authentication
+## Authentication (Zitadel)
 
-The system now uses only standard OIDC flows via Zitadel's hosted UI. Previous experimental Passkey / WebAuthn endpoints and helpers were removed (2025-09) to reduce surface area. The deprecated spec document (`docs/spec/15-passkey-auth.md`) is retained only as a short tombstone note. No passwordless-specific environment variables are required anymore.
+The system uses standard OIDC flows via Zitadel's hosted UI. Previous experimental Passkey / WebAuthn endpoints were removed (2025-09) to reduce surface area.
+
+**Quick Setup:** See [Zitadel Setup Guide](docs/setup/ZITADEL_SETUP_GUIDE.md)
+
+**TL;DR:**
+```bash
+# 1. Start services (auto-generates bootstrap credentials)
+docker compose -f docker/docker-compose.yml up -d
+
+# 2. Run bootstrap (creates everything automatically)
+bash scripts/bootstrap-zitadel-fully-automated.sh provision
+
+# 3. Done! Admin and test user credentials shown in output
+```
+
+**Features:**
+- ✨ Zero-touch bootstrap with machine user
+- 🔐 Dual service account security pattern
+- 👤 Admin + test users auto-created with credentials
+- 🔑 OAuth OIDC + API applications pre-configured
 
 ### Authorization (Scopes)
 

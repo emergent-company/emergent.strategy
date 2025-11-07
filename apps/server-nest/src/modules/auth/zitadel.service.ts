@@ -1,17 +1,14 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { readFileSync } from 'fs';
 import { PostgresCacheService } from './postgres-cache.service';
+import { ZitadelServiceAccountKey } from './auth.config';
 
 /**
- * Zitadel service account key structure (from downloaded JSON file)
+ * Cached service account token
  */
-interface ZitadelServiceAccountKey {
-    type: string;
-    keyId: string;
-    key: string;
-    userId?: string;
-    appId?: string;
-    clientId?: string;
+interface CachedToken {
+    token: string;
+    expiresAt: number;
 }
 
 /**
@@ -62,8 +59,17 @@ export interface IntrospectionResult {
 
 /**
  * ZitadelService provides dual-purpose Zitadel integration:
- * 1. Management API access (user creation, metadata, roles)
- * 2. Token introspection (validates user tokens from frontend)
+ * 1. Management API access (user creation, metadata, roles) - Uses API service account
+ * 2. Token introspection (validates user tokens from frontend) - Uses CLIENT service account
+ *
+ * Dual Service Account Architecture:
+ * - CLIENT JWT: Used only for token introspection (minimal permissions)
+ * - API JWT: Used only for Management API calls (elevated permissions)
+ *
+ * This separation follows security best practices:
+ * - Least privilege principle (each account has only needed permissions)
+ * - Blast radius reduction (compromise of one doesn't expose the other)
+ * - Audit trail clarity (operations clearly attributed)
  *
  * Authentication:
  * - Uses service account JWT bearer assertion (Client Credentials flow)
@@ -71,7 +77,17 @@ export interface IntrospectionResult {
  *
  * Configuration (environment variables):
  * - ZITADEL_DOMAIN: Zitadel instance domain (e.g., zitadel.example.com)
- * - ZITADEL_CLIENT_JWT or ZITADEL_CLIENT_JWT_PATH: Service account key (JSON)
+ * 
+ * For introspection:
+ * - ZITADEL_CLIENT_JWT or ZITADEL_CLIENT_JWT_PATH: Client service account key (JSON)
+ * 
+ * For Management API:
+ * - ZITADEL_API_JWT or ZITADEL_API_JWT_PATH: API service account key (JSON)
+ * 
+ * Legacy (single service account):
+ * - If API JWT vars not set, falls back to CLIENT JWT for both purposes
+ * - This is NOT recommended for production
+ * 
  * - ZITADEL_MAIN_ORG_ID: Organization ID for user management operations
  * - ZITADEL_PROJECT_ID: Project ID for role grants
  *
@@ -83,11 +99,14 @@ export interface IntrospectionResult {
 @Injectable()
 export class ZitadelService implements OnModuleInit {
     private readonly logger = new Logger(ZitadelService.name);
-    private serviceAccountKey?: ZitadelServiceAccountKey;
-    private cachedToken?: {
-        token: string;
-        expiresAt: number;
-    };
+
+    // CLIENT service account (for introspection)
+    private clientServiceAccountKey?: ZitadelServiceAccountKey;
+    private cachedClientToken?: CachedToken;
+
+    // API service account (for Management API)
+    private apiServiceAccountKey?: ZitadelServiceAccountKey;
+    private cachedApiToken?: CachedToken;
 
     constructor(
         private readonly cacheService: PostgresCacheService
@@ -104,8 +123,27 @@ export class ZitadelService implements OnModuleInit {
         }
 
         try {
-            this.loadServiceAccountKey();
+            // Load CLIENT service account (for introspection)
+            this.loadClientServiceAccount();
+
+            // Load API service account (for Management API)
+            // Falls back to CLIENT account if not configured (legacy mode)
+            this.loadApiServiceAccount();
+
             this.logger.log('Zitadel service initialized successfully');
+
+            if (!this.apiServiceAccountKey || this.apiServiceAccountKey === this.clientServiceAccountKey) {
+                this.logger.warn(
+                    '⚠️  Using single service account for both introspection AND Management API (not recommended for production)'
+                );
+                this.logger.warn(
+                    '💡 For better security, configure ZITADEL_API_JWT[_PATH] separately'
+                );
+            } else {
+                this.logger.log(
+                    '✅ Dual service account mode active (CLIENT for introspection, API for Management)'
+                );
+            }
         } catch (error) {
             this.logger.error(
                 `Failed to initialize Zitadel service: ${(error as Error).message}`
@@ -120,14 +158,16 @@ export class ZitadelService implements OnModuleInit {
     /**
      * Check if Zitadel service is properly configured
      * 
-     * @returns true if domain and service account key are available
+     * @returns true if domain and at least CLIENT service account key are available
      */
     isConfigured(): boolean {
-        return !!(process.env.ZITADEL_DOMAIN && this.serviceAccountKey);
+        return !!(process.env.ZITADEL_DOMAIN && this.clientServiceAccountKey);
     }
 
     /**
      * Get access token for Management API calls
+     * 
+     * Uses API service account (or CLIENT account in legacy mode)
      * 
      * Implements OAuth2 Client Credentials flow with JWT bearer assertion:
      * 1. Creates JWT signed with service account private key
@@ -138,34 +178,74 @@ export class ZitadelService implements OnModuleInit {
      * @throws Error if service account not configured
      */
     async getAccessToken(): Promise<string> {
-        if (!this.serviceAccountKey) {
-            throw new Error('Zitadel service account key not loaded');
+        const accountToUse = this.apiServiceAccountKey || this.clientServiceAccountKey;
+
+        if (!accountToUse) {
+            throw new Error('No Zitadel service account configured');
         }
 
         // Return cached token if still valid
-        if (this.cachedToken && Date.now() < this.cachedToken.expiresAt) {
-            this.logger.debug('Using cached service account token');
-            return this.cachedToken.token;
+        if (this.cachedApiToken && Date.now() < this.cachedApiToken.expiresAt) {
+            this.logger.debug('Using cached API service account token');
+            return this.cachedApiToken.token;
         }
 
-        this.logger.debug('Requesting new service account token');
-        const assertion = await this.createJwtAssertion();
+        this.logger.debug('Requesting new API service account token');
+        const assertion = await this.createJwtAssertion(accountToUse);
         const token = await this.requestAccessToken(assertion);
 
         // Cache token with 1 minute safety margin
-        this.cachedToken = {
+        this.cachedApiToken = {
             token: token.access_token,
             expiresAt: Date.now() + (token.expires_in - 60) * 1000,
         };
 
         this.logger.log(
-            `Service account token acquired (expires in ${token.expires_in}s)`
+            `API service account token acquired (expires in ${token.expires_in}s)`
+        );
+        return token.access_token;
+    }
+
+    /**
+     * Get access token for introspection
+     * 
+     * Uses CLIENT service account specifically
+     * 
+     * @returns Valid access token for introspection
+     * @throws Error if CLIENT service account not configured
+     * @private
+     */
+    private async getClientAccessToken(): Promise<string> {
+        if (!this.clientServiceAccountKey) {
+            throw new Error('CLIENT service account not configured');
+        }
+
+        // Return cached token if still valid
+        if (this.cachedClientToken && Date.now() < this.cachedClientToken.expiresAt) {
+            this.logger.debug('Using cached CLIENT service account token');
+            return this.cachedClientToken.token;
+        }
+
+        this.logger.debug('Requesting new CLIENT service account token');
+        const assertion = await this.createJwtAssertion(this.clientServiceAccountKey);
+        const token = await this.requestAccessToken(assertion);
+
+        // Cache token with 1 minute safety margin
+        this.cachedClientToken = {
+            token: token.access_token,
+            expiresAt: Date.now() + (token.expires_in - 60) * 1000,
+        };
+
+        this.logger.log(
+            `CLIENT service account token acquired (expires in ${token.expires_in}s)`
         );
         return token.access_token;
     }
 
     /**
      * Introspect token with cache support
+     * 
+     * Uses CLIENT service account for introspection (minimal permissions)
      * 
      * Flow:
      * 1. Check PostgreSQL cache first (fast path)
@@ -176,8 +256,8 @@ export class ZitadelService implements OnModuleInit {
      * @returns Introspection result or null on error
      */
     async introspect(token: string): Promise<IntrospectionResult | null> {
-        if (!this.serviceAccountKey) {
-            this.logger.warn('Zitadel not configured, skipping introspection');
+        if (!this.clientServiceAccountKey) {
+            this.logger.warn('Zitadel CLIENT account not configured, skipping introspection');
             return null;
         }
 
@@ -190,7 +270,7 @@ export class ZitadelService implements OnModuleInit {
 
         // Cache miss - call Zitadel
         this.logger.debug('Introspection cache miss, calling Zitadel');
-        const serviceToken = await this.getAccessToken();
+        const serviceToken = await this.getClientAccessToken();
         const apiUrl = `https://${process.env.ZITADEL_DOMAIN}/oauth/v2/introspect`;
 
         try {
@@ -591,7 +671,7 @@ export class ZitadelService implements OnModuleInit {
     }
 
     /**
-     * Load service account key from environment
+     * Load CLIENT service account (for introspection)
      * 
      * Supports two configuration methods:
      * 1. ZITADEL_CLIENT_JWT: JSON string directly in env var
@@ -600,37 +680,98 @@ export class ZitadelService implements OnModuleInit {
      * @throws Error if neither env var set or key invalid
      * @private
      */
-    private loadServiceAccountKey(): void {
-        let keyJson: string;
-
+    private loadClientServiceAccount(): void {
         const clientJwt = process.env.ZITADEL_CLIENT_JWT;
         const clientJwtPath = process.env.ZITADEL_CLIENT_JWT_PATH;
 
-        if (clientJwt) {
-            this.logger.debug('Loading service account key from ZITADEL_CLIENT_JWT');
-            keyJson = clientJwt;
-        } else if (clientJwtPath) {
-            this.logger.debug(
-                `Loading service account key from file: ${clientJwtPath}`
-            );
+        this.clientServiceAccountKey = this.parseServiceAccountKey(
+            clientJwt,
+            clientJwtPath,
+            'CLIENT'
+        );
+
+        this.logger.log(
+            `✅ CLIENT service account loaded (keyId: ${this.clientServiceAccountKey.keyId}) - for introspection`
+        );
+    }
+
+    /**
+     * Load API service account (for Management API)
+     * 
+     * Supports two configuration methods:
+     * 1. ZITADEL_API_JWT: JSON string directly in env var
+     * 2. ZITADEL_API_JWT_PATH: Path to JSON file
+     * 
+     * Falls back to CLIENT account if not configured (legacy mode)
+     * 
+     * @private
+     */
+    private loadApiServiceAccount(): void {
+        const apiJwt = process.env.ZITADEL_API_JWT;
+        const apiJwtPath = process.env.ZITADEL_API_JWT_PATH;
+
+        // If no API-specific env vars, fall back to CLIENT account (legacy)
+        if (!apiJwt && !apiJwtPath) {
+            this.logger.debug('ZITADEL_API_JWT[_PATH] not set, using CLIENT account for Management API (legacy mode)');
+            this.apiServiceAccountKey = this.clientServiceAccountKey;
+            return;
+        }
+
+        this.apiServiceAccountKey = this.parseServiceAccountKey(
+            apiJwt,
+            apiJwtPath,
+            'API'
+        );
+
+        this.logger.log(
+            `✅ API service account loaded (keyId: ${this.apiServiceAccountKey.keyId}) - for Management API`
+        );
+    }
+
+    /**
+     * Parse service account key from environment variable or file
+     * 
+     * Handles various JSON escaping formats from different platforms (Coolify, etc.)
+     * 
+     * @param inlineJwt - Inline JSON string
+     * @param jwtPath - Path to JSON file
+     * @param accountType - Type of account (for logging)
+     * @returns Parsed service account key
+     * @throws Error if neither parameter set or key invalid
+     * @private
+     */
+    private parseServiceAccountKey(
+        inlineJwt: string | undefined,
+        jwtPath: string | undefined,
+        accountType: 'CLIENT' | 'API'
+    ): ZitadelServiceAccountKey {
+        let keyJson: string;
+
+        if (inlineJwt) {
+            this.logger.debug(`Loading ${accountType} service account from inline env var`);
+            keyJson = inlineJwt;
+        } else if (jwtPath) {
+            this.logger.debug(`Loading ${accountType} service account from file: ${jwtPath}`);
             try {
-                keyJson = readFileSync(clientJwtPath, 'utf-8');
+                keyJson = readFileSync(jwtPath, 'utf-8');
             } catch (error) {
                 throw new Error(
-                    `Failed to read service account key from ${clientJwtPath}: ${(error as Error).message}`
+                    `Failed to read ${accountType} service account key from ${jwtPath}: ${(error as Error).message}`
                 );
             }
         } else {
             throw new Error(
-                'Either ZITADEL_CLIENT_JWT or ZITADEL_CLIENT_JWT_PATH must be set'
+                `Either ZITADEL_${accountType}_JWT or ZITADEL_${accountType}_JWT_PATH must be set`
             );
         }
+
+        let serviceAccountKey: ZitadelServiceAccountKey;
 
         // Handle different JSON escaping formats from environment variables
         // Some platforms (like Coolify) may double-escape quotes and newlines
         try {
             // First attempt: Parse as-is
-            this.serviceAccountKey = JSON.parse(keyJson);
+            serviceAccountKey = JSON.parse(keyJson);
         } catch (firstError) {
             this.logger.debug(
                 `First parse attempt failed, trying to unescape: ${(firstError as Error).message}`
@@ -643,64 +784,56 @@ export class ZitadelService implements OnModuleInit {
                     .replace(/\\\\n/g, '\\n')  // Fix double-escaped newlines
                     .replace(/\\"/g, '"');      // Fix escaped quotes
 
-                this.serviceAccountKey = JSON.parse(unescaped);
+                serviceAccountKey = JSON.parse(unescaped);
                 this.logger.debug('Successfully parsed after unescaping');
             } catch (secondError) {
                 throw new Error(
-                    `Failed to parse Zitadel key after trying multiple formats: ${(secondError as Error).message}`
+                    `Failed to parse ${accountType} Zitadel key after trying multiple formats: ${(secondError as Error).message}`
                 );
             }
         }
 
         // After parsing, fix any literal \n sequences in the RSA key
         // (Coolify double-escapes newlines, so after JSON.parse they become literal \n)
-        if (this.serviceAccountKey?.key) {
-            const originalKey = this.serviceAccountKey.key;
-
-            // Log first 100 chars to see what we're working with
-            this.logger.log(
-                `[KEY_DEBUG] Original key first 100 chars: ${originalKey.substring(0, 100).replace(/\n/g, '\\n')}`
-            );
+        if (serviceAccountKey?.key) {
+            const originalKey = serviceAccountKey.key;
 
             // Replace literal \n, \r, \t with actual escape sequences
-            this.serviceAccountKey.key = originalKey
+            serviceAccountKey.key = originalKey
                 .replace(/\\n/g, '\n')
                 .replace(/\\r/g, '\r')
                 .replace(/\\t/g, '\t');
 
-            // Log after replacement
-            this.logger.log(
-                `[KEY_DEBUG] Fixed key first 100 chars: ${this.serviceAccountKey.key.substring(0, 100).replace(/\n/g, '\\n')}`
-            );
-
-            if (originalKey !== this.serviceAccountKey.key) {
-                this.logger.log('[KEY_DEBUG] Fixed escape sequences in RSA private key');
-            } else {
-                this.logger.log('[KEY_DEBUG] No escape sequences to fix (key unchanged)');
+            if (originalKey !== serviceAccountKey.key) {
+                this.logger.debug(`Fixed escape sequences in ${accountType} RSA private key`);
             }
         }
 
+        // Validate the key
         try {
             if (
-                !this.serviceAccountKey?.keyId ||
-                !this.serviceAccountKey?.key
+                !serviceAccountKey?.keyId ||
+                !serviceAccountKey?.key
             ) {
                 throw new Error('Invalid key format: missing keyId or key');
             }
 
             if (
-                !this.serviceAccountKey.userId &&
-                !this.serviceAccountKey.appId
+                !serviceAccountKey.userId &&
+                !serviceAccountKey.appId &&
+                !serviceAccountKey.clientId
             ) {
-                throw new Error('Invalid key format: missing userId or appId');
+                throw new Error('Invalid key format: missing userId, appId, or clientId');
             }
 
             this.logger.debug(
-                `Service account key loaded (keyId: ${this.serviceAccountKey.keyId})`
+                `${accountType} service account key parsed and validated (keyId: ${serviceAccountKey.keyId})`
             );
+
+            return serviceAccountKey;
         } catch (error) {
             throw new Error(
-                `Failed to validate Zitadel key: ${(error as Error).message}`
+                `Failed to validate ${accountType} Zitadel key: ${(error as Error).message}`
             );
         }
     }
@@ -713,19 +846,17 @@ export class ZitadelService implements OnModuleInit {
      * 2. Signs with RS256 using private key
      * 3. Sets audience to Zitadel instance
      * 
+     * @param serviceAccountKey - Service account key to use for signing
      * @returns Signed JWT assertion
      * @private
      */
-    private async createJwtAssertion(): Promise<string> {
-        if (!this.serviceAccountKey) {
-            throw new Error('Service account key not loaded');
-        }
+    private async createJwtAssertion(serviceAccountKey: ZitadelServiceAccountKey): Promise<string> {
 
         // Dynamically import jose library
         const jose = await import('jose');
 
         let privateKey: any;
-        let keyToImport = this.serviceAccountKey.key;
+        let keyToImport = serviceAccountKey.key;
 
         // Check if this is PKCS#1 format (BEGIN RSA PRIVATE KEY)
         // If so, convert to PKCS#8 format using Node.js crypto module
@@ -762,14 +893,14 @@ export class ZitadelService implements OnModuleInit {
 
         const now = Math.floor(Date.now() / 1000);
         // Use clientId for both issuer and subject (matches Zitadel SDK implementation)
-        const issuer = this.serviceAccountKey.clientId!;
-        const subject = this.serviceAccountKey.clientId!;
+        const issuer = serviceAccountKey.clientId!;
+        const subject = serviceAccountKey.clientId!;
         const audience = `https://${process.env.ZITADEL_DOMAIN}`;
 
         const jwt = await new jose.SignJWT({})
             .setProtectedHeader({
                 alg: 'RS256',
-                kid: this.serviceAccountKey.keyId,
+                kid: serviceAccountKey.keyId,
             })
             .setIssuer(issuer)
             .setSubject(subject)

@@ -1,0 +1,106 @@
+# Zitadel v4.6.2 Test Environment
+#
+# Purpose: Test v4.6.2 upgrade locally before production deployment
+# Usage: docker-compose -f docker-compose.test-upgrade.yml up -d
+#
+# This creates an isolated test environment with:
+# - PostgreSQL 16 (separate from production)
+# - Zitadel v4.6.2
+# - Test ports: 5433 (postgres), 8080 (zitadel)
+#
+# Verification steps after startup:
+# 1. Check health: curl http://localhost:8080/debug/healthz
+# 2. Check console: http://localhost:8080/ui/console
+# 3. Monitor logs: docker-compose -f docker-compose.test-upgrade.yml logs -f zitadel-test
+#
+# Cleanup: docker-compose -f docker-compose.test-upgrade.yml down -v
+
+version: "3.8"
+
+services:
+  # PostgreSQL for Zitadel (test instance)
+  zitadel-db-test:
+    image: postgres:16-alpine
+    container_name: zitadel-db-test
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: zitadel
+      PGUSER: postgres
+    ports:
+      - "5433:5432" # Use 5433 to avoid conflict with production
+    volumes:
+      - zitadel-test-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d zitadel -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "2"
+
+  # Zitadel v4.6.2 (test instance)
+  zitadel-test:
+    image: ghcr.io/zitadel/zitadel:v4.6.2
+    container_name: zitadel-test
+    command: "start-from-init --masterkeyFromEnv --tlsMode disabled"
+    environment:
+      # Masterkey (exactly 32 bytes)
+      ZITADEL_MASTERKEY: "Masterkey-Needs-32-Characters!12"
+
+      # Database configuration
+      ZITADEL_DATABASE_POSTGRES_HOST: zitadel-db-test
+      ZITADEL_DATABASE_POSTGRES_PORT: 5432
+      ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
+      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: postgres
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: postgres
+      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
+
+      # External domain configuration (test)
+      ZITADEL_EXTERNALDOMAIN: localhost
+      ZITADEL_EXTERNALPORT: 8080
+      ZITADEL_EXTERNALSECURE: "false"
+      ZITADEL_TLS_ENABLED: "false"
+
+      # First instance setup
+      ZITADEL_FIRSTINSTANCE_ORG_NAME: "Test Organization"
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: admin@test.local
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: "SuperSecretPassword123!"
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_FIRSTNAME: Test
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_LASTNAME: Admin
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORDCHANGEREQUIRED: "false"
+
+      # Logging (verbose for testing)
+      ZITADEL_LOG_LEVEL: debug
+      ZITADEL_LOGSTORE_ACCESS_STDOUT_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    depends_on:
+      zitadel-db-test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/app/zitadel", "ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "2"
+
+volumes:
+  zitadel-test-data:
+    name: zitadel-test-data
+
+networks:
+  default:
+    name: zitadel-test-network

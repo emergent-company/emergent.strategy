@@ -58,10 +58,13 @@ services:
       ZITADEL_DATABASE_POSTGRES_ADMIN_HOST: db
       ZITADEL_DATABASE_POSTGRES_ADMIN_PORT: 5432
 
-      # First instance setup
-      ZITADEL_FIRSTINSTANCE_ORG_NAME: ${ZITADEL_ORG_NAME:-Spec, Inc.}
-      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: ${ZITADEL_ADMIN_USERNAME:-admin}
-      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: ${ZITADEL_ADMIN_PASSWORD}
+      # First instance setup - Machine User (Zero-Touch Bootstrap)
+      ZITADEL_FIRSTINSTANCE_ORG_NAME: ${ZITADEL_ORG_NAME:-Spec Inc}
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: zitadel-admin-sa
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: Bootstrap Admin Service Account
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINEKEY_TYPE: 1
+      ZITADEL_FIRSTINSTANCE_PATPATH: /machinekey/pat.txt
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: 2030-12-31T23:59:59Z
 
       # Login v2 configuration
       ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "true"
@@ -77,6 +80,8 @@ services:
       - "traefik.http.routers.zitadel.entrypoints=web"
       - "traefik.http.services.zitadel.loadbalancer.server.port=8080"
       - "traefik.http.routers.zitadel.service=zitadel"
+    volumes:
+      - ./secrets/bootstrap:/machinekey
     healthcheck:
       test: ["CMD", "/app/zitadel", "ready"]
       interval: 10s
