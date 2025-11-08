@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
 import { AppConfigService } from '../../common/config/config.service';
 import {
@@ -9,6 +11,7 @@ import {
     ExtractionJobListDto,
     ExtractionJobStatus,
 } from './dto/extraction-job.dto';
+import { ObjectExtractionJob } from '../../entities/object-extraction-job.entity';
 
 interface ExtractionJobSchemaInfo {
     orgColumn: 'organization_id';
@@ -40,6 +43,9 @@ export class ExtractionJobService {
     private schemaInfoPromise: Promise<ExtractionJobSchemaInfo> | null = null;
 
     constructor(
+        @InjectRepository(ObjectExtractionJob)
+        private readonly extractionJobRepository: Repository<ObjectExtractionJob>,
+        private readonly dataSource: DataSource,
         private readonly db: DatabaseService,
         private readonly config: AppConfigService
     ) { }

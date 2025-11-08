@@ -28,6 +28,7 @@ import {
 import { parseCliArgs } from '../utils/parse-args.js';
 import { waitForProcessStability } from './lifecycle-utils.js';
 import { runStatusCommand } from '../status/render.js';
+import { runPostDependencyValidations } from '../preflight/checks.js';
 
 const require = createRequire(import.meta.url);
 
@@ -372,6 +373,11 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
         action: 'start'
       });
     }
+  }
+
+  // Run validation checks after dependencies are started
+  if (dependencies.length > 0 && services.length > 0 && !args.dryRun) {
+    await runPostDependencyValidations();
   }
 
   if (services.length > 0) {

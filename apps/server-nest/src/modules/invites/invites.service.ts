@@ -1,10 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
 import { ZitadelService } from '../auth/zitadel.service';
+import { Invite } from '../../entities/invite.entity';
+import { UserProfile } from '../../entities/user-profile.entity';
+import { ProjectMembership } from '../../entities/project-membership.entity';
+import { OrganizationMembership } from '../../entities/organization-membership.entity';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-
-interface InviteRow { id: string; organization_id: string; project_id: string | null; email: string; role: string; status: string; token: string; }
 
 interface CreateInviteWithUserDto {
     email: string;
@@ -21,6 +25,15 @@ export class InvitesService {
     private readonly logger = new Logger(InvitesService.name);
 
     constructor(
+        @InjectRepository(Invite)
+        private readonly inviteRepository: Repository<Invite>,
+        @InjectRepository(UserProfile)
+        private readonly userProfileRepository: Repository<UserProfile>,
+        @InjectRepository(ProjectMembership)
+        private readonly projectMembershipRepository: Repository<ProjectMembership>,
+        @InjectRepository(OrganizationMembership)
+        private readonly orgMembershipRepository: Repository<OrganizationMembership>,
+        private readonly dataSource: DataSource,
         private readonly db: DatabaseService,
         private readonly zitadelService: ZitadelService
     ) { }
@@ -90,11 +103,17 @@ export class InvitesService {
             });
 
             // Step 5: Create invitation record in database
-            await this.db.query(
-                `INSERT INTO kb.invites (id, token, email, organization_id, project_id, invited_by_user_id, expires_at, created_at, status, role)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), 'pending', $8)`,
-                [inviteId, token, email.toLowerCase(), organizationId || null, projectId || null, invitedByUserId, expiresAt, role]
-            );
+            const invite = this.inviteRepository.create({
+                id: inviteId,
+                token,
+                email: email.toLowerCase(),
+                organizationId: organizationId!,
+                projectId: projectId || null,
+                expiresAt,
+                status: 'pending',
+                role
+            });
+            await this.inviteRepository.save(invite);
 
             // Step 6: Send password set notification email
             await this.zitadelService.sendSetPasswordNotification(zitadelUserId, inviteId);
@@ -118,40 +137,58 @@ export class InvitesService {
     }
 
     async create(orgId: string, role: string, email: string, projectId?: string | null) {
-        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new BadRequestException({ error: { code: 'validation-failed', message: 'Invalid email' } });
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+            throw new BadRequestException({ error: { code: 'validation-failed', message: 'Invalid email' } });
+        }
+        
         const token = this.randomToken();
-        const res = await this.db.query<InviteRow>(
-            `INSERT INTO kb.invites(organization_id, project_id, email, role, token) VALUES($1,$2,$3,$4,$5) RETURNING id, organization_id, project_id, email, role, status, token`,
-            [orgId, projectId || null, email.toLowerCase(), role]
-        );
-        const r = res.rows[0];
-        return { id: r.id, orgId: r.organization_id, projectId: r.project_id, email: r.email, role: r.role, status: r.status, token: r.token };
+        const invite = this.inviteRepository.create({
+            organizationId: orgId,
+            projectId: projectId || null,
+            email: email.toLowerCase(),
+            role,
+            token
+        });
+        
+        const saved = await this.inviteRepository.save(invite);
+        return { 
+            id: saved.id, 
+            orgId: saved.organizationId, 
+            projectId: saved.projectId, 
+            email: saved.email, 
+            role: saved.role, 
+            status: saved.status, 
+            token: saved.token 
+        };
     }
 
     async accept(token: string, userId: string) {
-        const res = await this.db.query<InviteRow>(`SELECT id, organization_id, project_id, email, role, status, token FROM kb.invites WHERE token = $1`, [token]);
-        if (!res.rowCount) throw new NotFoundException({ error: { code: 'not-found', message: 'Invite not found' } });
-        const invite = res.rows[0];
-        if (invite.status !== 'pending') throw new BadRequestException({ error: { code: 'invalid-state', message: 'Invite not pending' } });
+        const invite = await this.inviteRepository.findOne({ where: { token } });
+        if (!invite) {
+            throw new NotFoundException({ error: { code: 'not-found', message: 'Invite not found' } });
+        }
+        if (invite.status !== 'pending') {
+            throw new BadRequestException({ error: { code: 'invalid-state', message: 'Invite not pending' } });
+        }
 
         // Get user's zitadel_user_id for role granting
-        const userResult = await this.db.query(
-            `SELECT zitadel_user_id FROM core.user_profiles WHERE id = $1`,
-            [userId]
-        );
+        const userProfile = await this.userProfileRepository.findOne({
+            where: { id: userId },
+            select: ['zitadelUserId']
+        });
 
-        if (!userResult.rows.length) {
+        if (!userProfile) {
             throw new BadRequestException({ error: { code: 'user-not-found', message: 'User profile not found' } });
         }
 
-        const zitadelUserId = userResult.rows[0].zitadel_user_id;
+        const zitadelUserId = userProfile.zitadelUserId;
 
         const client = await this.db.getClient();
         try {
             await client.query('BEGIN');
 
             // Grant role in Zitadel if project invite
-            if (invite.project_id && this.zitadelService.isConfigured()) {
+            if (invite.projectId && this.zitadelService.isConfigured()) {
                 const projectId = process.env.ZITADEL_PROJECT_ID;
                 if (projectId) {
                     try {
@@ -171,15 +208,32 @@ export class InvitesService {
             }
 
             // userId is now the internal UUID from req.user.id
-            if (invite.project_id) {
-                await client.query(`INSERT INTO kb.project_memberships(project_id, user_id, role) VALUES($1,$2,$3) ON CONFLICT (project_id, user_id) DO NOTHING`, [invite.project_id, userId, invite.role]);
+            if (invite.projectId) {
+                const membership = this.projectMembershipRepository.create({
+                    projectId: invite.projectId,
+                    userId,
+                    role: invite.role
+                });
+                await this.projectMembershipRepository.save(membership).catch(() => {
+                    // Ignore conflict - already exists
+                });
             } else if (invite.role === 'org_admin') {
-                await client.query(`INSERT INTO kb.organization_memberships(organization_id, user_id, role) VALUES($1,$2,'org_admin') ON CONFLICT (organization_id, user_id) DO NOTHING`, [invite.organization_id, userId]);
+                const membership = this.orgMembershipRepository.create({
+                    organizationId: invite.organizationId,
+                    userId,
+                    role: 'org_admin'
+                });
+                await this.orgMembershipRepository.save(membership).catch(() => {
+                    // Ignore conflict - already exists
+                });
             } else {
                 // non-admin org-level roles not yet implemented, treat as project-level requirement missing
                 throw new BadRequestException({ error: { code: 'unsupported', message: 'Non-admin org invite unsupported without project' } });
             }
-            await client.query(`UPDATE kb.invites SET status='accepted', accepted_at = now() WHERE id = $1`, [invite.id]);
+            
+            invite.status = 'accepted';
+            invite.acceptedAt = new Date();
+            await this.inviteRepository.save(invite);
             await client.query('COMMIT');
 
             this.logger.log(`User ${userId} accepted invitation ${invite.id}`);

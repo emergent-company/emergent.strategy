@@ -33,7 +33,13 @@
         "bench:report": "ts-node ./scripts/graph-benchmark-report.ts",
         "graph:backfill": "ts-node ./scripts/graph-backfill.ts",
         "graph:bench:ci": "ts-node ./scripts/graph-benchmark-ci.ts",
-        "print:openapi:scopes": "ts-node scripts/openapi-print-scopes.ts"
+        "print:openapi:scopes": "ts-node scripts/openapi-print-scopes.ts",
+        "typeorm": "typeorm-ts-node-commonjs -d src/typeorm.config.ts",
+        "migration:generate": "npm run typeorm -- migration:generate",
+        "migration:create": "npm run typeorm migration:create src/migrations/Migration",
+        "migration:run": "npm run typeorm migration:run",
+        "migration:revert": "npm run typeorm migration:revert",
+        "migration:show": "npm run typeorm migration:show"
     },
     "dependencies": {
         "@google-cloud/vertexai": "^1.10.0",
@@ -46,6 +52,7 @@
         "@nestjs/passport": "^11.0.5",
         "@nestjs/platform-express": "^10.3.0",
         "@nestjs/swagger": "^7.4.2",
+        "@nestjs/typeorm": "^11.0.0",
         "@rekog/mcp-nest": "^1.8.4",
         "axios": "^1.12.2",
         "class-transformer": "^0.5.1",
@@ -63,6 +70,7 @@
         "pg": "^8.16.3",
         "reflect-metadata": "^0.2.2",
         "rxjs": "^7.8.1",
+        "typeorm": "^0.3.27",
         "zod": "^3.25.76"
     },
     "devDependencies": {

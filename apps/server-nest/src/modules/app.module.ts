@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { SettingsModule } from './settings/settings.module';
@@ -28,9 +29,31 @@ import { ClickUpModule } from './clickup/clickup.module';
 import { McpModule } from './mcp/mcp.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { UserModule } from './user/user.module';
+import { AppConfigService } from '../common/config/config.service';
+import { entities } from '../entities';
 
 @Module({
     imports: [
+        // TypeORM Configuration
+        TypeOrmModule.forRootAsync({
+            imports: [AppConfigModule],
+            useFactory: (configService: AppConfigService) => ({
+                type: 'postgres' as const,
+                host: configService.dbHost,
+                port: configService.dbPort,
+                username: configService.dbUser,
+                password: configService.dbPassword,
+                database: configService.dbName,
+                entities,
+                synchronize: false, // NEVER true - always use migrations
+                logging: process.env.NODE_ENV === 'development' ? ['error', 'warn', 'migration'] : ['error'],
+                autoLoadEntities: true,
+                migrationsRun: true, // Auto-run migrations on startup
+                migrations: [__dirname + '/../migrations/*{.ts,.js}'],
+                migrationsTableName: 'typeorm_migrations',
+            }),
+            inject: [AppConfigService],
+        }),
         HealthModule,
         AuthModule,
         SettingsModule,

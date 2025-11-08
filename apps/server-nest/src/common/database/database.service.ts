@@ -140,6 +140,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             const stack = err instanceof Error ? err.stack : undefined;
             this.logger.error('Database initialization failed: ' + message + (stack ? `\n${stack}` : '') + details);
             this.online = false;
+            
+            // Re-throw to prevent app from starting with broken database
+            // The app should not start if database initialization fails
+            throw err;
         }
     }
 
@@ -183,9 +187,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     }
 
     /**
-     * Run database migrations from the migrations directory.
-     * Uses advisory locks to prevent concurrent migration runs.
-     * Idempotent - safe to run multiple times.
+     * Run database migrations using the centralized migration runner.
+     * This ensures consistency between manual migration runs and application startup.
+     * Migrations are tracked in public.schema_migrations table.
+     * Throws error if migrations fail - app will not start with incomplete schema.
      */
     async runMigrations(): Promise<void> {
         if (!this.pool) {
@@ -194,56 +199,40 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         }
 
         const start = Date.now();
-        this.logger.log('Running database migrations...');
-
-        // Use PostgreSQL advisory lock to prevent concurrent migrations
-        await this.pool.query('SELECT pg_advisory_lock(4815162342)');
-        let locked = true;
+        this.logger.log('Running database migrations via scripts/run-migrations.ts...');
 
         try {
-            const fs = await import('node:fs');
-            const path = await import('node:path');
+            const { execFileSync } = await import('child_process');
+            const path = await import('path');
+            
+            // Find project root (two levels up from apps/server-nest/src)
+            const projectRoot = path.join(process.cwd(), '..', '..');
+            const migrationScript = path.join(projectRoot, 'scripts', 'run-migrations.ts');
 
-            const migrationsDir = path.join(process.cwd(), 'migrations');
-
-            if (!fs.existsSync(migrationsDir)) {
-                this.logger.warn(`Migrations directory not found: ${migrationsDir}`);
-                return;
-            }
-
-            const migrationFiles = fs
-                .readdirSync(migrationsDir)
-                .filter((f) => f.endsWith('.sql'))
-                .sort();
-
-            if (migrationFiles.length === 0) {
-                this.logger.log('No migration files found');
-                return;
-            }
-
-            for (const file of migrationFiles) {
-                const filePath = path.join(migrationsDir, file);
-                const sql = fs.readFileSync(filePath, 'utf-8');
-
-                this.logger.log(`Running migration: ${file}`);
-
-                try {
-                    await this.pool.query(sql);
-                    this.logger.log(`✓ Migration ${file} completed`);
-                } catch (e) {
-                    this.logger.warn(`✗ Migration ${file} failed (skipping): ${(e as Error).message}`);
-                    // Don't throw - migrations may have already been applied manually
-                }
-            }
+            // Run the centralized migration script
+            // This script handles:
+            // - Migration tracking in schema_migrations table
+            // - Transactional execution (rollback on failure)
+            // - Idempotent migration application
+            // - Proper error reporting
+            execFileSync('npx', ['tsx', migrationScript], {
+                cwd: projectRoot,
+                env: process.env,
+                stdio: 'inherit', // Show migration output in logs
+            });
 
             const ms = Date.now() - start;
-            this.logger.log(`All migrations completed in ${ms}ms`);
-        } finally {
-            if (locked) {
-                try {
-                    await this.pool.query('SELECT pg_advisory_unlock(4815162342)');
-                } catch { /* ignore */ }
-            }
+            this.logger.log(`✓ Database migrations completed in ${ms}ms`);
+        } catch (error) {
+            const ms = Date.now() - start;
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            
+            this.logger.error(`✗ Database migrations failed after ${ms}ms: ${errorMessage}`);
+            this.logger.error('Application cannot start with incomplete database schema.');
+            this.logger.error('Fix: Review migration errors above and resolve schema conflicts.');
+            
+            // Throw to prevent app from starting with incomplete schema
+            throw new Error(`Database migrations failed: ${errorMessage}`);
         }
     }
 

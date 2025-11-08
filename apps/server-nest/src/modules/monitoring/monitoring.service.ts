@@ -1,61 +1,74 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
+import { LlmCallLog } from '../../entities/llm-call-log.entity';
+import { SystemProcessLog } from '../../entities/system-process-log.entity';
+import { ObjectExtractionJob } from '../../entities/object-extraction-job.entity';
 import {
-    ResourceListResponseDto,
-    ResourceDetailResponseDto,
-    ExtractionJobResourceDto,
-    LogEntryDto,
-    LLMCallDto,
+  ResourceListResponseDto,
+  ResourceDetailResponseDto,
+  ExtractionJobResourceDto,
+  LogEntryDto,
+  LLMCallDto,
 } from './dto/resource-detail.dto';
 import { ResourceQueryDto, LogQueryDto } from './dto/resource-query.dto';
 
 @Injectable()
 export class MonitoringService {
-    constructor(private readonly db: DatabaseService) { }
+  constructor(
+    private readonly db: DatabaseService,
+    @InjectRepository(ObjectExtractionJob)
+    private readonly extractionJobRepo: Repository<ObjectExtractionJob>,
+    @InjectRepository(LlmCallLog)
+    private readonly llmCallLogRepo: Repository<LlmCallLog>,
+    @InjectRepository(SystemProcessLog)
+    private readonly systemLogRepo: Repository<SystemProcessLog>,
+    private readonly dataSource: DataSource
+  ) {}
 
-    /**
-     * Get list of extraction jobs with optional filtering
-     */
-    async getExtractionJobs(
-        projectId: string,
-        query: ResourceQueryDto,
-    ): Promise<ResourceListResponseDto> {
-        const { status, date_from, date_to, limit = 50, offset = 0 } = query;
+  /**
+   * Get list of extraction jobs with optional filtering
+   * Keep as DataSource.query - complex subquery for cost aggregation
+   */
+  async getExtractionJobs(
+    projectId: string,
+    query: ResourceQueryDto
+  ): Promise<ResourceListResponseDto> {
+    const { status, date_from, date_to, limit = 50, offset = 0 } = query;
 
-        // Build WHERE clause
-        const conditions: string[] = ['project_id = $1'];
-        const params: any[] = [projectId];
-        let paramIndex = 2;
+    // Build WHERE clause
+    const conditions: string[] = ['project_id = $1'];
+    const params: any[] = [projectId];
+    let paramIndex = 2;
 
-        if (status) {
-            conditions.push(`status = $${paramIndex}`);
-            params.push(status);
-            paramIndex++;
-        }
+    if (status) {
+      conditions.push(`status = $${paramIndex}`);
+      params.push(status);
+      paramIndex++;
+    }
 
-        if (date_from) {
-            conditions.push(`started_at >= $${paramIndex}`);
-            params.push(date_from);
-            paramIndex++;
-        }
+    if (date_from) {
+      conditions.push(`started_at >= $${paramIndex}`);
+      params.push(date_from);
+      paramIndex++;
+    }
 
-        if (date_to) {
-            conditions.push(`started_at <= $${paramIndex}`);
-            params.push(date_to);
-            paramIndex++;
-        }
+    if (date_to) {
+      conditions.push(`started_at <= $${paramIndex}`);
+      params.push(date_to);
+      paramIndex++;
+    }
 
-        const whereClause = conditions.join(' AND ');
+    const whereClause = conditions.join(' AND ');
 
-        // Get total count
-        const countResult = await this.db.query<{ count: string }>(
-            `SELECT COUNT(*) as count FROM kb.object_extraction_jobs WHERE ${whereClause}`,
-            params,
-        );
-        const total = parseInt(countResult.rows[0].count, 10);
+    // Get total count using TypeORM
+    const total = await this.extractionJobRepo.count({
+      where: conditions.length === 1 ? { projectId } : undefined,
+    });
 
-        // Get paginated results with cost aggregation
-        const sql = `
+    // Get paginated results with cost aggregation - keep as DataSource.query for complex subquery
+    const sql = `
             SELECT 
                 j.id,
                 j.source_type,
@@ -80,33 +93,34 @@ export class MonitoringService {
             LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
         `;
 
-        const result = await this.db.query(sql, [...params, limit, offset]);
+    const result = await this.dataSource.query(sql, [...params, limit, offset]);
 
-        const items: ExtractionJobResourceDto[] = result.rows.map((row) => ({
-            id: row.id,
-            documentId: row.source_type === 'document' ? row.source_id : undefined,
-            status: row.status,
-            totalItems: row.total_items,
-            processedItems: row.processed_items,
-            successfulItems: row.successful_items,
-            failedItems: row.failed_items,
-            startedAt: row.started_at.toISOString(),
-            completedAt: row.completed_at?.toISOString(),
-            totalCostUsd: parseFloat(row.total_cost_usd) || undefined,
-        }));
+    const items: ExtractionJobResourceDto[] = result.map((row: any) => ({
+      id: row.id,
+      documentId: row.source_type === 'document' ? row.source_id : undefined,
+      status: row.status,
+      totalItems: row.total_items,
+      processedItems: row.processed_items,
+      successfulItems: row.successful_items,
+      failedItems: row.failed_items,
+      startedAt: row.started_at.toISOString(),
+      completedAt: row.completed_at?.toISOString(),
+      totalCostUsd: parseFloat(row.total_cost_usd) || undefined,
+    }));
 
-        return { items, total, limit, offset };
-    }
+    return { items, total, limit, offset };
+  }
 
-    /**
-     * Get detailed information for a specific extraction job
-     */
-    async getExtractionJobDetail(
-        projectId: string,
-        jobId: string,
-    ): Promise<ResourceDetailResponseDto> {
-        // Get job info with cost
-        const jobSql = `
+  /**
+   * Get detailed information for a specific extraction job
+   * Keep as DataSource.query - complex subquery for cost aggregation
+   */
+  async getExtractionJobDetail(
+    projectId: string,
+    jobId: string
+  ): Promise<ResourceDetailResponseDto> {
+    // Get job info with cost - keep as DataSource.query for subquery
+    const jobSql = `
             SELECT 
                 j.id,
                 j.source_type,
@@ -129,181 +143,174 @@ export class MonitoringService {
             WHERE j.id = $1 AND j.project_id = $2
         `;
 
-        const jobResult = await this.db.query(jobSql, [jobId, projectId]);
+    const jobResult = await this.dataSource.query(jobSql, [jobId, projectId]);
 
-        if (jobResult.rows.length === 0) {
-            throw new Error(`Extraction job ${jobId} not found`);
-        }
-
-        const jobRow = jobResult.rows[0];
-        const resource: ExtractionJobResourceDto = {
-            id: jobRow.id,
-            documentId: jobRow.source_type === 'document' ? jobRow.source_id : undefined,
-            status: jobRow.status,
-            totalItems: jobRow.total_items,
-            processedItems: jobRow.processed_items,
-            successfulItems: jobRow.successful_items,
-            failedItems: jobRow.failed_items,
-            startedAt: jobRow.started_at.toISOString(),
-            completedAt: jobRow.completed_at?.toISOString(),
-            totalCostUsd: parseFloat(jobRow.total_cost_usd) || undefined,
-        };
-
-        // Get recent logs (last 100)
-        const logsSql = `
-            SELECT 
-                id, process_id, process_type, level, message, metadata, timestamp
-            FROM kb.system_process_logs
-            WHERE process_id = $1 AND process_type = 'extraction_job'
-            ORDER BY timestamp DESC
-            LIMIT 100
-        `;
-
-        const logsResult = await this.db.query(logsSql, [jobId]);
-        const recentLogs: LogEntryDto[] = logsResult.rows.map((row) => ({
-            id: row.id,
-            processId: row.process_id,
-            processType: row.process_type,
-            level: row.level,
-            message: row.message,
-            metadata: row.metadata,
-            timestamp: row.timestamp.toISOString(),
-        }));
-
-        // Get all LLM calls
-        const llmCallsSql = `
-            SELECT 
-                id, process_id, process_type, model_name, 
-                request_payload, response_payload, status, error_message,
-                input_tokens, output_tokens, total_tokens, cost_usd,
-                started_at, completed_at, duration_ms
-            FROM kb.llm_call_logs
-            WHERE process_id = $1 AND process_type = 'extraction_job'
-            ORDER BY started_at DESC
-        `;
-
-        const llmCallsResult = await this.db.query(llmCallsSql, [jobId]);
-        const llmCalls: LLMCallDto[] = llmCallsResult.rows.map((row) => ({
-            id: row.id,
-            processId: row.process_id,
-            processType: row.process_type,
-            modelName: row.model_name,
-            requestPayload: row.request_payload,
-            responsePayload: row.response_payload,
-            status: row.status,
-            errorMessage: row.error_message,
-            inputTokens: row.input_tokens,
-            outputTokens: row.output_tokens,
-            totalTokens: row.total_tokens,
-            costUsd: row.cost_usd,
-            startedAt: row.started_at.toISOString(),
-            completedAt: row.completed_at?.toISOString(),
-            durationMs: row.duration_ms,
-        }));
-
-        // Calculate metrics
-        const totalCost = llmCalls.reduce((sum, call) => sum + (call.costUsd || 0), 0);
-        const completedCalls = llmCalls.filter((call) => call.durationMs !== undefined);
-        const avgDuration =
-            completedCalls.length > 0
-                ? completedCalls.reduce((sum, call) => sum + (call.durationMs || 0), 0) /
-                completedCalls.length
-                : 0;
-
-        const metrics = {
-            totalCost: parseFloat(totalCost.toFixed(6)),
-            avgDuration: Math.round(avgDuration),
-            totalLLMCalls: llmCalls.length,
-            successfulCalls: llmCalls.filter((call) => call.status === 'success').length,
-            failedCalls: llmCalls.filter((call) => call.status === 'error').length,
-        };
-
-        return { resource, recentLogs, llmCalls, metrics };
+    if (jobResult.length === 0) {
+      throw new Error(`Extraction job ${jobId} not found`);
     }
 
-    /**
-     * Get logs for a specific resource
-     */
-    async getLogsForResource(
-        processId: string,
-        processType: string,
-        query: LogQueryDto,
-    ): Promise<LogEntryDto[]> {
-        const { level, limit = 100, offset = 0 } = query;
+    const jobRow = jobResult[0];
+    const resource: ExtractionJobResourceDto = {
+      id: jobRow.id,
+      documentId:
+        jobRow.source_type === 'document' ? jobRow.source_id : undefined,
+      status: jobRow.status,
+      totalItems: jobRow.total_items,
+      processedItems: jobRow.processed_items,
+      successfulItems: jobRow.successful_items,
+      failedItems: jobRow.failed_items,
+      startedAt: jobRow.started_at.toISOString(),
+      completedAt: jobRow.completed_at?.toISOString(),
+      totalCostUsd: parseFloat(jobRow.total_cost_usd) || undefined,
+    };
 
-        const conditions: string[] = ['process_id = $1', 'process_type = $2'];
-        const params: any[] = [processId, processType];
-        let paramIndex = 3;
+    // Get recent logs (last 100) using TypeORM QueryBuilder
+    const logsResult = await this.systemLogRepo
+      .createQueryBuilder('log')
+      .where('log.processId = :processId', { processId: jobId })
+      .andWhere('log.processType = :processType', {
+        processType: 'extraction_job',
+      })
+      .orderBy('log.timestamp', 'DESC')
+      .limit(100)
+      .getMany();
 
-        if (level) {
-            conditions.push(`level = $${paramIndex}`);
-            params.push(level);
-            paramIndex++;
-        }
+    const recentLogs: LogEntryDto[] = logsResult.map((row) => ({
+      id: row.id,
+      processId: row.processId,
+      processType: row.processType,
+      level: row.level,
+      message: row.message,
+      metadata: row.metadata ?? undefined,
+      timestamp: row.timestamp.toISOString(),
+    }));
 
-        const whereClause = conditions.join(' AND ');
+    // Get all LLM calls using TypeORM QueryBuilder
+    const llmCallsResult = await this.llmCallLogRepo
+      .createQueryBuilder('call')
+      .where('call.processId = :processId', { processId: jobId })
+      .andWhere('call.processType = :processType', {
+        processType: 'extraction_job',
+      })
+      .orderBy('call.startedAt', 'DESC')
+      .getMany();
 
-        const sql = `
-            SELECT 
-                id, process_id, process_type, level, message, metadata, timestamp
-            FROM kb.system_process_logs
-            WHERE ${whereClause}
-            ORDER BY timestamp DESC
-            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-        `;
+    const llmCalls: LLMCallDto[] = llmCallsResult.map((row) => ({
+      id: row.id,
+      processId: row.processId,
+      processType: row.processType,
+      modelName: row.modelName,
+      requestPayload: row.requestPayload || {},
+      responsePayload: row.responsePayload ?? undefined,
+      status: row.status,
+      errorMessage: row.errorMessage ?? undefined,
+      inputTokens: row.inputTokens ?? undefined,
+      outputTokens: row.outputTokens ?? undefined,
+      totalTokens: row.totalTokens ?? undefined,
+      costUsd: row.costUsd ?? undefined,
+      startedAt: row.startedAt.toISOString(),
+      completedAt: row.completedAt?.toISOString(),
+      durationMs: row.durationMs ?? undefined,
+    }));
 
-        const result = await this.db.query(sql, [...params, limit, offset]);
+    // Calculate metrics
+    const totalCost = llmCalls.reduce(
+      (sum, call) => sum + (call.costUsd || 0),
+      0
+    );
+    const completedCalls = llmCalls.filter(
+      (call) => call.durationMs !== undefined
+    );
+    const avgDuration =
+      completedCalls.length > 0
+        ? completedCalls.reduce(
+            (sum, call) => sum + (call.durationMs || 0),
+            0
+          ) / completedCalls.length
+        : 0;
 
-        return result.rows.map((row) => ({
-            id: row.id,
-            processId: row.process_id,
-            processType: row.process_type,
-            level: row.level,
-            message: row.message,
-            metadata: row.metadata,
-            timestamp: row.timestamp.toISOString(),
-        }));
+    const metrics = {
+      totalCost: parseFloat(totalCost.toFixed(6)),
+      avgDuration: Math.round(avgDuration),
+      totalLLMCalls: llmCalls.length,
+      successfulCalls: llmCalls.filter((call) => call.status === 'success')
+        .length,
+      failedCalls: llmCalls.filter((call) => call.status === 'error').length,
+    };
+
+    return { resource, recentLogs, llmCalls, metrics };
+  }
+
+  /**
+   * Get logs for a specific resource - Migrated to TypeORM QueryBuilder
+   */
+  async getLogsForResource(
+    processId: string,
+    processType: string,
+    query: LogQueryDto
+  ): Promise<LogEntryDto[]> {
+    const { level, limit = 100, offset = 0 } = query;
+
+    const queryBuilder = this.systemLogRepo
+      .createQueryBuilder('log')
+      .where('log.processId = :processId', { processId })
+      .andWhere('log.processType = :processType', { processType });
+
+    if (level) {
+      queryBuilder.andWhere('log.level = :level', { level });
     }
 
-    /**
-     * Get LLM calls for a specific resource
-     */
-    async getLLMCallsForResource(
-        processId: string,
-        processType: string,
-        limit = 50,
-        offset = 0,
-    ): Promise<LLMCallDto[]> {
-        const sql = `
-            SELECT 
-                id, process_id, process_type, model_name, 
-                request_payload, response_payload, status, error_message,
-                input_tokens, output_tokens, total_tokens, cost_usd,
-                started_at, completed_at, duration_ms
-            FROM kb.llm_call_logs
-            WHERE process_id = $1 AND process_type = $2
-            ORDER BY started_at DESC
-            LIMIT $3 OFFSET $4
-        `;
+    const result = await queryBuilder
+      .orderBy('log.timestamp', 'DESC')
+      .limit(limit)
+      .offset(offset)
+      .getMany();
 
-        const result = await this.db.query(sql, [processId, processType, limit, offset]);
+    return result.map((row) => ({
+      id: row.id,
+      processId: row.processId,
+      processType: row.processType,
+      level: row.level,
+      message: row.message,
+      metadata: row.metadata ?? undefined,
+      timestamp: row.timestamp.toISOString(),
+    }));
+  }
 
-        return result.rows.map((row) => ({
-            id: row.id,
-            processId: row.process_id,
-            processType: row.process_type,
-            modelName: row.model_name,
-            requestPayload: row.request_payload,
-            responsePayload: row.response_payload,
-            status: row.status,
-            errorMessage: row.error_message,
-            inputTokens: row.input_tokens,
-            outputTokens: row.output_tokens,
-            totalTokens: row.total_tokens,
-            costUsd: row.cost_usd,
-            startedAt: row.started_at.toISOString(),
-            completedAt: row.completed_at?.toISOString(),
-            durationMs: row.duration_ms,
-        }));
-    }
+  /**
+   * Get LLM calls for a specific resource - Migrated to TypeORM QueryBuilder
+   */
+  async getLLMCallsForResource(
+    processId: string,
+    processType: string,
+    limit = 50,
+    offset = 0
+  ): Promise<LLMCallDto[]> {
+    const result = await this.llmCallLogRepo
+      .createQueryBuilder('call')
+      .where('call.processId = :processId', { processId })
+      .andWhere('call.processType = :processType', { processType })
+      .orderBy('call.startedAt', 'DESC')
+      .limit(limit)
+      .offset(offset)
+      .getMany();
+
+    return result.map((row) => ({
+      id: row.id,
+      processId: row.processId,
+      processType: row.processType,
+      modelName: row.modelName,
+      requestPayload: row.requestPayload || {},
+      responsePayload: row.responsePayload ?? undefined,
+      status: row.status,
+      errorMessage: row.errorMessage ?? undefined,
+      inputTokens: row.inputTokens ?? undefined,
+      outputTokens: row.outputTokens ?? undefined,
+      totalTokens: row.totalTokens ?? undefined,
+      costUsd: row.costUsd ?? undefined,
+      startedAt: row.startedAt.toISOString(),
+      completedAt: row.completedAt?.toISOString(),
+      durationMs: row.durationMs ?? undefined,
+    }));
+  }
 }

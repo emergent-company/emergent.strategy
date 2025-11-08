@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import type { DependencyProcessProfile, EnvironmentProfileId, RestartPolicy } from './types.js';
 
-const WORKSPACE_DEPENDENCY_NAMESPACE = 'workspace-cli-deps';
+const WORKSPACE_DEPENDENCY_NAMESPACE = process.env.NAMESPACE || 'workspace-cli';
 
 const DEFAULT_RESTART_POLICY: RestartPolicy = {
   maxRestarts: 3,

@@ -1,48 +1,66 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
 import { ChunkDto } from './dto/chunk.dto';
-
-interface ChunkRow { id: string; document_id: string; chunk_index: number; text: string; embedding: unknown | null; filename: string | null; source_url: string | null; }
+import { Chunk } from '../../entities/chunk.entity';
 
 @Injectable()
 export class ChunksService {
-    constructor(private readonly db: DatabaseService) { }
+    constructor(
+        @InjectRepository(Chunk)
+        private readonly chunkRepository: Repository<Chunk>,
+        private readonly db: DatabaseService
+    ) { }
 
     async list(documentId?: string): Promise<ChunkDto[]> {
-        const params: any[] = [];
-        let where = '';
-        if (documentId) { params.push(documentId); where = 'WHERE c.document_id = $1'; }
-        let res: { rows: ChunkRow[] };
         try {
-            res = await this.db.query<ChunkRow>(
-                `SELECT c.id, c.document_id, c.chunk_index, c.text, c.embedding, d.filename, d.source_url, c.created_at
-                 FROM kb.chunks c
-                 JOIN kb.documents d ON d.id = c.document_id
-                 ${where}
-                 ORDER BY c.created_at ASC, c.chunk_index ASC`,
-                params,
-            );
+            const queryBuilder = this.chunkRepository
+                .createQueryBuilder('c')
+                .leftJoinAndSelect('c.document', 'd')
+                .orderBy('c.created_at', 'ASC')
+                .addOrderBy('c.chunk_index', 'ASC');
+
+            if (documentId) {
+                queryBuilder.where('c.document_id = :documentId', { documentId });
+            }
+
+            const chunks = await queryBuilder.getMany();
+
+            return chunks.map(c => ({
+                id: c.id,
+                documentId: c.documentId,
+                documentTitle: c.document?.filename || c.document?.sourceUrl || c.documentId,
+                index: c.chunkIndex,
+                size: c.text.length,
+                hasEmbedding: !!c.embedding,
+                text: c.text,
+            }));
         } catch (e: any) {
-            if (e?.code === '42703') { // embedding or created_at column missing
-                const fallback = await this.db.query<Omit<ChunkRow, 'embedding'> & { embedding: null }>(
-                    `SELECT c.id, c.document_id, c.chunk_index, c.text, NULL as embedding, d.filename, d.source_url
-                     FROM kb.chunks c
-                     JOIN kb.documents d ON d.id = c.document_id
-                     ${where}
-                     ORDER BY c.chunk_index ASC`,
-                    params,
-                );
-                res = fallback as any;
-            } else throw e;
+            // Fallback for missing columns (backward compatibility)
+            if (e?.code === '42703') {
+                const queryBuilder = this.chunkRepository
+                    .createQueryBuilder('c')
+                    .leftJoinAndSelect('c.document', 'd')
+                    .orderBy('c.chunk_index', 'ASC');
+
+                if (documentId) {
+                    queryBuilder.where('c.document_id = :documentId', { documentId });
+                }
+
+                const chunks = await queryBuilder.getMany();
+
+                return chunks.map(c => ({
+                    id: c.id,
+                    documentId: c.documentId,
+                    documentTitle: c.document?.filename || c.document?.sourceUrl || c.documentId,
+                    index: c.chunkIndex,
+                    size: c.text.length,
+                    hasEmbedding: false,
+                    text: c.text,
+                }));
+            }
+            throw e;
         }
-        return res.rows.map(r => ({
-            id: r.id,
-            documentId: r.document_id,
-            documentTitle: r.filename || r.source_url || r.document_id,
-            index: r.chunk_index,
-            size: r.text.length,
-            hasEmbedding: !!r.embedding,
-            text: r.text,
-        }));
     }
 }

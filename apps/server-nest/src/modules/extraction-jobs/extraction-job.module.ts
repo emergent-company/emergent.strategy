@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ExtractionJobService } from './extraction-job.service';
 import { ExtractionJobController } from './extraction-job.controller';
 import { ExtractionWorkerService } from './extraction-worker.service';
@@ -18,16 +19,20 @@ import { EmbeddingsModule } from '../embeddings/embeddings.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
 import { MonitoringModule } from '../monitoring/monitoring.module';
+import { GraphObject } from '../../entities/graph-object.entity';
+import { ObjectExtractionJob } from '../../entities/object-extraction-job.entity';
+import { GraphEmbeddingJob } from '../../entities/graph-embedding-job.entity';
+import { ObjectExtractionLog } from '../../entities/object-extraction-log.entity';
 
 /**
  * Extraction Job Module
- * 
+ *
  * Provides extraction job tracking and management with LLM-powered entity extraction
- * 
+ *
  * Phase 1: Basic CRUD operations for job lifecycle
  * Phase 2: Async extraction worker with rate limiting and LLM integration
  * Phase 3: Confidence scoring, quality control, and entity linking
- * 
+ *
  * Components:
  * - ExtractionJobService: Job CRUD and lifecycle management
  * - ExtractionWorkerService: Background worker orchestrating extraction pipeline
@@ -39,29 +44,40 @@ import { MonitoringModule } from '../monitoring/monitoring.module';
  * - LLMProviderFactory: Multi-provider abstraction for future extensibility
  */
 @Module({
-    imports: [
-        DatabaseModule,
-        AppConfigModule,
-        GraphModule,
-        DocumentsModule,
-        TemplatePackModule,
-        EmbeddingsModule,
-        NotificationsModule,
-        AuthModule,
-        MonitoringModule,
-    ],
-    providers: [
-        ExtractionJobService,
-        ExtractionWorkerService,
-        ExtractionLoggerService,
-        RateLimiterService,
-        ConfidenceScorerService,
-        EntityLinkingService,
-        LangChainGeminiProvider,
-        VertexAIProvider,
-        LLMProviderFactory,
-    ],
-    controllers: [ExtractionJobController],
-    exports: [ExtractionJobService, ExtractionWorkerService, ExtractionLoggerService, LangChainGeminiProvider],
+  imports: [
+    TypeOrmModule.forFeature([
+      GraphObject,
+      ObjectExtractionJob,
+      GraphEmbeddingJob,
+      ObjectExtractionLog,
+    ]),
+    DatabaseModule,
+    AppConfigModule,
+    GraphModule,
+    DocumentsModule,
+    TemplatePackModule,
+    EmbeddingsModule,
+    NotificationsModule,
+    AuthModule,
+    MonitoringModule,
+  ],
+  providers: [
+    ExtractionJobService,
+    ExtractionWorkerService,
+    ExtractionLoggerService,
+    RateLimiterService,
+    ConfidenceScorerService,
+    EntityLinkingService,
+    LangChainGeminiProvider,
+    VertexAIProvider,
+    LLMProviderFactory,
+  ],
+  controllers: [ExtractionJobController],
+  exports: [
+    ExtractionJobService,
+    ExtractionWorkerService,
+    ExtractionLoggerService,
+    LangChainGeminiProvider,
+  ],
 })
-export class ExtractionJobModule { }
+export class ExtractionJobModule {}
