@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
-import { EmbeddingPolicy, EmbeddingPolicyRow, toEmbeddingPolicy } from './embedding-policy.entity';
+import { EmbeddingPolicy as EmbeddingPolicyInterface, EmbeddingPolicyRow, toEmbeddingPolicy } from './embedding-policy.entity';
 import { CreateEmbeddingPolicyDto, UpdateEmbeddingPolicyDto } from './embedding-policy.dto';
+import { EmbeddingPolicy } from '../../entities/embedding-policy.entity';
 
 /**
  * Service for managing and evaluating embedding policies
@@ -10,129 +13,163 @@ import { CreateEmbeddingPolicyDto, UpdateEmbeddingPolicyDto } from './embedding-
 export class EmbeddingPolicyService {
     private readonly logger = new Logger(EmbeddingPolicyService.name);
 
-    constructor(private readonly db: DatabaseService) { }
+    constructor(
+        @InjectRepository(EmbeddingPolicy)
+        private readonly embeddingPolicyRepository: Repository<EmbeddingPolicy>,
+        private readonly db: DatabaseService
+    ) { }
 
     /**
      * Create a new embedding policy
      */
-    async create(projectId: string, dto: CreateEmbeddingPolicyDto): Promise<EmbeddingPolicy> {
-        const result = await this.db.query<EmbeddingPolicyRow>(
-            `INSERT INTO kb.embedding_policies 
-             (project_id, object_type, enabled, max_property_size, required_labels, excluded_labels, relevant_paths, excluded_statuses)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             RETURNING *`,
-            [
-                projectId,
-                dto.objectType,
-                dto.enabled ?? true,
-                dto.maxPropertySize ?? null,
-                dto.requiredLabels ?? [],
-                dto.excludedLabels ?? [],
-                dto.relevantPaths ?? [],
-                dto.excludedStatuses ?? [],
-            ]
-        );
+    async create(projectId: string, dto: CreateEmbeddingPolicyDto): Promise<EmbeddingPolicyInterface> {
+        const policy = this.embeddingPolicyRepository.create({
+            projectId,
+            objectType: dto.objectType,
+            enabled: dto.enabled ?? true,
+            maxPropertySize: dto.maxPropertySize ?? null,
+            requiredLabels: dto.requiredLabels ?? [],
+            excludedLabels: dto.excludedLabels ?? [],
+            relevantPaths: dto.relevantPaths ?? [],
+            excludedStatuses: dto.excludedStatuses ?? [],
+        });
 
-        return toEmbeddingPolicy(result.rows[0]);
+        const saved = await this.embeddingPolicyRepository.save(policy);
+        
+        return {
+            id: saved.id,
+            projectId: saved.projectId,
+            objectType: saved.objectType,
+            enabled: saved.enabled,
+            maxPropertySize: saved.maxPropertySize,
+            requiredLabels: saved.requiredLabels,
+            excludedLabels: saved.excludedLabels,
+            relevantPaths: saved.relevantPaths,
+            excludedStatuses: saved.excludedStatuses,
+            createdAt: saved.createdAt,
+            updatedAt: saved.updatedAt,
+        };
     }
 
     /**
      * Find all policies for a project
      */
-    async findByProject(projectId: string): Promise<EmbeddingPolicy[]> {
-        const result = await this.db.query<EmbeddingPolicyRow>(
-            'SELECT * FROM kb.embedding_policies WHERE project_id = $1 ORDER BY object_type ASC',
-            [projectId]
-        );
+    async findByProject(projectId: string): Promise<EmbeddingPolicyInterface[]> {
+        const policies = await this.embeddingPolicyRepository.find({
+            where: { projectId },
+            order: { objectType: 'ASC' }
+        });
 
-        return result.rows.map(toEmbeddingPolicy);
+        return policies.map(p => ({
+            id: p.id,
+            projectId: p.projectId,
+            objectType: p.objectType,
+            enabled: p.enabled,
+            maxPropertySize: p.maxPropertySize,
+            requiredLabels: p.requiredLabels,
+            excludedLabels: p.excludedLabels,
+            relevantPaths: p.relevantPaths,
+            excludedStatuses: p.excludedStatuses,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt,
+        }));
     }
 
     /**
      * Find policy by ID
      */
-    async findById(id: string, projectId: string): Promise<EmbeddingPolicy | null> {
-        const result = await this.db.query<EmbeddingPolicyRow>(
-            'SELECT * FROM kb.embedding_policies WHERE id = $1 AND project_id = $2',
-            [id, projectId]
-        );
+    async findById(id: string, projectId: string): Promise<EmbeddingPolicyInterface | null> {
+        const policy = await this.embeddingPolicyRepository.findOne({
+            where: { id, projectId }
+        });
 
-        return result.rows[0] ? toEmbeddingPolicy(result.rows[0]) : null;
+        if (!policy) return null;
+
+        return {
+            id: policy.id,
+            projectId: policy.projectId,
+            objectType: policy.objectType,
+            enabled: policy.enabled,
+            maxPropertySize: policy.maxPropertySize,
+            requiredLabels: policy.requiredLabels,
+            excludedLabels: policy.excludedLabels,
+            relevantPaths: policy.relevantPaths,
+            excludedStatuses: policy.excludedStatuses,
+            createdAt: policy.createdAt,
+            updatedAt: policy.updatedAt,
+        };
     }
 
     /**
      * Find policy by object type
      */
-    async findByType(projectId: string, objectType: string): Promise<EmbeddingPolicy | null> {
-        const result = await this.db.query<EmbeddingPolicyRow>(
-            'SELECT * FROM kb.embedding_policies WHERE project_id = $1 AND object_type = $2',
-            [projectId, objectType]
-        );
+    async findByType(projectId: string, objectType: string): Promise<EmbeddingPolicyInterface | null> {
+        const policy = await this.embeddingPolicyRepository.findOne({
+            where: { projectId, objectType }
+        });
 
-        return result.rows[0] ? toEmbeddingPolicy(result.rows[0]) : null;
+        if (!policy) return null;
+
+        return {
+            id: policy.id,
+            projectId: policy.projectId,
+            objectType: policy.objectType,
+            enabled: policy.enabled,
+            maxPropertySize: policy.maxPropertySize,
+            requiredLabels: policy.requiredLabels,
+            excludedLabels: policy.excludedLabels,
+            relevantPaths: policy.relevantPaths,
+            excludedStatuses: policy.excludedStatuses,
+            createdAt: policy.createdAt,
+            updatedAt: policy.updatedAt,
+        };
     }
 
     /**
      * Update an existing policy
      */
-    async update(id: string, projectId: string, dto: UpdateEmbeddingPolicyDto): Promise<EmbeddingPolicy | null> {
-        const updates: string[] = [];
-        const values: any[] = [];
-        let paramIndex = 1;
+    async update(id: string, projectId: string, dto: UpdateEmbeddingPolicyDto): Promise<EmbeddingPolicyInterface | null> {
+        const policy = await this.embeddingPolicyRepository.findOne({
+            where: { id, projectId }
+        });
 
-        if (dto.enabled !== undefined) {
-            updates.push(`enabled = $${paramIndex++}`);
-            values.push(dto.enabled);
-        }
-        if (dto.maxPropertySize !== undefined) {
-            updates.push(`max_property_size = $${paramIndex++}`);
-            values.push(dto.maxPropertySize);
-        }
-        if (dto.requiredLabels !== undefined) {
-            updates.push(`required_labels = $${paramIndex++}`);
-            values.push(dto.requiredLabels);
-        }
-        if (dto.excludedLabels !== undefined) {
-            updates.push(`excluded_labels = $${paramIndex++}`);
-            values.push(dto.excludedLabels);
-        }
-        if (dto.relevantPaths !== undefined) {
-            updates.push(`relevant_paths = $${paramIndex++}`);
-            values.push(dto.relevantPaths);
-        }
-        if (dto.excludedStatuses !== undefined) {
-            updates.push(`excluded_statuses = $${paramIndex++}`);
-            values.push(dto.excludedStatuses);
-        }
+        if (!policy) return null;
 
-        if (updates.length === 0) {
-            return this.findById(id, projectId);
-        }
+        // Apply updates
+        if (dto.enabled !== undefined) policy.enabled = dto.enabled;
+        if (dto.maxPropertySize !== undefined) policy.maxPropertySize = dto.maxPropertySize;
+        if (dto.requiredLabels !== undefined) policy.requiredLabels = dto.requiredLabels;
+        if (dto.excludedLabels !== undefined) policy.excludedLabels = dto.excludedLabels;
+        if (dto.relevantPaths !== undefined) policy.relevantPaths = dto.relevantPaths;
+        if (dto.excludedStatuses !== undefined) policy.excludedStatuses = dto.excludedStatuses;
 
-        updates.push(`updated_at = now()`);
-        values.push(id, projectId);
+        const saved = await this.embeddingPolicyRepository.save(policy);
 
-        const result = await this.db.query<EmbeddingPolicyRow>(
-            `UPDATE kb.embedding_policies 
-             SET ${updates.join(', ')}
-             WHERE id = $${paramIndex} AND project_id = $${paramIndex + 1}
-             RETURNING *`,
-            values
-        );
-
-        return result.rows[0] ? toEmbeddingPolicy(result.rows[0]) : null;
+        return {
+            id: saved.id,
+            projectId: saved.projectId,
+            objectType: saved.objectType,
+            enabled: saved.enabled,
+            maxPropertySize: saved.maxPropertySize,
+            requiredLabels: saved.requiredLabels,
+            excludedLabels: saved.excludedLabels,
+            relevantPaths: saved.relevantPaths,
+            excludedStatuses: saved.excludedStatuses,
+            createdAt: saved.createdAt,
+            updatedAt: saved.updatedAt,
+        };
     }
 
     /**
      * Delete a policy
      */
     async delete(id: string, projectId: string): Promise<boolean> {
-        const result = await this.db.query(
-            'DELETE FROM kb.embedding_policies WHERE id = $1 AND project_id = $2',
-            [id, projectId]
-        );
+        const result = await this.embeddingPolicyRepository.delete({
+            id,
+            projectId
+        });
 
-        return result.rowCount! > 0;
+        return (result.affected ?? 0) > 0;
     }
 
     /**

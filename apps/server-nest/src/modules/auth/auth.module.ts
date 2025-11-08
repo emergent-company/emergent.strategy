@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
@@ -13,35 +14,45 @@ import { ZitadelService } from './zitadel.service';
 import { ZitadelStrategy } from './strategies/zitadel.strategy';
 import { UserProfileModule } from '../user-profile/user-profile.module';
 import { DatabaseModule } from '../../common/database/database.module';
+import { AuditLog } from '../../entities/audit-log.entity';
+import { AuthIntrospectionCache } from '../../entities/auth-introspection-cache.entity';
+import { OrganizationMembership } from '../../entities/organization-membership.entity';
+import { ProjectMembership } from '../../entities/project-membership.entity';
 
 @Module({
-    imports: [
-        PassportModule,
-        forwardRef(() => UserProfileModule),
-        DatabaseModule,
-    ],
-    providers: [
-        AuthService,
-        AuthGuard,
-        ScopesGuard,
-        PermissionService,
-        AuditService,
-        AuditInterceptor,
-        PostgresCacheService,
-        CacheCleanupService,
-        ZitadelService,
-        ZitadelStrategy,
-    ],
-    controllers: [AuthController],
-    exports: [
-        AuthService,
-        AuthGuard,
-        ScopesGuard,
-        PermissionService,
-        AuditService,
-        AuditInterceptor,
-        PostgresCacheService,
-        ZitadelService,
-    ],
+  imports: [
+    TypeOrmModule.forFeature([
+      AuditLog,
+      AuthIntrospectionCache,
+      OrganizationMembership,
+      ProjectMembership,
+    ]),
+    PassportModule,
+    forwardRef(() => UserProfileModule),
+    DatabaseModule,
+  ],
+  providers: [
+    AuthService,
+    AuthGuard,
+    ScopesGuard,
+    PermissionService,
+    AuditService,
+    AuditInterceptor,
+    PostgresCacheService,
+    CacheCleanupService,
+    ZitadelService,
+    ZitadelStrategy,
+  ],
+  controllers: [AuthController],
+  exports: [
+    AuthService,
+    AuthGuard,
+    ScopesGuard,
+    PermissionService,
+    AuditService,
+    AuditInterceptor,
+    PostgresCacheService,
+    ZitadelService,
+  ],
 })
-export class AuthModule { }
+export class AuthModule {}

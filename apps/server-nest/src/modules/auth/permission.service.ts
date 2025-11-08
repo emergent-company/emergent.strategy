@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
+import { OrganizationMembership } from '../../entities/organization-membership.entity';
+import { ProjectMembership } from '../../entities/project-membership.entity';
 
 // Role to scope catalogue (mirrors spec ROLE_SCOPE_MAP subset actually enforced now)
 const ROLE_SCOPE_MAP: Record<string, string[]> = {
@@ -42,7 +46,13 @@ export interface EffectivePermissions {
 @Injectable()
 export class PermissionService {
     private readonly logger = new Logger(PermissionService.name);
-    constructor(private readonly db: DatabaseService) { }
+    constructor(
+        @InjectRepository(OrganizationMembership)
+        private readonly orgMembershipRepository: Repository<OrganizationMembership>,
+        @InjectRepository(ProjectMembership)
+        private readonly projectMembershipRepository: Repository<ProjectMembership>,
+        private readonly db: DatabaseService,
+    ) { }
 
     /** Load memberships for a user and expand to scopes (server-side authoritative expansion). */
     async compute(userId: string): Promise<EffectivePermissions> {
@@ -54,29 +64,34 @@ export class PermissionService {
         // userId is now the internal UUID from req.user.id. User profile already exists from auth flow.
         this.logger.log(`Computing permissions for user ${userId}`);
 
-        // Fetch memberships. Ignore org/project name joins for performance (controllers will filter by ids supplied in headers).
-        const orgRows = await this.db.query<{ organization_id: string; role: string }>(
-            'SELECT organization_id, role FROM kb.organization_memberships WHERE user_id = $1',
-            [userId]
-        );
-        const projectRows = await this.db.query<{ project_id: string; role: string }>(
-            'SELECT project_id, role FROM kb.project_memberships WHERE user_id = $1',
-            [userId]
-        );
+        // Fetch memberships using TypeORM (type-safe!)
+        const orgMemberships = await this.orgMembershipRepository.find({
+            where: { userId },
+            select: ['organizationId', 'role'],
+        });
+        
+        const projectMemberships = await this.projectMembershipRepository.find({
+            where: { userId },
+            select: ['projectId', 'role'],
+        });
+        
         const scopes: string[] = [];
         const pushScopes = (role: string) => {
             const mapped = ROLE_SCOPE_MAP[role];
             if (mapped) scopes.push(...mapped);
         };
-        for (const r of orgRows.rows) pushScopes(r.role);
-        for (const r of projectRows.rows) pushScopes(r.role);
+        
+        for (const membership of orgMemberships) pushScopes(membership.role);
+        for (const membership of projectMemberships) pushScopes(membership.role);
+        
         // Implicit org:read from any project membership (if not already covered) – spec rule.
-        if (projectRows.rowCount) scopes.push('org:read');
+        if (projectMemberships.length > 0) scopes.push('org:read');
+        
         const dedup = Array.from(new Set(scopes));
         return {
             userId,
-            orgRoles: orgRows.rows.map((r: any) => ({ orgId: r.organization_id, role: r.role as 'org_admin' })),
-            projectRoles: projectRows.rows.map((r: any) => ({ projectId: r.project_id, role: r.role as 'project_admin' | 'project_user' })),
+            orgRoles: orgMemberships.map(m => ({ orgId: m.organizationId, role: m.role as 'org_admin' })),
+            projectRoles: projectMemberships.map(m => ({ projectId: m.projectId, role: m.role as 'project_admin' | 'project_user' })),
             scopes: dedup,
         };
     }

@@ -66,6 +66,208 @@ export async function runPreflightChecks(command: string, argv: readonly string[
     }
 }
 
+/**
+ * Run validation checks after dependencies are started
+ * Should be called from start-service.ts after dependencies start
+ */
+export async function runPostDependencyValidations(): Promise<void> {
+    process.stdout.write('🔍 Validating configuration...\n');
+
+    // Check 1: Database schema validation
+    await validateDatabaseSchema();
+
+    // Check 2: Zitadel auth configuration
+    await validateZitadelConfiguration();
+
+    process.stdout.write('✅ All validations passed\n\n');
+}
+
+async function runStartupValidations(): Promise<void> {
+    process.stdout.write('🔍 Running startup validation checks...\n');
+
+    // Check 1: Database schema validation
+    await validateDatabaseSchema();
+
+    // Check 2: Zitadel auth configuration
+    await validateZitadelConfiguration();
+
+    process.stdout.write('✅ All validation checks passed\n\n');
+}
+
+async function validateDatabaseSchema(): Promise<void> {
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const execAsync = promisify(execFile);
+
+    // Retry validation up to 5 times with delays (database might still be starting)
+    const maxRetries = 5;
+    const retryDelay = 5000; // 5 seconds
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            await execAsync('npx', ['tsx', 'scripts/validate-schema.ts'], {
+                cwd: ROOT_DIR,
+                env: process.env,
+                timeout: 30000,
+            });
+
+            // Validation passed
+            process.stdout.write('  ✓ Database schema validated\n');
+            return;
+        } catch (error: any) {
+            // Check if it's a connection error (database not ready yet)
+            const errorOutput = (error.stderr || error.stdout || error.message || '').toString();
+            const isConnectionError = errorOutput.includes('ECONNREFUSED') || 
+                                      errorOutput.includes('Connection refused') ||
+                                      errorOutput.includes('connect ECONNREFUSED') ||
+                                      error.code === 'ECONNREFUSED';
+
+            if (isConnectionError && attempt < maxRetries) {
+                process.stdout.write(`  ⏳ Database not ready, waiting ${retryDelay / 1000}s (attempt ${attempt}/${maxRetries})...\n`);
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                continue;
+            }
+
+            // Check if it's an exit code 2 (fatal error from validation script)
+            if (error.code === 2 && attempt < maxRetries) {
+                // Could be connection error, retry
+                process.stdout.write(`  ⏳ Database not ready, waiting ${retryDelay / 1000}s (attempt ${attempt}/${maxRetries})...\n`);
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                continue;
+            }
+
+            // Validation failed or max retries exceeded
+            throw new WorkspaceCliError(
+                'PRECHECK_DATABASE_SCHEMA_INVALID',
+                'Database schema validation failed. Critical tables are missing or incomplete.',
+                {
+                    recommendation: 'Run: npm run db:validate to see details, then npm run db:fix to repair schema'
+                }
+            );
+        }
+    }
+}
+
+async function validateZitadelConfiguration(): Promise<void> {
+    const zitadelDomain = process.env.ZITADEL_DOMAIN;
+    const oauthClientId = process.env.ZITADEL_CLIENT_ID || process.env.VITE_ZITADEL_CLIENT_ID;
+
+    if (!zitadelDomain) {
+        throw new WorkspaceCliError(
+            'PRECHECK_ZITADEL_CONFIG_MISSING',
+            'ZITADEL_DOMAIN not set in .env file.',
+            {
+                recommendation: 'Add ZITADEL_DOMAIN to your .env file (e.g., ZITADEL_DOMAIN=localhost:8200)'
+            }
+        );
+    }
+
+    if (!oauthClientId) {
+        throw new WorkspaceCliError(
+            'PRECHECK_ZITADEL_CONFIG_MISSING',
+            'OAuth client ID not set. ZITADEL_CLIENT_ID or VITE_ZITADEL_CLIENT_ID required.',
+            {
+                recommendation: 'Run: ./scripts/bootstrap-zitadel-fully-automated.sh provision'
+            }
+        );
+    }
+
+    // Check if Zitadel is reachable (with retries)
+    const maxRetries = 6;
+    const retryDelay = 5000; // 5 seconds
+    let lastError: any = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const baseUrl = `http://${zitadelDomain}`;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
+
+            const response = await fetch(`${baseUrl}/debug/ready`, {
+                signal: controller.signal
+            });
+            clearTimeout(timeout);
+
+            if (!response.ok) {
+                if (attempt < maxRetries) {
+                    process.stdout.write(`  ⏳ Zitadel not ready (HTTP ${response.status}), waiting ${retryDelay / 1000}s (attempt ${attempt}/${maxRetries})...\n`);
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                    continue;
+                }
+
+                throw new WorkspaceCliError(
+                    'PRECHECK_ZITADEL_NOT_READY',
+                    `Zitadel is not ready at ${baseUrl} (HTTP ${response.status})`,
+                    {
+                        recommendation: 'Ensure Zitadel container is running: docker compose --project-name spec-2 -f docker/docker-compose.yml up -d zitadel'
+                    }
+                );
+            }
+
+            process.stdout.write('  ✓ Zitadel is reachable and ready\n');
+            break;
+        } catch (error: any) {
+            lastError = error;
+
+            if (error.name === 'AbortError' || error.cause?.code === 'ECONNREFUSED' || error.message?.includes('fetch failed')) {
+                if (attempt < maxRetries) {
+                    process.stdout.write(`  ⏳ Zitadel not ready, waiting ${retryDelay / 1000}s (attempt ${attempt}/${maxRetries})...\n`);
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                    continue;
+                }
+            }
+
+            if (error instanceof WorkspaceCliError) {
+                throw error;
+            }
+
+            throw new WorkspaceCliError(
+                'PRECHECK_ZITADEL_UNREACHABLE',
+                `Cannot reach Zitadel at http://${zitadelDomain} after ${maxRetries} attempts: ${error.message}`,
+                {
+                    recommendation: 'Check Zitadel logs: npm run workspace:logs -- --service zitadel'
+                }
+            );
+        }
+    }
+
+    // Quick OAuth app validation
+    try {
+        const baseUrl = `http://${zitadelDomain}`;
+        const testUrl = `${baseUrl}/oauth/v2/authorize?response_type=code&client_id=${oauthClientId}&redirect_uri=http://localhost:5176/auth/callback&scope=openid&code_challenge=test&code_challenge_method=S256`;
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(testUrl, {
+            redirect: 'manual',
+            signal: controller.signal
+        });
+        clearTimeout(timeout);
+
+        if (response.status === 400) {
+            const body = await response.json() as any;
+            if (body.error === 'invalid_request' && body.error_description?.includes('NotFound')) {
+                throw new WorkspaceCliError(
+                    'PRECHECK_OAUTH_APP_NOT_FOUND',
+                    `OAuth client ID ${oauthClientId} not found in Zitadel.`,
+                    {
+                        recommendation: 'Run: ./scripts/bootstrap-zitadel-fully-automated.sh provision'
+                    }
+                );
+            }
+        }
+
+        process.stdout.write('  ✓ OAuth configuration validated\n');
+    } catch (error: any) {
+        if (error instanceof WorkspaceCliError) {
+            throw error;
+        }
+        // Don't fail on OAuth validation errors, just warn
+        process.stdout.write(`  ⚠️  Could not verify OAuth app: ${error.message}\n`);
+    }
+}
+
 function ensureNamespaceSet(): void {
     const namespace = process.env.NAMESPACE;
 

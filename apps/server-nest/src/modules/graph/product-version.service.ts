@@ -1,35 +1,83 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
 import { CreateProductVersionDto } from './dto/create-product-version.dto';
+import { ProductVersion } from '../../entities/product-version.entity';
+import { ProductVersionMember } from '../../entities/product-version-member.entity';
 
 export interface ProductVersionRow {
-  id: string; organization_id: string | null; project_id: string; name: string; description: string | null; base_product_version_id: string | null; created_at: string;
+  id: string;
+  organization_id: string | null;
+  project_id: string;
+  name: string;
+  description: string | null;
+  base_product_version_id: string | null;
+  created_at: string;
 }
-export interface ProductVersionMemberRow { product_version_id: string; object_canonical_id: string; object_version_id: string; created_at: string }
+export interface ProductVersionMemberRow {
+  product_version_id: string;
+  object_canonical_id: string;
+  object_version_id: string;
+  created_at: string;
+}
 
 @Injectable()
 export class ProductVersionService {
-  constructor(@Inject(DatabaseService) private readonly db: DatabaseService) { }
+  constructor(
+    @InjectRepository(ProductVersion)
+    private readonly productVersionRepository: Repository<ProductVersion>,
+    @InjectRepository(ProductVersionMember)
+    private readonly memberRepository: Repository<ProductVersionMember>,
+    private readonly dataSource: DataSource,
+    @Inject(DatabaseService) private readonly db: DatabaseService
+  ) {}
 
   /**
    * Create an immutable product version (release snapshot) capturing the current head
    * version of every canonical object in the project (across all branches). For each
    * canonical_id we select the max(version) where deleted_at IS NULL.
    */
-  async create(projectId: string, orgId: string | null, dto: CreateProductVersionDto): Promise<{ id: string; name: string; description: string | null; created_at: string; member_count: number; base_product_version_id: string | null; }> {
+  async create(
+    projectId: string,
+    orgId: string | null,
+    dto: CreateProductVersionDto
+  ): Promise<{
+    id: string;
+    name: string;
+    description: string | null;
+    created_at: string;
+    member_count: number;
+    base_product_version_id: string | null;
+  }> {
     const name = dto.name.trim();
     if (!name) throw new BadRequestException('name_required');
     const client = await this.db.getClient();
     try {
       await client.query('BEGIN');
       // Serialize by logical identity (project + lower(name))
-      await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [`product_version|${projectId}|${name.toLowerCase()}`]);
-      const existing = await client.query<{ id: string }>(`SELECT id FROM kb.product_versions WHERE project_id=$1 AND LOWER(name)=LOWER($2) LIMIT 1`, [projectId, name]);
-      if (existing.rowCount) throw new BadRequestException('product_version_name_exists');
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [
+        `product_version|${projectId}|${name.toLowerCase()}`,
+      ]);
+      const existing = await client.query<{ id: string }>(
+        `SELECT id FROM kb.product_versions WHERE project_id=$1 AND LOWER(name)=LOWER($2) LIMIT 1`,
+        [projectId, name]
+      );
+      if (existing.rowCount)
+        throw new BadRequestException('product_version_name_exists');
       let baseId: string | null = null;
       if (dto.base_product_version_id) {
-        const base = await client.query<{ id: string }>(`SELECT id FROM kb.product_versions WHERE id=$1 AND project_id=$2`, [dto.base_product_version_id, projectId]);
-        if (!base.rowCount) throw new NotFoundException('base_product_version_not_found');
+        const base = await client.query<{ id: string }>(
+          `SELECT id FROM kb.product_versions WHERE id=$1 AND project_id=$2`,
+          [dto.base_product_version_id, projectId]
+        );
+        if (!base.rowCount)
+          throw new NotFoundException('base_product_version_not_found');
         baseId = base.rows[0].id;
       }
       const inserted = await client.query<ProductVersionRow>(
@@ -44,7 +92,8 @@ export class ProductVersionService {
         `SELECT DISTINCT ON (canonical_id) canonical_id, id
          FROM kb.graph_objects
          WHERE project_id = $1 AND deleted_at IS NULL
-         ORDER BY canonical_id, version DESC`, [projectId]
+         ORDER BY canonical_id, version DESC`,
+        [projectId]
       );
       if (heads.rowCount) {
         // Bulk insert membership (avoid ON CONFLICT due to enforced PK uniqueness)
@@ -62,18 +111,55 @@ export class ProductVersionService {
         );
       }
       await client.query('COMMIT');
-      return { id: pv.id, name: pv.name, description: pv.description, created_at: pv.created_at, member_count: heads.rowCount as number, base_product_version_id: pv.base_product_version_id };
+      return {
+        id: pv.id,
+        name: pv.name,
+        description: pv.description,
+        created_at: pv.created_at,
+        member_count: heads.rowCount as number,
+        base_product_version_id: pv.base_product_version_id,
+      };
     } catch (e) {
-      try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        /* ignore */
+      }
       throw e;
-    } finally { client.release(); }
+    } finally {
+      client.release();
+    }
   }
 
-  async get(projectId: string, id: string): Promise<{ id: string; name: string; description: string | null; created_at: string; member_count: number; base_product_version_id: string | null; } | null> {
-    const row = await this.db.query<ProductVersionRow>(`SELECT id, project_id, name, description, base_product_version_id, created_at FROM kb.product_versions WHERE id=$1 AND project_id=$2`, [id, projectId]);
-    if (!row.rowCount) return null;
-    const count = await this.db.query<{ c: number }>(`SELECT COUNT(*)::int as c FROM kb.product_version_members WHERE product_version_id=$1`, [id]);
-    return { id: row.rows[0].id, name: row.rows[0].name, description: row.rows[0].description, created_at: row.rows[0].created_at, member_count: count.rows[0].c, base_product_version_id: row.rows[0].base_product_version_id };
+  async get(
+    projectId: string,
+    id: string
+  ): Promise<{
+    id: string;
+    name: string;
+    description: string | null;
+    created_at: string;
+    member_count: number;
+    base_product_version_id: string | null;
+  } | null> {
+    const version = await this.productVersionRepository.findOne({
+      where: { id, projectId },
+    });
+
+    if (!version) return null;
+
+    const memberCount = await this.memberRepository.count({
+      where: { productVersionId: id },
+    });
+
+    return {
+      id: version.id,
+      name: version.name,
+      description: version.description,
+      created_at: version.createdAt.toISOString(),
+      member_count: memberCount,
+      base_product_version_id: version.baseProductVersionId,
+    };
   }
 
   /**
@@ -84,56 +170,69 @@ export class ProductVersionService {
     projectId: string,
     options: { limit?: number; cursor?: string } = {}
   ): Promise<{
-    items: Array<{ id: string; name: string; description: string | null; created_at: string; member_count: number; base_product_version_id: string | null; }>;
+    items: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      created_at: string;
+      member_count: number;
+      base_product_version_id: string | null;
+    }>;
     next_cursor?: string;
   }> {
-    const limit = options.limit && options.limit > 0 && options.limit <= 100 ? options.limit : 20;
-    const params: any[] = [projectId];
-    let cursorClause = '';
+    const limit =
+      options.limit && options.limit > 0 && options.limit <= 100
+        ? options.limit
+        : 20;
+
+    const queryBuilder = this.productVersionRepository
+      .createQueryBuilder('pv')
+      .where('pv.project_id = :projectId', { projectId })
+      .orderBy('pv.created_at', 'DESC')
+      .take(limit + 1);
 
     if (options.cursor) {
-      // Cursor is the created_at timestamp of the last item
-      params.push(options.cursor);
-      cursorClause = ` AND created_at < $${params.length}`;
-    }
-
-    // Fetch limit + 1 to determine if there's a next page
-    params.push(limit + 1);
-    const rows = await this.db.query<ProductVersionRow>(
-      `SELECT id, project_id, name, description, base_product_version_id, created_at
-       FROM kb.product_versions
-       WHERE project_id = $1${cursorClause}
-       ORDER BY created_at DESC
-       LIMIT $${params.length}`,
-      params
-    );
-
-    let items = rows.rows;
-    let next_cursor: string | undefined;
-
-    if (items.length > limit) {
-      // More results exist
-      next_cursor = items[limit - 1].created_at;
-      items = items.slice(0, limit);
-    }
-
-    // Fetch member counts for all returned versions
-    const results: Array<{ id: string; name: string; description: string | null; created_at: string; member_count: number; base_product_version_id: string | null; }> = [];
-
-    for (const item of items) {
-      const count = await this.db.query<{ c: number }>(
-        `SELECT COUNT(*)::int as c FROM kb.product_version_members WHERE product_version_id=$1`,
-        [item.id]
-      );
-      results.push({
-        id: item.id,
-        name: item.name,
-        description: item.description,
-        created_at: item.created_at,
-        member_count: count.rows[0].c,
-        base_product_version_id: item.base_product_version_id,
+      queryBuilder.andWhere('pv.created_at < :cursor', {
+        cursor: options.cursor,
       });
     }
+
+    const versions = await queryBuilder.getMany();
+
+    let next_cursor: string | undefined;
+    if (versions.length > limit) {
+      next_cursor = versions[limit - 1].createdAt.toISOString();
+      versions.splice(limit); // Remove extra item
+    }
+
+    // Fetch member counts efficiently with single query
+    const versionIds = versions.map((v) => v.id);
+    const memberCountsResult: Array<{
+      product_version_id: string;
+      count: string;
+    }> = await this.dataSource.query(
+      `SELECT product_version_id, COUNT(*)::int as count 
+       FROM kb.product_version_members 
+       WHERE product_version_id = ANY($1)
+       GROUP BY product_version_id`,
+      [versionIds]
+    );
+
+    const countMap = new Map<string, number>(
+      memberCountsResult.map((m) => [
+        m.product_version_id,
+        parseInt(m.count, 10),
+      ])
+    );
+
+    const results = versions.map((v) => ({
+      id: v.id,
+      name: v.name,
+      description: v.description,
+      created_at: v.createdAt.toISOString(),
+      member_count: countMap.get(v.id) || 0,
+      base_product_version_id: v.baseProductVersionId,
+    }));
 
     return { items: results, next_cursor };
   }
@@ -142,7 +241,7 @@ export class ProductVersionService {
    * Diff two product versions (releases).
    * Returns the canonical objects that were added, removed, modified, or unchanged
    * between two releases. Per spec Section 5.6.3.
-   * 
+   *
    * @param projectId Project ID for scoping
    * @param versionAId First version ID
    * @param versionBId Second version ID (compared against A)
@@ -217,7 +316,7 @@ export class ProductVersionService {
       unchanged: 0,
     };
 
-    const items = rows.rows.map(row => {
+    const items = rows.rows.map((row) => {
       meta[row.change_type]++;
       return {
         canonical_id: row.canonical_id,

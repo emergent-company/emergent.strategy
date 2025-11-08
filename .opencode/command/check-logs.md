@@ -7,7 +7,7 @@ model: google/gemini-2.5-pro
 Check the all logs by executing:
 
 ```bash
-npm run workspace:logs -- --deps-only --lines 200
+npm run workspace:logs -- --lines 200
 ```
 
 Look for error, if you find any make a plan for fixes.
