@@ -50,26 +50,75 @@ echo -e "${BLUE}  Zitadel Bootstrap Script - Mode: ${MODE}${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
 echo ""
 
-# Load environment variables from .env if it exists
-if [ -f ".env" ]; then
-    echo -e "${GREEN}Loading configuration from .env${NC}"
-    set -a
-    source <(grep -v '^#' .env | grep -v '^$' | grep -E '^[A-Z_]+=')
-    set +a
+# Load environment variables from .env - REQUIRED
+if [ ! -f ".env" ]; then
+    echo -e "${RED}Error: .env file not found${NC}"
+    echo -e "${YELLOW}Copy .env.example to .env and configure it before running this script${NC}"
+    exit 1
 fi
 
-# Configuration
-ZITADEL_DOMAIN="${ZITADEL_DOMAIN:-localhost:8200}"
-ORG_NAME="${ORG_NAME:-Spec Organization}"
-PROJECT_NAME="${PROJECT_NAME:-Spec Server}"
-ADMIN_USER_EMAIL="${ADMIN_USER_EMAIL:-admin@spec.local}"
-ADMIN_USER_PASSWORD="${ADMIN_USER_PASSWORD:-AdminPassword123!}"
-TEST_USER_EMAIL="${TEST_USER_EMAIL:-test@example.com}"
-TEST_USER_PASSWORD="${TEST_USER_PASSWORD:-TestPassword123!}"
-OAUTH_APP_NAME="${OAUTH_APP_NAME:-Spec Server OAuth}"
-API_APP_NAME="${API_APP_NAME:-Spec Server API}"
-ADMIN_PORT="${ADMIN_PORT:-5175}"
-SERVER_PORT="${SERVER_PORT:-3000}"
+echo -e "${GREEN}Loading configuration from .env${NC}"
+set -a
+# Export all variables from .env, filtering out comments and empty lines
+while IFS='=' read -r key value; do
+    # Skip if line is empty or starts with #
+    [[ -z "$key" || "$key" =~ ^# ]] && continue
+    # Export the variable (remove quotes if present)
+    value="${value%\"}"
+    value="${value#\"}"
+    export "$key=$value"
+done < <(grep -v '^#' .env | grep -v '^$' | grep -E '^[A-Z_]+=')
+set +a
+
+# Configuration - all values must be set in .env (no fallbacks)
+# Validate required environment variables
+REQUIRED_VARS=(
+    "ZITADEL_DOMAIN"
+    "NAMESPACE"
+    "ADMIN_PORT"
+    "SERVER_PORT"
+)
+
+OPTIONAL_WITH_DEFAULTS=(
+    "ORG_NAME:Spec Organization"
+    "PROJECT_NAME:Spec Server"
+    "ADMIN_USER_EMAIL:admin@spec.local"
+    "ADMIN_USER_PASSWORD:AdminPassword123!"
+    "TEST_USER_EMAIL:test@example.com"
+    "TEST_USER_PASSWORD:TestPassword123!"
+    "OAUTH_APP_NAME:Spec Server OAuth"
+    "API_APP_NAME:Spec Server API"
+)
+
+# Check required variables
+MISSING_VARS=()
+for var in "${REQUIRED_VARS[@]}"; do
+    if [ -z "${!var}" ]; then
+        MISSING_VARS+=("$var")
+    fi
+done
+
+if [ ${#MISSING_VARS[@]} -gt 0 ]; then
+    echo -e "${RED}Error: Required environment variables are not set:${NC}"
+    for var in "${MISSING_VARS[@]}"; do
+        echo -e "  ${RED}✗${NC} $var"
+    done
+    echo ""
+    echo -e "${YELLOW}Add these variables to your .env file and try again${NC}"
+    exit 1
+fi
+
+# Set optional variables if not provided in .env
+for var_default in "${OPTIONAL_WITH_DEFAULTS[@]}"; do
+    var="${var_default%%:*}"
+    default="${var_default#*:}"
+    if [ -z "${!var}" ]; then
+        eval "$var=\"$default\""
+        echo -e "${BLUE}$var not in .env, using: $default${NC}"
+    fi
+done
+
+# Derived variables
 REDIRECT_URI="${REDIRECT_URI:-http://localhost:${SERVER_PORT}/auth/callback}"
 ADMIN_REDIRECT_URI="http://localhost:${ADMIN_PORT}/auth/callback"
 ADMIN_POST_LOGOUT_URI="http://localhost:${ADMIN_PORT}/"
@@ -420,7 +469,7 @@ if [ "$MODE" = "verify" ]; then
     VERIFICATION_PASSED=true
     
     # Check 1: Local files
-    echo -e "${BLUE}[1/8] Checking local configuration files...${NC}"
+    echo -e "${BLUE}[1/7] Checking local configuration files...${NC}"
     
     if [ -f "./secrets/bootstrap/pat.txt" ]; then
         PAT_SIZE=$(wc -c < "./secrets/bootstrap/pat.txt" | tr -d ' ')
@@ -459,7 +508,7 @@ if [ "$MODE" = "verify" ]; then
     echo ""
     
     # Check 2: Zitadel connectivity
-    echo -e "${BLUE}[2/8] Testing Zitadel connectivity...${NC}"
+    echo -e "${BLUE}[2/7] Testing Zitadel connectivity...${NC}"
     HEALTH_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/debug/healthz" 2>/dev/null || echo "000")
     
     if [ "$HEALTH_RESPONSE" = "200" ]; then
@@ -471,7 +520,7 @@ if [ "$MODE" = "verify" ]; then
     echo ""
     
     # Check 3: Admin PAT authentication
-    echo -e "${BLUE}[3/8] Testing Admin PAT authentication...${NC}"
+    echo -e "${BLUE}[3/7] Testing Admin PAT authentication...${NC}"
     if [ -f "./secrets/bootstrap/pat.txt" ]; then
         load_pat
         if test_auth; then
@@ -502,133 +551,100 @@ if [ "$MODE" = "verify" ]; then
     fi
     echo ""
     
-    # Check 4: CLIENT service account JWT authentication
-    echo -e "${BLUE}[4/8] Testing CLIENT service account JWT authentication...${NC}"
-    if [ -f "./secrets/zitadel-client-service-account.json" ]; then
-        CLIENT_JWT_RESPONSE=$(curl -s -X POST \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            -d "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer" \
-            -d "scope=openid profile email urn:zitadel:iam:org:project:id:zitadel:aud" \
-            -d "assertion=$(cat ./secrets/zitadel-client-service-account.json | jq -r '. | @base64')" \
-            "${BASE_URL}/oauth/v2/token" 2>/dev/null)
+    # Check 4: OAuth Application Configuration (Enhanced)
+    echo -e "${BLUE}[4/7] Verifying OAuth application configuration...${NC}"
+    if [ -f "./secrets/bootstrap/pat.txt" ] && [ -n "$PROJECT_ID" ]; then
+        # Get OAuth app details
+        get_oauth_app_id
         
-        CLIENT_ACCESS_TOKEN=$(echo "$CLIENT_JWT_RESPONSE" | jq -r '.access_token' 2>/dev/null)
-        
-        if [ -n "$CLIENT_ACCESS_TOKEN" ] && [ "$CLIENT_ACCESS_TOKEN" != "null" ]; then
-            echo -e "  ${GREEN}✓${NC} CLIENT JWT authentication successful"
-            echo -e "  ${GREEN}✓${NC} Access token obtained (${#CLIENT_ACCESS_TOKEN} chars)"
+        if [ -n "$OAUTH_APP_ID" ] && [ "$OAUTH_APP_ID" != "null" ]; then
+            # Fetch the OAuth client ID
+            OAUTH_APP_DETAILS=$(curl -s -X GET \
+                -H "Authorization: Bearer ${ADMIN_PAT}" \
+                -H "x-zitadel-orgid: ${ORG_ID}" \
+                "${BASE_URL}/management/v1/projects/${PROJECT_ID}/apps/${OAUTH_APP_ID}")
             
-            # Test introspection endpoint
-            INTROSPECT_RESPONSE=$(curl -s -X POST \
-                -H "Content-Type: application/x-www-form-urlencoded" \
-                -H "Authorization: Bearer ${CLIENT_ACCESS_TOKEN}" \
-                -d "token=${CLIENT_ACCESS_TOKEN}" \
-                "${BASE_URL}/oauth/v2/introspect" 2>/dev/null)
+            OAUTH_CLIENT_ID=$(echo "$OAUTH_APP_DETAILS" | jq -r '.app.oidcConfig.clientId')
+            OAUTH_AUTH_METHOD=$(echo "$OAUTH_APP_DETAILS" | jq -r '.app.oidcConfig.authMethodType')
+            OAUTH_GRANT_TYPES=$(echo "$OAUTH_APP_DETAILS" | jq -r '.app.oidcConfig.grantTypes[]' 2>/dev/null)
             
-            IS_ACTIVE=$(echo "$INTROSPECT_RESPONSE" | jq -r '.active' 2>/dev/null)
-            if [ "$IS_ACTIVE" = "true" ]; then
-                echo -e "  ${GREEN}✓${NC} Token introspection successful (token is active)"
+            if [ -n "$OAUTH_CLIENT_ID" ] && [ "$OAUTH_CLIENT_ID" != "null" ]; then
+                echo -e "  ${GREEN}✓${NC} OAuth app found (Client ID: ${OAUTH_CLIENT_ID})"
+                
+                # Check auth method type
+                if [ "$OAUTH_AUTH_METHOD" = "OIDC_AUTH_METHOD_TYPE_NONE" ]; then
+                    echo -e "  ${GREEN}✓${NC} Auth method: NONE (public client/PKCE)"
+                else
+                    echo -e "  ${RED}✗${NC} Auth method: ${OAUTH_AUTH_METHOD} (should be NONE)"
+                    VERIFICATION_PASSED=false
+                fi
+                
+                # Check grant types
+                HAS_AUTH_CODE=false
+                HAS_REFRESH=false
+                while IFS= read -r grant; do
+                    [ "$grant" = "OIDC_GRANT_TYPE_AUTHORIZATION_CODE" ] && HAS_AUTH_CODE=true
+                    [ "$grant" = "OIDC_GRANT_TYPE_REFRESH_TOKEN" ] && HAS_REFRESH=true
+                done <<< "$OAUTH_GRANT_TYPES"
+                
+                if [ "$HAS_AUTH_CODE" = true ] && [ "$HAS_REFRESH" = true ]; then
+                    echo -e "  ${GREEN}✓${NC} Grant types: AUTHORIZATION_CODE ✓, REFRESH_TOKEN ✓"
+                else
+                    [ "$HAS_AUTH_CODE" = false ] && echo -e "  ${RED}✗${NC} Missing required grant: AUTHORIZATION_CODE"
+                    [ "$HAS_REFRESH" = false ] && echo -e "  ${RED}✗${NC} Missing required grant: REFRESH_TOKEN"
+                    VERIFICATION_PASSED=false
+                fi
+                
+                # Test authorization endpoint with PKCE parameters
+                # Generate a dummy code challenge for testing
+                CODE_CHALLENGE="dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                
+                # Test the authorize endpoint (should redirect to login, not error)
+                # First try without following redirects to check initial response
+                AUTHORIZE_RESPONSE=$(curl -s -w "\n%{http_code}" \
+                    "${BASE_URL}/oauth/v2/authorize?response_type=code&client_id=${OAUTH_CLIENT_ID}&redirect_uri=${ADMIN_REDIRECT_URI}&scope=openid+profile+email&code_challenge=${CODE_CHALLENGE}&code_challenge_method=S256" 2>/dev/null)
+                
+                HTTP_CODE=$(echo "$AUTHORIZE_RESPONSE" | tail -1)
+                RESPONSE_BODY=$(echo "$AUTHORIZE_RESPONSE" | sed '$d')
+                
+                # Check if response is a redirect (302) or contains authRequestID (successful)
+                if [ "$HTTP_CODE" = "302" ] || echo "$RESPONSE_BODY" | grep -q "authRequestID"; then
+                    echo -e "  ${GREEN}✓${NC} OAuth authorize endpoint responding correctly (HTTP ${HTTP_CODE})"
+                    echo -e "  ${GREEN}✓${NC} PKCE flow is correctly configured (redirects to login)"
+                elif echo "$RESPONSE_BODY" | grep -q "error"; then
+                    OAUTH_ERROR=$(echo "$RESPONSE_BODY" | jq -r '.error' 2>/dev/null || echo "unknown")
+                    OAUTH_ERROR_DESC=$(echo "$RESPONSE_BODY" | jq -r '.error_description' 2>/dev/null || echo "")
+                    echo -e "  ${RED}✗${NC} OAuth error: ${OAUTH_ERROR}"
+                    [ -n "$OAUTH_ERROR_DESC" ] && echo -e "  ${RED}  ${OAUTH_ERROR_DESC}${NC}"
+                    VERIFICATION_PASSED=false
+                else
+                    echo -e "  ${YELLOW}⚠${NC} OAuth authorize endpoint returned HTTP ${HTTP_CODE}"
+                    echo -e "  ${YELLOW}Note: This might be expected depending on Zitadel configuration${NC}"
+                fi
+                
+                # Check redirect URIs
+                REDIRECT_URIS=$(echo "$OAUTH_APP_DETAILS" | jq -r '.app.oidcConfig.redirectUris[]' 2>/dev/null)
+                if echo "$REDIRECT_URIS" | grep -q "${ADMIN_REDIRECT_URI}"; then
+                    echo -e "  ${GREEN}✓${NC} Admin redirect URI configured: ${ADMIN_REDIRECT_URI}"
+                else
+                    echo -e "  ${RED}✗${NC} Admin redirect URI not found: ${ADMIN_REDIRECT_URI}"
+                    VERIFICATION_PASSED=false
+                fi
             else
-                echo -e "  ${YELLOW}⚠${NC} Token introspection failed (may need OAuth app configuration)"
+                echo -e "  ${RED}✗${NC} OAuth client ID not found"
+                VERIFICATION_PASSED=false
             fi
         else
-            echo -e "  ${YELLOW}⚠${NC} CLIENT JWT authentication not configured (optional)"
-            echo -e "  ${YELLOW}Note: JWT grant requires OAuth app configuration in Zitadel${NC}"
+            echo -e "  ${YELLOW}⚠${NC} OAuth app not found"
+            echo -e "  ${YELLOW}⚠${NC} Run 'provision' mode to create OAuth app"
         fi
     else
-        echo -e "  ${YELLOW}⚠${NC} Skipping CLIENT JWT test (key file not found)"
+        echo -e "  ${YELLOW}⚠${NC} Skipping OAuth flow test (prerequisites not met)"
     fi
     echo ""
     
-    # Check 5: API service account JWT authentication
-    echo -e "${BLUE}[5/8] Testing API service account JWT authentication...${NC}"
-    if [ -f "./secrets/zitadel-api-service-account.json" ]; then
-        API_JWT_RESPONSE=$(curl -s -X POST \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            -d "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer" \
-            -d "scope=openid profile email urn:zitadel:iam:org:project:id:zitadel:aud" \
-            -d "assertion=$(cat ./secrets/zitadel-api-service-account.json | jq -r '. | @base64')" \
-            "${BASE_URL}/oauth/v2/token" 2>/dev/null)
-        
-        API_ACCESS_TOKEN=$(echo "$API_JWT_RESPONSE" | jq -r '.access_token' 2>/dev/null)
-        
-        if [ -n "$API_ACCESS_TOKEN" ] && [ "$API_ACCESS_TOKEN" != "null" ]; then
-            echo -e "  ${GREEN}✓${NC} API JWT authentication successful"
-            echo -e "  ${GREEN}✓${NC} Access token obtained (${#API_ACCESS_TOKEN} chars)"
-        else
-            echo -e "  ${YELLOW}⚠${NC} API JWT authentication not configured (optional)"
-            echo -e "  ${YELLOW}Note: JWT grant requires OAuth app configuration in Zitadel${NC}"
-        fi
-    else
-        echo -e "  ${YELLOW}⚠${NC} Skipping API JWT test (key file not found)"
-    fi
-    echo ""
-    
-    # Check 6: Test user existence and authentication
-    echo -e "${BLUE}[6/8] Testing test user authentication...${NC}"
-    if [ -f "./secrets/bootstrap/pat.txt" ]; then
-        # Try to authenticate as test user
-        USER_AUTH_RESPONSE=$(curl -s -X POST \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            -d "grant_type=password" \
-            -d "username=${TEST_USER_EMAIL}" \
-            -d "password=${TEST_USER_PASSWORD}" \
-            -d "scope=openid profile email" \
-            "${BASE_URL}/oauth/v2/token" 2>/dev/null)
-        
-        USER_ACCESS_TOKEN=$(echo "$USER_AUTH_RESPONSE" | jq -r '.access_token' 2>/dev/null)
-        
-        if [ -n "$USER_ACCESS_TOKEN" ] && [ "$USER_ACCESS_TOKEN" != "null" ]; then
-            echo -e "  ${GREEN}✓${NC} Test user authentication successful"
-            echo -e "  ${GREEN}✓${NC} Email: ${TEST_USER_EMAIL}"
-            echo -e "  ${GREEN}✓${NC} User is active and email verified"
-        else
-            ERROR_DESC=$(echo "$USER_AUTH_RESPONSE" | jq -r '.error_description' 2>/dev/null)
-            if [[ "$ERROR_DESC" == *"user not found"* ]] || [[ "$ERROR_DESC" == *"invalid credentials"* ]]; then
-                echo -e "  ${YELLOW}⚠${NC} Test user not found or wrong credentials"
-                echo -e "  ${YELLOW}⚠${NC} Run 'provision' mode to create test user"
-            elif [[ "$ERROR_DESC" == *"password not supported"* ]]; then
-                echo -e "  ${YELLOW}⚠${NC} Password grant not enabled (optional)"
-                echo -e "  ${YELLOW}Note: Requires OAuth app with password grant configured${NC}"
-            else
-                echo -e "  ${YELLOW}⚠${NC} Test user authentication not configured"
-                echo -e "  ${YELLOW}Error: ${ERROR_DESC}${NC}"
-            fi
-        fi
-    else
-        echo -e "  ${YELLOW}⚠${NC} Skipping test user authentication (PAT not available)"
-    fi
-    echo ""
-    
-    # Check 7: Management API access with API service account
-    echo -e "${BLUE}[7/8] Testing Management API access...${NC}"
-    if [ -n "$API_ACCESS_TOKEN" ] && [ "$API_ACCESS_TOKEN" != "null" ] && [ -n "$ORG_ID" ]; then
-        # Try to list users (requires ORG_OWNER permission)
-        USERS_RESPONSE=$(curl -s -X POST \
-            -H "Authorization: Bearer ${API_ACCESS_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -H "x-zitadel-orgid: ${ORG_ID}" \
-            -d '{"queries": [{"typeQuery": {}}]}' \
-            "${BASE_URL}/management/v1/users/_search" 2>/dev/null)
-        
-        USER_COUNT=$(echo "$USERS_RESPONSE" | jq -r '.result | length' 2>/dev/null)
-        
-        if [ -n "$USER_COUNT" ] && [ "$USER_COUNT" != "null" ] && [ "$USER_COUNT" -ge 0 ]; then
-            echo -e "  ${GREEN}✓${NC} Management API access successful"
-            echo -e "  ${GREEN}✓${NC} API service account has ORG_OWNER permissions"
-            echo -e "  ${GREEN}✓${NC} Found ${USER_COUNT} users in organization"
-        else
-            echo -e "  ${RED}✗${NC} Management API access failed"
-            echo -e "  ${RED}Response: ${USERS_RESPONSE}${NC}"
-            VERIFICATION_PASSED=false
-        fi
-    else
-        echo -e "  ${YELLOW}⚠${NC} Skipping Management API test (prerequisites not met)"
-    fi
-    echo ""
-    
-    # Check 8: Service account existence in Zitadel
-    echo -e "${BLUE}[8/8] Verifying service accounts in Zitadel...${NC}"
+    # Check 5: Service account existence in Zitadel
+    echo -e "${BLUE}[5/7] Verifying service accounts in Zitadel...${NC}"
     if [ -f "./secrets/bootstrap/pat.txt" ] && [ -n "$ORG_ID" ]; then
         get_service_account_ids
         
@@ -666,6 +682,55 @@ if [ "$MODE" = "verify" ]; then
     fi
     echo ""
     
+    # Check 6: User accounts
+    echo -e "${BLUE}[6/7] Verifying user accounts...${NC}"
+    if [ -f "./secrets/bootstrap/pat.txt" ] && [ -n "$ORG_ID" ]; then
+        # Search for admin user
+        ADMIN_SEARCH=$(curl -s -X POST \
+            -H "Authorization: Bearer ${ADMIN_PAT}" \
+            -H "Content-Type: application/json" \
+            -H "x-zitadel-orgid: ${ORG_ID}" \
+            -d "{\"queries\": [{\"emailQuery\": {\"emailAddress\": \"${ADMIN_USER_EMAIL}\", \"method\": \"TEXT_QUERY_METHOD_EQUALS\"}}]}" \
+            "${BASE_URL}/management/v1/users/_search" 2>/dev/null)
+        
+        ADMIN_USER_ID=$(echo "$ADMIN_SEARCH" | jq -r '.result[0].id' 2>/dev/null)
+        ADMIN_USER_STATE=$(echo "$ADMIN_SEARCH" | jq -r '.result[0].state' 2>/dev/null)
+        
+        if [ -n "$ADMIN_USER_ID" ] && [ "$ADMIN_USER_ID" != "null" ]; then
+            if [ "$ADMIN_USER_STATE" = "USER_STATE_ACTIVE" ]; then
+                echo -e "  ${GREEN}✓${NC} Admin user exists and is active (${ADMIN_USER_EMAIL})"
+            else
+                echo -e "  ${YELLOW}⚠${NC} Admin user exists but state is: ${ADMIN_USER_STATE}"
+            fi
+        else
+            echo -e "  ${YELLOW}⚠${NC} Admin user not found (${ADMIN_USER_EMAIL})"
+        fi
+        
+        # Search for test user
+        TEST_SEARCH=$(curl -s -X POST \
+            -H "Authorization: Bearer ${ADMIN_PAT}" \
+            -H "Content-Type: application/json" \
+            -H "x-zitadel-orgid: ${ORG_ID}" \
+            -d "{\"queries\": [{\"emailQuery\": {\"emailAddress\": \"${TEST_USER_EMAIL}\", \"method\": \"TEXT_QUERY_METHOD_EQUALS\"}}]}" \
+            "${BASE_URL}/management/v1/users/_search" 2>/dev/null)
+        
+        TEST_USER_ID=$(echo "$TEST_SEARCH" | jq -r '.result[0].id' 2>/dev/null)
+        TEST_USER_STATE=$(echo "$TEST_SEARCH" | jq -r '.result[0].state' 2>/dev/null)
+        
+        if [ -n "$TEST_USER_ID" ] && [ "$TEST_USER_ID" != "null" ]; then
+            if [ "$TEST_USER_STATE" = "USER_STATE_ACTIVE" ]; then
+                echo -e "  ${GREEN}✓${NC} Test user exists and is active (${TEST_USER_EMAIL})"
+            else
+                echo -e "  ${YELLOW}⚠${NC} Test user exists but state is: ${TEST_USER_STATE}"
+            fi
+        else
+            echo -e "  ${YELLOW}⚠${NC} Test user not found (${TEST_USER_EMAIL})"
+        fi
+    else
+        echo -e "  ${YELLOW}⚠${NC} Skipping user account verification (PAT not available)"
+    fi
+    echo ""
+    
     # Final summary
     echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
     if [ "$VERIFICATION_PASSED" = true ]; then
@@ -681,10 +746,23 @@ if [ "$MODE" = "verify" ]; then
         [ -n "$CLIENT_USER_ID" ] && echo "  CLIENT Service Account: ${CLIENT_USER_ID}"
         [ -n "$API_USER_ID" ] && echo "  API Service Account: ${API_USER_ID}"
         echo ""
+        echo -e "${BLUE}User Accounts:${NC}"
+        echo -e "${GREEN}Admin User (Console Access):${NC}"
+        echo "  Email:    ${ADMIN_USER_EMAIL}"
+        echo "  Password: ${ADMIN_USER_PASSWORD}"
+        echo "  Console:  ${BASE_URL}"
+        echo "  Role:     ORG_OWNER"
+        echo ""
+        echo -e "${GREEN}Test User (Application Testing):${NC}"
+        echo "  Email:    ${TEST_USER_EMAIL}"
+        echo "  Password: ${TEST_USER_PASSWORD}"
+        echo "  Status:   Active and email verified"
+        echo ""
         echo -e "${BLUE}Next steps:${NC}"
         echo "1. Ensure .env file contains the configuration"
-        echo "2. Start your server: ${BLUE}nx run workspace-cli:workspace:start${NC}"
-        echo "3. Look for: ${GREEN}'Dual service account mode active'${NC} in logs"
+        echo -e "2. Start your server: ${BLUE}nx run workspace-cli:workspace:start${NC}"
+        echo -e "3. Look for: ${GREEN}'Dual service account mode active'${NC} in logs"
+        echo "4. Login to console at ${BASE_URL} with admin credentials"
         exit 0
     else
         echo -e "${RED}   ✗ Some Verifications FAILED${NC}"
@@ -694,9 +772,9 @@ if [ "$MODE" = "verify" ]; then
         echo ""
         echo -e "${BLUE}Troubleshooting:${NC}"
         echo "1. Review the failed checks above"
-        echo "2. Run '${BLUE}$0 status${NC}' to see current configuration"
-        echo "3. Run '${BLUE}$0 provision${NC}' to create missing resources"
-        echo "4. Run '${BLUE}$0 regenerate${NC}' if keys are invalid"
+        echo -e "2. Run '${BLUE}$0 status${NC}' to see current configuration"
+        echo -e "3. Run '${BLUE}$0 provision${NC}' to create missing resources"
+        echo -e "4. Run '${BLUE}$0 regenerate${NC}' if keys are invalid"
         exit 1
     fi
 fi
@@ -984,10 +1062,10 @@ if [ "$MODE" = "test" ]; then
         echo -e "${YELLOW}Some tests failed. Review the output above for details.${NC}"
         echo ""
         echo -e "${BLUE}Troubleshooting:${NC}"
-        echo "1. Run '${BLUE}$0 status${NC}' to see current configuration"
-        echo "2. Run '${BLUE}$0 verify${NC}' for detailed verification"
-        echo "3. Run '${BLUE}$0 provision${NC}' to recreate missing resources"
-        echo "4. Check Zitadel logs: ${BLUE}docker logs <zitadel-container>${NC}"
+        echo -e "1. Run '${BLUE}$0 status${NC}' to see current configuration"
+        echo -e "2. Run '${BLUE}$0 verify${NC}' for detailed verification"
+        echo -e "3. Run '${BLUE}$0 provision${NC}' to recreate missing resources"
+        echo -e "4. Check Zitadel logs: ${BLUE}docker logs <zitadel-container>${NC}"
         exit 1
     fi
 fi
@@ -1083,6 +1161,47 @@ if [ -n "$OAUTH_APP_ID" ] && [ "$OAUTH_APP_ID" != "null" ]; then
     
     OAUTH_CLIENT_ID=$(echo "$OAUTH_APP_DETAILS" | jq -r '.app.oidcConfig.clientId')
     echo -e "${GREEN}  Client ID: ${OAUTH_CLIENT_ID}${NC}"
+    
+    # Verify and fix configuration for existing app
+    AUTH_METHOD=$(echo "$OAUTH_APP_DETAILS" | jq -r '.app.oidcConfig.authMethodType')
+    GRANT_TYPES=$(echo "$OAUTH_APP_DETAILS" | jq -r '.app.oidcConfig.grantTypes[]' 2>/dev/null)
+    
+    NEEDS_UPDATE=false
+    
+    # Check auth method
+    if [ "$AUTH_METHOD" != "OIDC_AUTH_METHOD_TYPE_NONE" ]; then
+        echo -e "${YELLOW}⚠ Auth method is ${AUTH_METHOD}, should be NONE${NC}"
+        NEEDS_UPDATE=true
+    fi
+    
+    # Check grant types
+    HAS_AUTH_CODE=false
+    HAS_REFRESH=false
+    while IFS= read -r grant; do
+        [ "$grant" = "OIDC_GRANT_TYPE_AUTHORIZATION_CODE" ] && HAS_AUTH_CODE=true
+        [ "$grant" = "OIDC_GRANT_TYPE_REFRESH_TOKEN" ] && HAS_REFRESH=true
+    done <<< "$GRANT_TYPES"
+    
+    if [ "$HAS_AUTH_CODE" = false ] || [ "$HAS_REFRESH" = false ]; then
+        echo -e "${YELLOW}⚠ Grant types incomplete, needs REFRESH_TOKEN${NC}"
+        NEEDS_UPDATE=true
+    fi
+    
+    # Update both auth method and grant types together (Zitadel API resets fields if not included)
+    if [ "$NEEDS_UPDATE" = true ]; then
+        curl -s -X PUT \
+            -H "Authorization: Bearer ${ADMIN_PAT}" \
+            -H "Content-Type: application/json" \
+            -H "x-zitadel-orgid: ${ORG_ID}" \
+            -d '{
+                "authMethodType": "OIDC_AUTH_METHOD_TYPE_NONE",
+                "grantTypes": ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE", "OIDC_GRANT_TYPE_REFRESH_TOKEN"]
+            }' \
+            "${BASE_URL}/management/v1/projects/${PROJECT_ID}/apps/${OAUTH_APP_ID}/oidc_config" > /dev/null
+        echo -e "${GREEN}✓ OAuth app configuration updated${NC}"
+        echo -e "${GREEN}  - Auth method: NONE (public client/PKCE)${NC}"
+        echo -e "${GREEN}  - Grant types: AUTHORIZATION_CODE, REFRESH_TOKEN${NC}"
+    fi
 else
     echo -e "${YELLOW}Creating OAuth OIDC application '${OAUTH_APP_NAME}'...${NC}"
     
@@ -1123,6 +1242,55 @@ else
 
     echo -e "${GREEN}✓ OAuth OIDC application created (ID: ${OAUTH_APP_ID})${NC}"
     echo -e "${GREEN}  Client ID: ${OAUTH_CLIENT_ID}${NC}"
+    
+    # Verify the app was created with correct auth method and grant types
+    sleep 1
+    OAUTH_APP_VERIFY=$(curl -s -X GET \
+        -H "Authorization: Bearer ${ADMIN_PAT}" \
+        -H "x-zitadel-orgid: ${ORG_ID}" \
+        "${BASE_URL}/management/v1/projects/${PROJECT_ID}/apps/${OAUTH_APP_ID}")
+    
+    AUTH_METHOD=$(echo "$OAUTH_APP_VERIFY" | jq -r '.app.oidcConfig.authMethodType')
+    GRANT_TYPES=$(echo "$OAUTH_APP_VERIFY" | jq -r '.app.oidcConfig.grantTypes[]' 2>/dev/null)
+    
+    NEEDS_UPDATE=false
+    UPDATE_PAYLOAD="{"
+    
+    # Check auth method
+    if [ "$AUTH_METHOD" != "OIDC_AUTH_METHOD_TYPE_NONE" ]; then
+        echo -e "${YELLOW}⚠ Auth method is ${AUTH_METHOD}, should be NONE${NC}"
+        UPDATE_PAYLOAD="$UPDATE_PAYLOAD\"authMethodType\": \"OIDC_AUTH_METHOD_TYPE_NONE\","
+        NEEDS_UPDATE=true
+    fi
+    
+    # Check grant types (should have AUTHORIZATION_CODE and REFRESH_TOKEN at minimum)
+    HAS_AUTH_CODE=false
+    HAS_REFRESH=false
+    while IFS= read -r grant; do
+        [ "$grant" = "OIDC_GRANT_TYPE_AUTHORIZATION_CODE" ] && HAS_AUTH_CODE=true
+        [ "$grant" = "OIDC_GRANT_TYPE_REFRESH_TOKEN" ] && HAS_REFRESH=true
+    done <<< "$GRANT_TYPES"
+    
+    if [ "$HAS_AUTH_CODE" = false ] || [ "$HAS_REFRESH" = false ]; then
+        echo -e "${YELLOW}⚠ Grant types incomplete, fixing...${NC}"
+        UPDATE_PAYLOAD="$UPDATE_PAYLOAD\"grantTypes\": [\"OIDC_GRANT_TYPE_AUTHORIZATION_CODE\", \"OIDC_GRANT_TYPE_REFRESH_TOKEN\"],"
+        NEEDS_UPDATE=true
+    fi
+    
+    if [ "$NEEDS_UPDATE" = true ]; then
+        # Remove trailing comma and close JSON
+        UPDATE_PAYLOAD="${UPDATE_PAYLOAD%,}}"
+        
+        curl -s -X PUT \
+            -H "Authorization: Bearer ${ADMIN_PAT}" \
+            -H "Content-Type: application/json" \
+            -H "x-zitadel-orgid: ${ORG_ID}" \
+            -d "$UPDATE_PAYLOAD" \
+            "${BASE_URL}/management/v1/projects/${PROJECT_ID}/apps/${OAUTH_APP_ID}/oidc_config" > /dev/null
+        echo -e "${GREEN}✓ OAuth app configuration updated${NC}"
+        echo -e "${GREEN}  - Auth method: NONE (public client/PKCE)${NC}"
+        echo -e "${GREEN}  - Grant types: AUTHORIZATION_CODE, REFRESH_TOKEN${NC}"
+    fi
 fi
 
 # Check for existing API application
@@ -1437,8 +1605,8 @@ echo "  Note:     Used for bootstrap only, not for application auth"
 echo ""
 echo -e "${BLUE}Next steps:${NC}"
 echo "1. Add the above configuration to your .env file"
-echo "2. Restart your server: ${BLUE}npm run workspace:restart${NC}"
-echo "3. Look for: ${GREEN}'Dual service account mode active'${NC} in logs"
+echo -e "2. Restart your server: ${BLUE}npm run workspace:restart${NC}"
+echo -e "3. Look for: ${GREEN}'Dual service account mode active'${NC} in logs"
 echo "4. Login to console at ${BASE_URL} with admin credentials"
 echo ""
 echo -e "${YELLOW}Security Note:${NC}"

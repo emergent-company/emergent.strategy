@@ -54,8 +54,11 @@ export class ZitadelStrategy extends PassportStrategy(
             throw new Error('ZITADEL_DOMAIN environment variable is required');
         }
 
-        if (!serviceAccountKey.keyId || !serviceAccountKey.key || !serviceAccountKey.clientId) {
-            throw new Error('Service account key must contain keyId, key, and clientId');
+        // Service accounts have userId, OAuth apps have clientId
+        const clientId = serviceAccountKey.clientId || serviceAccountKey.userId;
+        
+        if (!serviceAccountKey.keyId || !serviceAccountKey.key || !clientId) {
+            throw new Error('Service account key must contain keyId, key, and clientId (or userId)');
         }
 
         super({
@@ -63,11 +66,11 @@ export class ZitadelStrategy extends PassportStrategy(
             authorization: {
                 type: 'jwt-profile',
                 profile: {
-                    type: 'application',
+                    type: 'application' as const,
                     keyId: serviceAccountKey.keyId,
                     key: serviceAccountKey.key,
                     appId: serviceAccountKey.appId,
-                    clientId: serviceAccountKey.clientId,
+                    clientId: clientId,
                 },
             },
         });

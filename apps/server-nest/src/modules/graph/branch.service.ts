@@ -1,10 +1,18 @@
 import { BadRequestException, Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
 import { BranchRow, CreateBranchDto } from './graph.types';
+import { Branch } from '../../entities/branch.entity';
 
 @Injectable()
 export class BranchService {
-    constructor(@Inject(DatabaseService) private readonly db: DatabaseService) { }
+    constructor(
+        @InjectRepository(Branch)
+        private readonly branchRepository: Repository<Branch>,
+        private readonly dataSource: DataSource,
+        @Inject(DatabaseService) private readonly db: DatabaseService
+    ) { }
 
     /**
      * ensureBranchLineage performs an idempotent repair/creation of lineage rows for a given branch.
@@ -83,16 +91,26 @@ export class BranchService {
     }
 
     async list(project_id?: string | null): Promise<BranchRow[]> {
+        let branches: Branch[];
+        
         if (project_id) {
-            const res = await this.db.query<BranchRow>(
-                `SELECT id, organization_id, project_id, name, parent_branch_id, created_at FROM kb.branches WHERE project_id IS NOT DISTINCT FROM $1 ORDER BY created_at ASC`,
-                [project_id]
-            );
-            return res.rows;
+            branches = await this.branchRepository.find({
+                where: { projectId: project_id },
+                order: { createdAt: 'ASC' }
+            });
+        } else {
+            branches = await this.branchRepository.find({
+                order: { createdAt: 'ASC' }
+            });
         }
-        const res = await this.db.query<BranchRow>(
-            `SELECT id, organization_id, project_id, name, parent_branch_id, created_at FROM kb.branches ORDER BY created_at ASC`
-        );
-        return res.rows;
+        
+        return branches.map(b => ({
+            id: b.id,
+            organization_id: b.organizationId,
+            project_id: b.projectId,
+            name: b.name,
+            parent_branch_id: b.parentBranchId,
+            created_at: b.createdAt.toISOString()
+        }));
     }
 }

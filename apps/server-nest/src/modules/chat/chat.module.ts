@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 import { ChatGenerationService } from './chat-generation.service';
@@ -11,9 +12,19 @@ import { AppConfigModule } from '../../common/config/config.module';
 import { AuthModule } from '../auth/auth.module';
 import { GraphModule } from '../graph/graph.module';
 import { ProjectsModule } from '../projects/projects.module';
+import { ChatConversation } from '../../entities/chat-conversation.entity';
+import { ChatMessage } from '../../entities/chat-message.entity';
 
 @Module({
-    imports: [EmbeddingsModule, DatabaseModule, AppConfigModule, AuthModule, GraphModule, ProjectsModule],
+    imports: [
+        TypeOrmModule.forFeature([ChatConversation, ChatMessage]),
+        EmbeddingsModule, 
+        DatabaseModule, 
+        AppConfigModule, 
+        AuthModule, 
+        GraphModule, 
+        ProjectsModule
+    ],
     controllers: [ChatController],
     providers: [
         ChatService,

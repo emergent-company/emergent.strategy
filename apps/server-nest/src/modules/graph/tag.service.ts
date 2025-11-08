@@ -1,18 +1,11 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
-
-export interface TagRow {
-    id: string;
-    organization_id: string | null;
-    project_id: string;
-    product_version_id: string;
-    name: string;
-    description: string | null;
-    created_at: string;
-    updated_at: string;
-}
+import { Tag } from '../../entities/tag.entity';
+import { ProductVersion } from '../../entities/product-version.entity';
 
 export interface TagDto {
     id: string;
@@ -27,7 +20,12 @@ export interface TagDto {
 
 @Injectable()
 export class TagService {
-    constructor(@Inject(DatabaseService) private readonly db: DatabaseService) { }
+    constructor(
+        @InjectRepository(Tag) private readonly tagRepository: Repository<Tag>,
+        @InjectRepository(ProductVersion) private readonly productVersionRepository: Repository<ProductVersion>,
+        private readonly dataSource: DataSource,
+        @Inject(DatabaseService) private readonly db: DatabaseService
+    ) { }
 
     /**
      * Create a new tag pointing to a product version.
@@ -61,16 +59,28 @@ export class TagService {
             );
             if (!version.rowCount) throw new NotFoundException('product_version_not_found');
 
-            // Insert tag
-            const res = await this.db.query<TagRow>(
-                `INSERT INTO kb.tags(project_id, organization_id, product_version_id, name, description)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, organization_id, project_id, product_version_id, name, description, created_at, updated_at`,
-                [projectId, orgId, dto.product_version_id, dto.name, dto.description || null],
-            );
+            // Insert tag using TypeORM
+            const tag = this.tagRepository.create({
+                projectId,
+                organizationId: orgId,
+                productVersionId: dto.product_version_id,
+                name: dto.name,
+                description: dto.description || null
+            });
+            
+            const savedTag = await this.tagRepository.save(tag);
 
             await client.query('COMMIT');
-            return res.rows[0];
+            return {
+                id: savedTag.id,
+                organization_id: savedTag.organizationId,
+                project_id: savedTag.projectId,
+                product_version_id: savedTag.productVersionId,
+                name: savedTag.name,
+                description: savedTag.description,
+                created_at: savedTag.createdAt.toISOString(),
+                updated_at: savedTag.updatedAt.toISOString()
+            };
         } catch (e) {
             try {
                 await client.query('ROLLBACK');
@@ -91,34 +101,36 @@ export class TagService {
         options: { limit?: number; cursor?: string } = {}
     ): Promise<{ items: TagDto[]; next_cursor?: string }> {
         const limit = options.limit && options.limit > 0 && options.limit <= 100 ? options.limit : 20;
-        const params: any[] = [projectId];
-        let cursorClause = '';
+        
+        const queryBuilder = this.tagRepository
+            .createQueryBuilder('tag')
+            .where('tag.project_id = :projectId', { projectId })
+            .orderBy('tag.created_at', 'DESC')
+            .take(limit + 1);
 
         if (options.cursor) {
-            // Cursor is the created_at timestamp of the last item
-            params.push(options.cursor);
-            cursorClause = ` AND created_at < $${params.length}`;
+            queryBuilder.andWhere('tag.created_at < :cursor', { cursor: options.cursor });
         }
 
-        // Fetch limit + 1 to determine if there's a next page
-        params.push(limit + 1);
-        const rows = await this.db.query<TagRow>(
-            `SELECT id, organization_id, project_id, product_version_id, name, description, created_at, updated_at
-       FROM kb.tags
-       WHERE project_id = $1${cursorClause}
-       ORDER BY created_at DESC
-       LIMIT $${params.length}`,
-            params
-        );
-
-        let items = rows.rows;
+        const tags = await queryBuilder.getMany();
         let next_cursor: string | undefined;
 
-        if (items.length > limit) {
+        if (tags.length > limit) {
             // More results exist
-            next_cursor = items[limit - 1].created_at;
-            items = items.slice(0, limit);
+            next_cursor = tags[limit - 1].createdAt.toISOString();
+            tags.splice(limit); // Remove the extra item
         }
+
+        const items: TagDto[] = tags.map(t => ({
+            id: t.id,
+            organization_id: t.organizationId,
+            project_id: t.projectId,
+            product_version_id: t.productVersionId,
+            name: t.name,
+            description: t.description,
+            created_at: t.createdAt.toISOString(),
+            updated_at: t.updatedAt.toISOString()
+        }));
 
         return { items, next_cursor };
     }
@@ -127,28 +139,45 @@ export class TagService {
      * Get a specific tag by ID.
      */
     async get(projectId: string, id: string): Promise<TagDto | null> {
-        const row = await this.db.query<TagRow>(
-            `SELECT id, organization_id, project_id, product_version_id, name, description, created_at, updated_at
-       FROM kb.tags
-       WHERE id=$1 AND project_id=$2`,
-            [id, projectId]
-        );
-        if (!row.rowCount) return null;
-        return row.rows[0];
+        const tag = await this.tagRepository.findOne({
+            where: { id, projectId }
+        });
+        if (!tag) return null;
+        
+        return {
+            id: tag.id,
+            organization_id: tag.organizationId,
+            project_id: tag.projectId,
+            product_version_id: tag.productVersionId,
+            name: tag.name,
+            description: tag.description,
+            created_at: tag.createdAt.toISOString(),
+            updated_at: tag.updatedAt.toISOString()
+        };
     }
 
     /**
-     * Get a tag by name within a project.
+     * Get a tag by name within a project (case-insensitive).
      */
     async getByName(projectId: string, name: string): Promise<TagDto | null> {
-        const row = await this.db.query<TagRow>(
-            `SELECT id, organization_id, project_id, product_version_id, name, description, created_at, updated_at
-       FROM kb.tags
-       WHERE project_id=$1 AND LOWER(name)=LOWER($2)`,
-            [projectId, name]
-        );
-        if (!row.rowCount) return null;
-        return row.rows[0];
+        const tag = await this.tagRepository
+            .createQueryBuilder('tag')
+            .where('tag.project_id = :projectId', { projectId })
+            .andWhere('LOWER(tag.name) = LOWER(:name)', { name })
+            .getOne();
+            
+        if (!tag) return null;
+        
+        return {
+            id: tag.id,
+            organization_id: tag.organizationId,
+            project_id: tag.projectId,
+            product_version_id: tag.productVersionId,
+            name: tag.name,
+            description: tag.description,
+            created_at: tag.createdAt.toISOString(),
+            updated_at: tag.updatedAt.toISOString()
+        };
     }
 
     /**
@@ -156,36 +185,25 @@ export class TagService {
      * Per spec: Retagging a name is forbidden unless explicitly deleted.
      */
     async update(projectId: string, id: string, dto: UpdateTagDto): Promise<TagDto> {
-        const client = await this.db.getClient();
-        try {
-            await client.query('BEGIN');
+        const tag = await this.tagRepository.findOne({
+            where: { id, projectId }
+        });
+        
+        if (!tag) throw new NotFoundException('tag_not_found');
 
-            const existing = await client.query<TagRow>(
-                `SELECT id FROM kb.tags WHERE id=$1 AND project_id=$2`,
-                [id, projectId]
-            );
-            if (!existing.rowCount) throw new NotFoundException('tag_not_found');
+        tag.description = dto.description ?? null;
+        const updated = await this.tagRepository.save(tag);
 
-            const updated = await client.query<TagRow>(
-                `UPDATE kb.tags
-         SET description=$1, updated_at=now()
-         WHERE id=$2 AND project_id=$3
-         RETURNING id, organization_id, project_id, product_version_id, name, description, created_at, updated_at`,
-                [dto.description ?? null, id, projectId]
-            );
-
-            await client.query('COMMIT');
-            return updated.rows[0];
-        } catch (e) {
-            try {
-                await client.query('ROLLBACK');
-            } catch {
-                /* ignore */
-            }
-            throw e;
-        } finally {
-            client.release();
-        }
+        return {
+            id: updated.id,
+            organization_id: updated.organizationId,
+            project_id: updated.projectId,
+            product_version_id: updated.productVersionId,
+            name: updated.name,
+            description: updated.description,
+            created_at: updated.createdAt.toISOString(),
+            updated_at: updated.updatedAt.toISOString()
+        };
     }
 
     /**
@@ -193,10 +211,9 @@ export class TagService {
      * Per spec: Deleting a tag does not affect the product version snapshot.
      */
     async delete(projectId: string, id: string): Promise<void> {
-        const result = await this.db.query(
-            `DELETE FROM kb.tags WHERE id=$1 AND project_id=$2`,
-            [id, projectId]
-        );
-        if (!result.rowCount) throw new NotFoundException('tag_not_found');
+        const result = await this.tagRepository.delete({ id, projectId });
+        if (!result.affected || result.affected === 0) {
+            throw new NotFoundException('tag_not_found');
+        }
     }
 }

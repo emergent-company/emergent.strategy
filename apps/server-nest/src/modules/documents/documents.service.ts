@@ -1,7 +1,12 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
 import { HashService } from '../../common/utils/hash.service';
 import { DocumentDto } from './dto/document.dto';
+import { Document } from '../../entities/document.entity';
+import { Chunk } from '../../entities/chunk.entity';
+import { Project } from '../../entities/project.entity';
 
 interface DocumentRow {
     id: string;
@@ -24,16 +29,23 @@ interface DocumentRow {
 @Injectable()
 export class DocumentsService {
     constructor(
+        @InjectRepository(Document)
+        private readonly documentRepository: Repository<Document>,
+        @InjectRepository(Chunk)
+        private readonly chunkRepository: Repository<Chunk>,
+        @InjectRepository(Project)
+        private readonly projectRepository: Repository<Project>,
+        private readonly dataSource: DataSource,
         private readonly db: DatabaseService,
         private readonly hash: HashService,
     ) { }
 
     async list(limit = 100, cursor?: { createdAt: string; id: string }, filter?: { orgId?: string; projectId?: string }): Promise<{ items: DocumentDto[]; nextCursor: string | null }> {
-        // Fetch one extra row (limit + 1) to determine if another page exists. This avoids issuing
-        // a nextCursor that would lead to an empty trailing page when rows count is an exact multiple.
+        // Fetch one extra row (limit + 1) to determine if another page exists
         const params: any[] = [limit + 1];
         const conds: string[] = [];
         let paramIdx = 2; // because $1 reserved for limit
+        
         if (filter?.orgId) {
             params.push(filter.orgId);
             conds.push(`d.organization_id = $${paramIdx++}`);
@@ -47,8 +59,11 @@ export class DocumentsService {
             conds.push(`(d.created_at < $${paramIdx} OR (d.created_at = $${paramIdx} AND d.id < $${paramIdx + 1}))`);
             paramIdx += 2;
         }
+        
         const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
-        const res = await this.db.query<DocumentRow>(
+        
+        // Use TypeORM DataSource query (LATERAL join not supported by QueryBuilder)
+        const rows = await this.dataSource.query(
             `SELECT d.id, d.organization_id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
                     d.integration_metadata,
                     LENGTH(d.content) AS content_length,
@@ -69,10 +84,11 @@ export class DocumentsService {
              LIMIT $1`,
             params,
         );
-        const rows = res.rows;
+        
         const hasMore = rows.length > limit;
         const slice = hasMore ? rows.slice(0, limit) : rows;
         const items = slice.map((r: any) => this.mapRow(r));
+        
         if (hasMore) {
             const last = items[items.length - 1];
             const nextCursor = Buffer.from(JSON.stringify({ createdAt: last.createdAt, id: last.id }), 'utf8').toString('base64url');
@@ -83,7 +99,8 @@ export class DocumentsService {
 
 
     async get(id: string): Promise<DocumentDto | null> {
-        const res = await this.db.query<DocumentRow>(
+        // Use TypeORM DataSource query (LATERAL join not supported by QueryBuilder)
+        const rows = await this.dataSource.query(
             `SELECT d.id, d.organization_id, d.project_id, d.filename, d.source_url, d.mime_type, d.content, d.created_at, d.updated_at,
                     d.integration_metadata,
                     COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
@@ -101,8 +118,9 @@ export class DocumentsService {
              WHERE d.id = $1`,
             [id],
         );
-        if (!res.rowCount) return null;
-        return this.mapRow(res.rows[0]);
+        
+        if (!rows || rows.length === 0) return null;
+        return this.mapRow(rows[0]);
     }
 
     async create(body: { filename?: string; projectId?: string; content?: string; orgId?: string }): Promise<DocumentDto> {
@@ -115,36 +133,58 @@ export class DocumentsService {
         const content = body.content || '';
         const contentHash = this.hash.sha256(content);
 
-        // Atomic existence + insert to avoid race causing FK violation (uses CTE)
-        const ins = await this.db.query<DocumentRow>(
-            `WITH target AS (
-                SELECT p.id AS project_id, $1::uuid AS organization_id
-                FROM kb.projects p
-                WHERE p.id = $2
-                LIMIT 1
-            )
-            INSERT INTO kb.documents(organization_id, project_id, filename, content, content_hash)
-            SELECT target.organization_id, target.project_id, $3, $4, $5 FROM target
-            RETURNING id, organization_id, project_id, filename, source_url, mime_type, created_at, updated_at, 0 as chunks`,
-            [body.orgId || null, projectId, body.filename || 'unnamed.txt', content, contentHash],
-        );
-        if (!ins.rowCount) {
+        // Verify project exists and get orgId atomically
+        const project = await this.projectRepository.findOne({
+            where: { id: projectId },
+            select: ['id', 'organizationId']
+        });
+        
+        if (!project) {
             throw new BadRequestException({ error: { code: 'bad-request', message: 'Unknown projectId' } });
         }
-        return this.mapRow(ins.rows[0]);
+
+        // Create document
+        const document = this.documentRepository.create({
+            organizationId: body.orgId || project.organizationId,
+            projectId: project.id,
+            filename: body.filename || 'unnamed.txt',
+            content,
+            contentHash
+        });
+
+        const savedDoc = await this.documentRepository.save(document);
+        
+        return {
+            id: savedDoc.id,
+            orgId: savedDoc.organizationId ?? undefined,
+            projectId: savedDoc.projectId ?? undefined,
+            name: savedDoc.filename || 'unknown',
+            sourceUrl: savedDoc.sourceUrl ?? undefined,
+            mimeType: savedDoc.mimeType ?? undefined,
+            content: savedDoc.content ?? undefined,
+            contentLength: savedDoc.content?.length,
+            createdAt: savedDoc.createdAt.toISOString(),
+            updatedAt: savedDoc.updatedAt.toISOString(),
+            integrationMetadata: savedDoc.integrationMetadata ?? undefined,
+            chunks: 0,
+            extractionStatus: undefined,
+            extractionCompletedAt: undefined,
+            extractionObjectsCount: undefined,
+        };
     }
 
     async getProjectOrg(projectId: string): Promise<string | null> {
-        const res = await this.db.query<{ organization_id: string | null }>('SELECT organization_id FROM kb.projects WHERE id=$1 LIMIT 1', [projectId]);
-        if (!res.rowCount) return null;
-        return res.rows[0].organization_id;
+        const project = await this.projectRepository.findOne({
+            where: { id: projectId },
+            select: ['organizationId']
+        });
+        return project?.organizationId || null;
     }
 
     async delete(id: string): Promise<boolean> {
-        // Remove chunks first to avoid FK issues if not ON DELETE CASCADE
-        await this.db.query('DELETE FROM kb.chunks WHERE document_id = $1', [id]);
-        const res = await this.db.query('DELETE FROM kb.documents WHERE id = $1', [id]);
-        return !!res.rowCount && res.rowCount > 0;
+        // Chunks will be deleted automatically via CASCADE (defined in entity relation)
+        const result = await this.documentRepository.delete(id);
+        return (result.affected ?? 0) > 0;
     }
 
     decodeCursor(cursor?: string): { createdAt: string; id: string } | undefined {
@@ -174,5 +214,38 @@ export class DocumentsService {
             extractionCompletedAt: r.extraction_completed_at || undefined,
             extractionObjectsCount: r.extraction_objects_count || undefined,
         };
+    }
+
+    // ========================================
+    // TypeORM Methods (New - Examples)
+    // ========================================
+
+    /**
+     * Get document count using TypeORM
+     */
+    async getCount(): Promise<number> {
+        return await this.documentRepository.count();
+    }
+
+    /**
+     * Find document by ID using TypeORM with relations
+     */
+    async findByIdWithChunks(id: string): Promise<Document | null> {
+        return await this.documentRepository.findOne({
+            where: { id },
+            relations: ['chunks'],
+        });
+    }
+
+    /**
+     * Find recent documents using TypeORM QueryBuilder
+     */
+    async findRecent(limit: number = 10): Promise<Document[]> {
+        return await this.documentRepository
+            .createQueryBuilder('doc')
+            .leftJoinAndSelect('doc.chunks', 'chunk')
+            .orderBy('doc.createdAt', 'DESC')
+            .take(limit)
+            .getMany();
     }
 }
