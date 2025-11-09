@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { EmbeddingPolicyService } from '../embedding-policy.service';
 import { DatabaseService } from '../../../common/database/database.service';
 import { CreateEmbeddingPolicyDto, UpdateEmbeddingPolicyDto } from '../embedding-policy.dto';
-import { EmbeddingPolicy } from '../embedding-policy.entity';
+import { EmbeddingPolicy } from '../../../entities/embedding-policy.entity';
 
 describe('EmbeddingPolicyService', () => {
     let service: EmbeddingPolicyService;
@@ -11,6 +12,16 @@ describe('EmbeddingPolicyService', () => {
 
     const mockDatabaseService = {
         query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+    };
+
+    const mockRepository = {
+        findOne: vi.fn(),
+        find: vi.fn(),
+        save: vi.fn(),
+        create: vi.fn().mockImplementation((dto) => dto),
+        update: vi.fn().mockResolvedValue({ affected: 1 }),
+        delete: vi.fn(),
+        createQueryBuilder: vi.fn(),
     };
 
     beforeEach(async () => {
@@ -21,14 +32,19 @@ describe('EmbeddingPolicyService', () => {
                     provide: DatabaseService,
                     useValue: mockDatabaseService,
                 },
+                {
+                    provide: getRepositoryToken(EmbeddingPolicy),
+                    useValue: mockRepository,
+                },
             ],
         }).compile();
 
         service = module.get<EmbeddingPolicyService>(EmbeddingPolicyService);
         databaseService = module.get<DatabaseService>(DatabaseService);
 
-        // WORKAROUND: Manually assign the mock to fix DI issue
+        // WORKAROUND: Manually assign the mocks to fix DI issue
         (service as any).db = mockDatabaseService;
+        (service as any).embeddingPolicyRepository = mockRepository;
 
         // Reset mocks
         vi.clearAllMocks();
@@ -514,21 +530,8 @@ describe('EmbeddingPolicyService', () => {
                 updatedAt: new Date(),
             }];
 
-            // Mock findByProject to return policies
-            mockDatabaseService.query.mockResolvedValue({
-                rows: [{
-                    id: 'policy-1',
-                    project_id: projectId,
-                    object_type: 'Document',
-                    enabled: true,
-                    max_property_size: 100,
-                    required_labels: [],
-                    excluded_labels: ['draft'],
-                    relevant_paths: [],
-                    created_at: new Date(),
-                    updated_at: new Date(),
-                }]
-            });
+            // Mock repository.find to return policies
+            mockRepository.find.mockResolvedValue(policies);
 
             const objects = [
                 { type: 'Document', properties: { title: 'Doc 1' }, labels: [] },
@@ -561,20 +564,21 @@ describe('EmbeddingPolicyService', () => {
                 relevantPaths: ['/title', '/content'],
             };
 
-            const mockRow = {
+            const mockSaved = {
                 id: 'policy-1',
-                project_id: projectId,
-                object_type: 'Document',
+                projectId,
+                objectType: 'Document',
                 enabled: true,
-                max_property_size: 10000,
-                required_labels: ['important'],
-                excluded_labels: ['draft'],
-                relevant_paths: ['/title', '/content'],
-                created_at: new Date(),
-                updated_at: new Date(),
+                maxPropertySize: 10000,
+                requiredLabels: ['important'],
+                excludedLabels: ['draft'],
+                excludedStatuses: [],
+                relevantPaths: ['/title', '/content'],
+                createdAt: new Date(),
+                updatedAt: new Date(),
             };
 
-            mockDatabaseService.query.mockResolvedValue({ rows: [mockRow] });
+            mockRepository.save.mockResolvedValue(mockSaved);
 
             const result = await service.create(projectId, dto);
 
@@ -584,39 +588,41 @@ describe('EmbeddingPolicyService', () => {
                 objectType: 'Document',
                 enabled: true,
             });
-            expect(mockDatabaseService.query).toHaveBeenCalledTimes(1);
+            expect(mockRepository.save).toHaveBeenCalledTimes(1);
         });
 
         it('should return all policies for a project', async () => {
             const projectId = 'proj-123';
-            const mockRows = [
+            const mockPolicies = [
                 {
                     id: 'policy-1',
-                    project_id: projectId,
-                    object_type: 'Document',
+                    projectId,
+                    objectType: 'Document',
                     enabled: true,
-                    max_property_size: null,
-                    required_labels: [],
-                    excluded_labels: [],
-                    relevant_paths: [],
-                    created_at: new Date(),
-                    updated_at: new Date(),
+                    maxPropertySize: null,
+                    requiredLabels: [],
+                    excludedLabels: [],
+                    excludedStatuses: [],
+                    relevantPaths: [],
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
                 },
                 {
                     id: 'policy-2',
-                    project_id: projectId,
-                    object_type: 'Requirement',
+                    projectId,
+                    objectType: 'Requirement',
                     enabled: false,
-                    max_property_size: 5000,
-                    required_labels: ['verified'],
-                    excluded_labels: [],
-                    relevant_paths: [],
-                    created_at: new Date(),
-                    updated_at: new Date(),
+                    maxPropertySize: 5000,
+                    requiredLabels: ['verified'],
+                    excludedLabels: [],
+                    excludedStatuses: [],
+                    relevantPaths: [],
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
                 },
             ];
 
-            mockDatabaseService.query.mockResolvedValue({ rows: mockRows });
+            mockRepository.find.mockResolvedValue(mockPolicies);
 
             const result = await service.findByProject(projectId);
 
@@ -633,20 +639,28 @@ describe('EmbeddingPolicyService', () => {
                 maxPropertySize: 5000,
             };
 
-            const mockRow = {
+            const mockPolicy = {
                 id: policyId,
-                project_id: projectId,
-                object_type: 'Document',
-                enabled: false,
-                max_property_size: 5000,
-                required_labels: [],
-                excluded_labels: [],
-                relevant_paths: [],
-                created_at: new Date(),
-                updated_at: new Date(),
+                projectId,
+                objectType: 'Document',
+                enabled: true,
+                maxPropertySize: 10000,
+                requiredLabels: [],
+                excludedLabels: [],
+                excludedStatuses: [],
+                relevantPaths: [],
+                createdAt: new Date(),
+                updatedAt: new Date(),
             };
 
-            mockDatabaseService.query.mockResolvedValue({ rows: [mockRow] });
+            const mockUpdated = {
+                ...mockPolicy,
+                enabled: false,
+                maxPropertySize: 5000,
+            };
+
+            mockRepository.findOne.mockResolvedValue(mockPolicy);
+            mockRepository.save.mockResolvedValue(mockUpdated);
 
             const result = await service.update(policyId, projectId, dto);
 
@@ -656,7 +670,7 @@ describe('EmbeddingPolicyService', () => {
         });
 
         it('should return null when updating non-existent policy', async () => {
-            mockDatabaseService.query.mockResolvedValue({ rows: [] });
+            mockRepository.findOne.mockResolvedValue(null);
 
             const result = await service.update('invalid-id', 'proj-123', { enabled: false });
 
@@ -664,7 +678,7 @@ describe('EmbeddingPolicyService', () => {
         });
 
         it('should delete a policy', async () => {
-            mockDatabaseService.query.mockResolvedValue({ rowCount: 1 });
+            mockRepository.delete.mockResolvedValue({ affected: 1, raw: [] });
 
             const result = await service.delete('policy-1', 'proj-123');
 
@@ -672,7 +686,7 @@ describe('EmbeddingPolicyService', () => {
         });
 
         it('should return false when deleting non-existent policy', async () => {
-            mockDatabaseService.query.mockResolvedValue({ rowCount: 0 });
+            mockRepository.delete.mockResolvedValue({ affected: 0, raw: [] });
 
             const result = await service.delete('invalid-id', 'proj-123');
 

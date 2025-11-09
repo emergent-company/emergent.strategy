@@ -45,7 +45,7 @@ describe('IngestionService - Auto-Extraction', () => {
         extractionJobService = module.get<ExtractionJobService>(ExtractionJobService);
 
         // Reset mocks
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('shouldAutoExtract', () => {

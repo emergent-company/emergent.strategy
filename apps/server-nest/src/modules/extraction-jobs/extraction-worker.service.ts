@@ -1378,6 +1378,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
     /**
      * Load document by ID from kb.documents
+     * MIGRATED: Now uses DocumentsService.get() - content is already included
      */
     private async loadDocumentById(documentId: string): Promise<string | null> {
         const doc = await this.documentsService.get(documentId);
@@ -1385,55 +1386,43 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             return null;
         }
 
-        // Load document content from kb.documents table
-        const result = await this.db.query<{ content: string }>(
-            `SELECT content FROM kb.documents WHERE id = $1`,
-            [documentId]
-        );
-
-        if (!result.rowCount) {
-            return null;
-        }
-
-        return result.rows[0].content || null;
+        // Return content directly from DocumentsService result
+        return doc.content || null;
     }
 
     /**
      * Load extraction configuration from project's template pack
      * Returns both the extraction prompt and object type schemas
      */
+    /**
+     * Load extraction configuration for a job
+     * MIGRATED: Session 20 - Delegates to TemplatePackService.getProjectTemplatePacks()
+     */
     private async loadExtractionConfig(job: ExtractionJobDto): Promise<{
         prompt: string | null;
         objectSchemas: Record<string, any>;
     }> {
-        // Get ALL active template packs for the project (not just one!)
-        const templatePackQuery = `SELECT 
-                tp.id,
-                tp.name,
-                tp.extraction_prompts, 
-                tp.object_type_schemas,
-                ptp.customizations->>'default_prompt_key' as default_prompt_key
-            FROM kb.project_template_packs ptp
-             JOIN kb.graph_template_packs tp ON tp.id = ptp.template_pack_id
-             WHERE ptp.project_id = $1 AND ptp.active = true
-             ORDER BY tp.name`;
+        const organizationId = this.getOrganizationId(job);
+        if (!organizationId) {
+            this.logger.warn(`Missing organization ID for job ${job.id}`);
+            return { prompt: null, objectSchemas: {} };
+        }
 
-        // Get project's assigned template packs
-        let result;
+        // Get project's assigned template packs using TemplatePackService
+        let templatePacks;
         try {
-            this.logger.debug(`[loadExtractionConfig] Querying template packs for project: ${job.project_id}`);
-            result = await this.db.query<{
-                id: string;
-                name: string;
-                extraction_prompts: any;
-                object_type_schemas: any;
-                default_prompt_key: string | null;
-            }>(templatePackQuery, [job.project_id]);
+            this.logger.debug(`[loadExtractionConfig] Fetching template packs for project: ${job.project_id}`);
+            templatePacks = await this.templatePacks.getProjectTemplatePacks(job.project_id, organizationId);
+
+            // Filter to only active template packs
+            templatePacks = templatePacks.filter(pack => pack.active);
         } catch (error) {
             const err = error instanceof Error ? error : new Error(String(error));
-            this.logger.error(`[loadExtractionConfig] Query failed: ${err.message}`, err.stack);
+            this.logger.error(`[loadExtractionConfig] Failed to fetch template packs: ${err.message}`, err.stack);
             throw err;
-        } if (!result.rowCount) {
+        }
+
+        if (templatePacks.length === 0) {
             this.logger.warn(`No active template pack found for project ${job.project_id}`);
 
             const defaultTemplatePackId = this.config.extractionDefaultTemplatePackId;
@@ -1442,7 +1431,6 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 return { prompt: null, objectSchemas: {} };
             }
 
-            const organizationId = this.getOrganizationId(job);
             if (!organizationId) {
                 this.logger.warn(
                     `Cannot auto-install default template pack ${defaultTemplatePackId}: missing organization ID on job ${job.id}`
@@ -1480,9 +1468,11 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 }
             }
 
-            result = await this.db.query(templatePackQuery, [job.project_id]);
+            // Re-fetch after installation
+            templatePacks = await this.templatePacks.getProjectTemplatePacks(job.project_id, organizationId);
+            templatePacks = templatePacks.filter(pack => pack.active);
 
-            if (!result.rowCount) {
+            if (templatePacks.length === 0) {
                 this.logger.warn(
                     `Default template pack ${defaultTemplatePackId} available but prompts still missing for project ${job.project_id}`
                 );
@@ -1495,14 +1485,15 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         const mergedObjectSchemas: Record<string, any> = {};
         let firstDefaultPromptKey: string | null = null;
 
-        this.logger.log(`[loadExtractionConfig] Found ${result.rows.length} active template pack(s) for project ${job.project_id}`);
+        this.logger.log(`[loadExtractionConfig] Found ${templatePacks.length} active template pack(s) for project ${job.project_id}`);
 
-        for (const row of result.rows) {
-            const packName = row.name;
+        for (const packAssignment of templatePacks) {
+            const pack = packAssignment.template_pack;
+            const packName = pack.name;
             this.logger.debug(`[loadExtractionConfig] Processing template pack: ${packName}`);
 
             // Merge extraction prompts
-            const extractionPrompts = row.extraction_prompts || {};
+            const extractionPrompts = pack.extraction_prompts || {};
             for (const [key, value] of Object.entries(extractionPrompts)) {
                 if (typeof value === 'string') {
                     mergedExtractionPrompts[key] = value;
@@ -1511,7 +1502,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             }
 
             // Merge object schemas
-            const objectSchemas = row.object_type_schemas || {};
+            const objectSchemas = pack.object_type_schemas || {};
             for (const [typeName, schema] of Object.entries(objectSchemas)) {
                 if (typeof schema !== 'object' || schema === null) {
                     this.logger.warn(`[loadExtractionConfig] Invalid schema for type ${typeName} in ${packName}, skipping`);
@@ -1538,13 +1529,17 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 }
             }
 
-            // Use the first default_prompt_key we encounter
-            if (!firstDefaultPromptKey && row.default_prompt_key) {
-                firstDefaultPromptKey = row.default_prompt_key;
+            // Use the first default_prompt_key we encounter from customizations
+            // Note: customizations structure doesn't include default_prompt_key in type definition
+            // but may be present in database - use type assertion
+            const customizations = packAssignment.customizations as any;
+            const defaultPromptKey = customizations?.default_prompt_key;
+            if (!firstDefaultPromptKey && defaultPromptKey) {
+                firstDefaultPromptKey = defaultPromptKey;
             }
         }
 
-        this.logger.log(`[loadExtractionConfig] Merged ${Object.keys(mergedObjectSchemas).length} object type(s) from ${result.rows.length} template pack(s)`);
+        this.logger.log(`[loadExtractionConfig] Merged ${Object.keys(mergedObjectSchemas).length} object type(s) from ${templatePacks.length} template pack(s)`);
         this.logger.debug(`[loadExtractionConfig] Object types: ${Object.keys(mergedObjectSchemas).join(', ')}`);
 
         // Load base extraction prompt from database settings or fall back to environment/default
@@ -1793,19 +1788,10 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
     /**
      * Get current retry count for a job
+     * MIGRATED: Session 20 - Delegates to ExtractionJobService
      */
     private async getJobRetryCount(jobId: string): Promise<number> {
-        try {
-            const result = await this.db.query<{ retry_count: number }>(
-                'SELECT retry_count FROM kb.object_extraction_jobs WHERE id = $1',
-                [jobId]
-            );
-
-            return result.rows[0]?.retry_count || 0;
-        } catch (error) {
-            this.logger.warn(`Failed to get retry count for job ${jobId}`, error);
-            return 0;
-        }
+        return this.jobService.getRetryCount(jobId);
     }
 
     /**

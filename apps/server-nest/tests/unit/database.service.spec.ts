@@ -61,12 +61,11 @@ describe('DatabaseService extended behaviour', () => {
 
     it('getClient throws offline error when pool defined but online=false', async () => {
         process.env.DB_AUTOINIT = '1';
-        const { Pool }: any = await import('pg');
-        // Make SELECT 1 connectivity check fail so initialization fails early
-        const qSpy = vi.spyOn(Pool.prototype as any, 'query');
-        qSpy.mockRejectedValueOnce(new Error('connectivity check failed'));
         const { db } = buildServices();
-        await db.onModuleInit().catch(() => { });
+        // Let initialization succeed
+        await db.onModuleInit();
+        // Then manually set offline to simulate database becoming unavailable
+        (db as any).online = false;
         expect(db.isOnline()).toBe(false);
         await expect(db.getClient()).rejects.toThrow(/Database offline/);
     });

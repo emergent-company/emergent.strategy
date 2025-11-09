@@ -86,7 +86,7 @@ describe('ExtractionJobService', () => {
             get vertexAiModel() {
                 return 'test-model';
             },
-        } as AppConfigService;
+        } as unknown as AppConfigService;
 
         const queryMock = vi.fn(async (sql: string, params?: any[]) => {
             if (typeof sql === 'string' && sql.includes('information_schema.columns')) {
@@ -109,7 +109,29 @@ describe('ExtractionJobService', () => {
             isOnline: isOnlineMock,
         };
 
-        service = new ExtractionJobService(mockDb as unknown as DatabaseService, mockConfig);
+        // Create mock repository
+        const mockRepository = {
+            save: vi.fn(),
+            find: vi.fn(),
+            findOne: vi.fn(),
+            create: vi.fn(),
+            update: vi.fn(),
+            delete: vi.fn(),
+        };
+
+        // Create mock DataSource
+        const mockDataSource = {
+            query: queryMock,
+            createQueryRunner: vi.fn(),
+        };
+
+        // Constructor expects: (repository, dataSource, db, config)
+        service = new ExtractionJobService(
+            mockRepository as any,
+            mockDataSource as any,
+            mockDb as unknown as DatabaseService,
+            mockConfig
+        );
     });
 
     const enqueueQueryResult = (result: any) => {

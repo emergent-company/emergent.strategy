@@ -1,4 +1,6 @@
 import { Injectable, Logger, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, ILike } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
 import {
     CreateTemplatePackDto,
@@ -13,86 +15,113 @@ import {
     ProjectTemplatePackRow,
     ProjectTypeRegistryRow,
 } from './template-pack.types';
+import { GraphTemplatePack, ProjectTemplatePack } from './entities';
 import { createHash } from 'crypto';
 
 @Injectable()
 export class TemplatePackService {
     private readonly logger = new Logger(TemplatePackService.name);
 
-    constructor(private readonly db: DatabaseService) { }
+    constructor(
+        @InjectRepository(GraphTemplatePack)
+        private readonly templatePackRepository: Repository<GraphTemplatePack>,
+        @InjectRepository(ProjectTemplatePack)
+        private readonly projectTemplatePackRepository: Repository<ProjectTemplatePack>,
+        private readonly db: DatabaseService,
+    ) { }
 
     /**
      * Create a new template pack in the global registry
+     * 
+     * MIGRATED TO TYPEORM (Session 19)
+     * Simple INSERT operation with calculated checksum
      */
     async createTemplatePack(dto: CreateTemplatePackDto): Promise<TemplatePackRow> {
         // Calculate checksum if not provided
         const checksum = dto.checksum || this.calculateChecksum(dto);
 
-        const result = await this.db.query<TemplatePackRow>(
-            `INSERT INTO kb.graph_template_packs (
-                name, version, description, author, license,
-                repository_url, documentation_url,
-                object_type_schemas, relationship_type_schemas,
-                ui_configs, extraction_prompts, sql_views,
-                signature, checksum
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-            RETURNING *`,
-            [
-                dto.name,
-                dto.version,
-                dto.description || null,
-                dto.author || null,
-                dto.license || null,
-                dto.repository_url || null,
-                dto.documentation_url || null,
-                JSON.stringify(dto.object_type_schemas),
-                JSON.stringify(dto.relationship_type_schemas || {}),
-                JSON.stringify(dto.ui_configs || {}),
-                JSON.stringify(dto.extraction_prompts || {}),
-                JSON.stringify(dto.sql_views || []),
-                dto.signature || null,
-                checksum,
-            ]
-        );
+        const saved = await this.templatePackRepository.save({
+            name: dto.name,
+            version: dto.version,
+            description: dto.description || undefined,
+            author: dto.author || undefined,
+            license: dto.license || undefined,
+            repository_url: dto.repository_url || undefined,
+            documentation_url: dto.documentation_url || undefined,
+            object_type_schemas: dto.object_type_schemas,
+            relationship_type_schemas: dto.relationship_type_schemas || {},
+            ui_configs: dto.ui_configs || {},
+            extraction_prompts: dto.extraction_prompts || {},
+            sql_views: dto.sql_views || [],
+            signature: dto.signature || undefined,
+            checksum,
+        });
 
-        this.logger.log(`Created template pack: ${dto.name}@${dto.version} (${result.rows[0].id})`);
-        return result.rows[0];
+        this.logger.log(`Created template pack: ${dto.name}@${dto.version} (${saved.id})`);
+
+        // Return as TemplatePackRow (convert Date to string)
+        return {
+            ...saved,
+            published_at: saved.published_at.toISOString(),
+            deprecated_at: saved.deprecated_at?.toISOString(),
+            created_at: saved.created_at.toISOString(),
+            updated_at: saved.updated_at.toISOString(),
+        } as TemplatePackRow;
     }
 
     /**
      * Get template pack by ID
+     * 
+     * MIGRATED TO TYPEORM (Session 19)
+     * Simple SELECT by primary key
      */
     async getTemplatePackById(id: string): Promise<TemplatePackRow> {
-        const result = await this.db.query<TemplatePackRow>(
-            `SELECT * FROM kb.graph_template_packs WHERE id = $1`,
-            [id]
-        );
+        const pack = await this.templatePackRepository.findOne({
+            where: { id },
+        });
 
-        if (result.rows.length === 0) {
+        if (!pack) {
             throw new NotFoundException(`Template pack not found: ${id}`);
         }
 
-        return result.rows[0];
+        return {
+            ...pack,
+            published_at: pack.published_at.toISOString(),
+            deprecated_at: pack.deprecated_at?.toISOString(),
+            created_at: pack.created_at.toISOString(),
+            updated_at: pack.updated_at.toISOString(),
+        } as TemplatePackRow;
     }
 
     /**
      * Get template pack by name and version
+     * 
+     * MIGRATED TO TYPEORM (Session 19)
+     * Simple SELECT with composite key (name + version)
      */
     async getTemplatePackByNameVersion(name: string, version: string): Promise<TemplatePackRow> {
-        const result = await this.db.query<TemplatePackRow>(
-            `SELECT * FROM kb.graph_template_packs WHERE name = $1 AND version = $2`,
-            [name, version]
-        );
+        const pack = await this.templatePackRepository.findOne({
+            where: { name, version },
+        });
 
-        if (result.rows.length === 0) {
+        if (!pack) {
             throw new NotFoundException(`Template pack not found: ${name}@${version}`);
         }
 
-        return result.rows[0];
+        return {
+            ...pack,
+            published_at: pack.published_at.toISOString(),
+            deprecated_at: pack.deprecated_at?.toISOString(),
+            created_at: pack.created_at.toISOString(),
+            updated_at: pack.updated_at.toISOString(),
+        } as TemplatePackRow;
     }
 
     /**
      * List all available template packs
+     * 
+     * MIGRATED TO TYPEORM (Session 19)
+     * Pagination with filtering (deprecated, search)
      */
     async listTemplatePacks(query: ListTemplatePacksQueryDto): Promise<{
         packs: TemplatePackRow[];
@@ -100,38 +129,48 @@ export class TemplatePackService {
         page: number;
         limit: number;
     }> {
-        const offset = (query.page! - 1) * query.limit!;
-        let whereClause = '';
-        const params: any[] = [];
+        const skip = (query.page! - 1) * query.limit!;
+
+        // Build where conditions
+        const where: any = {};
 
         if (!query.include_deprecated) {
-            whereClause = 'WHERE deprecated_at IS NULL';
+            where.deprecated_at = null;
+        }
+
+        // TypeORM doesn't support OR for ILIKE on multiple fields easily
+        // Use QueryBuilder for search functionality
+        const queryBuilder = this.templatePackRepository.createQueryBuilder('pack');
+
+        if (!query.include_deprecated) {
+            queryBuilder.andWhere('pack.deprecated_at IS NULL');
         }
 
         if (query.search) {
-            whereClause += (whereClause ? ' AND ' : 'WHERE ') +
-                `(name ILIKE $${params.length + 1} OR description ILIKE $${params.length + 1})`;
-            params.push(`%${query.search}%`);
+            queryBuilder.andWhere(
+                '(pack.name ILIKE :search OR pack.description ILIKE :search)',
+                { search: `%${query.search}%` }
+            );
         }
 
         // Get total count
-        const countResult = await this.db.query<{ count: string }>(
-            `SELECT COUNT(*) as count FROM kb.graph_template_packs ${whereClause}`,
-            params
-        );
-        const total = parseInt(countResult.rows[0].count);
+        const total = await queryBuilder.getCount();
 
-        // Get packs
-        params.push(query.limit, offset);
-        const result = await this.db.query<TemplatePackRow>(
-            `SELECT * FROM kb.graph_template_packs ${whereClause}
-             ORDER BY published_at DESC
-             LIMIT $${params.length - 1} OFFSET $${params.length}`,
-            params
-        );
+        // Get paginated results
+        const packs = await queryBuilder
+            .orderBy('pack.published_at', 'DESC')
+            .skip(skip)
+            .take(query.limit!)
+            .getMany();
 
         return {
-            packs: result.rows,
+            packs: packs.map(pack => ({
+                ...pack,
+                published_at: pack.published_at.toISOString(),
+                deprecated_at: pack.deprecated_at?.toISOString(),
+                created_at: pack.created_at.toISOString(),
+                updated_at: pack.updated_at.toISOString(),
+            } as TemplatePackRow)),
             total,
             page: query.page!,
             limit: query.limit!,
@@ -140,6 +179,54 @@ export class TemplatePackService {
 
     /**
      * Assign template pack to a project
+     * 
+     * ═══════════════════════════════════════════════════════════════
+     * STRATEGIC SQL PRESERVED (Session 19)
+     * ═══════════════════════════════════════════════════════════════
+     * 
+     * WHY THIS CANNOT BE MIGRATED TO TYPEORM:
+     * 
+     * 1. **Complex Multi-Step Transaction with Business Logic**
+     *    - User lookup with fallback (zitadel_user_id or id)
+     *    - Conflict detection (existing assignment)
+     *    - Type conflict validation (existing types in registry)
+     *    - Conditional type installation based on customizations
+     *    - Dynamic INSERT loop for multiple type registry entries
+     *    - TypeORM transactions cannot easily handle conditional multi-entity creation
+     * 
+     * 2. **RLS Context Setup**
+     *    - Requires explicit set_config() for org_id and project_id
+     *    - Must execute BEFORE any RLS-protected queries
+     *    - TypeORM has no native RLS support
+     * 
+     * 3. **Dynamic Loop with Conditional Logic**
+     *    - Iterates over typesToInstall array (filtered by customizations)
+     *    - Each iteration:
+     *      a) Extracts schema from template pack JSON
+     *      b) Extracts ui_config from template pack JSON
+     *      c) Extracts extraction_config from template pack JSON
+     *      d) Inserts into project_object_type_registry
+     *    - TypeORM save() would require loading/creating N entities
+     *    - Raw SQL is dramatically more efficient for bulk operations
+     * 
+     * 4. **Conflict Resolution Strategy**
+     *    - Detects type conflicts via SELECT with ANY($2)
+     *    - Builds conflict report with resolution metadata
+     *    - Filters typesToInstall based on conflicts
+     *    - Returns structured response with partial success
+     *    - TypeORM QueryFailedError doesn't provide this granularity
+     * 
+     * 5. **Atomic Multi-Entity Creation**
+     *    - Creates 1 project_template_packs row
+     *    - Creates N project_object_type_registry rows (variable count)
+     *    - All-or-nothing semantics via transaction
+     *    - TypeORM cascades cannot handle this cross-entity pattern
+     * 
+     * QUERY PATTERN: Transaction + RLS + Dynamic Multi-INSERT + Conflict Detection
+     * COMPLEXITY: Very High (20+ lines of transaction logic)
+     * MAINTENANCE: Change when template schema evolution is needed
+     * 
+     * ═══════════════════════════════════════════════════════════════
      */
     async assignTemplatePackToProject(
         projectId: string,
@@ -299,6 +386,41 @@ export class TemplatePackService {
 
     /**
      * Get installed template packs for a project
+     * 
+     * ═══════════════════════════════════════════════════════════════
+     * STRATEGIC SQL PRESERVED (Session 19)
+     * ═══════════════════════════════════════════════════════════════
+     * 
+     * WHY THIS CANNOT BE MIGRATED TO TYPEORM:
+     * 
+     * 1. **Custom JSON Aggregation with row_to_json()**
+     *    - Uses row_to_json(tp.*) to nest entire template_pack as JSON object
+     *    - Returns flattened structure: {assignment fields + template_pack: {...}}
+     *    - TypeORM relations would require:
+     *      a) Eager loading (performance hit)
+     *      b) Manual transformation to match API contract
+     *    - PostgreSQL's row_to_json is far more efficient
+     * 
+     * 2. **Dynamic Object-to-Array Transformation**
+     *    - Post-processes object_type_schemas (object) → object_types (array of keys)
+     *    - Adds object_types: string[] for frontend convenience
+     *    - This is a VIEW-LAYER concern that doesn't belong in entities
+     *    - TypeORM would require:
+     *      a) Virtual column (not supported for complex logic)
+     *      b) Post-load transformer (messy, not type-safe)
+     *      c) Manual map() after query (duplicate code)
+     * 
+     * 3. **Complex Projection**
+     *    - Returns: ProjectTemplatePackRow & { template_pack: TemplatePackRow }
+     *    - This is a JOIN projection, not a relation
+     *    - TypeORM @ManyToOne would return entity instance, not plain object
+     *    - API contract expects plain objects with specific shape
+     * 
+     * QUERY PATTERN: JOIN + Custom JSON Aggregation + Post-Processing
+     * COMPLEXITY: Medium (custom projection + transformation)
+     * MAINTENANCE: Change only if API response shape changes
+     * 
+     * ═══════════════════════════════════════════════════════════════
      */
     async getProjectTemplatePacks(
         projectId: string,
@@ -329,6 +451,50 @@ export class TemplatePackService {
 
     /**
      * Get available templates for a project (with installation status)
+     * 
+     * ═══════════════════════════════════════════════════════════════
+     * STRATEGIC SQL PRESERVED (Session 19)
+     * ═══════════════════════════════════════════════════════════════
+     * 
+     * WHY THIS CANNOT BE MIGRATED TO TYPEORM:
+     * 
+     * 1. **Multi-Query Aggregation Pattern**
+     *    - Query 1: All non-deprecated template packs
+     *    - Query 2: Installed pack IDs for this project
+     *    - Query 3: Object counts per type for this project (GROUP BY)
+     *    - All results merged in-memory to build response
+     *    - TypeORM would require 3 separate repository calls + manual merge
+     * 
+     * 2. **Set-Based Membership Check**
+     *    - Builds Set<string> of installedIds for O(1) lookup
+     *    - Adds `installed: boolean` flag per pack based on Set.has()
+     *    - TypeORM subqueries for this pattern are inefficient:
+     *      SELECT *, (SELECT COUNT(*) FROM ... WHERE id = pack.id) as installed
+     *    - Current approach: 2 fast queries + in-memory join
+     * 
+     * 3. **Complex Response Shape Construction**
+     *    - Maps object_type_schemas (object) to object_types (array of objects)
+     *    - Each object type includes:
+     *      a) type: string
+     *      b) description: string (from schema.description)
+     *      c) sample_count: number (from typeCounts Map)
+     *    - Also extracts relationship_types from relationship_type_schemas
+     *    - Adds derived fields: relationship_count, compatible, installed
+     *    - This is complex view-layer logic that doesn't belong in entities
+     * 
+     * 4. **Performance Optimization**
+     *    - Single GROUP BY query for all type counts (1 query vs N queries)
+     *    - Builds Map<type, count> for O(1) lookup during transformation
+     *    - TypeORM would require:
+     *      a) Separate query per type (N queries) OR
+     *      b) Complex QueryBuilder with leftJoin + groupBy (messy)
+     *    - Current approach is optimal
+     * 
+     * QUERY PATTERN: Multi-Query Aggregation + In-Memory Join + Complex Transformation
+     * COMPLEXITY: High (3 queries + business logic + response shaping)
+     * MAINTENANCE: Change if AvailableTemplateDto shape changes
+     * 
+     * ═══════════════════════════════════════════════════════════════
      */
     async getAvailableTemplatesForProject(
         projectId: string,
@@ -386,6 +552,43 @@ export class TemplatePackService {
 
     /**
      * Update template pack assignment
+     * 
+     * ═══════════════════════════════════════════════════════════════
+     * STRATEGIC SQL PRESERVED (Session 19)
+     * ═══════════════════════════════════════════════════════════════
+     * 
+     * WHY THIS CANNOT BE MIGRATED TO TYPEORM:
+     * 
+     * 1. **Dynamic UPDATE Builder**
+     *    - Conditionally builds SET clauses based on provided fields
+     *    - Only updates fields present in DTO (partial update)
+     *    - Manually constructs: SET active = $1, customizations = $2, updated_at = now()
+     *    - TypeORM save() would:
+     *      a) Require loading entity first (extra SELECT)
+     *      b) Update ALL fields (not just changed ones)
+     *      c) Not support conditional SET clauses
+     * 
+     * 2. **RLS Context Setup**
+     *    - Requires set_config() for org_id and project_id BEFORE UPDATE
+     *    - RLS policies on project_template_packs enforce project_id match
+     *    - TypeORM has no native RLS support
+     * 
+     * 3. **Transaction with Validation**
+     *    - Gets current assignment to verify existence
+     *    - Conditionally updates based on DTO fields
+     *    - Returns updated row via RETURNING *
+     *    - TypeORM update() doesn't return entity, requires additional findOne()
+     * 
+     * 4. **Performance Optimization**
+     *    - No UPDATE if no fields changed (early return)
+     *    - Single UPDATE query with RETURNING (1 query vs 2)
+     *    - TypeORM would require: findOne + save = 2 queries
+     * 
+     * QUERY PATTERN: Transaction + RLS + Dynamic UPDATE + Validation
+     * COMPLEXITY: Medium (conditional UPDATE builder)
+     * MAINTENANCE: Change if UpdateTemplatePackAssignmentDto gains new fields
+     * 
+     * ═══════════════════════════════════════════════════════════════
      */
     async updateTemplatePackAssignment(
         assignmentId: string,
@@ -457,6 +660,48 @@ export class TemplatePackService {
 
     /**
      * Uninstall template pack from project
+     * 
+     * ═══════════════════════════════════════════════════════════════
+     * STRATEGIC SQL PRESERVED (Session 19)
+     * ═══════════════════════════════════════════════════════════════
+     * 
+     * WHY THIS CANNOT BE MIGRATED TO TYPEORM:
+     * 
+     * 1. **Business Validation with Complex JOIN**
+     *    - Validates no objects exist using types from this template
+     *    - Query joins:
+     *      graph_objects → project_object_type_registry → template_pack_id
+     *    - Counts objects across multiple types in single query
+     *    - TypeORM would require:
+     *      a) Load all type registry entries for template
+     *      b) Query graph_objects for each type (N queries)
+     *      c) Sum counts manually
+     *    - Current: 1 efficient JOIN vs N+1 queries
+     * 
+     * 2. **Atomic Multi-DELETE Transaction**
+     *    - Validates count (business logic)
+     *    - Deletes from project_object_type_registry (N rows)
+     *    - Deletes from project_template_packs (1 row)
+     *    - All-or-nothing with explicit transaction
+     *    - TypeORM cascades don't work for this pattern:
+     *      - Cascade only works on relations
+     *      - This is a reverse lookup (types → template)
+     * 
+     * 3. **RLS Context Setup**
+     *    - Requires set_config() for org_id and project_id
+     *    - All queries execute with RLS enforcement
+     *    - TypeORM has no native RLS support
+     * 
+     * 4. **Error Handling with Domain Context**
+     *    - Throws BadRequestException with object count
+     *    - Provides actionable error message
+     *    - TypeORM foreign key violations would give generic error
+     * 
+     * QUERY PATTERN: Transaction + RLS + Complex JOIN Validation + Multi-DELETE
+     * COMPLEXITY: High (validation + multi-entity deletion)
+     * MAINTENANCE: Change if uninstall business rules change
+     * 
+     * ═══════════════════════════════════════════════════════════════
      */
     async uninstallTemplatePackFromProject(
         assignmentId: string,
@@ -528,6 +773,46 @@ export class TemplatePackService {
     /**
      * Delete a template pack permanently
      * Only allows deletion of non-system packs that are not currently installed
+     * 
+     * ═══════════════════════════════════════════════════════════════
+     * STRATEGIC SQL PRESERVED (Session 19)
+     * ═══════════════════════════════════════════════════════════════
+     * 
+     * WHY THIS CANNOT BE MIGRATED TO TYPEORM:
+     * 
+     * 1. **Cross-Organization Validation**
+     *    - Template packs are GLOBAL resources (no org_id column)
+     *    - Must check installations across ALL organizations
+     *    - Query: SELECT COUNT(*) FROM project_template_packs WHERE template_pack_id = $1
+     *    - This is cross-org query that bypasses RLS
+     *    - TypeORM would require:
+     *      a) Set RLS context per org (inefficient)
+     *      b) Load all project_template_packs (memory intensive)
+     *      c) Count manually (slow)
+     * 
+     * 2. **Business Rule Enforcement**
+     *    - Prevents deletion of system packs (source = 'system')
+     *    - Prevents deletion if installed in ANY project
+     *    - Both checks are business logic, not database constraints
+     *    - TypeORM would scatter this logic across multiple service calls
+     * 
+     * 3. **Transaction with Multiple Validation Steps**
+     *    - Check pack exists
+     *    - Check source != 'system'
+     *    - Check installCount = 0 (cross-org)
+     *    - Delete pack
+     *    - TypeORM would require 4 separate operations
+     * 
+     * 4. **RLS Context for Read, Not for Delete**
+     *    - Sets org_id for checking project assignments (RLS-protected)
+     *    - But template pack DELETE is global (not RLS-protected)
+     *    - This mixed RLS pattern is complex in TypeORM
+     * 
+     * QUERY PATTERN: Transaction + Cross-Org Validation + Global DELETE
+     * COMPLEXITY: Medium (multi-step validation + global operation)
+     * MAINTENANCE: Change if template pack deletion rules change
+     * 
+     * ═══════════════════════════════════════════════════════════════
      */
     async deleteTemplatePack(packId: string, orgId: string): Promise<void> {
         const client = await this.db.getClient();
@@ -604,6 +889,50 @@ export class TemplatePackService {
 
     /**
      * Get compiled object type schemas from all installed packs for a project
+     * 
+     * ═══════════════════════════════════════════════════════════════
+     * STRATEGIC SQL PRESERVED (Session 19)
+     * ═══════════════════════════════════════════════════════════════
+     * 
+     * WHY THIS CANNOT BE MIGRATED TO TYPEORM:
+     * 
+     * 1. **Multi-Pack Schema Merging Logic**
+     *    - Loads all active template packs for project
+     *    - Merges object_type_schemas from all packs
+     *    - Later packs override earlier ones for same type
+     *    - Tracks schema provenance with _sources array
+     *    - This is complex in-memory aggregation logic
+     * 
+     * 2. **Dynamic IN Clause with Array**
+     *    - Builds IN (uuid1, uuid2, ...) dynamically from assignment IDs
+     *    - Uses array.map for placeholder generation: $1, $2, $3
+     *    - TypeORM In() operator handles this, BUT...
+     * 
+     * 3. **Complex JSON Merge Algorithm**
+     *    - For each pack:
+     *      - For each type in pack.object_type_schemas:
+     *        - If type exists: merge with existing + append to _sources
+     *        - If type new: create with _sources
+     *    - This is VIEW-LAYER logic for frontend schema consumption
+     *    - Not database operation - pure business logic
+     * 
+     * 4. **Performance Consideration**
+     *    - Could use TypeORM for queries (2 queries)
+     *    - But merge logic is JavaScript, not SQL
+     *    - Keeping as strategic SQL for consistency
+     *    - If TypeORM used: still need manual merge loop
+     * 
+     * DECISION: COULD be migrated to TypeORM queries + manual merge
+     * BUT: Keeping as strategic SQL because:
+     *  - Dynamic IN clause is cleaner as raw SQL
+     *  - Merge logic is JavaScript regardless
+     *  - Not worth splitting queries vs logic
+     * 
+     * QUERY PATTERN: Multi-Query + Dynamic IN + In-Memory JSON Merge
+     * COMPLEXITY: Medium (straightforward queries + complex merge)
+     * MAINTENANCE: Change if schema merge rules change
+     * 
+     * ═══════════════════════════════════════════════════════════════
      */
     async getCompiledObjectTypesForProject(
         projectId: string,

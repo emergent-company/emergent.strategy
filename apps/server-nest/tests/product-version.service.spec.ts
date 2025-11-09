@@ -32,6 +32,22 @@ class FakeDb {
     async getClient() { return this.clientFactory(); }
 }
 
+// Mock Repository factory
+function createMockRepository(methods: Record<string, any> = {}) {
+    return {
+        findOne: methods.findOne ?? (async () => null),
+        find: methods.find ?? (async () => []),
+        count: methods.count ?? (async () => 0),
+        save: methods.save ?? (async (entity: any) => entity),
+        create: methods.create ?? ((data: any) => data),
+        update: methods.update ?? (async () => ({ affected: 1 })),
+        delete: methods.delete ?? (async () => ({ affected: 1 })),
+        createQueryBuilder: methods.createQueryBuilder ?? (() => ({
+            where: () => ({ andWhere: () => ({ orderBy: () => ({ take: () => ({ getMany: async () => [] }) }) }) }),
+        })),
+    };
+}
+
 function uuid(n: number) { return `00000000-0000-4000-8000-${n.toString().padStart(12, '0')}`; }
 
 describe('ProductVersionService', () => {
@@ -53,7 +69,15 @@ describe('ProductVersionService', () => {
             { text: /INSERT INTO kb\.product_version_members/ },
             { text: /COMMIT/ },
         ]);
-        const svc = new ProductVersionService(new FakeDb(() => client) as any);
+        const mockProductVersionRepo = createMockRepository();
+        const mockMemberRepo = createMockRepository();
+        const mockDataSource = {} as any;
+        const svc = new ProductVersionService(
+            mockProductVersionRepo as any,
+            mockMemberRepo as any,
+            mockDataSource,
+            new FakeDb(() => client) as any
+        );
         const result = await svc.create(projectId, orgId, { name: 'v1.0.0', description: 'First release' });
         expect(result.id).toBe(uuid(100));
         expect(result.name).toBe('v1.0.0');
@@ -72,7 +96,15 @@ describe('ProductVersionService', () => {
             { text: /pg_advisory_xact_lock/ },
             { text: /SELECT id FROM kb\.product_versions WHERE project_id/, result: { rows: [{ id: uuid(99) }], rowCount: 1 } },
         ]);
-        const svc = new ProductVersionService(new FakeDb(() => client) as any);
+        const mockProductVersionRepo = createMockRepository();
+        const mockMemberRepo = createMockRepository();
+        const mockDataSource = {} as any;
+        const svc = new ProductVersionService(
+            mockProductVersionRepo as any,
+            mockMemberRepo as any,
+            mockDataSource,
+            new FakeDb(() => client) as any
+        );
         await expect(svc.create(projectId, orgId, { name: 'Duplicate' })).rejects.toThrow('product_version_name_exists');
     });
 
@@ -86,7 +118,15 @@ describe('ProductVersionService', () => {
             { text: /SELECT id FROM kb\.product_versions WHERE project_id.*LOWER/, result: { rows: [], rowCount: 0 } },
             { text: /SELECT id FROM kb\.product_versions WHERE id/, result: { rows: [], rowCount: 0 } },
         ]);
-        const svc = new ProductVersionService(new FakeDb(() => client) as any);
+        const mockProductVersionRepo = createMockRepository();
+        const mockMemberRepo = createMockRepository();
+        const mockDataSource = {} as any;
+        const svc = new ProductVersionService(
+            mockProductVersionRepo as any,
+            mockMemberRepo as any,
+            mockDataSource,
+            new FakeDb(() => client) as any
+        );
         await expect(svc.create(projectId, orgId, { name: 'v2.0.0', base_product_version_id: baseId })).rejects.toThrow('base_product_version_not_found');
     });
 
@@ -107,7 +147,15 @@ describe('ProductVersionService', () => {
             { text: /INSERT INTO kb\.product_version_members/ },
             { text: /COMMIT/ },
         ]);
-        const svc = new ProductVersionService(new FakeDb(() => client) as any);
+        const mockProductVersionRepo = createMockRepository();
+        const mockMemberRepo = createMockRepository();
+        const mockDataSource = {} as any;
+        const svc = new ProductVersionService(
+            mockProductVersionRepo as any,
+            mockMemberRepo as any,
+            mockDataSource,
+            new FakeDb(() => client) as any
+        );
         const result = await svc.create(projectId, orgId, { name: 'v2.0.0', base_product_version_id: baseId });
         expect(result.base_product_version_id).toBe(baseId);
     });
@@ -126,7 +174,15 @@ describe('ProductVersionService', () => {
             { text: /SELECT DISTINCT ON.*canonical_id.*FROM kb\.graph_objects/s, result: { rows: [], rowCount: 0 } },
             { text: /COMMIT/ },
         ]);
-        const svc = new ProductVersionService(new FakeDb(() => client) as any);
+        const mockProductVersionRepo = createMockRepository();
+        const mockMemberRepo = createMockRepository();
+        const mockDataSource = {} as any;
+        const svc = new ProductVersionService(
+            mockProductVersionRepo as any,
+            mockMemberRepo as any,
+            mockDataSource,
+            new FakeDb(() => client) as any
+        );
         const result = await svc.create(projectId, orgId, { name: 'empty' });
         expect(result.member_count).toBe(0);
         // No membership insert when rowCount is 0
@@ -135,18 +191,46 @@ describe('ProductVersionService', () => {
 
     it('create() rejects empty name', async () => {
         const projectId = uuid(1);
-        const svc = new ProductVersionService(new FakeDb(() => new FakeClient([])) as any);
+        const mockProductVersionRepo = createMockRepository();
+        const mockMemberRepo = createMockRepository();
+        const mockDataSource = {} as any;
+        const svc = new ProductVersionService(
+            mockProductVersionRepo as any,
+            mockMemberRepo as any,
+            mockDataSource,
+            new FakeDb(() => new FakeClient([])) as any
+        );
         await expect(svc.create(projectId, null, { name: '   ' })).rejects.toThrow('name_required');
     });
 
     it('get() returns snapshot with member count', async () => {
         const projectId = uuid(1);
         const snapshotId = uuid(100);
-        const db = new FakeDb(() => new FakeClient([]), [
-            { text: /SELECT id, project_id, name, description, base_product_version_id, created_at FROM kb\.product_versions WHERE id/, result: { rows: [{ id: snapshotId, project_id: projectId, name: 'v1.0.0', description: 'Release', base_product_version_id: null, created_at: '2025-01-01T00:00:00Z' }], rowCount: 1 } },
-            { text: /SELECT COUNT\(\*\)::int as c FROM kb\.product_version_members WHERE product_version_id/, result: { rows: [{ c: 42 }], rowCount: 1 } },
-        ]);
-        const svc = new ProductVersionService(db as any);
+
+        // Mock repository methods for get()
+        const mockProductVersionRepo = createMockRepository({
+            findOne: async () => ({
+                id: snapshotId,
+                projectId: projectId,
+                name: 'v1.0.0',
+                description: 'Release',
+                baseProductVersionId: null,
+                createdAt: new Date('2025-01-01T00:00:00Z'),
+            }),
+        });
+
+        const mockMemberRepo = createMockRepository({
+            count: async () => 42,
+        });
+
+        const mockDataSource = {} as any;
+        const svc = new ProductVersionService(
+            mockProductVersionRepo as any,
+            mockMemberRepo as any,
+            mockDataSource,
+            new FakeDb(() => new FakeClient([])) as any
+        );
+
         const result = await svc.get(projectId, snapshotId);
         expect(result).not.toBeNull();
         expect(result!.id).toBe(snapshotId);
@@ -157,10 +241,21 @@ describe('ProductVersionService', () => {
     it('get() returns null when not found', async () => {
         const projectId = uuid(1);
         const snapshotId = uuid(999);
-        const db = new FakeDb(() => new FakeClient([]), [
-            { text: /SELECT id, project_id, name, description, base_product_version_id, created_at FROM kb\.product_versions WHERE id/, result: { rows: [], rowCount: 0 } },
-        ]);
-        const svc = new ProductVersionService(db as any);
+
+        // Mock repository to return null (not found)
+        const mockProductVersionRepo = createMockRepository({
+            findOne: async () => null,
+        });
+
+        const mockMemberRepo = createMockRepository();
+        const mockDataSource = {} as any;
+        const svc = new ProductVersionService(
+            mockProductVersionRepo as any,
+            mockMemberRepo as any,
+            mockDataSource,
+            new FakeDb(() => new FakeClient([])) as any
+        );
+
         const result = await svc.get(projectId, snapshotId);
         expect(result).toBeNull();
     });

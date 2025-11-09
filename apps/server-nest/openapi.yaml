@@ -2,7 +2,7 @@ openapi: 3.0.0
 paths:
   /health:
     get:
-      operationId: get
+      operationId: HealthController_get
       parameters: []
       responses:
         '200':
@@ -40,7 +40,7 @@ paths:
         - Health
   /auth/me:
     get:
-      operationId: me
+      operationId: AuthController_me
       parameters: []
       responses:
         '200':
@@ -77,7 +77,9 @@ paths:
                 example:
                   error:
                     code: forbidden
-                    message: Forbidden
+                    message: Insufficient permissions
+                    missing_scopes: &ref_0
+                      - org:read
         '500':
           description: Internal server error
           content:
@@ -87,13 +89,14 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_0
+      tags: &ref_1
         - Auth
       security:
         - bearer: []
+      x-required-scopes: *ref_0
   /auth/test-passport:
     get:
-      operationId: testPassport
+      operationId: AuthController_testPassport
       parameters: []
       responses:
         '200':
@@ -127,12 +130,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_0
+      tags: *ref_1
       security:
         - bearer: []
   /user/profile:
     get:
-      operationId: getSelf
+      operationId: UserProfileController_getSelf
       parameters: []
       responses:
         '200':
@@ -177,10 +180,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_1
+      tags: &ref_2
         - UserProfile
     put:
-      operationId: updateSelf
+      operationId: UserProfileController_updateSelf
       parameters: []
       requestBody:
         required: true
@@ -224,10 +227,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_2
   /user/profile/emails:
     get:
-      operationId: listEmails
+      operationId: UserProfileController_listEmails
       parameters: []
       responses:
         '200':
@@ -274,9 +277,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_2
     post:
-      operationId: addEmail
+      operationId: UserProfileController_addEmail
       parameters: []
       requestBody:
         required: true
@@ -327,10 +330,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_2
   /user/profile/emails/{email}:
     delete:
-      operationId: removeEmail
+      operationId: UserProfileController_removeEmail
       parameters:
         - name: email
           required: true
@@ -381,10 +384,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_2
   /settings:
     get:
-      operationId: list
+      operationId: SettingsController_list
       parameters: []
       responses:
         '200':
@@ -431,11 +434,11 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_2
+      tags: &ref_3
         - Settings
   /settings/{key}:
     get:
-      operationId: getOne
+      operationId: SettingsController_getOne
       parameters:
         - name: key
           required: true
@@ -496,9 +499,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_3
     put:
-      operationId: update
+      operationId: SettingsController_update
       parameters:
         - name: key
           required: true
@@ -557,10 +560,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_3
   /orgs:
     get:
-      operationId: list
+      operationId: OrgsController_list
       parameters: []
       responses:
         '200':
@@ -607,10 +610,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_3
+      tags: &ref_4
         - Orgs
     post:
-      operationId: create
+      operationId: OrgsController_create
       parameters: []
       requestBody:
         required: true
@@ -681,10 +684,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_3
+      tags: *ref_4
   /orgs/{id}:
     get:
-      operationId: getOne
+      operationId: OrgsController_getOne
       parameters:
         - name: id
           required: true
@@ -743,9 +746,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_3
+      tags: *ref_4
     delete:
-      operationId: delete
+      operationId: OrgsController_delete
       parameters:
         - name: id
           required: true
@@ -754,9 +757,7 @@ paths:
             type: string
       responses:
         '200':
-          description: >-
-            Organization deleted (projects, documents, chunks, conversations
-            cascade)
+          description: Organization deleted (projects, documents, chunks, conversations cascade)
         '400':
           description: Bad request
           content:
@@ -802,10 +803,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_3
+      tags: *ref_4
   /projects:
     get:
-      operationId: list
+      operationId: ProjectsController_list
       parameters:
         - name: limit
           required: true
@@ -815,9 +816,7 @@ paths:
         - name: orgId
           required: false
           in: query
-          description: >-
-            Filter projects by organization id (must be explicit elsewhere when
-            creating projects)
+          description: Filter projects by organization id (must be explicit elsewhere when creating projects)
           schema:
             type: string
       responses:
@@ -856,6 +855,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_5
+                      - project:read
         '500':
           description: Internal server error
           content:
@@ -865,10 +866,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_4
+      tags: &ref_6
         - Projects
+      security:
+        - bearer: []
+      x-required-scopes: *ref_5
     post:
-      operationId: create
+      operationId: ProjectsController_create
       parameters: []
       requestBody:
         required: true
@@ -910,6 +914,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_7
+                      - org:project:create
         '500':
           description: Internal server error
           content:
@@ -919,10 +925,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
+      tags: *ref_6
+      security:
+        - bearer: []
+      x-required-scopes: *ref_7
   /projects/{id}:
     get:
-      operationId: getById
+      operationId: ProjectsController_getById
       parameters:
         - name: id
           required: true
@@ -963,6 +972,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_8
+                      - project:read
         '500':
           description: Internal server error
           content:
@@ -972,9 +983,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
+      tags: *ref_6
+      security:
+        - bearer: []
+      x-required-scopes: *ref_8
     patch:
-      operationId: update
+      operationId: ProjectsController_update
       parameters:
         - name: id
           required: true
@@ -1021,6 +1035,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_9
+                      - project:write
         '500':
           description: Internal server error
           content:
@@ -1030,9 +1046,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
+      tags: *ref_6
+      security:
+        - bearer: []
+      x-required-scopes: *ref_9
     delete:
-      operationId: delete
+      operationId: ProjectsController_delete
       parameters:
         - name: id
           required: true
@@ -1074,6 +1093,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_10
+                      - org:project:delete
         '500':
           description: Internal server error
           content:
@@ -1083,10 +1104,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
+      tags: *ref_6
+      security:
+        - bearer: []
+      x-required-scopes: *ref_10
   /template-packs:
     post:
-      operationId: createTemplatePack
+      operationId: TemplatePackController_createTemplatePack
       parameters: []
       requestBody:
         required: true
@@ -1097,15 +1121,23 @@ paths:
       responses:
         '201':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - admin:write
     get:
-      operationId: listTemplatePacks
+      operationId: TemplatePackController_listTemplatePacks
       parameters: []
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /template-packs/{id}:
     get:
-      operationId: getTemplatePack
+      operationId: TemplatePackController_getTemplatePack
       parameters:
         - name: id
           required: true
@@ -1115,8 +1147,12 @@ paths:
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
     delete:
-      operationId: deleteTemplatePack
+      operationId: TemplatePackController_deleteTemplatePack
       parameters:
         - name: id
           required: true
@@ -1126,9 +1162,13 @@ paths:
       responses:
         '204':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /template-packs/projects/{projectId}/available:
     get:
-      operationId: getAvailableTemplates
+      operationId: TemplatePackController_getAvailableTemplates
       parameters:
         - name: projectId
           required: true
@@ -1138,9 +1178,13 @@ paths:
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /template-packs/projects/{projectId}/compiled-types:
     get:
-      operationId: getCompiledObjectTypes
+      operationId: TemplatePackController_getCompiledObjectTypes
       parameters:
         - name: projectId
           required: true
@@ -1150,9 +1194,13 @@ paths:
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /template-packs/projects/{projectId}/installed:
     get:
-      operationId: getInstalledTemplatePacks
+      operationId: TemplatePackController_getInstalledTemplatePacks
       parameters:
         - name: projectId
           required: true
@@ -1162,9 +1210,13 @@ paths:
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /template-packs/projects/{projectId}/assign:
     post:
-      operationId: assignTemplatePack
+      operationId: TemplatePackController_assignTemplatePack
       parameters:
         - name: projectId
           required: true
@@ -1195,9 +1247,13 @@ paths:
       responses:
         '201':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /template-packs/projects/{projectId}/assignments/{assignmentId}:
     patch:
-      operationId: updateTemplatePackAssignment
+      operationId: TemplatePackController_updateTemplatePackAssignment
       parameters:
         - name: projectId
           required: true
@@ -1218,8 +1274,12 @@ paths:
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
     delete:
-      operationId: uninstallTemplatePack
+      operationId: TemplatePackController_uninstallTemplatePack
       parameters:
         - name: projectId
           required: true
@@ -1234,9 +1294,13 @@ paths:
       responses:
         '204':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /search:
     get:
-      operationId: search
+      operationId: SearchController_search
       parameters:
         - name: q
           required: true
@@ -1267,9 +1331,7 @@ paths:
         - name: lexicalWeight
           required: false
           in: query
-          description: >-
-            Lexical weight for hybrid search (0-1). Only used when mode=hybrid.
-            Weights are normalized to sum to 1.
+          description: Lexical weight for hybrid search (0-1). Only used when mode=hybrid. Weights are normalized to sum to 1.
           schema:
             minimum: 0
             maximum: 1
@@ -1279,9 +1341,7 @@ paths:
         - name: vectorWeight
           required: false
           in: query
-          description: >-
-            Vector weight for hybrid search (0-1). Only used when mode=hybrid.
-            Weights are normalized to sum to 1.
+          description: Vector weight for hybrid search (0-1). Only used when mode=hybrid. Weights are normalized to sum to 1.
           schema:
             minimum: 0
             maximum: 1
@@ -1291,9 +1351,7 @@ paths:
         - name: includePaths
           required: false
           in: query
-          description: >-
-            Include path summaries showing how results relate to other objects
-            in the knowledge graph
+          description: Include path summaries showing how results relate to other objects in the knowledge graph
           schema:
             default: false
             type: boolean
@@ -1334,6 +1392,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_11
+                      - search:read
         '500':
           description: Internal server error
           content:
@@ -1345,9 +1405,12 @@ paths:
                     message: Unexpected error
       tags:
         - Search
+      security:
+        - bearer: []
+      x-required-scopes: *ref_11
   /documents:
     get:
-      operationId: list
+      operationId: DocumentsController_list
       parameters:
         - name: limit
           required: false
@@ -1403,6 +1466,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_12
+                      - documents:read
         '500':
           description: Internal server error
           content:
@@ -1412,10 +1477,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_5
+      tags: &ref_13
         - Documents
+      security:
+        - bearer: []
+      x-required-scopes: *ref_12
     post:
-      operationId: create
+      operationId: DocumentsController_create
       parameters: []
       requestBody:
         required: true
@@ -1464,6 +1532,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_14
+                      - documents:write
         '500':
           description: Internal server error
           content:
@@ -1473,10 +1543,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_5
+      tags: *ref_13
+      security:
+        - bearer: []
+      x-required-scopes: *ref_14
   /documents/{id}:
     get:
-      operationId: get
+      operationId: DocumentsController_get
       parameters:
         - name: id
           required: true
@@ -1518,6 +1591,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_15
+                      - documents:read
         '500':
           description: Internal server error
           content:
@@ -1527,9 +1602,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_5
+      tags: *ref_13
+      security:
+        - bearer: []
+      x-required-scopes: *ref_15
     delete:
-      operationId: delete
+      operationId: DocumentsController_delete
       parameters:
         - name: id
           required: true
@@ -1539,10 +1617,14 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_5
+      tags: *ref_13
+      security:
+        - bearer: []
+      x-required-scopes:
+        - documents:delete
   /chunks:
     get:
-      operationId: list
+      operationId: ChunksController_list
       parameters:
         - name: documentId
           required: false
@@ -1586,6 +1668,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_16
+                      - chunks:read
         '500':
           description: Internal server error
           content:
@@ -1597,9 +1681,12 @@ paths:
                     message: Unexpected error
       tags:
         - Chunks
+      security:
+        - bearer: []
+      x-required-scopes: *ref_16
   /ingest/upload:
     post:
-      operationId: upload
+      operationId: IngestionController_upload
       parameters: []
       requestBody:
         required: true
@@ -1647,6 +1734,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_17
+                      - ingest:write
         '500':
           description: Internal server error
           content:
@@ -1656,11 +1745,14 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_6
+      tags: &ref_18
         - Ingestion
+      security:
+        - bearer: []
+      x-required-scopes: *ref_17
   /ingest/url:
     post:
-      operationId: ingestUrl
+      operationId: IngestionController_ingestUrl
       parameters: []
       requestBody:
         required: true
@@ -1708,6 +1800,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_19
+                      - ingest:write
         '500':
           description: Internal server error
           content:
@@ -1717,14 +1811,15 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_6
+      tags: *ref_18
+      security:
+        - bearer: []
+      x-required-scopes: *ref_19
   /admin/extraction-jobs:
     post:
-      operationId: createJob
+      operationId: ExtractionJobController_createJob
       summary: Create extraction job
-      description: >-
-        Creates a new extraction job with pending status. Phase 2 will enqueue
-        to worker queue.
+      description: Creates a new extraction job with pending status. Phase 2 will enqueue to worker queue.
       parameters: []
       requestBody:
         required: true
@@ -1743,13 +1838,22 @@ paths:
           description: Invalid request data
         '401':
           description: Unauthorized
-      tags: &ref_7
+          content:
+            application/json:
+              schema:
+                example: &ref_20
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+      tags: &ref_21
         - Extraction Jobs
-      security: &ref_8
+      security: &ref_22
         - bearer: []
+      x-required-scopes:
+        - extraction:write
   /admin/extraction-jobs/projects/{projectId}:
     get:
-      operationId: listJobs
+      operationId: ExtractionJobController_listJobs
       summary: List extraction jobs
       description: List extraction jobs for a project with optional filters and pagination
       parameters:
@@ -1814,11 +1918,17 @@ paths:
                 $ref: '#/components/schemas/ExtractionJobListDto'
         '401':
           description: Unauthorized
-      tags: *ref_7
-      security: *ref_8
+          content:
+            application/json:
+              schema:
+                example: *ref_20
+      tags: *ref_21
+      security: *ref_22
+      x-required-scopes:
+        - extraction:read
   /admin/extraction-jobs/{jobId}:
     get:
-      operationId: getJob
+      operationId: ExtractionJobController_getJob
       summary: Get extraction job
       description: Get detailed information about a specific extraction job
       parameters:
@@ -1837,12 +1947,18 @@ paths:
                 $ref: '#/components/schemas/ExtractionJobDto'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example: *ref_20
         '404':
           description: Job not found
-      tags: *ref_7
-      security: *ref_8
+      tags: *ref_21
+      security: *ref_22
+      x-required-scopes:
+        - extraction:read
     patch:
-      operationId: updateJob
+      operationId: ExtractionJobController_updateJob
       summary: Update extraction job
       description: Update job status, progress, results, or errors
       parameters:
@@ -1869,12 +1985,18 @@ paths:
           description: Invalid update data
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example: *ref_20
         '404':
           description: Job not found
-      tags: *ref_7
-      security: *ref_8
+      tags: *ref_21
+      security: *ref_22
+      x-required-scopes:
+        - extraction:write
     delete:
-      operationId: deleteJob
+      operationId: ExtractionJobController_deleteJob
       summary: Delete extraction job
       description: Delete a completed, failed, or cancelled extraction job
       parameters:
@@ -1891,17 +2013,23 @@ paths:
           description: Cannot delete running/pending job
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example: *ref_20
         '404':
           description: Job not found
-      tags: *ref_7
-      security: *ref_8
+      tags: *ref_21
+      security: *ref_22
+      x-required-scopes:
+        - extraction:write
   /admin/extraction-jobs/{jobId}/retry:
     post:
-      operationId: retryJob
+      operationId: ExtractionJobController_retryJob
       summary: Retry a stuck or failed extraction job
       description: >-
-        Resets a job stuck in running status or failed status back to pending
-        for retry. Useful after server restarts that leave jobs orphaned.
+        Resets a job stuck in running status or failed status back to pending for retry. Useful after server restarts
+        that leave jobs orphaned.
       parameters:
         - name: jobId
           required: true
@@ -1920,13 +2048,19 @@ paths:
           description: Cannot retry job with current status (only running/failed jobs)
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example: *ref_20
         '404':
           description: Job not found
-      tags: *ref_7
-      security: *ref_8
+      tags: *ref_21
+      security: *ref_22
+      x-required-scopes:
+        - extraction:write
   /admin/extraction-jobs/{jobId}/cancel:
     post:
-      operationId: cancelJob
+      operationId: ExtractionJobController_cancelJob
       summary: Cancel extraction job
       description: Cancel a pending or running extraction job
       parameters:
@@ -1947,13 +2081,19 @@ paths:
           description: Job cannot be cancelled (already completed/failed)
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example: *ref_20
         '404':
           description: Job not found
-      tags: *ref_7
-      security: *ref_8
+      tags: *ref_21
+      security: *ref_22
+      x-required-scopes:
+        - extraction:write
   /admin/extraction-jobs/projects/{projectId}/bulk-cancel:
     post:
-      operationId: bulkCancelJobs
+      operationId: ExtractionJobController_bulkCancelJobs
       summary: Cancel all pending/running jobs
       description: Bulk cancel all pending and running extraction jobs for a project
       parameters:
@@ -1979,11 +2119,17 @@ paths:
                     example: Cancelled 5 jobs
         '401':
           description: Unauthorized
-      tags: *ref_7
-      security: *ref_8
+          content:
+            application/json:
+              schema:
+                example: *ref_20
+      tags: *ref_21
+      security: *ref_22
+      x-required-scopes:
+        - extraction:write
   /admin/extraction-jobs/projects/{projectId}/bulk-delete:
     delete:
-      operationId: bulkDeleteJobs
+      operationId: ExtractionJobController_bulkDeleteJobs
       summary: Delete all completed/failed/cancelled jobs
       description: Bulk delete all extraction jobs that are completed, failed, or cancelled
       parameters:
@@ -2009,11 +2155,17 @@ paths:
                     example: Deleted 10 jobs
         '401':
           description: Unauthorized
-      tags: *ref_7
-      security: *ref_8
+          content:
+            application/json:
+              schema:
+                example: *ref_20
+      tags: *ref_21
+      security: *ref_22
+      x-required-scopes:
+        - extraction:write
   /admin/extraction-jobs/projects/{projectId}/bulk-retry:
     post:
-      operationId: bulkRetryJobs
+      operationId: ExtractionJobController_bulkRetryJobs
       summary: Retry all failed jobs
       description: Bulk retry all extraction jobs with failed status
       parameters:
@@ -2039,11 +2191,17 @@ paths:
                     example: Retrying 3 jobs
         '401':
           description: Unauthorized
-      tags: *ref_7
-      security: *ref_8
+          content:
+            application/json:
+              schema:
+                example: *ref_20
+      tags: *ref_21
+      security: *ref_22
+      x-required-scopes:
+        - extraction:write
   /admin/extraction-jobs/projects/{projectId}/statistics:
     get:
-      operationId: getStatistics
+      operationId: ExtractionJobController_getStatistics
       summary: Get job statistics
       description: Get aggregated statistics for extraction jobs in a project
       parameters:
@@ -2090,15 +2248,19 @@ paths:
                     example: 15
         '401':
           description: Unauthorized
-      tags: *ref_7
-      security: *ref_8
+          content:
+            application/json:
+              schema:
+                example: *ref_20
+      tags: *ref_21
+      security: *ref_22
+      x-required-scopes:
+        - extraction:read
   /admin/extraction-jobs/_debug/available-models:
     get:
-      operationId: listAvailableModels
+      operationId: ExtractionJobController_listAvailableModels
       summary: List available Gemini models
-      description: >-
-        Query Google Gemini API to list all available models with their
-        capabilities
+      description: Query Google Gemini API to list all available models with their capabilities
       parameters: []
       responses:
         '200':
@@ -2134,15 +2296,15 @@ paths:
                           type: number
         '500':
           description: Failed to fetch models from API
-      tags: *ref_7
-      security: *ref_8
+      tags: *ref_21
+      security: *ref_22
+      x-required-scopes:
+        - extraction:read
   /admin/extraction-jobs/{jobId}/logs:
     get:
-      operationId: getExtractionLogs
+      operationId: ExtractionJobController_getExtractionLogs
       summary: Get detailed extraction logs
-      description: >-
-        Retrieve step-by-step logs for an extraction job including LLM
-        interactions, errors, and performance metrics
+      description: Retrieve step-by-step logs for an extraction job including LLM interactions, errors, and performance metrics
       parameters:
         - name: jobId
           required: true
@@ -2232,13 +2394,23 @@ paths:
           description: Invalid job ID format
         '403':
           description: Access denied to this extraction job
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+                    missing_scopes: &ref_23
+                      - extraction:read
         '404':
           description: Extraction job not found
-      tags: *ref_7
-      security: *ref_8
+      tags: *ref_21
+      security: *ref_22
+      x-required-scopes: *ref_23
   /graph/objects:
     post:
-      operationId: create
+      operationId: GraphObjectsController_create
       summary: Create a graph object (initial version)
       parameters: []
       requestBody:
@@ -2252,16 +2424,19 @@ paths:
           description: Created
         '400':
           description: Validation error
-      tags: &ref_9
+      tags: &ref_24
         - Graph
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /graph/objects/search:
     get:
-      operationId: searchObjects
+      operationId: GraphObjectsController_searchObjects
       summary: Search graph objects (basic filters)
       description: >-
-        Supports pagination via created_at cursor. Optional order param
-        (asc|desc) controls chronological direction (default asc). Desc returns
-        newest first; cursor always set to last item created_at in current page.
+        Supports pagination via created_at cursor. Optional order param (asc|desc) controls chronological direction
+        (default asc). Desc returns newest first; cursor always set to last item created_at in current page.
       parameters:
         - name: type
           required: true
@@ -2291,9 +2466,7 @@ paths:
         - name: order
           required: false
           in: query
-          description: >-
-            Chronological direction (asc=oldest→newest, desc=newest→oldest).
-            Default asc.
+          description: Chronological direction (asc=oldest→newest, desc=newest→oldest). Default asc.
           schema:
             enum:
               - asc
@@ -2302,15 +2475,18 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /graph/objects/fts:
     get:
-      operationId: ftsSearch
+      operationId: GraphObjectsController_ftsSearch
       summary: Full-text search graph objects
       description: >-
-        Websearch syntax over inline-populated tsvector (type, key, properties
-        JSON). Returns newest heads ranked by ts_rank. Supports optional type,
-        label, branch_id filters. Limit max 100.
+        Websearch syntax over inline-populated tsvector (type, key, properties JSON). Returns newest heads ranked by
+        ts_rank. Supports optional type, label, branch_id filters. Limit max 100.
       parameters:
         - name: q
           required: true
@@ -2341,10 +2517,14 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /graph/objects/tags:
     get:
-      operationId: getTags
+      operationId: GraphObjectsController_getTags
       summary: Get all distinct tags from graph objects
       parameters: []
       responses:
@@ -2356,10 +2536,14 @@ paths:
                 type: array
                 items:
                   type: string
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /graph/objects/{id}:
     get:
-      operationId: get
+      operationId: GraphObjectsController_get
       summary: Get latest version of a graph object
       parameters:
         - name: id
@@ -2372,9 +2556,13 @@ paths:
           description: ''
         '404':
           description: Not found
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
     patch:
-      operationId: patch
+      operationId: GraphObjectsController_patch
       summary: Patch (create new version) of a graph object
       parameters:
         - name: id
@@ -2395,9 +2583,13 @@ paths:
           description: No effective change
         '404':
           description: Not found
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
     delete:
-      operationId: deleteObject
+      operationId: GraphObjectsController_deleteObject
       summary: Soft delete (tombstone) an object (creates new version with deleted_at)
       parameters:
         - name: id
@@ -2408,15 +2600,18 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /graph/objects/bulk-update-status:
     post:
-      operationId: bulkUpdateStatus
+      operationId: GraphObjectsController_bulkUpdateStatus
       summary: Update status for multiple objects
       description: >-
-        Updates the status field for multiple objects in a single request.
-        Creates a new version for each object. Returns summary of successes and
-        failures.
+        Updates the status field for multiple objects in a single request. Creates a new version for each object.
+        Returns summary of successes and failures.
       parameters: []
       requestBody:
         required: true
@@ -2449,10 +2644,14 @@ paths:
                           type: boolean
                         error:
                           type: string
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /graph/objects/{id}/restore:
     post:
-      operationId: restoreObject
+      operationId: GraphObjectsController_restoreObject
       summary: Restore a soft-deleted object (creates new version clearing deleted_at)
       parameters:
         - name: id
@@ -2463,10 +2662,14 @@ paths:
       responses:
         '201':
           description: Restored (new version created)
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /graph/objects/{id}/history:
     get:
-      operationId: history
+      operationId: GraphObjectsController_history
       summary: List version history for a graph object
       parameters:
         - name: id
@@ -2493,13 +2696,15 @@ paths:
                 $ref: '#/components/schemas/ObjectHistoryResponseDto'
         '404':
           description: Not found
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /graph/relationships:
     post:
-      operationId: createRel
-      summary: >-
-        Create a relationship (initial version) or new version if properties
-        changed
+      operationId: GraphObjectsController_createRel
+      summary: Create a relationship (initial version) or new version if properties changed
       parameters: []
       requestBody:
         required: true
@@ -2510,10 +2715,14 @@ paths:
       responses:
         '201':
           description: ''
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /graph/relationships/{id}:
     get:
-      operationId: getRel
+      operationId: GraphObjectsController_getRel
       summary: Get relationship by id
       parameters:
         - name: id
@@ -2524,9 +2733,13 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
     patch:
-      operationId: patchRel
+      operationId: GraphObjectsController_patchRel
       summary: Patch (create new version) of a relationship (only head version allowed)
       parameters:
         - name: id
@@ -2543,9 +2756,13 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
     delete:
-      operationId: deleteRel
+      operationId: GraphObjectsController_deleteRel
       summary: Soft delete a relationship (tombstone version)
       parameters:
         - name: id
@@ -2556,14 +2773,18 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /graph/relationships/search:
     get:
-      operationId: searchRels
+      operationId: GraphObjectsController_searchRels
       summary: Search relationships (basic filters)
       description: >-
-        Supports pagination via created_at cursor. Optional order param
-        (asc|desc) for chronological direction (default asc).
+        Supports pagination via created_at cursor. Optional order param (asc|desc) for chronological direction (default
+        asc).
       parameters:
         - name: type
           required: true
@@ -2593,9 +2814,7 @@ paths:
         - name: order
           required: false
           in: query
-          description: >-
-            Chronological direction (asc=oldest→newest, desc=newest→oldest).
-            Default asc.
+          description: Chronological direction (asc=oldest→newest, desc=newest→oldest). Default asc.
           schema:
             enum:
               - asc
@@ -2604,10 +2823,14 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /graph/relationships/{id}/restore:
     post:
-      operationId: restoreRel
+      operationId: GraphObjectsController_restoreRel
       summary: Restore a soft-deleted relationship
       parameters:
         - name: id
@@ -2618,10 +2841,14 @@ paths:
       responses:
         '201':
           description: Restored (new version created)
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /graph/relationships/{id}/history:
     get:
-      operationId: historyRel
+      operationId: GraphObjectsController_historyRel
       summary: List version history for a relationship
       parameters:
         - name: id
@@ -2646,10 +2873,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RelationshipHistoryResponseDto'
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /graph/objects/{id}/edges:
     get:
-      operationId: edges
+      operationId: GraphObjectsController_edges
       summary: List relationships adjacent to an object
       parameters:
         - name: id
@@ -2670,10 +2901,14 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /graph/traverse:
     post:
-      operationId: traverse
+      operationId: GraphObjectsController_traverse
       summary: Traverse the graph from one or more root object ids (bounded BFS)
       parameters: []
       requestBody:
@@ -2685,13 +2920,15 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /graph/expand:
     post:
-      operationId: expand
-      summary: >-
-        Expand graph (single-pass bounded traversal with projection & edge
-        property option)
+      operationId: GraphObjectsController_expand
+      summary: Expand graph (single-pass bounded traversal with projection & edge property option)
       parameters: []
       requestBody:
         required: true
@@ -2702,16 +2939,19 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /graph/objects/vector-search:
     post:
-      operationId: vectorSearch
+      operationId: GraphObjectsController_vectorSearch
       summary: Vector similarity search
       description: >-
-        Returns nearest neighbors (cosine distance) for provided query vector
-        over embedding_vec. Threshold: use maxDistance (preferred) or legacy
-        minScore (acts as maximum distance). When both are supplied, maxDistance
-        takes precedence.
+        Returns nearest neighbors (cosine distance) for provided query vector over embedding_vec. Threshold: use
+        maxDistance (preferred) or legacy minScore (acts as maximum distance). When both are supplied, maxDistance takes
+        precedence.
       parameters: []
       requestBody:
         required: true
@@ -2722,16 +2962,19 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /graph/objects/{id}/similar:
     get:
-      operationId: similar
+      operationId: GraphObjectsController_similar
       summary: Find objects similar to given object id using stored embedding_vec
       description: >-
-        Supports same filters as POST /graph/objects/vector-search (type, orgId,
-        projectId, branchId, keyPrefix, labelsAll, labelsAny,
-        maxDistance|minScore, limit). maxDistance preferred; if both provided,
-        maxDistance overrides minScore.
+        Supports same filters as POST /graph/objects/vector-search (type, orgId, projectId, branchId, keyPrefix,
+        labelsAll, labelsAny, maxDistance|minScore, limit). maxDistance preferred; if both provided, maxDistance
+        overrides minScore.
       parameters:
         - name: id
           required: true
@@ -2747,17 +2990,13 @@ paths:
         - name: minScore
           required: false
           in: query
-          description: >-
-            Maximum cosine distance (lower is more similar). 0 ≤ d ≤ 2. Rows
-            with distance > threshold filtered out.
+          description: Maximum cosine distance (lower is more similar). 0 ≤ d ≤ 2. Rows with distance > threshold filtered out.
           schema:
             type: number
         - name: maxDistance
           required: false
           in: query
-          description: >-
-            Alias for minScore (preferred name). 0 ≤ d ≤ 2. If both provided,
-            maxDistance wins.
+          description: Alias for minScore (preferred name). 0 ≤ d ≤ 2. If both provided, maxDistance wins.
           schema:
             type: number
         - name: type
@@ -2809,47 +3048,36 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /graph/search-with-neighbors:
     post:
-      operationId: searchWithNeighbors
+      operationId: GraphObjectsController_searchWithNeighbors
       summary: Search graph objects with optional neighbor expansion
-      description: >-
+      description: |-
 
-        Performs semantic search over graph objects and optionally retrieves
-        their neighbors.
-
+        Performs semantic search over graph objects and optionally retrieves their neighbors.
 
         **Search Strategy:**
-
         - Uses full-text search (FTS) to find primary results matching the query
-
         - Optionally expands each result to include:
           1. Semantically similar objects (via vector embeddings)
           2. Directly connected objects (via relationships)
 
         **Use Cases:**
-
         - Chat context retrieval (similar to document citations)
-
         - Discovery features ("related objects")
-
         - Rich detail views with context
 
-
         **Neighbor Sources:**
-
-        - **Semantic**: Objects with similar embedding vectors (via
-        searchSimilar)
-
-        - **Relational**: Objects connected via graph relationships (depends_on,
-        implements, etc.)
-
+        - **Semantic**: Objects with similar embedding vectors (via searchSimilar)
+        - **Relational**: Objects connected via graph relationships (depends_on, implements, etc.)
 
         **Example:**
-
         ```json
-
         {
           "query": "authentication patterns",
           "limit": 5,
@@ -2857,7 +3085,6 @@ paths:
           "maxNeighbors": 3,
           "maxDistance": 0.5
         }
-
         ```
                 
       parameters: []
@@ -2887,10 +3114,14 @@ paths:
                       type: array
                       items:
                         type: object
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /graph/embedding-policies:
     post:
-      operationId: createEmbeddingPolicy
+      operationId: GraphObjectsController_createEmbeddingPolicy
       summary: Create an embedding policy for a project and object type
       parameters: []
       requestBody:
@@ -2908,9 +3139,13 @@ paths:
                 $ref: '#/components/schemas/EmbeddingPolicyResponseDto'
         '400':
           description: Validation error or duplicate policy
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
     get:
-      operationId: listEmbeddingPolicies
+      operationId: GraphObjectsController_listEmbeddingPolicies
       summary: List all embedding policies for a project
       parameters:
         - name: project_id
@@ -2934,10 +3169,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/EmbeddingPolicyResponseDto'
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /graph/embedding-policies/{id}:
     get:
-      operationId: getEmbeddingPolicy
+      operationId: GraphObjectsController_getEmbeddingPolicy
       summary: Get a specific embedding policy by ID
       parameters:
         - name: id
@@ -2960,9 +3199,13 @@ paths:
                 $ref: '#/components/schemas/EmbeddingPolicyResponseDto'
         '404':
           description: Policy not found
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
     patch:
-      operationId: updateEmbeddingPolicy
+      operationId: GraphObjectsController_updateEmbeddingPolicy
       summary: Update an embedding policy
       parameters:
         - name: id
@@ -2993,9 +3236,13 @@ paths:
           description: Validation error
         '404':
           description: Policy not found
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
     delete:
-      operationId: deleteEmbeddingPolicy
+      operationId: GraphObjectsController_deleteEmbeddingPolicy
       summary: Delete an embedding policy
       parameters:
         - name: id
@@ -3014,18 +3261,20 @@ paths:
           description: Policy deleted
         '404':
           description: Policy not found
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /graph/branches/{targetBranchId}/merge:
     post:
-      operationId: mergeDryRun
+      operationId: GraphObjectsController_mergeDryRun
       summary: Branch merge (dry-run or execute)
       description: >-
-        Enumerate divergent canonical graph objects between source and target
-        branches. Default is dry-run (no mutations). If `execute=true` and there
-        are no conflicts: Added objects are cloned into target; Fast-forward
-        objects are patched by adding only new properties (superset heuristic).
-        Conflicts block apply. Classification statuses: added, unchanged,
-        fast_forward, conflict.
+        Enumerate divergent canonical graph objects between source and target branches. Default is dry-run (no
+        mutations). If `execute=true` and there are no conflicts: Added objects are cloned into target; Fast-forward
+        objects are patched by adding only new properties (superset heuristic). Conflicts block apply. Classification
+        statuses: added, unchanged, fast_forward, conflict.
       parameters:
         - name: targetBranchId
           required: true
@@ -3041,8 +3290,8 @@ paths:
       responses:
         '200':
           description: >-
-            Merge summary including classification counts, per-object statuses,
-            and optional applied/applied_objects when executed
+            Merge summary including classification counts, per-object statuses, and optional applied/applied_objects
+            when executed
           content:
             application/json:
               schema:
@@ -3051,16 +3300,20 @@ paths:
           description: Missing sourceBranchId or validation error
         '404':
           description: Branch not found
-      tags: *ref_9
+      tags: *ref_24
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /graph/branches:
     post:
-      operationId: create
+      operationId: BranchController_create
       parameters: []
       responses:
         '201':
           description: ''
     get:
-      operationId: list
+      operationId: BranchController_list
       parameters:
         - name: project_id
           required: true
@@ -3072,7 +3325,7 @@ paths:
           description: ''
   /product-versions:
     post:
-      operationId: create
+      operationId: ProductVersionController_create
       parameters: []
       requestBody:
         required: true
@@ -3099,17 +3352,19 @@ paths:
                   error:
                     code: product_version_name_exists
                     message: Name already exists
-      tags: &ref_10
+      tags: &ref_25
         - Product Versions
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
     get:
-      operationId: list
+      operationId: ProductVersionController_list
       parameters:
         - name: cursor
           required: false
           in: query
-          description: >-
-            Pagination cursor (created_at timestamp of last item from previous
-            page)
+          description: Pagination cursor (created_at timestamp of last item from previous page)
           schema:
             type: string
         - name: limit
@@ -3133,10 +3388,14 @@ paths:
                       member_count: 42
                       base_product_version_id: null
                   next_cursor: '2025-01-01T00:00:00Z'
-      tags: *ref_10
+      tags: *ref_25
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /product-versions/{id}:
     get:
-      operationId: get
+      operationId: ProductVersionController_get
       parameters:
         - name: id
           required: true
@@ -3146,10 +3405,14 @@ paths:
       responses:
         '200':
           description: Get product version snapshot
-      tags: *ref_10
+      tags: *ref_25
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /product-versions/{id}/diff/{otherId}:
     get:
-      operationId: diff
+      operationId: ProductVersionController_diff
       parameters:
         - name: id
           required: true
@@ -3178,10 +3441,14 @@ paths:
                     removed: 2
                     modified: 10
                     unchanged: 100
-      tags: *ref_10
+      tags: *ref_25
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /tags:
     post:
-      operationId: create
+      operationId: TagController_create
       parameters: []
       requestBody:
         required: true
@@ -3210,10 +3477,14 @@ paths:
                   error:
                     code: tag_name_exists
                     message: Tag name already exists
-      tags: &ref_11
+      tags: &ref_26
         - Tags
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
     get:
-      operationId: list
+      operationId: TagController_list
       parameters:
         - name: cursor
           required: false
@@ -3241,10 +3512,14 @@ paths:
                       description: null
                       created_at: '2025-09-30T00:00:00Z'
                   next_cursor: '2025-09-30T00:00:00Z'
-      tags: *ref_11
+      tags: *ref_26
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /tags/{id}:
     get:
-      operationId: get
+      operationId: TagController_get
       parameters:
         - name: id
           required: true
@@ -3256,9 +3531,13 @@ paths:
           description: Get tag by ID
         '404':
           description: Tag not found
-      tags: *ref_11
+      tags: *ref_26
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
     put:
-      operationId: update
+      operationId: TagController_update
       parameters:
         - name: id
           required: true
@@ -3276,9 +3555,13 @@ paths:
           description: Update tag
         '404':
           description: Tag not found
-      tags: *ref_11
+      tags: *ref_26
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
     delete:
-      operationId: delete
+      operationId: TagController_delete
       parameters:
         - name: id
           required: true
@@ -3290,10 +3573,14 @@ paths:
           description: Tag deleted
         '404':
           description: Tag not found
-      tags: *ref_11
+      tags: *ref_26
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /tags/by-name/{name}:
     get:
-      operationId: getByName
+      operationId: TagController_getByName
       parameters:
         - name: name
           required: true
@@ -3305,10 +3592,14 @@ paths:
           description: Get tag by name
         '404':
           description: Tag not found
-      tags: *ref_11
+      tags: *ref_26
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /type-registry/projects/{projectId}:
     get:
-      operationId: getProjectTypes
+      operationId: TypeRegistryController_getProjectTypes
       parameters:
         - name: projectId
           required: true
@@ -3318,9 +3609,13 @@ paths:
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /type-registry/projects/{projectId}/types/{typeName}:
     get:
-      operationId: getType
+      operationId: TypeRegistryController_getType
       parameters:
         - name: projectId
           required: true
@@ -3335,8 +3630,12 @@ paths:
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
     patch:
-      operationId: updateType
+      operationId: TypeRegistryController_updateType
       parameters:
         - name: projectId
           required: true
@@ -3357,8 +3656,12 @@ paths:
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
     delete:
-      operationId: deleteType
+      operationId: TypeRegistryController_deleteType
       parameters:
         - name: projectId
           required: true
@@ -3373,9 +3676,13 @@ paths:
       responses:
         '204':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /type-registry/projects/{projectId}/types:
     post:
-      operationId: createType
+      operationId: TypeRegistryController_createType
       parameters:
         - name: projectId
           required: true
@@ -3391,9 +3698,13 @@ paths:
       responses:
         '201':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /type-registry/projects/{projectId}/validate:
     post:
-      operationId: validateData
+      operationId: TypeRegistryController_validateData
       parameters:
         - name: projectId
           required: true
@@ -3403,9 +3714,13 @@ paths:
       responses:
         '201':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /type-registry/projects/{projectId}/types/{typeName}/schema:
     get:
-      operationId: getTypeSchema
+      operationId: TypeRegistryController_getTypeSchema
       parameters:
         - name: projectId
           required: true
@@ -3420,9 +3735,13 @@ paths:
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /type-registry/projects/{projectId}/types/{typeName}/toggle:
     patch:
-      operationId: toggleType
+      operationId: TypeRegistryController_toggleType
       parameters:
         - name: projectId
           required: true
@@ -3437,9 +3756,13 @@ paths:
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:write
   /type-registry/projects/{projectId}/stats:
     get:
-      operationId: getProjectStats
+      operationId: TypeRegistryController_getProjectStats
       parameters:
         - name: projectId
           required: true
@@ -3449,9 +3772,13 @@ paths:
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - graph:read
   /notifications:
     get:
-      operationId: getNotifications
+      operationId: NotificationsController_getNotifications
       summary: Get notifications for current user
       parameters:
         - name: tab
@@ -3513,6 +3840,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_27
+                      - notifications:read
         '500':
           description: Internal server error
           content:
@@ -3522,12 +3851,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_12
+      tags: &ref_28
         - Notifications
-      security: &ref_13
+      security: &ref_29
         - bearer: []
+      x-required-scopes: *ref_27
     delete:
-      operationId: clearAll
+      operationId: NotificationsController_clearAll
       summary: Clear all notifications in a tab
       parameters:
         - name: tab
@@ -3569,6 +3899,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_30
+                      - notifications:write
         '500':
           description: Internal server error
           content:
@@ -3578,11 +3910,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_28
+      security: *ref_29
+      x-required-scopes: *ref_30
   /notifications/counts:
     get:
-      operationId: getUnreadCounts
+      operationId: NotificationsController_getUnreadCounts
       summary: Get unread notification counts
       parameters: []
       responses:
@@ -3615,6 +3948,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_31
+                      - notifications:read
         '500':
           description: Internal server error
           content:
@@ -3624,11 +3959,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_28
+      security: *ref_29
+      x-required-scopes: *ref_31
   /notifications/stats:
     get:
-      operationId: getStats
+      operationId: NotificationsController_getStats
       summary: Get notification statistics (unread, dismissed, total)
       parameters: []
       responses:
@@ -3661,6 +3997,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_32
+                      - notifications:read
         '500':
           description: Internal server error
           content:
@@ -3670,11 +4008,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_28
+      security: *ref_29
+      x-required-scopes: *ref_32
   /notifications/{id}/read:
     post:
-      operationId: markRead
+      operationId: NotificationsController_markRead
       summary: Mark notification as read
       parameters:
         - name: id
@@ -3713,6 +4052,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_33
+                      - notifications:write
         '500':
           description: Internal server error
           content:
@@ -3722,11 +4063,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_28
+      security: *ref_29
+      x-required-scopes: *ref_33
   /notifications/{id}/unread:
     post:
-      operationId: markUnread
+      operationId: NotificationsController_markUnread
       summary: Mark notification as unread
       parameters:
         - name: id
@@ -3765,6 +4107,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_34
+                      - notifications:write
         '500':
           description: Internal server error
           content:
@@ -3774,11 +4118,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_28
+      security: *ref_29
+      x-required-scopes: *ref_34
   /notifications/{id}/dismiss:
     post:
-      operationId: dismiss
+      operationId: NotificationsController_dismiss
       summary: Dismiss notification
       parameters:
         - name: id
@@ -3817,6 +4162,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_35
+                      - notifications:write
         '500':
           description: Internal server error
           content:
@@ -3826,11 +4173,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_28
+      security: *ref_29
+      x-required-scopes: *ref_35
   /notifications/{id}:
     delete:
-      operationId: clear
+      operationId: NotificationsController_clear
       summary: Clear notification (move to cleared tab)
       parameters:
         - name: id
@@ -3869,6 +4217,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_36
+                      - notifications:write
         '500':
           description: Internal server error
           content:
@@ -3878,11 +4228,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_28
+      security: *ref_29
+      x-required-scopes: *ref_36
   /notifications/{id}/unclear:
     post:
-      operationId: unclear
+      operationId: NotificationsController_unclear
       summary: Restore notification from cleared tab
       parameters:
         - name: id
@@ -3921,6 +4272,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_37
+                      - notifications:write
         '500':
           description: Internal server error
           content:
@@ -3930,11 +4283,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_28
+      security: *ref_29
+      x-required-scopes: *ref_37
   /notifications/{id}/snooze:
     post:
-      operationId: snooze
+      operationId: NotificationsController_snooze
       summary: Snooze notification until a specific time
       parameters:
         - name: id
@@ -3979,6 +4333,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_38
+                      - notifications:write
         '500':
           description: Internal server error
           content:
@@ -3988,11 +4344,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_28
+      security: *ref_29
+      x-required-scopes: *ref_38
   /notifications/{id}/unsnooze:
     post:
-      operationId: unsnooze
+      operationId: NotificationsController_unsnooze
       summary: Unsnooze notification
       parameters:
         - name: id
@@ -4031,6 +4388,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_39
+                      - notifications:write
         '500':
           description: Internal server error
           content:
@@ -4040,11 +4399,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_28
+      security: *ref_29
+      x-required-scopes: *ref_39
   /monitoring/extraction-jobs:
     get:
-      operationId: listExtractionJobs
+      operationId: MonitoringController_listExtractionJobs
       summary: List extraction jobs with metrics
       parameters:
         - name: type
@@ -4105,13 +4465,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourceListResponseDto'
-      tags: &ref_14
+      tags: &ref_40
         - monitoring
-      security: &ref_15
+      security: &ref_41
         - bearer: []
+      x-required-scopes:
+        - extraction:read
   /monitoring/extraction-jobs/{id}:
     get:
-      operationId: getExtractionJobDetail
+      operationId: MonitoringController_getExtractionJobDetail
       summary: Get extraction job details with logs and LLM calls
       parameters:
         - name: id
@@ -4128,11 +4490,13 @@ paths:
                 $ref: '#/components/schemas/ResourceDetailResponseDto'
         '404':
           description: Job not found
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_40
+      security: *ref_41
+      x-required-scopes:
+        - extraction:read
   /monitoring/extraction-jobs/{id}/logs:
     get:
-      operationId: getExtractionJobLogs
+      operationId: MonitoringController_getExtractionJobLogs
       summary: Get process logs for extraction job
       parameters:
         - name: id
@@ -4181,11 +4545,13 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LogEntryDto'
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_40
+      security: *ref_41
+      x-required-scopes:
+        - extraction:read
   /monitoring/extraction-jobs/{id}/llm-calls:
     get:
-      operationId: getExtractionJobLLMCalls
+      operationId: MonitoringController_getExtractionJobLLMCalls
       summary: Get LLM calls for extraction job
       parameters:
         - name: id
@@ -4202,11 +4568,13 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LLMCallDto'
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_40
+      security: *ref_41
+      x-required-scopes:
+        - extraction:read
   /chat/conversations:
     get:
-      operationId: listConversations
+      operationId: ChatController_listConversations
       parameters: []
       responses:
         '200':
@@ -4245,6 +4613,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_42
+                      - chat:use
         '500':
           description: Internal server error
           content:
@@ -4254,10 +4624,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_16
+      tags: &ref_43
         - Chat
+      security:
+        - bearer: []
+      x-required-scopes: *ref_42
     post:
-      operationId: createConversation
+      operationId: ChatController_createConversation
       parameters: []
       responses:
         '200':
@@ -4278,10 +4651,14 @@ paths:
                   error:
                     code: bad-request
                     message: message required
-      tags: *ref_16
+      tags: *ref_43
+      security:
+        - bearer: []
+      x-required-scopes:
+        - chat:use
   /chat/{id}:
     get:
-      operationId: getConversation
+      operationId: ChatController_getConversation
       parameters:
         - name: id
           required: true
@@ -4317,7 +4694,9 @@ paths:
                 example:
                   error:
                     code: forbidden
-                    message: Forbidden
+                    message: Insufficient permissions
+                    missing_scopes: &ref_44
+                      - chat:use
         '404':
           description: Conversation not found
           content:
@@ -4336,9 +4715,12 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_16
+      tags: *ref_43
+      security:
+        - bearer: []
+      x-required-scopes: *ref_44
     patch:
-      operationId: rename
+      operationId: ChatController_rename
       parameters:
         - name: id
           required: true
@@ -4373,9 +4755,13 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_16
+      tags: *ref_43
+      security:
+        - bearer: []
+      x-required-scopes:
+        - chat:admin
     delete:
-      operationId: delete
+      operationId: ChatController_delete
       parameters:
         - name: id
           required: true
@@ -4400,10 +4786,14 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_16
+      tags: *ref_43
+      security:
+        - bearer: []
+      x-required-scopes:
+        - chat:admin
   /chat/{id}/stream:
     get:
-      operationId: streamGet
+      operationId: ChatController_streamGet
       parameters:
         - name: id
           required: true
@@ -4412,9 +4802,7 @@ paths:
             type: string
       responses:
         '200':
-          description: >-
-            Chat streaming endpoint (SSE). Emits a sequence of JSON frames each
-            prefixed by "data: ".
+          description: 'Chat streaming endpoint (SSE). Emits a sequence of JSON frames each prefixed by "data: ".'
           content:
             text/event-stream:
               schema:
@@ -4435,9 +4823,8 @@ paths:
                     data: {"message":"token-0","index":0,"streaming":true}
 
                 citations:
-                  value: >+
-                    data:
-                    {"citations":[{"documentId":"11111111-1111-4111-8111-111111111111"}]}
+                  value: |+
+                    data: {"citations":[{"documentId":"11111111-1111-4111-8111-111111111111"}]}
 
                 summary:
                   value: |+
@@ -4448,10 +4835,8 @@ paths:
                     data: {"done":true,"message":"[DONE]"}
 
                 error:
-                  value: >+
-                    data:
-                    {"error":{"code":"upstream-failed","message":"Simulated
-                    upstream model failure"},"done":true}
+                  value: |+
+                    data: {"error":{"code":"upstream-failed","message":"Simulated upstream model failure"},"done":true}
 
         '400':
           description: Missing project header
@@ -4471,10 +4856,14 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_16
+      tags: *ref_43
+      security:
+        - bearer: []
+      x-required-scopes:
+        - chat:use
   /chat/stream:
     post:
-      operationId: streamPost
+      operationId: ChatController_streamPost
       parameters: []
       requestBody:
         required: true
@@ -4485,8 +4874,8 @@ paths:
       responses:
         '200':
           description: >-
-            Chat streaming endpoint (SSE). Each line is an SSE data frame
-            beginning with "data: ", followed by one of the JSON event shapes.
+            Chat streaming endpoint (SSE). Each line is an SSE data frame beginning with "data: ", followed by one of
+            the JSON event shapes.
           content:
             text/event-stream:
               schema:
@@ -4496,30 +4885,23 @@ paths:
                   - $ref: '#/components/schemas/ChatStreamMcpToolEvent'
                   - $ref: '#/components/schemas/ChatStreamErrorEvent'
                   - $ref: '#/components/schemas/ChatStreamDoneEvent'
-                description: >-
-                  Union of possible chat stream events (serialized per line as
-                  SSE frame).
+                description: Union of possible chat stream events (serialized per line as SSE frame).
               examples:
                 meta:
-                  value: >+
-                    data:
-                    {"type":"meta","conversationId":"11111111-1111-4111-8111-111111111111","citations":[]}
+                  value: |+
+                    data: {"type":"meta","conversationId":"11111111-1111-4111-8111-111111111111","citations":[]}
 
                 mcp_started:
-                  value: >+
-                    data:
-                    {"type":"mcp_tool","tool":"schema_version","status":"started"}
+                  value: |+
+                    data: {"type":"mcp_tool","tool":"schema_version","status":"started"}
 
                 mcp_completed:
-                  value: >+
-                    data:
-                    {"type":"mcp_tool","tool":"schema_version","status":"completed","result":{"version":"1.0.0"}}
+                  value: |+
+                    data: {"type":"mcp_tool","tool":"schema_version","status":"completed","result":{"version":"1.0.0"}}
 
                 mcp_error:
-                  value: >+
-                    data:
-                    {"type":"mcp_tool","tool":"schema_version","status":"error","error":"MCP
-                    server unavailable"}
+                  value: |+
+                    data: {"type":"mcp_tool","tool":"schema_version","status":"error","error":"MCP server unavailable"}
 
                 token:
                   value: |+
@@ -4551,6 +4933,9 @@ paths:
                   error:
                     code: unauthorized
                     message: Missing or invalid credentials
+            application/json:
+              schema:
+                example: *ref_20
         '403':
           description: Forbidden
           content:
@@ -4560,6 +4945,8 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
+                    missing_scopes: &ref_45
+                      - chat:use
         '500':
           description: Internal server error
           content:
@@ -4569,10 +4956,13 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_16
+      tags: *ref_43
+      security:
+        - bearer: []
+      x-required-scopes: *ref_45
   /invites/with-user:
     post:
-      operationId: createWithUser
+      operationId: InvitesController_createWithUser
       parameters: []
       requestBody:
         required: true
@@ -4583,9 +4973,14 @@ paths:
       responses:
         '201':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - org:invite:create
+        - project:invite:create
   /invites:
     post:
-      operationId: create
+      operationId: InvitesController_create
       parameters: []
       requestBody:
         required: true
@@ -4596,9 +4991,14 @@ paths:
       responses:
         '201':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - org:invite:create
+        - project:invite:create
   /invites/accept:
     post:
-      operationId: accept
+      operationId: InvitesController_accept
       parameters: []
       requestBody:
         required: true
@@ -4609,9 +5009,13 @@ paths:
       responses:
         '201':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - org:read
   /graph/search:
     post:
-      operationId: search
+      operationId: GraphSearchController_search
       parameters:
         - name: debug
           required: true
@@ -4638,18 +5042,18 @@ paths:
               schema:
                 example:
                   error:
-                    code: insufficient_scope
-                    message: Debug scope required
-                    details:
-                      missing:
-                        - graph:search:debug
+                    code: forbidden
+                    message: Insufficient permissions
+                    missing_scopes: &ref_46
+                      - graph:search:read
       tags:
         - Graph
       security:
         - bearer: []
+      x-required-scopes: *ref_46
   /discovery-jobs/projects/{projectId}/start:
     post:
-      operationId: startDiscovery
+      operationId: DiscoveryJobController_startDiscovery
       parameters:
         - name: projectId
           required: true
@@ -4659,9 +5063,13 @@ paths:
       responses:
         '201':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - discovery:write
   /discovery-jobs/{jobId}:
     get:
-      operationId: getJobStatus
+      operationId: DiscoveryJobController_getJobStatus
       parameters:
         - name: jobId
           required: true
@@ -4671,8 +5079,12 @@ paths:
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - discovery:read
     delete:
-      operationId: cancelJob
+      operationId: DiscoveryJobController_cancelJob
       parameters:
         - name: jobId
           required: true
@@ -4682,9 +5094,13 @@ paths:
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - discovery:write
   /discovery-jobs/projects/{projectId}:
     get:
-      operationId: listJobs
+      operationId: DiscoveryJobController_listJobs
       parameters:
         - name: projectId
           required: true
@@ -4694,9 +5110,13 @@ paths:
       responses:
         '200':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - discovery:read
   /discovery-jobs/{jobId}/finalize:
     post:
-      operationId: finalizeDiscovery
+      operationId: DiscoveryJobController_finalizeDiscovery
       parameters:
         - name: jobId
           required: true
@@ -4706,26 +5126,34 @@ paths:
       responses:
         '201':
           description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - discovery:write
   /integrations/available:
     get:
-      operationId: listAvailableIntegrations
+      operationId: IntegrationsController_listAvailableIntegrations
       summary: List available integration types
-      description: >-
-        Get a list of all integration types that can be configured (ClickUp,
-        GitHub, etc.)
+      description: Get a list of all integration types that can be configured (ClickUp, GitHub, etc.)
       parameters: []
       responses:
         '200':
           description: Available integrations retrieved successfully
         '401':
           description: Unauthorized
-      tags: &ref_17
+          content:
+            application/json:
+              schema:
+                example: *ref_20
+      tags: &ref_47
         - Integrations
-      security: &ref_18
+      security: &ref_48
         - bearer: []
+      x-required-scopes:
+        - integrations:read
   /integrations:
     get:
-      operationId: listIntegrations
+      operationId: IntegrationsController_listIntegrations
       summary: List integrations
       description: List all integrations for a project with optional filters
       parameters: []
@@ -4734,10 +5162,16 @@ paths:
           description: Integrations retrieved successfully
         '401':
           description: Unauthorized
-      tags: *ref_17
-      security: *ref_18
+          content:
+            application/json:
+              schema:
+                example: *ref_20
+      tags: *ref_47
+      security: *ref_48
+      x-required-scopes:
+        - integrations:read
     post:
-      operationId: createIntegration
+      operationId: IntegrationsController_createIntegration
       summary: Create integration
       description: Create a new integration configuration with encrypted credentials
       parameters: []
@@ -4754,13 +5188,19 @@ paths:
           description: Invalid request data
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example: *ref_20
         '409':
           description: Integration already exists for this project
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_47
+      security: *ref_48
+      x-required-scopes:
+        - integrations:write
   /integrations/{name}:
     get:
-      operationId: getIntegration
+      operationId: IntegrationsController_getIntegration
       summary: Get integration
       description: Get detailed information about a specific integration
       parameters:
@@ -4775,12 +5215,18 @@ paths:
           description: Integration retrieved successfully
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example: *ref_20
         '404':
           description: Integration not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_47
+      security: *ref_48
+      x-required-scopes:
+        - integrations:read
     put:
-      operationId: updateIntegration
+      operationId: IntegrationsController_updateIntegration
       summary: Update integration
       description: Update an existing integration configuration
       parameters:
@@ -4803,12 +5249,18 @@ paths:
           description: Invalid update data
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example: *ref_20
         '404':
           description: Integration not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_47
+      security: *ref_48
+      x-required-scopes:
+        - integrations:write
     delete:
-      operationId: deleteIntegration
+      operationId: IntegrationsController_deleteIntegration
       summary: Delete integration
       description: Delete an integration and all its associated data
       parameters:
@@ -4823,13 +5275,19 @@ paths:
           description: Integration deleted successfully
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example: *ref_20
         '404':
           description: Integration not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_47
+      security: *ref_48
+      x-required-scopes:
+        - integrations:write
   /integrations/{name}/public:
     get:
-      operationId: getPublicIntegrationInfo
+      operationId: IntegrationsController_getPublicIntegrationInfo
       summary: Get public integration info
       description: Get non-sensitive information about an integration
       parameters:
@@ -4844,13 +5302,19 @@ paths:
           description: Public info retrieved successfully
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example: *ref_20
         '404':
           description: Integration not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_47
+      security: *ref_48
+      x-required-scopes:
+        - integrations:read
   /integrations/{name}/test:
     post:
-      operationId: testConnection
+      operationId: IntegrationsController_testConnection
       summary: Test integration connection
       description: Test if the integration credentials are valid and the connection works
       parameters:
@@ -4865,13 +5329,19 @@ paths:
           description: Connection test completed
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example: *ref_20
         '404':
           description: Integration not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_47
+      security: *ref_48
+      x-required-scopes:
+        - integrations:write
   /integrations/{name}/sync/stream:
     get:
-      operationId: triggerSyncStream
+      operationId: IntegrationsController_triggerSyncStream
       summary: Trigger integration sync with real-time progress (SSE)
       description: Starts a sync and streams progress updates via Server-Sent Events
       parameters:
@@ -4884,11 +5354,13 @@ paths:
       responses:
         '200':
           description: SSE stream started
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_47
+      security: *ref_48
+      x-required-scopes:
+        - integrations:write
   /integrations/{name}/sync:
     post:
-      operationId: triggerSync
+      operationId: IntegrationsController_triggerSync
       summary: Trigger integration sync
       description: Manually trigger a full import/sync from the integration
       parameters:
@@ -4905,30 +5377,40 @@ paths:
           description: Integration does not support import
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example: *ref_20
         '404':
           description: Integration not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_47
+      security: *ref_48
+      x-required-scopes:
+        - integrations:write
   /integrations/clickup/structure:
     get:
-      operationId: getClickUpWorkspaceStructure
+      operationId: IntegrationsController_getClickUpWorkspaceStructure
       summary: Get ClickUp workspace structure
-      description: >-
-        Fetch hierarchical workspace structure (spaces, folders, lists) with
-        task counts for list selection UI
+      description: Fetch hierarchical workspace structure (spaces, folders, lists) with task counts for list selection UI
       parameters: []
       responses:
         '200':
           description: Workspace structure retrieved successfully
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example: *ref_20
         '404':
           description: ClickUp integration not found or not configured
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_47
+      security: *ref_48
+      x-required-scopes:
+        - integrations:read
   /integrations/clickup/spaces/{spaceId}:
     get:
-      operationId: getClickUpSpace
+      operationId: IntegrationsController_getClickUpSpace
       summary: Get ClickUp space details
       description: Fetch details for a specific ClickUp space by ID
       parameters:
@@ -4943,11 +5425,13 @@ paths:
           description: Space details retrieved successfully
         '404':
           description: ClickUp integration not found or space not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_47
+      security: *ref_48
+      x-required-scopes:
+        - integrations:read
   /integrations/clickup/folders/{folderId}:
     get:
-      operationId: getClickUpFolder
+      operationId: IntegrationsController_getClickUpFolder
       summary: Get ClickUp folder details
       description: Fetch details for a specific ClickUp folder by ID
       parameters:
@@ -4962,15 +5446,17 @@ paths:
           description: Folder details retrieved successfully
         '404':
           description: ClickUp integration not found or folder not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_47
+      security: *ref_48
+      x-required-scopes:
+        - integrations:read
   /mcp/schema/version:
     get:
-      operationId: getSchemaVersion
+      operationId: McpController_getSchemaVersion
       summary: Get current schema version hash
       description: >-
-        Returns a hash representing the current state of all schemas. Agents can
-        use this to determine if cached tools are still valid.
+        Returns a hash representing the current state of all schemas. Agents can use this to determine if cached tools
+        are still valid.
       parameters: []
       responses:
         '200':
@@ -4996,17 +5482,17 @@ paths:
                 example:
                   error:
                     code: forbidden
-                    message: Forbidden
-                    details:
-                      missing:
-                        - schema:read
-      tags: &ref_19
+                    message: Insufficient permissions
+                    missing_scopes: &ref_49
+                      - schema:read
+      tags: &ref_50
         - MCP
-      security: &ref_20
+      security: &ref_51
         - bearer: []
+      x-required-scopes: *ref_49
   /mcp/schema/changelog:
     get:
-      operationId: getSchemaChangelog
+      operationId: McpController_getSchemaChangelog
       summary: Get schema change history
       description: Returns recent schema changes for debugging and tracking
       parameters:
@@ -5046,15 +5532,15 @@ paths:
                 example:
                   error:
                     code: forbidden
-                    message: Forbidden
-                    details:
-                      missing:
-                        - schema:read
-      tags: *ref_19
-      security: *ref_20
+                    message: Insufficient permissions
+                    missing_scopes: &ref_52
+                      - schema:read
+      tags: *ref_50
+      security: *ref_51
+      x-required-scopes: *ref_52
   /mcp/rpc:
     post:
-      operationId: handleRpc
+      operationId: McpServerController_handleRpc
       summary: MCP JSON-RPC 2.0 Endpoint
       description: |-
 
@@ -5190,9 +5676,11 @@ paths:
         - MCP Server (JSON-RPC 2.0)
       security:
         - bearer: []
+      x-required-scopes:
+        - schema:read
   /user/delete-account:
     post:
-      operationId: deleteAccount
+      operationId: UserDeletionController_deleteAccount
       summary: Delete user account and all data
       parameters: []
       responses:
@@ -5228,13 +5716,19 @@ paths:
                     type: number
         '401':
           description: Unauthorized
-      tags: &ref_21
+          content:
+            application/json:
+              schema:
+                example: *ref_20
+      tags: &ref_53
         - user
-      security: &ref_22
+      security: &ref_54
         - bearer: []
+      x-required-scopes:
+        - account:delete
   /user/test-cleanup:
     post:
-      operationId: testCleanup
+      operationId: UserDeletionController_testCleanup
       summary: Clean up test user data (test environments only)
       parameters: []
       responses:
@@ -5242,18 +5736,47 @@ paths:
           description: Test data cleaned up successfully
         '403':
           description: Forbidden - not a test environment or test user
-      tags: *ref_21
-      security: *ref_22
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+                    missing_scopes: &ref_55
+                      - account:delete
+      tags: *ref_53
+      security: *ref_54
+      x-required-scopes: *ref_55
 info:
   title: Spec Server API
   description: >-
-    Generated OpenAPI spec (NestJS). NOTE: Each Document MUST belong to a
-    Project and each Project belongs to an Organization. Users with no
-    accessible Projects must create one before using ingestion or search
-    features.
+    Generated OpenAPI spec (code-first). All protected operations include x-required-scopes and 403 examples with
+    missing_scopes.
   version: 0.2.0
   contact: {}
-tags: []
+tags:
+  - name: Health
+  - name: Auth
+  - name: Orgs
+  - name: Projects
+  - name: Settings
+  - name: Ingestion
+  - name: Documents
+  - name: Chunks
+  - name: Search
+  - name: Chat
+  - name: Graph
+  - name: Extraction Jobs
+  - name: Integrations
+  - name: MCP
+  - name: MCP Server (JSON-RPC 2.0)
+  - name: monitoring
+  - name: Notifications
+  - name: Product Versions
+  - name: Tags
+  - name: user
+  - name: UserProfile
 servers: []
 components:
   securitySchemes:
@@ -5271,9 +5794,7 @@ components:
           format: uuid
         subjectId:
           type: string
-          description: >-
-            Canonical internal user id (subject id, from identity provider) -
-            DEPRECATED: use id
+          description: 'Canonical internal user id (subject id, from identity provider) - DEPRECATED: use id'
           format: uuid
         zitadelUserId:
           type: object
@@ -5358,9 +5879,7 @@ components:
         auto_extract_objects:
           type: boolean
           example: false
-          description: >-
-            When true, automatically create extraction jobs when documents are
-            uploaded
+          description: When true, automatically create extraction jobs when documents are uploaded
         auto_extract_config:
           type: object
           example:
@@ -5402,9 +5921,7 @@ components:
         kb_purpose:
           type: string
           example: This knowledge base contains documentation about...
-          description: >-
-            Markdown description of the knowledge base purpose and domain. Used
-            by auto-discovery to understand context.
+          description: Markdown description of the knowledge base purpose and domain. Used by auto-discovery to understand context.
         chat_prompt_template:
           type: string
           example: |-
@@ -5414,15 +5931,12 @@ components:
 
             {{MESSAGE}}
           description: >-
-            Custom chat prompt template. Supports placeholders:
-            {{SYSTEM_PROMPT}}, {{MCP_CONTEXT}}, {{GRAPH_CONTEXT}}, {{MESSAGE}},
-            {{MARKDOWN_RULES}}
+            Custom chat prompt template. Supports placeholders: {{SYSTEM_PROMPT}}, {{MCP_CONTEXT}}, {{GRAPH_CONTEXT}},
+            {{MESSAGE}}, {{MARKDOWN_RULES}}
         auto_extract_objects:
           type: boolean
           example: false
-          description: >-
-            Enable/disable automatic extraction of objects from uploaded
-            documents
+          description: Enable/disable automatic extraction of objects from uploaded documents
         auto_extract_config:
           type: object
           example:
@@ -5437,8 +5951,7 @@ components:
             notification_channels:
               - inbox
           description: >-
-            Configuration for automatic extraction (enabled_types,
-            min_confidence, duplicate_strategy, require_review,
+            Configuration for automatic extraction (enabled_types, min_confidence, duplicate_strategy, require_review,
             notify_on_complete, notification_channels)
     CreateTemplatePackDto:
       type: object
@@ -5466,12 +5979,8 @@ components:
           example: source.doc#L10
         pathSummary:
           type: string
-          example: >-
-            Related: links to Requirement "REQ-1" via 'implements'; linked from
-            Meeting "M3" via 'discussed_in'
-          description: >-
-            Human-readable summary of how this result relates to other objects
-            in the knowledge graph
+          example: 'Related: links to Requirement "REQ-1" via ''implements''; linked from Meeting "M3" via ''discussed_in'''
+          description: Human-readable summary of how this result relates to other objects in the knowledge graph
       required:
         - id
         - snippet
@@ -5555,9 +6064,7 @@ components:
           type: object
           nullable: true
           example: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
-          description: >-
-            Parent document ID for hierarchical structures (e.g., ClickUp page
-            hierarchy)
+          description: Parent document ID for hierarchical structures (e.g., ClickUp page hierarchy)
         integrationMetadata:
           type: object
           nullable: true
@@ -5570,9 +6077,7 @@ components:
           type: string
           nullable: true
           example: completed
-          description: >-
-            Status of the most recent extraction job for this document (pending,
-            running, completed, failed)
+          description: Status of the most recent extraction job for this document (pending, running, completed, failed)
           enum:
             - pending
             - running
@@ -6071,9 +6576,7 @@ components:
       type: object
       properties:
         relationshipTypes:
-          description: >-
-            Relationship types to follow in this phase. If omitted, all types
-            are allowed.
+          description: Relationship types to follow in this phase. If omitted, all types are allowed.
           example:
             - DEPENDS_ON
             - REQUIRES
@@ -6091,16 +6594,12 @@ components:
           example: out
         maxDepth:
           type: number
-          description: >-
-            Maximum depth (hops) to traverse in this phase, relative to phase
-            start nodes
+          description: Maximum depth (hops) to traverse in this phase, relative to phase start nodes
           minimum: 1
           maximum: 8
           example: 2
         objectTypes:
-          description: >-
-            Filter discovered nodes by object types. Only matching types
-            included.
+          description: Filter discovered nodes by object types. Only matching types included.
           example:
             - Implementation
             - TestCase
@@ -6109,9 +6608,7 @@ components:
           items:
             type: string
         labels:
-          description: >-
-            Filter discovered nodes by labels. Nodes must have at least one
-            matching label.
+          description: Filter discovered nodes by labels. Nodes must have at least one matching label.
           example:
             - verified
             - high-priority
@@ -6149,9 +6646,7 @@ components:
       properties:
         asOf:
           type: string
-          description: >-
-            Timestamp for point-in-time query (ISO 8601 format). Only
-            nodes/edges valid at this timestamp are included.
+          description: Timestamp for point-in-time query (ISO 8601 format). Only nodes/edges valid at this timestamp are included.
           example: '2024-12-31T23:59:59Z'
           format: date-time
         field:
@@ -6170,8 +6665,7 @@ components:
       properties:
         edgePhases:
           description: >-
-            Define multiple sequential traversal phases with different
-            constraints per phase. When provided, legacy
+            Define multiple sequential traversal phases with different constraints per phase. When provided, legacy
             direction/max_depth/relationship_types are ignored.
           maxItems: 8
           example:
@@ -6190,9 +6684,8 @@ components:
             $ref: '#/components/schemas/EdgePhaseDto'
         nodeFilter:
           description: >-
-            Filter nodes by property values using JSON Pointer paths and
-            comparison operators. Only nodes satisfying the predicate are
-            included.
+            Filter nodes by property values using JSON Pointer paths and comparison operators. Only nodes satisfying the
+            predicate are included.
           example:
             path: /status
             operator: equals
@@ -6200,9 +6693,7 @@ components:
           allOf:
             - $ref: '#/components/schemas/PredicateDto'
         edgeFilter:
-          description: >-
-            Filter edges by property values. Only edges satisfying the predicate
-            will be traversed.
+          description: Filter edges by property values. Only edges satisfying the predicate will be traversed.
           example:
             path: /confidence
             operator: greaterThan
@@ -6212,22 +6703,22 @@ components:
         returnPaths:
           type: boolean
           description: >-
-            When true, include full paths from root nodes to each result node.
-            Each path is an array of node IDs showing the traversal route.
+            When true, include full paths from root nodes to each result node. Each path is an array of node IDs showing
+            the traversal route.
           example: true
         maxPathsPerNode:
           type: number
           description: >-
-            Maximum paths to track per node (used with returnPaths). Limits
-            memory usage when a node is reachable via many routes.
+            Maximum paths to track per node (used with returnPaths). Limits memory usage when a node is reachable via
+            many routes.
           minimum: 1
           maximum: 100
           default: 10
           example: 10
         temporalFilter:
           description: >-
-            Filter nodes and edges based on temporal validity. Enables
-            point-in-time queries to see historical graph state.
+            Filter nodes and edges based on temporal validity. Enables point-in-time queries to see historical graph
+            state.
           example:
             asOf: '2024-12-31T23:59:59Z'
             field: valid_from
@@ -6236,9 +6727,8 @@ components:
         fieldStrategy:
           type: string
           description: >-
-            Field pruning strategy to control response payload size. compact
-            removes paths/phaseIndex (~25% reduction), minimal keeps only
-            essential fields (~45% reduction).
+            Field pruning strategy to control response payload size. compact removes paths/phaseIndex (~25% reduction),
+            minimal keeps only essential fields (~45% reduction).
           enum:
             - full
             - compact
@@ -6263,16 +6753,12 @@ components:
           maximum: 100
         minScore:
           type: number
-          description: >-
-            Optional max distance (cosine) filter (0 ≤ d ≤ 2; typical cosine
-            range).
+          description: Optional max distance (cosine) filter (0 ≤ d ≤ 2; typical cosine range).
           minimum: 0
           maximum: 2
         maxDistance:
           type: number
-          description: >-
-            Alias for minScore (preferred). Same constraints (0 ≤ d ≤ 2). If
-            both provided, maxDistance wins.
+          description: Alias for minScore (preferred). Same constraints (0 ≤ d ≤ 2). If both provided, maxDistance wins.
           minimum: 0
           maximum: 2
         type:
@@ -6294,16 +6780,12 @@ components:
           type: string
           description: Optional key prefix match (ILIKE prefix%)
         labelsAll:
-          description: >-
-            Require all labels (array contains) – matches rows whose labels
-            array contains every listed label
+          description: Require all labels (array contains) – matches rows whose labels array contains every listed label
           type: array
           items:
             type: string
         labelsAny:
-          description: >-
-            Require any label (overlap) – matches rows whose labels array
-            overlaps any listed label
+          description: Require any label (overlap) – matches rows whose labels array overlaps any listed label
           type: array
           items:
             type: string
@@ -6334,9 +6816,7 @@ components:
           maximum: 20
         maxDistance:
           type: number
-          description: >-
-            Maximum vector distance for similarity (0.0-2.0, lower = more
-            similar)
+          description: Maximum vector distance for similarity (0.0-2.0, lower = more similar)
           default: 0.5
           minimum: 0
           maximum: 2
@@ -6377,9 +6857,7 @@ components:
           example: 123e4567-e89b-12d3-a456-426614174000
         objectType:
           type: string
-          description: >-
-            Object type to apply policy to (e.g., "Document", "Requirement",
-            "TestCase")
+          description: Object type to apply policy to (e.g., "Document", "Requirement", "TestCase")
           example: Document
         enabled:
           type: boolean
@@ -6388,9 +6866,7 @@ components:
           example: true
         maxPropertySize:
           type: number
-          description: >-
-            Maximum property size in bytes. Objects with properties larger than
-            this will not be embedded.
+          description: Maximum property size in bytes. Objects with properties larger than this will not be embedded.
           example: 10000
         requiredLabels:
           description: Labels that must be present on the object for it to be embedded
@@ -6409,9 +6885,7 @@ components:
           items:
             type: string
         relevantPaths:
-          description: >-
-            JSON Pointer paths to relevant properties. If specified, only these
-            paths will be embedded (field masking).
+          description: JSON Pointer paths to relevant properties. If specified, only these paths will be embedded (field masking).
           example:
             - /properties/title
             - /properties/description
@@ -6512,9 +6986,7 @@ components:
           example: false
         maxPropertySize:
           type: number
-          description: >-
-            Maximum property size in bytes. Objects with properties larger than
-            this will not be embedded.
+          description: Maximum property size in bytes. Objects with properties larger than this will not be embedded.
           example: 20000
         requiredLabels:
           description: Labels that must be present on the object for it to be embedded
@@ -6553,13 +7025,11 @@ components:
         execute:
           type: boolean
           description: >-
-            If true, attempt to apply the merge (will fail with 409 if any
-            conflicts). When false or omitted, performs a dry-run only.
+            If true, attempt to apply the merge (will fail with 409 if any conflicts). When false or omitted, performs a
+            dry-run only.
         limit:
           type: number
-          description: >-
-            Optional enumeration limit override (must be <= server max).
-            Primarily for testing.
+          description: Optional enumeration limit override (must be <= server max). Primarily for testing.
       required:
         - sourceBranchId
     BranchMergeObjectSummaryDto:
@@ -6594,9 +7064,7 @@ components:
           items:
             type: string
         conflicts:
-          description: >-
-            List of conflicting property paths (subset intersection of
-            source/target paths with differing final values)
+          description: List of conflicting property paths (subset intersection of source/target paths with differing final values)
           type: array
           items:
             type: string
@@ -6655,9 +7123,7 @@ components:
           items:
             type: string
         conflicts:
-          description: >-
-            List of conflicting property paths (subset intersection of
-            source/target paths with differing final values)
+          description: List of conflicting property paths (subset intersection of source/target paths with differing final values)
           type: array
           items:
             type: string
@@ -6695,9 +7161,7 @@ components:
           description: Count of objects newly added by source branch
         fast_forward_count:
           type: number
-          description: >-
-            Count of objects that can be applied without conflict (fast-forward
-            or safe merge)
+          description: Count of objects that can be applied without conflict (fast-forward or safe merge)
         conflict_count:
           type: number
           description: Count of objects with conflicts requiring manual resolution
@@ -6716,9 +7180,7 @@ components:
           description: True when merge changes were applied (execute=true & no conflicts)
         applied_objects:
           type: number
-          description: >-
-            Number of objects mutated/created during apply (added +
-            fast_forward)
+          description: Number of objects mutated/created during apply (added + fast_forward)
         relationships_total:
           type: number
           description: Total divergent canonical relationships considered
@@ -6730,9 +7192,7 @@ components:
           description: Count of relationships newly added by source branch
         relationships_fast_forward_count:
           type: number
-          description: >-
-            Count of relationships that can be applied without conflict
-            (fast-forward or safe merge)
+          description: Count of relationships that can be applied without conflict (fast-forward or safe merge)
         relationships_conflict_count:
           type: number
           description: Count of relationships with conflicts requiring manual resolution
@@ -7128,9 +7588,8 @@ components:
             - backward
           default: forward
           description: >-
-            Pagination direction relative to cursor (forward = items after
-            cursor, backward = items before cursor). Only meaningful when cursor
-            is supplied.
+            Pagination direction relative to cursor (forward = items after cursor, backward = items before cursor). Only
+            meaningful when cursor is supplied.
     GraphSearchRequestDto:
       type: object
       properties:
@@ -7434,8 +7893,8 @@ components:
           type: number
           example: 8
           description: >-
-            Total size of fused candidate pool prior to pagination (may be less
-            than lexical_considered+vector_considered due to overlaps).
+            Total size of fused candidate pool prior to pagination (may be less than
+            lexical_considered+vector_considered due to overlaps).
         nextCursor:
           type: object
           example: null
@@ -7451,15 +7910,11 @@ components:
         approx_position_start:
           type: number
           example: 41
-          description: >-
-            Approximate 1-based index of first item in this page relative to
-            fused pool snapshot. 0 if page empty.
+          description: Approximate 1-based index of first item in this page relative to fused pool snapshot. 0 if page empty.
         approx_position_end:
           type: number
           example: 80
-          description: >-
-            Approximate 1-based index of last item in this page relative to
-            fused pool snapshot. 0 if page empty.
+          description: Approximate 1-based index of last item in this page relative to fused pool snapshot. 0 if page empty.
       required:
         - channels
         - fusion
@@ -7619,3 +8074,6 @@ x-tagGroups:
   - name: Chat
     tags:
       - Chat
+  - name: Knowledge Graph
+    tags:
+      - Graph

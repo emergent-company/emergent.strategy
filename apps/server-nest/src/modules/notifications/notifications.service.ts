@@ -1,5 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { DatabaseService } from '../../common/database/database.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, LessThan, MoreThan, IsNull, Not, DataSource } from 'typeorm';
+import { Notification } from '../../entities/notification.entity';
 import {
     CreateNotificationDto,
     NotificationCategory,
@@ -7,7 +9,6 @@ import {
     NotificationSourceType,
 } from './dto/create-notification.dto';
 import {
-    Notification,
     NotificationPreferences,
     UnreadCounts,
     NotificationFilter,
@@ -18,7 +19,11 @@ import {
 export class NotificationsService {
     private readonly logger = new Logger(NotificationsService.name);
 
-    constructor(private readonly db: DatabaseService) { }
+    constructor(
+        @InjectRepository(Notification)
+        private readonly notificationRepo: Repository<Notification>,
+        private readonly dataSource: DataSource,
+    ) { }
 
     /**
      * Create a notification for a user
@@ -37,44 +42,33 @@ export class NotificationsService {
         if (prefs.force_important) importance = NotificationImportance.IMPORTANT;
         if (prefs.force_other) importance = NotificationImportance.OTHER;
 
-        const result = await this.db.query<Notification>(
-            `
-      INSERT INTO kb.notifications (
-        organization_id, project_id, user_id,
-        category, importance, title, message, details,
-        source_type, source_id, action_url, action_label, group_key,
-        type, severity, related_resource_type, related_resource_id,
-        read, dismissed, actions, expires_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
-      RETURNING *
-    `,
-            [
-                data.organization_id || null,
-                data.project_id || null,
-                data.subject_id, // Maps to user_id column (recipient)
-                data.category,
-                importance,
-                data.title,
-                data.message,
-                data.details ? JSON.stringify(data.details) : null,
-                data.source_type || null,
-                data.source_id || null,
-                data.action_url || null,
-                data.action_label || null,
-                data.group_key || null,
-                // New fields from migration 0005
-                (data as any).type || null,
-                (data as any).severity || 'info',
-                (data as any).related_resource_type || null,
-                (data as any).related_resource_id || null,
-                (data as any).read || false,
-                (data as any).dismissed || false,
-                (data as any).actions ? JSON.stringify((data as any).actions) : '[]',
-                (data as any).expires_at || null,
-            ],
-        );
+        // Build notification entity
+        const notification = this.notificationRepo.create({
+            organizationId: data.organization_id,
+            projectId: data.project_id,
+            userId: data.subject_id, // Maps to user_id column (recipient)
+            category: data.category,
+            importance,
+            title: data.title,
+            message: data.message,
+            details: data.details,
+            sourceType: data.source_type,
+            sourceId: data.source_id,
+            actionUrl: data.action_url,
+            actionLabel: data.action_label,
+            groupKey: data.group_key,
+            // New fields from migration 0005
+            type: (data as any).type,
+            severity: (data as any).severity || 'info',
+            relatedResourceType: (data as any).related_resource_type,
+            relatedResourceId: (data as any).related_resource_id,
+            read: (data as any).read || false,
+            dismissed: (data as any).dismissed || false,
+            actions: (data as any).actions || [],
+            expiresAt: (data as any).expires_at,
+        });
 
-        const notification = result.rows[0];
+        const savedNotification = await this.notificationRepo.save(notification);
 
         // TODO: Trigger real-time notification via WebSocket
         // await this.broadcastNotification(notification);
@@ -84,7 +78,7 @@ export class NotificationsService {
         //   await this.sendEmailNotification(notification);
         // }
 
-        return notification;
+        return savedNotification;
     }
 
     /**
@@ -95,60 +89,50 @@ export class NotificationsService {
         tab: NotificationTab,
         filters: NotificationFilter = {},
     ): Promise<Notification[]> {
-        const conditions: string[] = ['user_id = $1'];
-        const params: any[] = [userId];
-        let paramIndex = 2;
+        const qb = this.notificationRepo
+            .createQueryBuilder('n')
+            .where('n.userId = :userId', { userId })
+            .orderBy('n.createdAt', 'DESC')
+            .limit(100);
 
         // Tab filtering
         switch (tab) {
             case 'important':
-                conditions.push(`importance = 'important'`);
-                conditions.push('cleared_at IS NULL');
-                conditions.push('(snoozed_until IS NULL OR snoozed_until < now())');
+                qb.andWhere(`n.importance = 'important'`)
+                    .andWhere('n.clearedAt IS NULL')
+                    .andWhere('(n.snoozedUntil IS NULL OR n.snoozedUntil < now())');
                 break;
             case 'other':
-                conditions.push(`importance = 'other'`);
-                conditions.push('cleared_at IS NULL');
-                conditions.push('(snoozed_until IS NULL OR snoozed_until < now())');
+                qb.andWhere(`n.importance = 'other'`)
+                    .andWhere('n.clearedAt IS NULL')
+                    .andWhere('(n.snoozedUntil IS NULL OR n.snoozedUntil < now())');
                 break;
             case 'snoozed':
-                conditions.push('snoozed_until > now()');
-                conditions.push('cleared_at IS NULL');
+                qb.andWhere('n.snoozedUntil > now()')
+                    .andWhere('n.clearedAt IS NULL');
                 break;
             case 'cleared':
-                conditions.push('cleared_at IS NOT NULL');
-                conditions.push('cleared_at > now() - interval \'30 days\'');
+                qb.andWhere('n.clearedAt IS NOT NULL')
+                    .andWhere("n.clearedAt > now() - interval '30 days'");
                 break;
         }
 
         // Additional filters
         if (filters.unread_only) {
-            conditions.push('read_at IS NULL');
+            qb.andWhere('n.readAt IS NULL');
         }
 
         if (filters.category && filters.category !== 'all') {
-            conditions.push(`category LIKE $${paramIndex}`);
-            params.push(`${filters.category}%`);
-            paramIndex++;
+            qb.andWhere('n.category LIKE :category', { category: `${filters.category}%` });
         }
 
         if (filters.search) {
-            conditions.push(
-                `(title ILIKE $${paramIndex} OR message ILIKE $${paramIndex})`,
-            );
-            params.push(`%${filters.search}%`);
-            paramIndex++;
+            qb.andWhere('(n.title ILIKE :search OR n.message ILIKE :search)', {
+                search: `%${filters.search}%`,
+            });
         }
 
-        const query = `
-      SELECT * FROM kb.notifications
-      WHERE ${conditions.join(' AND ')}
-      ORDER BY created_at DESC
-      LIMIT 100
-    `;
-
-        const result = await this.db.query<Notification>(query, params);
-        return result.rows;
+        return qb.getMany();
     }
 
     /**
@@ -156,22 +140,20 @@ export class NotificationsService {
      */
     async getUnreadCounts(userId: string): Promise<UnreadCounts> {
         try {
-            const result = await this.db.query<any>(
-                `
-        SELECT 
-          COUNT(*) FILTER (WHERE importance = 'important' AND read_at IS NULL AND cleared_at IS NULL AND (snoozed_until IS NULL OR snoozed_until < now())) as important,
-          COUNT(*) FILTER (WHERE importance = 'other' AND read_at IS NULL AND cleared_at IS NULL AND (snoozed_until IS NULL OR snoozed_until < now())) as other,
-          COUNT(*) FILTER (WHERE snoozed_until > now() AND cleared_at IS NULL) as snoozed
-        FROM kb.notifications
-        WHERE user_id = $1
-      `,
-                [userId],
-            );
+            const result = await this.notificationRepo
+                .createQueryBuilder('n')
+                .select([
+                    `COUNT(*) FILTER (WHERE importance = 'important' AND read_at IS NULL AND cleared_at IS NULL AND (snoozed_until IS NULL OR snoozed_until < now())) as important`,
+                    `COUNT(*) FILTER (WHERE importance = 'other' AND read_at IS NULL AND cleared_at IS NULL AND (snoozed_until IS NULL OR snoozed_until < now())) as other`,
+                    `COUNT(*) FILTER (WHERE snoozed_until > now() AND cleared_at IS NULL) as snoozed`,
+                ])
+                .where('n.userId = :userId', { userId })
+                .getRawOne();
 
             const counts = {
-                important: parseInt(result.rows[0].important, 10) || 0,
-                other: parseInt(result.rows[0].other, 10) || 0,
-                snoozed: parseInt(result.rows[0].snoozed, 10) || 0,
+                important: parseInt(result.important, 10) || 0,
+                other: parseInt(result.other, 10) || 0,
+                snoozed: parseInt(result.snoozed, 10) || 0,
             };
 
             return counts;
@@ -186,17 +168,12 @@ export class NotificationsService {
      * Mark notification as read
      */
     async markRead(notificationId: string, userId: string): Promise<void> {
-        const result = await this.db.query(
-            `
-      UPDATE kb.notifications
-      SET read_at = now()
-      WHERE id = $1 AND user_id = $2
-      RETURNING id
-    `,
-            [notificationId, userId],
+        const result = await this.notificationRepo.update(
+            { id: notificationId, userId },
+            { readAt: () => 'now()' },
         );
 
-        if (result.rows.length === 0) {
+        if (!result.affected || result.affected === 0) {
             throw new NotFoundException('Notification not found');
         }
     }
@@ -205,17 +182,12 @@ export class NotificationsService {
      * Mark notification as unread
      */
     async markUnread(notificationId: string, userId: string): Promise<void> {
-        const result = await this.db.query(
-            `
-      UPDATE kb.notifications
-      SET read_at = NULL
-      WHERE id = $1 AND user_id = $2
-      RETURNING id
-    `,
-            [notificationId, userId],
+        const result = await this.notificationRepo.update(
+            { id: notificationId, userId },
+            { readAt: null },
         );
 
-        if (result.rows.length === 0) {
+        if (!result.affected || result.affected === 0) {
             throw new NotFoundException('Notification not found');
         }
     }
@@ -224,17 +196,12 @@ export class NotificationsService {
      * Dismiss notification (mark as dismissed/cleared)
      */
     async dismiss(notificationId: string, userId: string): Promise<void> {
-        const result = await this.db.query(
-            `
-      UPDATE kb.notifications
-      SET cleared_at = now()
-      WHERE id = $1 AND user_id = $2
-      RETURNING id
-    `,
-            [notificationId, userId],
+        const result = await this.notificationRepo.update(
+            { id: notificationId, userId },
+            { clearedAt: () => 'now()' },
         );
 
-        if (result.rows.length === 0) {
+        if (!result.affected || result.affected === 0) {
             throw new NotFoundException('Notification not found');
         }
     }
@@ -243,22 +210,20 @@ export class NotificationsService {
      * Get notification counts (unread, dismissed, total)
      */
     async getCounts(userId: string): Promise<{ unread: number; dismissed: number; total: number }> {
-        const result = await this.db.query<any>(
-            `
-      SELECT 
-        COUNT(*) FILTER (WHERE read_at IS NULL AND cleared_at IS NULL) as unread,
-        COUNT(*) FILTER (WHERE cleared_at IS NOT NULL) as dismissed,
-        COUNT(*) as total
-      FROM kb.notifications
-      WHERE user_id = $1
-    `,
-            [userId],
-        );
+        const result = await this.notificationRepo
+            .createQueryBuilder('n')
+            .select([
+                `COUNT(*) FILTER (WHERE read_at IS NULL AND cleared_at IS NULL) as unread`,
+                `COUNT(*) FILTER (WHERE cleared_at IS NOT NULL) as dismissed`,
+                `COUNT(*) as total`,
+            ])
+            .where('n.userId = :userId', { userId })
+            .getRawOne();
 
         return {
-            unread: parseInt(result.rows[0].unread, 10) || 0,
-            dismissed: parseInt(result.rows[0].dismissed, 10) || 0,
-            total: parseInt(result.rows[0].total, 10) || 0,
+            unread: parseInt(result.unread, 10) || 0,
+            dismissed: parseInt(result.dismissed, 10) || 0,
+            total: parseInt(result.total, 10) || 0,
         };
     }
 
@@ -266,17 +231,12 @@ export class NotificationsService {
      * Clear notification (move to cleared tab)
      */
     async clear(notificationId: string, userId: string): Promise<void> {
-        const result = await this.db.query(
-            `
-      UPDATE kb.notifications
-      SET cleared_at = now(), snoozed_until = NULL
-      WHERE id = $1 AND user_id = $2
-      RETURNING id
-    `,
-            [notificationId, userId],
+        const result = await this.notificationRepo.update(
+            { id: notificationId, userId },
+            { clearedAt: () => 'now()', snoozedUntil: null },
         );
 
-        if (result.rows.length === 0) {
+        if (!result.affected || result.affected === 0) {
             throw new NotFoundException('Notification not found');
         }
     }
@@ -285,17 +245,12 @@ export class NotificationsService {
      * Unclear notification (restore from cleared)
      */
     async unclear(notificationId: string, userId: string): Promise<void> {
-        const result = await this.db.query(
-            `
-      UPDATE kb.notifications
-      SET cleared_at = NULL
-      WHERE id = $1 AND user_id = $2
-      RETURNING id
-    `,
-            [notificationId, userId],
+        const result = await this.notificationRepo.update(
+            { id: notificationId, userId },
+            { clearedAt: null },
         );
 
-        if (result.rows.length === 0) {
+        if (!result.affected || result.affected === 0) {
             throw new NotFoundException('Notification not found');
         }
     }
@@ -304,20 +259,17 @@ export class NotificationsService {
      * Clear all notifications in a tab
      */
     async clearAll(userId: string, tab: 'important' | 'other'): Promise<number> {
-        const result = await this.db.query(
-            `
-      UPDATE kb.notifications
-      SET cleared_at = now()
-      WHERE user_id = $1
-        AND importance = $2
-        AND cleared_at IS NULL
-        AND (snoozed_until IS NULL OR snoozed_until < now())
-      RETURNING id
-    `,
-            [userId, tab],
-        );
+        const result = await this.notificationRepo
+            .createQueryBuilder()
+            .update()
+            .set({ clearedAt: () => 'now()' })
+            .where('userId = :userId', { userId })
+            .andWhere('importance = :tab', { tab })
+            .andWhere('clearedAt IS NULL')
+            .andWhere('(snoozedUntil IS NULL OR snoozedUntil < now())')
+            .execute();
 
-        return result.rows.length;
+        return result.affected || 0;
     }
 
     /**
@@ -328,17 +280,12 @@ export class NotificationsService {
         userId: string,
         until: Date,
     ): Promise<void> {
-        const result = await this.db.query(
-            `
-      UPDATE kb.notifications
-      SET snoozed_until = $3
-      WHERE id = $1 AND user_id = $2
-      RETURNING id
-    `,
-            [notificationId, userId, until],
+        const result = await this.notificationRepo.update(
+            { id: notificationId, userId },
+            { snoozedUntil: until },
         );
 
-        if (result.rows.length === 0) {
+        if (!result.affected || result.affected === 0) {
             throw new NotFoundException('Notification not found');
         }
     }
@@ -350,16 +297,12 @@ export class NotificationsService {
         notificationId: string,
         userId: string,
     ): Promise<void> {
-        const result = await this.db.query(
-            `
-      UPDATE kb.notifications
-      SET snoozed_until = NULL
-      WHERE id = $1 AND user_id = $2
-      RETURNING id
-    `,
-            [notificationId, userId],
+        const result = await this.notificationRepo.update(
+            { id: notificationId, userId },
+            { snoozedUntil: null },
         );
-        if (result.rows.length === 0) {
+
+        if (!result.affected || result.affected === 0) {
             throw new NotFoundException('Notification not found');
         }
     }
@@ -372,7 +315,7 @@ export class NotificationsService {
         category: string,
     ): Promise<NotificationPreferences> {
         try {
-            const result = await this.db.query<NotificationPreferences>(
+            const result = await this.dataSource.query(
                 `
       SELECT * FROM kb.user_notification_preferences
       WHERE user_id = $1 AND category = $2
@@ -381,7 +324,7 @@ export class NotificationsService {
             );
 
             // Return defaults if not found
-            if (result.rows.length === 0) {
+            if (!result || result.length === 0) {
                 return {
                     id: '',
                     subject_id: userId,
@@ -398,7 +341,7 @@ export class NotificationsService {
                 };
             }
 
-            return result.rows[0];
+            return result[0];
         } catch (error) {
             // Table doesn't exist yet, return defaults
             this.logger.debug(`user_notification_preferences table not found, using defaults`);

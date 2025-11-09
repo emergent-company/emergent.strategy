@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { IntegrationsService } from './integrations.service';
 import { IntegrationsController } from './integrations.controller';
 import { EncryptionService } from './encryption.service';
 import { IntegrationRegistryService } from './integration-registry.service';
-import { DatabaseModule } from '../../common/database/database.module';
+import { Integration } from '../../entities/integration.entity';
 import { AppConfigModule } from '../../common/config/config.module';
 
 /**
@@ -41,7 +42,7 @@ import { AppConfigModule } from '../../common/config/config.module';
  */
 @Module({
     imports: [
-        DatabaseModule,
+        TypeOrmModule.forFeature([Integration]),
         AppConfigModule,
     ],
     providers: [

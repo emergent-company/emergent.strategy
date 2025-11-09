@@ -36,6 +36,7 @@ export { AuditLog } from './audit-log.entity';
 export { ClickUpImportLog } from './clickup-import-log.entity';
 export { ClickUpSyncState } from './clickup-sync-state.entity';
 export { ObjectExtractionLog } from './object-extraction-log.entity';
+export { Integration } from './integration.entity';
 
 // Core Schema Entities
 export { UserProfile } from './user-profile.entity';
@@ -73,6 +74,7 @@ import { AuditLog } from './audit-log.entity';
 import { ClickUpImportLog } from './clickup-import-log.entity';
 import { ClickUpSyncState } from './clickup-sync-state.entity';
 import { ObjectExtractionLog } from './object-extraction-log.entity';
+import { Integration } from './integration.entity';
 import { UserProfile } from './user-profile.entity';
 import { UserEmail } from './user-email.entity';
 
@@ -109,6 +111,7 @@ export const entities = [
   ClickUpImportLog,
   ClickUpSyncState,
   ObjectExtractionLog,
+  Integration,
   // Core Schema
   UserProfile,
   UserEmail,

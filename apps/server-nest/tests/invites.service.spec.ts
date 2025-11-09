@@ -1,50 +1,66 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { InvitesService } from '../src/modules/invites/invites.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { DatabaseService } from '../src/common/database/database.service';
 
-// Minimal mock DatabaseService
-class MockDb {
-    queries: any[] = [];
-    // configurable responses
-    insertResult: any;
-    selectInvite: any;
-    selectUserProfile: any;
-    client: any;
+// Repository mock factory
+function createMockRepository(methods = {}) {
+    return {
+        findOne: vi.fn().mockResolvedValue(null),
+        find: vi.fn().mockResolvedValue([]),
+        save: vi.fn().mockImplementation((entity) => Promise.resolve(entity)),
+        create: vi.fn().mockImplementation((entity) => entity),
+        delete: vi.fn().mockResolvedValue({ affected: 0 }),
+        ...methods
+    };
+}
 
-    query<T = any>(sql: string, params: any[]) {
-        this.queries.push({ sql, params });
-        if (sql.startsWith('INSERT INTO kb.invites')) {
-            return Promise.resolve({ rows: [this.insertResult], rowCount: 1 });
-        }
-        if (sql.startsWith('SELECT id, organization_id, project_id, email, role, status, token FROM kb.invites')) {
-            if (!this.selectInvite) return Promise.resolve({ rows: [], rowCount: 0 });
-            return Promise.resolve({ rows: [this.selectInvite], rowCount: 1 });
-        }
-        if (sql.startsWith('SELECT zitadel_user_id FROM core.user_profiles')) {
-            if (!this.selectUserProfile) return Promise.resolve({ rows: [], rowCount: 0 });
-            return Promise.resolve({ rows: [this.selectUserProfile], rowCount: 1 });
-        }
-        if (sql.startsWith('UPDATE kb.invites')) {
-            return Promise.resolve({ rowCount: 1 });
-        }
-        throw new Error('Unexpected query: ' + sql);
+// FakeDataSource class
+class FakeDataSource {
+    private handlers: Array<{ text: RegExp; respond: (text: string, params: any[]) => any }> = [];
+
+    constructor(handlers: Array<{ text: RegExp; respond: (text: string, params: any[]) => any }> = []) {
+        this.handlers = handlers;
     }
-    async getClient() {
-        if (this.client) return this.client;
-        const client = {
-            queries: [] as any[],
-            query: (sql: string, params?: any[]) => {
-                client.queries.push({ sql, params });
-                if (sql.startsWith('INSERT INTO kb.project_memberships')) return Promise.resolve({ rowCount: 1 });
-                if (sql.startsWith('INSERT INTO kb.organization_memberships')) return Promise.resolve({ rowCount: 1 });
-                if (sql.startsWith('UPDATE kb.invites')) return Promise.resolve({ rowCount: 1 });
-                if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') return Promise.resolve();
-                throw new Error('Unexpected tx query: ' + sql);
-            },
-            release: vi.fn(),
+
+    query(text: string, params?: any[]) {
+        const h = this.handlers.find(h => h.text.test(text));
+        if (!h) return Promise.resolve([]);
+        return h.respond(text, params || []);
+    }
+
+    createQueryRunner() {
+        return {
+            connect: vi.fn().mockResolvedValue(undefined),
+            startTransaction: vi.fn().mockResolvedValue(undefined),
+            commitTransaction: vi.fn().mockResolvedValue(undefined),
+            rollbackTransaction: vi.fn().mockResolvedValue(undefined),
+            release: vi.fn().mockResolvedValue(undefined),
+            manager: {
+                findOne: vi.fn().mockResolvedValue(null),
+                save: vi.fn().mockResolvedValue({}),
+                query: vi.fn().mockResolvedValue([])
+            }
         };
-        this.client = client;
-        return client;
+    }
+}
+
+// FakeDb class
+class FakeDb extends DatabaseService {
+    constructor() {
+        super({} as any);
+    }
+
+    isOnline(): boolean {
+        return true;
+    }
+
+    async runWithTenantContext<T>(
+        tenantId: string,
+        projectId: string,
+        callback: () => Promise<T>
+    ): Promise<T> {
+        return callback();
     }
 }
 
@@ -62,19 +78,59 @@ const createMockZitadelService = () => ({
 }) as any;
 
 describe('InvitesService', () => {
-    let db: MockDb; let zitadel: any; let service: InvitesService;
+    let inviteRepo: any;
+    let userProfileRepo: any;
+    let projectMembershipRepo: any;
+    let orgMembershipRepo: any;
+    let dataSource: FakeDataSource;
+    let db: FakeDb;
+    let zitadel: any;
+    let service: InvitesService;
+
     beforeEach(() => {
-        db = new MockDb();
+        inviteRepo = createMockRepository();
+        userProfileRepo = createMockRepository();
+        projectMembershipRepo = createMockRepository();
+        orgMembershipRepo = createMockRepository();
+        dataSource = new FakeDataSource([]);
+        db = new FakeDb();
         zitadel = createMockZitadelService();
-        service = new InvitesService(db as any, zitadel);
+        service = new InvitesService(
+            inviteRepo,
+            userProfileRepo,
+            projectMembershipRepo,
+            orgMembershipRepo,
+            dataSource,
+            db,
+            zitadel
+        );
     });
 
     it('creates invite with normalized email', async () => {
-        db.insertResult = { id: 'i1', organization_id: 'org1', project_id: null, email: 'user@example.com', role: 'org_admin', status: 'pending', token: 'tkn' };
+        const mockInvite = {
+            id: 'i1',
+            organizationId: 'org1',
+            projectId: null,
+            email: 'user@example.com',
+            role: 'org_admin',
+            status: 'pending',
+            token: 'tkn'
+        };
+
+        inviteRepo.create = vi.fn().mockReturnValue(mockInvite);
+        inviteRepo.save = vi.fn().mockResolvedValue(mockInvite);
+
         const res = await service.create('org1', 'org_admin', 'User@Example.COM', null);
-        expect(res).toMatchObject({ id: 'i1', email: 'user@example.com', role: 'org_admin', status: 'pending' });
-        // ensure insert recorded
-        expect(db.queries[0].params[2]).toBe('user@example.com');
+
+        expect(res).toMatchObject({
+            id: 'i1',
+            email: 'user@example.com',
+            role: 'org_admin',
+            status: 'pending'
+        });
+        expect(inviteRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+            email: 'user@example.com'  // Lowercased
+        }));
     });
 
     it('rejects invalid email', async () => {
@@ -82,49 +138,133 @@ describe('InvitesService', () => {
     });
 
     it('accepts org_admin invite and creates membership', async () => {
-        db.selectInvite = { id: 'i1', organization_id: 'org1', project_id: null, email: 'user@example.com', role: 'org_admin', status: 'pending', token: 'tok' };
-        db.selectUserProfile = { zitadel_user_id: 'zitadel-user-1' };  // Mock user profile query
-        const out = await service.accept('tok', 'user1');
-        expect(out).toEqual({ status: 'accepted' });
-        const client = await db.getClient();
-        const txSqls = client.queries.map((q: any) => q.sql);
-        expect(txSqls).toContain('BEGIN');
-        expect(txSqls.some((s: any) => s.startsWith('INSERT INTO kb.organization_memberships'))).toBe(true);
-        expect(txSqls).toContain('COMMIT');
+        const pendingInvite = {
+            id: 'i1',
+            organizationId: 'org1',
+            projectId: null,
+            email: 'user@example.com',
+            role: 'org_admin',
+            status: 'pending',
+            token: 'tok'
+        };
+
+        inviteRepo.findOne = vi.fn().mockResolvedValue(pendingInvite);
+        userProfileRepo.findOne = vi.fn().mockResolvedValue({ zitadelUserId: 'zitadel-user-1' });
+
+        const mockClient = {
+            query: vi.fn().mockResolvedValue({ rowCount: 1 }),
+            release: vi.fn()
+        };
+        (db as any).getClient = vi.fn().mockResolvedValue(mockClient);
+
+        const res = await service.accept('tok', 'user1');
+
+        expect(res.status).toBe('accepted');
+        expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
+        expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
+        expect(mockClient.release).toHaveBeenCalled();
     });
 
     it('accepts project invite and inserts project membership', async () => {
-        db.selectInvite = { id: 'i2', organization_id: 'org1', project_id: 'proj1', email: 'user@example.com', role: 'project_user', status: 'pending', token: 'tok2' };
-        db.selectUserProfile = { zitadel_user_id: 'zitadel-user-2' };  // Mock user profile query
-        const out = await service.accept('tok2', 'user2');
-        expect(out).toEqual({ status: 'accepted' });
-        const client = await db.getClient();
-        expect(client.queries.some((q: any) => q.sql.startsWith('INSERT INTO kb.project_memberships'))).toBe(true);
+        const projectInvite = {
+            id: 'i2',
+            organizationId: 'org1',
+            projectId: 'proj1',
+            email: 'user@example.com',
+            role: 'project_user',
+            status: 'pending',
+            token: 'tok2'
+        };
+
+        inviteRepo.findOne = vi.fn().mockResolvedValue(projectInvite);
+        userProfileRepo.findOne = vi.fn().mockResolvedValue({ zitadelUserId: 'zitadel-user-2' });
+
+        // Mock save on project membership repository
+        const saveSpy = vi.fn().mockResolvedValue({});
+        projectMembershipRepo.save = saveSpy;
+
+        const mockClient = {
+            query: vi.fn().mockResolvedValue({ rowCount: 1 }),
+            release: vi.fn()
+        };
+        (db as any).getClient = vi.fn().mockResolvedValue(mockClient);
+
+        const res = await service.accept('tok2', 'user2');
+
+        expect(res.status).toBe('accepted');
+        // Verify project membership was created via repository
+        expect(projectMembershipRepo.save).toHaveBeenCalled();
+        expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
+        expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
     });
 
     it('rejects unsupported non-admin org invite without project', async () => {
-        db.selectInvite = { id: 'i3', organization_id: 'org1', project_id: null, email: 'user@example.com', role: 'project_user', status: 'pending', token: 'tok3' };
-        await expect(service.accept('tok3', 'user3')).rejects.toBeInstanceOf(BadRequestException);
+        const invalidInvite = {
+            id: 'i3',
+            organizationId: 'org1',
+            projectId: null,
+            email: 'user@example.com',
+            role: 'project_user',  // project_user without projectId
+            status: 'pending',
+            token: 'tok3'
+        };
+
+        inviteRepo.findOne = vi.fn().mockResolvedValue(invalidInvite);
+
+        await expect(service.accept('tok3', 'user1')).rejects.toThrowError(BadRequestException);
     });
 
     it('rejects not found invite', async () => {
-        db.selectInvite = null;
-        await expect(service.accept('does-not-exist', 'userX')).rejects.toBeInstanceOf(NotFoundException);
+        inviteRepo.findOne = vi.fn().mockResolvedValue(null);
+
+        await expect(service.accept('no-such-token', 'user1')).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('rejects already accepted invite', async () => {
-        db.selectInvite = { id: 'i4', organization_id: 'org1', project_id: null, email: 'user@example.com', role: 'org_admin', status: 'accepted', token: 'tok4' };
-        await expect(service.accept('tok4', 'userZ')).rejects.toBeInstanceOf(BadRequestException);
+        const acceptedInvite = {
+            id: 'i4',
+            organizationId: 'org1',
+            projectId: null,
+            email: 'user@example.com',
+            role: 'org_admin',
+            status: 'accepted',  // Already accepted
+            token: 'tok4'
+        };
+
+        inviteRepo.findOne = vi.fn().mockResolvedValue(acceptedInvite);
+
+        await expect(service.accept('tok4', 'user1')).rejects.toBeInstanceOf(BadRequestException);
     });
+
 });
 
 describe('InvitesService - createWithUser (Zitadel Integration)', () => {
-    let db: MockDb; let zitadel: any; let service: InvitesService;
+    let inviteRepo: any;
+    let userProfileRepo: any;
+    let projectMembershipRepo: any;
+    let orgMembershipRepo: any;
+    let dataSource: FakeDataSource;
+    let db: FakeDb;
+    let zitadel: any;
+    let service: InvitesService;
 
     beforeEach(() => {
-        db = new MockDb();
+        inviteRepo = createMockRepository();
+        userProfileRepo = createMockRepository();
+        projectMembershipRepo = createMockRepository();
+        orgMembershipRepo = createMockRepository();
+        dataSource = new FakeDataSource([]);
+        db = new FakeDb();
         zitadel = createMockZitadelService();
-        service = new InvitesService(db as any, zitadel);
+        service = new InvitesService(
+            inviteRepo,
+            userProfileRepo,
+            projectMembershipRepo,
+            orgMembershipRepo,
+            dataSource,
+            db,
+            zitadel
+        );
     });
 
     describe('creating invitation with new user', () => {
@@ -134,6 +274,15 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
             zitadel.createUser.mockResolvedValue('zitadel-user-123');
             zitadel.updateUserMetadata.mockResolvedValue(undefined);
             zitadel.sendSetPasswordNotification.mockResolvedValue(undefined);
+
+            const mockInvite = {
+                id: expect.any(String),
+                email: 'newuser@example.com',
+                role: 'project_user',
+                organizationId: 'org-123'
+            };
+            inviteRepo.create = vi.fn().mockReturnValue(mockInvite);
+            inviteRepo.save = vi.fn().mockResolvedValue(mockInvite);
 
             const result = await service.createWithUser({
                 email: 'newuser@example.com',
@@ -167,6 +316,9 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
                 'zitadel-user-123',
                 expect.any(String)  // inviteId
             );
+
+            // Verify database save was called
+            expect(inviteRepo.save).toHaveBeenCalled();
         });
 
         it('should use existing Zitadel user if found', async () => {
@@ -174,6 +326,14 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
             zitadel.getUserByEmail.mockResolvedValue({ id: 'existing-zitadel-456', email: 'existing@example.com' });
             zitadel.updateUserMetadata.mockResolvedValue(undefined);
             zitadel.sendSetPasswordNotification.mockResolvedValue(undefined);
+
+            const mockInvite = {
+                id: expect.any(String),
+                email: 'existing@example.com',
+                role: 'project_admin'
+            };
+            inviteRepo.create = vi.fn().mockReturnValue(mockInvite);
+            inviteRepo.save = vi.fn().mockResolvedValue(mockInvite);
 
             const result = await service.createWithUser({
                 email: 'existing@example.com',
@@ -196,6 +356,13 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
             zitadel.updateUserMetadata.mockResolvedValue(undefined);
             zitadel.sendSetPasswordNotification.mockResolvedValue(undefined);
 
+            let savedEmail: string | undefined;
+            inviteRepo.create = vi.fn().mockImplementation((entity) => {
+                savedEmail = entity.email;
+                return { ...entity, id: 'inv-1' };
+            });
+            inviteRepo.save = vi.fn().mockResolvedValue({ email: 'mixedcase@example.com' });
+
             const result = await service.createWithUser({
                 email: 'MixedCase@Example.COM',
                 firstName: 'Test',
@@ -206,9 +373,7 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
             });
 
             expect(result.email).toBe('mixedcase@example.com');
-            // Verify database insert had lowercase email
-            const insertQuery = db.queries.find((q: any) => q.sql.startsWith('INSERT INTO kb.invites'));
-            expect(insertQuery.params[2]).toBe('mixedcase@example.com');
+            expect(savedEmail).toBe('mixedcase@example.com');
         });
 
         it('should store invitation metadata in Zitadel', async () => {
@@ -216,6 +381,10 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
             zitadel.createUser.mockResolvedValue('zitadel-user-999');
             zitadel.updateUserMetadata.mockResolvedValue(undefined);
             zitadel.sendSetPasswordNotification.mockResolvedValue(undefined);
+
+            const mockInvite = { id: 'inv-1', email: 'metauser@example.com' };
+            inviteRepo.create = vi.fn().mockReturnValue(mockInvite);
+            inviteRepo.save = vi.fn().mockResolvedValue(mockInvite);
 
             await service.createWithUser({
                 email: 'metauser@example.com',
@@ -246,6 +415,13 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
             zitadel.updateUserMetadata.mockResolvedValue(undefined);
             zitadel.sendSetPasswordNotification.mockResolvedValue(undefined);
 
+            let createdEntity: any;
+            inviteRepo.create = vi.fn().mockImplementation((entity) => {
+                createdEntity = entity;
+                return { ...entity, id: 'inv-1' };
+            });
+            inviteRepo.save = vi.fn().mockResolvedValue({ id: 'inv-1' });
+
             await service.createWithUser({
                 email: 'dbuser@example.com',
                 firstName: 'DB',
@@ -255,13 +431,12 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
                 invitedByUserId: 'inviter-uuid',
             });
 
-            // Verify database insert
-            const insertQuery = db.queries.find((q: any) => q.sql.startsWith('INSERT INTO kb.invites'));
-            expect(insertQuery).toBeDefined();
-            expect(insertQuery.params[2]).toBe('dbuser@example.com');  // email
-            expect(insertQuery.params[3]).toBe('org-123');  // organization_id
-            expect(insertQuery.params[5]).toBe('inviter-uuid');  // invited_by_user_id
-            expect(insertQuery.params[7]).toBe('org_admin');  // role
+            // Verify repository create was called with correct data
+            expect(inviteRepo.create).toHaveBeenCalled();
+            expect(createdEntity.email).toBe('dbuser@example.com');
+            expect(createdEntity.organizationId).toBe('org-123');
+            expect(createdEntity.role).toBe('org_admin');
+            expect(inviteRepo.save).toHaveBeenCalled();
         });
 
         it('should reject if neither organizationId nor projectId provided', async () => {
@@ -293,20 +468,27 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
     describe('accepting invitation with Zitadel role grant', () => {
         it('should grant role in Zitadel when accepting project invite', async () => {
             // Setup: Project invite
-            db.selectInvite = {
+            const projectInvite = {
                 id: 'invite-123',
-                organization_id: 'org-123',
-                project_id: 'proj-456',
+                organizationId: 'org-123',
+                projectId: 'proj-456',
                 email: 'acceptor@example.com',
                 role: 'project_user',
                 status: 'pending',
                 token: 'accept-token',
             };
-            db.selectUserProfile = { zitadel_user_id: 'zitadel-acceptor-789' };
+            inviteRepo.findOne = vi.fn().mockResolvedValue(projectInvite);
+            userProfileRepo.findOne = vi.fn().mockResolvedValue({ zitadelUserId: 'zitadel-acceptor-789' });
 
             // Mock: Zitadel configured
             zitadel.isConfigured.mockReturnValue(true);
             zitadel.grantProjectRole.mockResolvedValue(undefined);
+
+            const mockClient = {
+                query: vi.fn().mockResolvedValue({ rowCount: 1 }),
+                release: vi.fn()
+            };
+            (db as any).getClient = vi.fn().mockResolvedValue(mockClient);
 
             // Set ZITADEL_PROJECT_ID for test
             process.env.ZITADEL_PROJECT_ID = 'zitadel-proj-999';
@@ -326,20 +508,27 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
 
         it('should continue even if Zitadel role grant fails', async () => {
             // Setup: Project invite
-            db.selectInvite = {
+            const projectInvite = {
                 id: 'invite-456',
-                organization_id: 'org-123',
-                project_id: 'proj-789',
+                organizationId: 'org-123',
+                projectId: 'proj-789',
                 email: 'graceful@example.com',
                 role: 'project_admin',
                 status: 'pending',
                 token: 'graceful-token',
             };
-            db.selectUserProfile = { zitadel_user_id: 'zitadel-graceful-111' };
+            inviteRepo.findOne = vi.fn().mockResolvedValue(projectInvite);
+            userProfileRepo.findOne = vi.fn().mockResolvedValue({ zitadelUserId: 'zitadel-graceful-111' });
 
             // Mock: Zitadel configured but grant fails
             zitadel.isConfigured.mockReturnValue(true);
             zitadel.grantProjectRole.mockRejectedValue(new Error('Zitadel API error'));
+
+            const mockClient = {
+                query: vi.fn().mockResolvedValue({ rowCount: 1 }),
+                release: vi.fn()
+            };
+            (db as any).getClient = vi.fn().mockResolvedValue(mockClient);
 
             process.env.ZITADEL_PROJECT_ID = 'zitadel-proj-999';
 
@@ -353,19 +542,26 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
 
         it('should skip Zitadel grant if not configured', async () => {
             // Setup: Project invite
-            db.selectInvite = {
+            const projectInvite = {
                 id: 'invite-789',
-                organization_id: 'org-123',
-                project_id: 'proj-999',
+                organizationId: 'org-123',
+                projectId: 'proj-999',
                 email: 'noconfig@example.com',
                 role: 'project_user',
                 status: 'pending',
                 token: 'noconfig-token',
             };
-            db.selectUserProfile = { zitadel_user_id: 'zitadel-noconfig-222' };
+            inviteRepo.findOne = vi.fn().mockResolvedValue(projectInvite);
+            userProfileRepo.findOne = vi.fn().mockResolvedValue({ zitadelUserId: 'zitadel-noconfig-222' });
 
             // Mock: Zitadel not configured
             zitadel.isConfigured.mockReturnValue(false);
+
+            const mockClient = {
+                query: vi.fn().mockResolvedValue({ rowCount: 1 }),
+                release: vi.fn()
+            };
+            (db as any).getClient = vi.fn().mockResolvedValue(mockClient);
 
             await service.accept('noconfig-token', 'user-uuid-789');
 

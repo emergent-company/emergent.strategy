@@ -15,20 +15,20 @@ describe('EmbeddingWorkerService Metrics', () => {
 
         const db = {
             isOnline: () => true,
-            query: vi.fn(async (sql: string, params: any[]) => {
-                if (/SELECT id, properties, type, key FROM kb\.graph_objects/i.test(sql)) {
-                    if (params[0] === 'obj-success') {
-                        return { rowCount: 1, rows: [{ id: 'obj-success', properties: { body: 'success' }, type: 'doc', key: 'success-key' }] };
-                    }
-                    if (params[0] === 'obj-fail') {
-                        return { rowCount: 1, rows: [{ id: 'obj-fail', properties: { body: 'fail' }, type: 'doc', key: 'fail-key' }] };
-                    }
+        };
+
+        // Mock the TypeORM repository (service now uses graphObjectRepo instead of db.query)
+        const graphObjectRepo = {
+            findOne: vi.fn(async ({ where }: any) => {
+                if (where.id === 'obj-success') {
+                    return { id: 'obj-success', properties: { body: 'success' }, type: 'doc', key: 'success-key' };
                 }
-                if (/UPDATE kb\.graph_objects SET embedding=/i.test(sql)) {
-                    return { rowCount: 1 };
+                if (where.id === 'obj-fail') {
+                    return { id: 'obj-fail', properties: { body: 'fail' }, type: 'doc', key: 'fail-key' };
                 }
-                return { rowCount: 0, rows: [] };
+                return null;
             }),
+            update: vi.fn().mockResolvedValue({ affected: 1 }),
         };
 
         const provider = {
@@ -41,7 +41,7 @@ describe('EmbeddingWorkerService Metrics', () => {
         };
 
         const config = { embeddingsEnabled: true } as any;
-        const worker = new EmbeddingWorkerService(jobs as any, db as any, config, provider as any);
+        const worker = new EmbeddingWorkerService(jobs as any, db as any, graphObjectRepo as any, config, provider as any);
 
         await worker.processBatch();
 

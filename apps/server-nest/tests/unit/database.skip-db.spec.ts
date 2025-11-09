@@ -38,12 +38,16 @@ describe('DatabaseService SKIP_DB semantics', () => {
 
     it('unset SKIP_DB does not use skip mode (any error is not skipDb message)', async () => {
         delete process.env.SKIP_DB;
-        const { db } = buildServices();
-        await db.onModuleInit();
+        const { config, db } = buildServices();
+        // When SKIP_DB is unset, skipDb flag should be false
+        expect(config.skipDb).toBe(false);
+        // Verify getClient throws real connection error, not "Database disabled" error
+        // Don't call onModuleInit() as it triggers expensive retry cycle
         try {
-            const client = await db.getClient();
-            client.release();
+            await db.getClient();
+            // If we reach here, database connection succeeded (test passes)
         } catch (err: any) {
+            // If connection fails, ensure it's not the skipDb error message
             expect(String(err)).not.toMatch(/Database disabled \(SKIP_DB set\)/);
         }
     });
