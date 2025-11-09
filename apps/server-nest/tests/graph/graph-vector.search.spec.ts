@@ -1,13 +1,54 @@
 import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeAll } from 'vitest';
+import { Module } from '@nestjs/common';
 import { GraphModule } from '../../src/modules/graph/graph.module';
 import { DatabaseModule } from '../../src/common/database/database.module';
 import { AppConfigModule } from '../../src/common/config/config.module';
+import { AppConfigService } from '../../src/common/config/config.service';
 import { DatabaseService } from '../../src/common/database/database.service';
 import { GraphVectorSearchService } from '../../src/modules/graph/graph-vector-search.service';
 import { v4 as uuid } from 'uuid';
 // Shared deterministic vector helpers
 import { baseVec } from '../utils/vector-helpers';
+import { DummySha256EmbeddingProvider } from '../../src/modules/graph/embedding.provider';
+import { GoogleVertexEmbeddingProvider } from '../../src/modules/graph/google-vertex-embedding.provider';
+import { GraphService } from '../../src/modules/graph/graph.service';
+import { EmbeddingJobsService } from '../../src/modules/graph/embedding-jobs.service';
+
+// Stub to avoid TypeRegistryModule's repository creation
+@Module({
+    providers: [{
+        provide: 'TypeRegistryService',
+        useValue: {
+            getTypeRegistry: () => Promise.resolve([]),
+            createTypeRegistry: () => Promise.resolve({}),
+        }
+    }],
+    exports: ['TypeRegistryService']
+})
+class StubTypeRegistryModule { }
+
+// Stub to avoid GraphModule's repository creation
+@Module({
+    imports: [AppConfigModule],
+    providers: [
+        { provide: GraphService, useValue: {} },
+        { provide: EmbeddingJobsService, useValue: {} },
+        { provide: GraphVectorSearchService, useValue: {} },
+        {
+            provide: 'EMBEDDING_PROVIDER',
+            useFactory: (config: AppConfigService) => {
+                const provider = process.env.EMBEDDING_PROVIDER || 'unset';
+                if (provider === 'dummy') return new DummySha256EmbeddingProvider();
+                if (provider === 'vertex' || provider === 'google') return new GoogleVertexEmbeddingProvider(config);
+                return new DummySha256EmbeddingProvider();
+            },
+            inject: [AppConfigService]
+        }
+    ],
+    exports: ['EMBEDDING_PROVIDER']
+})
+class StubGraphModule { }
 
 async function ensureOrgProject(db: DatabaseService) {
     const org = await db.query<{ id: string }>('SELECT id FROM kb.orgs LIMIT 1');
@@ -39,9 +80,14 @@ describe('GraphVectorSearchService', () => {
 
     beforeAll(async () => {
         process.env.DB_AUTOINIT = 'true';
+
+        const { TypeRegistryModule } = await import('../../src/modules/type-registry/type-registry.module');
         const mod = await Test.createTestingModule({
             imports: [DatabaseModule, AppConfigModule, GraphModule],
-        }).compile();
+        })
+            .overrideModule(TypeRegistryModule).useModule(StubTypeRegistryModule)
+            .overrideModule(GraphModule).useModule(StubGraphModule)
+            .compile();
         db = mod.get(DatabaseService);
         svc = mod.get(GraphVectorSearchService);
     });

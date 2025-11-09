@@ -32,9 +32,31 @@ class ConfigMock { constructor(public embeddingsEnabled: boolean) { } }
 
 function build(overrides?: { db?: DbMock; embeddingsEnabled?: boolean }) {
     const db = overrides?.db ?? new DbMock();
-    const svc = new ChatService(db as any, new (class { /* embeddings service only used for retrieveCitations */
-        async embedQuery(text: string) { return [text.length, 42]; }
-    })() as any, new ConfigMock(overrides?.embeddingsEnabled ?? true) as any);
+    // Mock repository for ChatConversation
+    const mockConversationRepo = {
+        find: vi.fn(async () => []),
+        findOne: vi.fn(async () => null),
+        count: vi.fn(async () => 0),
+        save: vi.fn(async (entity: any) => entity),
+        create: vi.fn((data: any) => data),
+        update: vi.fn(async () => ({ affected: 1 })),
+        delete: vi.fn(async () => ({ affected: 1 })),
+    } as any;
+    // Mock repository for ChatMessage
+    const mockMessageRepo = {
+        find: vi.fn(async () => []),
+        save: vi.fn(async (entity: any) => entity),
+        create: vi.fn((data: any) => data),
+    } as any;
+    const svc = new ChatService(
+        mockConversationRepo,
+        mockMessageRepo,
+        db as any,
+        new (class { /* embeddings service only used for retrieveCitations */
+            async embedQuery(text: string) { return [text.length, 42]; }
+        })() as any,
+        new ConfigMock(overrides?.embeddingsEnabled ?? true) as any
+    );
     return { svc, db };
 }
 
@@ -73,22 +95,18 @@ describe('ChatService (unit)', () => {
         const db = new DbMock();
         // For a valid UUID, first SELECT returns 0 rows; ChatService then attempts diagnostic queries (which our mock returns empty)
         db.push({ rows: [], rowCount: 0 }); // primary conversation lookup
-        db.push({ rows: [{ c: 0 }], rowCount: 1 }); // count(*) diag (owner)
-        db.push({ rows: [{ c: 0 }], rowCount: 1 }); // count(*) diag (privateAll)
-        db.push({ rows: [{ c: 0 }], rowCount: 1 }); // count(*) diag (both)
         const { svc } = build({ db });
         expect(await svc.getConversation('invalid-id', null, null, null)).toBeNull();
         const someId = '123e4567-e89b-12d3-a456-426614174000';
         expect(await svc.getConversation(someId, null, null, null)).toBeNull();
-        // Invalid UUID path issues zero queries; valid not-found triggers diagnostic sequence.
-        // Current implementation performs primary lookup + two successful diagnostics before an exception in recent rows loop ends early.
-        expect(db.queries.length).toBe(3);
+        // Invalid UUID path issues zero queries; valid not-found triggers primary lookup only (diagnostic queries use repository.count/find, not db.query)
+        expect(db.queries.length).toBe(1);
     });
 
     it('getConversation forbidden when private and different owner', async () => {
         const db = new DbMock();
         const convId = '123e4567-e89b-12d3-a456-426614174000';
-        db.push({ rows: [{ id: convId, title: 'T', created_at: '2024-01-01', updated_at: '2024-01-01', owner_id: 'owner-1', is_private: true }], rowCount: 1 });
+        db.push({ rows: [{ id: convId, title: 'T', created_at: '2024-01-01', updated_at: '2024-01-01', owner_user_id: 'owner-1', is_private: true }], rowCount: 1 });
         const { svc } = build({ db });
         const res = await svc.getConversation(convId, 'other-user', null, null);
         expect(res).toBe('forbidden');
@@ -126,7 +144,7 @@ describe('ChatService (unit)', () => {
         it('throws forbidden when reusing private conversation owned by different user', async () => {
             const db = new DbMock();
             const existingId = '123e4567-e89b-12d3-a456-426614174000';
-            db.push({ rows: [{ id: existingId, is_private: true, owner_id: 'owner-xyz' }], rowCount: 1 });
+            db.push({ rows: [{ id: existingId, is_private: true, owner_user_id: 'owner-xyz' }], rowCount: 1 });
             const { svc } = build({ db });
             await expect(svc.createConversationIfNeeded(existingId, 'Message', 'user-other', null, null, true)).rejects.toThrow(/forbidden/);
         });
@@ -201,14 +219,29 @@ describe('ChatService (unit)', () => {
         it('renameConversation online: not-found, forbidden, ok', async () => {
             const db = new DbMock();
             const convId = '123e4567-e89b-12d3-a456-426614174000';
-            // not found path
-            db.push({ rows: [], rowCount: 0 });
-            // forbidden path (private diff owner)
-            db.push({ rows: [{ id: convId, owner_id: 'owner-1', is_private: true }], rowCount: 1 });
-            // ok path (shared conversation: is_private false) -> SELECT then UPDATE
-            db.push({ rows: [{ id: convId, owner_id: null, is_private: false }], rowCount: 1 });
-            db.push({ rows: [], rowCount: 0 }); // update
-            const { svc } = build({ db });
+
+            const { svc, db: _db } = build({ db });
+            const mockConversationRepo = (svc as any).conversationRepository;
+
+            // Configure mock responses for each call
+            // Call 1: not found
+            mockConversationRepo.findOne.mockResolvedValueOnce(null);
+
+            // Call 2: forbidden (private conversation, different owner)
+            mockConversationRepo.findOne.mockResolvedValueOnce({
+                id: convId,
+                ownerUserId: 'owner-1',
+                isPrivate: true
+            });
+
+            // Call 3: ok (shared conversation)
+            mockConversationRepo.findOne.mockResolvedValueOnce({
+                id: convId,
+                ownerUserId: null,
+                isPrivate: false
+            });
+            mockConversationRepo.update.mockResolvedValueOnce({ affected: 1 });
+
             expect(await svc.renameConversation(convId, 'Title A', 'user-x', null, null)).toBe('not-found');
             expect(await svc.renameConversation(convId, 'Title B', 'user-x', null, null)).toBe('forbidden');
             expect(await svc.renameConversation(convId, 'Title C', 'user-x', null, null)).toBe('ok');
@@ -217,16 +250,31 @@ describe('ChatService (unit)', () => {
         it('deleteConversation online: not-found, forbidden, ok', async () => {
             const db = new DbMock();
             const convId = '123e4567-e89b-12d3-a456-426614174000';
-            db.push({ rows: [], rowCount: 0 }); // not-found
-            db.push({ rows: [{ id: convId, owner_id: 'owner-1', is_private: true }], rowCount: 1 }); // forbidden
-            db.push({ rows: [{ id: convId, owner_id: null, is_private: false }], rowCount: 1 }); // ok select
-            db.push({ rows: [], rowCount: 0 }); // delete
+
             const { svc } = build({ db });
+            const mockConversationRepo = (svc as any).conversationRepository;
+
+            // Call 1: not-found
+            mockConversationRepo.findOne.mockResolvedValueOnce(null);
+
+            // Call 2: forbidden
+            mockConversationRepo.findOne.mockResolvedValueOnce({
+                id: convId,
+                ownerUserId: 'owner-1',
+                isPrivate: true
+            });
+
+            // Call 3: ok
+            mockConversationRepo.findOne.mockResolvedValueOnce({
+                id: convId,
+                ownerUserId: null,
+                isPrivate: false
+            });
+            mockConversationRepo.delete.mockResolvedValueOnce({ affected: 1 });
+
             expect(await svc.deleteConversation(convId, 'user-x', null, null)).toBe('not-found');
             expect(await svc.deleteConversation(convId, 'user-x', null, null)).toBe('forbidden');
             expect(await svc.deleteConversation(convId, 'user-x', null, null)).toBe('ok');
-            const deleteQuery = db.queries.find(q => /DELETE FROM kb.chat_conversations/.test(q.sql));
-            expect(deleteQuery).toBeTruthy();
         });
     });
 
@@ -332,7 +380,10 @@ describe('ChatService (unit)', () => {
                     distance: 0.1234,
                 }], rowCount: 1
             });
-            const svc = new ChatService(db as any, new EmbedMock() as any, new ConfigMock(true) as any);
+            // Mock repositories (not used in retrieveCitations but needed for constructor)
+            const mockConversationRepo = { find: vi.fn(), findOne: vi.fn(), count: vi.fn(), save: vi.fn(), create: vi.fn() } as any;
+            const mockMessageRepo = { find: vi.fn(), save: vi.fn(), create: vi.fn() } as any;
+            const svc = new ChatService(mockConversationRepo, mockMessageRepo, db as any, new EmbedMock() as any, new ConfigMock(true) as any);
             const out = await svc.retrieveCitations('hello world', 5, null, null, null);
             expect(out).toHaveLength(1);
             expect(out[0]).toMatchObject({
@@ -347,7 +398,10 @@ describe('ChatService (unit)', () => {
         it('returns [] when embedQuery throws (embed failure path)', async () => {
             class EmbedFail { async embedQuery() { throw new Error('embed explode'); } }
             const db = new DbMock();
-            const svc = new ChatService(db as any, new EmbedFail() as any, new ConfigMock(true) as any);
+            // Mock repositories (not used when embed fails but needed for constructor)
+            const mockConversationRepo = { find: vi.fn(), findOne: vi.fn(), count: vi.fn(), save: vi.fn(), create: vi.fn() } as any;
+            const mockMessageRepo = { find: vi.fn(), save: vi.fn(), create: vi.fn() } as any;
+            const svc = new ChatService(mockConversationRepo, mockMessageRepo, db as any, new EmbedFail() as any, new ConfigMock(true) as any);
             const res = await svc.retrieveCitations('message text', 3, null, null, null);
             expect(res).toEqual([]);
             // No DB query should have occurred due to early return
@@ -380,27 +434,42 @@ describe('ChatService (unit)', () => {
             db.push({ rows: [{ id: convId }], rowCount: 1 }); // insert conversation returning id
             db.push({ rows: [], rowCount: 0 }); // insert first message
             db.push({ rows: [], rowCount: 0 }); // update updated_at
-            // persistUserMessage queries
-            db.push({ rows: [], rowCount: 0 }); // insert user message
-            db.push({ rows: [], rowCount: 0 }); // update updated_at
-            // persistAssistantMessage queries
-            db.push({ rows: [], rowCount: 0 }); // insert assistant message
-            db.push({ rows: [], rowCount: 0 }); // update updated_at
+
             const { svc } = build({ db });
+            const mockMessageRepo = (svc as any).messageRepository;
+            const mockConversationRepo = (svc as any).conversationRepository;
+
             const newId = await svc.createConversationIfNeeded('123e4567-e89b-12d3-a456-4266141740dd', 'Seed message', 'user-a', null, null, true);
             expect(newId).toBe(convId);
+
+            // Reset call counts after creation
+            mockMessageRepo.create.mockClear();
+            mockMessageRepo.save.mockClear();
+            mockConversationRepo.update.mockClear();
+
             await svc.persistUserMessage(convId, 'Follow up');
             await svc.persistAssistantMessage(convId, 'Assistant answer', []);
-            const inserts = db.queries.filter(q => /INSERT INTO kb.chat_messages/.test(q.sql));
-            // should include initial user (in transaction) + persistUserMessage + assistant
-            expect(inserts.length).toBe(3);
-            const assistantInsert = inserts.find(q => /assistant/.test(q.sql));
-            expect(assistantInsert).toBeTruthy();
+
+            // Verify repository methods were called (service now uses Repository pattern instead of raw SQL)
+            expect(mockMessageRepo.create).toHaveBeenCalledTimes(2); // user + assistant
+            expect(mockMessageRepo.save).toHaveBeenCalledTimes(2); // user + assistant
+            expect(mockConversationRepo.update).toHaveBeenCalledTimes(2); // updated_at for each message
+
+            // Verify the assistant message was created with correct data
+            const assistantCreateCall = mockMessageRepo.create.mock.calls.find((call: any) => call[0].role === 'assistant');
+            expect(assistantCreateCall).toBeTruthy();
+            expect(assistantCreateCall[0]).toMatchObject({
+                conversationId: convId,
+                role: 'assistant',
+                content: 'Assistant answer',
+                citations: []
+            });
+
             // hasConversation online: invalid UUID false, not found false, found true
-            // script query responses for subsequent hasConversation calls
-            // invalid uuid returns early (no additional queue use)
-            db.push({ rows: [], rowCount: 0 }); // not-found
-            db.push({ rows: [{ id: convId }], rowCount: 1 }); // found
+            // Configure repository mock for hasConversation
+            mockConversationRepo.count.mockResolvedValueOnce(0); // not found
+            mockConversationRepo.count.mockResolvedValueOnce(1); // found
+
             expect(await svc.hasConversation('not-a-uuid')).toBe(false);
             expect(await svc.hasConversation('123e4567-e89b-12d3-a456-426614174099')).toBe(false);
             expect(await svc.hasConversation(convId)).toBe(true);

@@ -20,7 +20,10 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
         query: ReturnType<typeof vi.fn>;
         runWithTenantContext: ReturnType<typeof vi.fn>;
     };
-    let templatePackService: { assignTemplatePackToProject: ReturnType<typeof vi.fn> };
+    let templatePackService: {
+        assignTemplatePackToProject: ReturnType<typeof vi.fn>;
+        getProjectTemplatePacks: ReturnType<typeof vi.fn>;
+    };
 
     beforeEach(async () => {
         // Mock configuration service with threshold values
@@ -45,6 +48,7 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
 
         const templatePackMock = {
             assignTemplatePackToProject: vi.fn(),
+            getProjectTemplatePacks: vi.fn().mockResolvedValue([]),
         } as any;
 
         const module: TestingModule = await Test.createTestingModule({
@@ -269,19 +273,24 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
             expect((service as any).db).toBeDefined();
             expect((service as any).db).toBe(databaseService);
 
-            databaseService.query
-                .mockResolvedValueOnce({ rowCount: 0, rows: [] })
-                .mockResolvedValueOnce({
-                    rowCount: 1,
-                    rows: [
-                        {
-                            extraction_prompts: { default: 'Prompt text' },
-                            object_type_schemas: {},
-                            default_prompt_key: null,
-                        },
-                    ],
-                })
-                .mockResolvedValueOnce({ rowCount: 0, rows: [] }); // Base prompt query from kb.settings
+            // First call: no packs (triggers auto-install)
+            // Second call: returns the installed pack
+            templatePackService.getProjectTemplatePacks
+                .mockResolvedValueOnce([]) // First call: no packs
+                .mockResolvedValueOnce([{
+                    id: 'assignment-1',
+                    active: true,
+                    template_pack: {
+                        id: 'pack-default',
+                        name: 'Default Pack',
+                        extraction_prompts: { default: 'Prompt text' },
+                        object_type_schemas: {},
+                        default_prompt_key: null,
+                    }
+                }]); // After install
+
+            // Only query for base prompt from kb.settings
+            databaseService.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
 
             templatePackService.assignTemplatePackToProject.mockResolvedValue({ success: true });
 
@@ -297,7 +306,7 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
             // basePrompt comes from config.extractionBasePrompt when kb.settings is empty
             expect(result.prompt).toBe('Default base prompt');
             expect(result.objectSchemas).toBeDefined();
-            expect(databaseService.query).toHaveBeenCalledTimes(3);
+            expect(databaseService.query).toHaveBeenCalledTimes(1);
         });
 
         it('returns null when no default template pack is configured', async () => {
@@ -323,19 +332,24 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
         });
 
         it('retries after conflict without throwing', async () => {
-            databaseService.query
-                .mockResolvedValueOnce({ rowCount: 0, rows: [] })
-                .mockResolvedValueOnce({
-                    rowCount: 1,
-                    rows: [
-                        {
-                            extraction_prompts: { default: { system: 'sys', user: 'user' } },
-                            object_type_schemas: {},
-                            default_prompt_key: null,
-                        },
-                    ],
-                })
-                .mockResolvedValueOnce({ rowCount: 0, rows: [] }); // Base prompt query from kb.settings
+            // First call: no packs (triggers auto-install)
+            // Second call: returns the installed pack (after ConflictException is caught)
+            templatePackService.getProjectTemplatePacks
+                .mockResolvedValueOnce([]) // First call: no packs
+                .mockResolvedValueOnce([{
+                    id: 'assignment-1',
+                    active: true,
+                    template_pack: {
+                        id: 'pack-default',
+                        name: 'Default Pack',
+                        extraction_prompts: { default: { system: 'sys', user: 'user' } },
+                        object_type_schemas: {},
+                        default_prompt_key: null,
+                    }
+                }]); // After conflict handled
+
+            // Only query for base prompt from kb.settings
+            databaseService.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
 
             templatePackService.assignTemplatePackToProject.mockRejectedValueOnce(new ConflictException('already'));
 
@@ -345,7 +359,7 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
             expect(result.prompt).toBe('Default base prompt');
             expect(result.objectSchemas).toBeDefined();
             expect(templatePackService.assignTemplatePackToProject).toHaveBeenCalledTimes(1);
-            expect(databaseService.query).toHaveBeenCalledTimes(3);
+            expect(databaseService.query).toHaveBeenCalledTimes(1);
         });
     });
 

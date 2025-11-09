@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException, ConflictException, Logger, BadRequestException } from '@nestjs/common';
-import { DatabaseService } from '../../common/database/database.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { EncryptionService } from './encryption.service';
 import { IntegrationRegistryService } from './integration-registry.service';
+import { Integration } from '../../entities/integration.entity';
 import {
     CreateIntegrationDto,
     UpdateIntegrationDto,
@@ -26,7 +28,9 @@ export class IntegrationsService {
     private readonly logger = new Logger(IntegrationsService.name);
 
     constructor(
-        private readonly db: DatabaseService,
+        @InjectRepository(Integration)
+        private readonly integrationRepo: Repository<Integration>,
+        private readonly dataSource: DataSource,
         private readonly encryption: EncryptionService,
         private readonly registry: IntegrationRegistryService
     ) { }
@@ -41,13 +45,12 @@ export class IntegrationsService {
     ): Promise<IntegrationDto> {
         this.logger.log(`Creating integration ${dto.name} for project ${projectId}`);
 
-        // Check if integration already exists for this project
-        const existing = await this.db.query(
-            `SELECT id FROM kb.integrations WHERE name = $1 AND project_id = $2`,
-            [dto.name, projectId]
-        );
+        // Check if integration already exists for this project (use Repository)
+        const existing = await this.integrationRepo.findOne({
+            where: { name: dto.name, projectId }
+        });
 
-        if (existing.rowCount && existing.rowCount > 0) {
+        if (existing) {
             throw new ConflictException(
                 `Integration ${dto.name} already exists for this project`
             );
@@ -72,13 +75,15 @@ export class IntegrationsService {
             }
         }
 
-        const result = await this.db.query<any>(
+        // Use DataSource.query for BYTEA handling with base64 encoding
+        // TypeORM Repository doesn't handle BYTEA → base64 conversion well
+        const result = await this.dataSource.query<any>(
             `INSERT INTO kb.integrations (
                 name,
                 display_name,
                 description,
                 enabled,
-                organization_id,
+                org_id,
                 project_id,
                 settings_encrypted,
                 logo_url,
@@ -86,7 +91,7 @@ export class IntegrationsService {
                 created_by
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING 
-                id, name, display_name, description, enabled, organization_id, project_id,
+                id, name, display_name, description, enabled, org_id as organization_id, project_id,
                 encode(settings_encrypted, 'base64') as settings_encrypted,
                 logo_url, webhook_secret, created_at, updated_at, created_by`,
             [
@@ -103,7 +108,7 @@ export class IntegrationsService {
             ]
         );
 
-        const integration = result.rows[0];
+        const integration = result[0];
         this.logger.log(`Created integration ${integration.id}`);
 
         return this.mapRowToDto(integration);
@@ -117,21 +122,22 @@ export class IntegrationsService {
         projectId: string,
         orgId: string
     ): Promise<IntegrationDto> {
-        const result = await this.db.query<any>(
+        // Use DataSource.query for BYTEA → base64 conversion
+        const result = await this.dataSource.query<any>(
             `SELECT 
-                id, name, display_name, description, enabled, organization_id, project_id,
+                id, name, display_name, description, enabled, org_id as organization_id, project_id,
                 encode(settings_encrypted, 'base64') as settings_encrypted,
                 logo_url, webhook_secret, created_at, updated_at, created_by
              FROM kb.integrations 
-             WHERE name = $1 AND project_id = $2 AND organization_id = $3`,
+             WHERE name = $1 AND project_id = $2 AND org_id = $3`,
             [name, projectId, orgId]
         );
 
-        if (!result.rowCount) {
+        if (!result.length) {
             throw new NotFoundException(`Integration ${name} not found`);
         }
 
-        return this.mapRowToDto(result.rows[0]);
+        return this.mapRowToDto(result[0]);
     }
 
     /**
@@ -142,21 +148,22 @@ export class IntegrationsService {
         projectId: string,
         orgId: string
     ): Promise<IntegrationDto> {
-        const result = await this.db.query<any>(
+        // Use DataSource.query for BYTEA → base64 conversion
+        const result = await this.dataSource.query<any>(
             `SELECT 
-                id, name, display_name, description, enabled, organization_id, project_id,
+                id, name, display_name, description, enabled, org_id as organization_id, project_id,
                 encode(settings_encrypted, 'base64') as settings_encrypted,
                 logo_url, webhook_secret, created_at, updated_at, created_by
              FROM kb.integrations 
-             WHERE id = $1 AND project_id = $2 AND organization_id = $3`,
+             WHERE id = $1 AND project_id = $2 AND org_id = $3`,
             [id, projectId, orgId]
         );
 
-        if (!result.rowCount) {
+        if (!result.length) {
             throw new NotFoundException(`Integration ${id} not found`);
         }
 
-        return this.mapRowToDto(result.rows[0]);
+        return this.mapRowToDto(result[0]);
     }
 
     /**
@@ -169,11 +176,11 @@ export class IntegrationsService {
     ): Promise<IntegrationDto[]> {
         let query = `
             SELECT 
-                id, name, display_name, description, enabled, organization_id, project_id,
+                id, name, display_name, description, enabled, org_id as organization_id, project_id,
                 encode(settings_encrypted, 'base64') as settings_encrypted,
                 logo_url, webhook_secret, created_at, updated_at, created_by
             FROM kb.integrations 
-            WHERE project_id = $1 AND organization_id = $2
+            WHERE project_id = $1 AND org_id = $2
         `;
         const params: any[] = [projectId, orgId];
         let paramIndex = 3;
@@ -192,10 +199,11 @@ export class IntegrationsService {
 
         query += ` ORDER BY created_at DESC`;
 
-        const result = await this.db.query<any>(query, params);
+        // Use DataSource.query for BYTEA → base64 conversion
+        const result = await this.dataSource.query<any>(query, params);
 
         return Promise.all(
-            result.rows.map(row => this.mapRowToDto(row))
+            result.map((row: any) => this.mapRowToDto(row))
         );
     }
 
@@ -265,23 +273,24 @@ export class IntegrationsService {
         // Add WHERE clause params
         params.push(name, projectId, orgId);
 
-        const result = await this.db.query<any>(
+        // Use DataSource.query for BYTEA handling
+        const result = await this.dataSource.query<any>(
             `UPDATE kb.integrations 
              SET ${updates.join(', ')}
-             WHERE name = $${paramIndex} AND project_id = $${paramIndex + 1} AND organization_id = $${paramIndex + 2}
+             WHERE name = $${paramIndex} AND project_id = $${paramIndex + 1} AND org_id = $${paramIndex + 2}
              RETURNING 
-                id, name, display_name, description, enabled, organization_id, project_id,
+                id, name, display_name, description, enabled, org_id as organization_id, project_id,
                 encode(settings_encrypted, 'base64') as settings_encrypted,
                 logo_url, webhook_secret, created_at, updated_at, created_by`,
             params
         );
 
-        if (!result.rowCount) {
+        if (!result.length) {
             throw new NotFoundException(`Integration ${name} not found`);
         }
 
         this.logger.log(`Updated integration ${name}`);
-        return this.mapRowToDto(result.rows[0]);
+        return this.mapRowToDto(result[0]);
     }
 
     /**
@@ -294,13 +303,14 @@ export class IntegrationsService {
     ): Promise<void> {
         this.logger.log(`Deleting integration ${name} for project ${projectId}`);
 
-        const result = await this.db.query(
-            `DELETE FROM kb.integrations 
-             WHERE name = $1 AND project_id = $2 AND organization_id = $3`,
-            [name, projectId, orgId]
-        );
+        // Use Repository for simple delete operation
+        const result = await this.integrationRepo.delete({
+            name,
+            projectId,
+            organizationId: orgId
+        });
 
-        if (!result.rowCount) {
+        if (!result.affected) {
             throw new NotFoundException(`Integration ${name} not found`);
         }
 

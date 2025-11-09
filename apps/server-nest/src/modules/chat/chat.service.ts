@@ -70,18 +70,25 @@ export class ChatService {
         }
         const privCount = (priv as any).rowCount ?? priv.rows.length;
         this.logger.log(`[listConversations] results shared=${shared.rowCount} private=${privCount}`);
-        if (priv.rows.length === 0) {
+        if (priv.rows.length === 0 && userId) {
             // Diagnostic query to see if row exists with different org/project (should not happen, but helps debug)
-            const diag = await this.db.query<any>(`SELECT id, title, created_at, updated_at, owner_user_id, is_private, organization_id, project_id FROM kb.chat_conversations WHERE owner_user_id = $1`, [userId]);
-            this.logger.log(`[listConversations] diag for owner yields ${diag.rowCount} rows: ${diag.rows.map((r: any) => r.id + ':' + (r.organization_id || 'null') + ',' + (r.project_id || 'null')).join(',')}`);
+            const diag = await this.conversationRepository.find({
+                where: { ownerUserId: userId },
+                select: ['id', 'title', 'createdAt', 'updatedAt', 'ownerUserId', 'isPrivate', 'organizationId', 'projectId']
+            });
+            this.logger.log(`[listConversations] diag for owner yields ${diag.length} rows: ${diag.map(r => r.id + ':' + (r.organizationId || 'null') + ',' + (r.projectId || 'null')).join(',')}`);
             // Additional focused diagnostics to isolate filter predicate behavior
-            const cOwner = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations WHERE owner_user_id = $1', [userId]);
-            const cPrivate = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations WHERE is_private = true');
-            const cBoth = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations WHERE is_private = true AND owner_user_id = $1', [userId]);
-            this.logger.log(`[listConversations] counts owner=${cOwner.rows[0].c} privateAll=${cPrivate.rows[0].c} both=${cBoth.rows[0].c}`);
+            const cOwner = await this.conversationRepository.count({ where: { ownerUserId: userId } });
+            const cPrivate = await this.conversationRepository.count({ where: { isPrivate: true } });
+            const cBoth = await this.conversationRepository.count({ where: { isPrivate: true, ownerUserId: userId } });
+            this.logger.log(`[listConversations] counts owner=${cOwner} privateAll=${cPrivate} both=${cBoth}`);
             // Peek at recent rows regardless of owner
-            const recent = await this.db.query<any>('SELECT id, owner_user_id, is_private, created_at FROM kb.chat_conversations ORDER BY created_at DESC LIMIT 5');
-            this.logger.log(`[listConversations] recent head: ${recent.rows.map((r: any) => r.id.substring(0, 8) + ' owner=' + (r.owner_user_id || 'null') + ' priv=' + r.is_private).join(' | ')}`);
+            const recent = await this.conversationRepository.find({
+                select: ['id', 'ownerUserId', 'isPrivate', 'createdAt'],
+                order: { createdAt: 'DESC' },
+                take: 5
+            });
+            this.logger.log(`[listConversations] recent head: ${recent.map(r => r.id.substring(0, 8) + ' owner=' + (r.ownerUserId || 'null') + ' priv=' + r.isPrivate).join(' | ')}`);
         }
         return { shared: shared.rows, private: priv.rows };
     }
@@ -103,9 +110,13 @@ export class ChatService {
         if (convQ.rowCount === 0) {
             // Extra diagnostics: check if any conversation rows exist at all (detect wholesale truncation) and recent creation patterns
             try {
-                const total = await this.db.query<{ c: number }>('SELECT count(*)::int as c FROM kb.chat_conversations');
-                const recent = await this.db.query<any>('SELECT id, owner_user_id, is_private, created_at FROM kb.chat_conversations ORDER BY created_at DESC LIMIT 3');
-                this.logger.warn(`[getConversation] not-found id=${id} totalConvs=${total.rows[0].c} recent=${recent.rows.map((r: any) => r.id.substring(0, 8) + ':' + (r.owner_user_id || 'null')).join(',')}`);
+                const total = await this.conversationRepository.count();
+                const recent = await this.conversationRepository.find({
+                    select: ['id', 'ownerUserId', 'isPrivate', 'createdAt'],
+                    order: { createdAt: 'DESC' },
+                    take: 3
+                });
+                this.logger.warn(`[getConversation] not-found id=${id} totalConvs=${total} recent=${recent.map(r => r.id.substring(0, 8) + ':' + (r.ownerUserId || 'null')).join(',')}`);
             } catch (e) {
                 this.logger.warn(`[getConversation] diag failure for id=${id}: ${(e as Error).message}`);
             }
@@ -139,17 +150,17 @@ export class ChatService {
             c.title = title; c.updatedAt = new Date().toISOString();
             return 'ok';
         }
-        
+
         const conversation = await this.conversationRepository.findOne({
             where: { id },
             select: ['id', 'ownerUserId', 'isPrivate']
         });
-        
+
         if (!conversation) return 'not-found';
         if (conversation.isPrivate && conversation.ownerUserId && conversation.ownerUserId !== userId) {
             return 'forbidden';
         }
-        
+
         await this.conversationRepository.update(id, { title });
         return 'ok';
     }
@@ -159,17 +170,17 @@ export class ChatService {
             const existed = this.offlineConvs.delete(id);
             return existed ? 'ok' : 'not-found';
         }
-        
+
         const conversation = await this.conversationRepository.findOne({
             where: { id },
             select: ['id', 'ownerUserId', 'isPrivate']
         });
-        
+
         if (!conversation) return 'not-found';
         if (conversation.isPrivate && conversation.ownerUserId && conversation.ownerUserId !== userId) {
             return 'forbidden';
         }
-        
+
         await this.conversationRepository.delete(id);
         return 'ok';
     }
@@ -242,14 +253,14 @@ export class ChatService {
             }
             return;
         }
-        
+
         const message = this.messageRepository.create({
             conversationId,
             role: 'user',
             content
         });
         await this.messageRepository.save(message);
-        
+
         // Update conversation timestamp
         await this.conversationRepository.update(conversationId, { updatedAt: new Date() });
     }
@@ -327,7 +338,7 @@ export class ChatService {
             }
             return;
         }
-        
+
         const message = this.messageRepository.create({
             conversationId,
             role: 'assistant',
@@ -335,7 +346,7 @@ export class ChatService {
             citations: citations as any
         });
         await this.messageRepository.save(message);
-        
+
         // Update conversation timestamp
         await this.conversationRepository.update(conversationId, { updatedAt: new Date() });
     }
@@ -345,7 +356,7 @@ export class ChatService {
             return this.offlineConvs.has(id);
         }
         if (!UUID_RE.test(id)) return false;
-        
+
         const count = await this.conversationRepository.count({ where: { id } });
         return count > 0;
     }

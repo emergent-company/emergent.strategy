@@ -130,6 +130,7 @@ const EXPECTED: Record<string, string[]> = {
     'post /notifications/{id}/unsnooze': ['notifications:write'],
     'post /invites': ['org:invite:create', 'project:invite:create'],
     'post /invites/accept': ['org:read'],
+    'post /invites/with-user': ['org:invite:create', 'project:invite:create'],
     'post /mcp/rpc': ['schema:read'],
     'post /product-versions': ['graph:write'],
     'post /projects': ['org:project:create'],

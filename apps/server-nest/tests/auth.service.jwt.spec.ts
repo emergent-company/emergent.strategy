@@ -49,7 +49,11 @@ describe('AuthService real JWT mode (mocked jose)', () => {
                 email: 'test@example.com',
             })),
         } as any;
-        svc = new AuthService(mockUserProfileService);
+        // Mock ZitadelService
+        const mockZitadelService = {
+            isConfigured: vi.fn(() => false), // Return false to skip Zitadel introspection path
+        } as any;
+        svc = new AuthService(mockUserProfileService, mockZitadelService);
     });
 
     it('fast-path static token bypass still works when real mode configured', async () => {
@@ -100,7 +104,11 @@ describe('AuthService mapClaims additional branches', () => {
                 email: 'test@example.com',
             })),
         } as any;
-        svc = new AuthService(mockUserProfileService);
+        // Mock ZitadelService
+        const mockZitadelService = {
+            isConfigured: vi.fn(() => false),
+        } as any;
+        svc = new AuthService(mockUserProfileService, mockZitadelService);
     });
 
     it('debug scope source none', async () => {
