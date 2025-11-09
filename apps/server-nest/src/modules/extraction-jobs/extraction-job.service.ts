@@ -1024,4 +1024,22 @@ export class ExtractionJobService {
             throw new BadRequestException(`Failed to fetch models: ${errorMessage}`);
         }
     }
+
+    /**
+     * Get current retry count for a job
+     * MIGRATED: Session 20 - TypeORM Repository method
+     */
+    async getRetryCount(jobId: string): Promise<number> {
+        try {
+            const job = await this.extractionJobRepository.findOne({
+                where: { id: jobId },
+                select: ['retryCount']
+            });
+
+            return job?.retryCount || 0;
+        } catch (error) {
+            this.logger.warn(`Failed to get retry count for job ${jobId}`, error);
+            return 0;
+        }
+    }
 }

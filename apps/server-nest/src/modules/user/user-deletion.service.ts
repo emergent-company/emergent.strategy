@@ -1,6 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DatabaseService } from '../../common/database/database.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { UserProfileService } from '../user-profile/user-profile.service';
+import { OrganizationMembership } from '../../entities/organization-membership.entity';
+import { Project } from '../../entities/project.entity';
+import { Integration } from '../../entities/integration.entity';
+import { Chunk } from '../../entities/chunk.entity';
+import { ObjectExtractionJob } from '../../entities/object-extraction-job.entity';
+import { GraphObject } from '../../entities/graph-object.entity';
+import { Document } from '../../entities/document.entity';
+import { Org } from '../../entities/org.entity';
 
 export interface DeletionResult {
     deleted: {
@@ -8,7 +17,6 @@ export interface DeletionResult {
         projects: number;
         documents: number;
         chunks: number;
-        embeddings: number;
         extractionJobs: number;
         graphObjects: number;
         integrations: number;
@@ -27,7 +35,22 @@ export class UserDeletionService {
     private readonly logger = new Logger(UserDeletionService.name);
 
     constructor(
-        private readonly db: DatabaseService,
+        @InjectRepository(OrganizationMembership)
+        private readonly orgMembershipRepo: Repository<OrganizationMembership>,
+        @InjectRepository(Project)
+        private readonly projectRepo: Repository<Project>,
+        @InjectRepository(Integration)
+        private readonly integrationRepo: Repository<Integration>,
+        @InjectRepository(Chunk)
+        private readonly chunkRepo: Repository<Chunk>,
+        @InjectRepository(ObjectExtractionJob)
+        private readonly extractionJobRepo: Repository<ObjectExtractionJob>,
+        @InjectRepository(GraphObject)
+        private readonly graphObjectRepo: Repository<GraphObject>,
+        @InjectRepository(Document)
+        private readonly documentRepo: Repository<Document>,
+        @InjectRepository(Org)
+        private readonly orgRepo: Repository<Org>,
         private readonly userProfileService: UserProfileService,
     ) { }
 
@@ -51,7 +74,6 @@ export class UserDeletionService {
                 projects: 0,
                 documents: 0,
                 chunks: 0,
-                embeddings: 0,
                 extractionJobs: 0,
                 graphObjects: 0,
                 integrations: 0,
@@ -69,7 +91,6 @@ export class UserDeletionService {
                     deleted: {
                         documents: 0,
                         chunks: 0,
-                        embeddings: 0,
                         extractionJobs: 0,
                         graphObjects: 0,
                         projects: 0,
@@ -81,25 +102,24 @@ export class UserDeletionService {
             }
 
             // Step 2: Get all organizations where this user is an admin using internal UUID
-            const orgsResult = await this.db.query<{ id: string }>(
-                `SELECT DISTINCT om.organization_id as id 
-                 FROM kb.organization_memberships om 
-                 WHERE om.user_id = $1 AND om.role = 'org_admin'`,
-                [profile.id] // Use internal UUID, not Zitadel ID
-            );
-            const orgs = orgsResult.rows;
+            const orgs = await this.orgMembershipRepo.find({
+                where: {
+                    userId: profile.id, // Use internal UUID, not Zitadel ID
+                    role: 'org_admin',
+                },
+                select: ['organizationId'],
+            });
 
             this.logger.log(`Found ${orgs.length} organizations to delete`);
 
-            for (const org of orgs) {
+            for (const orgMembership of orgs) {
                 // Get projects in this org
-                const projectsResult = await this.db.query<{ id: string }>(
-                    `SELECT id FROM kb.projects WHERE org_id = $1`,
-                    [org.id]
-                );
-                const projects = projectsResult.rows;
+                const projects = await this.projectRepo.find({
+                    where: { organizationId: orgMembership.organizationId },
+                    select: ['id'],
+                });
 
-                this.logger.log(`Found ${projects.length} projects in org ${org.id}`);
+                this.logger.log(`Found ${projects.length} projects in org ${orgMembership.organizationId}`);
 
                 for (const project of projects) {
                     // Delete project data
@@ -109,17 +129,13 @@ export class UserDeletionService {
                 result.deleted.projects += projects.length;
 
                 // Delete integrations for this org
-                const integrationsDeleted = await this.db.query(
-                    `DELETE FROM kb.integrations WHERE org_id = $1`,
-                    [org.id]
-                );
-                result.deleted.integrations += integrationsDeleted.rowCount || 0;
+                const integrationsResult = await this.integrationRepo.delete({
+                    organizationId: orgMembership.organizationId,
+                });
+                result.deleted.integrations += integrationsResult.affected || 0;
 
                 // Delete organization
-                await this.db.query(
-                    `DELETE FROM kb.orgs WHERE id = $1`,
-                    [org.id]
-                );
+                await this.orgRepo.delete({ id: orgMembership.organizationId });
                 result.deleted.organizations++;
             }
 
@@ -140,54 +156,40 @@ export class UserDeletionService {
     private async deleteProjectData(projectId: string, result: DeletionResult): Promise<void> {
         this.logger.log(`Deleting data for project: ${projectId}`);
 
-        // Delete embeddings (must be before chunks due to foreign key)
-        const embeddingsDeleted = await this.db.query(
-            `DELETE FROM kb.embeddings WHERE chunk_id IN (
-                SELECT id FROM kb.chunks WHERE document_id IN (
-                    SELECT id FROM kb.documents WHERE project_id = $1
-                )
-            )`,
-            [projectId]
-        );
-        result.deleted.embeddings += embeddingsDeleted.rowCount || 0;
+        // Note: embeddings are stored in chunks.embedding column (vector type), not a separate table
+        // They will be deleted automatically when chunks are deleted
 
-        // Delete chunks (must be before documents due to foreign key)
-        const chunksDeleted = await this.db.query(
-            `DELETE FROM kb.chunks WHERE document_id IN (
-                SELECT id FROM kb.documents WHERE project_id = $1
-            )`,
-            [projectId]
-        );
-        result.deleted.chunks += chunksDeleted.rowCount || 0;
+        // Get all document IDs for this project
+        const documents = await this.documentRepo.find({
+            where: { projectId },
+            select: ['id'],
+        });
+        const documentIds = documents.map(d => d.id);
+
+        // Delete chunks for all documents (will cascade to delete embeddings since they're in the same row)
+        if (documentIds.length > 0) {
+            const chunksResult = await this.chunkRepo
+                .createQueryBuilder()
+                .delete()
+                .where('document_id IN (:...documentIds)', { documentIds })
+                .execute();
+            result.deleted.chunks += chunksResult.affected || 0;
+        }
 
         // Delete extraction jobs
-        const jobsDeleted = await this.db.query(
-            `DELETE FROM kb.object_extraction_jobs WHERE project_id = $1`,
-            [projectId]
-        );
-        result.deleted.extractionJobs += jobsDeleted.rowCount || 0;
+        const jobsResult = await this.extractionJobRepo.delete({ projectId });
+        result.deleted.extractionJobs += jobsResult.affected || 0;
 
-        // Delete graph objects and relationships
-        const graphObjectsDeleted = await this.db.query(
-            `DELETE FROM kb.graph_objects WHERE project_id = $1`,
-            [projectId]
-        );
-        result.deleted.graphObjects += graphObjectsDeleted.rowCount || 0;
-
-        // Graph relationships are cascade deleted via foreign key
+        // Delete graph objects (relationships are cascade deleted via foreign key)
+        const graphObjectsResult = await this.graphObjectRepo.delete({ projectId });
+        result.deleted.graphObjects += graphObjectsResult.affected || 0;
 
         // Delete documents
-        const docsDeleted = await this.db.query(
-            `DELETE FROM kb.documents WHERE project_id = $1`,
-            [projectId]
-        );
-        result.deleted.documents += docsDeleted.rowCount || 0;
+        const docsResult = await this.documentRepo.delete({ projectId });
+        result.deleted.documents += docsResult.affected || 0;
 
         // Delete the project itself
-        await this.db.query(
-            `DELETE FROM kb.projects WHERE id = $1`,
-            [projectId]
-        );
+        await this.projectRepo.delete({ id: projectId });
     }
 
     /**

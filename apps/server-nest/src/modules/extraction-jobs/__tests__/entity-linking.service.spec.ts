@@ -10,6 +10,7 @@ describe('EntityLinkingService', () => {
     let mockDb: any;
     let mockGraphService: any;
     let mockEmbeddings: any;
+    let mockGraphObjectRepo: any;
 
     beforeEach(async () => {
         // Create proper mock objects with vi.fn()
@@ -30,12 +31,28 @@ describe('EntityLinkingService', () => {
             embedDocuments: vi.fn(),
         };
 
+        // Create mock GraphObject repository
+        mockGraphObjectRepo = {
+            findOne: vi.fn().mockResolvedValue(null),
+            find: vi.fn().mockResolvedValue([]),
+            save: vi.fn().mockImplementation((entity) => Promise.resolve(entity)),
+        } as any;
+
+        // Create mock DataSource
+        const mockDataSource = {
+            query: mockDb.query,  // Use same query mock for consistency
+            createQueryRunner: vi.fn(),
+        } as any;
+
         // Directly instantiate the service with mocks instead of using Test.createTestingModule
         // This avoids NestJS DI issues with Vitest (spec files aren't compiled with decorator metadata)
+        // Constructor expects: (db, graphService, embeddings, graphObjectRepo, dataSource)
         service = new EntityLinkingService(
             mockDb as DatabaseService,
             mockGraphService as GraphService,
-            mockEmbeddings as EmbeddingsService
+            mockEmbeddings as EmbeddingsService,
+            mockGraphObjectRepo,
+            mockDataSource
         );
     });
 
@@ -60,18 +77,16 @@ describe('EntityLinkingService', () => {
         });
 
         it('should use key_match strategy and find exact key match', async () => {
-            mockDb.query.mockResolvedValueOnce({
-                rows: [{ id: 'obj-123' }],
-                rowCount: 1,
-            } as any);
+            // Mock GraphObject repository findOne (used for business_key lookup)
+            mockGraphObjectRepo.findOne.mockResolvedValueOnce({ id: 'obj-123' });
 
             const result = await service.findSimilarObject(mockEntity, 'proj-1', 'key_match');
 
             expect(result).toBe('obj-123');
-            expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('SELECT id FROM kb.graph_objects'),
-                ['proj-1', 'Product', 'prod-001']
-            );
+            expect(mockGraphObjectRepo.findOne).toHaveBeenCalledWith({
+                where: { projectId: 'proj-1', type: 'Product', key: 'prod-001' },
+                select: ['id'],
+            });
         });
 
         it('should find normalized name match if exact key fails', async () => {
@@ -80,22 +95,13 @@ describe('EntityLinkingService', () => {
                 business_key: undefined,
             };
 
-            // First query (exact key) returns nothing
-            mockDb.query.mockResolvedValueOnce({
-                rows: [],
-                rowCount: 0,
-            } as any);
-
-            // Second query (normalized name) returns match
-            mockDb.query.mockResolvedValueOnce({
-                rows: [{ id: 'obj-456' }],
-                rowCount: 1,
-            } as any);
+            // No business_key, so goes directly to normalized name query (DataSource.query)
+            mockDb.query.mockResolvedValueOnce([{ id: 'obj-456' }]);
 
             const result = await service.findSimilarObject(entityWithoutKey, 'proj-1', 'key_match');
 
             expect(result).toBe('obj-456');
-            expect(mockDb.query).toHaveBeenCalledTimes(2);
+            expect(mockDb.query).toHaveBeenCalledTimes(1);
             expect(mockDb.query).toHaveBeenCalledWith(
                 expect.stringContaining('LOWER(TRIM(properties->>\'name\'))'),
                 ['proj-1', 'Product', 'test product']
@@ -111,26 +117,20 @@ describe('EntityLinkingService', () => {
                 confidence: 0.9,
             };
 
-            // First query (exact key) - no business_key, skip
-            // Second query (normalized name) returns nothing
-            mockDb.query.mockResolvedValueOnce({
-                rows: [],
-                rowCount: 0,
-            } as any);
+            // No business_key, so Strategy 1 skipped
+            // Strategy 2: Normalized name query (DataSource.query) returns nothing
+            mockDb.query.mockResolvedValueOnce([]);
 
-            // Third query (extracted property key) returns match
-            mockDb.query.mockResolvedValueOnce({
-                rows: [{ id: 'obj-789' }],
-                rowCount: 1,
-            } as any);
+            // Strategy 3: Property key extraction - uses findByExactKey with extracted 'PROD-001'
+            mockGraphObjectRepo.findOne.mockResolvedValueOnce({ id: 'obj-789' });
 
             const result = await service.findSimilarObject(entityWithPropertyKey, 'proj-1', 'key_match');
 
             expect(result).toBe('obj-789');
-            expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('SELECT id FROM kb.graph_objects'),
-                ['proj-1', 'Product', 'PROD-001'] // Extracted from properties.id
-            );
+            expect(mockGraphObjectRepo.findOne).toHaveBeenCalledWith({
+                where: { projectId: 'proj-1', type: 'Product', key: 'PROD-001' },
+                select: ['id'],
+            });
         });
 
         it('should return null if no matches found', async () => {
@@ -143,10 +143,7 @@ describe('EntityLinkingService', () => {
             };
 
             // All queries return nothing
-            mockDb.query.mockResolvedValue({
-                rows: [],
-                rowCount: 0,
-            } as any);
+            mockDb.query.mockResolvedValue([]);
 
             const result = await service.findSimilarObject(entityNoMatch, 'proj-1', 'key_match');
 
@@ -154,10 +151,7 @@ describe('EntityLinkingService', () => {
         });
 
         it('should fallback to key_match for vector_similarity (not yet implemented)', async () => {
-            mockDb.query.mockResolvedValueOnce({
-                rows: [{ id: 'obj-999' }],
-                rowCount: 1,
-            } as any);
+            mockDb.query.mockResolvedValueOnce([{ id: 'obj-999' }]);
 
             const result = await service.findSimilarObject(mockEntity, 'proj-1', 'vector_similarity');
 
@@ -384,10 +378,7 @@ describe('EntityLinkingService', () => {
         });
 
         it('should return create if no similar object found', async () => {
-            mockDb.query.mockResolvedValue({
-                rows: [],
-                rowCount: 0,
-            } as any);
+            mockDb.query.mockResolvedValue([]);
 
             const result = await service.decideMergeAction(mockEntity, 'proj-1', 'key_match');
 
@@ -396,10 +387,7 @@ describe('EntityLinkingService', () => {
 
         it('should return skip for high overlap (>90%)', async () => {
             // Find similar object
-            mockDb.query.mockResolvedValueOnce({
-                rows: [{ id: 'obj-123' }],
-                rowCount: 1,
-            } as any);
+            mockDb.query.mockResolvedValueOnce([{ id: 'obj-123' }]);
 
             // Get object with identical properties
             mockGraphService.getObject.mockResolvedValueOnce({
@@ -421,10 +409,7 @@ describe('EntityLinkingService', () => {
 
         it('should return merge for partial overlap (<90%)', async () => {
             // Find similar object
-            mockDb.query.mockResolvedValueOnce({
-                rows: [{ id: 'obj-456' }],
-                rowCount: 1,
-            } as any);
+            mockDb.query.mockResolvedValueOnce([{ id: 'obj-456' }]);
 
             // Get object with partial overlap
             mockGraphService.getObject.mockResolvedValueOnce({
@@ -446,10 +431,7 @@ describe('EntityLinkingService', () => {
 
         it('should return create if existing object was deleted between find and get', async () => {
             // Find similar object
-            mockDb.query.mockResolvedValueOnce({
-                rows: [{ id: 'obj-deleted' }],
-                rowCount: 1,
-            } as any);
+            mockDb.query.mockResolvedValueOnce([{ id: 'obj-deleted' }]);
 
             // Object not found (deleted) - GraphService throws NotFoundException
             const notFoundError = new Error('object_not_found');
@@ -472,10 +454,7 @@ describe('EntityLinkingService', () => {
                 confidence: 0.8,
             };
 
-            mockDb.query.mockResolvedValueOnce({
-                rows: [{ id: 'obj-normalized' }],
-                rowCount: 1,
-            } as any);
+            mockDb.query.mockResolvedValueOnce([{ id: 'obj-normalized' }]);
 
             service.findSimilarObject(entity, 'proj-1', 'key_match');
 
@@ -500,28 +479,20 @@ describe('EntityLinkingService', () => {
                 confidence: 0.85,
             };
 
-            mockDb.query.mockResolvedValue({
-                rows: [],
-                rowCount: 0,
-            } as any);
+            // No business_key, Strategy 1 skipped
+            // Strategy 2: Normalized name query fails
+            mockDb.query.mockResolvedValueOnce([]);
 
-            mockDb.query.mockResolvedValueOnce({
-                rows: [],
-                rowCount: 0,
-            } as any); // normalized name
-
-            mockDb.query.mockResolvedValueOnce({
-                rows: [{ id: 'obj-id-match' }],
-                rowCount: 1,
-            } as any); // property key match
+            // Strategy 3: Property key extraction - findByExactKey with 'PROD-123'
+            mockGraphObjectRepo.findOne.mockResolvedValueOnce({ id: 'obj-id-match' });
 
             const result = await service.findSimilarObject(entity, 'proj-1', 'key_match');
 
             expect(result).toBe('obj-id-match');
-            expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('SELECT id FROM kb.graph_objects'),
-                ['proj-1', 'Product', 'PROD-123']
-            );
+            expect(mockGraphObjectRepo.findOne).toHaveBeenCalledWith({
+                where: { projectId: 'proj-1', type: 'Product', key: 'PROD-123' },
+                select: ['id'],
+            });
         });
 
         it('should extract code field as key if id not present', async () => {
@@ -536,28 +507,20 @@ describe('EntityLinkingService', () => {
                 confidence: 0.85,
             };
 
-            mockDb.query.mockResolvedValue({
-                rows: [],
-                rowCount: 0,
-            } as any);
+            // No business_key, Strategy 1 skipped
+            // Strategy 2: Normalized name query fails
+            mockDb.query.mockResolvedValueOnce([]);
 
-            mockDb.query.mockResolvedValueOnce({
-                rows: [],
-                rowCount: 0,
-            } as any); // normalized name
-
-            mockDb.query.mockResolvedValueOnce({
-                rows: [{ id: 'obj-code-match' }],
-                rowCount: 1,
-            } as any); // property key match
+            // Strategy 3: Property key extraction - findByExactKey with 'CODE-456'
+            mockGraphObjectRepo.findOne.mockResolvedValueOnce({ id: 'obj-code-match' });
 
             const result = await service.findSimilarObject(entity, 'proj-1', 'key_match');
 
             expect(result).toBe('obj-code-match');
-            expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('SELECT id FROM kb.graph_objects'),
-                ['proj-1', 'Product', 'CODE-456']
-            );
+            expect(mockGraphObjectRepo.findOne).toHaveBeenCalledWith({
+                where: { projectId: 'proj-1', type: 'Product', key: 'CODE-456' },
+                select: ['id'],
+            });
         });
 
         it('should extract type-specific keys (e.g., product_id)', async () => {
@@ -572,28 +535,20 @@ describe('EntityLinkingService', () => {
                 confidence: 0.85,
             };
 
-            mockDb.query.mockResolvedValue({
-                rows: [],
-                rowCount: 0,
-            } as any);
+            // No business_key, Strategy 1 skipped
+            // Strategy 2: Normalized name query fails
+            mockDb.query.mockResolvedValueOnce([]);
 
-            mockDb.query.mockResolvedValueOnce({
-                rows: [],
-                rowCount: 0,
-            } as any); // normalized name
-
-            mockDb.query.mockResolvedValueOnce({
-                rows: [{ id: 'obj-type-specific' }],
-                rowCount: 1,
-            } as any); // property key match
+            // Strategy 3: Property key extraction - findByExactKey with 'P-789'
+            mockGraphObjectRepo.findOne.mockResolvedValueOnce({ id: 'obj-type-specific' });
 
             const result = await service.findSimilarObject(entity, 'proj-1', 'key_match');
 
             expect(result).toBe('obj-type-specific');
-            expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('SELECT id FROM kb.graph_objects'),
-                ['proj-1', 'Product', 'P-789']
-            );
+            expect(mockGraphObjectRepo.findOne).toHaveBeenCalledWith({
+                where: { projectId: 'proj-1', type: 'Product', key: 'P-789' },
+                select: ['id'],
+            });
         });
     });
 
@@ -609,10 +564,7 @@ describe('EntityLinkingService', () => {
         describe('findSimilarObject with vector_similarity strategy', () => {
             it('should try key match first before vector search', async () => {
                 // Key match succeeds
-                mockDb.query.mockResolvedValueOnce({
-                    rows: [{ id: 'obj-key-match' }],
-                    rowCount: 1,
-                } as any);
+                mockDb.query.mockResolvedValueOnce([{ id: 'obj-key-match' }]);
 
                 const result = await service.findSimilarObject(mockEntity, 'proj-1', 'vector_similarity');
 
@@ -632,20 +584,17 @@ describe('EntityLinkingService', () => {
                     confidence: 0.9,
                 };
 
-                // Key match fails - exact key, normalized name, property extraction all fail
-                mockDb.query
-                    .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any)  // exact key
-                    .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any); // normalized name
+                // Key match fails - Strategy 1 (exact business_key) uses repository
+                mockGraphObjectRepo.findOne.mockResolvedValueOnce(null);
+                // Strategy 2 (normalized name) uses dataSource
+                mockDb.query.mockResolvedValueOnce([]);
 
                 // Mock embedding generation
                 const mockEmbedding = new Array(768).fill(0.1);
                 mockEmbeddings.embedQuery.mockResolvedValueOnce(mockEmbedding);
 
                 // Mock vector similarity query result
-                mockDb.query.mockResolvedValueOnce({
-                    rows: [{ id: 'obj-vector-match', similarity: 0.92 }],
-                    rowCount: 1,
-                } as any);
+                mockDb.query.mockResolvedValueOnce([{ id: 'obj-vector-match', similarity: 0.92 }]);
 
                 const result = await service.findSimilarObject(entityForVectorSearch, 'proj-1', 'vector_similarity');
 
@@ -668,10 +617,7 @@ describe('EntityLinkingService', () => {
                 mockEmbeddings.isEnabled.mockReturnValue(false);
 
                 // Key match fails
-                mockDb.query.mockResolvedValue({
-                    rows: [],
-                    rowCount: 0,
-                } as any);
+                mockDb.query.mockResolvedValue([]);
 
                 const result = await service.findSimilarObject(mockEntity, 'proj-1', 'vector_similarity');
 
@@ -681,19 +627,13 @@ describe('EntityLinkingService', () => {
 
             it('should return null if no vector match meets threshold', async () => {
                 // Key match fails
-                mockDb.query.mockResolvedValue({
-                    rows: [],
-                    rowCount: 0,
-                } as any);
+                mockDb.query.mockResolvedValue([]);
 
                 const mockEmbedding = new Array(768).fill(0.1);
                 mockEmbeddings.embedQuery.mockResolvedValueOnce(mockEmbedding);
 
                 // Vector query returns no results (below threshold)
-                mockDb.query.mockResolvedValueOnce({
-                    rows: [],
-                    rowCount: 0,
-                } as any);
+                mockDb.query.mockResolvedValueOnce([]);
 
                 const result = await service.findSimilarObject(mockEntity, 'proj-1', 'vector_similarity');
 
@@ -702,10 +642,7 @@ describe('EntityLinkingService', () => {
 
             it('should handle vector search errors gracefully', async () => {
                 // Key match fails
-                mockDb.query.mockResolvedValue({
-                    rows: [],
-                    rowCount: 0,
-                } as any);
+                mockDb.query.mockResolvedValue([]);
 
                 // Embedding generation fails
                 mockEmbeddings.embedQuery.mockRejectedValueOnce(new Error('API rate limit'));
@@ -744,10 +681,7 @@ describe('EntityLinkingService', () => {
                     confidence: 0.8,
                 };
 
-                mockDb.query.mockResolvedValue({
-                    rows: [],
-                    rowCount: 0,
-                } as any);
+                mockDb.query.mockResolvedValue([]);
 
                 const mockEmbedding = new Array(768).fill(0.1);
                 mockEmbeddings.embedQuery.mockResolvedValueOnce(mockEmbedding);
@@ -765,10 +699,7 @@ describe('EntityLinkingService', () => {
                 const mockEmbedding = new Array(768).fill(0.1);
                 mockEmbeddings.embedQuery.mockResolvedValue(mockEmbedding);
 
-                mockDb.query.mockResolvedValue({
-                    rows: [],
-                    rowCount: 0,
-                } as any);
+                mockDb.query.mockResolvedValue([]);
 
                 // First call
                 await service.findSimilarObject(mockEntity, 'proj-1', 'vector_similarity');
@@ -784,10 +715,7 @@ describe('EntityLinkingService', () => {
                 const mockEmbedding = new Array(768).fill(0.1);
                 mockEmbeddings.embedQuery.mockResolvedValue(mockEmbedding);
 
-                mockDb.query.mockResolvedValue({
-                    rows: [],
-                    rowCount: 0,
-                } as any);
+                mockDb.query.mockResolvedValue([]);
 
                 // Fill cache beyond 1000 entries (this is a simplified test)
                 // In practice, we can't easily test the full cache eviction without creating 1001 unique entities
@@ -807,10 +735,7 @@ describe('EntityLinkingService', () => {
 
         describe('vector similarity threshold', () => {
             it('should only return matches above threshold (0.85)', async () => {
-                mockDb.query.mockResolvedValue({
-                    rows: [],
-                    rowCount: 0,
-                } as any);
+                mockDb.query.mockResolvedValue([]);
 
                 const mockEmbedding = new Array(768).fill(0.1);
                 mockEmbeddings.embedQuery.mockResolvedValueOnce(mockEmbedding);

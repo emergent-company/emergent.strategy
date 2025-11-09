@@ -1,13 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { TemplatePackService } from '../template-pack.service';
 import { DatabaseService } from '../../../common/database/database.service';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { CreateTemplatePackDto, AssignTemplatePackDto } from '../dto/template-pack.dto';
+import { GraphTemplatePack, ProjectTemplatePack } from '../entities';
 import { vi } from 'vitest';
 
 describe('TemplatePackService', () => {
     let service: TemplatePackService;
     let mockDb: any;
+    let mockTemplatePackRepo: any;
+    let mockProjectTemplatePackRepo: any;
 
     beforeEach(async () => {
         // Create mock database service
@@ -25,6 +29,34 @@ describe('TemplatePackService', () => {
             })),
         } as any;
 
+        // Create mock TypeORM repositories
+        mockTemplatePackRepo = {
+            find: vi.fn().mockResolvedValue([]),
+            findOne: vi.fn().mockResolvedValue(null),
+            save: vi.fn().mockImplementation(entity => Promise.resolve({
+                ...entity,
+                id: 'pack-' + Math.random().toString(36).substr(2, 9),
+                published_at: new Date(),
+                created_at: new Date(),
+                updated_at: new Date(),
+                deprecated_at: null,  // Ensure deprecated_at is null, not undefined
+            })),
+            create: vi.fn().mockImplementation(dto => dto),
+            count: vi.fn().mockResolvedValue(0),
+            createQueryBuilder: vi.fn(),
+        };
+
+        mockProjectTemplatePackRepo = {
+            find: vi.fn().mockResolvedValue([]),
+            findOne: vi.fn().mockResolvedValue(null),
+            save: vi.fn().mockImplementation(entity => Promise.resolve({
+                ...entity,
+                installed_at: new Date(),
+            })),
+            delete: vi.fn().mockResolvedValue({ affected: 1 }),
+            count: vi.fn().mockResolvedValue(0),
+        };
+
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 TemplatePackService,
@@ -32,12 +64,22 @@ describe('TemplatePackService', () => {
                     provide: DatabaseService,
                     useValue: mockDb,
                 },
+                {
+                    provide: getRepositoryToken(GraphTemplatePack),
+                    useValue: mockTemplatePackRepo,
+                },
+                {
+                    provide: getRepositoryToken(ProjectTemplatePack),
+                    useValue: mockProjectTemplatePackRepo,
+                },
             ],
         }).compile();
 
         service = module.get<TemplatePackService>(TemplatePackService);
 
-        // WORKAROUND: Manually assign the mock to fix DI issue
+        // WORKAROUND: Manually assign the mock for methods still using DatabaseService
+        // assignTemplatePackToProject, uninstallTemplatePackFromProject, and other
+        // strategic SQL operations still use this.db directly
         (service as any).db = mockDb;
     });
 
@@ -63,25 +105,34 @@ describe('TemplatePackService', () => {
                 relationship_type_schemas: {},
             };
 
-            const mockResult = {
+            const now = new Date();
+            const mockSaved = {
                 id: 'pack-1',
                 ...dto,
-                published_at: new Date().toISOString(),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                published_at: now,
+                created_at: now,
+                updated_at: now,
+                deprecated_at: null,
             };
 
-            mockDb.query.mockResolvedValueOnce({
-                rows: [mockResult],
-                rowCount: 1,
-            } as any);
+            mockTemplatePackRepo.save.mockResolvedValueOnce(mockSaved);
 
             const result = await service.createTemplatePack(dto);
 
-            expect(result).toEqual(mockResult);
-            expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('INSERT INTO kb.graph_template_packs'),
-                expect.arrayContaining([dto.name, dto.version])
+            expect(result).toEqual({
+                ...mockSaved,
+                published_at: now.toISOString(),
+                created_at: now.toISOString(),
+                updated_at: now.toISOString(),
+                deprecated_at: undefined, // Service converts null to undefined via optional chaining
+            });
+            expect(mockTemplatePackRepo.save).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: dto.name,
+                    version: dto.version,
+                    description: dto.description,
+                    author: dto.author,
+                })
             );
         });
 
@@ -92,48 +143,55 @@ describe('TemplatePackService', () => {
                 object_type_schemas: { TestType: {} },
             };
 
-            mockDb.query.mockResolvedValueOnce({
-                rows: [{ id: 'pack-1', ...dto }],
-                rowCount: 1,
-            } as any);
+            const now = new Date();
+            mockTemplatePackRepo.save.mockResolvedValueOnce({
+                id: 'pack-1',
+                ...dto,
+                published_at: now,
+                created_at: now,
+                updated_at: now,
+            });
 
             await service.createTemplatePack(dto);
 
-            // Verify checksum was passed to database
-            expect(mockDb.query).toHaveBeenCalledWith(
-                expect.any(String),
-                expect.arrayContaining([expect.stringMatching(/^[a-f0-9]{64}$/)]) // SHA256 hex
+            // Verify checksum was calculated and passed to save
+            expect(mockTemplatePackRepo.save).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    checksum: expect.stringMatching(/^[a-f0-9]{64}$/), // SHA256 hex
+                })
             );
         });
     });
 
     describe('getTemplatePackById', () => {
         it('should return template pack if found', async () => {
+            const now = new Date();
             const mockPack = {
                 id: 'pack-1',
                 name: 'TOGAF Core',
                 version: '1.0.0',
+                published_at: now,
+                created_at: now,
+                updated_at: now,
             };
 
-            mockDb.query.mockResolvedValueOnce({
-                rows: [mockPack],
-                rowCount: 1,
-            } as any);
+            mockTemplatePackRepo.findOne.mockResolvedValueOnce(mockPack);
 
             const result = await service.getTemplatePackById('pack-1');
 
-            expect(result).toEqual(mockPack);
-            expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('SELECT * FROM kb.graph_template_packs WHERE id = $1'),
-                ['pack-1']
-            );
+            expect(result).toEqual({
+                ...mockPack,
+                published_at: now.toISOString(),
+                created_at: now.toISOString(),
+                updated_at: now.toISOString(),
+            });
+            expect(mockTemplatePackRepo.findOne).toHaveBeenCalledWith({
+                where: { id: 'pack-1' },
+            });
         });
 
         it('should throw NotFoundException if not found', async () => {
-            mockDb.query.mockResolvedValueOnce({
-                rows: [],
-                rowCount: 0,
-            } as any);
+            mockTemplatePackRepo.findOne.mockResolvedValueOnce(null);
 
             await expect(service.getTemplatePackById('nonexistent')).rejects.toThrow(NotFoundException);
         });
@@ -141,27 +199,32 @@ describe('TemplatePackService', () => {
 
     describe('listTemplatePacks', () => {
         it('should list template packs with pagination', async () => {
+            const now = new Date();
             const mockPacks = [
-                { id: 'pack-1', name: 'Pack 1' },
-                { id: 'pack-2', name: 'Pack 2' },
+                { id: 'pack-1', name: 'Pack 1', published_at: now, created_at: now, updated_at: now },
+                { id: 'pack-2', name: 'Pack 2', published_at: now, created_at: now, updated_at: now },
             ];
 
-            // Mock count query
-            mockDb.query.mockResolvedValueOnce({
-                rows: [{ count: '10' }],
-                rowCount: 1,
-            } as any);
+            const mockQueryBuilder = {
+                andWhere: vi.fn().mockReturnThis(),
+                orderBy: vi.fn().mockReturnThis(),
+                skip: vi.fn().mockReturnThis(),
+                take: vi.fn().mockReturnThis(),
+                getCount: vi.fn().mockResolvedValue(10),
+                getMany: vi.fn().mockResolvedValue(mockPacks),
+            };
 
-            // Mock data query
-            mockDb.query.mockResolvedValueOnce({
-                rows: mockPacks,
-                rowCount: 2,
-            } as any);
+            mockTemplatePackRepo.createQueryBuilder = vi.fn().mockReturnValue(mockQueryBuilder);
 
             const result = await service.listTemplatePacks({ page: 1, limit: 20 });
 
             expect(result).toEqual({
-                packs: mockPacks,
+                packs: mockPacks.map(p => ({
+                    ...p,
+                    published_at: now.toISOString(),
+                    created_at: now.toISOString(),
+                    updated_at: now.toISOString(),
+                })),
                 total: 10,
                 page: 1,
                 limit: 20,
@@ -169,26 +232,39 @@ describe('TemplatePackService', () => {
         });
 
         it('should filter deprecated packs by default', async () => {
-            mockDb.query.mockResolvedValueOnce({ rows: [{ count: '5' }], rowCount: 1 } as any);
-            mockDb.query.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
+            const mockQueryBuilder = {
+                andWhere: vi.fn().mockReturnThis(),
+                orderBy: vi.fn().mockReturnThis(),
+                skip: vi.fn().mockReturnThis(),
+                take: vi.fn().mockReturnThis(),
+                getCount: vi.fn().mockResolvedValue(5),
+                getMany: vi.fn().mockResolvedValue([]),
+            };
+
+            mockTemplatePackRepo.createQueryBuilder = vi.fn().mockReturnValue(mockQueryBuilder);
 
             await service.listTemplatePacks({ page: 1, limit: 20 });
 
-            expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('WHERE deprecated_at IS NULL'),
-                expect.any(Array)
-            );
+            expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('pack.deprecated_at IS NULL');
         });
 
         it('should support search query', async () => {
-            mockDb.query.mockResolvedValueOnce({ rows: [{ count: '2' }], rowCount: 1 } as any);
-            mockDb.query.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
+            const mockQueryBuilder = {
+                andWhere: vi.fn().mockReturnThis(),
+                orderBy: vi.fn().mockReturnThis(),
+                skip: vi.fn().mockReturnThis(),
+                take: vi.fn().mockReturnThis(),
+                getCount: vi.fn().mockResolvedValue(2),
+                getMany: vi.fn().mockResolvedValue([]),
+            };
+
+            mockTemplatePackRepo.createQueryBuilder = vi.fn().mockReturnValue(mockQueryBuilder);
 
             await service.listTemplatePacks({ page: 1, limit: 20, search: 'TOGAF' });
 
-            expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('ILIKE'),
-                expect.arrayContaining(['%TOGAF%'])
+            expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+                '(pack.name ILIKE :search OR pack.description ILIKE :search)',
+                { search: '%TOGAF%' }
             );
         });
     });
@@ -204,6 +280,7 @@ describe('TemplatePackService', () => {
                 template_pack_id: 'pack-1',
             };
 
+            const now = new Date();
             const mockPack = {
                 id: 'pack-1',
                 name: 'TOGAF Core',
@@ -215,24 +292,18 @@ describe('TemplatePackService', () => {
                 relationship_type_schemas: {},
                 ui_configs: {},
                 extraction_prompts: {},
+                published_at: now,
+                created_at: now,
+                updated_at: now,
             };
 
-            // Mock template pack exists
+            // Mock template pack exists (via repository)
+            mockTemplatePackRepo.findOne.mockResolvedValueOnce(mockPack);
+
+            // Mock user lookup
             mockDb.query.mockResolvedValueOnce({
-                rows: [mockPack],
+                rows: [{ id: userId }],
                 rowCount: 1,
-            } as any);
-
-            // Mock no existing assignment
-            mockDb.query.mockResolvedValueOnce({
-                rows: [],
-                rowCount: 0,
-            } as any);
-
-            // Mock no existing types
-            mockDb.query.mockResolvedValueOnce({
-                rows: [],
-                rowCount: 0,
             } as any);
 
             // Mock client for transaction
@@ -283,11 +354,19 @@ describe('TemplatePackService', () => {
                 template_pack_id: 'pack-1',
             };
 
-            // Mock template pack exists
-            mockDb.query.mockResolvedValueOnce({
-                rows: [{ id: 'pack-1', name: 'TOGAF', version: '1.0.0', object_type_schemas: {} }],
-                rowCount: 1,
-            } as any);
+            const now = new Date();
+            const mockPack = {
+                id: 'pack-1',
+                name: 'TOGAF',
+                version: '1.0.0',
+                object_type_schemas: {},
+                published_at: now,
+                created_at: now,
+                updated_at: now,
+            };
+
+            // Mock template pack exists (via repository)
+            mockTemplatePackRepo.findOne.mockResolvedValueOnce(mockPack);
 
             // Mock user lookup
             mockDb.query.mockResolvedValueOnce({
@@ -311,6 +390,7 @@ describe('TemplatePackService', () => {
                 template_pack_id: 'pack-1',
             };
 
+            const now = new Date();
             const mockPack = {
                 id: 'pack-1',
                 name: 'TOGAF Core',
@@ -322,10 +402,14 @@ describe('TemplatePackService', () => {
                 relationship_type_schemas: {},
                 ui_configs: {},
                 extraction_prompts: {},
+                published_at: now,
+                created_at: now,
+                updated_at: now,
             };
 
-            // Mock template pack exists
-            mockDb.query.mockResolvedValueOnce({ rows: [mockPack], rowCount: 1 } as any);
+            // Mock template pack exists (via repository)
+            mockTemplatePackRepo.findOne.mockResolvedValueOnce(mockPack);
+
             // Mock user lookup
             mockDb.query.mockResolvedValueOnce({ rows: [{ id: 'user-1' }], rowCount: 1 } as any);
             // Mock no existing assignment
@@ -388,6 +472,7 @@ describe('TemplatePackService', () => {
                 },
             };
 
+            const now = new Date();
             const mockPack = {
                 id: 'pack-1',
                 name: 'TOGAF Core',
@@ -400,9 +485,16 @@ describe('TemplatePackService', () => {
                 relationship_type_schemas: {},
                 ui_configs: {},
                 extraction_prompts: {},
+                published_at: now,
+                created_at: now,
+                updated_at: now,
             };
 
-            mockDb.query.mockResolvedValueOnce({ rows: [mockPack], rowCount: 1 } as any);
+            // Mock template pack exists (via repository)
+            mockTemplatePackRepo.findOne.mockResolvedValueOnce(mockPack);
+
+            // Mock user lookup, no existing assignment, no existing types
+            mockDb.query.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
             mockDb.query.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
             mockDb.query.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
 

@@ -87,8 +87,54 @@ describe('BranchService', () => {
 
     beforeEach(() => {
         db = new MockDatabaseService();
+
+        // Create mock repository that reads from db.branches
+        const mockRepository = {
+            save: () => Promise.resolve(null),
+            findOne: () => Promise.resolve(null),
+            find: async (options?: any) => {
+                // If options.where.projectId is provided, filter by project
+                if (options?.where?.projectId) {
+                    return db.branches.filter(b => b.project_id === options.where.projectId)
+                        .map(b => ({
+                            id: b.id,
+                            organizationId: b.organization_id,
+                            projectId: b.project_id,
+                            name: b.name,
+                            parentBranchId: b.parent_branch_id,
+                            createdAt: new Date(b.created_at)
+                        }));
+                }
+                // Return all branches
+                return db.branches.map(b => ({
+                    id: b.id,
+                    organizationId: b.organization_id,
+                    projectId: b.project_id,
+                    name: b.name,
+                    parentBranchId: b.parent_branch_id,
+                    createdAt: new Date(b.created_at)
+                }));
+            },
+            create: () => ({}),
+            update: () => Promise.resolve(null),
+            delete: () => Promise.resolve(null),
+        } as any;
+
+        // Create mock DataSource
+        const mockDataSource = {
+            query: (sql: string, params?: any[]) => db.query(sql, params),
+            createQueryRunner: () => ({
+                connect: () => Promise.resolve(),
+                startTransaction: () => Promise.resolve(),
+                commitTransaction: () => Promise.resolve(),
+                rollbackTransaction: () => Promise.resolve(),
+                release: () => Promise.resolve(),
+            }),
+        } as any;
+
+        // Constructor expects: (branchRepository, dataSource, db)
         // @ts-expect-error partial mock injection
-        service = new BranchService(db as DatabaseService);
+        service = new BranchService(mockRepository, mockDataSource, db as DatabaseService);
     });
 
     it('creates a branch successfully', async () => {

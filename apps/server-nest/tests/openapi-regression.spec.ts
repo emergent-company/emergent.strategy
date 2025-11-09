@@ -32,7 +32,8 @@ function hashSpecPaths(spec: any): string {
 // Updated after adding MCP authentication endpoints and Phase 4 security enhancements (GET /mcp/schema/version, GET /mcp/schema/changelog)
 // Updated after regenerating with ClickUp SDK as ES modules (October 2025)
 // Updated after adding MCP RPC endpoint and user deletion endpoints (October 2025)
-const EXPECTED_HASH = process.env.OPENAPI_EXPECTED_HASH || '4f135ecac5ab2f640cc7fe45175c296d02fa40ccd5fc9eb0da875be6191265ef';
+// Updated after adding PATCH /projects/:id endpoint for kb_purpose updates (November 2025)
+const EXPECTED_HASH = process.env.OPENAPI_EXPECTED_HASH || 'c2970c0fa90b9c3fb3b0f106e8487f0d6c90059a51c3146956674f4155f209cf';
 
 describe('OpenAPI regression', () => {
     it('paths+tags hash matches expected (update EXPECTED_HASH intentionally if spec changed)', () => {

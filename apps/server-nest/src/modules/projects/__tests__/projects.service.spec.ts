@@ -95,7 +95,62 @@ function createServiceDependencies(options: {
         extractionDefaultTemplatePackId: options.defaultPackId,
     } as unknown as AppConfigService;
 
-    const service = new ProjectsService(db, templatePacks, config);
+    // Create mock repositories
+    const mockProjectRepo = {
+        find: vi.fn().mockResolvedValue([]),
+        findOne: vi.fn().mockResolvedValue(null),
+        save: vi.fn().mockImplementation((entity) => Promise.resolve(entity)),
+        create: vi.fn().mockImplementation((dto) => dto),
+    } as any;
+
+    const mockMembershipRepo = {
+        find: vi.fn().mockResolvedValue([]),
+        findOne: vi.fn().mockResolvedValue(null),
+        save: vi.fn().mockImplementation((entity) => Promise.resolve(entity)),
+    } as any;
+
+    const mockOrgRepo = {
+        findOne: vi.fn().mockResolvedValue({ id: options.orgId }),
+    } as any;
+
+    // Create mock DataSource
+    const mockDataSource = {
+        query: vi.fn(),
+        createQueryRunner: vi.fn().mockReturnValue({
+            connect: vi.fn().mockResolvedValue(undefined),
+            startTransaction: vi.fn().mockResolvedValue(undefined),
+            commitTransaction: vi.fn().mockResolvedValue(undefined),
+            rollbackTransaction: vi.fn().mockResolvedValue(undefined),
+            release: vi.fn().mockResolvedValue(undefined),
+            manager: {
+                query: client.query,
+                findOne: vi.fn().mockImplementation(async (entity: any, options: any) => {
+                    if (entity.name === 'Org') {
+                        return { id: options.where?.id || options.orgId };
+                    }
+                    return null;
+                }),
+                save: vi.fn().mockImplementation((entity) => {
+                    // If saving a project and it doesn't have an id, add the projectId
+                    if (entity.organizationId && !entity.id) {
+                        return Promise.resolve({ ...entity, id: options.projectId });
+                    }
+                    return Promise.resolve(entity);
+                }),
+            },
+        }),
+    } as any;
+
+    // Constructor expects: (projectRepo, membershipRepo, orgRepo, dataSource, db, templatePacks, config)
+    const service = new ProjectsService(
+        mockProjectRepo,
+        mockMembershipRepo,
+        mockOrgRepo,
+        mockDataSource,
+        db,
+        templatePacks,
+        config
+    );
 
     return {
         service,

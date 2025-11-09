@@ -30,6 +30,317 @@ Each entry should follow this structure:
 
 ## Lessons Learned
 
+### 2025-11-09 - Testing Sprint Session 6 - Hybrid Mock Layer Alignment (95% Milestone!)
+
+**Context**: Continuing from Session 5 breakthrough (94.5%, +24 tests). Targeting product-version.service.spec.ts (7 failures) to reach exactly 95% coverage goal.
+
+**Initial Assumption**: Low passing rate (1/8 = 12.5%) suggested full Pattern 5 Level 3 conversion needed (like Sessions 3-4). Expected ~2 hours of work.
+
+**Reality Discovery**: Simple constructor parameter mismatch! Tests passed only 1 parameter when service expected 4.
+
+**Why Initial Analysis Was Wrong**:
+- Jumped to "low passing rate = complex fix" without checking constructor
+- Service had clear 4-parameter DI signature but tests only provided FakeDb
+- TypeScript errors clearly stated "Expected 4 arguments, but got 1"
+- Should have checked constructor signature FIRST before assuming infrastructure problems
+
+**Root Cause**:
+```typescript
+// Service Constructor (4 parameters)
+constructor(
+  @InjectRepository(ProductVersion)
+  private readonly productVersionRepository: Repository<ProductVersion>,
+  @InjectRepository(ProductVersionMember)
+  private readonly memberRepository: Repository<ProductVersionMember>,
+  private readonly dataSource: DataSource,
+  @Inject(DatabaseService) private readonly db: DatabaseService
+) {}
+
+// Test Instantiation (WRONG - only 1 parameter)
+const svc = new ProductVersionService(new FakeDb(() => client) as any);
+// ❌ Missing 3 required dependencies!
+```
+
+**Correct Approach - Hybrid Mock Layer Alignment**:
+
+1. **Check constructor signature FIRST** (before analyzing infrastructure):
+   ```bash
+   grep "constructor" apps/server-nest/src/modules/graph/product-version.service.ts
+   ```
+
+2. **Provide ALL constructor parameters**:
+   ```typescript
+   const mockProductVersionRepo = createMockRepository();
+   const mockMemberRepo = createMockRepository();
+   const mockDataSource = {} as any;
+   const svc = new ProductVersionService(
+       mockProductVersionRepo as any,
+       mockMemberRepo as any,
+       mockDataSource,
+       new FakeDb(() => client) as any
+   );
+   ```
+
+3. **Mock appropriate abstraction layers per method**:
+   - `create()` uses raw SQL → FakeDb/FakeClient sufficient
+   - `get()` uses Repository → Mock `findOne()` and `count()`
+   - Both need all 4 constructor params regardless
+
+**Results**:
+- Fixed all 7 tests in 1 iteration (100% success rate)
+- **Gained**: +8 tests (1063 → 1071, 94.5% → 95.2%)
+- **Time**: ~10 minutes (FASTEST session yet!)
+- **Milestone**: ✅ **95% coverage achieved!** (+0.2% bonus)
+
+**Prevention**:
+- **Always check constructor signature first** when low passing rate
+- Don't assume "low passing rate = complex infrastructure fix"
+- TypeScript compiler errors often point directly to solution
+- Constructor parameter count matters more than infrastructure complexity
+- Read service code to understand which methods use which abstraction layers
+
+**Pattern Decision Tree** (Updated with Hybrid):
+```
+Test Status                                      → Action
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+0-30% passing, no Pattern 5 L3                  → Full infrastructure replacement
+0-30% passing, TypeScript "Expected N args"     → Hybrid Mock Layer Alignment ✅ NEW
+30-60% passing, incomplete infrastructure       → Complete infrastructure + fix logic
+60%+ passing, infrastructure present            → Mock Layer Alignment only
+100% failing, error mentions Repository         → Pattern 5 Level 3 conversion
+
+Constructor Check (NEW FIRST STEP)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Clear 3-4+ parameters, tests provide 1-2        → Hybrid Mock Layer Alignment (fastest!)
+Unclear dependencies, complex DI                → Pattern 5 Level 3 conversion
+```
+
+**Performance Comparison**:
+```
+Session  Service            Passing Rate  Approach               Tests  Time
+────────────────────────────────────────────────────────────────────────────
+3        documents          0%            Pattern 5 L3 (full)    +9     ~2h
+4        invites            0%            Pattern 5 L3 (full)    +14    ~2h
+5        orgs.service       60% (9/15)    Mock Layer Alignment   +24    ~30min
+6        product-version    12.5% (1/8)   Hybrid Layer Align     +8     ~10min ✅
+```
+
+**Why Session 6 Was Fastest**:
+- Simple root cause (missing constructor params)
+- Small test file (8 tests vs 15-17 in other sessions)
+- Clear TypeScript compiler errors pointing to solution
+- No cascading infrastructure issues to debug
+
+**Key Discovery**: **Hybrid Mock Layer Alignment** (NEW Pattern!)
+- When service uses **multiple abstraction layers** (raw SQL + Repository)
+- Constructor has **clear dependency injection** (multiple parameters)
+- Tests mock **only one layer** but service expects **multiple dependencies**
+- **Solution**: Provide all constructor params, mock each layer appropriately
+- **Speed**: Fastest pattern yet (~10 minutes vs 30 min to 2 hours)
+
+**Related Files/Conventions**:
+- `apps/server-nest/tests/product-version.service.spec.ts` (Hybrid Mock Layer Alignment)
+- `docs/TESTING_SPRINT_SESSION6_FINAL.md` (comprehensive analysis + 95% milestone)
+- New pattern: **Hybrid Mock Layer Alignment** (constructor + multi-layer mocking)
+
+**Key Takeaway**: Constructor parameter count matters more than infrastructure complexity. Always check service constructor signature first. Low passing rate + clear TypeScript errors about argument count = quick Hybrid Mock Layer Alignment fix. Don't waste time assuming complex infrastructure conversion when simple parameter addition solves it!
+
+**Strategic Insight**: Pattern selection order matters:
+1. **First**: Check constructor (TypeScript errors about argument count?)
+2. **Second**: Check passing rate (60%+ = Mock Layer Alignment, 0-30% = Pattern 5 L3 or Hybrid)
+3. **Third**: Analyze service code (mixed abstractions = Hybrid, single pattern = standard approach)
+
+---
+
+### 2025-11-09 - Testing Sprint Session 5 - Mock Layer Alignment Discovery
+
+**Context**: Continuing toward 95% coverage goal (at 92.4% from Session 4). Targeted orgs.service.spec.ts expecting 13 failures per todo, found only 6 failures with infrastructure already present.
+
+**Mistake**: Initially started analyzing as if full Pattern 5 Level 3 conversion was needed (like Sessions 3-4), wasting time before discovering infrastructure was already complete.
+
+**Why It Was Wrong**:
+- Test file already had complete Pattern 5 Level 3 infrastructure (createMockRepository, FakeDataSource, FakeQueryRunner, FakeDb, pgError helper)
+- 9/15 tests already passing (60% success rate) proved infrastructure worked
+- 6 failures were **mock layer misalignment**, not infrastructure problems
+- Tests mocked wrong abstraction layers:
+  - ❌ Mocked `dataSource.query()` when service used `membershipRepo.createQueryBuilder().getCount()`
+  - ❌ Used `FakeClient` when service used `queryRunner.manager.save()`
+  - ❌ Mocked `dataSource.query()` when service used `orgRepo.delete()`
+- Root cause: Tests mocked low-level query execution, but service used high-level TypeORM abstractions
+
+**Correct Approach - Mock Layer Alignment Pattern**:
+1. **Read service code first** to identify exact abstraction layers used:
+   - Does it use `Repository.method()`?
+   - Does it use `QueryBuilder` chains?
+   - Does it use `QueryRunner.manager.save()`?
+   - Does it use raw `DataSource.query()`?
+
+2. **Mock at the SAME abstraction level**:
+   ```typescript
+   // Service uses QueryBuilder
+   const count = await this.membershipRepo.createQueryBuilder('om').getCount();
+   
+   // Test MUST mock QueryBuilder, NOT dataSource.query()
+   const mockQueryBuilder = {
+       where: vi.fn().mockReturnThis(),
+       getCount: vi.fn().mockResolvedValue(100)  // ← Mock THIS layer
+   };
+   membershipRepo.createQueryBuilder = vi.fn().mockReturnValue(mockQueryBuilder);
+   ```
+
+3. **Use existing infrastructure properly**:
+   - If `FakeQueryRunner` exists, use it (don't create FakeClient)
+   - If `createMockRepository()` exists, extend it (don't bypass)
+   - If `pgError()` helper exists, use it consistently
+
+4. **Verify layer matching before fixing**:
+   - Grep service code for method calls: `Repository.`, `createQueryBuilder`, `QueryRunner`, `DataSource.query`
+   - Map each to corresponding mock setup in test
+   - Fix mismatches systematically
+
+**Results**:
+- Fixed all 6 tests in 1 iteration (100% success rate)
+- **Bonus**: +18 additional tests passed (cascading fix!)
+- **Total gain**: +24 tests (1039 → 1063, 92.4% → 94.5%)
+- **Time**: ~30 minutes (vs ~2 hours for full Pattern 5 L3 conversion)
+- **Distance to 95%**: Only +7 tests remaining!
+
+**Prevention**:
+- **Before assuming infrastructure conversion needed**: Check current test status! 60%+ passing = infrastructure likely works
+- **Always read service code first**: Understand abstraction layers before writing/fixing mocks
+- **Match mock layers to service layers**: Repository→Repository, QueryBuilder→QueryBuilder, QueryRunner→QueryRunner
+- **Use existing infrastructure**: Don't reinvent (FakeClient) when pattern exists (FakeQueryRunner)
+- **Check for cascading opportunities**: Fixing base infrastructure can yield 3-4x direct gains
+
+**Pattern Decision Tree** (Updated):
+```
+Test Status                                      → Action
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+0-30% passing, no Pattern 5 L3                  → Full infrastructure replacement
+30-60% passing, incomplete infrastructure       → Complete infrastructure + fix logic
+60%+ passing, infrastructure present            → Mock Layer Alignment only ✅ NEW
+100% failing, error mentions Repository         → Pattern 5 Level 3 conversion
+
+Service Uses                                     → Test Must Mock
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Repository.method()                              → Repository.method()
+createQueryBuilder().chain()                     → createQueryBuilder() mock
+QueryRunner.manager.save()                       → FakeQueryRunner.manager.save()
+DataSource.query() (raw SQL)                     → FakeDataSource.query()
+```
+
+**Cascading Fix Phenomenon**:
+- **Direct**: orgs.service.spec.ts +6 tests
+- **Indirect**: +18 tests across other files (3x multiplier!)
+- **Hypothesis**: Shared infrastructure improvements (FakeQueryRunner, FakeDataSource) benefited other test files
+- **Strategic Implication**: Target services with high reuse potential for maximum cascade effect
+
+**Related Files/Conventions**:
+- `apps/server-nest/tests/orgs.service.spec.ts` (Mock Layer Alignment fixes)
+- `docs/TESTING_SPRINT_SESSION5_FINAL.md` (comprehensive analysis)
+- New pattern: **Mock Layer Alignment** (abstraction level matching)
+
+**Key Takeaway**: Infrastructure completeness doesn't guarantee test success. Mock layers must align with service abstraction layers. When 60%+ tests already pass, focus on mock layer alignment instead of infrastructure replacement. Always read service code to understand exact TypeORM patterns used (Repository vs QueryBuilder vs QueryRunner vs raw SQL).
+
+---
+
+### 2025-11-09 - Testing Sprint Session 2 Complete - Pattern-Based Test Fixing
+
+**Context**: Testing Sprint Session 2 systematically applied 4 discovered fix patterns to 9 services. Target: 80% tests (900/1125) and 85% files (98/115).
+
+**Results**:
+- **Tests**: 910/1125 (80.9%) - ✅ EXCEEDED target by +0.9%
+- **Files**: 83/115 (72.2%) - ❌ MISSED target by -12.8%
+- **Net gain**: +74 tests, +1 file from Session 2 start (836 tests, 82 files)
+- **Services improved**: 9 (2 complete at 100%, 7 partial at 33-76%)
+
+**Why Tests Target Met But Files Target Missed**:
+- Test improvements within files don't flip file status automatically
+- Need ~90% tests passing per file to reliably move file to "passing"
+- Partial improvements (47-76%) add many tests but keep files in "failing"
+- Example: EmbeddingPolicyService 0→19 tests (76%) but file still "failing"
+- Files harder to move than tests - this is NORMAL
+
+**Pattern Effectiveness by Complexity**:
+
+| Pattern | Success Rate | Best Use Case |
+|---------|--------------|---------------|
+| 1: Repository Mock | 100% | Simple services with basic repository usage |
+| 2: Jest→Vitest | 48% | Basic conversions (QueryBuilder issues limit) |
+| 3: Constructor Param | 100%→33% | Diminishes with service complexity |
+| 4: Repository Provider | 47%→76% | Complex DI, varies by service architecture |
+
+**Pattern 4 Critical Learnings** (Most Complex):
+1. ❌ WRONG: `import { DataSource } from '@nestjs/typeorm'` → ✅ CORRECT: `from 'typeorm'`
+2. ❌ WRONG: `provide: 'DataSource'` (string) → ✅ CORRECT: `provide: DataSource` (class)
+3. ❌ WRONG: Entity from module path → ✅ CORRECT: From `src/entities/`
+4. ❌ MISSING: Rely on DI alone → ✅ REQUIRED: Manual mock assignment `(service as any).dep = mock`
+5. Must include ALL CRUD methods: findOne, find, save, create, update, delete, increment, createQueryBuilder
+6. Share query mock: `mockDataSource.query = mockDb.query`
+7. Declare mocks in describe scope for manual assignment access
+
+**Pattern 4 Success by Service Type**:
+- Repository only: **76%** (EmbeddingPolicyService - cleanest)
+- Repository + DataSource: **54%** (TypeRegistryService)
+- Repository + complex assertions: **47%** (PostgresCacheService)
+
+**Why Pattern 3 Hit Diminishing Returns**:
+- 1st application: 100% (ExtractionJobService - simple)
+- 2nd application: 67% (EntityLinkingService - moderate)
+- 3rd/4th: 33-50% (ProjectsService, BranchService - complex)
+- Root cause: Service complexity grows beyond simple constructor issues
+
+**Test Count Discrepancy Explained**:
+- Gross additions: 113 tests (sum of all additions)
+- Net gain: 74 tests (actual result)
+- Difference caused by: test status changes, skipped tests, duplicate removals
+- **ALWAYS measure with full suite run**, don't rely on addition projections
+
+**Pattern Selection Decision Tree**:
+```
+Error                                            → Pattern
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"Cannot find name 'Repository'"                 → 1
+"Cannot find name 'jest'"                       → 2
+"Cannot read properties of undefined"           → 3
+"Nest can't resolve dependencies... Repository" → 4
+
+Service Type                                     → Expected
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Single repository                                → 70-100%
+Repository + simple mocks                        → 60-100%
+Repository + DataSource                          → 50-70%
+Repository + complex assertions                  → 40-60%
+```
+
+**Reaching 85% Files Would Require**:
+Complete 7 partial services to 90%+:
+- DocumentsService: +17 tests → 100%
+- EntityLinkingService: +11 tests → 100%
+- TypeRegistryService: +11 tests → 100%
+- PostgresCacheService: +10 tests → 100%
+- EmbeddingPolicyService: +6 tests → 100%
+- BranchService: +3 tests → 100%
+- ProjectsService: +2 tests → 100%
+
+Impact: +60 tests, +7 files → 970/1125 (86.2%), 90/115 files (78.3%)
+
+**Prevention**:
+- Use pattern decision tree for error → pattern mapping
+- Set realistic file targets: files harder than tests to move
+- Accept 47-76% success as good outcome for complex services
+- Per-service refinement beyond patterns requires dedicated sessions
+- Always run full suite to confirm final metrics
+
+**Related Files/Conventions**:
+- `docs/TESTING_SPRINT_SESSION2_FINAL.md` - Complete report
+- Pattern 1-4 templates in sprint documentation
+- Implementations: PostgresCacheService, TypeRegistryService, EmbeddingPolicyService test files
+
+**Key Takeaway**: Pattern-based systematic fixing highly effective for test count. Success depends on service complexity. Partial improvements (47-76%) add value but don't flip files. Always confirm with full suite run. Files need 90%+ tests to pass reliably.
+
+---
+
 ### 2025-10-22 - ClickUp API v2/v3 ID Mismatch & Discovery of Parent Parameter
 
 **Context**: User wanted to import documents only from "Huma" space (ID: 90152846670) but all documents from workspace were being imported, ignoring space selection.

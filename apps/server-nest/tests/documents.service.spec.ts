@@ -1,8 +1,22 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 import { DocumentsService } from '../src/modules/documents/documents.service';
+import { DatabaseService } from '../src/common/database/database.service';
 
-class FakeDb {
+// Mock repository factory
+function createMockRepository(methods: Partial<any> = {}) {
+    return {
+        findOne: vi.fn(),
+        find: vi.fn(),
+        save: vi.fn(),
+        create: vi.fn(),
+        delete: vi.fn(),
+        ...methods
+    };
+}
+
+// Mock DataSource (for raw SQL queries)
+class FakeDataSource {
     constructor(private rows: any[]) { }
     async query(text: string, params?: any[]) {
         let rows = this.rows;
@@ -10,10 +24,21 @@ class FakeDb {
             const limit = params[0];
             if (typeof limit === 'number') rows = rows.slice(0, limit);
         }
-        return { rows, rowCount: rows.length } as any;
+        // DataSource.query() returns array directly, not { rows, rowCount }
+        return rows;
     }
 }
 
+// Mock DatabaseService
+class FakeDb extends DatabaseService {
+    constructor() {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        super({} as any);
+    }
+    isOnline() { return true; }
+}
+
+// Mock HashService
 class FakeHashService {
     sha256(content: string): string {
         return `mock-hash-${content.length}`;
@@ -28,7 +53,13 @@ function makeRow(id: number) {
 describe('DocumentsService pagination', () => {
     it('returns nextCursor when results hit limit', async () => {
         const rows = [makeRow(1), makeRow(2), makeRow(3)];
-        const svc = new DocumentsService(new FakeDb(rows) as any, new FakeHashService() as any);
+        const docRepo = createMockRepository();
+        const chunkRepo = createMockRepository();
+        const projectRepo = createMockRepository();
+        const dataSource = new FakeDataSource(rows);
+        const db = new FakeDb();
+        const hash = new FakeHashService();
+        const svc = new DocumentsService(docRepo as any, chunkRepo as any, projectRepo as any, dataSource as any, db as any, hash as any);
         const { items, nextCursor } = await svc.list(2);
         expect(items.length).toBe(2);
         expect(nextCursor).toBeTruthy();
@@ -38,27 +69,41 @@ describe('DocumentsService pagination', () => {
 
     it('omits nextCursor when fewer than limit', async () => {
         const rows = [makeRow(1)];
-        const svc = new DocumentsService(new FakeDb(rows) as any, new FakeHashService() as any);
+        const docRepo = createMockRepository();
+        const chunkRepo = createMockRepository();
+        const projectRepo = createMockRepository();
+        const dataSource = new FakeDataSource(rows);
+        const db = new FakeDb();
+        const hash = new FakeHashService();
+        const svc = new DocumentsService(docRepo as any, chunkRepo as any, projectRepo as any, dataSource as any, db as any, hash as any);
         const { items, nextCursor } = await svc.list(5);
         expect(items.length).toBe(1);
         expect(nextCursor).toBeNull();
     });
 
     it('decodeCursor handles invalid input gracefully', () => {
-        const svc = new DocumentsService(new FakeDb([]) as any, new FakeHashService() as any);
+        const docRepo = createMockRepository();
+        const chunkRepo = createMockRepository();
+        const projectRepo = createMockRepository();
+        const dataSource = new FakeDataSource([]);
+        const db = new FakeDb();
+        const hash = new FakeHashService();
+        const svc = new DocumentsService(docRepo as any, chunkRepo as any, projectRepo as any, dataSource as any, db as any, hash as any);
         expect(svc.decodeCursor('invalid$$')).toBeUndefined();
     });
 });
 
 // Extended coverage for creation, deletion, filters, cursor, and helpers
 describe('DocumentsService extended behaviour', () => {
-    class ScriptableDb {
+    // Mock DataSource with scriptable query responses
+    class ScriptableDataSource {
         public calls: { text: string; params?: any[] }[] = [];
-        constructor(public handlers: Array<{ match: RegExp | string; respond: (text: string, params?: any[]) => { rows: any[]; rowCount: number } }>) { }
+        constructor(public handlers: Array<{ match: RegExp | string; respond: (text: string, params?: any[]) => any[] }>) { }
         async query(text: string, params?: any[]) {
             this.calls.push({ text, params });
             const h = this.handlers.find(h => typeof h.match === 'string' ? text.includes(h.match) : h.match.test(text));
             if (!h) throw new Error('Unexpected query: ' + text);
+            // DataSource.query() returns array directly, not { rows, rowCount }
             return h.respond(text, params);
         }
     }
@@ -70,17 +115,22 @@ describe('DocumentsService extended behaviour', () => {
 
     it('list builds WHERE with org, project, and cursor', async () => {
         const rows = [makeDoc('a', 0), makeDoc('b', 1000), makeDoc('c', 2000)]; // already descending-ish
-        const db = new ScriptableDb([
+        const dataSource = new ScriptableDataSource([
             {
                 match: 'FROM kb.documents',
                 respond: (_text, params) => {
                     // params: [limit+1, orgId, projectId, cursor.createdAt, cursor.id]
                     expect(params?.length).toBe(5);
-                    return { rows, rowCount: rows.length };
+                    return rows;
                 },
             },
         ]);
-        const svc = new DocumentsService(db as any, new FakeHashService() as any);
+        const docRepo = createMockRepository();
+        const chunkRepo = createMockRepository();
+        const projectRepo = createMockRepository();
+        const db = new FakeDb();
+        const hash = new FakeHashService();
+        const svc = new DocumentsService(docRepo as any, chunkRepo as any, projectRepo as any, dataSource as any, db as any, hash as any);
         const cursor = Buffer.from(JSON.stringify({ createdAt: rows[1].created_at, id: rows[1].id }), 'utf8').toString('base64url');
         const decoded = svc.decodeCursor(cursor)!; // ensure decode path success
         const res = await svc.list(2, decoded, { orgId: 'org-1', projectId: 'proj-1' });
@@ -91,44 +141,78 @@ describe('DocumentsService extended behaviour', () => {
     });
 
     it('create throws when projectId missing', async () => {
-        const db = new ScriptableDb([]);
-        const svc = new DocumentsService(db as any, new FakeHashService() as any);
+        const dataSource = new ScriptableDataSource([]);
+        const docRepo = createMockRepository();
+        const chunkRepo = createMockRepository();
+        const projectRepo = createMockRepository();
+        const db = new FakeDb();
+        const hash = new FakeHashService();
+        const svc = new DocumentsService(docRepo as any, chunkRepo as any, projectRepo as any, dataSource as any, db as any, hash as any);
         await expect(svc.create({ orgId: 'o1', filename: 'a.txt', content: 'x' })).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('create throws when projectId unknown (no row inserted)', async () => {
-        const db = new ScriptableDb([
+        const dataSource = new ScriptableDataSource([
             {
                 match: 'INSERT INTO kb.documents',
-                respond: () => ({ rows: [], rowCount: 0 }),
+                respond: () => [],
             },
         ]);
-        const svc = new DocumentsService(db as any, new FakeHashService() as any);
+        const docRepo = createMockRepository();
+        const chunkRepo = createMockRepository();
+        const projectRepo = createMockRepository({
+            findOne: vi.fn().mockResolvedValue(null) // Project not found
+        });
+        const db = new FakeDb();
+        const hash = new FakeHashService();
+        const svc = new DocumentsService(docRepo as any, chunkRepo as any, projectRepo as any, dataSource as any, db as any, hash as any);
         await expect(svc.create({ orgId: 'o1', projectId: 'p-x', filename: 'a.txt', content: 'x' })).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('create succeeds and maps row', async () => {
-        const inserted = makeDoc('new-id');
-        inserted.chunks = 0;
-        inserted.filename = 'f.txt';
-        const db = new ScriptableDb([
-            {
-                match: 'INSERT INTO kb.documents',
-                respond: () => ({ rows: [inserted], rowCount: 1 }),
-            },
-        ]);
-        const svc = new DocumentsService(db as any, new FakeHashService() as any);
+        const now = new Date();
+        const savedDoc = {
+            id: 'new-id',
+            organizationId: 'o1',
+            projectId: 'p1',
+            filename: 'f.txt',
+            content: 'hello',
+            contentHash: 'mock-hash-5',
+            sourceUrl: null,
+            mimeType: 'text/plain',
+            createdAt: now,
+            updatedAt: now,
+            integrationMetadata: null
+        };
+        // Service uses documentRepository.create() and .save(), not raw SQL
+        const docRepo = createMockRepository({
+            create: vi.fn().mockReturnValue(savedDoc),
+            save: vi.fn().mockResolvedValue(savedDoc)
+        });
+        const chunkRepo = createMockRepository();
+        const projectRepo = createMockRepository({
+            findOne: vi.fn().mockResolvedValue({ id: 'p1', organizationId: 'o1' })
+        });
+        const dataSource = new ScriptableDataSource([]);
+        const db = new FakeDb();
+        const hash = new FakeHashService();
+        const svc = new DocumentsService(docRepo as any, chunkRepo as any, projectRepo as any, dataSource as any, db as any, hash as any);
         const doc = await svc.create({ orgId: 'o1', projectId: 'p1', filename: 'f.txt', content: 'hello' });
         expect(doc.id).toBe('new-id');
-        expect(doc.chunks).toBe(0);
         expect(doc.name).toBe('f.txt');
+        expect(doc.createdAt).toBe(now.toISOString());
     });
 
     it('get returns null when not found', async () => {
-        const db = new ScriptableDb([
-            { match: 'WHERE d.id =', respond: () => ({ rows: [], rowCount: 0 }) },
+        const dataSource = new ScriptableDataSource([
+            { match: 'WHERE d.id =', respond: () => [] },
         ]);
-        const svc = new DocumentsService(db as any, new FakeHashService() as any);
+        const docRepo = createMockRepository();
+        const chunkRepo = createMockRepository();
+        const projectRepo = createMockRepository();
+        const db = new FakeDb();
+        const hash = new FakeHashService();
+        const svc = new DocumentsService(docRepo as any, chunkRepo as any, projectRepo as any, dataSource as any, db as any, hash as any);
         expect(await svc.get('x')).toBeNull();
     });
 
@@ -136,37 +220,48 @@ describe('DocumentsService extended behaviour', () => {
         const doc: any = makeDoc('r1');
         doc.filename = null;
         doc.source_url = 'https://example.com/file.pdf';
-        const db = new ScriptableDb([
-            { match: 'WHERE d.id =', respond: () => ({ rows: [doc], rowCount: 1 }) },
+        const dataSource = new ScriptableDataSource([
+            { match: 'WHERE d.id =', respond: () => [doc] },
         ]);
-        const svc = new DocumentsService(db as any, new FakeHashService() as any);
+        const docRepo = createMockRepository();
+        const chunkRepo = createMockRepository();
+        const projectRepo = createMockRepository();
+        const db = new FakeDb();
+        const hash = new FakeHashService();
+        const svc = new DocumentsService(docRepo as any, chunkRepo as any, projectRepo as any, dataSource as any, db as any, hash as any);
         const got = await svc.get('r1');
         expect(got?.name).toBe('https://example.com/file.pdf');
     });
 
     it('getProjectOrg returns null and then org id', async () => {
-        const db = new ScriptableDb([
-            { match: 'FROM kb.projects', respond: () => ({ rows: [], rowCount: 0 }) },
-        ]);
-        const svc = new DocumentsService(db as any, new FakeHashService() as any);
+        const projectRepo = createMockRepository({
+            findOne: vi.fn()
+                .mockResolvedValueOnce(null) // First call returns null
+                .mockResolvedValueOnce({ organizationId: 'org-77' }) // Second call returns org
+        });
+        const dataSource = new ScriptableDataSource([]);
+        const docRepo = createMockRepository();
+        const chunkRepo = createMockRepository();
+        const db = new FakeDb();
+        const hash = new FakeHashService();
+        const svc = new DocumentsService(docRepo as any, chunkRepo as any, projectRepo as any, dataSource as any, db as any, hash as any);
         expect(await svc.getProjectOrg('p1')).toBeNull();
-        // second handler returns row
-        db.handlers.unshift({ match: 'FROM kb.projects', respond: () => ({ rows: [{ organization_id: 'org-77' }], rowCount: 1 }) } as any);
         expect(await svc.getProjectOrg('p1')).toBe('org-77');
     });
 
     it('delete returns true when a row deleted and false otherwise', async () => {
-        const db = new ScriptableDb([
-            { match: 'DELETE FROM kb.chunks', respond: () => ({ rows: [], rowCount: 0 }) },
-            { match: 'DELETE FROM kb.documents', respond: () => ({ rows: [], rowCount: 1 }) },
-        ]);
-        const svc = new DocumentsService(db as any, new FakeHashService() as any);
+        const docRepo = createMockRepository({
+            delete: vi.fn()
+                .mockResolvedValueOnce({ affected: 1 }) // First call: row deleted
+                .mockResolvedValueOnce({ affected: 0 }) // Second call: no row deleted
+        });
+        const dataSource = new ScriptableDataSource([]);
+        const chunkRepo = createMockRepository();
+        const projectRepo = createMockRepository();
+        const db = new FakeDb();
+        const hash = new FakeHashService();
+        const svc = new DocumentsService(docRepo as any, chunkRepo as any, projectRepo as any, dataSource as any, db as any, hash as any);
         expect(await svc.delete('d1')).toBe(true);
-        // swap documents delete to return 0
-        db.handlers = [
-            { match: 'DELETE FROM kb.chunks', respond: () => ({ rows: [], rowCount: 0 }) },
-            { match: 'DELETE FROM kb.documents', respond: () => ({ rows: [], rowCount: 0 }) },
-        ];
         expect(await svc.delete('d2')).toBe(false);
     });
 });

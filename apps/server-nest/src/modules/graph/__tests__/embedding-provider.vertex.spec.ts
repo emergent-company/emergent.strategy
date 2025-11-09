@@ -1,19 +1,66 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { Test } from '@nestjs/testing';
+import { Module } from '@nestjs/common';
 import { AppConfigModule } from '../../../common/config/config.module';
+import { AppConfigService } from '../../../common/config/config.service';
 import { DatabaseModule } from '../../../common/database/database.module';
 import { GraphModule } from '../graph.module';
 import { GoogleVertexEmbeddingProvider } from '../google-vertex-embedding.provider';
+import { DummySha256EmbeddingProvider } from '../embedding.provider';
+import { GraphService } from '../graph.service';
+import { EmbeddingJobsService } from '../embedding-jobs.service';
+import { GraphVectorSearchService } from '../graph-vector-search.service';
 
 // These tests focus on provider behavior under different env toggles.
 // Network call is mocked via global.fetch.
+
+// Stub to avoid TypeRegistryModule's repository creation
+@Module({
+    providers: [{
+        provide: 'TypeRegistryService',
+        useValue: {
+            getTypeRegistry: () => Promise.resolve([]),
+            createTypeRegistry: () => Promise.resolve({}),
+        }
+    }],
+    exports: ['TypeRegistryService']
+})
+class StubTypeRegistryModule { }
+
+// Stub to avoid GraphModule's repository creation
+@Module({
+    imports: [AppConfigModule],
+    providers: [
+        { provide: GraphService, useValue: {} },
+        { provide: EmbeddingJobsService, useValue: {} },
+        { provide: GraphVectorSearchService, useValue: {} },
+        {
+            provide: 'EMBEDDING_PROVIDER',
+            useFactory: (config: AppConfigService) => {
+                const provider = process.env.EMBEDDING_PROVIDER || 'unset';
+                if (provider === 'dummy') return new DummySha256EmbeddingProvider();
+                if (provider === 'vertex' || provider === 'google') return new GoogleVertexEmbeddingProvider(config);
+                return new DummySha256EmbeddingProvider();
+            },
+            inject: [AppConfigService]
+        }
+    ],
+    exports: ['EMBEDDING_PROVIDER']
+})
+class StubGraphModule { }
 
 describe('GoogleVertexEmbeddingProvider integration modes', () => {
     const originalEnv = { ...process.env };
     afterEach(() => { process.env = { ...originalEnv }; delete (global as any).fetch; });
 
     async function make(): Promise<GoogleVertexEmbeddingProvider> {
-        const mod = await Test.createTestingModule({ imports: [AppConfigModule, DatabaseModule, GraphModule] }).compile();
+        const { TypeRegistryModule } = await import('../../type-registry/type-registry.module');
+        const mod = await Test.createTestingModule({
+            imports: [AppConfigModule, DatabaseModule, GraphModule]
+        })
+            .overrideModule(TypeRegistryModule).useModule(StubTypeRegistryModule)
+            .overrideModule(GraphModule).useModule(StubGraphModule)
+            .compile();
         return mod.get('EMBEDDING_PROVIDER');
     }
 

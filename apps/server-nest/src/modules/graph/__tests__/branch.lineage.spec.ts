@@ -87,7 +87,15 @@ class MockDb implements Partial<DatabaseService> {
 
 describe('BranchService lineage population', () => {
     let service: BranchService; let db: MockDb;
-    beforeEach(() => { db = new MockDb(); service = new BranchService(db as any); });
+
+    beforeEach(() => {
+        db = new MockDb();
+        // Pattern 5: BranchService now uses TypeORM Repository + DataSource
+        // Mock minimal Repository and DataSource to satisfy constructor
+        const mockRepository = {} as any;
+        const mockDataSource = {} as any;
+        service = new BranchService(mockRepository, mockDataSource, db as any);
+    });
 
     it('creates root branch with self lineage depth=0', async () => {
         const branch = await service.create({ name: 'main', project_id: 'p1', organization_id: 'o1' });

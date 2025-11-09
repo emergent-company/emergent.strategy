@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { TypeRegistryService } from '../type-registry.service';
 import { DatabaseService } from '../../../common/database/database.service';
+import { ProjectObjectTypeRegistry } from '../../../entities/project-object-type-registry.entity';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { CreateObjectTypeDto, UpdateObjectTypeDto, ValidateObjectDataDto } from '../dto/type-registry.dto';
 import { vi } from 'vitest';
@@ -8,6 +11,8 @@ import { vi } from 'vitest';
 describe('TypeRegistryService', () => {
     let service: TypeRegistryService;
     let mockDb: any;
+    let mockRepository: any;
+    let mockDataSource: any;
 
     const mockProjectId = 'test-project-123';
     const mockOrgId = 'test-org-456';
@@ -48,6 +53,29 @@ describe('TypeRegistryService', () => {
             transaction: vi.fn(),
         } as any;
 
+        // Create mock repository (declare outside for accessibility)
+        mockRepository = {
+            findOne: vi.fn(),
+            find: vi.fn(),
+            save: vi.fn().mockImplementation((entity) => Promise.resolve({
+                id: 'test-id',
+                createdAt: new Date('2024-01-01'),
+                updatedAt: new Date('2024-01-01'),
+                ...entity
+            })),
+            create: vi.fn().mockImplementation((dto) => dto),
+            update: vi.fn().mockResolvedValue({ affected: 1 }),
+            increment: vi.fn().mockResolvedValue({ affected: 1 }),
+            delete: vi.fn(),
+            createQueryBuilder: vi.fn(),
+        };
+
+        // Create mock DataSource (declare outside for accessibility)
+        mockDataSource = {
+            query: mockDb.query, // Share the same query mock for consistency
+            createQueryRunner: vi.fn(),
+        };
+
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 TypeRegistryService,
@@ -55,13 +83,23 @@ describe('TypeRegistryService', () => {
                     provide: DatabaseService,
                     useValue: mockDb,
                 },
+                {
+                    provide: getRepositoryToken(ProjectObjectTypeRegistry),
+                    useValue: mockRepository,
+                },
+                {
+                    provide: DataSource,
+                    useValue: mockDataSource,
+                },
             ],
         }).compile();
 
         service = module.get<TypeRegistryService>(TypeRegistryService);
 
-        // WORKAROUND: Manually assign the mock to fix DI issue
+        // WORKAROUND: Manually assign the mocks to fix DI issue
         (service as any).db = mockDb;
+        (service as any).dataSource = mockDataSource;
+        (service as any).typeRegistryRepo = mockRepository;
     });
 
     afterEach(() => {
@@ -75,7 +113,7 @@ describe('TypeRegistryService', () => {
                 { ...mockTypeRow, type: 'Service', source: 'template', template_pack_name: 'TOGAF', object_count: '10' },
             ];
 
-            mockDb.query.mockResolvedValue({ rows: mockTypes, rowCount: 2 });
+            mockDb.query.mockResolvedValue(mockTypes);
 
             const result = await service.getProjectTypes(mockProjectId, mockOrgId, {});
 
@@ -89,7 +127,7 @@ describe('TypeRegistryService', () => {
         });
 
         it('should filter by enabled types only', async () => {
-            mockDb.query.mockResolvedValue({ rows: [mockTypeRow], rowCount: 1 });
+            mockDb.query.mockResolvedValue([mockTypeRow]);
 
             await service.getProjectTypes(mockProjectId, mockOrgId, { enabled_only: true });
 
@@ -100,7 +138,7 @@ describe('TypeRegistryService', () => {
         });
 
         it('should filter by source type', async () => {
-            mockDb.query.mockResolvedValue({ rows: [mockTypeRow], rowCount: 1 });
+            mockDb.query.mockResolvedValue([mockTypeRow]);
 
             await service.getProjectTypes(mockProjectId, mockOrgId, { source: 'custom' });
 
@@ -114,7 +152,7 @@ describe('TypeRegistryService', () => {
     describe('getTypeByName', () => {
         it('should return a specific type by name', async () => {
             const mockWithCounts = { ...mockTypeRow, template_pack_name: 'TOGAF', object_count: '5' };
-            mockDb.query.mockResolvedValue({ rows: [mockWithCounts], rowCount: 1 });
+            mockDb.query.mockResolvedValue([mockWithCounts]);
 
             const result = await service.getTypeByName(mockProjectId, mockOrgId, 'Application');
 
@@ -127,7 +165,7 @@ describe('TypeRegistryService', () => {
         });
 
         it('should throw NotFoundException when type does not exist', async () => {
-            mockDb.query.mockResolvedValue({ rows: [], rowCount: 0 });
+            mockDb.query.mockResolvedValue([]);
 
             await expect(
                 service.getTypeByName(mockProjectId, mockOrgId, 'NonExistent')
@@ -153,11 +191,8 @@ describe('TypeRegistryService', () => {
         };
 
         it('should create a new custom type', async () => {
-            // First query: check if type exists (should return empty)
-            // Second query: INSERT RETURNING
-            mockDb.query
-                .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-                .mockResolvedValueOnce({ rows: [mockTypeRow], rowCount: 1 });
+            // Mock findOne to return null (type doesn't exist)
+            mockRepository.findOne.mockResolvedValue(null);
 
             const result = await service.createCustomType(
                 mockProjectId,
@@ -167,25 +202,20 @@ describe('TypeRegistryService', () => {
                 createDto
             );
 
-            expect(result.type).toBe('Application');
-            // Check the second call (INSERT)
-            expect(mockDb.query).toHaveBeenNthCalledWith(
-                2, // Second call
-                expect.stringContaining('INSERT INTO kb.project_object_type_registry'),
-                expect.arrayContaining([mockProjectId, createDto.type, 'custom'])
-            );
+            expect(result.type).toBe('CustomApp');
+            expect(mockRepository.findOne).toHaveBeenCalledWith({
+                where: { projectId: mockProjectId, typeName: createDto.type }
+            });
+            expect(mockRepository.save).toHaveBeenCalled();
         });
 
         it('should throw ConflictException when type already exists', async () => {
-            mockDb.query.mockResolvedValue({ rows: [mockTypeRow], rowCount: 1 });
-
-            const existsCheck = vi.spyOn(service, 'getTypeByName').mockResolvedValue(mockTypeRow as any);
+            // Mock findOne to return existing type (conflict scenario)
+            mockRepository.findOne.mockResolvedValue(mockTypeRow);
 
             await expect(
                 service.createCustomType(mockProjectId, mockOrgId, mockTenantId, mockUserId, createDto)
             ).rejects.toThrow(ConflictException);
-
-            existsCheck.mockRestore();
         });
 
         it('should validate JSON Schema structure', async () => {
@@ -203,20 +233,16 @@ describe('TypeRegistryService', () => {
                 source: 'custom', // Add required field
             };
 
-            // First query: check if type exists (should return empty)
-            // Second query: INSERT RETURNING
-            mockDb.query
-                .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-                .mockResolvedValueOnce({ rows: [mockTypeRow], rowCount: 1 });
+            // Mock findOne to return null (type doesn't exist)
+            mockRepository.findOne.mockResolvedValue(null);
 
             await service.createCustomType(mockProjectId, mockOrgId, mockTenantId, mockUserId, minimalDto);
 
-            expect(mockDb.query).toHaveBeenCalledWith(
-                expect.any(String),
-                expect.arrayContaining([
-                    expect.objectContaining({}), // ui_config default
-                    expect.objectContaining({}), // extraction_config default
-                ])
+            expect(mockRepository.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    uiConfig: {},
+                    extractionConfig: {},
+                })
             );
         });
     });
@@ -237,14 +263,20 @@ describe('TypeRegistryService', () => {
         };
 
         it('should update a custom type', async () => {
-            vi.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, source: 'custom' } as any);
-            mockDb.query.mockResolvedValue({ rows: [mockTypeRow], rowCount: 1 });
+            vi.spyOn(service, 'getTypeByName')
+                .mockResolvedValueOnce({ ...mockTypeRow, source: 'custom' } as any)
+                .mockResolvedValueOnce(mockTypeRow as any); // Second call for return
+            mockRepository.update.mockResolvedValue({ affected: 1 });
 
             const result = await service.updateType(mockProjectId, mockOrgId, 'Application', updateDto);
 
-            expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('UPDATE kb.project_object_type_registry'),
-                expect.arrayContaining([mockProjectId, 'Application'])
+            expect(mockRepository.update).toHaveBeenCalledWith(
+                { projectId: mockProjectId, typeName: 'Application' },
+                expect.objectContaining({
+                    jsonSchema: updateDto.json_schema,
+                    description: updateDto.description,
+                    enabled: updateDto.enabled,
+                })
             );
         });
 
@@ -257,8 +289,10 @@ describe('TypeRegistryService', () => {
         });
 
         it('should allow enabling/disabling template types', async () => {
-            vi.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, source: 'template' } as any);
-            mockDb.query.mockResolvedValue({ rows: [mockTypeRow], rowCount: 1 });
+            vi.spyOn(service, 'getTypeByName')
+                .mockResolvedValueOnce({ ...mockTypeRow, source: 'template' } as any)
+                .mockResolvedValueOnce(mockTypeRow as any); // Second call for return
+            mockRepository.update.mockResolvedValue({ affected: 1 });
 
             const toggleDto: UpdateObjectTypeDto = { enabled: false };
 
@@ -278,16 +312,19 @@ describe('TypeRegistryService', () => {
 
     describe('deleteType', () => {
         it('should delete a custom type with no objects', async () => {
-            vi.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, source: 'custom' } as any);
-            mockDb.query.mockResolvedValue({ rows: [], rowCount: 0 }); // No objects
-            mockDb.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // Delete query
+            vi.spyOn(service, 'getTypeByName').mockResolvedValue({
+                ...mockTypeRow,
+                source: 'custom',
+                object_count: '0'
+            } as any);
+            mockRepository.delete.mockResolvedValue({ affected: 1, raw: [] });
 
             await service.deleteType(mockProjectId, mockOrgId, 'Application');
 
-            expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('DELETE FROM kb.project_object_type_registry'),
-                [mockProjectId, 'Application']
-            );
+            expect(mockRepository.delete).toHaveBeenCalledWith({
+                projectId: mockProjectId,
+                typeName: 'Application'
+            });
         });
 
         it('should throw BadRequestException when deleting template type', async () => {
@@ -385,20 +422,24 @@ describe('TypeRegistryService', () => {
 
     describe('toggleType', () => {
         it('should enable a type', async () => {
-            vi.spyOn(service, 'getTypeByName').mockResolvedValue({ ...mockTypeRow, enabled: false } as any);
-            mockDb.query.mockResolvedValue({ rows: [{ ...mockTypeRow, enabled: true }], rowCount: 1 });
+            vi.spyOn(service, 'getTypeByName')
+                .mockResolvedValueOnce({ ...mockTypeRow, enabled: false } as any)
+                .mockResolvedValueOnce({ ...mockTypeRow, enabled: true } as any);
+            mockRepository.update.mockResolvedValue({ affected: 1 });
 
             const result = await service.toggleType(mockProjectId, mockOrgId, 'Application', true);
 
-            expect(mockDb.query).toHaveBeenCalledWith(
-                expect.stringContaining('UPDATE kb.project_object_type_registry'),
-                expect.arrayContaining([true, mockProjectId, 'Application'])
+            expect(mockRepository.update).toHaveBeenCalledWith(
+                { projectId: mockProjectId, typeName: 'Application' },
+                { enabled: true }
             );
         });
 
         it('should disable a type', async () => {
-            vi.spyOn(service, 'getTypeByName').mockResolvedValue(mockTypeRow as any);
-            mockDb.query.mockResolvedValue({ rows: [{ ...mockTypeRow, enabled: false }], rowCount: 1 });
+            vi.spyOn(service, 'getTypeByName')
+                .mockResolvedValueOnce(mockTypeRow as any)
+                .mockResolvedValueOnce({ ...mockTypeRow, enabled: false } as any);
+            mockRepository.update.mockResolvedValue({ affected: 1 });
 
             const result = await service.toggleType(mockProjectId, mockOrgId, 'Application', false);
 
@@ -418,7 +459,7 @@ describe('TypeRegistryService', () => {
                 types_with_objects: '7',
             };
 
-            mockDb.query.mockResolvedValue({ rows: [mockStats], rowCount: 1 });
+            mockDb.query.mockResolvedValue([mockStats]);
 
             const result = await service.getTypeStatistics(mockProjectId, mockOrgId);
 

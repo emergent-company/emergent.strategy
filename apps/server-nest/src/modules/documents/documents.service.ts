@@ -45,7 +45,7 @@ export class DocumentsService {
         const params: any[] = [limit + 1];
         const conds: string[] = [];
         let paramIdx = 2; // because $1 reserved for limit
-        
+
         if (filter?.orgId) {
             params.push(filter.orgId);
             conds.push(`d.organization_id = $${paramIdx++}`);
@@ -59,9 +59,9 @@ export class DocumentsService {
             conds.push(`(d.created_at < $${paramIdx} OR (d.created_at = $${paramIdx} AND d.id < $${paramIdx + 1}))`);
             paramIdx += 2;
         }
-        
+
         const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
-        
+
         // Use TypeORM DataSource query (LATERAL join not supported by QueryBuilder)
         const rows = await this.dataSource.query(
             `SELECT d.id, d.organization_id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
@@ -84,11 +84,11 @@ export class DocumentsService {
              LIMIT $1`,
             params,
         );
-        
+
         const hasMore = rows.length > limit;
         const slice = hasMore ? rows.slice(0, limit) : rows;
         const items = slice.map((r: any) => this.mapRow(r));
-        
+
         if (hasMore) {
             const last = items[items.length - 1];
             const nextCursor = Buffer.from(JSON.stringify({ createdAt: last.createdAt, id: last.id }), 'utf8').toString('base64url');
@@ -118,7 +118,7 @@ export class DocumentsService {
              WHERE d.id = $1`,
             [id],
         );
-        
+
         if (!rows || rows.length === 0) return null;
         return this.mapRow(rows[0]);
     }
@@ -126,7 +126,7 @@ export class DocumentsService {
     async create(body: { filename?: string; projectId?: string; content?: string; orgId?: string }): Promise<DocumentDto> {
         const projectId = body.projectId;
         if (!projectId) {
-            throw new BadRequestException({ error: { code: 'bad-request', message: 'Unknown projectId' } });
+            throw new BadRequestException('Unknown projectId');
         }
 
         // Generate content hash from content
@@ -138,9 +138,9 @@ export class DocumentsService {
             where: { id: projectId },
             select: ['id', 'organizationId']
         });
-        
+
         if (!project) {
-            throw new BadRequestException({ error: { code: 'bad-request', message: 'Unknown projectId' } });
+            throw new BadRequestException('Unknown projectId');
         }
 
         // Create document
@@ -153,7 +153,7 @@ export class DocumentsService {
         });
 
         const savedDoc = await this.documentRepository.save(document);
-        
+
         return {
             id: savedDoc.id,
             orgId: savedDoc.organizationId ?? undefined,
