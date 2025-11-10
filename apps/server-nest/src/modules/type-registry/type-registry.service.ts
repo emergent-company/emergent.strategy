@@ -149,7 +149,6 @@ export class TypeRegistryService {
   async createCustomType(
     projectId: string,
     orgId: string,
-    tenantId: string,
     userId: string,
     dto: CreateObjectTypeDto
   ): Promise<ProjectTypeRegistryRow> {
