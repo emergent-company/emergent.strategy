@@ -17,6 +17,17 @@ vi.mock('jose', () => ({
     })),
 }));
 
+// Mock crypto module to handle PKCS#1 to PKCS#8 conversion in tests
+vi.mock('crypto', async () => {
+    const actual = await vi.importActual('crypto');
+    return {
+        ...actual,
+        createPrivateKey: vi.fn().mockReturnValue({
+            export: vi.fn().mockReturnValue('-----BEGIN PRIVATE KEY-----\nMOCK_PKCS8_KEY\n-----END PRIVATE KEY-----'),
+        }),
+    };
+});
+
 describe('ZitadelService', () => {
     let service: ZitadelService;
     let mockCacheService: any;
@@ -118,16 +129,17 @@ describe('ZitadelService', () => {
         });
 
         it('should throw error if service account key not loaded', async () => {
-            (service as any).serviceAccountKey = undefined;
+            (service as any).apiServiceAccountKey = undefined;
+            (service as any).clientServiceAccountKey = undefined;
 
             await expect(service.getAccessToken()).rejects.toThrow(
-                'service account key not loaded'
+                'No Zitadel service account configured'
             );
         });
 
         it('should return cached token if still valid', async () => {
             const cachedToken = 'cached-test-token';
-            (service as any).cachedToken = {
+            (service as any).cachedApiToken = {
                 token: cachedToken,
                 expiresAt: Date.now() + 300000, // 5 minutes in future
             };
@@ -138,7 +150,7 @@ describe('ZitadelService', () => {
         });
 
         it('should request new token if cache expired', async () => {
-            (service as any).cachedToken = {
+            (service as any).cachedApiToken = {
                 token: 'expired-token',
                 expiresAt: Date.now() - 1000, // 1 second in past
             };
@@ -175,7 +187,7 @@ describe('ZitadelService', () => {
 
             await service.getAccessToken();
 
-            const cached = (service as any).cachedToken;
+            const cached = (service as any).cachedApiToken;
             expect(cached).toBeDefined();
             expect(cached.token).toBe('new-test-token');
             // Should cache with 1-minute safety margin
@@ -198,7 +210,7 @@ describe('ZitadelService', () => {
         });
 
         it('should return null if service not configured', async () => {
-            (service as any).serviceAccountKey = undefined;
+            (service as any).clientServiceAccountKey = undefined;
 
             const result = await service.introspect('test-token');
 

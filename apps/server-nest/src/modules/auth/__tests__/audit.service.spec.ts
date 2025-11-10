@@ -6,6 +6,7 @@ import { DatabaseService } from '../../../common/database/database.service';
 describe('AuditService', () => {
     let auditService: AuditService;
     let mockDbService: DatabaseService;
+    let mockAuditLogRepo: any;
 
     beforeEach(() => {
         // Mock database service
@@ -13,8 +14,21 @@ describe('AuditService', () => {
             query: vi.fn().mockResolvedValue({ rows: [] }),
         } as any;
 
-        // Create audit service with mocked dependencies
-        auditService = new AuditService(mockDbService);
+        // Mock AuditLog repository (Pattern 5 Level 3)
+        mockAuditLogRepo = {
+            create: vi.fn((data: any) => data),
+            save: vi.fn(async (entity: any) => entity),
+            createQueryBuilder: vi.fn(() => ({
+                andWhere: vi.fn().mockReturnThis(),
+                orderBy: vi.fn().mockReturnThis(),
+                limit: vi.fn().mockReturnThis(),
+                offset: vi.fn().mockReturnThis(),
+                getMany: vi.fn(async () => []),
+            })),
+        };
+
+        // Create audit service with mocked dependencies (2 parameters: db, repo)
+        auditService = new AuditService(mockDbService, mockAuditLogRepo);
     });
 
     describe('log', () => {
@@ -32,20 +46,23 @@ describe('AuditService', () => {
 
             await auditService.log(entry);
 
-            expect(mockDbService.query).toHaveBeenCalledWith(
-                expect.stringContaining('INSERT INTO kb.audit_log'),
-                expect.arrayContaining([
-                    entry.timestamp,
-                    entry.event_type,
-                    entry.outcome,
-                    entry.user_id,
-                    entry.user_email,
-                ])
+            // Verify repository.save() was called
+            expect(mockAuditLogRepo.save).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    timestamp: entry.timestamp,
+                    eventType: entry.event_type,
+                    outcome: entry.outcome,
+                    userId: entry.user_id,
+                    userEmail: entry.user_email,
+                    action: entry.action,
+                    endpoint: entry.endpoint,
+                    httpMethod: entry.http_method,
+                })
             );
         });
 
         it('should not throw on database error', async () => {
-            vi.spyOn(mockDbService, 'query').mockRejectedValue(new Error('DB error'));
+            vi.spyOn(mockAuditLogRepo, 'save').mockRejectedValue(new Error('DB error'));
 
             const entry = {
                 timestamp: new Date(),
@@ -76,14 +93,21 @@ describe('AuditService', () => {
                 requestId: 'req-123',
             });
 
-            expect(mockDbService.query).toHaveBeenCalled();
-            const callArgs = (mockDbService.query as any).mock.calls[0];
-            const values = callArgs[1];
-
-            expect(values[1]).toBe(AuditEventType.AUTHZ_ALLOWED);
-            expect(values[2]).toBe(AuditOutcome.SUCCESS);
-            expect(values[3]).toBe('user-456');
-            expect(values[4]).toBe('user@test.com');
+            // Verify repository.save() was called with correct event type and outcome
+            expect(mockAuditLogRepo.save).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    eventType: AuditEventType.AUTHZ_ALLOWED,
+                    outcome: AuditOutcome.SUCCESS,
+                    userId: 'user-456',
+                    userEmail: 'user@test.com',
+                    endpoint: '/graph/traverse',
+                    httpMethod: 'POST',
+                    action: 'POST /graph/traverse',
+                    ipAddress: '192.168.1.1',
+                    userAgent: 'Mozilla/5.0',
+                    requestId: 'req-123',
+                })
+            );
         });
 
         it('should include required and effective scopes in details', async () => {
@@ -96,12 +120,16 @@ describe('AuditService', () => {
                 effectiveScopes: ['documents:read', 'documents:write'],
             });
 
-            const callArgs = (mockDbService.query as any).mock.calls[0];
-            const detailsJson = callArgs[1][16]; // details is the last parameter
-            const details = JSON.parse(detailsJson);
-
-            expect(details.required_scopes).toEqual(['documents:read']);
-            expect(details.effective_scopes).toEqual(['documents:read', 'documents:write']);
+            // Verify save was called and check details structure
+            expect(mockAuditLogRepo.save).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userId: 'user-789',
+                    details: expect.objectContaining({
+                        required_scopes: ['documents:read'],
+                        effective_scopes: ['documents:read', 'documents:write'],
+                    }),
+                })
+            );
         });
     });
 
@@ -122,17 +150,23 @@ describe('AuditService', () => {
                 statusCode: 403,
             });
 
-            const callArgs = (mockDbService.query as any).mock.calls[0];
-            const values = callArgs[1];
-
-            expect(values[1]).toBe(AuditEventType.AUTHZ_DENIED);
-            expect(values[2]).toBe(AuditOutcome.DENIED);
-            expect(values[10]).toBe(403); // status_code
-            expect(values[11]).toBe('forbidden'); // error_code
-
-            const detailsJson = values[16];
-            const details = JSON.parse(detailsJson);
-            expect(details.missing_scopes).toEqual(['admin:write']);
+            // Verify repository.save() was called with denied event
+            expect(mockAuditLogRepo.save).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    eventType: AuditEventType.AUTHZ_DENIED,
+                    outcome: AuditOutcome.DENIED,
+                    userId: 'user-999',
+                    userEmail: 'blocked@test.com',
+                    statusCode: 403,
+                    errorCode: 'forbidden',
+                    errorMessage: 'Missing required scopes',
+                    details: expect.objectContaining({
+                        required_scopes: ['admin:read', 'admin:write'],
+                        effective_scopes: ['admin:read'],
+                        missing_scopes: ['admin:write'],
+                    }),
+                })
+            );
         });
     });
 
@@ -152,12 +186,16 @@ describe('AuditService', () => {
                 userAgent: 'PostmanRuntime/7.0',
             });
 
-            const callArgs = (mockDbService.query as any).mock.calls[0];
-            const values = callArgs[1];
-
-            expect(values[1]).toBe(AuditEventType.RESOURCE_READ);
-            expect(values[5]).toBe('document'); // resource_type
-            expect(values[6]).toBe('doc-123'); // resource_id
+            // Verify repository.save() was called with resource access details
+            expect(mockAuditLogRepo.save).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    eventType: AuditEventType.RESOURCE_READ,
+                    resourceType: 'document',
+                    resourceId: 'doc-123',
+                    userId: 'user-111',
+                    userEmail: 'reader@test.com',
+                })
+            );
         });
 
         it('should log search queries with metadata', async () => {
@@ -176,13 +214,19 @@ describe('AuditService', () => {
                 },
             });
 
-            const callArgs = (mockDbService.query as any).mock.calls[0];
-            const detailsJson = callArgs[1][16];
-            const details = JSON.parse(detailsJson);
-
-            expect(details.metadata.query).toBe('test search');
-            expect(details.metadata.mode).toBe('hybrid');
-            expect(details.metadata.result_count).toBe(25);
+            // Verify metadata is included in details
+            expect(mockAuditLogRepo.save).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    eventType: AuditEventType.SEARCH_QUERY,
+                    details: expect.objectContaining({
+                        metadata: {
+                            query: 'test search',
+                            mode: 'hybrid',
+                            result_count: 25,
+                        },
+                    }),
+                })
+            );
         });
 
         it('should log graph traversal operations', async () => {
@@ -201,39 +245,47 @@ describe('AuditService', () => {
                 },
             });
 
-            const callArgs = (mockDbService.query as any).mock.calls[0];
-            const values = callArgs[1];
-
-            expect(values[1]).toBe(AuditEventType.GRAPH_TRAVERSE);
-
-            const detailsJson = values[16];
-            const details = JSON.parse(detailsJson);
-            expect(details.metadata.root_ids).toHaveLength(2);
-            expect(details.metadata.total_nodes).toBe(150);
+            // Verify graph traversal metadata
+            expect(mockAuditLogRepo.save).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    eventType: AuditEventType.GRAPH_TRAVERSE,
+                    details: expect.objectContaining({
+                        metadata: expect.objectContaining({
+                            root_ids: ['node-1', 'node-2'],
+                            total_nodes: 150,
+                        }),
+                    }),
+                })
+            );
         });
     });
 
     describe('queryLogs', () => {
         beforeEach(() => {
-            // Mock query results
-            vi.spyOn(mockDbService, 'query').mockResolvedValue({
-                rows: [
+            // Mock QueryBuilder to return test data
+            const mockQueryBuilder = {
+                andWhere: vi.fn().mockReturnThis(),
+                orderBy: vi.fn().mockReturnThis(),
+                limit: vi.fn().mockReturnThis(),
+                offset: vi.fn().mockReturnThis(),
+                getMany: vi.fn(async () => [
                     {
                         timestamp: new Date('2025-10-01'),
-                        event_type: 'authz.allowed',
+                        eventType: 'authz.allowed',
                         outcome: 'success',
-                        user_id: 'user-1',
-                        user_email: 'user1@test.com',
+                        userId: 'user-1',
+                        userEmail: 'user1@test.com',
                         action: 'GET /search',
                         endpoint: '/search',
-                        http_method: 'GET',
-                        details: JSON.stringify({
+                        httpMethod: 'GET',
+                        details: {
                             required_scopes: ['documents:read'],
                             effective_scopes: ['documents:read'],
-                        }),
+                        },
                     },
-                ],
-            } as any);
+                ]),
+            };
+            mockAuditLogRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder);
         });
 
         it('should query logs with userId filter', async () => {
@@ -258,9 +310,15 @@ describe('AuditService', () => {
                 limit: 50,
             });
 
-            expect(mockDbService.query).toHaveBeenCalledWith(
-                expect.stringContaining('timestamp >='),
-                expect.arrayContaining([startDate, endDate])
+            // Verify QueryBuilder was called with date filters
+            const queryBuilder = mockAuditLogRepo.createQueryBuilder();
+            expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+                'audit.timestamp >= :startDate',
+                { startDate }
+            );
+            expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+                'audit.timestamp <= :endDate',
+                { endDate }
             );
         });
 
@@ -270,9 +328,11 @@ describe('AuditService', () => {
                 limit: 20,
             });
 
-            expect(mockDbService.query).toHaveBeenCalledWith(
-                expect.stringContaining('event_type ='),
-                expect.arrayContaining([AuditEventType.AUTHZ_DENIED])
+            // Verify QueryBuilder was called with event type filter
+            const queryBuilder = mockAuditLogRepo.createQueryBuilder();
+            expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+                'audit.eventType = :eventType',
+                { eventType: AuditEventType.AUTHZ_DENIED }
             );
         });
 
@@ -287,7 +347,7 @@ describe('AuditService', () => {
     describe('environment configuration', () => {
         it('should respect AUDIT_DATABASE_LOGGING=false', async () => {
             process.env.AUDIT_DATABASE_LOGGING = 'false';
-            const service = new AuditService(mockDbService);
+            const service = new AuditService(mockDbService, mockAuditLogRepo);
 
             await service.log({
                 timestamp: new Date(),
@@ -298,8 +358,8 @@ describe('AuditService', () => {
                 http_method: 'GET',
             });
 
-            // Should not call database
-            expect(mockDbService.query).not.toHaveBeenCalled();
+            // Should not call repository.save() when database logging disabled
+            expect(mockAuditLogRepo.save).not.toHaveBeenCalled();
 
             delete process.env.AUDIT_DATABASE_LOGGING;
         });
