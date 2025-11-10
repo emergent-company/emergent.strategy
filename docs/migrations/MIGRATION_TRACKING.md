@@ -1,13 +1,77 @@
-# User Identity Reference Migrations
+# Migration Tracking
+
+**Last Updated**: November 10, 2025  
+**Status**: Phase 4 Complete ✅
+
+## Overview
+
+This document tracks multiple migration efforts across the codebase, including:
+
+1. TypeORM Migration (Phases 1-3)
+2. Test Structure Migration (Phases 2-4)
+3. User Identity Reference Migrations (Complete)
+
+---
+
+## Test Migration Status
+
+### Phase 1: TypeORM Service Migration ✅ Complete
+
+**Date**: Completed November 8, 2025  
+**Status**: ✅ **60.7% services migrated** (34/56)  
+**Details**: See [PHASE_1_COMPLETE.md](./PHASE_1_COMPLETE.md)
+
+### Phase 2: Test Path Migration ✅ Complete
+
+**Date**: Completed November 2025  
+**Status**: ✅ **All test files migrated** to new structure  
+**Achievement**: 111 test files updated with correct import paths
+
+### Phase 3: Import Path Fixes ✅ Complete
+
+**Date**: Completed November 2025  
+**Status**: ✅ **Systematic import path migration**  
+**Achievement**: Fixed relative imports from `../../src/` to `../`
+
+### Phase 4: Test Configuration & Mocking Fixes ✅ Complete
+
+**Date**: Completed November 10, 2025  
+**Status**: ✅ **100% test pass rate** (1095/1095 tests)  
+**Details**: See [PHASE_4_TEST_CONFIG_FIXES.md](./PHASE_4_TEST_CONFIG_FIXES.md)
+
+**Issues Resolved**:
+
+- 11 NotificationsService test failures (TypeORM mocking)
+- 2 EmbeddingsService test failures (environment configuration)
+- 4 import path corrections (nested directories)
+
+**Patterns Documented**:
+
+- Pattern 18: TypeORM Repository Mocking for NestJS Tests
+- Pattern 19: Environment-Dependent Service Testing
+- Pattern 20: Test Data Completeness
+- Pattern 21: Import Path Corrections for Nested Directories
+
+**Test Results**:
+
+```
+✅ Test Files  111 passed (111)
+✅      Tests  1095 passed (1095)
+   Duration  40.22s
+```
+
+---
+
+## User Identity Reference Migrations
 
 **Status**: ✅ Complete  
 **Created**: 2025-10-05  
 **Completed**: 2025-10-05  
 **Related**: [User Identity Reference Pattern](../spec/24-user-identity-references.md)
 
-## Summary
+### Summary
 
-This document tracks the migration of tables from TEXT-based external auth IDs to UUID-based `subject_id` with proper foreign keys to `core.user_profiles`.
+Migration of tables from TEXT-based external auth IDs to UUID-based `subject_id` with proper foreign keys to `core.user_profiles`.
 
 **All high-priority migrations have been completed!** The system now uses canonical `subject_id UUID` references throughout, with proper foreign key constraints ensuring referential integrity.
 
@@ -15,28 +79,28 @@ This document tracks the migration of tables from TEXT-based external auth IDs t
 
 ### ✅ Completed Migrations
 
-| Table | Old Column | New Column | Status | Date | Migration Doc |
-|-------|------------|------------|--------|------|---------------|
-| `kb.object_extraction_jobs` | `created_by TEXT` | `subject_id UUID` | ✅ Complete | 2025-10-05 | [Migration 007](./007-extraction-jobs-foreign-key.md) |
-| `kb.notifications` | `user_id TEXT` | `subject_id UUID` | ✅ Complete | 2025-10-05 | [Migration 008](./008-notifications-subject-id-fk.sql) |
-| `kb.user_notification_preferences` | `user_id TEXT` | `subject_id UUID` | ✅ Complete | 2025-10-05 | [Migration 009](./009-user-notification-preferences-subject-id-fk.sql) |
+| Table                              | Old Column        | New Column        | Status      | Date       | Migration Doc                                                          |
+| ---------------------------------- | ----------------- | ----------------- | ----------- | ---------- | ---------------------------------------------------------------------- |
+| `kb.object_extraction_jobs`        | `created_by TEXT` | `subject_id UUID` | ✅ Complete | 2025-10-05 | [Migration 007](./007-extraction-jobs-foreign-key.md)                  |
+| `kb.notifications`                 | `user_id TEXT`    | `subject_id UUID` | ✅ Complete | 2025-10-05 | [Migration 008](./008-notifications-subject-id-fk.sql)                 |
+| `kb.user_notification_preferences` | `user_id TEXT`    | `subject_id UUID` | ✅ Complete | 2025-10-05 | [Migration 009](./009-user-notification-preferences-subject-id-fk.sql) |
 
 ### ⚠️ Pending Migrations
 
-| Priority | Table | Column | Current Type | Issue | Impact |
-|----------|-------|--------|--------------|-------|--------|
-| LOW | `kb.audit_log` | `user_id` | UUID | Missing FK (optional) | Audit integrity checking |
+| Priority | Table          | Column    | Current Type | Issue                 | Impact                   |
+| -------- | -------------- | --------- | ------------ | --------------------- | ------------------------ |
+| LOW      | `kb.audit_log` | `user_id` | UUID         | Missing FK (optional) | Audit integrity checking |
 
 ### ✅ Already Correct
 
-| Table | Column | Type | FK Constraint | Cascade Action |
-|-------|--------|------|---------------|----------------|
-| `core.user_profiles` | `subject_id` | UUID | PRIMARY KEY | - |
-| `kb.organization_memberships` | `subject_id` | UUID | ✅ Has FK | ON DELETE CASCADE |
-| `kb.project_memberships` | `subject_id` | UUID | ✅ Has FK | ON DELETE CASCADE |
-| `kb.chat_conversations` | `owner_subject_id` | UUID | ✅ Has FK | ON DELETE SET NULL |
-| `kb.notifications` | `subject_id` | UUID | ✅ Has FK | ON DELETE CASCADE |
-| `kb.user_notification_preferences` | `subject_id` | UUID | ✅ Has FK | ON DELETE CASCADE |
+| Table                              | Column             | Type | FK Constraint | Cascade Action     |
+| ---------------------------------- | ------------------ | ---- | ------------- | ------------------ |
+| `core.user_profiles`               | `subject_id`       | UUID | PRIMARY KEY   | -                  |
+| `kb.organization_memberships`      | `subject_id`       | UUID | ✅ Has FK     | ON DELETE CASCADE  |
+| `kb.project_memberships`           | `subject_id`       | UUID | ✅ Has FK     | ON DELETE CASCADE  |
+| `kb.chat_conversations`            | `owner_subject_id` | UUID | ✅ Has FK     | ON DELETE SET NULL |
+| `kb.notifications`                 | `subject_id`       | UUID | ✅ Has FK     | ON DELETE CASCADE  |
+| `kb.user_notification_preferences` | `subject_id`       | UUID | ✅ Has FK     | ON DELETE CASCADE  |
 
 ## Migration 008: Notifications Table ✅ COMPLETE
 
@@ -47,6 +111,7 @@ This document tracks the migration of tables from TEXT-based external auth IDs t
 **Issue Found**: After database migration, notification endpoints returned 500 errors because `notifications.service.ts` still referenced `user_id` column. Fixed by updating all SQL queries and DTOs to use `subject_id`.
 
 **Files Fixed**:
+
 - `src/modules/notifications/dto/create-notification.dto.ts` - Changed `user_id` to `subject_id`
 - `src/modules/notifications/entities/notification.entity.ts` - Updated interfaces
 - `src/modules/notifications/notifications.service.ts` - Updated all SQL queries (15+ locations)
@@ -103,7 +168,7 @@ ALTER TABLE kb.notifications DROP COLUMN user_id;
 CREATE INDEX idx_notifications_subject_id ON kb.notifications(subject_id);
 
 -- Add comment
-COMMENT ON COLUMN kb.notifications.subject_id IS 
+COMMENT ON COLUMN kb.notifications.subject_id IS
 'Canonical internal user ID. References core.user_profiles.';
 
 COMMIT;
@@ -112,6 +177,7 @@ COMMIT;
 **2. Code Changes Required**
 
 Files to update:
+
 - `apps/server-nest/src/modules/notifications/dto/notification.dto.ts`
 - `apps/server-nest/src/modules/notifications/notifications.service.ts`
 - `apps/server-nest/src/modules/notifications/notifications.controller.ts`
@@ -119,11 +185,11 @@ Files to update:
 
 **3. Impact Assessment**
 
-| Component | Impact | Mitigation |
-|-----------|--------|------------|
-| Active notifications | Lost user reference for existing records | Accept data loss (short-lived data) |
-| Notification creation | Must use `subject_id` instead of `user_id` | Update all call sites |
-| API contracts | Breaking change in notification DTOs | Version bump or compatibility layer |
+| Component             | Impact                                     | Mitigation                          |
+| --------------------- | ------------------------------------------ | ----------------------------------- |
+| Active notifications  | Lost user reference for existing records   | Accept data loss (short-lived data) |
+| Notification creation | Must use `subject_id` instead of `user_id` | Update all call sites               |
+| API contracts         | Breaking change in notification DTOs       | Version bump or compatibility layer |
 
 **4. Rollout Strategy**
 
@@ -167,9 +233,9 @@ CREATE TABLE kb.user_notification_preferences (
 
 ```sql
 -- Run to see actual structure
-SELECT column_name, data_type, is_nullable 
-FROM information_schema.columns 
-WHERE table_schema = 'kb' 
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_schema = 'kb'
   AND table_name = 'user_notification_preferences'
 ORDER BY ordinal_position;
 ```
@@ -180,10 +246,10 @@ Strategy TBD after table structure investigation.
 
 **3. Impact Assessment**
 
-| Component | Impact | Mitigation |
-|-----------|--------|------------|
-| User preferences | All preferences lost | Could announce to users in advance |
-| Preference UI | Must reload preferences after migration | Handle gracefully |
+| Component        | Impact                                  | Mitigation                         |
+| ---------------- | --------------------------------------- | ---------------------------------- |
+| User preferences | All preferences lost                    | Could announce to users in advance |
+| Preference UI    | Must reload preferences after migration | Handle gracefully                  |
 
 ## Migration 010: Audit Log FK (LOW PRIORITY)
 
@@ -202,9 +268,9 @@ CREATE TABLE kb.audit_log (
 
 ```sql
 ALTER TABLE kb.audit_log
-ADD CONSTRAINT audit_log_user_id_fkey 
-FOREIGN KEY (user_id) 
-REFERENCES core.user_profiles(subject_id) 
+ADD CONSTRAINT audit_log_user_id_fkey
+FOREIGN KEY (user_id)
+REFERENCES core.user_profiles(subject_id)
 ON DELETE SET NULL;  -- Preserve audit trail
 
 CREATE INDEX idx_audit_log_user_id ON kb.audit_log(user_id) WHERE user_id IS NOT NULL;
@@ -220,20 +286,24 @@ CREATE INDEX idx_audit_log_user_id ON kb.audit_log(user_id) WHERE user_id IS NOT
 ### Decision Options
 
 **Option A: Add FK with SET NULL**
+
 - Pros: Data integrity, easier queries
 - Cons: Must ensure all user_ids exist or are NULL
 
 **Option B: Skip FK, add check constraint**
+
 ```sql
-ALTER TABLE kb.audit_log 
-ADD CONSTRAINT audit_log_user_id_check 
-CHECK (user_id IS NULL OR 
+ALTER TABLE kb.audit_log
+ADD CONSTRAINT audit_log_user_id_check
+CHECK (user_id IS NULL OR
        EXISTS (SELECT 1 FROM core.user_profiles WHERE subject_id = user_id));
 ```
+
 - Pros: Validation without FK overhead
 - Cons: Check on every INSERT (slow)
 
 **Option C: No changes**
+
 - Pros: No risk, audit remains append-only
 - Cons: No referential integrity
 
@@ -264,34 +334,34 @@ After each migration:
 \d kb.{table_name}
 
 -- Verify FK constraint exists
-SELECT 
-    tc.constraint_name, 
-    tc.table_name, 
+SELECT
+    tc.constraint_name,
+    tc.table_name,
     kcu.column_name,
     ccu.table_name AS foreign_table_name,
     ccu.column_name AS foreign_column_name
-FROM information_schema.table_constraints AS tc 
+FROM information_schema.table_constraints AS tc
 JOIN information_schema.key_column_usage AS kcu
   ON tc.constraint_name = kcu.constraint_name
 JOIN information_schema.constraint_column_usage AS ccu
   ON ccu.constraint_name = tc.constraint_name
-WHERE tc.table_name = '{table_name}' 
+WHERE tc.table_name = '{table_name}'
   AND tc.constraint_type = 'FOREIGN KEY';
 
 -- Verify index exists
-SELECT indexname, indexdef 
-FROM pg_indexes 
-WHERE tablename = '{table_name}' 
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE tablename = '{table_name}'
   AND indexdef LIKE '%subject_id%';
 
 -- Test insert with valid subject_id
-INSERT INTO kb.{table_name} (subject_id, ...) 
-SELECT subject_id, ... 
-FROM core.user_profiles 
+INSERT INTO kb.{table_name} (subject_id, ...)
+SELECT subject_id, ...
+FROM core.user_profiles
 LIMIT 1;
 
 -- Test insert with invalid subject_id (should fail)
-INSERT INTO kb.{table_name} (subject_id, ...) 
+INSERT INTO kb.{table_name} (subject_id, ...)
 VALUES ('00000000-0000-0000-0000-000000000001', ...);
 -- Should error: violates foreign key constraint
 
@@ -305,12 +375,12 @@ INSERT INTO core.user_profiles(subject_id) VALUES (gen_random_uuid()) RETURNING 
 
 ## Timeline (Completed)
 
-| Migration | Target Date | Actual Date | Estimated Effort | Status |
-|-----------|-------------|-------------|------------------|--------|
-| 007 - Extraction Jobs | 2025-10-05 | ✅ 2025-10-05 | 4 hours | Complete |
-| 008 - Notifications | 2025-10-05 | ✅ 2025-10-05 | 6 hours | Complete |
-| 009 - Notification Preferences | 2025-10-05 | ✅ 2025-10-05 | 4 hours | Complete |
-| 010 - Audit Log FK | Optional | - | 2 hours | Deferred |
+| Migration                      | Target Date | Actual Date   | Estimated Effort | Status   |
+| ------------------------------ | ----------- | ------------- | ---------------- | -------- |
+| 007 - Extraction Jobs          | 2025-10-05  | ✅ 2025-10-05 | 4 hours          | Complete |
+| 008 - Notifications            | 2025-10-05  | ✅ 2025-10-05 | 6 hours          | Complete |
+| 009 - Notification Preferences | 2025-10-05  | ✅ 2025-10-05 | 4 hours          | Complete |
+| 010 - Audit Log FK             | Optional    | -             | 2 hours          | Deferred |
 
 ## Rollback Procedures
 
@@ -385,7 +455,8 @@ Questions? Contact: [YOUR_CONTACT]
 
 ---
 
-**Next Steps**: 
+**Next Steps**:
+
 1. Schedule migration 008 (notifications)
 2. Investigate `user_notification_preferences` table structure
 3. Create migration scripts
