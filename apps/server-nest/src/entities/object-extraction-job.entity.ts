@@ -18,9 +18,6 @@ export class ObjectExtractionJob {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'tenant_id', type: 'uuid' })
-  tenantId!: string;
-
   @Column({ name: 'organization_id', type: 'uuid' })
   organizationId!: string;
 
