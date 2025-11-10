@@ -136,9 +136,39 @@ describe('RateLimiterService', () => {
     });
 
     describe('waitForCapacity', () => {
-        it.skip('should wait and succeed when capacity becomes available', async () => {
-            // This test is complex with fake timers and async waits
-            // Skip for now - tested in integration
+        it('should wait and succeed when capacity becomes available', async () => {
+            // Exhaust all request capacity
+            for (let i = 0; i < 10; i++) {
+                await rateLimiter.tryConsume(100);
+            }
+
+            // Verify capacity exhausted
+            let status = rateLimiter.getStatus();
+            expect(status.requestsRemaining).toBe(0);
+
+            // Start waiting for capacity (will poll every 1 second, max 70 seconds)
+            const waitPromise = rateLimiter.waitForCapacity(100, 70000);
+
+            // Advance time to go through the wait loop cycles
+            // The loop checks every 1 second, and after 60 seconds full refill happens
+            // We need to advance in chunks to let the async loop progress
+
+            // First 1 second - first check, no capacity yet
+            await vi.advanceTimersByTimeAsync(1000);
+
+            // Advance to 60 seconds total - triggers full refill
+            await vi.advanceTimersByTimeAsync(59000);
+
+            // One more second for the next check to succeed
+            await vi.advanceTimersByTimeAsync(1000);
+
+            // Wait should now succeed
+            const result = await waitPromise;
+            expect(result).toBe(true);
+
+            // Verify capacity was consumed
+            status = rateLimiter.getStatus();
+            expect(status.requestsRemaining).toBeLessThan(10);
         });
 
         it('should timeout if capacity not available', async () => {

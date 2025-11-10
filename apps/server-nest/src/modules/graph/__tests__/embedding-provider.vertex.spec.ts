@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { Test } from '@nestjs/testing';
 import { Module } from '@nestjs/common';
 import { AppConfigModule } from '../../../common/config/config.module';
@@ -51,7 +51,12 @@ class StubGraphModule { }
 
 describe('GoogleVertexEmbeddingProvider integration modes', () => {
     const originalEnv = { ...process.env };
-    afterEach(() => { process.env = { ...originalEnv }; delete (global as any).fetch; });
+    afterEach(() => {
+        process.env = { ...originalEnv };
+        delete (global as any).fetch;
+        // Clean up google-auth-library mock
+        vi.doUnmock('google-auth-library');
+    });
 
     async function make(): Promise<GoogleVertexEmbeddingProvider> {
         const { TypeRegistryModule } = await import('../../type-registry/type-registry.module');
@@ -89,6 +94,22 @@ describe('GoogleVertexEmbeddingProvider integration modes', () => {
     it('falls back on HTTP error but stays deterministic', async () => {
         process.env.EMBEDDING_PROVIDER = 'vertex';
         process.env.GOOGLE_API_KEY = 'k';
+        process.env.VERTEX_EMBEDDING_PROJECT = 'test-project';
+        process.env.VERTEX_EMBEDDING_LOCATION = 'us-central1';
+
+        // Mock google-auth-library to avoid real auth attempts
+        vi.doMock('google-auth-library', () => ({
+            GoogleAuth: class {
+                async getClient() {
+                    return {
+                        async getAccessToken() {
+                            return { token: 'mock-token' };
+                        }
+                    };
+                }
+            }
+        }));
+
         (global as any).fetch = async () => ({ ok: false, status: 503 });
         const provider: any = await make();
         const a = await provider.generate('x');
@@ -99,6 +120,22 @@ describe('GoogleVertexEmbeddingProvider integration modes', () => {
     it('converts remote vector to Buffer when successful', async () => {
         process.env.EMBEDDING_PROVIDER = 'vertex';
         process.env.GOOGLE_API_KEY = 'k';
+        process.env.VERTEX_EMBEDDING_PROJECT = 'test-project';
+        process.env.VERTEX_EMBEDDING_LOCATION = 'us-central1';
+
+        // Mock google-auth-library to avoid real auth attempts
+        vi.doMock('google-auth-library', () => ({
+            GoogleAuth: class {
+                async getClient() {
+                    return {
+                        async getAccessToken() {
+                            return { token: 'mock-token' };
+                        }
+                    };
+                }
+            }
+        }));
+
         (global as any).fetch = async () => ({
             ok: true,
             json: async () => ({ predictions: [{ embeddings: { values: [0.1, 0.2, 0.3] } }] }),

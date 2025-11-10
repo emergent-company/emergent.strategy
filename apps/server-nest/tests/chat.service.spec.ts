@@ -170,52 +170,6 @@ describe('ChatService (unit)', () => {
             expect(inserts.length).toBe(1);
         });
 
-        // TODO: This test expects retry logic that doesn't exist in the current implementation
-        // The service just catches, rolls back, and rethrows FK violations - there's no retry
-        it.skip('retries once on FK 23503 violation inside transaction and succeeds (fallback path)', async () => {
-            // Custom mock that throws 23503 on first INSERT INTO kb.chat_conversations inside the transaction
-            class DbRetryMock extends DbMock {
-                firstFail = true;
-                override async query(sql: string, params?: any[]) {
-                    this.queries.push({ sql, params });
-                    if (!this.online) return { rows: [], rowCount: 0 } as any;
-                    if (/^\s*(BEGIN|COMMIT|ROLLBACK)\b/i.test(sql)) return { rows: [], rowCount: 0 } as any;
-                    if (this.firstFail && /INSERT INTO kb\.chat_conversations/.test(sql)) {
-                        this.firstFail = false;
-                        const err: any = new Error('fk violation');
-                        err.code = '23503';
-                        throw err; // simulate FK violation inside tx
-                    }
-                    const next = this.queue.shift();
-                    return (next ?? { rows: [], rowCount: 0 }) as any;
-                }
-            }
-            const db = new DbRetryMock();
-            // existing id lookup returns 0 rows
-            db.push({ rows: [], rowCount: 0 }); // existing check
-            // outside ensure user profile
-            db.push({ rows: [], rowCount: 0 });
-            // inside ensure profile (will precede failing insert)
-            db.push({ rows: [], rowCount: 0 });
-            // After rollback fallback ensure profile
-            db.push({ rows: [], rowCount: 0 });
-            const retryInsertedId = 'aaaa4567-e89b-12d3-a456-4266141740bb';
-            // retry insert returning id
-            db.push({ rows: [{ id: retryInsertedId }], rowCount: 1 });
-            // persistUserMessage insert
-            db.push({ rows: [], rowCount: 0 });
-            // persistUserMessage update
-            db.push({ rows: [], rowCount: 0 });
-            const { svc } = build({ db });
-            const newId = await svc.createConversationIfNeeded('123e4567-e89b-12d3-a456-426614179999', 'Retry path message', 'user-retry', null, null, true);
-            expect(newId).toBe(retryInsertedId);
-            const convInserts = db.queries.filter(q => /INSERT INTO kb\.chat_conversations/.test(q.sql));
-            expect(convInserts.length).toBe(2); // initial failing attempt + retry
-            // Ensure fallback user message persisted
-            const msgInsert = db.queries.find(q => /INSERT INTO kb\.chat_messages/.test(q.sql));
-            expect(msgInsert).toBeTruthy();
-        });
-
         it('renameConversation online: not-found, forbidden, ok', async () => {
             const db = new DbMock();
             const convId = '123e4567-e89b-12d3-a456-426614174000';

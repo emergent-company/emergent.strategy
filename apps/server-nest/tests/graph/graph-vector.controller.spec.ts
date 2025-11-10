@@ -16,6 +16,7 @@ import { GoogleVertexEmbeddingProvider } from '../../src/modules/graph/google-ve
 import { GraphService } from '../../src/modules/graph/graph.service';
 import { EmbeddingJobsService } from '../../src/modules/graph/embedding-jobs.service';
 import { GraphVectorSearchService } from '../../src/modules/graph/graph-vector-search.service';
+import { GraphObjectsController } from '../../src/modules/graph/graph.controller';
 
 // Stub to avoid TypeRegistryModule's repository creation
 @Module({
@@ -30,13 +31,14 @@ import { GraphVectorSearchService } from '../../src/modules/graph/graph-vector-s
 })
 class StubTypeRegistryModule { }
 
-// Stub to avoid GraphModule's repository creation
+// Stub to avoid GraphModule's repository creation but keep the controller for E2E tests
 @Module({
-    imports: [AppConfigModule],
+    imports: [AppConfigModule, DatabaseModule],
+    controllers: [GraphObjectsController], // Keep the real controller for E2E testing
     providers: [
-        { provide: GraphService, useValue: {} },
+        GraphVectorSearchService, // Keep real vector search service (needs DatabaseService)
+        { provide: GraphService, useValue: {} }, // Stub other services
         { provide: EmbeddingJobsService, useValue: {} },
-        { provide: GraphVectorSearchService, useValue: {} },
         {
             provide: 'EMBEDDING_PROVIDER',
             useFactory: (config: AppConfigService) => {
