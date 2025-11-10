@@ -1228,11 +1228,6 @@ paths:
           in: query
           schema:
             type: string
-        - name: tenant_id
-          required: true
-          in: query
-          schema:
-            type: string
         - name: user_id
           required: true
           in: query

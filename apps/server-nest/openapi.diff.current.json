@@ -11970,6 +11970,88 @@
           ]
         }
       },
+      "/user/delete-account": {
+        "post": {
+          "operationId": "UserDeletionController_deleteAccount",
+          "parameters": [],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "properties": {
+                      "deleted": {
+                        "properties": {
+                          "chunks": {
+                            "type": "number"
+                          },
+                          "documents": {
+                            "type": "number"
+                          },
+                          "embeddings": {
+                            "type": "number"
+                          },
+                          "extractionJobs": {
+                            "type": "number"
+                          },
+                          "graphObjects": {
+                            "type": "number"
+                          },
+                          "integrations": {
+                            "type": "number"
+                          },
+                          "organizations": {
+                            "type": "number"
+                          },
+                          "projects": {
+                            "type": "number"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "duration_ms": {
+                        "type": "number"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  }
+                }
+              },
+              "description": "Account deleted successfully"
+            },
+            "401": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "example": {
+                      "error": {
+                        "code": "unauthorized",
+                        "message": "Missing or invalid credentials"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "Unauthorized"
+            }
+          },
+          "security": [
+            {
+              "bearer": []
+            }
+          ],
+          "summary": "Delete user account and all data",
+          "tags": [
+            "user"
+          ],
+          "x-required-scopes": [
+            "account:delete"
+          ]
+        }
+      },
       "/user/profile": {
         "get": {
           "operationId": "UserProfileController_getSelf",
@@ -12392,6 +12474,47 @@
             "UserProfile"
           ]
         }
+      },
+      "/user/test-cleanup": {
+        "post": {
+          "operationId": "UserDeletionController_testCleanup",
+          "parameters": [],
+          "responses": {
+            "200": {
+              "description": "Test data cleaned up successfully"
+            },
+            "403": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "example": {
+                      "error": {
+                        "code": "forbidden",
+                        "message": "Insufficient permissions",
+                        "missing_scopes": [
+                          "account:delete"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "Forbidden - not a test environment or test user"
+            }
+          },
+          "security": [
+            {
+              "bearer": []
+            }
+          ],
+          "summary": "Clean up test user data (test environments only)",
+          "tags": [
+            "user"
+          ],
+          "x-required-scopes": [
+            "account:delete"
+          ]
+        }
       }
     },
     "servers": [],
@@ -12452,6 +12575,9 @@
       },
       {
         "name": "Tags"
+      },
+      {
+        "name": "user"
       },
       {
         "name": "UserProfile"
@@ -13048,6 +13174,10 @@
           "type": "object"
         },
         "CreateInviteDto": {
+          "properties": {},
+          "type": "object"
+        },
+        "CreateInviteWithUserDto": {
           "properties": {},
           "type": "object"
         },
@@ -16609,6 +16739,73 @@
           ],
           "x-required-scopes": [
             "org:read"
+          ]
+        }
+      },
+      "/auth/test-passport": {
+        "get": {
+          "operationId": "AuthController_testPassport",
+          "parameters": [],
+          "responses": {
+            "200": {
+              "description": "Test passport-zitadel introspection"
+            },
+            "400": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "example": {
+                      "error": {
+                        "code": "bad-request",
+                        "message": "Invalid request"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "Bad request"
+            },
+            "401": {
+              "description": "Missing or invalid bearer token"
+            },
+            "403": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "example": {
+                      "error": {
+                        "code": "forbidden",
+                        "message": "Insufficient permissions"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "Forbidden"
+            },
+            "500": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "example": {
+                      "error": {
+                        "code": "internal",
+                        "message": "Unexpected error"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "Internal server error"
+            }
+          },
+          "security": [
+            {
+              "bearer": []
+            }
+          ],
+          "tags": [
+            "Auth"
           ]
         }
       },
@@ -20319,6 +20516,36 @@
           ]
         }
       },
+      "/invites/with-user": {
+        "post": {
+          "operationId": "InvitesController_createWithUser",
+          "parameters": [],
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateInviteWithUserDto"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "201": {
+              "description": ""
+            }
+          },
+          "security": [
+            {
+              "bearer": []
+            }
+          ],
+          "x-required-scopes": [
+            "org:invite:create",
+            "project:invite:create"
+          ]
+        }
+      },
       "/mcp/rpc": {
         "post": {
           "description": "\nModel Context Protocol (MCP) server endpoint.\n\n**Protocol:** JSON-RPC 2.0\n**Methods:** initialize, tools/list, tools/call\n**Tools:** schema_version, schema_changelog, type_info\n\n**Example Initialize Request:**\n```json\n{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2025-06-18\",\n    \"capabilities\": {},\n    \"clientInfo\": {\n      \"name\": \"example-client\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}\n```\n\n**Example tools/list Request:**\n```json\n{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 2,\n  \"method\": \"tools/list\"\n}\n```\n\n**Example tools/call Request:**\n```json\n{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 3,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"schema_version\",\n    \"arguments\": {}\n  }\n}\n```\n        ",
@@ -23904,14 +24131,6 @@
             {
               "in": "query",
               "name": "org_id",
-              "required": true,
-              "schema": {
-                "type": "string"
-              }
-            },
-            {
-              "in": "query",
-              "name": "tenant_id",
               "required": true,
               "schema": {
                 "type": "string"
