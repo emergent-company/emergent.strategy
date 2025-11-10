@@ -33,57 +33,59 @@ import { AppConfigService } from '../common/config/config.service';
 import { entities } from '../entities';
 
 @Module({
-    imports: [
-        // TypeORM Configuration
-        TypeOrmModule.forRootAsync({
-            imports: [AppConfigModule],
-            useFactory: (configService: AppConfigService) => ({
-                type: 'postgres' as const,
-                host: configService.dbHost,
-                port: configService.dbPort,
-                username: configService.dbUser,
-                password: configService.dbPassword,
-                database: configService.dbName,
-                entities,
-                synchronize: false, // NEVER true - always use migrations
-                logging: process.env.NODE_ENV === 'development' ? ['error', 'warn', 'migration'] : ['error'],
-                autoLoadEntities: true,
-                migrationsRun: true, // Auto-run migrations on startup
-                migrations: [__dirname + '/../migrations/*{.ts,.js}'],
-                migrationsTableName: 'typeorm_migrations',
-            }),
-            inject: [AppConfigService],
-        }),
-        HealthModule,
-        AuthModule,
-        SettingsModule,
-        OrgsModule,
-        ProjectsModule,
-        SearchModule,
-        DocumentsModule,
-        ChunksModule,
-        IngestionModule,
-        ChatModule,
-        OpenApiModule,
-        AppConfigModule,
-        UtilsModule,
-        EmbeddingsModule,
-        InvitesModule,
-        UserProfileModule,
-        GraphModule,
-        GraphSearchModule,
-        TemplatePackModule,
-        TypeRegistryModule,
-        ExtractionJobModule,
-        DiscoveryJobModule,
-        NotificationsModule,
-        IntegrationsModule,
-        ClickUpModule,
-        McpModule,
-        MonitoringModule,
-        UserModule,
-        DatabaseModule,
-    ],
+  imports: [
+    // TypeORM Configuration
+    TypeOrmModule.forRootAsync({
+      imports: [AppConfigModule],
+      useFactory: (configService: AppConfigService) => ({
+        type: 'postgres' as const,
+        host: configService.dbHost,
+        port: configService.dbPort,
+        username: configService.dbUser,
+        password: configService.dbPassword,
+        database: configService.dbName,
+        entities,
+        synchronize: false, // NEVER true - always use migrations
+        logging:
+          process.env.NODE_ENV === 'development'
+            ? ['error', 'warn', 'migration']
+            : ['error'],
+        autoLoadEntities: true,
+        migrationsRun: process.env.SKIP_MIGRATIONS !== '1', // Respect SKIP_MIGRATIONS flag
+        migrations: [__dirname + '/../migrations/*{.ts,.js}'],
+        migrationsTableName: 'typeorm_migrations',
+      }),
+      inject: [AppConfigService],
+    }),
+    HealthModule,
+    AuthModule,
+    SettingsModule,
+    OrgsModule,
+    ProjectsModule,
+    SearchModule,
+    DocumentsModule,
+    ChunksModule,
+    IngestionModule,
+    ChatModule,
+    OpenApiModule,
+    AppConfigModule,
+    UtilsModule,
+    EmbeddingsModule,
+    InvitesModule,
+    UserProfileModule,
+    GraphModule,
+    GraphSearchModule,
+    TemplatePackModule,
+    TypeRegistryModule,
+    ExtractionJobModule,
+    DiscoveryJobModule,
+    NotificationsModule,
+    IntegrationsModule,
+    ClickUpModule,
+    McpModule,
+    MonitoringModule,
+    UserModule,
+    DatabaseModule,
+  ],
 })
-export class AppModule { }
-
+export class AppModule {}
