@@ -10,7 +10,10 @@ import {
 import { Chunk } from './chunk.entity';
 
 @Entity({ schema: 'kb', name: 'documents' })
-@Index(['contentHash'], { unique: true, where: 'content_hash IS NOT NULL' })
+@Index(['projectId', 'contentHash'], {
+  unique: true,
+  where: 'content_hash IS NOT NULL',
+})
 @Index(['organizationId'])
 @Index(['projectId'])
 export class Document {
