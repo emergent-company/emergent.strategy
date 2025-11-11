@@ -206,13 +206,11 @@ describe('ProjectsService', () => {
 
   it('create success without userId', async () => {
     const projectRepo = createMockRepository({
-      create: vi
-        .fn()
-        .mockReturnValue({
-          id: uuid(2),
-          name: 'Proj',
-          organizationId: uuid(1),
-        }),
+      create: vi.fn().mockReturnValue({
+        id: uuid(2),
+        name: 'Proj',
+        organizationId: uuid(1),
+      }),
     });
     const membershipRepo = createMockRepository();
     const orgRepo = createMockRepository();
@@ -225,14 +223,12 @@ describe('ProjectsService', () => {
       release: vi.fn(),
       manager: {
         findOne: vi.fn().mockResolvedValue({ id: uuid(1) }), // Org found
-        save: vi
-          .fn()
-          .mockResolvedValue({
-            id: uuid(2),
-            name: 'Proj',
-            organizationId: uuid(1),
-            createdAt: new Date(),
-          }),
+        save: vi.fn().mockResolvedValue({
+          id: uuid(2),
+          name: 'Proj',
+          organizationId: uuid(1),
+          createdAt: new Date(),
+        }),
       },
     };
     const dataSource = new FakeDataSource([]);
@@ -261,22 +257,18 @@ describe('ProjectsService', () => {
 
   it('create success with userId inserts membership with profile upsert', async () => {
     const projectRepo = createMockRepository({
-      create: vi
-        .fn()
-        .mockReturnValue({
-          id: uuid(3),
-          name: 'Proj2',
-          organizationId: uuid(1),
-        }),
+      create: vi.fn().mockReturnValue({
+        id: uuid(3),
+        name: 'Proj2',
+        organizationId: uuid(1),
+      }),
     });
     const membershipRepo = createMockRepository({
-      create: vi
-        .fn()
-        .mockReturnValue({
-          id: uuid(10),
-          projectId: uuid(3),
-          userId: 'user-123',
-        }),
+      create: vi.fn().mockReturnValue({
+        id: uuid(10),
+        projectId: uuid(3),
+        userId: 'user-123',
+      }),
     });
     const orgRepo = createMockRepository();
 
@@ -330,13 +322,11 @@ describe('ProjectsService', () => {
 
   it('create translates FK race deletion into org-not-found', async () => {
     const projectRepo = createMockRepository({
-      create: vi
-        .fn()
-        .mockReturnValue({
-          id: uuid(3),
-          name: 'Proj3',
-          organizationId: uuid(1),
-        }),
+      create: vi.fn().mockReturnValue({
+        id: uuid(3),
+        name: 'Proj3',
+        organizationId: uuid(1),
+      }),
     });
     const membershipRepo = createMockRepository();
     const orgRepo = createMockRepository();
@@ -381,13 +371,11 @@ describe('ProjectsService', () => {
 
   it('create translates duplicate name into duplicate code', async () => {
     const projectRepo = createMockRepository({
-      create: vi
-        .fn()
-        .mockReturnValue({
-          id: uuid(4),
-          name: 'Proj4',
-          organizationId: uuid(1),
-        }),
+      create: vi.fn().mockReturnValue({
+        id: uuid(4),
+        name: 'Proj4',
+        organizationId: uuid(1),
+      }),
     });
     const membershipRepo = createMockRepository();
     const orgRepo = createMockRepository();
@@ -472,22 +460,18 @@ describe('ProjectsService', () => {
 
   it('create installs default template pack when configured', async () => {
     const projectRepo = createMockRepository({
-      create: vi
-        .fn()
-        .mockReturnValue({
-          id: uuid(6),
-          name: 'Proj-default',
-          organizationId: uuid(5),
-        }),
+      create: vi.fn().mockReturnValue({
+        id: uuid(6),
+        name: 'Proj-default',
+        organizationId: uuid(5),
+      }),
     });
     const membershipRepo = createMockRepository({
-      create: vi
-        .fn()
-        .mockReturnValue({
-          id: uuid(11),
-          projectId: uuid(6),
-          userId: 'user-xyz',
-        }),
+      create: vi.fn().mockReturnValue({
+        id: uuid(11),
+        projectId: uuid(6),
+        userId: 'user-xyz',
+      }),
     });
     const orgRepo = createMockRepository();
 
@@ -541,7 +525,6 @@ describe('ProjectsService', () => {
     });
     expect(templatePacks.assignTemplatePackToProject).toHaveBeenCalledWith(
       uuid(6),
-      uuid(5),
       uuid(5),
       'user-xyz',
       { template_pack_id: uuid(42) }

@@ -236,9 +236,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Run database migrations using the centralized migration runner.
+   * Run database migrations programmatically using TypeORM DataSource.
    * This ensures consistency between manual migration runs and application startup.
-   * Migrations are tracked in public.schema_migrations table.
+   * Migrations are tracked in typeorm_migrations table.
    * Throws error if migrations fail - app will not start with incomplete schema.
    */
   async runMigrations(): Promise<void> {
@@ -250,28 +250,35 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     }
 
     const start = Date.now();
-    this.logger.log('Running database migrations via TypeORM CLI...');
+    this.logger.log('Running database migrations...');
 
+    let dataSource: any = null;
     try {
-      const { execSync } = await import('child_process');
-      const path = await import('path');
+      // Dynamically import the TypeORM DataSource configuration
+      const typeormConfigModule = await import('../../typeorm.config');
+      dataSource = typeormConfigModule.default;
 
-      // Navigate to server-nest directory where typeorm.config.ts lives
-      const serverNestPath = path.join(process.cwd());
+      // Initialize the DataSource connection
+      if (!dataSource.isInitialized) {
+        await dataSource.initialize();
+      }
 
-      // Run TypeORM migration:run using the official CLI
-      // Uses NODE_OPTIONS to enable tsx loader for TypeScript config
-      execSync(
-        'NODE_OPTIONS="--import tsx" npx typeorm migration:run -d src/typeorm.config.ts',
-        {
-          cwd: serverNestPath,
-          env: process.env,
-          stdio: 'inherit', // Show migration output in logs
-        }
-      );
+      // Run pending migrations
+      const migrations = await dataSource.runMigrations({
+        transaction: 'all', // Run all migrations in a single transaction
+      });
 
       const ms = Date.now() - start;
-      this.logger.log(`✓ Database migrations completed in ${ms}ms`);
+      if (migrations.length === 0) {
+        this.logger.log(`✓ Database schema is up to date (checked in ${ms}ms)`);
+      } else {
+        this.logger.log(
+          `✓ Applied ${migrations.length} migration(s) in ${ms}ms:`
+        );
+        migrations.forEach((migration: { name: string }) => {
+          this.logger.log(`  - ${migration.name}`);
+        });
+      }
     } catch (error) {
       const ms = Date.now() - start;
       const errorMessage =
@@ -287,8 +294,19 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         'Fix: Review migration errors above and resolve schema conflicts.'
       );
 
-      // Throw to prevent app from starting with incomplete schema
-      throw new Error(`Database migrations failed: ${errorMessage}`);
+      throw new Error(`Migration failed: ${errorMessage}`);
+    } finally {
+      // Clean up the DataSource connection
+      if (dataSource?.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch (err) {
+          this.logger.warn(
+            'Failed to destroy TypeORM DataSource: ' +
+              (err instanceof Error ? err.message : String(err))
+          );
+        }
+      }
     }
   }
 
