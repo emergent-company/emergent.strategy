@@ -1,4 +1,14 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Index,
+} from 'typeorm';
+import { Project } from './project.entity';
 
 @Entity({ schema: 'kb', name: 'embedding_policies' })
 @Index(['projectId', 'objectType'], { unique: true })
@@ -27,7 +37,12 @@ export class EmbeddingPolicy {
   @Column({ name: 'relevant_paths', type: 'text', array: true, default: '{}' })
   relevantPaths: string[];
 
-  @Column({ name: 'excluded_statuses', type: 'text', array: true, default: '{}' })
+  @Column({
+    name: 'excluded_statuses',
+    type: 'text',
+    array: true,
+    default: '{}',
+  })
   excludedStatuses: string[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
@@ -35,4 +50,9 @@ export class EmbeddingPolicy {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
+
+  // Relations
+  @ManyToOne(() => Project, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'project_id' })
+  project: Project;
 }

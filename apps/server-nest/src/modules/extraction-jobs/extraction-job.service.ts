@@ -19,7 +19,7 @@ import {
 import { ObjectExtractionJob } from '../../entities/object-extraction-job.entity';
 
 interface ExtractionJobSchemaInfo {
-  orgColumn: 'organization_id';
+  orgColumn?: 'organization_id';
   projectColumn: 'project_id';
   subjectColumn?: 'subject_id' | 'created_by';
   totalItemsColumn?: 'total_items';
@@ -110,12 +110,10 @@ export class ExtractionJobService {
           ).join(', ')}`
         );
 
-        const orgColumn = 'organization_id';
-        if (!columns.has(orgColumn)) {
-          throw new Error(
-            'object_extraction_jobs missing organization_id column'
-          );
-        }
+        // organization_id column is optional (removed in migration)
+        const orgColumn = columns.has('organization_id')
+          ? ('organization_id' as const)
+          : undefined;
 
         if (!columns.has('project_id')) {
           throw new Error('object_extraction_jobs missing project_id column');
@@ -177,14 +175,7 @@ export class ExtractionJobService {
    */
   async createJob(dto: CreateExtractionJobDto): Promise<ExtractionJobDto> {
     const schema = await this.getSchemaInfo();
-    const organizationId = dto.organization_id ?? null;
     const projectId = dto.project_id ?? null;
-
-    if (!organizationId) {
-      throw new BadRequestException(
-        'organization_id is required to create an extraction job'
-      );
-    }
 
     if (!projectId) {
       throw new BadRequestException(
@@ -192,13 +183,24 @@ export class ExtractionJobService {
       );
     }
 
+    // Derive organization_id from project for tenant context
+    // In Phase 6, extraction jobs are project-scoped, so organization_id is only needed for setTenantContext
+    const orgResult = await this.db.query<{ organization_id: string }>(
+      'SELECT organization_id FROM kb.projects WHERE id = $1',
+      [projectId]
+    );
+
+    if (!orgResult.rows[0]) {
+      throw new BadRequestException(`Project ${projectId} not found`);
+    }
+
+    const organizationId = orgResult.rows[0].organization_id ?? null;
     await this.db.setTenantContext(organizationId, projectId);
     this.logger.log(
       `Creating extraction job for project ${projectId}, source: ${dto.source_type}`
     );
 
     const columns: string[] = [
-      schema.orgColumn,
       schema.projectColumn,
       'source_type',
       'status',
@@ -207,7 +209,6 @@ export class ExtractionJobService {
       'source_id',
     ];
     const values: any[] = [
-      organizationId,
       projectId,
       dto.source_type,
       ExtractionJobStatus.PENDING,
@@ -215,6 +216,12 @@ export class ExtractionJobService {
       JSON.stringify(dto.source_metadata ?? {}),
       dto.source_id ?? null,
     ];
+
+    // organization_id column is optional (removed in migration)
+    if (schema.orgColumn) {
+      columns.unshift(schema.orgColumn);
+      values.unshift(organizationId);
+    }
 
     if (schema.subjectColumn) {
       columns.push(schema.subjectColumn);
@@ -255,8 +262,8 @@ export class ExtractionJobService {
 
     const result = await this.db.query<ExtractionJobDto>(
       `SELECT * FROM kb.object_extraction_jobs 
-             WHERE id = $1 AND ${schema.projectColumn} = $2 AND ${schema.orgColumn} = $3`,
-      [jobId, projectId, orgId]
+             WHERE id = $1 AND ${schema.projectColumn} = $2`,
+      [jobId, projectId]
     );
 
     if (!result.rowCount) {
@@ -280,12 +287,9 @@ export class ExtractionJobService {
     const { status, source_type, source_id, page = 1, limit = 20 } = query;
     const offset = (page - 1) * limit;
 
-    const conditions: string[] = [
-      `${schema.projectColumn} = $1`,
-      `${schema.orgColumn} = $2`,
-    ];
-    const params: any[] = [projectId, orgId];
-    let paramIndex = 3;
+    const conditions: string[] = [`${schema.projectColumn} = $1`];
+    const params: any[] = [projectId];
+    let paramIndex = 2;
 
     if (status) {
       conditions.push(`status = $${paramIndex++}`);
@@ -449,16 +453,14 @@ export class ExtractionJobService {
 
     const whereJobIndex = paramIndex;
     const whereProjectIndex = paramIndex + 1;
-    const whereOrgIndex = paramIndex + 2;
 
     const result = await this.db.query<ExtractionJobDto>(
       `UPDATE kb.object_extraction_jobs 
              SET ${updates.join(', ')}
              WHERE id = $${whereJobIndex}
                AND ${schema.projectColumn} = $${whereProjectIndex}
-               AND ${schema.orgColumn} = $${whereOrgIndex}
              RETURNING *`,
-      [...params, jobId, projectId, orgId]
+      [...params, jobId, projectId]
     );
 
     if (!result.rowCount) {
@@ -494,12 +496,13 @@ export class ExtractionJobService {
     // Clear any existing tenant context so RLS allows system-level SELECT
     await this.db.setTenantContext(null, null);
 
+    // Phase 6: organization_id removed from object_extraction_jobs table
+    // We now derive organization_id from project_id via projects table join
     const candidatesResult = await this.db.query<{
       id: string;
-      organization_id: string | null;
       project_id: string | null;
     }>(
-      `SELECT id, organization_id, project_id
+      `SELECT id, project_id
              FROM kb.object_extraction_jobs
              WHERE status = $1
              ORDER BY created_at ASC
@@ -518,8 +521,17 @@ export class ExtractionJobService {
     // Step 2: Claim each job by updating it within its tenant context
     const claimedJobs: ExtractionJobDto[] = [];
     for (const candidate of candidatesResult.rows) {
-      const orgId = candidate.organization_id ?? null;
       const projectId = candidate.project_id ?? null;
+
+      // Derive organization_id from project for tenant context
+      let orgId: string | null = null;
+      if (projectId) {
+        const orgResult = await this.db.query<{ organization_id: string }>(
+          'SELECT organization_id FROM kb.projects WHERE id = $1',
+          [projectId]
+        );
+        orgId = orgResult.rows[0]?.organization_id ?? null;
+      }
 
       if (!orgId || !projectId) {
         this.logger.warn(
@@ -882,8 +894,8 @@ export class ExtractionJobService {
 
     const result = await this.db.query(
       `DELETE FROM kb.object_extraction_jobs 
-             WHERE id = $1 AND ${schema.projectColumn} = $2 AND ${schema.orgColumn} = $3`,
-      [jobId, projectId, orgId]
+             WHERE id = $1 AND ${schema.projectColumn} = $2`,
+      [jobId, projectId]
     );
 
     if (!result.rowCount) {
@@ -904,12 +916,10 @@ export class ExtractionJobService {
       `UPDATE kb.object_extraction_jobs 
              SET status = $1, updated_at = NOW()
              WHERE ${schema.projectColumn} = $2 
-               AND ${schema.orgColumn} = $3
-               AND status IN ($4, $5)`,
+               AND status IN ($3, $4)`,
       [
         ExtractionJobStatus.CANCELLED,
         projectId,
-        orgId,
         ExtractionJobStatus.PENDING,
         ExtractionJobStatus.RUNNING,
       ]
@@ -932,11 +942,9 @@ export class ExtractionJobService {
     const result = await this.db.query(
       `DELETE FROM kb.object_extraction_jobs 
              WHERE ${schema.projectColumn} = $1 
-               AND ${schema.orgColumn} = $2
-               AND status IN ($3, $4, $5)`,
+               AND status IN ($2, $3, $4)`,
       [
         projectId,
-        orgId,
         ExtractionJobStatus.COMPLETED,
         ExtractionJobStatus.FAILED,
         ExtractionJobStatus.CANCELLED,
@@ -962,14 +970,8 @@ export class ExtractionJobService {
                  error_details = NULL,
                  updated_at = NOW()
              WHERE ${schema.projectColumn} = $2 
-               AND ${schema.orgColumn} = $3
-               AND status = $4`,
-      [
-        ExtractionJobStatus.PENDING,
-        projectId,
-        orgId,
-        ExtractionJobStatus.FAILED,
-      ]
+               AND status = $3`,
+      [ExtractionJobStatus.PENDING, projectId, ExtractionJobStatus.FAILED]
     );
 
     const retried = result.rowCount || 0;
@@ -1016,9 +1018,9 @@ export class ExtractionJobService {
                 AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000)::INTEGER as avg_duration_ms,
                 ${totalObjectsExpression} as total_objects
              FROM kb.object_extraction_jobs
-             WHERE ${schema.projectColumn} = $1 AND ${schema.orgColumn} = $2
+             WHERE ${schema.projectColumn} = $1
              GROUP BY status, source_type`,
-      [projectId, orgId]
+      [projectId]
     );
     let total = 0;
     const by_status: Record<string, number> = {};
@@ -1050,8 +1052,8 @@ export class ExtractionJobService {
       const typesResult = await this.db.query<{ type_name: string }>(
         `SELECT DISTINCT jsonb_array_elements_text(${schema.discoveredTypesColumn}) as type_name
                  FROM kb.object_extraction_jobs
-                 WHERE ${schema.projectColumn} = $1 AND ${schema.orgColumn} = $2 AND jsonb_array_length(${schema.discoveredTypesColumn}) > 0`,
-        [projectId, orgId]
+                 WHERE ${schema.projectColumn} = $1 AND jsonb_array_length(${schema.discoveredTypesColumn}) > 0`,
+        [projectId]
       );
       total_types_discovered = typesResult.rowCount || 0;
     }
@@ -1077,12 +1079,6 @@ export class ExtractionJobService {
     const info = schema ?? this.schemaInfo;
     if (!info) {
       throw new Error('Extraction job schema info not initialized');
-    }
-
-    const organizationId =
-      row[info.orgColumn] ?? row.organization_id ?? row.organization_id;
-    if (!organizationId) {
-      throw new Error('Extraction job row missing organization identifier');
     }
 
     const totalItems = info.totalItemsColumn
@@ -1118,7 +1114,6 @@ export class ExtractionJobService {
 
     return {
       id: row.id,
-      organization_id: organizationId,
       project_id: row.project_id,
       source_type: row.source_type,
       source_id: row.source_id ?? undefined,

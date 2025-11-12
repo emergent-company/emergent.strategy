@@ -37,6 +37,7 @@ NNNN_description.sql             # Sequential numbers (legacy compatibility)
 ```
 
 **Examples:**
+
 - `20251018_add_extraction_progress_columns.sql`
 - `0002_extraction_jobs.sql`
 - `0003_integrations_system.sql`
@@ -95,6 +96,7 @@ npx nx run server-nest:migrate
 - **Make migrations idempotent** using `IF NOT EXISTS`, `IF EXISTS`, etc.
 - **Keep migrations focused** - one logical change per file
 - **Document complex changes** with inline SQL comments
+- **Update database documentation** after schema changes (see below)
 
 ### DON'T ❌
 
@@ -103,6 +105,23 @@ npx nx run server-nest:migrate
 - **Don't assume data state** - check existence before operations
 - **Don't mix DDL and DML** - separate schema changes from data migrations
 - **Don't hardcode sensitive data** - use environment variables
+
+### After Schema Changes
+
+When migrations modify the database schema, update the database documentation:
+
+```bash
+# Apply the migration
+npm run db:migrate
+
+# Regenerate DBML documentation
+npm run db:docs:generate
+
+# Validate the documentation
+npm run db:docs:validate
+```
+
+This keeps the `docs/database/schema.dbml` file in sync with the actual database structure. See the [Database Documentation Guide](../guides/database-documentation.md) for details.
 
 ## Migration Tracking Table
 
@@ -124,18 +143,18 @@ CREATE TABLE kb.schema_migrations (
 
 ```sql
 -- See all applied migrations
-SELECT filename, applied_at, execution_time_ms 
-FROM kb.schema_migrations 
+SELECT filename, applied_at, execution_time_ms
+FROM kb.schema_migrations
 ORDER BY applied_at DESC;
 
 -- Find failed migrations
-SELECT filename, applied_at, error_message 
-FROM kb.schema_migrations 
+SELECT filename, applied_at, error_message
+FROM kb.schema_migrations
 WHERE success = FALSE;
 
 -- Check if specific migration was applied
 SELECT EXISTS(
-    SELECT 1 FROM kb.schema_migrations 
+    SELECT 1 FROM kb.schema_migrations
     WHERE filename = '20251018_add_extraction_progress_columns.sql'
 );
 ```
@@ -151,6 +170,7 @@ npx nx run server-nest:migrate -- --list
 ```
 
 **Output:**
+
 ```
 Applied Migrations:
   ✓ 0002_extraction_jobs.sql (2025-10-18 19:30:15)
@@ -179,6 +199,7 @@ npx nx run server-nest:migrate
 ```
 
 **Output:**
+
 ```
 Applying 1 pending migration(s)...
 
@@ -252,14 +273,16 @@ npx nx run server-nest:migrate
 ### Migration Fails to Apply
 
 **Check the error message:**
+
 ```bash
 npx nx run server-nest:migrate -- --list
 ```
 
 Query the failed migration:
+
 ```sql
-SELECT filename, error_message 
-FROM kb.schema_migrations 
+SELECT filename, error_message
+FROM kb.schema_migrations
 WHERE success = FALSE;
 ```
 
@@ -270,7 +293,7 @@ WHERE success = FALSE;
 Check if the migration was partially applied:
 
 ```sql
-SELECT * FROM kb.schema_migrations 
+SELECT * FROM kb.schema_migrations
 WHERE filename = 'YOUR_MIGRATION.sql';
 ```
 
@@ -284,17 +307,20 @@ VALUES ('YOUR_MIGRATION.sql', 'MANUAL', 0, TRUE);
 ### Connection Issues
 
 **Docker container not running:**
+
 ```bash
 docker ps | grep spec_pg
 docker start spec_pg
 ```
 
 **Wrong credentials:**
+
 ```bash
 docker exec spec_pg env | grep POSTGRES
 ```
 
 **Test connection manually:**
+
 ```bash
 docker exec -it spec_pg psql -U spec -d spec -c '\dt kb.*'
 ```
@@ -327,6 +353,7 @@ Add to your deployment pipeline:
 ```
 
 **Best practices for CI:**
+
 - Run migrations before deploying new code
 - Use a dedicated migration user with limited privileges
 - Always test migrations in staging first
@@ -343,7 +370,7 @@ Add to your deployment pipeline:
 **Example of concurrent index creation:**
 
 ```sql
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_large_table_column 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_large_table_column
 ON kb.large_table(column_name);
 ```
 
@@ -359,8 +386,8 @@ The migration system provides automatic versioning through:
 **Get current schema version:**
 
 ```sql
-SELECT COUNT(*) as version 
-FROM kb.schema_migrations 
+SELECT COUNT(*) as version
+FROM kb.schema_migrations
 WHERE success = TRUE;
 ```
 
@@ -373,6 +400,7 @@ WHERE success = TRUE;
 ## Support
 
 For issues or questions:
+
 1. Check this documentation
 2. Review migration error messages in `kb.schema_migrations`
 3. Consult logs with `npm run workspace:logs`

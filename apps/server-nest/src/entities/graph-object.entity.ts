@@ -5,20 +5,23 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   DeleteDateColumn,
+  ManyToOne,
+  JoinColumn,
   Index,
   VersionColumn,
 } from 'typeorm';
+import { Project } from './project.entity';
 
 @Entity({ schema: 'kb', name: 'graph_objects' })
-@Index(['organizationId', 'projectId', 'type', 'key'], { unique: true, where: 'deleted_at IS NULL' })
+@Index(['projectId', 'type', 'key'], {
+  unique: true,
+  where: 'deleted_at IS NULL',
+})
 @Index(['canonicalId'])
 @Index(['type'])
 export class GraphObject {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
-
-  @Column({ name: 'organization_id', type: 'uuid' })
-  organizationId!: string;
 
   @Column({ name: 'project_id', type: 'uuid' })
   projectId!: string;
@@ -83,7 +86,12 @@ export class GraphObject {
   @Column({ name: 'extraction_confidence', type: 'real', nullable: true })
   extractionConfidence!: number | null;
 
-  @Column({ name: 'needs_review', type: 'boolean', default: false, nullable: true })
+  @Column({
+    name: 'needs_review',
+    type: 'boolean',
+    default: false,
+    nullable: true,
+  })
   needsReview!: boolean | null;
 
   @Column({ name: 'reviewed_by', type: 'uuid', nullable: true })
@@ -92,6 +100,16 @@ export class GraphObject {
   @Column({ name: 'reviewed_at', type: 'timestamptz', nullable: true })
   reviewedAt!: Date | null;
 
-  @Column({ name: 'embedding_v1', type: 'vector', length: 1536, nullable: true })
+  @Column({
+    name: 'embedding_v1',
+    type: 'vector',
+    length: 1536,
+    nullable: true,
+  })
   embeddingV1!: number[] | null;
+
+  // Relations
+  @ManyToOne(() => Project, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'project_id' })
+  project!: Project;
 }

@@ -10,7 +10,6 @@ import { Project } from '../../entities/project.entity';
 
 interface DocumentRow {
   id: string;
-  organization_id: string | null;
   project_id: string | null;
   filename: string | null;
   source_url: string | null;
@@ -51,8 +50,9 @@ export class DocumentsService {
     let paramIdx = 2; // because $1 reserved for limit
 
     if (filter?.orgId) {
+      // Filter by organization via project relationship
       params.push(filter.orgId);
-      conds.push(`d.organization_id = $${paramIdx++}`);
+      conds.push(`p.organization_id = $${paramIdx++}`);
     }
     if (filter?.projectId) {
       params.push(filter.projectId);
@@ -72,7 +72,7 @@ export class DocumentsService {
 
     // Use TypeORM DataSource query (LATERAL join not supported by QueryBuilder)
     const rows = await this.dataSource.query(
-      `SELECT d.id, d.organization_id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
+      `SELECT d.id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
                     d.integration_metadata,
                     LENGTH(d.content) AS content_length,
                     COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
@@ -80,6 +80,7 @@ export class DocumentsService {
                     ej.completed_at AS extraction_completed_at,
                     ej.objects_created AS extraction_objects_count
              FROM kb.documents d
+             LEFT JOIN kb.projects p ON d.project_id = p.id
              LEFT JOIN LATERAL (
                  SELECT status, completed_at, objects_created
                  FROM kb.object_extraction_jobs
@@ -111,7 +112,7 @@ export class DocumentsService {
   async get(id: string): Promise<DocumentDto | null> {
     // Use TypeORM DataSource query (LATERAL join not supported by QueryBuilder)
     const rows = await this.dataSource.query(
-      `SELECT d.id, d.organization_id, d.project_id, d.filename, d.source_url, d.mime_type, d.content, d.created_at, d.updated_at,
+      `SELECT d.id, d.project_id, d.filename, d.source_url, d.mime_type, d.content, d.created_at, d.updated_at,
                     d.integration_metadata,
                     COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
                     ej.status AS extraction_status,
@@ -170,7 +171,7 @@ export class DocumentsService {
       // Return existing document instead of creating duplicate
       return {
         id: existing.id,
-        orgId: existing.organizationId ?? undefined,
+        orgId: undefined, // Will be derived from project
         projectId: existing.projectId ?? undefined,
         name: existing.filename || 'unknown',
         sourceUrl: existing.sourceUrl ?? undefined,
@@ -189,7 +190,6 @@ export class DocumentsService {
 
     // Create document
     const document = this.documentRepository.create({
-      organizationId: body.orgId || project.organizationId,
       projectId: project.id,
       filename: body.filename || 'unnamed.txt',
       content,
@@ -224,7 +224,7 @@ export class DocumentsService {
 
     return {
       id: savedDoc.id,
-      orgId: savedDoc.organizationId ?? undefined,
+      orgId: undefined, // Will be derived from project
       projectId: savedDoc.projectId ?? undefined,
       name: savedDoc.filename || 'unknown',
       sourceUrl: savedDoc.sourceUrl ?? undefined,
@@ -272,7 +272,7 @@ export class DocumentsService {
   private mapRow(r: DocumentRow): DocumentDto {
     return {
       id: r.id,
-      orgId: r.organization_id || undefined,
+      orgId: undefined, // Will be derived from project relationship
       projectId: r.project_id || undefined,
       name: r.filename || r.source_url || 'unknown',
       sourceUrl: r.source_url,

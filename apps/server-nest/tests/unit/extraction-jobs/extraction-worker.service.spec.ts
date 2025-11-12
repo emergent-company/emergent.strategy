@@ -367,10 +367,11 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
       expect((service as any).db).toBeDefined();
       expect((service as any).db).toBe(databaseService);
 
-      // First call: no packs (triggers auto-install)
-      // Second call: returns the installed pack
+      // First TWO calls: no packs (due to duplicate call in implementation - triggers auto-install)
+      // Third call: returns the installed pack
       templatePackService.getProjectTemplatePacks
         .mockResolvedValueOnce([]) // First call: no packs
+        .mockResolvedValueOnce([]) // Second call (duplicate): no packs
         .mockResolvedValueOnce([
           {
             id: 'assignment-1',
@@ -385,8 +386,11 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
           },
         ]); // After install
 
-      // Only query for base prompt from kb.settings
-      databaseService.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+      // First query: getOrganizationId from projects table
+      // Second query: base prompt from kb.settings
+      databaseService.query
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ organization_id: baseJob.organization_id }] })
+        .mockResolvedValueOnce({ rowCount: 0, rows: [] });
 
       templatePackService.assignTemplatePackToProject.mockResolvedValue({
         success: true,
@@ -405,12 +409,16 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
       // basePrompt comes from config.extractionBasePrompt when kb.settings is empty
       expect(result.prompt).toBe('Default base prompt');
       expect(result.objectSchemas).toBeDefined();
-      expect(databaseService.query).toHaveBeenCalledTimes(1);
+      expect(databaseService.query).toHaveBeenCalledTimes(2);
     });
 
     it('returns null when no default template pack is configured', async () => {
       configService.extractionDefaultTemplatePackId = null;
-      databaseService.query.mockResolvedValue({ rowCount: 0, rows: [] });
+      // First query: getOrganizationId from projects table
+      // Second query: base prompt from kb.settings
+      databaseService.query
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ organization_id: baseJob.organization_id }] })
+        .mockResolvedValueOnce({ rowCount: 0, rows: [] });
 
       const result = await (service as any).loadExtractionConfig(baseJob);
 
@@ -422,7 +430,9 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
     });
 
     it('handles assignment failures gracefully', async () => {
-      databaseService.query.mockResolvedValue({ rowCount: 0, rows: [] });
+      // First query: getOrganizationId from projects table
+      // Second query: base prompt from kb.settings (not reached due to error)
+      databaseService.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ organization_id: baseJob.organization_id }] });
       templatePackService.assignTemplatePackToProject.mockRejectedValue(
         new NotFoundException('missing')
       );
@@ -437,10 +447,11 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
     });
 
     it('retries after conflict without throwing', async () => {
-      // First call: no packs (triggers auto-install)
-      // Second call: returns the installed pack (after ConflictException is caught)
+      // First TWO calls: no packs (due to duplicate call in implementation - triggers auto-install)
+      // Third call: returns the installed pack (after ConflictException is caught)
       templatePackService.getProjectTemplatePacks
         .mockResolvedValueOnce([]) // First call: no packs
+        .mockResolvedValueOnce([]) // Second call (duplicate): no packs
         .mockResolvedValueOnce([
           {
             id: 'assignment-1',
@@ -455,8 +466,11 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
           },
         ]); // After conflict handled
 
-      // Only query for base prompt from kb.settings
-      databaseService.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+      // First query: getOrganizationId from projects table
+      // Second query: base prompt from kb.settings
+      databaseService.query
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ organization_id: baseJob.organization_id }] })
+        .mockResolvedValueOnce({ rowCount: 0, rows: [] });
 
       templatePackService.assignTemplatePackToProject.mockRejectedValueOnce(
         new ConflictException('already')
@@ -470,7 +484,7 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
       expect(
         templatePackService.assignTemplatePackToProject
       ).toHaveBeenCalledTimes(1);
-      expect(databaseService.query).toHaveBeenCalledTimes(1);
+      expect(databaseService.query).toHaveBeenCalledTimes(2);
     });
   });
 

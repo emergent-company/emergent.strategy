@@ -4,15 +4,15 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { Project } from './project.entity';
 
 @Entity({ schema: 'kb', name: 'tags' })
 export class Tag {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
-
-  @Column({ name: 'organization_id', type: 'uuid', nullable: true })
-  organizationId!: string | null;
 
   @Column({ name: 'project_id', type: 'uuid' })
   projectId!: string;
@@ -31,4 +31,9 @@ export class Tag {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
+
+  // Relations
+  @ManyToOne(() => Project, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'project_id' })
+  project!: Project;
 }

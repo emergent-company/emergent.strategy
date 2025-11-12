@@ -32,11 +32,11 @@ class MockDB {
             return { rowCount: head ? 1 : 0, rows: head ? [head] : [] };
         }
         // Insert tombstone or restore object. Real service now appends fts, embedding, embedding_updated_at columns.
-        if (/^INSERT INTO kb\.graph_objects\(type, key, properties, labels, version, canonical_id, supersedes_id, organization_id, project_id, deleted_at(?:, fts, embedding, embedding_updated_at)?\)/i.test(sql)) {
-            const [type, key, properties, labels, version, canonical, supersedes, org, project, maybeDeleted] = params;
+        if (/^INSERT INTO kb\.graph_objects\(type, key, properties, labels, version, canonical_id, supersedes_id, project_id, deleted_at(?:, fts, embedding, embedding_updated_at)?\)/i.test(sql)) {
+            const [type, key, properties, labels, version, canonical, supersedes, project, maybeDeleted] = params;
             // If the SQL text includes 'now()' treat as tombstone regardless of param (some branches pass NULL param then set now())
             const isTombstone = /now\(\)/i.test(sql) || !!maybeDeleted;
-            const row: ObjRow = { id: newId('obj'), organization_id: org, project_id: project, canonical_id: canonical, supersedes_id: supersedes, version, type, key, properties, labels, deleted_at: isTombstone ? new Date() : null, created_at: new Date() } as any;
+            const row: ObjRow = { id: newId('obj'), organization_id: null, project_id: project, canonical_id: canonical, supersedes_id: supersedes, version, type, key, properties, labels, deleted_at: isTombstone ? new Date() : null, created_at: new Date() } as any;
             this.objects.push(row);
             return { rowCount: 1, rows: [row] };
         }
@@ -52,10 +52,10 @@ class MockDB {
             return { rowCount: head ? 1 : 0, rows: head ? [head] : [] };
         }
         // Insert relationship tombstone or restore (tombstone uses now()). Updated signature includes branch_id at position 3.
-        if (/^INSERT INTO kb\.graph_relationships\((org_id|organization_id), project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at\)/i.test(sql)) {
-            const [org, project, branch_id, type, src_id, dst_id, properties, version, canonical, supersedes, maybeDeleted] = params;
+        if (/^INSERT INTO kb\.graph_relationships\(project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, supersedes_id, deleted_at\)/i.test(sql)) {
+            const [project, branch_id, type, src_id, dst_id, properties, version, canonical, supersedes, maybeDeleted] = params;
             const isTombstone = /now\(\)/i.test(sql) || !!maybeDeleted;
-            const row: RelRow = { id: newId('rel'), organization_id: org, project_id: project, type, src_id, dst_id, properties, version, canonical_id: canonical, supersedes_id: supersedes, deleted_at: isTombstone ? new Date() : null, weight: null, valid_from: null, valid_to: null, created_at: new Date() };
+            const row: RelRow = { id: newId('rel'), organization_id: null, project_id: project, type, src_id, dst_id, properties, version, canonical_id: canonical, supersedes_id: supersedes, deleted_at: isTombstone ? new Date() : null, weight: null, valid_from: null, valid_to: null, created_at: new Date() };
             this.rels.push(row);
             return { rowCount: 1, rows: [row] };
         }

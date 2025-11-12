@@ -9,17 +9,14 @@ import {
   Index,
 } from 'typeorm';
 import { Document } from './document.entity';
+import { Project } from './project.entity';
 
 @Entity({ schema: 'kb', name: 'object_extraction_jobs' })
 @Index(['status'])
 @Index(['projectId'])
-@Index(['organizationId'])
 export class ObjectExtractionJob {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
-
-  @Column({ name: 'organization_id', type: 'uuid' })
-  organizationId!: string;
 
   @Column({ name: 'project_id', type: 'uuid' })
   projectId!: string;
@@ -109,6 +106,10 @@ export class ObjectExtractionJob {
   logs!: any[];
 
   // Relations
+  @ManyToOne(() => Project, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'project_id' })
+  project!: Project;
+
   @ManyToOne(() => Document, { nullable: true })
   @JoinColumn({ name: 'document_id' })
   document!: Document | null;
