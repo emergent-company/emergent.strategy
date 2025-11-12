@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { DatabaseService } from '../../common/database/database.service';
 import { Tag } from '../../entities/tag.entity';
 
 /**
@@ -31,7 +30,6 @@ export class TagCleanupWorkerService implements OnModuleInit, OnModuleDestroy {
   private currentCleanup: Promise<void> | null = null;
 
   constructor(
-    private readonly db: DatabaseService,
     @InjectRepository(Tag)
     private readonly tagRepo: Repository<Tag>,
     private readonly dataSource: DataSource

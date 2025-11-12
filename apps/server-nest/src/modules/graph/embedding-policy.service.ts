@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DatabaseService } from '../../common/database/database.service';
 import {
   EmbeddingPolicy as EmbeddingPolicyInterface,
   EmbeddingPolicyRow,
@@ -22,8 +21,7 @@ export class EmbeddingPolicyService {
 
   constructor(
     @InjectRepository(EmbeddingPolicy)
-    private readonly embeddingPolicyRepository: Repository<EmbeddingPolicy>,
-    private readonly db: DatabaseService
+    private readonly embeddingPolicyRepository: Repository<EmbeddingPolicy>
   ) {}
 
   /**

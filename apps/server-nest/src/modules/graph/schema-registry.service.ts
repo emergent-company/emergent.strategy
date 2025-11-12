@@ -1,5 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { DatabaseService } from '../../common/database/database.service';
+import { Injectable } from '@nestjs/common';
 import Ajv, { ValidateFunction } from 'ajv';
 
 interface CachedSchema {
@@ -33,7 +32,7 @@ export class SchemaRegistryService {
   private relationshipCache = new Map<string, CachedSchema>();
   private relationshipMultiplicityCache = new Map<string, CachedMultiplicity>();
 
-  constructor(@Inject(DatabaseService) private readonly db: DatabaseService) {}
+  constructor() {}
 
   private cacheKey(organizationId: string | null, type: string) {
     return `${organizationId || 'null'}|${type}`;

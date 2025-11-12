@@ -5,7 +5,6 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { DatabaseService } from '../../common/database/database.service';
 
 /**
  * Background worker that periodically refreshes the materialized view
@@ -28,10 +27,7 @@ export class RevisionCountRefreshWorkerService
   private currentRefresh: Promise<number> | null = null;
   private readonly refreshIntervalMs: number;
 
-  constructor(
-    private readonly db: DatabaseService,
-    private readonly dataSource: DataSource
-  ) {
+  constructor(private readonly dataSource: DataSource) {
     this.refreshIntervalMs = parseInt(
       process.env.REVISION_COUNT_REFRESH_INTERVAL_MS || '300000',
       10

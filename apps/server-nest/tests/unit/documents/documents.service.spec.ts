@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 import { DocumentsService } from '../../../src/modules/documents/documents.service';
-import { DatabaseService } from '../../../src/common/database/database.service';
 
 // Mock repository factory
 function createMockRepository(methods: Partial<any> = {}) {
@@ -26,17 +25,6 @@ class FakeDataSource {
     }
     // DataSource.query() returns array directly, not { rows, rowCount }
     return rows;
-  }
-}
-
-// Mock DatabaseService
-class FakeDb extends DatabaseService {
-  constructor() {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    super({} as any);
-  }
-  isOnline() {
-    return true;
   }
 }
 
@@ -66,14 +54,12 @@ describe('DocumentsService pagination', () => {
     const chunkRepo = createMockRepository();
     const projectRepo = createMockRepository();
     const dataSource = new FakeDataSource(rows);
-    const db = new FakeDb();
     const hash = new FakeHashService();
     const svc = new DocumentsService(
       docRepo as any,
       chunkRepo as any,
       projectRepo as any,
       dataSource as any,
-      db as any,
       hash as any
     );
     const { items, nextCursor } = await svc.list(2);
@@ -89,14 +75,12 @@ describe('DocumentsService pagination', () => {
     const chunkRepo = createMockRepository();
     const projectRepo = createMockRepository();
     const dataSource = new FakeDataSource(rows);
-    const db = new FakeDb();
     const hash = new FakeHashService();
     const svc = new DocumentsService(
       docRepo as any,
       chunkRepo as any,
       projectRepo as any,
       dataSource as any,
-      db as any,
       hash as any
     );
     const { items, nextCursor } = await svc.list(5);
@@ -109,14 +93,12 @@ describe('DocumentsService pagination', () => {
     const chunkRepo = createMockRepository();
     const projectRepo = createMockRepository();
     const dataSource = new FakeDataSource([]);
-    const db = new FakeDb();
     const hash = new FakeHashService();
     const svc = new DocumentsService(
       docRepo as any,
       chunkRepo as any,
       projectRepo as any,
       dataSource as any,
-      db as any,
       hash as any
     );
     expect(svc.decodeCursor('invalid$$')).toBeUndefined();
@@ -177,14 +159,12 @@ describe('DocumentsService extended behaviour', () => {
     const docRepo = createMockRepository();
     const chunkRepo = createMockRepository();
     const projectRepo = createMockRepository();
-    const db = new FakeDb();
     const hash = new FakeHashService();
     const svc = new DocumentsService(
       docRepo as any,
       chunkRepo as any,
       projectRepo as any,
       dataSource as any,
-      db as any,
       hash as any
     );
     const cursor = Buffer.from(
@@ -207,14 +187,12 @@ describe('DocumentsService extended behaviour', () => {
     const docRepo = createMockRepository();
     const chunkRepo = createMockRepository();
     const projectRepo = createMockRepository();
-    const db = new FakeDb();
     const hash = new FakeHashService();
     const svc = new DocumentsService(
       docRepo as any,
       chunkRepo as any,
       projectRepo as any,
       dataSource as any,
-      db as any,
       hash as any
     );
     await expect(
@@ -234,14 +212,12 @@ describe('DocumentsService extended behaviour', () => {
     const projectRepo = createMockRepository({
       findOne: vi.fn().mockResolvedValue(null), // Project not found
     });
-    const db = new FakeDb();
     const hash = new FakeHashService();
     const svc = new DocumentsService(
       docRepo as any,
       chunkRepo as any,
       projectRepo as any,
       dataSource as any,
-      db as any,
       hash as any
     );
     await expect(
@@ -279,14 +255,12 @@ describe('DocumentsService extended behaviour', () => {
       findOne: vi.fn().mockResolvedValue({ id: 'p1', organizationId: 'o1' }),
     });
     const dataSource = new ScriptableDataSource([]);
-    const db = new FakeDb();
     const hash = new FakeHashService();
     const svc = new DocumentsService(
       docRepo as any,
       chunkRepo as any,
       projectRepo as any,
       dataSource as any,
-      db as any,
       hash as any
     );
     const doc = await svc.create({
@@ -307,14 +281,12 @@ describe('DocumentsService extended behaviour', () => {
     const docRepo = createMockRepository();
     const chunkRepo = createMockRepository();
     const projectRepo = createMockRepository();
-    const db = new FakeDb();
     const hash = new FakeHashService();
     const svc = new DocumentsService(
       docRepo as any,
       chunkRepo as any,
       projectRepo as any,
       dataSource as any,
-      db as any,
       hash as any
     );
     expect(await svc.get('x')).toBeNull();
@@ -330,14 +302,12 @@ describe('DocumentsService extended behaviour', () => {
     const docRepo = createMockRepository();
     const chunkRepo = createMockRepository();
     const projectRepo = createMockRepository();
-    const db = new FakeDb();
     const hash = new FakeHashService();
     const svc = new DocumentsService(
       docRepo as any,
       chunkRepo as any,
       projectRepo as any,
       dataSource as any,
-      db as any,
       hash as any
     );
     const got = await svc.get('r1');
@@ -354,14 +324,12 @@ describe('DocumentsService extended behaviour', () => {
     const dataSource = new ScriptableDataSource([]);
     const docRepo = createMockRepository();
     const chunkRepo = createMockRepository();
-    const db = new FakeDb();
     const hash = new FakeHashService();
     const svc = new DocumentsService(
       docRepo as any,
       chunkRepo as any,
       projectRepo as any,
       dataSource as any,
-      db as any,
       hash as any
     );
     expect(await svc.getProjectOrg('p1')).toBeNull();
@@ -378,14 +346,12 @@ describe('DocumentsService extended behaviour', () => {
     const dataSource = new ScriptableDataSource([]);
     const chunkRepo = createMockRepository();
     const projectRepo = createMockRepository();
-    const db = new FakeDb();
     const hash = new FakeHashService();
     const svc = new DocumentsService(
       docRepo as any,
       chunkRepo as any,
       projectRepo as any,
       dataSource as any,
-      db as any,
       hash as any
     );
     expect(await svc.delete('d1')).toBe(true);
