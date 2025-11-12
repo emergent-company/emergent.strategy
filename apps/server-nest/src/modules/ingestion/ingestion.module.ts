@@ -10,17 +10,16 @@ import { ExtractionJobModule } from '../extraction-jobs/extraction-job.module';
 import { Project } from '../../entities/project.entity';
 
 @Module({
-    imports: [
-        DatabaseModule,
-        UtilsModule,
-        EmbeddingsModule,
-        AuthModule,
-        ExtractionJobModule,
-        TypeOrmModule.forFeature([Project]),
-    ],
-    controllers: [IngestionController],
-    providers: [IngestionService],
-    exports: [IngestionService]
+  imports: [
+    DatabaseModule,
+    UtilsModule,
+    EmbeddingsModule,
+    AuthModule,
+    ExtractionJobModule,
+    TypeOrmModule.forFeature([Project]),
+  ],
+  controllers: [IngestionController],
+  providers: [IngestionService],
+  exports: [IngestionService],
 })
-export class IngestionModule { }
-
+export class IngestionModule {}

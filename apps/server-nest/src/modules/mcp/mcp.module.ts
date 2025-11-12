@@ -12,9 +12,9 @@ import { DatabaseModule } from '../../common/database/database.module';
 
 /**
  * MCP (Model Context Protocol) Module
- * 
+ *
  * Exposes knowledge base data to AI agents via standardized MCP tools.
- * 
+ *
  * Features:
  * - Schema exposure (template packs, object types, relationships) ✅ Phase 2
  * - Specific data tools (getPersons, getTasks, etc.) ✅ Phase 3 Part 1
@@ -22,7 +22,7 @@ import { DatabaseModule } from '../../common/database/database.module';
  * - Schema versioning for cache invalidation ✅ Phase 3.5
  * - Authentication & authorization ✅ Phase 4
  * - JSON-RPC 2.0 MCP Server ✅ Phase 5 (NEW)
- * 
+ *
  * Architecture:
  * - **Legacy REST API**: McpController (GET /mcp/schema/version, etc.)
  * - **MCP Server**: McpServerController (POST /mcp/rpc) - JSON-RPC 2.0 protocol
@@ -30,38 +30,38 @@ import { DatabaseModule } from '../../common/database/database.module';
  * - Version-based caching with TTL and optional WebSocket notifications
  * - HTTP caching headers (ETag, Cache-Control)
  * - JWT authentication with scope-based authorization
- * 
+ *
  * MCP Server (Phase 5):
  * - Implements Model Context Protocol (JSON-RPC 2.0)
  * - Lifecycle management (initialize, capability negotiation)
  * - Tools: schema_version, schema_changelog, type_info
  * - HTTP transport (POST /mcp/rpc)
  * - Compatible with MCP clients (our chat + future external clients)
- * 
+ *
  * Security:
  * - All endpoints require authentication (JWT bearer token)
  * - Schema endpoints require 'schema:read' scope
  * - Data endpoints will require 'data:read' or 'data:write' scopes
- * 
+ *
  * See docs/mcp-server-implementation-plan.md for full details.
  */
 @Module({
-    imports: [
-        TemplatePackModule,
-        GraphModule,
-        AuthModule,       // Phase 4: Authentication & Authorization
-        DatabaseModule,   // For data query tools
-    ],
-    controllers: [
-        McpController,        // Legacy REST API
-        McpServerController   // JSON-RPC 2.0 MCP Server (Phase 5)
-    ],
-    providers: [
-        SchemaVersionService, // Phase 3.5: Schema versioning
-        SchemaTool,           // Phase 2: Schema discovery tools
-        SpecificDataTool,     // Phase 3: Type-specific data queries
-        GenericDataTool,      // Phase 3: Generic fallback queries
-    ],
-    exports: [SchemaVersionService],
+  imports: [
+    TemplatePackModule,
+    GraphModule,
+    AuthModule, // Phase 4: Authentication & Authorization
+    DatabaseModule, // For data query tools
+  ],
+  controllers: [
+    McpController, // Legacy REST API
+    McpServerController, // JSON-RPC 2.0 MCP Server (Phase 5)
+  ],
+  providers: [
+    SchemaVersionService, // Phase 3.5: Schema versioning
+    SchemaTool, // Phase 2: Schema discovery tools
+    SpecificDataTool, // Phase 3: Type-specific data queries
+    GenericDataTool, // Phase 3: Generic fallback queries
+  ],
+  exports: [SchemaVersionService],
 })
-export class McpModule { }
+export class McpModule {}

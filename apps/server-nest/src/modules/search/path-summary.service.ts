@@ -1,9 +1,9 @@
 /**
  * Path Summary Service
- * 
+ *
  * Generates human-readable summaries of how search results relate to other objects
  * in the knowledge graph via relationships.
- * 
+ *
  * Phase 3 Priority #4b: Path Summaries in Hybrid Search
  */
 
@@ -11,52 +11,52 @@ import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '../../common/database/database.service';
 
 export interface PathSummaryOptions {
-    maxDepth?: number; // Default: 2 hops
-    maxPaths?: number; // Default: 3 paths per result
+  maxDepth?: number; // Default: 2 hops
+  maxPaths?: number; // Default: 3 paths per result
 }
 
 export interface PathSegment {
-    relationshipType: string;
-    direction: 'out' | 'in';
-    targetId: string;
-    targetType: string;
-    targetKey?: string;
+  relationshipType: string;
+  direction: 'out' | 'in';
+  targetId: string;
+  targetType: string;
+  targetKey?: string;
 }
 
 export interface PathSummary {
-    documentId: string;
-    paths: PathSegment[][];
-    summary: string; // Human-readable text
+  documentId: string;
+  paths: PathSegment[][];
+  summary: string; // Human-readable text
 }
 
 @Injectable()
 export class PathSummaryService {
-    private readonly logger = new Logger(PathSummaryService.name);
+  private readonly logger = new Logger(PathSummaryService.name);
 
-    constructor(private readonly db: DatabaseService) { }
+  constructor(private readonly db: DatabaseService) {}
 
-    /**
-     * Generate path summaries for a set of document IDs
-     * 
-     * @param documentIds - Document IDs from search results
-     * @param options - Path generation options
-     * @returns Map of document_id to PathSummary
-     */
-    async generatePathSummaries(
-        documentIds: string[],
-        options: PathSummaryOptions = {},
-    ): Promise<Map<string, PathSummary>> {
-        const { maxDepth = 2, maxPaths = 3 } = options;
-        const summaries = new Map<string, PathSummary>();
+  /**
+   * Generate path summaries for a set of document IDs
+   *
+   * @param documentIds - Document IDs from search results
+   * @param options - Path generation options
+   * @returns Map of document_id to PathSummary
+   */
+  async generatePathSummaries(
+    documentIds: string[],
+    options: PathSummaryOptions = {}
+  ): Promise<Map<string, PathSummary>> {
+    const { maxDepth = 2, maxPaths = 3 } = options;
+    const summaries = new Map<string, PathSummary>();
 
-        if (documentIds.length === 0) {
-            return summaries;
-        }
+    if (documentIds.length === 0) {
+      return summaries;
+    }
 
-        try {
-            // Query to find relationships from documents to other objects
-            // Limited to maxDepth hops and maxPaths per document
-            const query = `
+    try {
+      // Query to find relationships from documents to other objects
+      // Limited to maxDepth hops and maxPaths per document
+      const query = `
                 WITH RECURSIVE path_search AS (
                     -- Base case: Start from documents
                     SELECT 
@@ -106,91 +106,100 @@ export class PathSummaryService {
                 LIMIT $3
             `;
 
-            const result = await this.db.query(query, [documentIds, maxDepth, documentIds.length * maxPaths]);
+      const result = await this.db.query(query, [
+        documentIds,
+        maxDepth,
+        documentIds.length * maxPaths,
+      ]);
 
-            // Group results by document ID
-            const pathsByDoc = new Map<string, any[]>();
-            for (const row of result.rows) {
-                if (!pathsByDoc.has(row.doc_id)) {
-                    pathsByDoc.set(row.doc_id, []);
-                }
-                pathsByDoc.get(row.doc_id)!.push(row);
-            }
-
-            // Build path summaries
-            for (const [docId, rows] of pathsByDoc.entries()) {
-                const paths: PathSegment[][] = [];
-                const relationshipCounts = new Map<string, number>();
-
-                // Build paths and count relationship types
-                for (const row of rows.slice(0, maxPaths)) {
-                    const pathRels = row.path_rels as string[];
-                    const segments: PathSegment[] = [{
-                        relationshipType: row.rel_type,
-                        direction: row.direction,
-                        targetId: row.target_id,
-                        targetType: row.target_type,
-                        targetKey: row.target_key,
-                    }];
-                    paths.push(segments);
-
-                    // Count relationship types for summary
-                    for (const relType of pathRels) {
-                        relationshipCounts.set(relType, (relationshipCounts.get(relType) || 0) + 1);
-                    }
-                }
-
-                // Generate human-readable summary
-                const summary = this.buildSummaryText(paths);
-
-                summaries.set(docId, {
-                    documentId: docId,
-                    paths,
-                    summary,
-                });
-            }
-
-            return summaries;
-        } catch (error) {
-            this.logger.error(`Failed to generate path summaries: ${error}`);
-            return summaries;
+      // Group results by document ID
+      const pathsByDoc = new Map<string, any[]>();
+      for (const row of result.rows) {
+        if (!pathsByDoc.has(row.doc_id)) {
+          pathsByDoc.set(row.doc_id, []);
         }
+        pathsByDoc.get(row.doc_id)!.push(row);
+      }
+
+      // Build path summaries
+      for (const [docId, rows] of pathsByDoc.entries()) {
+        const paths: PathSegment[][] = [];
+        const relationshipCounts = new Map<string, number>();
+
+        // Build paths and count relationship types
+        for (const row of rows.slice(0, maxPaths)) {
+          const pathRels = row.path_rels as string[];
+          const segments: PathSegment[] = [
+            {
+              relationshipType: row.rel_type,
+              direction: row.direction,
+              targetId: row.target_id,
+              targetType: row.target_type,
+              targetKey: row.target_key,
+            },
+          ];
+          paths.push(segments);
+
+          // Count relationship types for summary
+          for (const relType of pathRels) {
+            relationshipCounts.set(
+              relType,
+              (relationshipCounts.get(relType) || 0) + 1
+            );
+          }
+        }
+
+        // Generate human-readable summary
+        const summary = this.buildSummaryText(paths);
+
+        summaries.set(docId, {
+          documentId: docId,
+          paths,
+          summary,
+        });
+      }
+
+      return summaries;
+    } catch (error) {
+      this.logger.error(`Failed to generate path summaries: ${error}`);
+      return summaries;
+    }
+  }
+
+  /**
+   * Build human-readable summary text from paths
+   */
+  private buildSummaryText(paths: PathSegment[][]): string {
+    if (paths.length === 0) {
+      return 'No related objects';
     }
 
-    /**
-     * Build human-readable summary text from paths
-     */
-    private buildSummaryText(paths: PathSegment[][]): string {
-        if (paths.length === 0) {
-            return 'No related objects';
-        }
+    const parts: string[] = [];
 
-        const parts: string[] = [];
+    for (const path of paths) {
+      if (path.length === 0) continue;
 
-        for (const path of paths) {
-            if (path.length === 0) continue;
+      const segment = path[0];
+      const dirVerb = segment.direction === 'out' ? 'links to' : 'linked from';
+      const targetDesc = segment.targetKey
+        ? `${segment.targetType} "${segment.targetKey}"`
+        : segment.targetType;
 
-            const segment = path[0];
-            const dirVerb = segment.direction === 'out' ? 'links to' : 'linked from';
-            const targetDesc = segment.targetKey
-                ? `${segment.targetType} "${segment.targetKey}"`
-                : segment.targetType;
-
-            parts.push(`${dirVerb} ${targetDesc} via '${segment.relationshipType}'`);
-        }
-
-        if (parts.length === 0) {
-            return 'No related objects';
-        }
-
-        if (parts.length === 1) {
-            return `Related: ${parts[0]}`;
-        }
-
-        if (parts.length === 2) {
-            return `Related: ${parts[0]}; ${parts[1]}`;
-        }
-
-        return `Related: ${parts[0]}; ${parts[1]}; +${parts.length - 2} more`;
+      parts.push(`${dirVerb} ${targetDesc} via '${segment.relationshipType}'`);
     }
+
+    if (parts.length === 0) {
+      return 'No related objects';
+    }
+
+    if (parts.length === 1) {
+      return `Related: ${parts[0]}`;
+    }
+
+    if (parts.length === 2) {
+      return `Related: ${parts[0]}; ${parts[1]}`;
+    }
+
+    return `Related: ${parts[0]}; ${parts[1]}; +${parts.length - 2} more`;
+  }
 }

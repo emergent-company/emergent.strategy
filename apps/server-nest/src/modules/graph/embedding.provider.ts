@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 
 export interface EmbeddingProvider {
-    generate(text: string): Promise<Buffer>;
+  generate(text: string): Promise<Buffer>;
 }
 
 /**
@@ -11,13 +11,13 @@ export interface EmbeddingProvider {
  */
 @Injectable()
 export class DummySha256EmbeddingProvider implements EmbeddingProvider {
-    async generate(text: string): Promise<Buffer> {
-        const hash = createHash('sha256').update(text).digest();
-        const target = 128;
-        const out = Buffer.alloc(target);
-        for (let i = 0; i < target; i++) out[i] = hash[i % hash.length];
-        return out;
-    }
+  async generate(text: string): Promise<Buffer> {
+    const hash = createHash('sha256').update(text).digest();
+    const target = 128;
+    const out = Buffer.alloc(target);
+    for (let i = 0; i < target; i++) out[i] = hash[i % hash.length];
+    return out;
+  }
 }
 
 /**

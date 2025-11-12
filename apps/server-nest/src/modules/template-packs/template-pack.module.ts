@@ -7,13 +7,13 @@ import { AuthModule } from '../auth/auth.module';
 import { GraphTemplatePack, ProjectTemplatePack } from './entities';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([GraphTemplatePack, ProjectTemplatePack]),
-        DatabaseModule,
-        AuthModule,
-    ],
-    controllers: [TemplatePackController],
-    providers: [TemplatePackService],
-    exports: [TemplatePackService],
+  imports: [
+    TypeOrmModule.forFeature([GraphTemplatePack, ProjectTemplatePack]),
+    DatabaseModule,
+    AuthModule,
+  ],
+  controllers: [TemplatePackController],
+  providers: [TemplatePackService],
+  exports: [TemplatePackService],
 })
-export class TemplatePackModule { }
+export class TemplatePackModule {}

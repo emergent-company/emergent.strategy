@@ -1,0 +1,638 @@
+Table "core"."user_emails" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "user_id" uuid [not null]
+  "email" text [unique, not null]
+  "verified" bool [not null, default: false]
+  "created_at" timestamptz [not null, default: `now()`]
+
+  Indexes {
+    user_id [type: btree, name: "IDX_2e88b95787b903d46ab3cc3eb9"]
+  }
+}
+
+Table "core"."user_profiles" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "zitadel_user_id" text [unique, not null]
+  "first_name" text
+  "last_name" text
+  "display_name" text
+  "phone_e164" text
+  "avatar_object_key" text
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."tags" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "project_id" uuid [not null]
+  "product_version_id" uuid [not null]
+  "name" text [not null]
+  "description" text
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."system_process_logs" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "process_id" text [not null]
+  "process_type" text [not null]
+  "level" text [not null]
+  "message" text [not null]
+  "metadata" jsonb
+  "timestamp" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."settings" {
+  "key" text [pk, not null]
+  "value" jsonb [not null, default: `{}`]
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."projects" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "organization_id" uuid [not null]
+  "name" text [not null]
+  "kb_purpose" text
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+  "auto_extract_objects" bool [not null, default: false]
+  "auto_extract_config" jsonb [not null, default: `{}`]
+  "chat_prompt_template" text
+}
+
+Table "kb"."project_object_type_registry" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "project_id" uuid [not null]
+  "type_name" text [not null]
+  "source" text [not null]
+  "template_pack_id" uuid
+  "schema_version" int4 [not null, default: 1]
+  "json_schema" jsonb [not null]
+  "ui_config" jsonb
+  "extraction_config" jsonb
+  "enabled" bool [not null, default: true]
+  "discovery_confidence" float8
+  "description" text
+  "created_by" uuid
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."project_memberships" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "project_id" uuid [not null]
+  "user_id" uuid [not null]
+  "role" text [not null]
+  "created_at" timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (project_id, user_id) [type: btree, name: "IDX_b877acbf8d466f2889a2eeb147"]
+    project_id [type: btree, name: "IDX_38a73cbcc58fbed8e62a66d79b"]
+    user_id [type: btree, name: "IDX_7cb6c36ad5bf1bd4a413823ace"]
+  }
+}
+
+Table "kb"."product_versions" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "project_id" uuid [not null]
+  "name" text [not null]
+  "description" text
+  "base_product_version_id" uuid
+  "created_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."product_version_members" {
+  "product_version_id" uuid [not null]
+  "object_canonical_id" uuid [not null]
+  "object_version_id" uuid [not null]
+  "created_at" timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (product_version_id, object_canonical_id) [type: btree, name: "PK_b5b8707471c0c5c16f64f95f75c"]
+  }
+}
+
+Table "kb"."orgs" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "name" text [not null]
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."organization_memberships" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "organization_id" uuid [not null]
+  "user_id" uuid [not null]
+  "role" text [not null]
+  "created_at" timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (organization_id, user_id) [type: btree, name: "IDX_caa73db1b161fa6b3a042290fe"]
+    user_id [type: btree, name: "IDX_5352fc550034d507d6c76dd290"]
+    organization_id [type: btree, name: "IDX_86ae2efbb9ce84dd652e0c96a4"]
+  }
+}
+
+Table "kb"."object_type_schemas" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "organization_id" uuid
+  "project_id" uuid
+  "type" text [not null]
+  "version" int4 [not null, default: 1]
+  "supersedes_id" uuid
+  "canonical_id" uuid
+  "json_schema" jsonb [not null]
+  "created_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."object_extraction_logs" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "extraction_job_id" uuid [not null]
+  "started_at" timestamptz [not null, default: `now()`]
+  "completed_at" timestamptz
+  "step_index" int4 [not null]
+  "operation_type" text [not null]
+  "operation_name" text
+  "step" text [not null]
+  "status" text [not null]
+  "message" text
+  "input_data" jsonb
+  "output_data" jsonb
+  "error_message" text
+  "error_stack" text
+  "error_details" jsonb
+  "duration_ms" int4
+  "tokens_used" int4
+  "entity_count" int4
+  "relationship_count" int4
+}
+
+Table "kb"."chunks" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "document_id" uuid [not null]
+  "chunk_index" int4 [not null]
+  "text" text [not null]
+  "embedding" public.vector
+  "tsv" tsvector
+  "created_at" timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (document_id, chunk_index) [type: btree, name: "IDX_6f5a7e4467cdc44037f209122e"]
+    document_id [type: btree, name: "IDX_d841de45a719fe1f35213d7920"]
+  }
+}
+
+Table "kb"."documents" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "organization_id" uuid
+  "project_id" uuid
+  "source_url" text
+  "filename" text
+  "mime_type" text
+  "content" text
+  "content_hash" text
+  "integration_metadata" jsonb
+  "parent_document_id" uuid
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (project_id, content_hash) [type: btree, name: "IDX_3bbf4ea30357bf556110f034d4"]
+    organization_id [type: btree, name: "IDX_69427761f37533ae7767601a64"]
+    project_id [type: btree, name: "IDX_e156b298c20873e14c362e789b"]
+  }
+}
+
+Table "kb"."object_extraction_jobs" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "tenant_id" uuid [not null]
+  "project_id" uuid [not null]
+  "document_id" uuid
+  "chunk_id" uuid
+  "job_type" text [not null, default: 'full_extraction']
+  "status" text [not null, default: 'pending']
+  "enabled_types" "text[]" [not null, default: 'ARRAY[text[]']
+  "extraction_config" jsonb [not null, default: `{}`]
+  "objects_created" int4 [not null, default: 0]
+  "relationships_created" int4 [not null, default: 0]
+  "suggestions_created" int4 [not null, default: 0]
+  "started_at" timestamptz
+  "completed_at" timestamptz
+  "error_message" text
+  "retry_count" int4 [not null, default: 0]
+  "max_retries" int4 [not null, default: 3]
+  "created_by" uuid
+  "reprocessing_of" uuid
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+  "source_type" text
+  "source_id" text
+  "source_metadata" jsonb [not null, default: `{}`]
+  "debug_info" jsonb
+  "total_items" int4 [not null, default: 0]
+  "processed_items" int4 [not null, default: 0]
+  "successful_items" int4 [not null, default: 0]
+  "failed_items" int4 [not null, default: 0]
+  "logs" jsonb [not null, default: `[]`]
+
+  Indexes {
+    project_id [type: btree, name: "IDX_1c7f91f13d7e1a438519d37ec3"]
+    status [type: btree, name: "IDX_3844c9efd6d2e06105a117f90c"]
+  }
+}
+
+Table "kb"."notifications" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "project_id" uuid [not null]
+  "user_id" uuid [not null]
+  "title" text [not null]
+  "message" text [not null]
+  "type" text
+  "severity" text [not null, default: 'info']
+  "related_resource_type" text
+  "related_resource_id" uuid
+  "read" bool [not null, default: false]
+  "dismissed" bool [not null, default: false]
+  "dismissed_at" timestamptz
+  "actions" jsonb [not null, default: `[]`]
+  "expires_at" timestamptz
+  "read_at" timestamptz
+  "importance" text [not null, default: 'other']
+  "cleared_at" timestamptz
+  "snoozed_until" timestamptz
+  "category" text
+  "source_type" text
+  "source_id" text
+  "action_url" text
+  "action_label" text
+  "group_key" text
+  "details" jsonb
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+
+  Indexes {
+    project_id [type: btree, name: "IDX_95464140d7dc04d7efb0afd6be"]
+    user_id [type: btree, name: "IDX_9a8a82462cab47c73d25f49261"]
+    read [type: btree, name: "IDX_f8b7ed75170d2d7dca4477cc94"]
+  }
+}
+
+Table "kb"."merge_provenance" {
+  "child_version_id" uuid [not null]
+  "parent_version_id" uuid [not null]
+  "role" text [not null]
+  "created_at" timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (child_version_id, parent_version_id) [type: btree, name: "PK_c6759cdb97dce23f85bb11cb5c1"]
+  }
+}
+
+Table "kb"."llm_call_logs" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "process_id" text [not null]
+  "process_type" text [not null]
+  "model_name" text [not null]
+  "request_payload" jsonb
+  "response_payload" jsonb
+  "status" text [not null]
+  "error_message" text
+  "input_tokens" int4
+  "output_tokens" int4
+  "total_tokens" int4
+  "cost_usd" numeric(10,6)
+  "started_at" timestamptz [not null, default: `now()`]
+  "completed_at" timestamptz
+  "duration_ms" int4
+}
+
+Table "kb"."invites" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "organization_id" uuid [not null]
+  "project_id" uuid
+  "email" text [not null]
+  "role" text [not null]
+  "token" text [not null]
+  "status" text [not null, default: 'pending']
+  "expires_at" timestamptz
+  "accepted_at" timestamptz
+  "revoked_at" timestamptz
+  "created_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."integrations" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "name" varchar(100) [not null]
+  "display_name" varchar(255) [not null]
+  "description" text
+  "enabled" bool [not null, default: false]
+  "org_id" text [not null]
+  "project_id" uuid [not null]
+  "settings_encrypted" bytea
+  "logo_url" text
+  "webhook_secret" text
+  "created_by" text
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."graph_relationships" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "project_id" uuid [not null]
+  "type" text [not null]
+  "src_id" uuid [not null]
+  "dst_id" uuid [not null]
+  "properties" jsonb [not null, default: `{}`]
+  "weight" float4
+  "valid_from" timestamptz
+  "valid_to" timestamptz
+  "deleted_at" timestamptz
+  "change_summary" jsonb
+  "content_hash" bytea
+  "created_at" timestamptz [not null, default: `now()`]
+  "canonical_id" uuid [not null]
+  "supersedes_id" uuid
+  "version" int4 [not null, default: 1]
+  "branch_id" uuid
+
+  Indexes {
+    project_id [type: btree, name: "IDX_a0dadc1ffc4ee153226f786e99"]
+    src_id [type: btree, name: "IDX_a970f04cced6336cb2b1ad1f4e"]
+    type [type: btree, name: "IDX_f35de415032037ea629b1772e4"]
+    dst_id [type: btree, name: "IDX_f8d6b0b40d75cdabb27cf81084"]
+  }
+}
+
+Table "kb"."graph_objects" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "project_id" uuid [not null]
+  "type" text [not null]
+  "key" text [not null]
+  "status" text
+  "version" int4 [not null, default: 1]
+  "supersedes_id" uuid
+  "canonical_id" uuid [not null]
+  "properties" jsonb [not null, default: `{}`]
+  "labels" "text[]" [not null, default: 'ARRAY[text[]']
+  "deleted_at" timestamptz
+  "change_summary" jsonb
+  "content_hash" bytea
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+  "branch_id" uuid
+  "fts" tsvector
+  "embedding" bytea
+  "embedding_updated_at" timestamptz
+  "embedding_vec" public.vector
+  "extraction_job_id" uuid
+  "extraction_confidence" float4
+  "needs_review" bool [default: false]
+  "reviewed_by" uuid
+  "reviewed_at" timestamptz
+  "embedding_v1" public.vector
+
+  Indexes {
+    (project_id, type, key) [type: btree, name: "IDX_5cbe2822f76435535640d37da9"]
+    type [type: btree, name: "IDX_b8c7752534a444c2f16ebf3d91"]
+    canonical_id [type: btree, name: "IDX_c04db004625a1c8be8abb6c046"]
+  }
+}
+
+Table "kb"."graph_embedding_jobs" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "object_id" uuid [not null]
+  "status" text [not null]
+  "attempt_count" int4 [not null, default: 0]
+  "last_error" text
+  "priority" int4 [not null, default: 0]
+  "scheduled_at" timestamptz [not null, default: `now()`]
+  "started_at" timestamptz
+  "completed_at" timestamptz
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+
+  Indexes {
+    object_id [type: btree, name: "IDX_df895a2e1799c53ef660d0aae6"]
+    status [type: btree, name: "IDX_f0021c2230e47af51928f35975"]
+  }
+}
+
+Table "kb"."embedding_policies" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "project_id" uuid [not null]
+  "object_type" text [not null]
+  "enabled" bool [not null, default: true]
+  "max_property_size" int4
+  "required_labels" "text[]" [not null, default: 'ARRAY[text[]']
+  "excluded_labels" "text[]" [not null, default: 'ARRAY[text[]']
+  "relevant_paths" "text[]" [not null, default: 'ARRAY[text[]']
+  "excluded_statuses" "text[]" [not null, default: 'ARRAY[text[]']
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (project_id, object_type) [type: btree, name: "IDX_26573c7e713682c72216747770"]
+  }
+}
+
+Table "kb"."clickup_sync_state" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "integration_id" uuid [unique, not null]
+  "last_sync_at" timestamptz
+  "last_successful_sync_at" timestamptz
+  "sync_status" text
+  "last_error" text
+  "documents_imported" int4 [not null, default: 0]
+  "spaces_synced" jsonb
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."clickup_import_logs" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "integration_id" uuid [not null]
+  "import_session_id" text [not null]
+  "logged_at" timestamptz [not null, default: `now()`]
+  "step_index" int4 [not null]
+  "operation_type" text [not null]
+  "operation_name" text
+  "status" text [not null]
+  "input_data" jsonb
+  "output_data" jsonb
+  "error_message" text
+  "error_stack" text
+  "duration_ms" int4
+  "items_processed" int4
+  "metadata" jsonb
+  "created_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."chat_conversations" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "title" text [not null]
+  "owner_user_id" uuid
+  "is_private" bool [not null, default: true]
+  "organization_id" uuid
+  "project_id" uuid
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."chat_messages" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "conversation_id" uuid [not null]
+  "role" text [not null]
+  "content" text [not null]
+  "citations" jsonb
+  "created_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."branches" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "organization_id" uuid
+  "project_id" uuid
+  "name" text [not null]
+  "parent_branch_id" uuid
+  "created_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."branch_lineage" {
+  "branch_id" uuid [not null]
+  "ancestor_branch_id" uuid [not null]
+  "depth" int4 [not null]
+  "created_at" timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (branch_id, ancestor_branch_id) [type: btree, name: "PK_1f87552be159d70c1e49bc394d4"]
+  }
+}
+
+Table "kb"."auth_introspection_cache" {
+  "token_hash" varchar(128) [pk, not null]
+  "introspection_data" jsonb [not null]
+  "expires_at" timestamptz [not null]
+  "created_at" timestamptz [not null, default: `now()`]
+
+  Indexes {
+    expires_at [type: btree, name: "IDX_d05c07bafeabc0850f94db035b"]
+  }
+}
+
+Table "kb"."audit_log" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "timestamp" timestamptz [not null, default: `now()`]
+  "event_type" text [not null]
+  "outcome" text [not null]
+  "user_id" uuid
+  "user_email" text
+  "resource_type" text
+  "resource_id" text
+  "action" text [not null]
+  "endpoint" text [not null]
+  "http_method" text [not null]
+  "status_code" int4
+  "error_code" text
+  "error_message" text
+  "ip_address" text
+  "user_agent" text
+  "request_id" text
+  "details" jsonb
+}
+
+Table "kb"."graph_template_packs" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "name" text [not null]
+  "version" text [not null]
+  "description" text
+  "author" text
+  "license" text
+  "repository_url" text
+  "documentation_url" text
+  "source" text [default: 'manual']
+  "discovery_job_id" uuid
+  "pending_review" bool [not null, default: false]
+  "object_type_schemas" jsonb [not null]
+  "relationship_type_schemas" jsonb [not null, default: `{}`]
+  "ui_configs" jsonb [not null, default: `{}`]
+  "extraction_prompts" jsonb [not null, default: `{}`]
+  "sql_views" jsonb [not null, default: `[]`]
+  "signature" text
+  "checksum" text
+  "published_at" timestamptz [not null, default: `now()`]
+  "deprecated_at" timestamptz
+  "superseded_by" text
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+}
+
+Table "kb"."project_template_packs" {
+  "id" uuid [pk, not null, default: `uuid_generate_v4()`]
+  "project_id" uuid [not null]
+  "template_pack_id" uuid [not null]
+  "installed_at" timestamptz [not null, default: `now()`]
+  "installed_by" uuid
+  "active" bool [not null, default: true]
+  "customizations" jsonb [not null, default: `{}`]
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+}
+
+Table "typeorm_migrations" {
+  "id" int4 [pk, not null, increment]
+  "timestamp" int8 [not null]
+  "name" varchar [not null]
+}
+
+Ref "FK_2e88b95787b903d46ab3cc3eb91":"core"."user_profiles"."id" < "core"."user_emails"."user_id" [delete: cascade]
+
+Ref "FK_6dab82d7024195ac691c50f6942":"kb"."projects"."id" < "kb"."branches"."project_id" [delete: cascade]
+
+Ref "FK_14ad2d35eccbe22a4bc61a9a065":"core"."user_profiles"."id" < "kb"."chat_conversations"."owner_user_id" [delete: set null]
+
+Ref "FK_e49dcd93d3f2653f21dff81e180":"kb"."projects"."id" < "kb"."chat_conversations"."project_id" [delete: set null]
+
+Ref "FK_3d623662d4ee1219b23cf61e649":"kb"."chat_conversations"."id" < "kb"."chat_messages"."conversation_id" [delete: cascade]
+
+Ref "FK_d841de45a719fe1f35213d79207":"kb"."documents"."id" < "kb"."chunks"."document_id" [delete: cascade]
+
+Ref "FK_e156b298c20873e14c362e789bf":"kb"."projects"."id" < "kb"."documents"."project_id" [delete: cascade]
+
+Ref "FK_057b973371cc00d7df2e95a6d57":"kb"."projects"."id" < "kb"."embedding_policies"."project_id" [delete: cascade]
+
+Ref "FK_ff6be6062964f2462ee8e8b2ac1":"kb"."projects"."id" < "kb"."graph_objects"."project_id" [delete: cascade]
+
+Ref "FK_a0dadc1ffc4ee153226f786e99a":"kb"."projects"."id" < "kb"."graph_relationships"."project_id" [delete: cascade]
+
+Ref "FK_12243f40cd3f2b20dd3009cca71":"kb"."projects"."id" < "kb"."integrations"."project_id" [delete: cascade]
+
+Ref "FK_9a75a544ecb579c8203efab71d9":"kb"."projects"."id" < "kb"."invites"."project_id" [delete: cascade]
+
+Ref "FK_95464140d7dc04d7efb0afd6be0":"kb"."projects"."id" < "kb"."notifications"."project_id" [delete: cascade]
+
+Ref "FK_9a8a82462cab47c73d25f49261f":"core"."user_profiles"."id" < "kb"."notifications"."user_id" [delete: cascade]
+
+Ref "FK_1c7f91f13d7e1a438519d37ec3b":"kb"."projects"."id" < "kb"."object_extraction_jobs"."project_id" [delete: cascade]
+
+Ref "FK_543b356bd6204a84bc8c038d309":"kb"."documents"."id" < "kb"."object_extraction_jobs"."document_id"
+
+Ref "FK_f9b1a295fa838a7b20d80f084bb":"kb"."projects"."id" < "kb"."object_type_schemas"."project_id" [delete: cascade]
+
+Ref "FK_5352fc550034d507d6c76dd2901":"core"."user_profiles"."id" < "kb"."organization_memberships"."user_id" [delete: cascade]
+
+Ref "FK_86ae2efbb9ce84dd652e0c96a49":"kb"."orgs"."id" < "kb"."organization_memberships"."organization_id" [delete: cascade]
+
+Ref "FK_befe8619b468202250e33d16bd0":"kb"."projects"."id" < "kb"."product_versions"."project_id" [delete: cascade]
+
+Ref "FK_38a73cbcc58fbed8e62a66d79b8":"kb"."projects"."id" < "kb"."project_memberships"."project_id" [delete: cascade]
+
+Ref "FK_7cb6c36ad5bf1bd4a413823acec":"core"."user_profiles"."id" < "kb"."project_memberships"."user_id" [delete: cascade]
+
+Ref "FK_b8a4633d03d7ce7bc67701f8efb":"kb"."projects"."id" < "kb"."project_object_type_registry"."project_id" [delete: cascade]
+
+Ref "FK_359c704937c9f1857fd80898ef2":"kb"."projects"."id" < "kb"."project_template_packs"."project_id" [delete: cascade]
+
+Ref "FK_440cc8aae6f630830193b703f54":"kb"."graph_template_packs"."id" < "kb"."project_template_packs"."template_pack_id"
+
+Ref "FK_7ab852bb0ada09a0fc3adb7e5de":"kb"."projects"."id" < "kb"."tags"."project_id" [delete: cascade]
+

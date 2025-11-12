@@ -10,13 +10,18 @@ import { ProjectMembership } from '../../entities/project-membership.entity';
 import { OrganizationMembership } from '../../entities/organization-membership.entity';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Invite, UserProfile, ProjectMembership, OrganizationMembership]),
-        AuthModule, 
-        DatabaseModule
-    ],
-    providers: [InvitesService],
-    controllers: [InvitesController],
-    exports: [InvitesService],
+  imports: [
+    TypeOrmModule.forFeature([
+      Invite,
+      UserProfile,
+      ProjectMembership,
+      OrganizationMembership,
+    ]),
+    AuthModule,
+    DatabaseModule,
+  ],
+  providers: [InvitesService],
+  controllers: [InvitesController],
+  exports: [InvitesService],
 })
-export class InvitesModule { }
+export class InvitesModule {}
