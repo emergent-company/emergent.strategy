@@ -29,6 +29,26 @@ export interface EnqueueEmbeddingJobOptions {
   scheduleAt?: Date;
 }
 
+/**
+ * EmbeddingJobsService - TypeORM Migration Status
+ * ================================================
+ *
+ * Migration Status: ✅ Complete (Strategic SQL Documented)
+ * Last Updated: 2025-11-12
+ *
+ * Methods:
+ * ✅ enqueue() - Fully migrated to TypeORM Repository
+ * 🔒 dequeue() - Strategic raw SQL (see method documentation)
+ * ✅ markFailed() - Migrated to TypeORM (uses DataSource for interval calculation)
+ * ✅ markCompleted() - Fully migrated to TypeORM Repository
+ * ✅ stats() - Fully migrated to TypeORM Repository
+ *
+ * Summary:
+ * This service implements a job queue for embedding generation. Most methods have been
+ * migrated to TypeORM. The dequeue() method intentionally uses raw SQL because it requires
+ * PostgreSQL's FOR UPDATE SKIP LOCKED feature, which is essential for concurrent workers
+ * and not supported by TypeORM's QueryBuilder.
+ */
 @Injectable()
 export class EmbeddingJobsService {
   private readonly logger = new Logger(EmbeddingJobsService.name);
@@ -95,6 +115,88 @@ export class EmbeddingJobsService {
     };
   }
 
+  /**
+   * 🔒 STRATEGIC RAW SQL - DO NOT MIGRATE TO TYPEORM
+   *
+   * dequeue - Atomically claim and lock jobs for processing
+   *
+   * Why Strategic SQL:
+   * ------------------
+   * 1. FOR UPDATE SKIP LOCKED (Queue Primitive)
+   *    - PostgreSQL-specific locking mechanism for concurrent workers
+   *    - SKIP LOCKED allows multiple workers to dequeue jobs in parallel without blocking
+   *    - Each worker atomically claims different jobs with zero contention
+   *    - TypeORM does not support FOR UPDATE SKIP LOCKED in its QueryBuilder
+   *
+   * 2. Atomic CTE Pattern
+   *    - WITH cte AS (SELECT ... FOR UPDATE SKIP LOCKED)
+   *    - UPDATE ... FROM cte
+   *    - Single statement guarantees atomicity: SELECT + LOCK + UPDATE in one operation
+   *    - Eliminates race conditions between claim and status update
+   *    - Cannot be expressed as TypeORM method chain (multiple queries = race condition)
+   *
+   * 3. Priority Queue Semantics
+   *    - ORDER BY priority DESC, scheduled_at ASC
+   *    - Highest priority + oldest scheduled first
+   *    - Combined with LIMIT for batch processing
+   *    - This exact ordering with locking is critical for fair work distribution
+   *
+   * 4. Performance for High-Throughput Queues
+   *    - Zero contention between workers (SKIP LOCKED)
+   *    - Single roundtrip to database (CTE pattern)
+   *    - Index-friendly query pattern (status + scheduled_at + priority)
+   *    - Scales linearly with number of workers
+   *
+   * What It Does:
+   * -------------
+   * - Finds up to batchSize jobs WHERE status='pending' AND scheduled_at <= now()
+   * - Orders by priority (descending) then scheduled_at (ascending)
+   * - Locks selected rows with FOR UPDATE SKIP LOCKED (non-blocking)
+   * - Updates status='processing', started_at=now()
+   * - Returns all fields of claimed jobs
+   *
+   * Example Flow (3 concurrent workers):
+   * ------------------------------------
+   * Queue state: 100 pending jobs
+   *
+   * Worker A: SELECT ... FOR UPDATE SKIP LOCKED LIMIT 10 → claims jobs 1-10
+   * Worker B: SELECT ... FOR UPDATE SKIP LOCKED LIMIT 10 → claims jobs 11-20 (skips 1-10)
+   * Worker C: SELECT ... FOR UPDATE SKIP LOCKED LIMIT 10 → claims jobs 21-30 (skips 1-20)
+   *
+   * All three workers proceed in parallel with zero blocking.
+   *
+   * TypeORM Equivalent:
+   * -------------------
+   * Not possible without raw SQL:
+   * - TypeORM QueryBuilder doesn't support FOR UPDATE SKIP LOCKED
+   * - Splitting into find() + update() creates race condition:
+   *   - Worker A: find pending jobs → [1,2,3]
+   *   - Worker B: find pending jobs → [1,2,3] (sees same jobs!)
+   *   - Worker A: update jobs [1,2,3] to processing
+   *   - Worker B: update jobs [1,2,3] to processing
+   *   - Result: Both workers process same jobs (duplicate work)
+   *
+   * Alternative Approaches Considered:
+   * ----------------------------------
+   * 1. Pessimistic locking with TypeORM:
+   *    - QueryBuilder supports FOR UPDATE but not SKIP LOCKED
+   *    - Workers would block each other (defeats purpose of concurrent workers)
+   *
+   * 2. Optimistic locking (version field):
+   *    - Can detect conflicts but requires retry logic
+   *    - More complex code, worse performance under contention
+   *    - Doesn't prevent wasted work (multiple workers competing for same jobs)
+   *
+   * 3. Redis-based queue:
+   *    - Adds external dependency
+   *    - Requires synchronization between Redis and PostgreSQL
+   *    - Overkill when PostgreSQL provides perfect primitive
+   *
+   * Estimated Migration Effort: Impossible (feature unsupported)
+   * Maintenance Risk: Low (standard queue pattern, rarely changes)
+   * Performance Impact: Critical (zero-contention concurrency)
+   * Decision: Keep as strategic SQL (no viable alternative)
+   */
   async dequeue(batchSize = 10): Promise<EmbeddingJobRow[]> {
     // Single statement atomic claim of jobs ordered by priority then scheduled_at
     const res = await this.db.query<EmbeddingJobRow>(

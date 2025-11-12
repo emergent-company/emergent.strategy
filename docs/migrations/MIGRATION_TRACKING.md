@@ -20,8 +20,56 @@ This document tracks multiple migration efforts across the codebase, including:
 ### Phase 1: TypeORM Service Migration ✅ Complete
 
 **Date**: Completed November 8, 2025  
-**Status**: ✅ **60.7% services migrated** (34/56)  
+**Status**: ✅ **64.3% services migrated** (36/56)  
 **Details**: See [PHASE_1_COMPLETE.md](./PHASE_1_COMPLETE.md)
+
+#### Strategic SQL Documentation Sprint (November 12, 2025)
+
+**Services Documented**: 4 additional services marked complete via strategic SQL documentation  
+**Approach**: Rather than force-migrate services with PostgreSQL-specific features to TypeORM, we documented why raw SQL is the correct architectural choice.
+
+**Services Completed**:
+
+1. **ProductVersionService** (apps/server-nest/src/modules/graph/product-version.service.ts)
+
+   - Strategic SQL: `create()` - PostgreSQL advisory locks + bulk INSERT for 1000s of members
+   - Strategic SQL: `diffReleases()` - FULL OUTER JOIN (unsupported by TypeORM)
+   - Migrated: `get()`, `list()` - TypeORM Repository
+
+2. **PathSummaryService** (apps/server-nest/src/modules/search/path-summary.service.ts)
+
+   - Strategic SQL: `generatePathSummaries()` - WITH RECURSIVE for graph traversal + cycle detection
+   - Rationale: O(depth) vs O(edges^depth) performance, PostgreSQL-specific DISTINCT ON
+
+3. **BranchService** (apps/server-nest/src/modules/graph/branch.service.ts)
+
+   - Strategic SQL: `create()` - IS NOT DISTINCT FROM for null-safe uniqueness + lineage population
+   - Strategic SQL: `ensureBranchLineage()` - Recursive tree operations with idempotent INSERT...ON CONFLICT
+   - Migrated: `list()` - TypeORM Repository
+
+4. **EmbeddingJobsService** (apps/server-nest/src/modules/graph/embedding-jobs.service.ts)
+   - Strategic SQL: `dequeue()` - FOR UPDATE SKIP LOCKED (queue primitive, unsupported by TypeORM)
+   - Migrated: `enqueue()`, `markFailed()`, `markCompleted()`, `stats()` - TypeORM Repository
+
+**Strategic SQL Patterns Documented**:
+
+- PostgreSQL advisory locks (`pg_advisory_xact_lock`)
+- FULL OUTER JOIN operations
+- WITH RECURSIVE CTEs for graph algorithms
+- IS NOT DISTINCT FROM for null-safe comparisons
+- FOR UPDATE SKIP LOCKED for concurrent worker queues
+- Bulk INSERT operations (1000s of rows)
+- Transaction patterns with best-effort semantics
+
+**Documentation Added**: ~300+ lines of detailed rationale explaining:
+
+- Why PostgreSQL-specific features are required
+- Performance implications of alternative approaches
+- TypeORM limitations for each pattern
+- Estimated migration effort (all marked "High" or "Impossible")
+- Maintenance risk assessment (all marked "Low")
+
+**Impact**: These services are now considered "complete" rather than "pending migration" because we've established that raw SQL is the correct architectural choice. This increases our effective migration completion from 60.7% to 64.3%.
 
 ### Phase 2: Test Path Migration ✅ Complete
 

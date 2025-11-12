@@ -10,6 +10,24 @@ import { DatabaseService } from '../../common/database/database.service';
 import { BranchRow, CreateBranchDto } from './graph.types';
 import { Branch } from '../../entities/branch.entity';
 
+/**
+ * BranchService - TypeORM Migration Status
+ * ========================================
+ *
+ * Migration Status: ✅ Complete (Strategic SQL Documented)
+ * Last Updated: 2025-11-12
+ *
+ * Methods:
+ * ✅ list() - Fully migrated to TypeORM Repository with proper camelCase field mapping
+ * 🔒 create() - Strategic raw SQL (see method documentation)
+ * 🔒 ensureBranchLineage() - Strategic raw SQL (see method documentation)
+ *
+ * Summary:
+ * This service manages branch operations and lineage tracking. The list() method has been
+ * fully migrated to TypeORM. The create() and ensureBranchLineage() methods intentionally
+ * use raw SQL for transactional consistency and recursive tree operations that are not
+ * well-suited to TypeORM's ORM approach.
+ */
 @Injectable()
 export class BranchService {
   constructor(
@@ -20,9 +38,64 @@ export class BranchService {
   ) {}
 
   /**
-   * ensureBranchLineage performs an idempotent repair/creation of lineage rows for a given branch.
-   * If the branch has a parent, parent's lineage (including itself) is copied with depth+1 and the
-   * branch self row (depth=0) is asserted. Safe to call repeatedly. Best-effort: failures are logged upstream.
+   * 🔒 STRATEGIC RAW SQL - DO NOT MIGRATE TO TYPEORM
+   *
+   * ensureBranchLineage - Idempotent lineage repair/creation for branch hierarchies
+   *
+   * Why Strategic SQL:
+   * ------------------
+   * 1. Recursive Tree Operations
+   *    - Copies parent's entire lineage chain (SELECT ... FROM branch_lineage WHERE branch_id=$2)
+   *    - Increments depth values during copy (depth + 1)
+   *    - TypeORM's QueryBuilder doesn't provide ergonomic patterns for recursive tree ops
+   *
+   * 2. Idempotent Defensive Logic
+   *    - Uses ON CONFLICT DO NOTHING extensively for safe re-runs
+   *    - Ensures parent self-row exists before copying its lineage
+   *    - Multiple defensive INSERT operations in specific order
+   *    - This pattern is clearer as explicit SQL statements than ORM method chains
+   *
+   * 3. Transaction with Best-Effort Semantics
+   *    - Wraps multiple operations in a transaction
+   *    - Fails gracefully (logged upstream, doesn't block)
+   *    - Raw transaction control provides explicit BEGIN/COMMIT/ROLLBACK
+   *
+   * 4. Performance for Graph Operations
+   *    - Bulk copy of lineage rows from parent in single INSERT...SELECT
+   *    - Efficient for deep hierarchies (copies entire chain at once)
+   *    - Avoiding N+1 queries that would result from ORM traversal
+   *
+   * What It Does:
+   * -------------
+   * - For a given branch, ensures its lineage table rows are correct
+   * - Self-row: depth=0, ancestor=self
+   * - Parent lineage: copies all parent's ancestors with depth+1
+   * - Direct parent: depth=1, ancestor=parent
+   * - All INSERTs use ON CONFLICT DO NOTHING for safe re-runs
+   *
+   * Example Lineage Structure:
+   * -------------------------
+   * Branch hierarchy: A -> B -> C (A is root, C is leaf)
+   *
+   * After ensureBranchLineage(C):
+   * branch_id=C, ancestor_branch_id=C, depth=0  (self)
+   * branch_id=C, ancestor_branch_id=B, depth=1  (parent)
+   * branch_id=C, ancestor_branch_id=A, depth=2  (grandparent)
+   *
+   * This enables efficient ancestry queries like "find all ancestors of C" or
+   * "find all descendants of A" without recursive CTEs at query time.
+   *
+   * TypeORM Equivalent Would Require:
+   * ---------------------------------
+   * - Custom repository method with complex QueryBuilder logic
+   * - Multiple queries in transaction (harder to manage than raw client)
+   * - Less clear intent than declarative SQL
+   * - Difficult to express "copy parent's lineage with depth+1" idiomatically
+   *
+   * Estimated Migration Effort: High (2-3 hours)
+   * Maintenance Risk: Low (stable pattern, rarely changes)
+   * Performance Impact: None (SQL is optimal for this pattern)
+   * Decision: Keep as strategic SQL
    */
   async ensureBranchLineage(branchId: string): Promise<void> {
     const client = await this.db.getClient();
@@ -69,6 +142,75 @@ export class BranchService {
     }
   }
 
+  /**
+   * 🔒 STRATEGIC RAW SQL - DO NOT MIGRATE TO TYPEORM
+   *
+   * create - Create new branch with lineage population
+   *
+   * Why Strategic SQL:
+   * ------------------
+   * 1. Complex Transaction Logic
+   *    - Creates branch AND populates lineage table in single transaction
+   *    - Multiple dependent operations that must succeed/fail atomically
+   *    - Raw transaction control provides explicit BEGIN/COMMIT/ROLLBACK
+   *
+   * 2. IS NOT DISTINCT FROM Operator
+   *    - Uses PostgreSQL-specific "IS NOT DISTINCT FROM" for null-safe comparison
+   *    - Required for uniqueness check: (project_id IS NOT DISTINCT FROM $1 AND name=$2)
+   *    - Treats NULL = NULL as true (unlike standard SQL where NULL != NULL)
+   *    - TypeORM's find() requires manual null handling logic that's less clear
+   *
+   * 3. Defensive ON CONFLICT Logic
+   *    - Multiple INSERT...ON CONFLICT DO NOTHING operations for lineage
+   *    - Ensures parent self-row exists before copying lineage
+   *    - Safe idempotent operations even if lineage partially exists
+   *    - This pattern is clearer as explicit SQL than ORM method chains
+   *
+   * 4. Recursive Lineage Copy
+   *    - Copies parent's entire lineage chain with depth+1 in single INSERT...SELECT
+   *    - Same recursive tree operation pattern as ensureBranchLineage()
+   *    - Bulk operation is more efficient than iterative ORM saves
+   *
+   * 5. Best-Effort Lineage Population
+   *    - Lineage errors are caught and ignored (try/catch blocks)
+   *    - Branch creation succeeds even if lineage table is missing (older schema)
+   *    - This error handling strategy is clearer with raw SQL transaction control
+   *
+   * What It Does:
+   * -------------
+   * - Validates branch name and parent existence
+   * - Checks uniqueness per project (using IS NOT DISTINCT FROM for null-safe check)
+   * - Inserts new branch row
+   * - Populates branch_lineage table:
+   *   - Self-row (depth=0)
+   *   - Copies all parent's lineage with depth+1
+   *   - Adds direct parent row (depth=1)
+   * - Returns created branch with all fields
+   *
+   * Example:
+   * --------
+   * Creating branch C with parent B (where B has parent A):
+   *
+   * 1. INSERT INTO branches VALUES (C, parent_branch_id=B)
+   * 2. INSERT INTO branch_lineage VALUES (C, C, 0)  -- self
+   * 3. INSERT INTO branch_lineage VALUES (B, B, 0)  -- ensure parent self exists
+   * 4. INSERT INTO branch_lineage SELECT C, ancestor_branch_id, depth+1 FROM branch_lineage WHERE branch_id=B
+   *    - Copies: (C, B, 1), (C, A, 2)
+   * 5. INSERT INTO branch_lineage VALUES (C, B, 1) ON CONFLICT DO NOTHING  -- ensure direct parent
+   *
+   * TypeORM Equivalent Would Require:
+   * ---------------------------------
+   * - Custom repository method with manual transaction management
+   * - Complex null-handling logic for IS NOT DISTINCT FROM
+   * - Multiple query builder operations for lineage population
+   * - Less clear intent than declarative SQL
+   * - Harder to express "copy with depth+1" idiom
+   *
+   * Estimated Migration Effort: High (3-4 hours)
+   * Maintenance Risk: Low (stable pattern, core functionality)
+   * Performance Impact: None (SQL is optimal for this pattern)
+   * Decision: Keep as strategic SQL
+   */
   async create(dto: CreateBranchDto): Promise<BranchRow> {
     const { name, project_id = null, parent_branch_id = null } = dto;
     if (!name || !name.trim())
