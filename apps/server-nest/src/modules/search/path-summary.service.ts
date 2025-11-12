@@ -5,6 +5,25 @@
  * in the knowledge graph via relationships.
  *
  * Phase 3 Priority #4b: Path Summaries in Hybrid Search
+ *
+ * ═══════════════════════════════════════════════════════════════
+ * PathSummaryService - TypeORM Migration Status
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * STATUS: ✅ COMPLETE (100%)
+ *
+ * STRATEGIC SQL PRESERVED (1 method):
+ * - generatePathSummaries() - Recursive CTE for graph traversal
+ *
+ * RATIONALE FOR STRATEGIC SQL:
+ * - Recursive CTEs (WITH RECURSIVE) not supported by TypeORM
+ * - Graph traversal algorithm with cycle detection
+ * - Performance-critical path enumeration
+ * - PostgreSQL-specific features (ARRAY operations, DISTINCT ON)
+ *
+ * COMPLETED: November 12, 2025
+ *
+ * ═══════════════════════════════════════════════════════════════
  */
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -38,9 +57,52 @@ export class PathSummaryService {
   /**
    * Generate path summaries for a set of document IDs
    *
+   * ═══════════════════════════════════════════════════════════════
+   * STRATEGIC SQL PRESERVED
+   * ═══════════════════════════════════════════════════════════════
+   *
+   * WHY THIS CANNOT BE MIGRATED TO TYPEORM:
+   *
+   * 1. **Recursive CTE (WITH RECURSIVE)**
+   *    - Uses WITH RECURSIVE for graph traversal
+   *    - Base case: Start from input documents
+   *    - Recursive case: Follow relationships up to maxDepth
+   *    - TypeORM has no support for recursive CTEs
+   *    - This is a fundamental PostgreSQL feature
+   *
+   * 2. **Cycle Detection with Array Operations**
+   *    - Tracks visited nodes: path_ids || ps.target_id
+   *    - Prevents cycles: NOT (target_id = ANY(ps.path_ids))
+   *    - PostgreSQL array operations (||, ANY)
+   *    - TypeORM has no equivalent pattern
+   *
+   * 3. **Complex Path Accumulation**
+   *    - Accumulates path_ids: ARRAY[o.id] → path_ids || ps.target_id
+   *    - Accumulates path_rels: ARRAY[r.type] → path_rels || r.type
+   *    - Builds complete path history during traversal
+   *    - TypeORM would require N separate queries + manual path building
+   *
+   * 4. **DISTINCT ON with Complex Ordering**
+   *    - DISTINCT ON (ps.doc_id, ps.target_id)
+   *    - ORDER BY ps.doc_id, ps.target_id, ps.depth ASC
+   *    - Keeps shortest path to each target
+   *    - TypeORM QueryBuilder has limited DISTINCT ON support
+   *
+   * 5. **Performance-Critical Graph Algorithm**
+   *    - Single query for multi-hop graph traversal
+   *    - Database handles path enumeration (optimal)
+   *    - Alternative: N queries per depth level (exponentially slower)
+   *    - Current approach: O(depth), TypeORM: O(edges^depth)
+   *
+   * QUERY PATTERN: Recursive CTE + Cycle Detection + Path Accumulation
+   * COMPLEXITY: Very High (advanced PostgreSQL features)
+   * MAINTENANCE: Change only if path traversal algorithm changes
+   *
    * @param documentIds - Document IDs from search results
    * @param options - Path generation options
    * @returns Map of document_id to PathSummary
+   *
+   * ═══════════════════════════════════════════════════════════════
    */
   async generatePathSummaries(
     documentIds: string[],
