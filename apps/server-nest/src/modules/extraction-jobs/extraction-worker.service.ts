@@ -48,6 +48,7 @@ interface BuildDebugInfoArgs {
   rejectedCount?: number;
   reviewRequiredCount?: number;
   errorMessage?: string;
+  organizationId?: string | null;
 }
 
 const toErrorMessage = (error: unknown): string =>
@@ -99,8 +100,32 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
    */
   private stepCounter = 0;
 
-  private getOrganizationId(job: ExtractionJobDto): string | null {
-    return job.organization_id ?? job.organization_id ?? null;
+  /**
+   * Get organization ID from the job's project
+   * Since organization_id has been removed from extraction jobs,
+   * we derive it from the project relationship
+   */
+  private async getOrganizationId(
+    job: ExtractionJobDto
+  ): Promise<string | null> {
+    if (!job.project_id) {
+      return null;
+    }
+
+    try {
+      const result = await this.db.query<{ organization_id: string }>(
+        'SELECT organization_id FROM kb.projects WHERE id = $1',
+        [job.project_id]
+      );
+      return result.rows[0]?.organization_id ?? null;
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch organization ID for project ${
+          job.project_id
+        }: ${toErrorMessage(error)}`
+      );
+      return null;
+    }
   }
 
   async onModuleInit() {
@@ -149,17 +174,17 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     try {
       const orphanThresholdMinutes = 5;
 
+      // Phase 6: organization_id removed from object_extraction_jobs table
+      // We now derive organization_id from project_id via projects table join
       const result = await this.db.query<{
         id: string;
         source_type: string;
         started_at: string | null;
-        organization_id: string | null;
         project_id: string | null;
       }>(
         `SELECT id,
                         source_type,
                         started_at,
-                        organization_id,
                         project_id
                  FROM kb.object_extraction_jobs
                  WHERE status = 'running'
@@ -174,8 +199,17 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       const recovered: string[] = [];
 
       for (const row of result.rows) {
-        const orgId = row.organization_id ?? null;
         const projectId = row.project_id ?? null;
+
+        // Derive organization_id from project for tenant context
+        let orgId: string | null = null;
+        if (projectId) {
+          const orgResult = await this.db.query<{ organization_id: string }>(
+            'SELECT organization_id FROM kb.projects WHERE id = $1',
+            [projectId]
+          );
+          orgId = orgResult.rows[0]?.organization_id ?? null;
+        }
 
         if (!orgId || !projectId) {
           this.logger.warn(
@@ -331,6 +365,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       `Processing extraction job ${job.id} (source: ${job.source_type})`
     );
 
+    // Fetch organization_id once for reuse throughout the method
+    const organizationId = await this.getOrganizationId(job);
+
     // Log to monitoring system
     await this.monitoringLogger.logProcessEvent({
       processId: job.id,
@@ -341,7 +378,6 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       metadata: {
         source_type: job.source_type,
         source_id: job.source_id,
-        organization_id: job.organization_id ?? job.organization_id,
       },
     });
 
@@ -359,7 +395,6 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         source_type: job.source_type,
         source_id: job.source_id,
         project_id: job.project_id,
-        organization_id: job.organization_id ?? job.organization_id,
       },
     });
 
@@ -435,7 +470,6 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       metadata: {
         source_type: job.source_type,
         project_id: job.project_id,
-        organization_id: job.organization_id ?? job.organization_id ?? null,
       },
     });
 
@@ -546,7 +580,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       let availableTags: string[] = [];
       try {
         const ctx = {
-          orgId: job.organization_id ?? job.organization_id,
+          orgId: organizationId,
           projectId: job.project_id,
         };
         availableTags = await this.graphService.getAllTags(ctx);
@@ -921,7 +955,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
             try {
               const graphObject = await this.graphService.createObject({
-                org_id: job.organization_id,
+                org_id: organizationId ?? undefined,
                 project_id: job.project_id,
                 type: entity.type_name,
                 key: objectKey,
@@ -970,7 +1004,6 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 },
                 durationMs: Date.now() - objectCreationStartTime,
                 metadata: {
-                  org_id: job.organization_id,
                   project_id: job.project_id,
                   confidence: finalConfidence,
                 },
@@ -1030,7 +1063,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                   try {
                     // Find the existing object by key
                     const existingResult = await this.db.runWithTenantContext(
-                      job.organization_id,
+                      organizationId,
                       job.project_id,
                       async () => {
                         return this.db.query<{
@@ -1144,7 +1177,6 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                       },
                       durationMs: Date.now() - objectCreationStartTime,
                       metadata: {
-                        org_id: job.organization_id,
                         project_id: job.project_id,
                         confidence_before: existingProps._extraction_confidence,
                         confidence_after:
@@ -1235,6 +1267,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         createdObjectIds,
         rejectedCount,
         reviewRequiredCount: reviewRequiredObjectIds.length,
+        organizationId,
       });
 
       if (requiresReview) {
@@ -1373,6 +1406,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         providerName,
         extractionResult,
         errorMessage,
+        organizationId,
       });
 
       await this.jobService.markFailed(
@@ -1409,6 +1443,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       rejectedCount,
       reviewRequiredCount,
       errorMessage,
+      organizationId,
     } = args;
 
     const debugInfo: Record<string, any> =
@@ -1428,8 +1463,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     debugInfo.provider = providerName;
     debugInfo.job_id = job.id;
     debugInfo.project_id = job.project_id;
-    debugInfo.organization_id =
-      job.organization_id ?? job.organization_id ?? null;
+    debugInfo.organization_id = organizationId;
     debugInfo.job_started_at = new Date(startTime).toISOString();
     debugInfo.job_completed_at = new Date(startTime + durationMs).toISOString();
     debugInfo.job_duration_ms = durationMs;
@@ -1525,7 +1559,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     prompt: string | null;
     objectSchemas: Record<string, any>;
   }> {
-    const organizationId = this.getOrganizationId(job);
+    const organizationId = await this.getOrganizationId(job);
     if (!organizationId) {
       this.logger.warn(`Missing organization ID for job ${job.id}`);
       return { prompt: null, objectSchemas: {} };
@@ -1536,6 +1570,10 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     try {
       this.logger.debug(
         `[loadExtractionConfig] Fetching template packs for project: ${job.project_id}`
+      );
+      templatePacks = await this.templatePacks.getProjectTemplatePacks(
+        job.project_id,
+        organizationId
       );
       templatePacks = await this.templatePacks.getProjectTemplatePacks(
         job.project_id,
@@ -1835,7 +1873,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      const organizationId = this.getOrganizationId(job);
+      const organizationId = await this.getOrganizationId(job);
       if (!organizationId) {
         this.logger.warn(
           `Skipping completion notification for job ${job.id} - missing organization context`
@@ -1851,7 +1889,6 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
       await this.notificationsService.notifyExtractionCompleted({
         userId: job.subject_id,
-        organizationId: organizationId ?? undefined,
         projectId: job.project_id,
         documentId: job.source_id || '',
         documentName,
@@ -1893,7 +1930,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      const organizationId = this.getOrganizationId(job);
+      const organizationId = await this.getOrganizationId(job);
       if (!organizationId) {
         this.logger.warn(
           `Skipping failure notification for job ${job.id} - missing organization context`
@@ -1911,7 +1948,6 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
       await this.notificationsService.notifyExtractionFailed({
         userId: job.subject_id,
-        organizationId: organizationId ?? undefined,
         projectId: job.project_id,
         documentId: job.source_id || '',
         documentName,

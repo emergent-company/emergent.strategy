@@ -1,12 +1,17 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { Project } from './project.entity';
 
 @Entity({ schema: 'kb', name: 'branches' })
 export class Branch {
   @PrimaryGeneratedColumn('uuid')
   id: string;
-
-  @Column({ name: 'organization_id', type: 'uuid', nullable: true })
-  organizationId: string | null;
 
   @Column({ name: 'project_id', type: 'uuid', nullable: true })
   projectId: string | null;
@@ -19,4 +24,9 @@ export class Branch {
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
+
+  // Relations
+  @ManyToOne(() => Project, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'project_id' })
+  project: Project | null;
 }

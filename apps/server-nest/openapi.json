@@ -10182,11 +10182,6 @@
       "CreateExtractionJobDto": {
         "type": "object",
         "properties": {
-          "organization_id": {
-            "type": "string",
-            "description": "Organization ID",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          },
           "project_id": {
             "type": "string",
             "description": "Project ID",
@@ -10235,7 +10230,6 @@
           }
         },
         "required": [
-          "organization_id",
           "project_id",
           "source_type",
           "extraction_config"
@@ -10247,10 +10241,6 @@
           "id": {
             "type": "string",
             "description": "Job ID"
-          },
-          "organization_id": {
-            "type": "string",
-            "description": "Organization ID"
           },
           "project_id": {
             "type": "string",
@@ -10365,15 +10355,10 @@
             "format": "date-time",
             "type": "string",
             "description": "Last update timestamp"
-          },
-          "org_id": {
-            "type": "string",
-            "description": "Legacy organization ID (deprecated)"
           }
         },
         "required": [
           "id",
-          "organization_id",
           "project_id",
           "source_type",
           "source_metadata",

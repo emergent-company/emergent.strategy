@@ -5,23 +5,22 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
   Index,
 } from 'typeorm';
 import { Chunk } from './chunk.entity';
+import { Project } from './project.entity';
 
 @Entity({ schema: 'kb', name: 'documents' })
 @Index(['projectId', 'contentHash'], {
   unique: true,
   where: 'content_hash IS NOT NULL',
 })
-@Index(['organizationId'])
 @Index(['projectId'])
 export class Document {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
-
-  @Column({ name: 'organization_id', type: 'uuid', nullable: true })
-  organizationId!: string | null;
 
   @Column({ name: 'project_id', type: 'uuid', nullable: true })
   projectId!: string | null;
@@ -54,6 +53,10 @@ export class Document {
   updatedAt!: Date;
 
   // Relations
+  @ManyToOne(() => Project, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'project_id' })
+  project!: Project | null;
+
   @OneToMany(() => Chunk, (chunk) => chunk.document, { cascade: true })
   chunks!: Chunk[];
 }

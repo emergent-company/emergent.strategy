@@ -9,18 +9,15 @@ import {
   Index,
 } from 'typeorm';
 import { UserProfile } from './user-profile.entity';
+import { Project } from './project.entity';
 
 @Entity({ schema: 'kb', name: 'notifications' })
 @Index(['userId'])
-@Index(['organizationId'])
 @Index(['projectId'])
 @Index(['read'])
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
   id: string;
-
-  @Column({ name: 'organization_id', type: 'uuid' })
-  organizationId: string;
 
   @Column({ name: 'project_id', type: 'uuid' })
   projectId: string;
@@ -103,4 +100,8 @@ export class Notification {
   @ManyToOne(() => UserProfile, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: UserProfile;
+
+  @ManyToOne(() => Project, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'project_id' })
+  project: Project;
 }

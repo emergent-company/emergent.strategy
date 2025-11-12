@@ -31,7 +31,6 @@ describe('ExtractionJobService', () => {
 
     const schemaRows = [
         { column_name: 'id', data_type: 'uuid' },
-        { column_name: 'organization_id', data_type: 'uuid' },
         { column_name: 'project_id', data_type: 'uuid' },
         { column_name: 'source_type', data_type: 'text' },
         { column_name: 'source_id', data_type: 'uuid' },
@@ -53,7 +52,6 @@ describe('ExtractionJobService', () => {
 
     const buildJobRow = (overrides: Partial<Record<string, any>> = {}) => ({
         id: mockJobId,
-        organization_id: mockOrganizationId,
         project_id: mockProjectId,
         source_type: ExtractionSourceType.DOCUMENT,
         source_id: 'doc-123',
@@ -141,7 +139,6 @@ describe('ExtractionJobService', () => {
     describe('createJob', () => {
         it('creates a new extraction job with pending status', async () => {
             const createDto: CreateExtractionJobDto = {
-                organization_id: mockOrganizationId,
                 project_id: mockProjectId,
                 source_type: ExtractionSourceType.DOCUMENT,
                 source_id: 'doc-123',
@@ -150,6 +147,9 @@ describe('ExtractionJobService', () => {
                 subject_id: mockUserId,
             };
 
+            // Mock the query to get organization_id from project
+            enqueueQueryResult({ rows: [{ organization_id: mockOrganizationId }], rowCount: 1 });
+            
             const jobRow = buildJobRow();
             enqueueQueryResult({ rowCount: 1, rows: [jobRow] });
 
@@ -161,7 +161,6 @@ describe('ExtractionJobService', () => {
             expect(insertCall).toBeTruthy();
             const [, params] = insertCall!;
             expect(params).toEqual([
-                mockOrganizationId,
                 mockProjectId,
                 ExtractionSourceType.DOCUMENT,
                 ExtractionJobStatus.PENDING,
@@ -171,13 +170,11 @@ describe('ExtractionJobService', () => {
                 mockUserId,
             ]);
             expect(result.id).toBe(mockJobId);
-            expect(result.organization_id).toBe(mockOrganizationId);
             expect(result.status).toBe(ExtractionJobStatus.PENDING);
         });
 
         it('throws when insert fails', async () => {
             const createDto = {
-                organization_id: mockOrganizationId,
                 project_id: mockProjectId,
                 source_type: ExtractionSourceType.DOCUMENT,
                 extraction_config: {},
@@ -188,15 +185,8 @@ describe('ExtractionJobService', () => {
             await expect(service.createJob(createDto)).rejects.toThrow(BadRequestException);
         });
 
-        it('requires organization_id and project_id', async () => {
+        it('requires project_id', async () => {
             await expect(service.createJob({
-                project_id: mockProjectId,
-                source_type: ExtractionSourceType.DOCUMENT,
-                extraction_config: {},
-            } as CreateExtractionJobDto)).rejects.toThrow('organization_id is required to create an extraction job');
-
-            await expect(service.createJob({
-                organization_id: mockOrganizationId,
                 source_type: ExtractionSourceType.DOCUMENT,
                 extraction_config: {},
             } as CreateExtractionJobDto)).rejects.toThrow('project_id is required to create an extraction job');
@@ -211,7 +201,6 @@ describe('ExtractionJobService', () => {
 
             expect(mockDb.setTenantContext).toHaveBeenCalledWith(mockOrganizationId, mockProjectId);
             expect(result.id).toBe(mockJobId);
-            expect(result.organization_id).toBe(mockOrganizationId);
         });
 
         it('throws NotFoundException for missing job', async () => {
@@ -240,7 +229,7 @@ describe('ExtractionJobService', () => {
             await service.listJobs(mockProjectId, mockOrganizationId, { status: ExtractionJobStatus.COMPLETED });
 
             const selectCall = mockDb.query.mock.calls.find(([sql]) => typeof sql === 'string' && sql.startsWith('SELECT * FROM kb.object_extraction_jobs'));
-            expect(selectCall?.[0]).toContain('status = $3');
+            expect(selectCall?.[0]).toContain('status = $2');
         });
     });
 
@@ -318,7 +307,7 @@ describe('ExtractionJobService', () => {
             await service.deleteJob(mockJobId, mockProjectId, mockOrganizationId);
 
             const deleteCall = mockDb.query.mock.calls.find(([sql]) => typeof sql === 'string' && sql.startsWith('DELETE FROM kb.object_extraction_jobs'));
-            expect(deleteCall?.[1]).toEqual([mockJobId, mockProjectId, mockOrganizationId]);
+            expect(deleteCall?.[1]).toEqual([mockJobId, mockProjectId]);
         });
 
         it('throws when deleting running job', async () => {
