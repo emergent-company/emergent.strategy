@@ -1,6 +1,6 @@
 /**
  * Zod schemas for structured entity extraction using LangChain
- * 
+ *
  * These schemas define the expected output structure for each entity type
  * when using ChatGoogleGenerativeAI.withStructuredOutput()
  */
@@ -30,14 +30,14 @@ import { ConstraintSchema } from './constraint.schema';
  * Used by extraction provider to get the correct schema for each type
  */
 export const EXTRACTION_SCHEMAS: Record<string, z.ZodType> = {
-    Requirement: RequirementSchema,
-    Decision: DecisionSchema,
-    Feature: FeatureSchema,
-    Task: TaskSchema,
-    Risk: RiskSchema,
-    Issue: IssueSchema,
-    Stakeholder: StakeholderSchema,
-    Constraint: ConstraintSchema,
+  Requirement: RequirementSchema,
+  Decision: DecisionSchema,
+  Feature: FeatureSchema,
+  Task: TaskSchema,
+  Risk: RiskSchema,
+  Issue: IssueSchema,
+  Stakeholder: StakeholderSchema,
+  Constraint: ConstraintSchema,
 };
 
 /**
@@ -45,5 +45,5 @@ export const EXTRACTION_SCHEMAS: Record<string, z.ZodType> = {
  * Returns undefined if type not found
  */
 export function getSchemaForType(type: string): z.ZodType | undefined {
-    return EXTRACTION_SCHEMAS[type];
+  return EXTRACTION_SCHEMAS[type];
 }

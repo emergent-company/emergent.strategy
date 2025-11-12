@@ -14,22 +14,22 @@ import { Document } from '../../entities/document.entity';
 import { Org } from '../../entities/org.entity';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([
-            OrganizationMembership,
-            Project,
-            Integration,
-            Chunk,
-            ObjectExtractionJob,
-            GraphObject,
-            Document,
-            Org,
-        ]),
-        AuthModule,
-        UserProfileModule,
-    ],
-    controllers: [UserDeletionController],
-    providers: [UserDeletionService],
-    exports: [UserDeletionService],
+  imports: [
+    TypeOrmModule.forFeature([
+      OrganizationMembership,
+      Project,
+      Integration,
+      Chunk,
+      ObjectExtractionJob,
+      GraphObject,
+      Document,
+      Org,
+    ]),
+    AuthModule,
+    UserProfileModule,
+  ],
+  controllers: [UserDeletionController],
+  providers: [UserDeletionService],
+  exports: [UserDeletionService],
 })
-export class UserModule { }
+export class UserModule {}

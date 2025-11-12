@@ -51,7 +51,6 @@ export class NotificationsService {
 
     // Build notification entity
     const notification = this.notificationRepo.create({
-      organizationId: data.organization_id,
       projectId: data.project_id,
       userId: data.subject_id, // Maps to user_id column (recipient)
       category: data.category,
@@ -380,7 +379,6 @@ export class NotificationsService {
    */
   async notifyImportCompleted(params: {
     userId: string;
-    organizationId?: string;
     projectId?: string;
     integrationName: string;
     syncId: string;
@@ -400,7 +398,6 @@ export class NotificationsService {
 
     return this.create({
       subject_id: params.userId,
-      organization_id: params.organizationId,
       project_id: params.projectId,
       category: hasReview
         ? NotificationCategory.IMPORT_REQUIRES_REVIEW
@@ -430,7 +427,6 @@ export class NotificationsService {
    */
   async notifyExtractionCompleted(params: {
     userId: string;
-    organizationId?: string;
     projectId?: string;
     documentId: string;
     documentName: string;
@@ -501,7 +497,6 @@ export class NotificationsService {
 
     return this.create({
       subject_id: params.userId,
-      organization_id: params.organizationId,
       project_id: params.projectId,
       category: NotificationCategory.EXTRACTION_COMPLETED,
       importance: hasReview
@@ -547,7 +542,6 @@ export class NotificationsService {
    */
   async notifyExtractionFailed(params: {
     userId: string;
-    organizationId?: string;
     projectId?: string;
     documentId: string;
     documentName: string;
@@ -580,7 +574,6 @@ export class NotificationsService {
 
     return this.create({
       subject_id: params.userId,
-      organization_id: params.organizationId,
       project_id: params.projectId,
       category: NotificationCategory.EXTRACTION_FAILED,
       importance: NotificationImportance.IMPORTANT,
@@ -621,7 +614,6 @@ export class NotificationsService {
    */
   async notifyMention(params: {
     userId: string;
-    organizationId?: string;
     projectId?: string;
     commenterId: string;
     commenterName: string;
@@ -631,7 +623,6 @@ export class NotificationsService {
   }): Promise<Notification | null> {
     return this.create({
       subject_id: params.userId,
-      organization_id: params.organizationId,
       project_id: params.projectId,
       category: NotificationCategory.MENTION,
       importance: NotificationImportance.IMPORTANT,

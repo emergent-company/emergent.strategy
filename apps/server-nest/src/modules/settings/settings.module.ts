@@ -4,7 +4,7 @@ import { SettingsController } from './settings.controller';
 import { Setting } from '../../entities/setting.entity';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Setting])],
-    controllers: [SettingsController]
+  imports: [TypeOrmModule.forFeature([Setting])],
+  controllers: [SettingsController],
 })
-export class SettingsModule { }
+export class SettingsModule {}

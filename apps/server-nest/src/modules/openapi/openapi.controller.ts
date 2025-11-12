@@ -8,20 +8,20 @@ import { join } from 'node:path';
 @ApiExcludeController()
 @Controller('openapi')
 export class OpenApiController {
-    @Get()
-    json() {
-        // Reuse the file emitted at bootstrap (apps/server-nest/openapi.json)
-        const path = join(process.cwd(), 'openapi.json');
-        try {
-            const raw = readFileSync(path, 'utf-8');
-            const doc = JSON.parse(raw);
-            if (doc?.paths && doc.paths['/'] && !doc.paths['/search']) {
-                doc.paths['/search'] = doc.paths['/'];
-                delete doc.paths['/'];
-            }
-            return doc;
-        } catch (e) {
-            return { error: 'openapi-not-generated', message: (e as Error).message };
-        }
+  @Get()
+  json() {
+    // Reuse the file emitted at bootstrap (apps/server-nest/openapi.json)
+    const path = join(process.cwd(), 'openapi.json');
+    try {
+      const raw = readFileSync(path, 'utf-8');
+      const doc = JSON.parse(raw);
+      if (doc?.paths && doc.paths['/'] && !doc.paths['/search']) {
+        doc.paths['/search'] = doc.paths['/'];
+        delete doc.paths['/'];
+      }
+      return doc;
+    } catch (e) {
+      return { error: 'openapi-not-generated', message: (e as Error).message };
     }
+  }
 }

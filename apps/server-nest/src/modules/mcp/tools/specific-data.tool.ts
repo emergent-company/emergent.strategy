@@ -8,22 +8,22 @@ import { ToolResultDto } from '../dto/data.dto';
 
 /**
  * Specific Data Tool - Provides type-specific query methods for common entity types
- * 
+ *
  * Implements MCP tools for:
  * - Person queries (getPersons, getPerson)
  * - Task queries (getTasks, getTask)
  * - Relationship queries (getTaskAssignees, getPersonTasks)
- * 
+ *
  * These tools provide better discoverability than generic "getObjectsByType"
  * while still falling back to the GenericDataTool for less common types.
- * 
+ *
  * All tools include schema_version metadata for cache invalidation.
  */
 @Injectable()
 export class SpecificDataTool {
   constructor(
     private readonly graphService: GraphService,
-    private readonly schemaVersionService: SchemaVersionService,
+    private readonly schemaVersionService: SchemaVersionService
   ) {}
 
   // ============================================================================
@@ -36,11 +36,24 @@ export class SpecificDataTool {
       'Returns a list of Person objects from the knowledge base. ' +
       'Persons typically represent team members, stakeholders, or any individuals. ' +
       'Supports pagination and basic filtering by label.',
-    parameters: z.object({
-      limit: z.number().min(1).max(100).optional().describe('Maximum number to return (1-100, default 20)'),
-      cursor: z.string().optional().describe('Pagination cursor from previous response'),
-      label: z.string().optional().describe('Filter by label (partial match)'),
-    }).optional(),
+    parameters: z
+      .object({
+        limit: z
+          .number()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe('Maximum number to return (1-100, default 20)'),
+        cursor: z
+          .string()
+          .optional()
+          .describe('Pagination cursor from previous response'),
+        label: z
+          .string()
+          .optional()
+          .describe('Filter by label (partial match)'),
+      })
+      .optional(),
   })
   async getPersons(params?: {
     limit?: number;
@@ -56,7 +69,7 @@ export class SpecificDataTool {
       });
 
       // Transform to PersonDto
-      const persons: PersonDto[] = result.items.map(obj => ({
+      const persons: PersonDto[] = result.items.map((obj) => ({
         id: obj.id,
         type_name: obj.type,
         key: obj.key || '',
@@ -87,7 +100,8 @@ export class SpecificDataTool {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to retrieve persons',
+        error:
+          error instanceof Error ? error.message : 'Failed to retrieve persons',
       };
     }
   }
@@ -101,9 +115,7 @@ export class SpecificDataTool {
       id: z.string().uuid().describe('UUID of the Person object'),
     }),
   })
-  async getPerson(params: {
-    id: string;
-  }): Promise<ToolResultDto<PersonDto>> {
+  async getPerson(params: { id: string }): Promise<ToolResultDto<PersonDto>> {
     try {
       const obj = await this.graphService.getObject(params.id);
 
@@ -143,7 +155,8 @@ export class SpecificDataTool {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to retrieve person',
+        error:
+          error instanceof Error ? error.message : 'Failed to retrieve person',
       };
     }
   }
@@ -158,11 +171,24 @@ export class SpecificDataTool {
       'Returns a list of Task objects from the knowledge base. ' +
       'Tasks typically represent work items, todos, issues, or action items. ' +
       'Supports pagination and basic filtering by label.',
-    parameters: z.object({
-      limit: z.number().min(1).max(100).optional().describe('Maximum number to return (1-100, default 20)'),
-      cursor: z.string().optional().describe('Pagination cursor from previous response'),
-      label: z.string().optional().describe('Filter by label (partial match)'),
-    }).optional(),
+    parameters: z
+      .object({
+        limit: z
+          .number()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe('Maximum number to return (1-100, default 20)'),
+        cursor: z
+          .string()
+          .optional()
+          .describe('Pagination cursor from previous response'),
+        label: z
+          .string()
+          .optional()
+          .describe('Filter by label (partial match)'),
+      })
+      .optional(),
   })
   async getTasks(params?: {
     limit?: number;
@@ -178,7 +204,7 @@ export class SpecificDataTool {
       });
 
       // Transform to TaskDto
-      const tasks: TaskDto[] = result.items.map(obj => ({
+      const tasks: TaskDto[] = result.items.map((obj) => ({
         id: obj.id,
         type_name: obj.type,
         key: obj.key || '',
@@ -209,7 +235,8 @@ export class SpecificDataTool {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to retrieve tasks',
+        error:
+          error instanceof Error ? error.message : 'Failed to retrieve tasks',
       };
     }
   }
@@ -223,9 +250,7 @@ export class SpecificDataTool {
       id: z.string().uuid().describe('UUID of the Task object'),
     }),
   })
-  async getTask(params: {
-    id: string;
-  }): Promise<ToolResultDto<TaskDto>> {
+  async getTask(params: { id: string }): Promise<ToolResultDto<TaskDto>> {
     try {
       const obj = await this.graphService.getObject(params.id);
 
@@ -265,7 +290,8 @@ export class SpecificDataTool {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to retrieve task',
+        error:
+          error instanceof Error ? error.message : 'Failed to retrieve task',
       };
     }
   }
@@ -281,7 +307,12 @@ export class SpecificDataTool {
       'Follows outgoing "assigned_to" relationships from the Task.',
     parameters: z.object({
       task_id: z.string().uuid().describe('UUID of the Task object'),
-      limit: z.number().min(1).max(100).optional().describe('Maximum number to return (default 50)'),
+      limit: z
+        .number()
+        .min(1)
+        .max(100)
+        .optional()
+        .describe('Maximum number to return (default 50)'),
     }),
   })
   async getTaskAssignees(params: {
@@ -297,8 +328,8 @@ export class SpecificDataTool {
       );
 
       // Filter to assigned_to relationships and fetch target persons
-      const assignedToEdges = edges.filter(e => e.type === 'assigned_to');
-      const personIds = assignedToEdges.map(e => e.dst_id);
+      const assignedToEdges = edges.filter((e) => e.type === 'assigned_to');
+      const personIds = assignedToEdges.map((e) => e.dst_id);
 
       // Fetch all person objects
       const persons: PersonDto[] = [];
@@ -341,7 +372,10 @@ export class SpecificDataTool {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to retrieve task assignees',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to retrieve task assignees',
       };
     }
   }
@@ -353,7 +387,12 @@ export class SpecificDataTool {
       'Follows incoming "assigned_to" relationships to the Person.',
     parameters: z.object({
       person_id: z.string().uuid().describe('UUID of the Person object'),
-      limit: z.number().min(1).max(100).optional().describe('Maximum number to return (default 50)'),
+      limit: z
+        .number()
+        .min(1)
+        .max(100)
+        .optional()
+        .describe('Maximum number to return (default 50)'),
     }),
   })
   async getPersonTasks(params: {
@@ -369,8 +408,8 @@ export class SpecificDataTool {
       );
 
       // Filter to assigned_to relationships and fetch source tasks
-      const assignedToEdges = edges.filter(e => e.type === 'assigned_to');
-      const taskIds = assignedToEdges.map(e => e.src_id);
+      const assignedToEdges = edges.filter((e) => e.type === 'assigned_to');
+      const taskIds = assignedToEdges.map((e) => e.src_id);
 
       // Fetch all task objects
       const tasks: TaskDto[] = [];
@@ -413,7 +452,10 @@ export class SpecificDataTool {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to retrieve person tasks',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to retrieve person tasks',
       };
     }
   }

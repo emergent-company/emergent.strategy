@@ -7,9 +7,9 @@ import { DatabaseModule } from '../../common/database/database.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-    imports: [EmbeddingsModule, DatabaseModule, AuthModule],
-    controllers: [SearchController],
-    providers: [SearchService, PathSummaryService],
-    exports: [SearchService, PathSummaryService],
+  imports: [EmbeddingsModule, DatabaseModule, AuthModule],
+  controllers: [SearchController],
+  providers: [SearchService, PathSummaryService],
+  exports: [SearchService, PathSummaryService],
 })
-export class SearchModule { }
+export class SearchModule {}

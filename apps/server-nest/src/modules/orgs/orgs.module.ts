@@ -6,12 +6,12 @@ import { OrgsService } from './orgs.service';
 import { Org } from '../../entities/org.entity';
 import { OrganizationMembership } from '../../entities/organization-membership.entity';
 
-@Module({ 
-    imports: [
-        TypeOrmModule.forFeature([Org, OrganizationMembership]),
-        AuthModule,
-    ], 
-    controllers: [OrgsController], 
-    providers: [OrgsService],
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Org, OrganizationMembership]),
+    AuthModule,
+  ],
+  controllers: [OrgsController],
+  providers: [OrgsService],
 })
-export class OrgsModule { }
+export class OrgsModule {}

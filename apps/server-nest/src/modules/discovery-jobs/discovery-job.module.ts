@@ -7,13 +7,9 @@ import { AppConfigModule } from '../../common/config/config.module';
 import { ExtractionJobModule } from '../extraction-jobs/extraction-job.module';
 
 @Module({
-    imports: [
-        DatabaseModule,
-        AppConfigModule,
-        ExtractionJobModule
-    ],
-    providers: [DiscoveryJobService, DiscoveryLLMProvider],
-    controllers: [DiscoveryJobController],
-    exports: [DiscoveryJobService]
+  imports: [DatabaseModule, AppConfigModule, ExtractionJobModule],
+  providers: [DiscoveryJobService, DiscoveryLLMProvider],
+  controllers: [DiscoveryJobController],
+  exports: [DiscoveryJobService],
 })
-export class DiscoveryJobModule { }
+export class DiscoveryJobModule {}

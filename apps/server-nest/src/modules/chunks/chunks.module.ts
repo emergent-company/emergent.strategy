@@ -7,14 +7,14 @@ import { AuthModule } from '../auth/auth.module';
 import { Chunk } from '../../entities/chunk.entity';
 import { Document } from '../../entities/document.entity';
 
-@Module({ 
-    imports: [
-        TypeOrmModule.forFeature([Chunk, Document]),
-        DatabaseModule, 
-        AuthModule,
-    ], 
-    controllers: [ChunksController], 
-    providers: [ChunksService], 
-    exports: [ChunksService],
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Chunk, Document]),
+    DatabaseModule,
+    AuthModule,
+  ],
+  controllers: [ChunksController],
+  providers: [ChunksService],
+  exports: [ChunksService],
 })
-export class ChunksModule { }
+export class ChunksModule {}

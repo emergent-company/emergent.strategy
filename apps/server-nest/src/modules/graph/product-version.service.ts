@@ -13,7 +13,6 @@ import { ProductVersionMember } from '../../entities/product-version-member.enti
 
 export interface ProductVersionRow {
   id: string;
-  organization_id: string | null;
   project_id: string;
   name: string;
   description: string | null;
@@ -45,7 +44,6 @@ export class ProductVersionService {
    */
   async create(
     projectId: string,
-    orgId: string | null,
     dto: CreateProductVersionDto
   ): Promise<{
     id: string;
@@ -81,10 +79,10 @@ export class ProductVersionService {
         baseId = base.rows[0].id;
       }
       const inserted = await client.query<ProductVersionRow>(
-        `INSERT INTO kb.product_versions(project_id, organization_id, name, description, base_product_version_id)
-         VALUES ($1,$2,$3,$4,$5)
-         RETURNING id, organization_id, project_id, name, description, base_product_version_id, created_at`,
-        [projectId, orgId, name, dto.description ?? null, baseId]
+        `INSERT INTO kb.product_versions(project_id, name, description, base_product_version_id)
+         VALUES ($1,$2,$3,$4)
+         RETURNING id, project_id, name, description, base_product_version_id, created_at`,
+        [projectId, name, dto.description ?? null, baseId]
       );
       const pv = inserted.rows[0];
       // Enumerate latest object versions per canonical (project scope, excluding deleted)
