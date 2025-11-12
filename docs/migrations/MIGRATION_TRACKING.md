@@ -1,15 +1,17 @@
 # Migration Tracking
 
-**Last Updated**: November 10, 2025  
-**Status**: Phase 4 Complete ✅
+**Last Updated**: November 12, 2025  
+**Status**: Phase 6 Complete ✅
 
 ## Overview
 
 This document tracks multiple migration efforts across the codebase, including:
 
-1. TypeORM Migration (Phases 1-3)
-2. Test Structure Migration (Phases 2-4)
+1. TypeORM Migration (Phase 1 - Ongoing)
+2. Test Structure Migration (Phases 2-4 - Complete)
 3. User Identity Reference Migrations (Complete)
+4. Tenant ID Removal (Phase 5 - Complete)
+5. Organization ID Cleanup (Phase 6 - Complete)
 
 ---
 
@@ -59,6 +61,98 @@ This document tracks multiple migration efforts across the codebase, including:
 ✅      Tests  1095 passed (1095)
    Duration  40.22s
 ```
+
+### Phase 5: Tenant ID Removal ✅ Complete
+
+**Date**: Completed November 11, 2025  
+**Status**: ✅ **All tenant_id columns removed from schema**  
+**Commit**: `54eaebc` - "chore(openapi): update OpenAPI spec after tenant_id removal"
+
+**Changes Made**:
+
+- Removed `tenant_id` query parameters from all API endpoints
+- Updated entity schemas to remove deprecated tenant_id fields
+- Consolidated migrations by squashing initial schema
+- Updated OpenAPI specifications to reflect changes
+
+**Rationale**:
+
+The `tenant_id` column was redundant in our multi-tenant architecture. Organization context is sufficient for tenant isolation via PostgreSQL Row-Level Security (RLS). Removing `tenant_id` simplifies the schema and reduces data duplication.
+
+**Migration Strategy**:
+
+- Schema consolidation via `1762934197000-SquashedInitialSchema.ts`
+- No separate tenant_id removal migrations needed (handled in squash)
+- All RLS policies updated to use organization_id only
+
+### Phase 6: Organization ID Cleanup ✅ Complete
+
+**Date**: Completed November 12, 2025  
+**Status**: ✅ **organization_id removed from documents and extraction jobs**  
+**Commits**:
+
+- `65f9dc9` - "feat(phase6): complete organization_id removal from documents and extraction jobs"
+- `004d02b` - "chore: format code with prettier and cleanup migrations"
+
+**Tables Modified**:
+
+1. **kb.documents** - Removed `organization_id` column
+2. **kb.object_extraction_jobs** - Removed `organization_id` column
+
+**Migration Files**:
+
+- `1762937376000-RemoveDocumentOrganizationId.ts`
+- `1762937500000-RemoveExtractionJobsOrganizationId.ts`
+
+**Code Changes**:
+
+- Updated `Document` entity: Removed `organizationId` column
+- Updated `ObjectExtractionJob` entity: Removed `organizationId` column
+- Updated `ExtractionJobService`: Uses JOIN to get org context from project
+- Updated `ExtractionWorkerService`: Uses JOIN to get org context from project
+
+**New Pattern Established**:
+
+```typescript
+// ✅ Phase 6 Pattern: Derive organization context via project
+const job = await db.query(
+  `SELECT * FROM kb.object_extraction_jobs WHERE id = $1`,
+  [id]
+);
+const project = await db.query(
+  `SELECT organization_id FROM kb.projects WHERE id = $1`,
+  [job.project_id]
+);
+await db.runWithTenantContext(
+  project.organization_id,
+  job.project_id,
+  async () => { ... }
+);
+```
+
+**Rationale**:
+
+Documents and extraction jobs belong to projects, and projects belong to organizations. Storing `organization_id` directly on these tables was redundant. The new pattern:
+
+- Reduces data duplication
+- Maintains referential integrity
+- Simplifies schema
+- Organization context is derived when needed via: `project_id → projects.organization_id`
+
+**Test Results**:
+
+```
+✅ E2E Tests: 204/241 passing
+❌ 37 failures: Pre-existing ClickUp integration issues (not related to Phase 6)
+✅ All Phase 6 specific tests passing
+✅ Both databases migrated successfully (main: 5437, e2e: 5438)
+```
+
+**Documentation**:
+
+- Database schema documented in `docs/database/schema.dbml`
+- Migration guide created: `docs/guides/database-documentation.md`
+- Added dbdocs integration: `npm run db:docs:local`
 
 ---
 
@@ -381,6 +475,108 @@ INSERT INTO core.user_profiles(subject_id) VALUES (gen_random_uuid()) RETURNING 
 | 008 - Notifications            | 2025-10-05  | ✅ 2025-10-05 | 6 hours          | Complete |
 | 009 - Notification Preferences | 2025-10-05  | ✅ 2025-10-05 | 4 hours          | Complete |
 | 010 - Audit Log FK             | Optional    | -             | 2 hours          | Deferred |
+| Phase 5 - Tenant ID Removal    | 2025-11-11  | ✅ 2025-11-11 | 8 hours          | Complete |
+| Phase 6 - Organization Cleanup | 2025-11-12  | ✅ 2025-11-12 | 12 hours         | Complete |
+
+---
+
+## Current Schema Migration State
+
+### Active Migrations (3 files)
+
+1. **1762934197000-SquashedInitialSchema.ts** (Nov 12, 2025)
+
+   - Consolidated initial database schema
+   - Removed all tenant_id references
+   - Established base schema with organization-based multi-tenancy
+
+2. **1762937376000-RemoveDocumentOrganizationId.ts** (Nov 12, 2025)
+
+   - Removed organization_id from kb.documents
+   - Added migration to derive org context via project
+
+3. **1762937500000-RemoveExtractionJobsOrganizationId.ts** (Nov 12, 2025)
+   - Removed organization_id from kb.object_extraction_jobs
+   - Added migration to derive org context via project
+
+### Archived Migrations
+
+All previous SQL and TypeORM migrations have been archived to:
+
+- `apps/server-nest/src/migrations/archive/`
+- `apps/server-nest/migrations-archive-old-sql/`
+
+### Multi-Tenancy Architecture
+
+**Current State**: Organization-based multi-tenancy with PostgreSQL RLS
+
+**Tenant Isolation Pattern**:
+
+```typescript
+// All tenant-scoped operations use:
+await db.runWithTenantContext(organizationId, projectId, async () => {
+  // Queries here are automatically scoped to organization
+});
+```
+
+**RLS Policies**:
+
+- All kb.\* tables have RLS policies checking `organization_id`
+- Session variables: `app.current_organization_id`, `app.current_project_id`
+- No more tenant_id - organization provides sufficient isolation
+
+---
+
+## Next Steps (After Phase 6)
+
+### Priority 1: Continue TypeORM Migration (60.7% → 100%)
+
+**Current Status**: 34/56 services migrated (60.7%)
+
+**Next Services to Migrate**:
+
+1. **IngestionService** (5 queries) - 1-2 hours
+2. **TemplatePackService** (14 queries) - 2-3 hours
+3. **ProductVersionService** (partial) - 1 hour
+4. **BranchService** (partial) - 1 hour
+
+**See**: [NEXT_SERVICES_TO_MIGRATE.md](./NEXT_SERVICES_TO_MIGRATE.md)
+
+### Priority 2: Address ClickUp Integration Test Failures
+
+**Current Status**: 37/241 E2E tests failing
+
+**Issue**: ClickUp integration configuration and setup issues
+
+- Not blocking core functionality
+- Pre-existing before Phase 6
+- Configuration validation errors
+
+**Estimated Effort**: 2-4 hours
+
+### Priority 3: Schema Documentation Updates
+
+**Tasks**:
+
+- [ ] Update ER diagrams to reflect Phase 6 changes
+- [ ] Document organization-based multi-tenancy architecture
+- [ ] Create migration best practices guide
+- [ ] Update API documentation
+
+**Estimated Effort**: 2-3 hours
+
+---
+
+## References
+
+- [User Identity Reference Pattern](../spec/24-user-identity-references.md) - Authoritative pattern
+- [Migration 007 - Extraction Jobs](./007-extraction-jobs-foreign-key.md) - Completed example
+- [User Profile System](../spec/16-user-profile.md) - Core identity system
+- [Authorization Model](../spec/18-authorization-model.md) - Permission system
+- [TypeORM Migration Guide](./TYPEORM_MIGRATION_GUIDE.md) - Service migration patterns
+- [Migration Patterns Catalog](./MIGRATION_PATTERNS_CATALOG.md) - Reusable patterns
+
+---
 
 ## Rollback Procedures
 
