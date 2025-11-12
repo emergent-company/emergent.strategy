@@ -121,16 +121,26 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
 
   describe('recoverOrphanedJobs', () => {
     it('resets orphaned jobs using tenant context', async () => {
+      // Phase 6: organization_id removed from object_extraction_jobs
+      // Now we only have project_id on the job, and derive org_id from projects table
       const orphanJob = {
         id: 'job-orphan-1',
         source_type: 'document',
         started_at: '2025-10-16T15:59:53.465Z',
-        organization_id: 'org-123',
         project_id: 'project-123',
       };
 
+      const orgId = 'org-123';
+
       databaseService.query
+        // First call: SELECT orphaned jobs
         .mockResolvedValueOnce({ rowCount: 1, rows: [orphanJob] })
+        // Second call: SELECT organization_id FROM projects WHERE id = project_id
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ organization_id: orgId }],
+        })
+        // Third call: UPDATE job within tenant context
         .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: orphanJob.id }] });
 
       databaseService.runWithTenantContext.mockImplementation(
@@ -140,14 +150,14 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
       await (service as any).recoverOrphanedJobs();
 
       expect(databaseService.runWithTenantContext).toHaveBeenCalledWith(
-        orphanJob.organization_id,
+        orgId,
         orphanJob.project_id,
         expect.any(Function)
       );
 
-      expect(databaseService.query).toHaveBeenCalledTimes(2);
-      const updateQuery = databaseService.query.mock.calls[1][0];
-      const updateParams = databaseService.query.mock.calls[1][1];
+      expect(databaseService.query).toHaveBeenCalledTimes(3);
+      const updateQuery = databaseService.query.mock.calls[2][0];
+      const updateParams = databaseService.query.mock.calls[2][1];
 
       expect(updateQuery).toContain('UPDATE kb.object_extraction_jobs');
       expect(updateQuery).toContain('started_at = NULL');
@@ -157,6 +167,7 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
     });
 
     it('skips orphaned jobs without tenant context', async () => {
+      // Phase 6: Jobs without project_id can't derive organization_id
       databaseService.query.mockResolvedValueOnce({
         rowCount: 1,
         rows: [
@@ -164,7 +175,6 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
             id: 'job-orphan-2',
             source_type: 'document',
             started_at: null,
-            organization_id: null,
             project_id: null,
           },
         ],
@@ -176,17 +186,19 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
       expect(databaseService.query).toHaveBeenCalledTimes(1);
     });
 
-    it('skips job when organization_id is null', async () => {
+    it('skips job when organization_id cannot be derived from project', async () => {
+      // Phase 6: organization_id is derived from projects table
       const orphanJob = {
         id: 'job-orphan-3',
         source_type: 'document',
         started_at: '2025-10-16T15:59:53.465Z',
-        organization_id: null,
         project_id: 'project-789',
       };
 
       databaseService.query
+        // First call: SELECT orphaned jobs
         .mockResolvedValueOnce({ rowCount: 1, rows: [orphanJob] })
+        // Second call: SELECT organization_id from projects - returns no rows (project not found)
         .mockResolvedValueOnce({ rowCount: 0, rows: [] });
 
       databaseService.runWithTenantContext.mockImplementation(
@@ -195,7 +207,7 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
 
       await (service as any).recoverOrphanedJobs();
 
-      // Should NOT call runWithTenantContext when organization_id is null
+      // Should NOT call runWithTenantContext when organization_id cannot be derived
       expect(databaseService.runWithTenantContext).not.toHaveBeenCalled();
     });
   });
@@ -389,7 +401,10 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
       // First query: getOrganizationId from projects table
       // Second query: base prompt from kb.settings
       databaseService.query
-        .mockResolvedValueOnce({ rowCount: 1, rows: [{ organization_id: baseJob.organization_id }] })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ organization_id: baseJob.organization_id }],
+        })
         .mockResolvedValueOnce({ rowCount: 0, rows: [] });
 
       templatePackService.assignTemplatePackToProject.mockResolvedValue({
@@ -417,7 +432,10 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
       // First query: getOrganizationId from projects table
       // Second query: base prompt from kb.settings
       databaseService.query
-        .mockResolvedValueOnce({ rowCount: 1, rows: [{ organization_id: baseJob.organization_id }] })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ organization_id: baseJob.organization_id }],
+        })
         .mockResolvedValueOnce({ rowCount: 0, rows: [] });
 
       const result = await (service as any).loadExtractionConfig(baseJob);
@@ -432,7 +450,10 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
     it('handles assignment failures gracefully', async () => {
       // First query: getOrganizationId from projects table
       // Second query: base prompt from kb.settings (not reached due to error)
-      databaseService.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ organization_id: baseJob.organization_id }] });
+      databaseService.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ organization_id: baseJob.organization_id }],
+      });
       templatePackService.assignTemplatePackToProject.mockRejectedValue(
         new NotFoundException('missing')
       );
@@ -469,7 +490,10 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
       // First query: getOrganizationId from projects table
       // Second query: base prompt from kb.settings
       databaseService.query
-        .mockResolvedValueOnce({ rowCount: 1, rows: [{ organization_id: baseJob.organization_id }] })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ organization_id: baseJob.organization_id }],
+        })
         .mockResolvedValueOnce({ rowCount: 0, rows: [] });
 
       templatePackService.assignTemplatePackToProject.mockRejectedValueOnce(

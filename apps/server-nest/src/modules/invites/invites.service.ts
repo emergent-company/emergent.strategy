@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { DatabaseService } from '../../common/database/database.service';
 import { ZitadelService } from '../auth/zitadel.service';
 import { Invite } from '../../entities/invite.entity';
 import { UserProfile } from '../../entities/user-profile.entity';
@@ -39,7 +38,6 @@ export class InvitesService {
     @InjectRepository(OrganizationMembership)
     private readonly orgMembershipRepository: Repository<OrganizationMembership>,
     private readonly dataSource: DataSource,
-    private readonly db: DatabaseService,
     private readonly zitadelService: ZitadelService
   ) {}
 
@@ -224,10 +222,11 @@ export class InvitesService {
 
     const zitadelUserId = userProfile.zitadelUserId;
 
-    const client = await this.db.getClient();
-    try {
-      await client.query('BEGIN');
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
+    try {
       // Grant role in Zitadel if project invite
       if (invite.projectId && this.zitadelService.isConfigured()) {
         const projectId = process.env.ZITADEL_PROJECT_ID;
@@ -262,7 +261,7 @@ export class InvitesService {
           userId,
           role: invite.role,
         });
-        await this.projectMembershipRepository.save(membership).catch(() => {
+        await queryRunner.manager.save(membership).catch(() => {
           // Ignore conflict - already exists
         });
       } else if (invite.role === 'org_admin') {
@@ -271,7 +270,7 @@ export class InvitesService {
           userId,
           role: 'org_admin',
         });
-        await this.orgMembershipRepository.save(membership).catch(() => {
+        await queryRunner.manager.save(membership).catch(() => {
           // Ignore conflict - already exists
         });
       } else {
@@ -286,19 +285,16 @@ export class InvitesService {
 
       invite.status = 'accepted';
       invite.acceptedAt = new Date();
-      await this.inviteRepository.save(invite);
-      await client.query('COMMIT');
+      await queryRunner.manager.save(invite);
+
+      await queryRunner.commitTransaction();
 
       this.logger.log(`User ${userId} accepted invitation ${invite.id}`);
     } catch (e) {
-      try {
-        await client.query('ROLLBACK');
-      } catch {
-        /* ignore */
-      }
+      await queryRunner.rollbackTransaction();
       throw e;
     } finally {
-      client.release();
+      await queryRunner.release();
     }
     return { status: 'accepted' };
   }

@@ -17,7 +17,6 @@ import {
 } from '@nestjs/swagger';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import { CachingInterceptor } from '../../common/interceptors/caching.interceptor';
-import { DatabaseService } from '../../common/database/database.service';
 import { Setting } from '../../entities/setting.entity';
 
 @ApiTags('Settings')
@@ -25,8 +24,7 @@ import { Setting } from '../../entities/setting.entity';
 export class SettingsController {
   constructor(
     @InjectRepository(Setting)
-    private readonly settingRepository: Repository<Setting>,
-    private readonly db: DatabaseService
+    private readonly settingRepository: Repository<Setting>
   ) {}
 
   @Get()

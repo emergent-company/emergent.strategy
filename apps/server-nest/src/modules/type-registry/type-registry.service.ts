@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { DatabaseService } from '../../common/database/database.service';
 import { ProjectObjectTypeRegistry } from '../../entities/project-object-type-registry.entity';
 import {
   CreateObjectTypeDto,
@@ -24,7 +23,6 @@ export class TypeRegistryService {
   private readonly logger = new Logger(TypeRegistryService.name);
 
   constructor(
-    private readonly db: DatabaseService,
     @InjectRepository(ProjectObjectTypeRegistry)
     private readonly typeRegistryRepo: Repository<ProjectObjectTypeRegistry>,
     private readonly dataSource: DataSource

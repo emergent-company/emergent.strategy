@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { DatabaseService } from '../../common/database/database.service';
 import { GraphService } from '../graph/graph.service';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 import { ExtractedEntity } from './llm/llm-provider.interface';
@@ -26,7 +25,6 @@ export class EntityLinkingService {
   private readonly embeddingCache = new Map<string, number[]>();
 
   constructor(
-    private readonly db: DatabaseService,
     private readonly graphService: GraphService,
     private readonly embeddings: EmbeddingsService,
     @InjectRepository(GraphObject)

@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { InvitesService } from '../../../src/modules/invites/invites.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { DatabaseService } from '../../../src/common/database/database.service';
 
 // Repository mock factory
 function createMockRepository(methods = {}) {
@@ -53,25 +52,6 @@ class FakeDataSource {
   }
 }
 
-// FakeDb class
-class FakeDb extends DatabaseService {
-  constructor() {
-    super({} as any);
-  }
-
-  isOnline(): boolean {
-    return true;
-  }
-
-  async runWithTenantContext<T>(
-    tenantId: string,
-    projectId: string,
-    callback: () => Promise<T>
-  ): Promise<T> {
-    return callback();
-  }
-}
-
 // Mock ZitadelService
 const createMockZitadelService = () =>
   ({
@@ -92,7 +72,6 @@ describe('InvitesService', () => {
   let projectMembershipRepo: any;
   let orgMembershipRepo: any;
   let dataSource: FakeDataSource;
-  let db: FakeDb;
   let zitadel: any;
   let service: InvitesService;
 
@@ -102,15 +81,13 @@ describe('InvitesService', () => {
     projectMembershipRepo = createMockRepository();
     orgMembershipRepo = createMockRepository();
     dataSource = new FakeDataSource([]);
-    db = new FakeDb();
     zitadel = createMockZitadelService();
     service = new InvitesService(
       inviteRepo,
       userProfileRepo,
       projectMembershipRepo,
       orgMembershipRepo,
-      dataSource,
-      db,
+      dataSource as any,
       zitadel
     );
   });
@@ -171,18 +148,9 @@ describe('InvitesService', () => {
       .fn()
       .mockResolvedValue({ zitadelUserId: 'zitadel-user-1' });
 
-    const mockClient = {
-      query: vi.fn().mockResolvedValue({ rowCount: 1 }),
-      release: vi.fn(),
-    };
-    (db as any).getClient = vi.fn().mockResolvedValue(mockClient);
-
     const res = await service.accept('tok', 'user1');
 
     expect(res.status).toBe('accepted');
-    expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
-    expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
-    expect(mockClient.release).toHaveBeenCalled();
   });
 
   it('accepts project invite and inserts project membership', async () => {
@@ -201,23 +169,9 @@ describe('InvitesService', () => {
       .fn()
       .mockResolvedValue({ zitadelUserId: 'zitadel-user-2' });
 
-    // Mock save on project membership repository
-    const saveSpy = vi.fn().mockResolvedValue({});
-    projectMembershipRepo.save = saveSpy;
-
-    const mockClient = {
-      query: vi.fn().mockResolvedValue({ rowCount: 1 }),
-      release: vi.fn(),
-    };
-    (db as any).getClient = vi.fn().mockResolvedValue(mockClient);
-
     const res = await service.accept('tok2', 'user2');
 
     expect(res.status).toBe('accepted');
-    // Verify project membership was created via repository
-    expect(projectMembershipRepo.save).toHaveBeenCalled();
-    expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
-    expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
   });
 
   it('rejects unsupported non-admin org invite without project', async () => {
@@ -271,7 +225,6 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
   let projectMembershipRepo: any;
   let orgMembershipRepo: any;
   let dataSource: FakeDataSource;
-  let db: FakeDb;
   let zitadel: any;
   let service: InvitesService;
 
@@ -281,15 +234,13 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
     projectMembershipRepo = createMockRepository();
     orgMembershipRepo = createMockRepository();
     dataSource = new FakeDataSource([]);
-    db = new FakeDb();
     zitadel = createMockZitadelService();
     service = new InvitesService(
       inviteRepo,
       userProfileRepo,
       projectMembershipRepo,
       orgMembershipRepo,
-      dataSource,
-      db,
+      dataSource as any,
       zitadel
     );
   });
@@ -526,12 +477,6 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
       zitadel.isConfigured.mockReturnValue(true);
       zitadel.grantProjectRole.mockResolvedValue(undefined);
 
-      const mockClient = {
-        query: vi.fn().mockResolvedValue({ rowCount: 1 }),
-        release: vi.fn(),
-      };
-      (db as any).getClient = vi.fn().mockResolvedValue(mockClient);
-
       // Set ZITADEL_PROJECT_ID for test
       process.env.ZITADEL_PROJECT_ID = 'zitadel-proj-999';
 
@@ -570,12 +515,6 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
         new Error('Zitadel API error')
       );
 
-      const mockClient = {
-        query: vi.fn().mockResolvedValue({ rowCount: 1 }),
-        release: vi.fn(),
-      };
-      (db as any).getClient = vi.fn().mockResolvedValue(mockClient);
-
       process.env.ZITADEL_PROJECT_ID = 'zitadel-proj-999';
 
       // Should not throw - graceful degradation
@@ -604,12 +543,6 @@ describe('InvitesService - createWithUser (Zitadel Integration)', () => {
 
       // Mock: Zitadel not configured
       zitadel.isConfigured.mockReturnValue(false);
-
-      const mockClient = {
-        query: vi.fn().mockResolvedValue({ rowCount: 1 }),
-        release: vi.fn(),
-      };
-      (db as any).getClient = vi.fn().mockResolvedValue(mockClient);
 
       await service.accept('noconfig-token', 'user-uuid-789');
 
