@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DatabaseService } from '../../common/database/database.service';
 import { ObjectExtractionLog } from '../../entities/object-extraction-log.entity';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -69,7 +68,6 @@ export class ExtractionLoggerService {
   private readonly logDir = path.join(process.cwd(), 'logs', 'extraction');
 
   constructor(
-    private readonly db: DatabaseService,
     @InjectRepository(ObjectExtractionLog)
     private readonly extractionLogRepo: Repository<ObjectExtractionLog>
   ) {
