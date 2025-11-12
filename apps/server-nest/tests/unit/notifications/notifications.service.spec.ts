@@ -74,12 +74,13 @@ describe('NotificationsService - Auto-Extraction Features', () => {
       const mockNotificationId = 'notif-123';
       const createDto = {
         subject_id: 'user-123',
-        organization_id: 'org-123',
+        project_id: 'project-123',
         title: 'Extraction Complete',
         message: 'Objects extracted successfully',
         category: 'extraction_completed' as any,
+        importance: 'other' as any,
         type: 'extraction_complete',
-        severity: 'success',
+        severity: 'success' as any,
         related_resource_type: 'extraction_job',
         related_resource_id: 'job-123',
         read: false,
@@ -88,10 +89,10 @@ describe('NotificationsService - Auto-Extraction Features', () => {
           {
             label: 'View Objects',
             url: '/admin/objects?jobId=job-123',
-            style: 'primary',
+            style: 'primary' as const,
           },
         ],
-        expires_at: new Date('2025-12-31'),
+        expires_at: new Date('2025-12-31').toISOString(),
         details: { summary: { objects_created: 10 } },
       };
 
@@ -123,10 +124,11 @@ describe('NotificationsService - Auto-Extraction Features', () => {
       const mockNotificationId = 'notif-124';
       const createDto = {
         subject_id: 'user-123',
-        organization_id: 'org-123',
+        project_id: 'project-123',
         title: 'Simple Notification',
         message: 'Basic message',
         category: 'general' as any,
+        importance: 'other' as any,
         // No new fields provided
       };
 
@@ -177,6 +179,7 @@ describe('NotificationsService - Auto-Extraction Features', () => {
       const mockQueryBuilder = {
         select: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
         getRawOne: vi.fn().mockResolvedValue({
           unread: '5',
           dismissed: '3',
@@ -206,6 +209,7 @@ describe('NotificationsService - Auto-Extraction Features', () => {
       const mockQueryBuilder = {
         select: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
         getRawOne: vi.fn().mockResolvedValue({
           unread: '0',
           dismissed: '0',
@@ -231,7 +235,7 @@ describe('NotificationsService - Auto-Extraction Features', () => {
       const data = {
         userId: 'user-123',
         tenantId: 'tenant-123',
-        organizationId: 'org-123',
+        projectId: 'project-123',
         jobId: 'job-123',
         documentId: 'doc-123',
         documentName: 'requirements.pdf',
@@ -289,7 +293,7 @@ describe('NotificationsService - Auto-Extraction Features', () => {
       const data = {
         userId: 'user-123',
         tenantId: 'tenant-123',
-        organizationId: 'org-123',
+        projectId: 'project-123',
         jobId: 'job-123',
         documentId: 'doc-123',
         documentName: 'spec.txt',
@@ -323,7 +327,7 @@ describe('NotificationsService - Auto-Extraction Features', () => {
       const data = {
         userId: 'user-123',
         tenantId: 'tenant-123',
-        organizationId: 'org-123',
+        projectId: 'project-123',
         jobId: 'job-123',
         documentId: 'doc-123',
         documentName: 'empty.txt',
@@ -351,7 +355,7 @@ describe('NotificationsService - Auto-Extraction Features', () => {
       const data = {
         userId: 'user-123',
         tenantId: 'tenant-123',
-        organizationId: 'org-123',
+        projectId: 'project-123',
         jobId: 'job-123',
         documentId: 'doc-123',
         documentName: 'requirements.pdf',
@@ -397,7 +401,7 @@ describe('NotificationsService - Auto-Extraction Features', () => {
       const data = {
         userId: 'user-123',
         tenantId: 'tenant-123',
-        organizationId: 'org-123',
+        projectId: 'project-123',
         jobId: 'job-123',
         documentId: 'doc-123',
         documentName: 'document.pdf',

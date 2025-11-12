@@ -13113,11 +13113,6 @@
               },
               "type": "object"
             },
-            "organization_id": {
-              "description": "Organization ID",
-              "example": "550e8400-e29b-41d4-a716-446655440000",
-              "type": "string"
-            },
             "project_id": {
               "description": "Project ID",
               "example": "550e8400-e29b-41d4-a716-446655440001",
@@ -13154,7 +13149,6 @@
             }
           },
           "required": [
-            "organization_id",
             "project_id",
             "source_type",
             "extraction_config"
@@ -13562,14 +13556,6 @@
               "description": "Job ID",
               "type": "string"
             },
-            "org_id": {
-              "description": "Legacy organization ID (deprecated)",
-              "type": "string"
-            },
-            "organization_id": {
-              "description": "Organization ID",
-              "type": "string"
-            },
             "processed_items": {
               "description": "Processed items count",
               "type": "number"
@@ -13633,7 +13619,6 @@
           },
           "required": [
             "id",
-            "organization_id",
             "project_id",
             "source_type",
             "source_metadata",

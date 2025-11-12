@@ -37,19 +37,20 @@ class MockDb {
             .sort((a, b) => b.version - a.version);
           return { rows: existing.slice(0, 1), rowCount: existing.length ? 1 : 0 } as any;
         }
-        if (/INSERT INTO kb\.graph_relationships\((org_id|organization_id), project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, change_summary, content_hash\)/.test(sql)) {
+        if (/INSERT INTO kb\.graph_relationships\(project_id, branch_id, type, src_id, dst_id, properties, version, canonical_id, change_summary, content_hash\)/.test(sql)) {
           const row = {
             id: 'rel-' + (this.rels.length + 1),
-            organization_id: params?.[0],
-            project_id: params?.[1],
-            branch_id: params?.[2] ?? null,
-            type: params?.[3],
-            src_id: params?.[4],
-            dst_id: params?.[5],
-            properties: params?.[6],
+            project_id: params?.[0],
+            branch_id: params?.[1] ?? null,
+            type: params?.[2],
+            src_id: params?.[3],
+            dst_id: params?.[4],
+            properties: params?.[5],
             version: 1,
             supersedes_id: null,
             canonical_id: 'can-' + (this.rels.length + 1),
+            change_summary: params?.[6] ?? null,
+            content_hash: params?.[7] ?? null,
             weight: null,
             valid_from: null,
             valid_to: null,

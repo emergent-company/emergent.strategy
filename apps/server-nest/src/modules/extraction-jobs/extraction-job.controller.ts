@@ -117,12 +117,6 @@ export class ExtractionJobController {
     const organizationId = this.getOrganizationId(req);
     const projectId = this.getProjectId(req, dto.project_id);
 
-    if (dto.organization_id && dto.organization_id !== organizationId) {
-      throw new BadRequestException(
-        'Organization ID mismatch between body and x-org-id header'
-      );
-    }
-
     if (dto.project_id && dto.project_id !== projectId) {
       throw new BadRequestException(
         'Project ID mismatch between body and x-project-id header'
@@ -131,7 +125,6 @@ export class ExtractionJobController {
 
     return this.jobService.createJob({
       ...dto,
-      organization_id: organizationId,
       project_id: projectId,
     });
   }

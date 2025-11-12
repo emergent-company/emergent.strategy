@@ -281,12 +281,10 @@ describe('ChatService (unit)', () => {
             const res = await svc.listConversations('user-x', orgId, projectId);
             expect(res.shared.length).toBe(1);
             expect(res.private.length).toBe(1);
-            // Ensure SQL had org and project filters present (IS NOT DISTINCT FROM $n)
+            // Ensure SQL had project filter present (IS NOT DISTINCT FROM $n)
             const sharedSQL = db.queries.find(q => /FROM kb.chat_conversations WHERE is_private = false/.test(q.sql))?.sql || '';
-            expect(sharedSQL).toMatch(/organization_id IS NOT DISTINCT FROM/);
             expect(sharedSQL).toMatch(/project_id IS NOT DISTINCT FROM/);
             const privSQL = db.queries.find(q => /FROM kb.chat_conversations WHERE is_private = true/.test(q.sql))?.sql || '';
-            expect(privSQL).toMatch(/organization_id IS NOT DISTINCT FROM/);
             expect(privSQL).toMatch(/project_id IS NOT DISTINCT FROM/);
         });
 
@@ -310,7 +308,6 @@ describe('ChatService (unit)', () => {
             expect(res.shared.length).toBe(1);
             expect(res.private.length).toBe(1);
             const sharedQ = db.queries.find(q => /FROM kb.chat_conversations WHERE is_private = false/.test(q.sql))?.sql || '';
-            expect(sharedQ).not.toMatch(/org_id IS NOT DISTINCT FROM/);
             expect(sharedQ).toMatch(/project_id IS NOT DISTINCT FROM/);
         });
     });

@@ -43,27 +43,33 @@ export class InMemoryDatabaseService {
         // DROP INDEX ignore
         if (lowered.startsWith('drop index')) return { rowCount: 0, rows: [] };
         // Insert object
+        // After RemoveRedundantOrganizationId migration, parameters are:
+        // [type, key, properties, labels, project_id, branch_id, change_summary, content_hash, ...]
         if (lowered.startsWith('insert into kb.graph_objects')) {
-            // Values order: type, key, properties, labels, version, canonical_id, org_id, project_id, branch_id, change_summary, content_hash
-            const [type, key, properties, labels, version, org_id, project_id, branch_id, change_summary, content_hash] = [
-                params[0], params[1], params[2], params[3], 1, params[4], params[5], params[6], params[7], params[8]
-            ];
+            const type = params[0];
+            const key = params[1];
+            const properties = params[2];
+            const labels = params[3];
+            const project_id = params[4];
+            const branch_id = params[5];
+            const change_summary = params[6];
+            const content_hash = params[7];
             const row = {
                 id: randomUUID(),
                 type,
                 key,
                 properties,
                 labels,
-                version,
+                version: 1,
                 canonical_id: randomUUID(),
                 supersedes_id: null,
-                org_id,
                 project_id,
                 branch_id,
                 deleted_at: null,
                 change_summary,
                 content_hash,
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                status: null
             } as any;
             this.objects.push(row);
             return { rowCount: 1, rows: [row] as any };
@@ -81,22 +87,21 @@ export class InMemoryDatabaseService {
             return { rowCount: rows.length, rows: rows as any };
         }
         // Insert relationship (first creation)
+        // After RemoveRedundantOrganizationId migration, parameters are:
+        // [project_id, branch_id, type, src_id, dst_id, properties, change_summary, content_hash]
         if (lowered.startsWith('insert into kb.graph_relationships')) {
-            // rough param mapping; rely on order used in test paths
-            const org_id = params[0];
-            const project_id = params[1];
-            const branch_id = params[2];
-            const type = params[3];
-            const src_id = params[4];
-            const dst_id = params[5];
-            const properties = params[6];
-            const version = params[7] ?? 1;
+            const project_id = params[0];
+            const branch_id = params[1];
+            const type = params[2];
+            const src_id = params[3];
+            const dst_id = params[4];
+            const properties = params[5];
+            const version = 1; // always 1 for new relationships
             const canonical_id = randomUUID(); // force unique per relationship for expand tests
-            const change_summary = params[9] ?? null;
-            const content_hash = params[10] ?? null;
+            const change_summary = params[6] ?? null;
+            const content_hash = params[7] ?? null;
             const row = {
                 id: randomUUID(),
-                org_id,
                 project_id,
                 branch_id,
                 type,

@@ -121,7 +121,7 @@ describe('ProductVersionService', () => {
       mockDataSource,
       new FakeDb(() => client) as any
     );
-    const result = await svc.create(projectId, orgId, {
+    const result = await svc.create(projectId, {
       name: 'v1.0.0',
       description: 'First release',
     });
@@ -159,7 +159,7 @@ describe('ProductVersionService', () => {
       new FakeDb(() => client) as any
     );
     await expect(
-      svc.create(projectId, orgId, { name: 'Duplicate' })
+      svc.create(projectId, { name: 'Duplicate' })
     ).rejects.toThrow('product_version_name_exists');
   });
 
@@ -189,7 +189,7 @@ describe('ProductVersionService', () => {
       new FakeDb(() => client) as any
     );
     await expect(
-      svc.create(projectId, orgId, {
+      svc.create(projectId, {
         name: 'v2.0.0',
         base_product_version_id: baseId,
       })
@@ -247,7 +247,7 @@ describe('ProductVersionService', () => {
       mockDataSource,
       new FakeDb(() => client) as any
     );
-    const result = await svc.create(projectId, orgId, {
+    const result = await svc.create(projectId, {
       name: 'v2.0.0',
       base_product_version_id: baseId,
     });
@@ -296,7 +296,7 @@ describe('ProductVersionService', () => {
       mockDataSource,
       new FakeDb(() => client) as any
     );
-    const result = await svc.create(projectId, orgId, { name: 'empty' });
+    const result = await svc.create(projectId, { name: 'empty' });
     expect(result.member_count).toBe(0);
     // No membership insert when rowCount is 0
     expect(
@@ -317,7 +317,7 @@ describe('ProductVersionService', () => {
       mockDataSource,
       new FakeDb(() => new FakeClient([])) as any
     );
-    await expect(svc.create(projectId, null, { name: '   ' })).rejects.toThrow(
+    await expect(svc.create(projectId, { name: '   ' })).rejects.toThrow(
       'name_required'
     );
   });

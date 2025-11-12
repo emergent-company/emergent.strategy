@@ -4,21 +4,21 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   DeleteDateColumn,
+  ManyToOne,
+  JoinColumn,
   Index,
   VersionColumn,
 } from 'typeorm';
+import { Project } from './project.entity';
 
 @Entity({ schema: 'kb', name: 'graph_relationships' })
 @Index(['srcId'])
 @Index(['dstId'])
 @Index(['type'])
-@Index(['organizationId', 'projectId'])
+@Index(['projectId'])
 export class GraphRelationship {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
-
-  @Column({ name: 'organization_id', type: 'uuid' })
-  organizationId!: string;
 
   @Column({ name: 'project_id', type: 'uuid' })
   projectId!: string;
@@ -67,4 +67,9 @@ export class GraphRelationship {
 
   @Column({ name: 'branch_id', type: 'uuid', nullable: true })
   branchId!: string | null;
+
+  // Relations
+  @ManyToOne(() => Project, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'project_id' })
+  project!: Project;
 }

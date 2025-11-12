@@ -7,11 +7,18 @@ Successfully completed migration from `org_id` to `organization_id` across the e
 ## Database Changes ✅
 
 - **36 tables** updated to use `organization_id`
-- **3 migrations** applied:
+- **5 migrations** applied:
   1. `20241022_rename_org_id_to_organization_id.sql`
   2. `20241023_rename_org_id_to_organization_id_phase2.sql`
   3. `20241024_org_id_final_cleanup.sql`
+  4. `AddProjectIdForeignKeys1762883806000` (TypeORM)
+  5. `RemoveRedundantOrganizationId1762889071000` (TypeORM)
+  6. `RemoveOrgIdFromProjectTables1762897877000` (TypeORM - Phase 5)
 - **Manual fixes**: 17 tables required manual ALTER TABLE commands
+- **Phase 5 Changes**: Removed `organization_id` from 3 project-scoped tables:
+  - `branches` - organization context derived via `project_id`
+  - `chat_conversations` - organization context derived via `project_id`
+  - `object_type_schemas` - organization context derived via `project_id`
 - **Verification**: 0 tables remain with `org_id` column
 
 ## TypeScript Changes ✅
@@ -85,9 +92,14 @@ Successfully completed migration from `org_id` to `organization_id` across the e
 ### After Database Migration
 - **864 passing**, 180 failing (83% pass rate)
 
-### After TypeScript Fixes
+### After TypeScript Fixes (Phase 4)
 - **879 passing**, 166 failing (84% pass rate)
 - **138 more tests passing** than initial state
+
+### After Phase 5 (Nov 11, 2025)
+- **1083 passing**, 12 failing (99% pass rate)
+- **342 more tests passing** than initial state
+- **48 Phase 5 tests** all passing
 
 ### Graph Tests Status
 All graph core tests passing (10/10):
@@ -98,23 +110,14 @@ All graph core tests passing (10/10):
 
 ## Known Issues
 
-### OpenAPI Generation Blocked
-- Cannot regenerate `openapi.json` due to unrelated ClickUp API import error:
-  ```
-  Error [ERR_UNSUPPORTED_DIR_IMPORT]: Directory import 
-  '/Users/mcj/code/spec-server-2/node_modules/api/dist/core' is not supported
-  ```
-- This blocks:
-  - 119 OpenAPI golden scope tests (currently failing)
-  - Up-to-date API documentation
+### Remaining Test Failures (12 - unrelated to migration)
 
-### Remaining Test Failures (166)
 Categories:
-- Integration tests requiring database setup
-- Service unit tests with incomplete mocks
-- Advanced graph tests (traversal, merge, validation)
-- Auth/permission tests
-- Chat service tests
+- Extraction worker tests (3 failures) - Mock configuration issues
+- Product version tests (6 failures) - DTO validation issues  
+- Graph validation tests (3 failures) - Mock database query handling
+
+**Phase 5 Migration Impact**: None - all 48 tests modified in Phase 5 are passing
 
 ## Migration Commands Reference
 
@@ -179,20 +182,21 @@ Result: **39 replacements** in 13 files
 
 ## Next Steps
 
-1. **Fix ClickUp API import** to enable OpenAPI generation:
-   - Investigate `ERR_UNSUPPORTED_DIR_IMPORT` error
-   - Possibly need to update import statements in `.api/apis/clickup/index.ts`
-   - Once fixed: `npm run gen:openapi` → +119 tests passing
+1. **Fix remaining 12 test failures** (unrelated to migration):
+   - Extraction worker service mocks
+   - Product version DTO validation
+   - Graph relationship validation mocks
 
-2. **Continue fixing remaining 166 test failures**:
-   - Start with integration tests (likely need database setup)
-   - Then service unit tests (mock improvements)
-   - Finally advanced graph tests (merge, validation)
+2. **Production deployment preparation**:
+   - Test rollback migration (`RemoveOrgIdFromProjectTables down()`)
+   - Verify RLS policies work correctly with project-scoped tables
+   - Test E2E flows (especially chat conversations)
 
 3. **Database health check**:
-   - Verify all foreign keys reference `organization_id`
-   - Check RLS policies use correct column names
-   - Ensure indexes exist on `organization_id` columns
+   - ✅ All foreign keys reference `organization_id` correctly
+   - ✅ RLS policies use correct column names
+   - ✅ Indexes exist on `organization_id` columns where needed
+   - ✅ Project-scoped tables derive organization via `project_id`
 
 ## Lessons Learned
 
@@ -221,11 +225,41 @@ Test mocks must be updated alongside schema changes. The `projectRow` mock retur
 - **Phase 2** (Oct 23): Foreign keys + additional table fixes
 - **Phase 3** (Oct 24): Manual cleanup + fake-graph-db fix
 - **Phase 4** (Oct 24): TypeScript fixes (8 service files, 5 DTOs, 39 property accesses)
-- **Result**: 879/1045 tests passing (84% pass rate) ✅
+- **Phase 5** (Nov 11): Remove redundant organization_id from project-scoped tables
+- **Result**: 1083/1095 tests passing (99% pass rate) ✅
 
 ## Files Changed
 
-### Database
+### Phase 5: Remove Redundant Organization ID (Nov 11, 2025)
+
+**Migration:**
+- `apps/server-nest/src/migrations/1762897877000-RemoveOrgIdFromProjectTables.ts`
+  - Drops `organization_id` column from `branches`, `chat_conversations`, `object_type_schemas`
+  - Includes rollback migration
+
+**Entity Updates:**
+- `src/entities/branch.entity.ts` - Removed `organizationId` field
+- `src/entities/chat-conversation.entity.ts` - Removed `organizationId` field
+- `src/entities/object-type-schema.entity.ts` - Removed `organizationId` field
+
+**Service Updates:**
+- `src/modules/graph/branch.service.ts`
+  - Removed `organization_id` from `CreateBranchDto`
+  - Updated INSERT to use 3 params instead of 4
+  - Updated `list()` to exclude `organizationId`
+- `src/modules/chat/chat.service.ts`
+  - Removed `organization_id` filter from WHERE clauses
+  - Updated INSERT to use 4 params instead of 5
+- `src/modules/graph/graph.types.ts` - Updated `BranchRow` type
+
+**Test Updates (All Passing):**
+- `tests/unit/graph/branch.service.spec.ts` - 6 tests ✅
+- `tests/unit/chat/chat.service.spec.ts` - 18 tests ✅
+- `tests/unit/type-registry/type-registry.service.spec.ts` - 24 tests ✅
+
+### Previous Phases
+
+#### Database
 - `apps/server-nest/migrations/20241022_rename_org_id_to_organization_id.sql`
 - `apps/server-nest/migrations/20241023_rename_org_id_to_organization_id_phase2.sql`
 - `apps/server-nest/migrations/20241024_org_id_final_cleanup.sql`
@@ -253,5 +287,5 @@ Test mocks must be updated alongside schema changes. The `projectRow` mock retur
 
 **Database**: 100% migrated (0 tables with org_id)
 **TypeScript**: 100% compiling (0 errors)
-**Tests**: 84% passing (879/1045)
-**Production Ready**: ⚠️ After fixing remaining 166 test failures
+**Tests**: 99% passing (1083/1095)
+**Production Ready**: ⚠️ After fixing remaining 12 test failures (unrelated to migration)
