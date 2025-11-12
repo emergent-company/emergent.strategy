@@ -1,7 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { DatabaseService } from '../../common/database/database.service';
 import { HashService } from '../../common/utils/hash.service';
 import { DocumentDto } from './dto/document.dto';
 import { Document } from '../../entities/document.entity';
@@ -35,7 +34,6 @@ export class DocumentsService {
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
     private readonly dataSource: DataSource,
-    private readonly db: DatabaseService,
     private readonly hash: HashService
   ) {}
 
