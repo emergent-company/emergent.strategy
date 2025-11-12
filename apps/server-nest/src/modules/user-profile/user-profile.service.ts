@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DatabaseService } from '../../common/database/database.service';
 import {
   UserProfileDto,
   UpdateUserProfileDto,
@@ -17,8 +16,7 @@ export class UserProfileService {
     @InjectRepository(UserProfile)
     private readonly userProfileRepository: Repository<UserProfile>,
     @InjectRepository(UserEmail)
-    private readonly userEmailRepository: Repository<UserEmail>,
-    private readonly db: DatabaseService
+    private readonly userEmailRepository: Repository<UserEmail>
   ) {}
 
   private map(row: any): UserProfileDto {

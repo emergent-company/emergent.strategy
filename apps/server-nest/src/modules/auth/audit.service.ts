@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DatabaseService } from '../../common/database/database.service';
 import { AuditLog } from '../../entities/audit-log.entity';
 import {
   AuditLogEntry,
@@ -25,7 +24,6 @@ export class AuditService {
   private readonly enableConsoleLogging: boolean;
 
   constructor(
-    private readonly db: DatabaseService,
     @InjectRepository(AuditLog)
     private readonly auditLogRepo: Repository<AuditLog>
   ) {
