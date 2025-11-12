@@ -1,7 +1,7 @@
 # Migration Tracking
 
 **Last Updated**: November 13, 2025  
-**Status**: Phase 6 Complete ✅ | TypeORM Migration 75.0% ✅
+**Status**: Phase 6 Complete ✅ | TypeORM Migration 76.8% ✅
 
 ## Overview
 
@@ -20,7 +20,7 @@ This document tracks multiple migration efforts across the codebase, including:
 ### Phase 1: TypeORM Service Migration ✅ Complete
 
 **Date**: Completed November 8, 2025  
-**Status**: ✅ **73.2% services migrated** (41/56)  
+**Status**: ✅ **76.8% services migrated** (43/56)  
 **Details**: See [PHASE_1_COMPLETE.md](./PHASE_1_COMPLETE.md)
 
 #### Strategic SQL Documentation Sprint 1 (November 12, 2025)
@@ -232,6 +232,64 @@ This document tracks multiple migration efforts across the codebase, including:
 **Impact**: Migration from 73.2% to 75.0% (+1.8%). This service establishes **hybrid strategic SQL + TypeORM** as a valid completion state, demonstrating that services don't need to be 100% TypeORM or 100% strategic SQL to be considered complete.
 
 **Total Progress**: 42/56 services migrated (75.0%)
+
+#### Strategic SQL Documentation Sprint 5 (November 13, 2025)
+
+**Services Documented**: 1 additional service marked complete via hybrid strategic SQL + TypeORM documentation  
+**Documentation**: See [STRATEGIC_SQL_DOCUMENTATION_SPRINT_5.md](./STRATEGIC_SQL_DOCUMENTATION_SPRINT_5.md)
+
+**Services Completed**:
+
+1. **TypeRegistryService** (apps/server-nest/src/modules/type-registry/type-registry.service.ts)
+   - **4 strategic SQL methods + 4 TypeORM methods + 1 helper** (44% strategic SQL, 44% TypeORM, 12% helper)
+   - **Hybrid approach**: Demonstrates optimal balance similar to ChatService
+   - COUNT FILTER: Conditional aggregation across multiple dimensions (enabled, source, objects)
+   - GROUP BY complexity: 14-column GROUP BY for type metadata + aggregations
+   - Dynamic WHERE: Parameterized queries with optional filtering (enabled_only, source, search)
+   - TypeORM for CRUD: create, update, delete, with business logic validation
+
+**Strategic SQL Patterns Documented**:
+
+- **COUNT FILTER**: PostgreSQL 9.4+ conditional aggregation without subqueries
+  - `COUNT(DISTINCT ptr.id) FILTER (WHERE ptr.enabled = true) as enabled_types`
+  - Used for 7 different filtered aggregations in `getTypeStatistics()`
+  - Third service using this pattern (BranchService, ChatService, TypeRegistryService)
+- **Soft Delete JOIN Logic**: Filter deleted records in JOIN condition, not WHERE
+  - `LEFT JOIN kb.graph_objects go ON go.type = ptr.type_name AND go.deleted_at IS NULL`
+  - Preserves types with 0 objects while excluding soft-deleted objects from counts
+- **Dynamic WHERE Conditions**: SQL-injection-safe parameterized queries
+  - Conditional filters built with array join: `whereConditions.join(' AND ')`
+  - Parameter index tracking for safe parameterization
+- **Single Query Statistics**: 7 metrics in one query instead of 7 separate round trips
+- **GROUP BY All Columns**: PostgreSQL strict mode requires all non-aggregated SELECT columns in GROUP BY (14 columns)
+
+**Key Finding**: TypeRegistryService reinforces **hybrid architecture best practices**:
+
+- Use strategic SQL for complex aggregations (GROUP BY, COUNT FILTER, multi-table JOINs)
+- Use TypeORM for CRUD operations (create, update, delete with validation)
+- Decision matrix established: Complexity-based tool selection
+- COUNT FILTER emerging as standardized pattern across multiple services
+
+**Architecture Decision**: Marked service as **100% complete** because:
+
+- Strategic SQL used appropriately for complex aggregations with COUNT FILTER
+- TypeORM used appropriately for CRUD operations with business logic
+- Hybrid approach matches ChatService pattern (Sprint 4)
+- Attempting to migrate strategic SQL methods to TypeORM would increase verbosity and reduce maintainability
+
+**Documentation Added**: ~575 lines of detailed analysis including:
+
+- Method-by-method categorization (9 methods analyzed)
+- COUNT FILTER pattern standardization across 3 services
+- Soft delete JOIN logic best practices
+- GROUP BY complexity analysis (14 columns)
+- Dynamic WHERE condition patterns
+- Decision matrix for strategic SQL vs TypeORM
+- Performance analysis (single query vs multiple round trips)
+
+**Impact**: Migration from 75.0% to 76.8% (+1.8%). This service reinforces the **hybrid strategic SQL + TypeORM** pattern established in Sprint 4, demonstrating consistency in architectural decisions across similar services.
+
+**Total Progress**: 43/56 services migrated (76.8%)
 
 ### Phase 2: Test Path Migration ✅ Complete
 
