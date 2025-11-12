@@ -16,23 +16,29 @@ import { ChatConversation } from '../../entities/chat-conversation.entity';
 import { ChatMessage } from '../../entities/chat-message.entity';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([ChatConversation, ChatMessage]),
-        EmbeddingsModule, 
-        DatabaseModule, 
-        AppConfigModule, 
-        AuthModule, 
-        GraphModule, 
-        ProjectsModule
-    ],
-    controllers: [ChatController],
-    providers: [
-        ChatService,
-        ChatGenerationService,
-        McpClientService,         // MCP Client for consuming MCP servers (Phase 1: our server, Phase 2: external servers)
-        McpToolDetectorService,   // MCP Tool Detector for keyword-based intent detection (fallback)
-        McpToolSelectorService    // MCP Tool Selector using LLM for intelligent tool selection
-    ],
-    exports: [ChatService, ChatGenerationService, McpClientService, McpToolDetectorService, McpToolSelectorService],
+  imports: [
+    TypeOrmModule.forFeature([ChatConversation, ChatMessage]),
+    EmbeddingsModule,
+    DatabaseModule,
+    AppConfigModule,
+    AuthModule,
+    GraphModule,
+    ProjectsModule,
+  ],
+  controllers: [ChatController],
+  providers: [
+    ChatService,
+    ChatGenerationService,
+    McpClientService, // MCP Client for consuming MCP servers (Phase 1: our server, Phase 2: external servers)
+    McpToolDetectorService, // MCP Tool Detector for keyword-based intent detection (fallback)
+    McpToolSelectorService, // MCP Tool Selector using LLM for intelligent tool selection
+  ],
+  exports: [
+    ChatService,
+    ChatGenerationService,
+    McpClientService,
+    McpToolDetectorService,
+    McpToolSelectorService,
+  ],
 })
-export class ChatModule { }
+export class ChatModule {}

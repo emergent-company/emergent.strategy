@@ -1,6 +1,7 @@
 # Spec Server
 
 Minimal ingestion server aligned with the spec:
+
 - Ingest a URL or uploaded file, extract text, chunk, embed with Google Gemini `text-embedding-004`.
 - Store in Postgres with pgvector and FTS.
 
@@ -37,6 +38,7 @@ The system uses standard OIDC flows via Zitadel's hosted UI. Previous experiment
 **Quick Setup:** See [Zitadel Setup Guide](docs/setup/ZITADEL_SETUP_GUIDE.md)
 
 **TL;DR:**
+
 ```bash
 # 1. Start services (auto-generates bootstrap credentials)
 docker compose -f docker/docker-compose.yml up -d
@@ -48,6 +50,7 @@ bash scripts/bootstrap-zitadel-fully-automated.sh provision
 ```
 
 **Features:**
+
 - ✨ Zero-touch bootstrap with machine user
 - 🔐 Dual service account security pattern
 - 👤 Admin + test users auto-created with credentials
@@ -96,12 +99,14 @@ MCP_TIMEOUT=30000
 ```
 
 **Documentation:**
+
 - [Architecture Overview](docs/technical/MCP_CHAT_ARCHITECTURE.md) - System design and data flow
 - [User Guide](docs/guides/MCP_CHAT_USER_GUIDE.md) - How to use schema-aware chat
 - [Configuration Guide](docs/setup/MCP_CHAT_CONFIGURATION.md) - Deployment and administration
 - [UI Integration](docs/features/MCP_CHAT_UI_INTEGRATION.md) - Frontend implementation details
 
 **Features:**
+
 - ✅ Automatic schema query detection
 - ✅ Real-time database queries
 - ✅ Graceful degradation (chat continues if MCP fails)
@@ -116,6 +121,7 @@ The system includes comprehensive error logging for both server and browser:
 - **Browser**: Errors logged to localStorage (dev mode), accessible via `window.__errorLogs.printLogs()` in console
 
 **Quick Start:**
+
 ```bash
 # View recent server errors
 tail -20 logs/errors.log | jq '.'
@@ -125,12 +131,13 @@ tail -f logs/errors.log | jq '.'
 ```
 
 **Browser Console:**
+
 ```javascript
 // View all captured errors
-window.__errorLogs.printLogs()
+window.__errorLogs.printLogs();
 
 // Download logs for sharing
-window.__errorLogs.downloadLogs()
+window.__errorLogs.downloadLogs();
 ```
 
 See `docs/technical/ERROR_LOGGING.md` for complete guide or `docs/guides/ERROR_LOGGING_QUICKREF.md` for quick reference.
@@ -146,14 +153,14 @@ See `QUICK_START_DEV.md` for a complete guide to starting, stopping, and managin
 We keep UI/UX reference code as Git submodules under `reference/` (read-only, no runtime imports).
 
 - Add Nexus (once):
-	- git submodule add -b master git@github.com:eyedea-io/Nexus-React-3.0.0.git reference/nexus
- - Add react-daisyui (once):
-	- git submodule add -b main https://github.com/daisyui/react-daisyui.git reference/react-daisyui
+  - git submodule add -b master git@github.com:eyedea-io/Nexus-React-3.0.0.git reference/nexus
+- Add react-daisyui (once):
+  - git submodule add -b main https://github.com/daisyui/react-daisyui.git reference/react-daisyui
 - Initialize/update on fresh clones:
-	- git submodule update --init --recursive
+  - git submodule update --init --recursive
 - Pull latest from upstream:
-	- git -C reference/nexus pull origin master
- 	- git -C reference/react-daisyui pull origin main
+  - git -C reference/nexus pull origin master
+  - git -C reference/react-daisyui pull origin main
 
 Never import from `reference/` at runtime. Copy patterns into `apps/admin/src/**` with strict TS and our lint/style.
 When copying from `react-daisyui`, keep attribution headers and adapt to use our `useConfig` theming + Iconify Lucide icons.
@@ -188,6 +195,7 @@ export COOLIFY_TOKEN=your-api-token
 ### Architecture
 
 **Production Stack:**
+
 - **Frontend**: React + Vite (Nginx container)
 - **Backend**: NestJS (Node.js container)
 - **Database**: PostgreSQL 16 with pgvector extension
@@ -251,12 +259,40 @@ All project documentation is located in the `/docs` directory, organized into th
 - **/docs/features**: Detailed documentation on specific features.
 - **/docs/technical**: Deep dives into the architecture and technical implementation details.
 - **/docs/archive**: Outdated or historical documents, such as status reports and old plans.
+- **/docs/database**: Database schema documentation in DBML format.
+
+### Database Schema Documentation
+
+The project uses [dbdocs](https://dbdocs.io/) to maintain human-readable database documentation:
+
+```bash
+# Generate schema documentation from database
+npm run db:docs:generate
+
+# Validate DBML syntax
+npm run db:docs:validate
+
+# Generate and validate (combined)
+npm run db:docs:local
+```
+
+After applying migrations, regenerate the schema documentation to keep it in sync:
+
+```bash
+npm run db:migrate
+npm run db:docs:generate
+```
+
+See the [Database Documentation Guide](docs/guides/database-documentation.md) for complete details.
 
 ## Graph Search Pagination (Summary)
+
 Bidirectional cursor pagination is supported for hybrid (lexical + vector) fused results. Each item carries an opaque Base64URL cursor. Requests accept:
+
 ```
 pagination: { limit?: number; cursor?: string | null; direction?: 'forward' | 'backward' }
 ```
+
 Server caps `limit` at 50 and echoes `meta.request.limit` plus `requested_limit`. Backward pages return items preceding the supplied cursor item (cursor item excluded) and reuse `nextCursor` to continue moving further backward. Ranks are per-request and may shift slightly; rely on item identity instead of cross-request rank comparisons.
 
 See: `apps/server-nest/README.md` ("Graph Search Cursor Pagination Semantics") or the dedicated spec doc `docs/spec/graph-search-pagination.md` for full details.
@@ -274,6 +310,7 @@ npm --prefix apps/server-nest run bench:graph:relationships
 Output is JSON summarizing ops/sec and avg ms/op using the FakeGraphDb (not a substitute for real DB profiling).
 
 Additional:
+
 - Objects benchmark: `npm run bench:graph:objects` (create + patch objects)
 - Strict emulator mode: pass `{ strict: true }` to `makeFakeGraphDb` in tests to have unmatched SQL throw immediately—useful when adding new GraphService queries.
 - Traversal benchmark: `npm run bench:graph:traverse` (breadth-limited traversal performance)

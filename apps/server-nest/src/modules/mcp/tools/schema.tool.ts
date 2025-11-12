@@ -14,20 +14,20 @@ import { ToolResultDto } from '../dto/data.dto';
 
 /**
  * Schema Tool - Exposes template pack schemas to AI agents
- * 
+ *
  * Provides MCP tools for discovering:
  * - Available template packs
  * - Object type definitions (Person, Task, etc.)
  * - Relationship type definitions (assigned_to, reports_to, etc.)
- * 
+ *
  * Tools include schema_version metadata for cache invalidation.
  */
 @Injectable()
 export class SchemaTool {
   constructor(
     private readonly templatePackService: TemplatePackService,
-    private readonly schemaVersionService: SchemaVersionService,
-  ) { }
+    private readonly schemaVersionService: SchemaVersionService
+  ) {}
 
   @Tool({
     name: 'schema_getTemplatePacks',
@@ -44,19 +44,21 @@ export class SchemaTool {
       });
 
       // Transform to summary DTOs
-      const summaries: TemplatePackSummaryDto[] = result.packs.map((pack: any) => {
-        const objectTypes = pack.object_type_schemas || {};
-        const relationshipTypes = pack.relationship_type_schemas || {};
+      const summaries: TemplatePackSummaryDto[] = result.packs.map(
+        (pack: any) => {
+          const objectTypes = pack.object_type_schemas || {};
+          const relationshipTypes = pack.relationship_type_schemas || {};
 
-        return {
-          id: pack.id,
-          name: pack.name,
-          version: pack.version,
-          description: pack.description || 'No description available',
-          object_type_count: Object.keys(objectTypes).length,
-          relationship_type_count: Object.keys(relationshipTypes).length,
-        };
-      });
+          return {
+            id: pack.id,
+            name: pack.name,
+            version: pack.version,
+            description: pack.description || 'No description available',
+            object_type_count: Object.keys(objectTypes).length,
+            relationship_type_count: Object.keys(relationshipTypes).length,
+          };
+        }
+      );
 
       // Get current schema version
       const schemaVersion = await this.schemaVersionService.getSchemaVersion();
@@ -73,7 +75,10 @@ export class SchemaTool {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to retrieve template packs',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to retrieve template packs',
       };
     }
   }
@@ -85,14 +90,20 @@ export class SchemaTool {
       'Includes all object types with their properties and all relationship types. ' +
       'Use this after discovering pack IDs via schema_getTemplatePacks.',
     parameters: z.object({
-      pack_id: z.string().describe('Unique identifier for the template pack (e.g., "core", "project-management")'),
+      pack_id: z
+        .string()
+        .describe(
+          'Unique identifier for the template pack (e.g., "core", "project-management")'
+        ),
     }),
   })
   async getTemplatePackDetails(params: {
     pack_id: string;
   }): Promise<ToolResultDto<TemplatePackDetailsDto>> {
     try {
-      const pack = await this.templatePackService.getTemplatePackById(params.pack_id);
+      const pack = await this.templatePackService.getTemplatePackById(
+        params.pack_id
+      );
 
       if (!pack) {
         return {
@@ -103,30 +114,30 @@ export class SchemaTool {
 
       // Transform object type schemas
       const objectTypeSchemas = pack.object_type_schemas || {};
-      const objectTypes: ObjectTypeSchemaDto[] = Object.entries(objectTypeSchemas).map(
-        ([typeName, schema]: [string, any]) => ({
-          name: typeName,
-          label: schema.label || typeName,
-          description: schema.description || '',
-          properties: schema.properties || {},
-          required: schema.required || [],
-          display: schema.display,
-        })
-      );
+      const objectTypes: ObjectTypeSchemaDto[] = Object.entries(
+        objectTypeSchemas
+      ).map(([typeName, schema]: [string, any]) => ({
+        name: typeName,
+        label: schema.label || typeName,
+        description: schema.description || '',
+        properties: schema.properties || {},
+        required: schema.required || [],
+        display: schema.display,
+      }));
 
       // Transform relationship type schemas
       const relationshipTypeSchemas = pack.relationship_type_schemas || {};
-      const relationshipTypes: RelationshipTypeSchemaDto[] = Object.entries(relationshipTypeSchemas).map(
-        ([relName, schema]: [string, any]) => ({
-          name: relName,
-          label: schema.label || relName,
-          description: schema.description || '',
-          source_type: schema.sourceType || schema.source_type || '',
-          target_type: schema.targetType || schema.target_type || '',
-          cardinality: schema.cardinality || 'many-to-many',
-          properties: schema.properties,
-        })
-      );
+      const relationshipTypes: RelationshipTypeSchemaDto[] = Object.entries(
+        relationshipTypeSchemas
+      ).map(([relName, schema]: [string, any]) => ({
+        name: relName,
+        label: schema.label || relName,
+        description: schema.description || '',
+        source_type: schema.sourceType || schema.source_type || '',
+        target_type: schema.targetType || schema.target_type || '',
+        cardinality: schema.cardinality || 'many-to-many',
+        properties: schema.properties,
+      }));
 
       const details: TemplatePackDetailsDto = {
         id: pack.id,
@@ -155,7 +166,10 @@ export class SchemaTool {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to retrieve template pack details',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to retrieve template pack details',
       };
     }
   }
@@ -166,9 +180,14 @@ export class SchemaTool {
       'Returns a list of all object types across all template packs. ' +
       'Useful for quickly discovering what entities exist (Person, Task, Project, etc.) ' +
       'without having to query each pack individually.',
-    parameters: z.object({
-      pack_id: z.string().optional().describe('Optional: filter to a specific template pack'),
-    }).optional(),
+    parameters: z
+      .object({
+        pack_id: z
+          .string()
+          .optional()
+          .describe('Optional: filter to a specific template pack'),
+      })
+      .optional(),
   })
   async getObjectTypes(params?: {
     pack_id?: string;
@@ -177,7 +196,9 @@ export class SchemaTool {
       let packs: any[];
 
       if (params?.pack_id) {
-        const pack = await this.templatePackService.getTemplatePackById(params.pack_id);
+        const pack = await this.templatePackService.getTemplatePackById(
+          params.pack_id
+        );
         packs = pack ? [pack] : [];
       } else {
         const result = await this.templatePackService.listTemplatePacks({
@@ -220,7 +241,10 @@ export class SchemaTool {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to retrieve object types',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to retrieve object types',
       };
     }
   }
@@ -230,11 +254,22 @@ export class SchemaTool {
     description:
       'Returns a list of all relationship types across all template packs. ' +
       'Shows how different object types can be connected (e.g., Person assigned_to Task).',
-    parameters: z.object({
-      pack_id: z.string().optional().describe('Optional: filter to a specific template pack'),
-      source_type: z.string().optional().describe('Optional: filter by source object type (e.g., "Task")'),
-      target_type: z.string().optional().describe('Optional: filter by target object type (e.g., "Person")'),
-    }).optional(),
+    parameters: z
+      .object({
+        pack_id: z
+          .string()
+          .optional()
+          .describe('Optional: filter to a specific template pack'),
+        source_type: z
+          .string()
+          .optional()
+          .describe('Optional: filter by source object type (e.g., "Task")'),
+        target_type: z
+          .string()
+          .optional()
+          .describe('Optional: filter by target object type (e.g., "Person")'),
+      })
+      .optional(),
   })
   async getRelationshipTypes(params?: {
     pack_id?: string;
@@ -245,7 +280,9 @@ export class SchemaTool {
       let packs: any[];
 
       if (params?.pack_id) {
-        const pack = await this.templatePackService.getTemplatePackById(params.pack_id);
+        const pack = await this.templatePackService.getTemplatePackById(
+          params.pack_id
+        );
         packs = pack ? [pack] : [];
       } else {
         const result = await this.templatePackService.listTemplatePacks({
@@ -277,12 +314,12 @@ export class SchemaTool {
       // Apply filters
       if (params?.source_type) {
         relationshipTypes = relationshipTypes.filter(
-          rel => rel.source_type === params.source_type
+          (rel) => rel.source_type === params.source_type
         );
       }
       if (params?.target_type) {
         relationshipTypes = relationshipTypes.filter(
-          rel => rel.target_type === params.target_type
+          (rel) => rel.target_type === params.target_type
         );
       }
 
@@ -301,7 +338,10 @@ export class SchemaTool {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to retrieve relationship types',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to retrieve relationship types',
       };
     }
   }

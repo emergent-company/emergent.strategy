@@ -10,13 +10,13 @@ import { Org } from '../../entities/org.entity';
 
 // Import AuthModule so AuthGuard / ScopesGuard providers (and AuthService) are resolvable when applied at controller level
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Project, ProjectMembership, Org]),
-        AuthModule, 
-        TemplatePackModule
-    ],
-    controllers: [ProjectsController],
-    providers: [ProjectsService],
-    exports: [ProjectsService], // Export so other modules can inject ProjectsService
+  imports: [
+    TypeOrmModule.forFeature([Project, ProjectMembership, Org]),
+    AuthModule,
+    TemplatePackModule,
+  ],
+  controllers: [ProjectsController],
+  providers: [ProjectsService],
+  exports: [ProjectsService], // Export so other modules can inject ProjectsService
 })
-export class ProjectsModule { }
+export class ProjectsModule {}

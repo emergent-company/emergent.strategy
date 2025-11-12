@@ -2,67 +2,65 @@
 /**
  * full-reset-db.ts
  * ---------------------------------------------------------------
- * Hard drop + recreate the kb & core schemas using database migrations
- * as the single source of truth.
+ * Completely drops and recreates the database, then runs migrations.
  *
  * This script:
- * 1. Drops kb and core schemas (CASCADE - all data lost)
- * 2. Runs all migrations from apps/server-nest/migrations/ in order
- * 3. Ensures complete, consistent database schema for E2E tests
+ * 1. Terminates all connections to the target database
+ * 2. Drops the entire database
+ * 3. Recreates the database
+ * 4. Runs all migrations to recreate the schema
  *
  * Usage:
  *   npx tsx scripts/full-reset-db.ts
  *
  * Environment variables:
- *   DATABASE_URL            - (preferred) standard Postgres URL
- *   Or POSTGRES_* variables - host, port, user, password, database
+ *   POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
  *
  * Safety:
- *   - Acquires advisory lock 4815162342 to prevent concurrent runs
- *   - Drops schemas with CASCADE: ALL DATA IS LOST
- *   - Uses migrations as single source of truth (no schema duplication)
+ *   - ALL DATA IS LOST
+ *   - Connects to 'postgres' database to drop the target database
  */
 import { Pool } from 'pg';
 import path from 'node:path';
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import * as dotenv from 'dotenv';
-import { validateEnvVars, DB_REQUIREMENTS, getDbConfig } from './lib/env-validator.js';
+import {
+  validateEnvVars,
+  DB_REQUIREMENTS,
+  getDbConfig,
+} from './lib/env-validator.js';
 
 // Load .env early (allow override via DOTENV_PATH); ignore if missing.
 (() => {
-  const envPath = process.env.DOTENV_PATH || path.resolve(process.cwd(), '.env');
+  const envPath =
+    process.env.DOTENV_PATH || path.resolve(process.cwd(), '.env');
   if (fs.existsSync(envPath)) {
     dotenv.config({ path: envPath });
     // eslint-disable-next-line no-console
     console.log(`[full-reset-db] Loaded environment from ${envPath}`);
   } else {
     // eslint-disable-next-line no-console
-    console.log('[full-reset-db] No .env file found at', envPath, '(proceeding with existing environment)');
+    console.log(
+      '[full-reset-db] No .env file found at',
+      envPath,
+      '(proceeding with existing environment)'
+    );
   }
 })();
 
-function buildPool(): Pool {
-  if (process.env.DATABASE_URL) {
-    return new Pool({ connectionString: process.env.DATABASE_URL });
-  }
-
+function buildPool(database = 'postgres'): Pool {
   // Validate required environment variables with helpful error messages
   validateEnvVars(DB_REQUIREMENTS);
 
   // Use validated env vars with no fallbacks
   const dbConfig = getDbConfig();
-  if (process.env.FULL_RESET_DB_DEBUG === '1') {
-    // eslint-disable-next-line no-console
-    console.log('[full-reset-db] Using connection params', {
-      host: dbConfig.host,
-      port: dbConfig.port,
-      user: dbConfig.user,
-      database: dbConfig.database,
-      password: dbConfig.password ? '***' : '(empty)'
-    });
-  }
-  return new Pool(dbConfig);
+
+  // Connect to the postgres database instead of the target database
+  return new Pool({
+    ...dbConfig,
+    database,
+  });
 }
 
 async function exec(pool: Pool, sql: string) {
@@ -77,27 +75,36 @@ async function exec(pool: Pool, sql: string) {
 
 async function main() {
   const start = Date.now();
-  const pool = buildPool();
+
+  // Validate required environment variables
+  validateEnvVars(DB_REQUIREMENTS);
+  const dbConfig = getDbConfig();
+  const targetDb = dbConfig.database;
+
+  // Connect to the 'postgres' database to perform database operations
+  const pool = buildPool('postgres');
+
   try {
-    console.log('[full-reset-db] Acquiring advisory lock (minimal path id)');
-    await exec(pool, 'SELECT pg_advisory_lock(4815162342)');
+    console.log(
+      `[full-reset-db] Terminating all connections to database '${targetDb}'`
+    );
+    await exec(
+      pool,
+      `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${targetDb}' AND pid <> pg_backend_pid()`
+    );
 
-    console.log('[full-reset-db] Dropping schemas kb & core (CASCADE)');
-    await exec(pool, 'DROP SCHEMA IF EXISTS kb CASCADE');
-    await exec(pool, 'DROP SCHEMA IF EXISTS core CASCADE');
+    console.log(`[full-reset-db] Dropping database '${targetDb}'`);
+    await exec(pool, `DROP DATABASE IF EXISTS "${targetDb}"`);
 
-    console.log('[full-reset-db] Clearing migration tracking table');
-    await exec(pool, 'DELETE FROM public.schema_migrations');
-
-    console.log('[full-reset-db] Releasing advisory lock');
-    await exec(pool, 'SELECT pg_advisory_unlock(4815162342)');
+    console.log(`[full-reset-db] Creating database '${targetDb}'`);
+    await exec(pool, `CREATE DATABASE "${targetDb}"`);
 
     await pool.end();
 
-    console.log('[full-reset-db] Running migrations to recreate schema...');
-    execSync('tsx scripts/run-migrations.ts', {
+    console.log('[full-reset-db] Running migrations to create schema...');
+    execSync('npm run db:migrate', {
       stdio: 'inherit',
-      cwd: path.resolve(process.cwd())
+      cwd: path.resolve(process.cwd()),
     });
 
     console.log(`[full-reset-db] Completed in ${Date.now() - start}ms`);
@@ -108,7 +115,7 @@ async function main() {
 }
 
 // Run
-main().catch(err => {
+main().catch((err) => {
   // eslint-disable-next-line no-console
   console.error('[full-reset-db] FAILED', err);
   process.exit(1);

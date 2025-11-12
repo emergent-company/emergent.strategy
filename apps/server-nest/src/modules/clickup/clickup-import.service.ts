@@ -287,7 +287,7 @@ export class ClickUpImportService {
                     try {
                         // Map and store space
                         const spaceDoc = this.dataMapper.mapSpace(space, workspaceId);
-                        await this.storeDocument(projectId, orgId, integrationId, spaceDoc);
+                        await this.storeDocument(projectId, integrationId, spaceDoc);
                         breakdown['spaces'].imported++;
                         totalImported++;
 
@@ -299,7 +299,7 @@ export class ClickUpImportService {
                         for (const folder of foldersResponse.folders) {
                             try {
                                 const folderDoc = this.dataMapper.mapFolder(folder, space.id);
-                                await this.storeDocument(projectId, orgId, integrationId, folderDoc);
+                                await this.storeDocument(projectId, integrationId, folderDoc);
                                 breakdown['folders'].imported++;
                                 totalImported++;
 
@@ -647,7 +647,7 @@ export class ClickUpImportService {
 
         // Store list (without parent since we don't traverse hierarchy in selective mode)
         const listDoc = this.dataMapper.mapList(list, undefined);
-        await this.storeDocument(projectId, orgId, integrationId, listDoc);
+        await this.storeDocument(projectId, integrationId, listDoc);
         breakdown['lists'].imported++;
 
         // Import tasks from this list
@@ -662,7 +662,7 @@ export class ClickUpImportService {
         for (const task of firstPageResponse.tasks) {
           try {
             const taskDoc = this.dataMapper.mapTask(task, listId);
-            await this.storeDocument(projectId, orgId, integrationId, taskDoc);
+            await this.storeDocument(projectId, integrationId, taskDoc);
             breakdown['tasks'].imported++;
             taskCount++;
           } catch (error) {
@@ -697,12 +697,7 @@ export class ClickUpImportService {
           for (const task of tasksPageResponse.tasks) {
             try {
               const taskDoc = this.dataMapper.mapTask(task, listId);
-              await this.storeDocument(
-                projectId,
-                orgId,
-                integrationId,
-                taskDoc
-              );
+              await this.storeDocument(projectId, integrationId, taskDoc);
               breakdown['tasks'].imported++;
               taskCount++;
             } catch (error) {
@@ -761,7 +756,7 @@ export class ClickUpImportService {
       try {
         // Map and store list
         const listDoc = this.dataMapper.mapList(list, parentId);
-        await this.storeDocument(projectId, orgId, integrationId, listDoc);
+        await this.storeDocument(projectId, integrationId, listDoc);
         breakdown['lists'].imported++;
 
         // Fetch tasks in list (with pagination)
@@ -782,12 +777,7 @@ export class ClickUpImportService {
           for (const task of tasksResponse.tasks) {
             try {
               const taskDoc = this.dataMapper.mapTask(task, list.id);
-              await this.storeDocument(
-                projectId,
-                orgId,
-                integrationId,
-                taskDoc
-              );
+              await this.storeDocument(projectId, integrationId, taskDoc);
               breakdown['tasks'].imported++;
             } catch (error) {
               const err = error as Error;
@@ -963,7 +953,6 @@ export class ClickUpImportService {
           // Store combined document
           await this.storeDocument(
             projectId,
-            orgId,
             integrationId,
             docData,
             undefined
@@ -1096,7 +1085,6 @@ export class ClickUpImportService {
             // Store combined document
             await this.storeDocument(
               projectId,
-              orgId,
               integrationId,
               docData,
               undefined
@@ -1242,7 +1230,6 @@ export class ClickUpImportService {
         // Store page and get its document ID
         const pageDocumentId = await this.storeDocument(
           projectId,
-          orgId,
           integrationId,
           pageData,
           parentDocumentId
@@ -1291,7 +1278,6 @@ export class ClickUpImportService {
    */
   private async storeDocument(
     projectId: string,
-    orgId: string,
     integrationId: string,
     doc: any,
     parentDocumentId?: string
@@ -1335,7 +1321,6 @@ export class ClickUpImportService {
         const result = (await this.dataSource.query(
           `INSERT INTO kb.documents (
                         project_id,
-                        organization_id,
                         source_url,
                         filename,
                         content,
@@ -1343,7 +1328,7 @@ export class ClickUpImportService {
                         integration_metadata,
                         created_at,
                         updated_at
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+                    ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
                     ON CONFLICT (project_id, content_hash) 
                     DO UPDATE SET
                         content = EXCLUDED.content,
@@ -1353,7 +1338,6 @@ export class ClickUpImportService {
                     RETURNING id`,
           [
             projectId,
-            orgId,
             doc.external_url || null,
             doc.title,
             doc.content,
