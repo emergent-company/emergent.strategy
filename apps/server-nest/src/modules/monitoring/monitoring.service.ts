@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { DatabaseService } from '../../common/database/database.service';
 import { LlmCallLog } from '../../entities/llm-call-log.entity';
 import { SystemProcessLog } from '../../entities/system-process-log.entity';
 import { ObjectExtractionJob } from '../../entities/object-extraction-job.entity';
@@ -17,7 +16,6 @@ import { ResourceQueryDto, LogQueryDto } from './dto/resource-query.dto';
 @Injectable()
 export class MonitoringService {
   constructor(
-    private readonly db: DatabaseService,
     @InjectRepository(ObjectExtractionJob)
     private readonly extractionJobRepo: Repository<ObjectExtractionJob>,
     @InjectRepository(LlmCallLog)

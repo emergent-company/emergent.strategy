@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DatabaseService } from '../../common/database/database.service';
 import { SystemProcessLog } from '../../entities/system-process-log.entity';
 import { LlmCallLog } from '../../entities/llm-call-log.entity';
 import { CreateSystemProcessLogInput } from './entities/system-process-log.entity';
@@ -38,7 +37,6 @@ export class MonitoringLoggerService {
   private readonly logger = new Logger(MonitoringLoggerService.name);
 
   constructor(
-    private readonly db: DatabaseService,
     @InjectRepository(SystemProcessLog)
     private readonly systemLogRepo: Repository<SystemProcessLog>,
     @InjectRepository(LlmCallLog)

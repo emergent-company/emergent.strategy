@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DatabaseService } from '../../common/database/database.service';
 import { ChunkDto } from './dto/chunk.dto';
 import { Chunk } from '../../entities/chunk.entity';
 
@@ -9,8 +8,7 @@ import { Chunk } from '../../entities/chunk.entity';
 export class ChunksService {
   constructor(
     @InjectRepository(Chunk)
-    private readonly chunkRepository: Repository<Chunk>,
-    private readonly db: DatabaseService
+    private readonly chunkRepository: Repository<Chunk>
   ) {}
 
   async list(documentId?: string): Promise<ChunkDto[]> {

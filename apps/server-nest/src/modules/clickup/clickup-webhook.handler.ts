@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { WebhookPayload } from '../integrations/base-integration';
 import { ClickUpWebhookEvent } from './clickup.types';
-import { DatabaseService } from '../../common/database/database.service';
+import { ClickUpSyncState } from '../../entities/clickup-sync-state.entity';
 
 /**
  * ClickUp Webhook Handler
@@ -38,7 +40,10 @@ import { DatabaseService } from '../../common/database/database.service';
 export class ClickUpWebhookHandler {
   private readonly logger = new Logger(ClickUpWebhookHandler.name);
 
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    @InjectRepository(ClickUpSyncState)
+    private readonly syncStateRepo: Repository<ClickUpSyncState>
+  ) {}
 
   /**
    * Handle incoming ClickUp webhook
@@ -266,11 +271,9 @@ export class ClickUpWebhookHandler {
     entityId: string
   ): Promise<void> {
     try {
-      await this.db.query(
-        `UPDATE kb.clickup_sync_state 
-                 SET updated_at = CURRENT_TIMESTAMP
-                 WHERE integration_id = $1`,
-        [integrationId]
+      await this.syncStateRepo.update(
+        { integrationId },
+        { updatedAt: new Date() }
       );
     } catch (error) {
       const err = error as Error;
