@@ -36,13 +36,13 @@ async function seedMeetingDecisionPack(): Promise<void> {
         ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
     });
     
-    const { seedMeetingDecisionPack: seedFn } = await import('../apps/server-nest/src/modules/template-packs/seeds/meeting-decision-pack.seed.js');
+    const { seedMeetingDecisionPack: seedFn } = await import('../apps/server/src/modules/template-packs/seeds/meeting-decision-pack.seed.js');
     await seedFn(pool);
     await pool.end();
 }
 ```
 
-### 2. `apps/server-nest/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`
+### 2. `apps/server/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`
 **Original Problem:**
 ```typescript
 if (require.main === module) {

@@ -138,7 +138,7 @@ Changed the default model from `gemini-1.5-pro-002` to `gemini-1.5-flash-latest`
 
 **Files Modified**:
 
-1. **apps/server-nest/src/common/config/config.service.ts** (line 60):
+1. **apps/server/src/common/config/config.service.ts** (line 60):
 ```typescript
 // Before
 get vertexAiModel() { return this.env.VERTEX_AI_MODEL || 'gemini-1.5-pro-002'; }
@@ -147,7 +147,7 @@ get vertexAiModel() { return this.env.VERTEX_AI_MODEL || 'gemini-1.5-pro-002'; }
 get vertexAiModel() { return this.env.VERTEX_AI_MODEL || 'gemini-1.5-flash-latest'; }
 ```
 
-2. **apps/server-nest/src/common/config/config.schema.ts** (line 120):
+2. **apps/server/src/common/config/config.schema.ts** (line 120):
 ```typescript
 // Before
 VERTEX_AI_MODEL: process.env.VERTEX_AI_MODEL || 'gemini-1.5-pro-002',
@@ -157,8 +157,8 @@ VERTEX_AI_MODEL: process.env.VERTEX_AI_MODEL || 'gemini-1.5-flash-latest',
 ```
 
 3. **Test Files Updated**:
-   - `apps/server-nest/src/modules/extraction-jobs/__tests__/vertex-ai.provider.spec.ts`
-   - `apps/server-nest/src/modules/extraction-jobs/__tests__/llm-provider.factory.spec.ts`
+   - `apps/server/src/modules/extraction-jobs/__tests__/vertex-ai.provider.spec.ts`
+   - `apps/server/src/modules/extraction-jobs/__tests__/llm-provider.factory.spec.ts`
 
 ---
 

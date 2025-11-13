@@ -13,7 +13,7 @@ Fixed two critical issues preventing extraction progress tracking from working:
 ## Changes Applied
 
 ### 1. Database Migration ✅
-**File**: `apps/server-nest/migrations/20251018_add_extraction_progress_columns.sql`
+**File**: `apps/server/migrations/20251018_add_extraction_progress_columns.sql`
 
 - Added 4 progress tracking columns with defaults
 - Added index for efficient progress queries  
@@ -22,7 +22,7 @@ Fixed two critical issues preventing extraction progress tracking from working:
 - **Status**: Applied successfully to `spec` database
 
 ### 2. Key Generation Fix ✅
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+**File**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 - Added `generateKeyFromName()` method (lines 1373-1405)
 - Updated object creation to use generated keys (line 677)
@@ -77,14 +77,14 @@ const estimatedSecondsRemaining = throughputPerMinute && throughputPerMinute > 0
 ```
 
 ### Progress Updates (Backend)
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+**File**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 - Line 554: Initialize `total_items` when LLM returns results
 - Line 527: Call `updateProgress()` after each entity processed
 - Line 620: Update database with current counts
 
 ### Key Generation (Backend)
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` (lines 1373-1405)
+**File**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` (lines 1373-1405)
 
 ```typescript
 private generateKeyFromName(name: string, typeName: string): string {
@@ -136,12 +136,12 @@ WHERE status IN ('running', 'pending');
 ## Files Modified
 
 ### Backend
-- ✅ `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+- ✅ `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
   - Added `generateKeyFromName()` method
   - Updated object creation logic
 
 ### Database
-- ✅ `apps/server-nest/migrations/20251018_add_extraction_progress_columns.sql`
+- ✅ `apps/server/migrations/20251018_add_extraction_progress_columns.sql`
   - New migration file
   - Applied to `spec` database
 
@@ -171,7 +171,7 @@ DROP CONSTRAINT IF EXISTS check_progress_consistency;
 
 ### Rollback Code Changes
 ```bash
-git checkout HEAD~1 -- apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts
+git checkout HEAD~1 -- apps/server/src/modules/extraction-jobs/extraction-worker.service.ts
 npm run workspace:restart
 ```
 

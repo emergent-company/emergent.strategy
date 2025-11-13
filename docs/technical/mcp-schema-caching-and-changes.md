@@ -191,7 +191,7 @@ CREATE TABLE kb.template_pack_current (
 
 #### Service Method
 ```typescript
-// apps/server-nest/src/modules/template-packs/template-pack.service.ts
+// apps/server/src/modules/template-packs/template-pack.service.ts
 
 @Injectable()
 export class TemplatePackService {
@@ -243,7 +243,7 @@ export class TemplatePackService {
 ### 2. Add Schema Version Endpoints
 
 ```typescript
-// apps/server-nest/src/modules/mcp/mcp.controller.ts
+// apps/server/src/modules/mcp/mcp.controller.ts
 
 @Controller('mcp')
 @ApiTags('MCP')
@@ -278,7 +278,7 @@ export class McpController {
 ### 3. Add Version to Tool Responses
 
 ```typescript
-// apps/server-nest/src/modules/mcp/tools/schema.tool.ts
+// apps/server/src/modules/mcp/tools/schema.tool.ts
 
 @Injectable()
 export class SchemaTool {
@@ -310,7 +310,7 @@ export class SchemaTool {
 ### 4. Implement Change Notifications (Optional WebSocket)
 
 ```typescript
-// apps/server-nest/src/modules/mcp/mcp.gateway.ts
+// apps/server/src/modules/mcp/mcp.gateway.ts
 
 @WebSocketGateway({
   namespace: '/mcp',

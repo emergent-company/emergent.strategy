@@ -14,7 +14,7 @@
 ## ✅ Tests Fixed This Session
 
 ### 1. search.service.spec.ts - RRF Fusion Test
-**File:** `apps/server-nest/tests/search.service.spec.ts`  
+**File:** `apps/server/tests/search.service.spec.ts`  
 **Issue:** Test expected 1 `db.query` call but service was making 2 calls  
 **Root Cause:** SearchService was refactored to use two-query z-score normalization approach (lexical + vector) instead of single SQL-based RRF query  
 **Solution:**
@@ -26,7 +26,7 @@
 **Result:** ✅ All 6 tests in file now passing
 
 ### 2. graph.objects.spec.ts - Idempotent Patch Test
-**File:** `apps/server-nest/src/modules/graph/graph.service.ts`  
+**File:** `apps/server/src/modules/graph/graph.service.ts`  
 **Issue:** Empty patch `{}` should throw `no_effective_change` error but didn't  
 **Root Cause:** `generateDiff()` returns a `DiffSummary` object (not null) for no-op changes, so the check `if (!diff)` was always false  
 **Solution:**
@@ -36,7 +36,7 @@
 **Result:** ✅ Both tests in file now passing
 
 ### 3. openapi-scope-golden-full.spec.ts - Golden File Update ⭐
-**File:** `apps/server-nest/tests/openapi-scope-golden-full.spec.ts`  
+**File:** `apps/server/tests/openapi-scope-golden-full.spec.ts`  
 **Issue:** Test detecting 25 new endpoints not in EXPECTED constant  
 **Root Cause:** Not a bug - test correctly detecting API evolution. New features added since golden file created  
 **Solution:**
@@ -142,14 +142,14 @@ All remaining failures require infrastructure or environment changes that would 
 
 ## 📝 Files Modified This Session
 
-1. `apps/server-nest/tests/search.service.spec.ts`
+1. `apps/server/tests/search.service.spec.ts`
    - Updated RRF fusion test expectations
    - Added mockPathSummary parameter
 
-2. `apps/server-nest/src/modules/graph/graph.service.ts`
+2. `apps/server/src/modules/graph/graph.service.ts`
    - Fixed no-op change detection in patchObject
 
-3. `apps/server-nest/tests/openapi-scope-golden-full.spec.ts`
+3. `apps/server/tests/openapi-scope-golden-full.spec.ts`
    - Updated EXPECTED constant with 25 new endpoints
 
 ## ✨ Conclusion

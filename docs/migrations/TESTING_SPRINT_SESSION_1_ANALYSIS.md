@@ -23,7 +23,7 @@ Most failures are **fixable** - they're caused by TypeORM migration changes wher
 
 ### Unit Tests Structure
 
-**Location**: `apps/server-nest/tests/`
+**Location**: `apps/server/tests/`
 
 **Pattern**: Most migrated services already have comprehensive unit tests using mock database pattern:
 
@@ -52,7 +52,7 @@ Most failures are **fixable** - they're caused by TypeORM migration changes wher
 
 ### E2E Tests Structure
 
-**Location**: `apps/server-nest/tests/e2e/`
+**Location**: `apps/server/tests/e2e/`
 
 **Pattern**: Real database integration tests using `createE2EContext`:
 

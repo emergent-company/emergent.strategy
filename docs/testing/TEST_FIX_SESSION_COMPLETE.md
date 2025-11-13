@@ -90,17 +90,17 @@ expect(mockDb.query).toHaveBeenNthCalledWith(2, ...)
 
 ### Run All Tests
 ```bash
-npm --prefix apps/server-nest run test
+npm --prefix apps/server run test
 ```
 
 ### Run Specific Test File
 ```bash
-npm --prefix apps/server-nest test -- path/to/test.spec.ts
+npm --prefix apps/server test -- path/to/test.spec.ts
 ```
 
 ### Regenerate OpenAPI Spec
 ```bash
-npm --prefix apps/server-nest run gen:openapi
+npm --prefix apps/server run gen:openapi
 ```
 
 ### Global Find/Replace (Jest → Vitest)
@@ -148,20 +148,20 @@ Minor edge cases in spec generation - likely easy fixes once investigated.
 ## Files Modified
 
 ### Source Code (1 file)
-- `apps/server-nest/src/modules/graph/graph.service.ts` - Removed phantom columns
+- `apps/server/src/modules/graph/graph.service.ts` - Removed phantom columns
 
 ### Test Files (5 files)
-- `apps/server-nest/src/modules/type-registry/__tests__/type-registry.service.spec.ts`
-- `apps/server-nest/src/modules/template-packs/__tests__/template-pack.service.spec.ts`
-- `apps/server-nest/src/modules/graph/__tests__/embedding-policy.service.spec.ts`
-- `apps/server-nest/src/modules/search/__tests__/path-summary.service.spec.ts`
+- `apps/server/src/modules/type-registry/__tests__/type-registry.service.spec.ts`
+- `apps/server/src/modules/template-packs/__tests__/template-pack.service.spec.ts`
+- `apps/server/src/modules/graph/__tests__/embedding-policy.service.spec.ts`
+- `apps/server/src/modules/search/__tests__/path-summary.service.spec.ts`
 - (Plus conversions of jest → vi in other files)
 
 ### Configuration (5 files)
 - `docker/docker-compose.yml`
 - `docker/zitadel.env`
 - `apps/admin/.env`
-- `apps/server-nest/.env`
+- `apps/server/.env`
 - `.env` (root)
 
 ### Documentation (3 files)
@@ -171,7 +171,7 @@ Minor edge cases in spec generation - likely easy fixes once investigated.
 - `docs/TEST_IMPROVEMENT_SUMMARY.md`
 
 ### Generated (1 file)
-- `apps/server-nest/openapi.json` - Regenerated with proper enrichments
+- `apps/server/openapi.json` - Regenerated with proper enrichments
 
 ## Success Metrics
 

@@ -201,7 +201,7 @@ All logging will be **asynchronous** to avoid blocking main application flows. U
 
 Create a configuration file for model pricing (updated manually as Google changes pricing):
 
-**File**: `apps/server-nest/src/modules/monitoring/config/llm-pricing.config.ts`
+**File**: `apps/server/src/modules/monitoring/config/llm-pricing.config.ts`
 
 ```typescript
 // Pricing as of October 2025 - update monthly from Google Cloud Pricing
@@ -248,7 +248,7 @@ This approach:
 ### 5.1. File Organization
 
 ```
-apps/server-nest/src/modules/monitoring/
+apps/server/src/modules/monitoring/
 ├── monitoring.module.ts          # NestJS module registration
 ├── monitoring.controller.ts      # REST API endpoints
 ├── monitoring.service.ts         # Business logic for querying logs

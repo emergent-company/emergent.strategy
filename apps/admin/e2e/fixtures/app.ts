@@ -49,7 +49,7 @@ export const test = base.extend<AppFixtures>({
         await use(token);
     },
     serverErrors: async ({ page }, use, testInfo) => {
-        const logDir = process.env.ERROR_LOG_DIR || path.resolve(process.cwd(), 'apps', 'server-nest', 'logs');
+        const logDir = process.env.ERROR_LOG_DIR || path.resolve(process.cwd(), 'apps', 'server', 'logs');
         const logFile = path.join(logDir, 'errors.log');
         let baselineSize = 0;
         const startIso = new Date().toISOString();

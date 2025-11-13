@@ -29,7 +29,7 @@ npm run workspace:logs -- server | grep -E "\[stream\]|searchObjects"
 
 **Terminal 2 - Or use this for more context:**
 ```bash
-tail -f apps/server-nest/logs/app.log | grep -E "\[stream\]|graph search|searchObjects"
+tail -f apps/server/logs/app.log | grep -E "\[stream\]|graph search|searchObjects"
 ```
 
 **Browser:**

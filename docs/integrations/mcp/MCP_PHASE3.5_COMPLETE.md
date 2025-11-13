@@ -12,7 +12,7 @@ Phase 3.5 successfully implements schema versioning for all MCP tools, replacing
 
 ### Core Component: SchemaVersionService
 
-**File**: `apps/server-nest/src/modules/mcp/services/schema-version.service.ts` (145 lines)
+**File**: `apps/server/src/modules/mcp/services/schema-version.service.ts` (145 lines)
 
 **Purpose**: Centralized service for computing and managing schema version hashes
 
@@ -178,7 +178,7 @@ export class GenericDataTool {
 
 ### Schema Version Endpoint
 
-**File**: `apps/server-nest/src/modules/mcp/mcp.controller.ts`
+**File**: `apps/server/src/modules/mcp/mcp.controller.ts`
 
 **Before**:
 ```typescript
@@ -439,7 +439,7 @@ setInterval(async () => {
 
 ### Build Verification
 ```bash
-npm --prefix apps/server-nest run build
+npm --prefix apps/server run build
 ```
 
 **Result**: Exit code 0 ✅ - Clean build

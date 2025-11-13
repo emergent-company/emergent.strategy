@@ -4,8 +4,8 @@
 
 **Status**: ✅ **COMPLETED**  
 **Conversion Date**: November 9, 2025  
-**Test File**: `apps/server-nest/tests/user-profile.service.spec.ts`  
-**Service File**: `apps/server-nest/src/modules/user-profile/user-profile.service.ts`
+**Test File**: `apps/server/tests/user-profile.service.spec.ts`  
+**Service File**: `apps/server/src/modules/user-profile/user-profile.service.ts`
 
 ### Results
 - **Tests Fixed**: 11 passing (12 failures identified, 1 duplicate removed)
@@ -343,7 +343,7 @@ it('deleteAlternativeEmail normalizes email', async () => {
 **Result**: ✅ No errors
 
 ### Step 10: Test Run
-**Command**: `npm --prefix apps/server-nest run test -- tests/user-profile.service.spec.ts`  
+**Command**: `npm --prefix apps/server run test -- tests/user-profile.service.spec.ts`  
 **Result**: ✅ **11/11 passing** (first attempt!)
 
 No iterations needed - all tests passed immediately after conversion.

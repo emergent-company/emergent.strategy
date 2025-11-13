@@ -13,7 +13,7 @@ Successfully implemented comprehensive test suite for SchemaTool covering all 4 
 ### What Was Completed
 
 ✅ **SchemaTool Tests**: 23/23 passing (~95% coverage)
-- File created: `apps/server-nest/src/modules/mcp/__tests__/schema.tool.spec.ts`
+- File created: `apps/server/src/modules/mcp/__tests__/schema.tool.spec.ts`
 - 23 comprehensive tests across 4 tool methods
 - All tests passing on first run
 - No build errors, no type errors
@@ -179,7 +179,7 @@ Tests verify correct service method calls with correct parameters.
 ## File Changes
 
 ### Created
-- `apps/server-nest/src/modules/mcp/__tests__/schema.tool.spec.ts` (661 lines)
+- `apps/server/src/modules/mcp/__tests__/schema.tool.spec.ts` (661 lines)
 
 ### Modified
 - `docs/MCP_TESTING_PROGRESS.md` (updated status, coverage, learnings)
@@ -236,7 +236,7 @@ Tests verify correct service method calls with correct parameters.
 
 Run actual coverage report to identify gaps:
 ```bash
-npm --prefix apps/server-nest run test:coverage -- mcp
+npm --prefix apps/server run test:coverage -- mcp
 ```
 
 Then prioritize remaining work based on real coverage numbers.
@@ -264,22 +264,22 @@ Total remaining: ~2-3 hours to reach 90%+ coverage across entire MCP module.
 
 ### Run All MCP Tests
 ```bash
-npm --prefix apps/server-nest run test -- src/modules/mcp/__tests__/
+npm --prefix apps/server run test -- src/modules/mcp/__tests__/
 ```
 
 ### Run Specific Test File
 ```bash
-npm --prefix apps/server-nest run test -- schema.tool.spec.ts
+npm --prefix apps/server run test -- schema.tool.spec.ts
 ```
 
 ### Run Coverage Report
 ```bash
-npm --prefix apps/server-nest run test:coverage -- src/modules/mcp/
+npm --prefix apps/server run test:coverage -- src/modules/mcp/
 ```
 
 ### Watch Mode (Development)
 ```bash
-npm --prefix apps/server-nest run test:watch -- schema.tool.spec.ts
+npm --prefix apps/server run test:watch -- schema.tool.spec.ts
 ```
 
 ---

@@ -27,7 +27,7 @@ This document lists all development ports used by the Spec Server project.
 - `docker/docker-compose.yml` - Port mappings
 - `docker/zitadel.env` - Login v2 base URIs
 - `apps/admin/.env` - Vite Zitadel issuer
-- `apps/server-nest/.env` - Backend auth configuration
+- `apps/server/.env` - Backend auth configuration
 - `.env` (root) - Shared environment variables
 - `RUNBOOK.md` - Documentation
 - `apps/admin/README.md` - Admin app guide

@@ -371,16 +371,16 @@ But fake DB returns objects without their `properties` field populated, or predi
 
 ```bash
 # Check specific test categories
-npm --prefix apps/server-nest test -- tests/graph.traversal-advanced.spec.ts
+npm --prefix apps/server test -- tests/graph.traversal-advanced.spec.ts
 
 # Check embedding worker failures
-npm --prefix apps/server-nest test -- src/modules/graph/__tests__/embedding-worker.spec.ts 2>&1 | tail -50
+npm --prefix apps/server test -- src/modules/graph/__tests__/embedding-worker.spec.ts 2>&1 | tail -50
 
 # Check auth tests
-npm --prefix apps/server-nest test -- tests/auth-scope-denied.spec.ts 2>&1 | tail -30
+npm --prefix apps/server test -- tests/auth-scope-denied.spec.ts 2>&1 | tail -30
 
 # Full test run
-npm --prefix apps/server-nest test
+npm --prefix apps/server test
 ```
 
 ## Lessons for Self-Learning

@@ -147,7 +147,7 @@ The backend API is **already implemented** at:
 
 **Implementation:**
 ```typescript
-// apps/server-nest/src/modules/graph/graph.controller.ts (line 145)
+// apps/server/src/modules/graph/graph.controller.ts (line 145)
 @Get('objects/:id/history')
 @Scopes('graph:read')
 @ApiOperation({ summary: 'List version history for a graph object' })
@@ -159,7 +159,7 @@ history(@Param('id') id: string, @Query('limit') limit?: string, @Query('cursor'
 
 **Service Method:**
 ```typescript
-// apps/server-nest/src/modules/graph/graph.service.ts (line 546)
+// apps/server/src/modules/graph/graph.service.ts (line 546)
 async listHistory(id: string, limitParam = 20, cursor?: string, ctx?: GraphTenantContext): 
     Promise<{ items: GraphObjectDto[]; next_cursor?: string }> {
     // 1. Finds canonical_id from object ID

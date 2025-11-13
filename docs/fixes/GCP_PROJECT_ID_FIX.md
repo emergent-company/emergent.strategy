@@ -12,7 +12,7 @@ The application was using an incorrect GCP project ID ("spec-server" instead of 
 During the environment variable consolidation from `VERTEX_AI_PROJECT_ID` to `GCP_PROJECT_ID`, the `.env` files were not fully updated:
 
 1. **Root `.env`**: Had `GCP_PROJECT_ID=spec-server-dev` (wrong value)
-2. **`apps/server-nest/.env`**: Still had old variable names:
+2. **`apps/server/.env`**: Still had old variable names:
    - `VERTEX_AI_PROJECT_ID=twentyfirst-io` (old name)
    - `VERTEX_EMBEDDING_PROJECT=twentyfirst-io` (old name)
    - `VERTEX_EMBEDDING_LOCATION=us-central1` (old name)
@@ -32,7 +32,7 @@ GCP_PROJECT_ID=twentyfirst-io
 VERTEX_AI_LOCATION=us-central1
 ```
 
-### 2. Updated `apps/server-nest/.env`
+### 2. Updated `apps/server/.env`
 Consolidated to use `GCP_PROJECT_ID` while keeping `VERTEX_AI_LOCATION`:
 ```bash
 # Before
@@ -108,7 +108,7 @@ npx pm2 logs spec-server-server --lines 50 --nostream | grep "403\|Permission de
 1. **`/Users/mcj/code/spec-server/.env`**
    - Line 117-119: `GCP_PROJECT_ID` and `VERTEX_AI_LOCATION`
 
-2. **`/Users/mcj/code/spec-server/apps/server-nest/.env`**
+2. **`/Users/mcj/code/spec-server/apps/server/.env`**
    - Lines 16-22: Consolidated GCP configuration section
    - Removed old variable names
    - Kept `VERTEX_AI_LOCATION` for code compatibility
@@ -117,7 +117,7 @@ npx pm2 logs spec-server-server --lines 50 --nostream | grep "403\|Permission de
 
 The code expects these exact variable names:
 
-### Config Schema (`apps/server-nest/src/common/config/config.schema.ts`)
+### Config Schema (`apps/server/src/common/config/config.schema.ts`)
 ```typescript
 export class EnvironmentVariables {
     GCP_PROJECT_ID?: string;           // ← Consolidated (was VERTEX_AI_PROJECT_ID)
@@ -128,7 +128,7 @@ export class EnvironmentVariables {
 }
 ```
 
-### Config Service (`apps/server-nest/src/common/config/config.service.ts`)
+### Config Service (`apps/server/src/common/config/config.service.ts`)
 ```typescript
 get vertexAiProjectId() { return this.env.GCP_PROJECT_ID; }      // Uses GCP_PROJECT_ID
 get vertexAiLocation() { return this.env.VERTEX_AI_LOCATION; }   // Uses VERTEX_AI_LOCATION

@@ -75,7 +75,7 @@ Spec Server is a minimal ingestion and knowledge management system that provides
 #### Monorepo Structure
 
 - **apps/admin**: React frontend SPA (Vite + React Router)
-- **apps/server-nest**: NestJS backend API
+- **apps/server**: NestJS backend API
 - **tools/workspace-cli**: PM2-based process management and lifecycle automation
 - **scripts/**: Shared automation scripts (database, deployment, testing)
 - **docs/**: Comprehensive documentation organized by category
@@ -136,9 +136,9 @@ Spec Server is a minimal ingestion and knowledge management system that provides
 
 ```bash
 # Backend
-nx run server-nest:test              # Unit tests
-nx run server-nest:test-e2e          # E2E tests
-nx run server-nest:test-coverage     # Coverage report
+nx run server:test              # Unit tests
+nx run server:test-e2e          # E2E tests
+nx run server:test-coverage     # Coverage report
 
 # Frontend
 nx run admin:test                    # Unit tests

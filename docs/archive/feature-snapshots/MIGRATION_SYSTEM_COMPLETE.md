@@ -31,7 +31,7 @@ cat migration.sql | docker exec -i spec_pg psql -U spec -d spec
 Created a fully automated migration system:
 
 ### 1. Migration Runner Script
-**File**: `apps/server-nest/scripts/migrate.mjs`
+**File**: `apps/server/scripts/migrate.mjs`
 
 **Features**:
 - Automatic database connection (Docker or direct)
@@ -43,7 +43,7 @@ Created a fully automated migration system:
 - Three modes: apply, dry-run, list
 
 ### 2. Nx Integration
-**File**: `apps/server-nest/project.json`
+**File**: `apps/server/project.json`
 
 Added `migrate` target:
 ```json
@@ -51,7 +51,7 @@ Added `migrate` target:
   "migrate": {
     "executor": "nx:run-commands",
     "options": {
-      "command": "node apps/server-nest/scripts/migrate.mjs",
+      "command": "node apps/server/scripts/migrate.mjs",
       "forwardAllArgs": true
     }
   }
@@ -83,7 +83,7 @@ CREATE TABLE kb.schema_migrations (
 
 ### Check Migration Status
 ```bash
-npx nx run server-nest:migrate -- --list
+npx nx run server:migrate -- --list
 ```
 
 **Output**:
@@ -100,7 +100,7 @@ Total: 2 applied, 1 pending
 
 ### Preview Pending Migrations (Dry Run)
 ```bash
-npx nx run server-nest:migrate -- --dry-run
+npx nx run server:migrate -- --dry-run
 ```
 
 **Output**:
@@ -114,7 +114,7 @@ Total: 1 migrations would be applied
 
 ### Apply All Pending Migrations
 ```bash
-npx nx run server-nest:migrate
+npx nx run server:migrate
 ```
 
 **Output**:
@@ -133,7 +133,7 @@ Migration Summary
 
 ### Initial State
 ```bash
-$ npx nx run server-nest:migrate -- --list
+$ npx nx run server:migrate -- --list
 
 Applied Migrations:
   (none)
@@ -153,7 +153,7 @@ Total: 0 applied, 8 pending
 
 ### After Migration
 ```bash
-$ npx nx run server-nest:migrate
+$ npx nx run server:migrate
 
 Applying 8 pending migration(s)...
 
@@ -172,7 +172,7 @@ Migration Summary
 
 ### Idempotency Test
 ```bash
-$ npx nx run server-nest:migrate
+$ npx nx run server:migrate
 
 ✓ No pending migrations - database is up to date
   (8 migrations already applied)
@@ -218,7 +218,7 @@ filename                                    | applied_at           | execution_t
 ```yaml
 # .github/workflows/deploy.yml
 - name: Run Database Migrations
-  run: npx nx run server-nest:migrate
+  run: npx nx run server:migrate
   env:
     POSTGRES_HOST: ${{ secrets.DB_HOST }}
     POSTGRES_USER: ${{ secrets.DB_USER }}
@@ -249,7 +249,7 @@ NNNN_description.sql           # Legacy compatibility
 
 1. **Create file**:
 ```bash
-touch apps/server-nest/migrations/$(date +%Y%m%d)_your_feature.sql
+touch apps/server/migrations/$(date +%Y%m%d)_your_feature.sql
 ```
 
 2. **Write SQL**:
@@ -269,23 +269,23 @@ COMMIT;
 
 3. **Test**:
 ```bash
-npx nx run server-nest:migrate -- --dry-run
+npx nx run server:migrate -- --dry-run
 ```
 
 4. **Apply**:
 ```bash
-npx nx run server-nest:migrate
+npx nx run server:migrate
 ```
 
 ## Files Created/Modified
 
 ### New Files
-- ✅ `apps/server-nest/scripts/migrate.mjs` (350 lines)
+- ✅ `apps/server/scripts/migrate.mjs` (350 lines)
 - ✅ `docs/DATABASE_MIGRATIONS.md` (500+ lines comprehensive guide)
 - ✅ `docs/MIGRATIONS_QUICKREF.md` (quick reference)
 
 ### Modified Files
-- ✅ `apps/server-nest/project.json` (added migrate target)
+- ✅ `apps/server/project.json` (added migrate target)
 - ✅ `.github/instructions/self-learning.instructions.md` (added lesson)
 
 ### Database Changes
@@ -306,7 +306,7 @@ npx nx run server-nest:migrate
 ## Next Steps
 
 ### For Users
-1. Use `npx nx run server-nest:migrate -- --list` to check status
+1. Use `npx nx run server:migrate -- --list` to check status
 2. Create new migrations following naming convention
 3. Always test with `--dry-run` first
 4. Review docs/DATABASE_MIGRATIONS.md for advanced usage

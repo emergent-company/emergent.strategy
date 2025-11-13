@@ -235,20 +235,20 @@ configure(apiToken: string): void {
 
 #### 3.2 Remove Local Files
 ```bash
-rm -rf apps/server-nest/.api
+rm -rf apps/server/.api
 ```
 
 #### 3.3 Remove Dockerfile Symlink Logic
-In `apps/server-nest/Dockerfile`, remove:
+In `apps/server/Dockerfile`, remove:
 ```dockerfile
 # DELETE THESE LINES:
-COPY --from=builder /build/apps/server-nest/.api ./.api
+COPY --from=builder /build/apps/server/.api ./.api
 RUN mkdir -p node_modules/@api && \
     ln -sf /app/.api/apis/clickup node_modules/@api/clickup
 ```
 
 #### 3.4 Update TypeScript Config
-In `apps/server-nest/tsconfig.json`:
+In `apps/server/tsconfig.json`:
 ```jsonc
 "exclude": [
     "dist",
@@ -326,7 +326,7 @@ async getTask(taskId: string, includeSubtasks: boolean = false): Promise<ClickUp
 #### 5.1 Local Testing
 ```bash
 # Rebuild
-npm run build:server-nest
+npm run build:server
 
 # Test integration (requires real API token)
 CLICKUP_API_TOKEN=pk_xxx CLICKUP_WORKSPACE_ID=ws_xxx npm run test:clickup
@@ -416,7 +416,7 @@ If issues arise, the SDK can be re-added:
 - [ ] SDK dependency removed from package.json
 - [ ] `.api/` directory deleted
 - [ ] Dockerfile simplified (no symlink logic)
-- [ ] Local build succeeds: `npm run build:server-nest`
+- [ ] Local build succeeds: `npm run build:server`
 - [ ] Docker build succeeds without errors
 - [ ] Server starts cleanly in Docker (no ES module errors)
 - [ ] Integration tests pass (if available)

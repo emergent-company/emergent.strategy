@@ -24,7 +24,7 @@ All three services demonstrate **optimal hybrid architecture**: strategic SQL wh
 
 ### 1. DocumentsService (Hybrid)
 
-**File**: `apps/server-nest/src/modules/documents/documents.service.ts`  
+**File**: `apps/server/src/modules/documents/documents.service.ts`  
 **Lines**: 322 total  
 **Classification**: Hybrid (2 strategic SQL + 6 TypeORM)  
 **Completion Status**: ✅ 100% Complete (hybrid architecture is optimal)
@@ -197,7 +197,7 @@ Could implement batching with DataLoader library, but:
 
 ### 2. ProjectsService (Hybrid)
 
-**File**: `apps/server-nest/src/modules/projects/projects.service.ts`  
+**File**: `apps/server/src/modules/projects/projects.service.ts`  
 **Lines**: 314 total  
 **Classification**: Hybrid (1 strategic SQL pattern + 4 TypeORM methods)  
 **Completion Status**: ✅ 100% Complete (hybrid architecture is optimal)
@@ -449,7 +449,7 @@ catch (e) {
 
 ### 3. OrgsService (Hybrid)
 
-**File**: `apps/server-nest/src/modules/orgs/orgs.service.ts`  
+**File**: `apps/server/src/modules/orgs/orgs.service.ts`  
 **Lines**: 231 total  
 **Classification**: Hybrid (1 strategic SQL query + 3 TypeORM methods + offline mode)  
 **Completion Status**: ✅ 100% Complete (hybrid architecture is optimal)
@@ -683,7 +683,7 @@ export class OrgsService {
 
 ### 4. AuthService (Business Logic)
 
-**File**: `apps/server-nest/src/modules/auth/auth.service.ts`  
+**File**: `apps/server/src/modules/auth/auth.service.ts`  
 **Lines**: 370 total  
 **Classification**: Business Logic (0 database methods)  
 **Completion Status**: ✅ 100% Complete (not a database service)

@@ -44,7 +44,7 @@ pushUpdate(schema.createdObjectsColumn, JSON.stringify(dto.created_objects));
 - ✅ **+2 tests passing immediately**
 
 **Files Modified**:
-- `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts` (lines 330-344)
+- `apps/server/src/modules/extraction-jobs/extraction-job.service.ts` (lines 330-344)
 
 **Key Learning**: Always use `JSON.stringify()` when passing arrays or objects to PostgreSQL JSONB/JSON columns. Error "Expected ':', but found ','" indicates JavaScript object passed where JSON string expected.
 
@@ -78,7 +78,7 @@ expect(verifyRes.status).toBe(404); // Pack no longer exists after deletion
 - ✅ Verified implementation already correct, no code changes needed
 
 **Files Modified**:
-- `apps/server-nest/tests/e2e/phase1.workflows.e2e.spec.ts` (lines 108-133)
+- `apps/server/tests/e2e/phase1.workflows.e2e.spec.ts` (lines 108-133)
 
 **Key Learning**: Verify implementation correctness before changing code. Sometimes tests are wrong, not the code. User clarification is valuable for resolving design ambiguity.
 
@@ -206,11 +206,11 @@ if (pack.source === 'system') {
 ## Files Modified
 
 ### Code Fixes
-1. `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts`
+1. `apps/server/src/modules/extraction-jobs/extraction-job.service.ts`
    - Lines 330-344: Added JSON.stringify() for JSONB arrays
 
 ### Test Fixes  
-2. `apps/server-nest/tests/e2e/phase1.workflows.e2e.spec.ts`
+2. `apps/server/tests/e2e/phase1.workflows.e2e.spec.ts`
    - Lines 108-133: Fixed template pack deletion expectations
 
 ### Documentation Created

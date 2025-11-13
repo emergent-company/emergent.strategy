@@ -191,7 +191,7 @@ Inspector (npx) → Spawns → NestJS Stdio Wrapper → MCP SDK → MCP Tools
 {
   "spec-server": {
     "command": "node",
-    "args": ["apps/server-nest/dist/mcp-stdio.js"],
+    "args": ["apps/server/dist/mcp-stdio.js"],
     "env": {
       "AUTH_TOKEN": "schema-read-token",
       "NODE_ENV": "test",
@@ -205,7 +205,7 @@ Inspector (npx) → Spawns → NestJS Stdio Wrapper → MCP SDK → MCP Tools
 ```bash
 # Same command that Claude Desktop would use!
 AUTH_TOKEN=schema-read-token NODE_ENV=test \
-  npx @modelcontextprotocol/inspector node apps/server-nest/dist/mcp-stdio.js
+  npx @modelcontextprotocol/inspector node apps/server/dist/mcp-stdio.js
 ```
 
 **Why this matters**:
@@ -272,7 +272,7 @@ npm ls @modelcontextprotocol/sdk
 
 ##### 1.2 Create Stdio Entry Point (45 min)
 
-**File**: `apps/server-nest/src/mcp-stdio.ts`
+**File**: `apps/server/src/mcp-stdio.ts`
 
 ```typescript
 #!/usr/bin/env node
@@ -628,13 +628,13 @@ main().catch((error) => {
 });
 ```
 
-- [ ] Create `apps/server-nest/src/mcp-stdio.ts`
+- [ ] Create `apps/server/src/mcp-stdio.ts`
 - [ ] Add shebang for direct execution
 - [ ] Test compilation: `npm run build`
 
 ##### 1.3 Add Build Configuration (10 min)
 
-Update `apps/server-nest/tsconfig.json` (if needed):
+Update `apps/server/tsconfig.json` (if needed):
 ```json
 {
   "compilerOptions": {
@@ -644,7 +644,7 @@ Update `apps/server-nest/tsconfig.json` (if needed):
 }
 ```
 
-Update `apps/server-nest/package.json`:
+Update `apps/server/package.json`:
 ```json
 {
   "scripts": {
@@ -669,7 +669,7 @@ echo "🔍 Starting MCP Inspector (stdio transport)"
 echo "📦 Building MCP server..."
 
 # Build stdio wrapper
-npm --prefix apps/server-nest run build
+npm --prefix apps/server run build
 
 echo "🚀 Launching Inspector..."
 echo ""
@@ -684,7 +684,7 @@ echo ""
 AUTH_TOKEN=${AUTH_TOKEN:-schema-read-token} \
 NODE_ENV=test \
   npx @modelcontextprotocol/inspector \
-  node apps/server-nest/dist/mcp-stdio.js
+  node apps/server/dist/mcp-stdio.js
 ```
 
 - [ ] Create `scripts/mcp-inspector.sh`
@@ -699,7 +699,7 @@ Update `.vscode/mcp.json`:
   "servers": {
     "spec-server": {
       "command": "node",
-      "args": ["apps/server-nest/dist/mcp-stdio.js"],
+      "args": ["apps/server/dist/mcp-stdio.js"],
       "env": {
         "AUTH_TOKEN": "schema-read-token",
         "NODE_ENV": "test"
@@ -772,7 +772,7 @@ Update `.vscode/mcp.json`:
 
 ##### 3.1 Add NPM Scripts (10 min)
 
-Update `apps/server-nest/package.json`:
+Update `apps/server/package.json`:
 ```json
 {
   "scripts": {
@@ -1046,8 +1046,8 @@ Interactive UI for testing MCP tools:
 **Symptom**: Inspector shows "Failed to start server" or immediate exit
 
 **Solutions**:
-1. Verify wrapper is compiled: `ls apps/server-nest/dist/mcp-stdio.js`
-2. Test manually: `node apps/server-nest/dist/mcp-stdio.js`
+1. Verify wrapper is compiled: `ls apps/server/dist/mcp-stdio.js`
+2. Test manually: `node apps/server/dist/mcp-stdio.js`
 3. Check database connection: `psql $DATABASE_URL`
 4. Ensure NODE_ENV=test (enables mock tokens)
 5. Check for console.log statements (interferes with stdio)
@@ -1081,7 +1081,7 @@ Interactive UI for testing MCP tools:
 1. Check server logs for MCP module initialization errors
 2. Verify MCP controller is registered
 3. Check if `@Tool()` decorators are applied correctly
-4. Rebuild app: `npm --prefix apps/server-nest run build`
+4. Rebuild app: `npm --prefix apps/server run build`
 
 ---
 
@@ -1090,10 +1090,10 @@ Interactive UI for testing MCP tools:
 **Symptom**: Inspector hangs or shows connection timeout
 
 **Solutions**:
-1. Check wrapper script is compiled: `ls apps/server-nest/dist/mcp-stdio-wrapper.js`
+1. Check wrapper script is compiled: `ls apps/server/dist/mcp-stdio-wrapper.js`
 2. Test wrapper manually:
    ```bash
-   node apps/server-nest/dist/mcp-stdio-wrapper.js --auth-token=schema-read-token
+   node apps/server/dist/mcp-stdio-wrapper.js --auth-token=schema-read-token
    ```
 3. Check for console.log in wrapper (interferes with stdio)
 4. Verify Node.js version (requires 20+)
@@ -1319,7 +1319,7 @@ npx @modelcontextprotocol/inspector uvx package-name args...
 1. **Start Development**
    ```bash
    # Terminal 1: Start dev server
-   npm --prefix apps/server-nest run start:dev
+   npm --prefix apps/server run start:dev
    
    # Terminal 2: Launch Inspector
    ./scripts/mcp-inspector.sh
@@ -1333,7 +1333,7 @@ npx @modelcontextprotocol/inspector uvx package-name args...
    - Test `schema_getTypeDetails` with various types
 
 3. **Make Code Changes**
-   - Edit tool implementation in `apps/server-nest/src/modules/mcp/`
+   - Edit tool implementation in `apps/server/src/modules/mcp/`
    - Save file (auto-rebuild with watch mode)
    - Click **Reconnect** in Inspector
    - Re-test affected tools
@@ -1347,7 +1347,7 @@ npx @modelcontextprotocol/inspector uvx package-name args...
 5. **Run Automated Tests**
    ```bash
    # Verify changes didn't break tests
-   npm --prefix apps/server-nest run test:e2e
+   npm --prefix apps/server run test:e2e
    ```
 
 6. **Commit Changes**
@@ -1391,6 +1391,6 @@ MCP Inspector                     → node dist/mcp-stdio.js
 ---
 
 **Status**: 📋 Ready for Implementation  
-**Next Action**: Create `apps/server-nest/src/mcp-stdio.ts` following Phase 1 implementation plan  
+**Next Action**: Create `apps/server/src/mcp-stdio.ts` following Phase 1 implementation plan  
 **Owner**: Development Team  
 **Priority**: HIGH (required for realistic testing before Claude Desktop integration)

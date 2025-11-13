@@ -26,7 +26,7 @@ The MCP (Model Context Protocol) chat integration enables the chat system to aut
                              ↓
 ┌─────────────────────────────────────────────────────────────────────┐
 │                     Chat Controller (NestJS)                         │
-│  apps/server-nest/src/modules/chat/chat.controller.ts               │
+│  apps/server/src/modules/chat/chat.controller.ts               │
 │                                                                       │
 │  POST /chat/stream - Streaming endpoint with MCP integration        │
 │                                                                       │
@@ -111,7 +111,7 @@ interface ChatChunk {
 
 ### 2. Chat Controller
 
-**Location**: `apps/server-nest/src/modules/chat/chat.controller.ts`
+**Location**: `apps/server/src/modules/chat/chat.controller.ts`
 
 **Endpoint**: `POST /chat/stream`
 
@@ -148,7 +148,7 @@ interface ChatChunk {
 
 ### 3. MCP Tool Detector Service
 
-**Location**: `apps/server-nest/src/modules/mcp/mcp-tool-detector.service.ts`
+**Location**: `apps/server/src/modules/mcp/mcp-tool-detector.service.ts`
 
 **Purpose**: Analyze user messages to determine if MCP tools should be used
 
@@ -182,7 +182,7 @@ interface ToolDetectionResult {
 
 ### 4. MCP Client Service
 
-**Location**: `apps/server-nest/src/modules/mcp/mcp-client.service.ts`
+**Location**: `apps/server/src/modules/mcp/mcp-client.service.ts`
 
 **Purpose**: Communicate with MCP server via JSON-RPC over HTTP
 
@@ -246,7 +246,7 @@ MCP_SERVER_URL=http://localhost:3001  // Default (internal)
 
 ### 5. MCP Server
 
-**Location**: `apps/server-nest/src/modules/mcp/mcp-server.ts`
+**Location**: `apps/server/src/modules/mcp/mcp-server.ts`
 
 **Endpoint**: `POST /mcp/rpc`
 
@@ -336,7 +336,7 @@ MCP_SERVER_URL=http://localhost:3001  // Default (internal)
 
 ### 6. Chat Generation Service
 
-**Location**: `apps/server-nest/src/modules/chat/chat-generation.service.ts`
+**Location**: `apps/server/src/modules/chat/chat-generation.service.ts`
 
 **Purpose**: Build prompts and generate LLM responses
 

@@ -15,7 +15,7 @@ None of the failures indicate regressions in production behaviour; they are gaps
 ## Remote Run Context
 
 - **Environment:** GitHub Actions remote run for the server Vitest suite.
-- **Command executed:** `npm --prefix apps/server-nest run test` after installing root and service dependencies with `npm ci`.
+- **Command executed:** `npm --prefix apps/server run test` after installing root and service dependencies with `npm ci`.
 - **Result snapshot (October 10, 2025):** identical six failing specs listed below; no additional regressions or flaky jobs observed.
 - **Log retrieval:** Navigate to GitHub Actions → select the latest server test run → download the `npm test` step artifacts to review the same stack traces documented here.
 
@@ -43,7 +43,7 @@ Tests:
   • create() online limit check (count >=100) rejects
   • create() online success with userId inserts profile + membership
   • create() online table missing falls back to memory path
-File: apps/server-nest/tests/orgs.service.spec.ts
+File: apps/server/tests/orgs.service.spec.ts
 Expected: Legacy "global" org list behaviour and unconditional profile/membership inserts
 Actual: Empty result sets or TypeErrors when new per-user joins run against the old FakeDb
 Blocker: Tests mock an outdated DatabaseService shape (no subject_id joins, no membership rows)
@@ -67,7 +67,7 @@ Blocker: Tests mock an outdated DatabaseService shape (no subject_id joins, no m
 ### 5. `tests/orgs.ensure-profile.spec.ts`
 ```
 Test: OrgsService.create ensures user profile before membership insert > inserts user profile row before organization_memberships
-File: apps/server-nest/tests/orgs.ensure-profile.spec.ts
+File: apps/server/tests/orgs.ensure-profile.spec.ts
 Expected: OrgsService.create() inserts into core.user_profiles before kb.organization_memberships
 Actual: The query is never issued (service now assumes profile exists)
 Blocker: Behaviour intentionally removed from OrgsService during auth/profile refactor
@@ -85,7 +85,7 @@ Blocker: Behaviour intentionally removed from OrgsService during auth/profile re
 ### 6. `src/modules/graph/__tests__/embedding-worker.metrics.spec.ts`
 ```
 Test: EmbeddingWorkerService Metrics > increments processed counters and records at least one failure
-File: apps/server-nest/src/modules/graph/__tests__/embedding-worker.metrics.spec.ts
+File: apps/server/src/modules/graph/__tests__/embedding-worker.metrics.spec.ts
 Expected: After processBatch runs, at least one job hits a terminal status and metrics counters reflect it
 Actual: derivedProcessed === 0 (no completed/failed jobs observed)
 Blocker: Batch processing never transitions rows because the dummy embedding provider / minimal DB setup does not advance job state without a running worker loop

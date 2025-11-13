@@ -26,7 +26,7 @@ Starting from zero test coverage, we've built a comprehensive test suite coverin
 
 ### Implementation Summary
 
-**File Created**: `apps/server-nest/src/modules/mcp/__tests__/generic-data.tool.spec.ts` (634 lines)
+**File Created**: `apps/server/src/modules/mcp/__tests__/generic-data.tool.spec.ts` (634 lines)
 
 **Test Breakdown**:
 
@@ -190,7 +190,7 @@ All tool responses include:
 ## File Changes
 
 ### Created
-- `apps/server-nest/src/modules/mcp/__tests__/generic-data.tool.spec.ts` (634 lines, 18 tests)
+- `apps/server/src/modules/mcp/__tests__/generic-data.tool.spec.ts` (634 lines, 18 tests)
 
 ### Modified
 - `docs/MCP_TESTING_PROGRESS.md` (updated status, coverage, completion)
@@ -253,22 +253,22 @@ Then move to **Option B (Authentication)** with solid test foundation.
 
 ### Run All MCP Tests
 ```bash
-npm --prefix apps/server-nest run test -- mcp
+npm --prefix apps/server run test -- mcp
 ```
 
 ### Run Coverage Report
 ```bash
-npm --prefix apps/server-nest run test:coverage -- mcp
+npm --prefix apps/server run test:coverage -- mcp
 ```
 
 ### Run Specific Test File
 ```bash
-npm --prefix apps/server-nest run test -- generic-data.tool.spec.ts
+npm --prefix apps/server run test -- generic-data.tool.spec.ts
 ```
 
 ### Run All Tests (Entire Server)
 ```bash
-npm --prefix apps/server-nest run test
+npm --prefix apps/server run test
 ```
 
 ---

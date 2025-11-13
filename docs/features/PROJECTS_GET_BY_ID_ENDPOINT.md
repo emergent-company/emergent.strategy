@@ -24,7 +24,7 @@ But the backend only had these endpoints:
 
 ### 1. Added Controller Endpoint
 
-**File**: `apps/server-nest/src/modules/projects/projects.controller.ts`
+**File**: `apps/server/src/modules/projects/projects.controller.ts`
 
 ```typescript
 @Get(':id')
@@ -44,7 +44,7 @@ async getById(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
 
 ### 2. Added Service Method
 
-**File**: `apps/server-nest/src/modules/projects/projects.service.ts`
+**File**: `apps/server/src/modules/projects/projects.service.ts`
 
 ```typescript
 async getById(id: string): Promise<ProjectDto | null> {
@@ -107,7 +107,7 @@ For now, the page will use default values when these fields are missing.
 
 ## Related Files
 
-- Controller: `apps/server-nest/src/modules/projects/projects.controller.ts`
-- Service: `apps/server-nest/src/modules/projects/projects.service.ts`
+- Controller: `apps/server/src/modules/projects/projects.controller.ts`
+- Service: `apps/server/src/modules/projects/projects.service.ts`
 - Frontend: `apps/admin/src/pages/admin/pages/settings/project/auto-extraction.tsx`
-- DTO: `apps/server-nest/src/modules/projects/dto/project.dto.ts`
+- DTO: `apps/server/src/modules/projects/dto/project.dto.ts`

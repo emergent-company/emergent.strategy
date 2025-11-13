@@ -11,7 +11,7 @@ Phase 3 is implementing data access tools for querying graph objects. The first 
 
 ## What Was Implemented ✅
 
-### 1. Specific Data Tool (`apps/server-nest/src/modules/mcp/tools/specific-data.tool.ts`)
+### 1. Specific Data Tool (`apps/server/src/modules/mcp/tools/specific-data.tool.ts`)
 
 Created injectable service with 6 MCP tools for Person and Task entities:
 
@@ -65,7 +65,7 @@ Created injectable service with 6 MCP tools for Person and Task entities:
 
 ### 2. Module Registration
 
-Updated `apps/server-nest/src/modules/mcp/mcp.module.ts`:
+Updated `apps/server/src/modules/mcp/mcp.module.ts`:
 - Added `SpecificDataTool` import
 - Added `SpecificDataTool` to providers array
 - Updated documentation to reflect Phase 3 progress
@@ -148,7 +148,7 @@ GraphRelationshipDto uses:
 ## Build Verification
 
 ```bash
-npm --prefix apps/server-nest run build
+npm --prefix apps/server run build
 # Exit code: 0 ✅
 ```
 
@@ -176,7 +176,7 @@ All TypeScript compilation errors resolved:
 - [ ] Verify next_cursor in paginated responses
 
 ### Unit Tests (TODO - Phase 3.5)
-Create `apps/server-nest/src/modules/mcp/tools/__tests__/specific-data.tool.spec.ts`:
+Create `apps/server/src/modules/mcp/tools/__tests__/specific-data.tool.spec.ts`:
 - Mock GraphService methods
 - Test each tool independently
 - Test error handling (not found, wrong type)
@@ -187,7 +187,7 @@ Create `apps/server-nest/src/modules/mcp/tools/__tests__/specific-data.tool.spec
 
 ### Phase 3 (Remaining): Generic Data Tool
 
-**TODO:** Create `apps/server-nest/src/modules/mcp/tools/generic-data.tool.ts`:
+**TODO:** Create `apps/server/src/modules/mcp/tools/generic-data.tool.ts`:
 
 1. **`data_getObjectsByType`** - Fallback for any object type
    - Parameters: `type: string`, `limit?`, `cursor?`, `label?`
@@ -250,10 +250,10 @@ try {
 ## File Changes
 
 ### New Files (1)
-- `apps/server-nest/src/modules/mcp/tools/specific-data.tool.ts` (395 lines)
+- `apps/server/src/modules/mcp/tools/specific-data.tool.ts` (395 lines)
 
 ### Modified Files (1)
-- `apps/server-nest/src/modules/mcp/mcp.module.ts` (+2 imports, +1 provider)
+- `apps/server/src/modules/mcp/mcp.module.ts` (+2 imports, +1 provider)
 
 ### Related Documentation
 - `docs/mcp-server-implementation-plan.md` - Overall plan

@@ -5,6 +5,7 @@ This document explains how to run multiple instances of the spec-server Docker s
 ## Overview
 
 The Docker Compose setup uses environment variables to configure:
+
 - **Container names** - prefixed to avoid conflicts
 - **Volume names** - automatically prefixed by Docker Compose
 - **Port mappings** - configurable to avoid port conflicts
@@ -21,6 +22,7 @@ COMPOSE_PROJECT_NAME=spec
 ```
 
 **Examples for multiple instances:**
+
 ```bash
 # Instance 1
 COMPOSE_PROJECT_NAME=spec
@@ -52,7 +54,8 @@ ZITADEL_LOGIN_PORT=8201
 
 After changing Docker ports, update your application's `.env` file to match:
 
-**For `apps/server-nest/.env`:**
+**For `apps/server/.env`:**
+
 ```bash
 # Match the POSTGRES_PORT from docker/.env
 PGPORT=5432  # or 5433 for instance 2
@@ -65,31 +68,38 @@ AUTH_JWKS_URI=http://localhost:8100/oauth/v2/keys
 ## How It Works
 
 ### Container Names
+
 Docker containers will be named: `{COMPOSE_PROJECT_NAME}_pg` and `{COMPOSE_PROJECT_NAME}_zitadel`
 
 Examples:
+
 - Default: `spec_pg`, `spec_zitadel`
 - Instance 2: `spec2_pg`, `spec2_zitadel`
 
 ### Volume Names
+
 Docker automatically prefixes volumes with the project name: `{COMPOSE_PROJECT_NAME}_pg_data`
 
 Examples:
+
 - Default: `spec_pg_data`
 - Instance 2: `spec2_pg_data`
 
 ### Network Names
+
 Docker creates a network: `{COMPOSE_PROJECT_NAME}_default`
 
 ## Usage Examples
 
 ### Running Default Instance
+
 ```bash
 cd docker
 docker compose up -d
 ```
 
 ### Running Second Instance
+
 ```bash
 # 1. Create a copy of .env
 cp docker/.env docker/.env.instance2
@@ -139,7 +149,9 @@ docker compose --env-file .env.instance2 -p spec2 down -v
 ## Troubleshooting
 
 ### Port Already in Use
+
 If you get "port already in use" errors, check what's using the port:
+
 ```bash
 lsof -i :5432  # Check postgres port
 lsof -i :8100  # Check Zitadel HTTP port
@@ -147,11 +159,14 @@ lsof -i :8101  # Check Zitadel login port
 ```
 
 Then either:
+
 1. Stop the conflicting service
 2. Change the port in `docker/.env`
 
 ### Container Name Conflicts
+
 If you get "container name already in use" errors:
+
 ```bash
 # List all containers
 docker ps -a
@@ -164,7 +179,9 @@ docker rm -f spec_zitadel
 ```
 
 ### Volume Conflicts
+
 Volumes are automatically isolated by project name, but to list them:
+
 ```bash
 # List all volumes
 docker volume ls

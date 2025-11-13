@@ -72,7 +72,7 @@ User Question → Graph Search → Objects + Relationships → LLM
 ### 🚧 Next: Task 4 - Disable Citation Retrieval (30 min)
 
 **Files to modify**:
-- `apps/server-nest/src/modules/chat/chat.controller.ts`
+- `apps/server/src/modules/chat/chat.controller.ts`
   - Line ~248: Comment out `retrieveCitations()` call in `streamPost()`
   - Line ~313: Comment out in offline/test mode
   - Line ~436: Comment out in `POST /chat/stream` endpoint

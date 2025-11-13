@@ -89,14 +89,14 @@ Phase 2 of the monitoring system (Chat Session & MCP Tool Monitoring) is now 90%
 ## Key Files
 
 ### Backend
-- `apps/server-nest/migrations/0028_monitoring_phase2_chat.sql`
-- `apps/server-nest/src/modules/monitoring/entities/mcp-tool-call.entity.ts`
-- `apps/server-nest/src/modules/monitoring/dto/chat-session.dto.ts`
-- `apps/server-nest/src/modules/monitoring/monitoring-logger.service.ts`
-- `apps/server-nest/src/modules/monitoring/monitoring.service.ts`
-- `apps/server-nest/src/modules/monitoring/monitoring.controller.ts`
-- `apps/server-nest/src/modules/chat/chat.service.ts` (modified)
-- `apps/server-nest/src/modules/chat/mcp-client.service.ts` (modified)
+- `apps/server/migrations/0028_monitoring_phase2_chat.sql`
+- `apps/server/src/modules/monitoring/entities/mcp-tool-call.entity.ts`
+- `apps/server/src/modules/monitoring/dto/chat-session.dto.ts`
+- `apps/server/src/modules/monitoring/monitoring-logger.service.ts`
+- `apps/server/src/modules/monitoring/monitoring.service.ts`
+- `apps/server/src/modules/monitoring/monitoring.controller.ts`
+- `apps/server/src/modules/chat/chat.service.ts` (modified)
+- `apps/server/src/modules/chat/mcp-client.service.ts` (modified)
 
 ### Frontend
 - `apps/admin/src/api/monitoring.ts` (extended)

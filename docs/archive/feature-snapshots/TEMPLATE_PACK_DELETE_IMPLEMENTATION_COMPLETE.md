@@ -55,7 +55,7 @@ const handleDelete = async (packId: string, packName: string) => {
 
 ## Backend Changes
 
-### File: `apps/server-nest/src/modules/template-packs/template-pack.controller.ts`
+### File: `apps/server/src/modules/template-packs/template-pack.controller.ts`
 
 #### Added DELETE Endpoint (Line ~228)
 
@@ -88,7 +88,7 @@ async deleteTemplatePack(
 
 **Response**: 204 No Content (success) or error
 
-### File: `apps/server-nest/src/modules/template-packs/template-pack.service.ts`
+### File: `apps/server/src/modules/template-packs/template-pack.service.ts`
 
 #### Added Delete Service Method (Line ~512)
 
@@ -303,10 +303,10 @@ curl -X DELETE http://localhost:3001/template-packs/123e4567-e89b-12d3-a456-4266
    - Added `handleDelete` function
    - Added Delete button to User Created & Discovered Packs section
 
-2. ✅ `apps/server-nest/src/modules/template-packs/template-pack.controller.ts`
+2. ✅ `apps/server/src/modules/template-packs/template-pack.controller.ts`
    - Added `@Delete(':id')` endpoint
 
-3. ✅ `apps/server-nest/src/modules/template-packs/template-pack.service.ts`
+3. ✅ `apps/server/src/modules/template-packs/template-pack.service.ts`
    - Added `deleteTemplatePack` method with validation and transaction handling
 
 4. ✅ `docs/TEMPLATE_PACK_DELETE_FEATURE.md`

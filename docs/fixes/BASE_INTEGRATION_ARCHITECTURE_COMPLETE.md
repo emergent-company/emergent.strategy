@@ -11,7 +11,7 @@ Successfully implemented the base integration architecture including abstract ba
 ## Completed Components
 
 ### 1. Base Integration Abstract Class ✅
-**File:** `apps/server-nest/src/modules/integrations/base-integration.ts`
+**File:** `apps/server/src/modules/integrations/base-integration.ts`
 
 **Key Features:**
 - Abstract class that all integrations must extend
@@ -78,7 +78,7 @@ WebhookPayload {
 5. `cleanup()` - Cleanup on disable/remove
 
 ### 2. Integration Registry Service ✅
-**File:** `apps/server-nest/src/modules/integrations/integration-registry.service.ts`
+**File:** `apps/server/src/modules/integrations/integration-registry.service.ts`
 
 **Responsibilities:**
 - Central registry for all integration plugins
@@ -109,7 +109,7 @@ onModuleInit() {
 ```
 
 ### 3. ClickUp API Types ✅
-**File:** `apps/server-nest/src/modules/clickup/clickup.types.ts`
+**File:** `apps/server/src/modules/clickup/clickup.types.ts`
 
 **Type Definitions:**
 - `ClickUpWorkspace` (Team)
@@ -135,7 +135,7 @@ onModuleInit() {
 - `ClickUpCommentsResponse`
 
 ### 4. ClickUp API Client with Rate Limiting ✅
-**File:** `apps/server-nest/src/modules/clickup/clickup-api.client.ts`
+**File:** `apps/server/src/modules/clickup/clickup-api.client.ts`
 
 **Features:**
 - **Rate Limiting:** 100 requests per minute (ClickUp limit)
@@ -219,7 +219,7 @@ isConfigured(): boolean
 - **Network Error:** Throw with original error message
 
 ### 5. Updated IntegrationsModule ✅
-**File:** `apps/server-nest/src/modules/integrations/integrations.module.ts`
+**File:** `apps/server/src/modules/integrations/integrations.module.ts`
 
 **Added:**
 - `IntegrationRegistryService` to providers

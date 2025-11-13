@@ -9,26 +9,26 @@ Upgraded the extraction system to use **Gemini 2.5 Flash** and implemented **doc
 ### 1. Model Already Set to Gemini 2.5 Flash ✅
 
 The model was already configured to use `gemini-2.5-flash` by default:
-- **Config Service**: `apps/server-nest/src/common/config/config.service.ts` line 60
-- **LangChain Provider**: `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts` line 37
+- **Config Service**: `apps/server/src/common/config/config.service.ts` line 60
+- **LangChain Provider**: `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts` line 37
 
 Default value: `process.env.VERTEX_AI_MODEL || 'gemini-2.5-flash'`
 
 ### 2. Installed LangChain Text Splitters
 
 ```bash
-npm --prefix apps/server-nest install @langchain/textsplitters
+npm --prefix apps/server install @langchain/textsplitters
 ```
 
 ### 3. Added Chunking Configuration
 
-**File**: `apps/server-nest/src/common/config/config.schema.ts`
+**File**: `apps/server/src/common/config/config.schema.ts`
 
 Added two new environment variables:
 - `EXTRACTION_CHUNK_SIZE` (default: 100,000 characters)
 - `EXTRACTION_CHUNK_OVERLAP` (default: 2,000 characters)
 
-**File**: `apps/server-nest/src/common/config/config.service.ts`
+**File**: `apps/server/src/common/config/config.service.ts`
 
 Added accessors:
 - `extractionChunkSize`
@@ -36,7 +36,7 @@ Added accessors:
 
 ### 4. Implemented Document Chunking
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+**File**: `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
 
 #### Key Changes:
 
@@ -174,7 +174,7 @@ EXTRACTION_CHUNK_OVERLAP=2000     # Overlap between chunks (default: 2k)
 
 The existing extraction tests should pass without changes:
 ```bash
-npm --prefix apps/server-nest run test -- extraction
+npm --prefix apps/server run test -- extraction
 ```
 
 ## Performance Considerations
@@ -250,11 +250,11 @@ VERTEX_AI_MODEL=gemini-2.5-flash
 ## Related Files
 
 ### Configuration
-- `apps/server-nest/src/common/config/config.schema.ts`
-- `apps/server-nest/src/common/config/config.service.ts`
+- `apps/server/src/common/config/config.schema.ts`
+- `apps/server/src/common/config/config.service.ts`
 
 ### Implementation
-- `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+- `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
 
 ### Package
-- `apps/server-nest/package.json` (added `@langchain/textsplitters`)
+- `apps/server/package.json` (added `@langchain/textsplitters`)

@@ -32,7 +32,7 @@
 
 ### 1. Removed Duplicate `job_started` Log
 
-**Changed**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+**Changed**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 **Before**:
 ```typescript
@@ -82,8 +82,8 @@ await this.extractionLogger.logStep({
 ### 2. Implemented Pending → Complete Status Flow
 
 **Changed**: 
-- `apps/server-nest/src/modules/extraction-jobs/extraction-logger.service.ts`
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+- `apps/server/src/modules/extraction-jobs/extraction-logger.service.ts`
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 #### A. Added "pending" Status Type
 
@@ -430,8 +430,8 @@ await this.extractionLogger.updateLogStep(llmLogId, {
 
 - **Chunking Implementation**: `docs/EXTRACTION_CHUNKING_IMPLEMENTATION.md`
 - **Enhanced Error Logging**: `docs/EXTRACTION_JOB_43E7FED5_INVESTIGATION.md`
-- **Extraction Logger**: `apps/server-nest/src/modules/extraction-jobs/extraction-logger.service.ts`
-- **Extraction Worker**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+- **Extraction Logger**: `apps/server/src/modules/extraction-jobs/extraction-logger.service.ts`
+- **Extraction Worker**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 ## Summary
 

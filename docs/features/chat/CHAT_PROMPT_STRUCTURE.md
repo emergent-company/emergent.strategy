@@ -510,11 +510,11 @@ This will ensure graph search results are actually used by the LLM instead of ju
 
 ## Files to Modify
 
-1. **`apps/server-nest/src/modules/chat/chat-generation.service.ts`**
+1. **`apps/server/src/modules/chat/chat-generation.service.ts`**
    - Line 14: Add `graphContext?: string` to `PromptBuildOptions`
    - Line 44: Update `buildPrompt()` to include graph context section
 
-2. **`apps/server-nest/src/modules/chat/chat.controller.ts`**
+2. **`apps/server/src/modules/chat/chat.controller.ts`**
    - Line 647-680: Format graph objects into context string
    - Line 854: Pass `graphContext` to `buildPrompt()`
 

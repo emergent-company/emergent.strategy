@@ -151,7 +151,7 @@ Check YOUR `.env` files:
 cd ~/code/spec-server-2
 cat .env | grep -i zitadel
 cat apps/admin/.env | grep -i zitadel
-cat apps/server-nest/.env | grep -i zitadel 2>/dev/null || echo "No server env"
+cat apps/server/.env | grep -i zitadel 2>/dev/null || echo "No server env"
 ```
 
 Document:
@@ -271,10 +271,10 @@ Based on your findings above, follow this roadmap:
 
 1. **Create Token Exchange Service:**
    - Follow: `docs/ZITADEL_IMPERSONATION_SETUP.md`
-   - Implement: `apps/server-nest/src/modules/auth/token-exchange.service.ts`
+   - Implement: `apps/server/src/modules/auth/token-exchange.service.ts`
 
 2. **Add Backend Endpoint:**
-   - Add to: `apps/server-nest/src/modules/auth/auth.controller.ts`
+   - Add to: `apps/server/src/modules/auth/auth.controller.ts`
    - Endpoint: `POST /auth/impersonate`
 
 3. **Add Frontend UI:**

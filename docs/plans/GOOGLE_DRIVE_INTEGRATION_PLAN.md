@@ -80,7 +80,7 @@ services:
 
 ### 1.3 Storage Service Implementation
 
-**File**: `apps/server-nest/src/common/storage/storage.service.ts`
+**File**: `apps/server/src/common/storage/storage.service.ts`
 
 Key features:
 - GCS client with emulator support for dev
@@ -282,7 +282,7 @@ Following the existing `ExtractionWorkerService` pattern:
 
 ### 3.1 Suggestion Worker
 
-**File**: `apps/server-nest/src/modules/google-drive/workers/suggestion-worker.service.ts`
+**File**: `apps/server/src/modules/google-drive/workers/suggestion-worker.service.ts`
 
 - Polls every 5 seconds
 - Processes batch of 10 files
@@ -291,7 +291,7 @@ Following the existing `ExtractionWorkerService` pattern:
 
 ### 3.2 Import Worker
 
-**File**: `apps/server-nest/src/modules/google-drive/workers/import-worker.service.ts`
+**File**: `apps/server/src/modules/google-drive/workers/import-worker.service.ts`
 
 - Polls every 10 seconds
 - Processes 3 files concurrently (I/O heavy)
@@ -302,7 +302,7 @@ Following the existing `ExtractionWorkerService` pattern:
 
 ### 3.3 Polling Worker (Change Detection Fallback)
 
-**File**: `apps/server-nest/src/modules/google-drive/workers/polling-worker.service.ts`
+**File**: `apps/server/src/modules/google-drive/workers/polling-worker.service.ts`
 
 - Runs daily (24 hours)
 - Checks all synced files for changes
@@ -315,7 +315,7 @@ Following the existing `ExtractionWorkerService` pattern:
 
 ### 4.1 OAuth2 Service
 
-**File**: `apps/server-nest/src/modules/google-drive/google-drive-oauth.service.ts`
+**File**: `apps/server/src/modules/google-drive/google-drive-oauth.service.ts`
 
 Features:
 - Generate authorization URL
@@ -330,7 +330,7 @@ Scopes:
 
 ### 4.2 Drive API Client
 
-**File**: `apps/server-nest/src/modules/google-drive/google-drive-api.client.ts`
+**File**: `apps/server/src/modules/google-drive/google-drive-api.client.ts`
 
 Methods:
 - `listFiles()` - Browse folders with pagination
@@ -386,7 +386,7 @@ sync_state:
 
 ### Phase 1: Filename/Path-Based (MVP)
 
-**File**: `apps/server-nest/src/modules/google-drive/services/google-drive-suggestion.service.ts`
+**File**: `apps/server/src/modules/google-drive/services/google-drive-suggestion.service.ts`
 
 **Algorithm**:
 1. Start with neutral score (0.5)

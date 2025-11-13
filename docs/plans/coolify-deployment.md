@@ -19,12 +19,12 @@ This document outlines the comprehensive plan to prepare spec-server-2 for Cooli
 **Location**: Root of each app directory
 
 **Files to create**:
-- `apps/server-nest/Dockerfile` - Backend NestJS API
+- `apps/server/Dockerfile` - Backend NestJS API
 - `apps/admin/Dockerfile` - Frontend Vite/React app
 
 #### Backend Dockerfile Requirements
 
-**Target**: `apps/server-nest/Dockerfile`
+**Target**: `apps/server/Dockerfile`
 
 **Features**:
 - Multi-stage build (builder + production)
@@ -38,7 +38,7 @@ This document outlines the comprehensive plan to prepare spec-server-2 for Cooli
 - Copy and build from local package.json (not root workspace)
 
 **Key considerations**:
-- Build context is `apps/server-nest/` directory
+- Build context is `apps/server/` directory
 - Must include all dependencies from package.json
 - Migration files must be accessible at runtime
 - Support for DB_AUTOINIT flag to run migrations on startup
@@ -107,7 +107,7 @@ This document outlines the comprehensive plan to prepare spec-server-2 for Cooli
    - Depends on: zitadel
 
 5. **server** (NestJS Backend)
-   - Build: `apps/server-nest/Dockerfile`
+   - Build: `apps/server/Dockerfile`
    - Expose: 3002
    - Depends on: db, zitadel
    - Healthcheck: `curl http://localhost:3002/health`
@@ -477,7 +477,7 @@ openapi.diff.*.json
 
 **Backend health endpoint**: ✅ Already exists at `/health`
 
-**Location**: `apps/server-nest/src/modules/health/`
+**Location**: `apps/server/src/modules/health/`
 
 **Current implementation**:
 - Controller: `health.controller.ts`
@@ -1078,7 +1078,7 @@ fi
 echo ""
 echo "5️⃣  Testing builds..."
 echo "   Building server..."
-if npm --prefix apps/server-nest run build > /dev/null 2>&1; then
+if npm --prefix apps/server run build > /dev/null 2>&1; then
     echo "   ✅ Server build successful"
 else
     echo "   ❌ Server build failed"
@@ -1097,7 +1097,7 @@ fi
 echo ""
 echo "6️⃣  Running tests..."
 echo "   Server tests..."
-if npm --prefix apps/server-nest run test > /dev/null 2>&1; then
+if npm --prefix apps/server run test > /dev/null 2>&1; then
     echo "   ✅ Server tests passed"
 else
     echo "   ❌ Server tests failed"
@@ -1378,7 +1378,7 @@ uuidgen
 ### Task 9.1: Verify Migration System
 
 **Current migration setup**:
-- Location: `apps/server-nest/src/common/database/migrations/`
+- Location: `apps/server/src/common/database/migrations/`
 - Migrations run on startup if `DB_AUTOINIT=true`
 - Service: `DatabaseService` handles migration execution
 
@@ -1386,7 +1386,7 @@ uuidgen
 
 1. **Review existing migrations**
    ```bash
-   ls -la apps/server-nest/src/common/database/migrations/
+   ls -la apps/server/src/common/database/migrations/
    ```
 
 2. **Test migration locally**
@@ -1395,7 +1395,7 @@ uuidgen
    docker compose up -d db
    
    # Run migrations
-   npm --prefix apps/server-nest run migrate
+   npm --prefix apps/server run migrate
    
    # Verify schema
    docker compose exec db psql -U spec -d spec -c "\dt"
@@ -1412,7 +1412,7 @@ uuidgen
    export DB_AUTOINIT=true
    
    # Start server (should run migrations)
-   npm --prefix apps/server-nest run start:dev
+   npm --prefix apps/server run start:dev
    
    # Check logs for migration messages
    ```
@@ -1523,7 +1523,7 @@ seedProduction();
 ### Sprint 1: Core Infrastructure (Day 1-2)
 **Priority: HIGH | Estimated: 4-6 hours**
 
-1. ✅ Create `apps/server-nest/Dockerfile` (Task 1.1)
+1. ✅ Create `apps/server/Dockerfile` (Task 1.1)
 2. ✅ Create `apps/admin/Dockerfile` (Task 1.1)
 3. ✅ Create root `docker-compose.yml` (Task 1.2)
 4. ✅ Create `.env.production.example` (Task 2.1)
@@ -1677,7 +1677,7 @@ Understanding these differences is crucial for successful adaptation:
 | Aspect | Reference (huma-blueprint-ui) | This Project (spec-server-2) |
 |--------|------------------------------|------------------------------|
 | **Structure** | Simple monorepo with pnpm | Nx monorepo with npm |
-| **Backend** | NestJS API in `apps/api/` | NestJS in `apps/server-nest/` |
+| **Backend** | NestJS API in `apps/api/` | NestJS in `apps/server/` |
 | **Frontend** | Vite + React in `apps/web/` | Vite + React in `apps/admin/` |
 | **Database** | PostgreSQL 17 | PostgreSQL 16 with pgvector |
 | **Auth** | Zitadel (remote or local) | Zitadel (local dev setup exists) |
@@ -1818,7 +1818,7 @@ After successful first deployment:
 Files to create or modify:
 
 ### New Files (11 files)
-- [ ] `apps/server-nest/Dockerfile`
+- [ ] `apps/server/Dockerfile`
 - [ ] `apps/admin/Dockerfile`
 - [ ] `docker-compose.yml` (root level)
 - [ ] `.env.production.example`

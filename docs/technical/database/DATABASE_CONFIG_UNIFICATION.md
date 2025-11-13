@@ -219,13 +219,13 @@ After all changes, confirmed no duplicate database configuration remains:
 
 ```bash
 # Search for manual env var assignments
-grep -r "process\.env\.PGHOST.*=" apps/server-nest/**/*.spec.ts
+grep -r "process\.env\.PGHOST.*=" apps/server/**/*.spec.ts
 # Result: No matches found ✅
 
-grep -r "process\.env\.PGPORT.*=" apps/server-nest/**/*.spec.ts
+grep -r "process\.env\.PGPORT.*=" apps/server/**/*.spec.ts
 # Result: No matches found ✅
 
-grep -r "process\.env\.PGUSER.*=" apps/server-nest/**/*.spec.ts
+grep -r "process\.env\.PGUSER.*=" apps/server/**/*.spec.ts
 # Result: No matches found ✅
 ```
 
@@ -256,5 +256,5 @@ The configuration unification work ensures:
 ## Related Documentation
 
 - `docs/ORG_ID_TO_ORGANIZATION_ID_CODE_FIXES.md` - SQL query fixes that preceded this work
-- `apps/server-nest/tests/test-db-config.ts` - The unified configuration module
+- `apps/server/tests/test-db-config.ts` - The unified configuration module
 - `.github/instructions/testing.instructions.md` - General testing guidelines

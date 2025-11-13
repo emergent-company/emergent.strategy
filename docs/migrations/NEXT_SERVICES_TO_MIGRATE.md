@@ -9,7 +9,7 @@
 
 ### 1. EmbeddingJobsService (1 method remaining)
 
-**File**: `apps/server-nest/src/modules/graph/embedding-jobs.service.ts`  
+**File**: `apps/server/src/modules/graph/embedding-jobs.service.ts`  
 **Remaining**: dequeue() method  
 **Complexity**: High (FOR UPDATE SKIP LOCKED)  
 **Recommendation**: Keep as raw SQL (PostgreSQL queue primitive)  
@@ -17,7 +17,7 @@
 
 ### 2. ProductVersionService (2 methods remaining)
 
-**File**: `apps/server-nest/src/modules/graph/product-version.service.ts`  
+**File**: `apps/server/src/modules/graph/product-version.service.ts`  
 **Remaining**: create(), diffReleases()  
 **Complexity**: High (bulk inserts, complex diff algorithm)  
 **Recommendation**: Keep create() as raw SQL, migrate diffReleases() if possible  
@@ -25,7 +25,7 @@
 
 ### 3. ChatService (4 methods remaining)
 
-**File**: `apps/server-nest/src/modules/chat/chat.service.ts`  
+**File**: `apps/server/src/modules/chat/chat.service.ts`  
 **Remaining**: listConversations(), getConversation(), createConversationIfNeeded(), retrieveCitations()  
 **Complexity**: High (diagnostic logging, vector search)  
 **Recommendation**: Keep diagnostics as raw SQL, migrate simple parts  
@@ -33,7 +33,7 @@
 
 ### 4. BranchService (2 methods remaining)
 
-**File**: `apps/server-nest/src/modules/graph/branch.service.ts`  
+**File**: `apps/server/src/modules/graph/branch.service.ts`  
 **Remaining**: create(), ensureBranchLineage()  
 **Complexity**: High (recursive lineage operations)  
 **Recommendation**: Keep as raw SQL (recursive tree operations)  
@@ -45,7 +45,7 @@
 
 ### 5. TypeRegistryService (~7 queries)
 
-**File**: `apps/server-nest/src/modules/type-registry/type-registry.service.ts`  
+**File**: `apps/server/src/modules/type-registry/type-registry.service.ts`  
 **Methods**: 7 methods total  
 **Complexity**: Moderate (GROUP BY with aggregations)  
 **Entity**: Need to create ObjectTypeSchema-related entities  
@@ -60,7 +60,7 @@
 
 ### 6. TemplatePackService (~15 queries)
 
-**File**: `apps/server-nest/src/modules/template-packs/template-pack.service.ts`  
+**File**: `apps/server/src/modules/template-packs/template-pack.service.ts`  
 **Methods**: 11 methods  
 **Complexity**: Moderate  
 **Estimated**: 2-4 hours  
@@ -74,7 +74,7 @@
 
 ### 7. User Deletion Service (~10 queries)
 
-**File**: `apps/server-nest/src/modules/user/user-deletion.service.ts`  
+**File**: `apps/server/src/modules/user/user-deletion.service.ts`  
 **Methods**: 3 methods  
 **Complexity**: Moderate (cascade deletes)  
 **Estimated**: 1-2 hours  
@@ -86,7 +86,7 @@
 
 ### 8. ExtractionJobService (~30 queries)
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts`  
+**File**: `apps/server/src/modules/extraction-jobs/extraction-job.service.ts`  
 **Methods**: 20 methods  
 **Complexity**: High (job queue, workers, complex business logic)  
 **Estimated**: 4-6 hours (multi-session)  
@@ -101,7 +101,7 @@
 
 ### 9. MonitoringService (~7 queries)
 
-**File**: `apps/server-nest/src/modules/monitoring/monitoring.service.ts`  
+**File**: `apps/server/src/modules/monitoring/monitoring.service.ts`  
 **Methods**: Multiple  
 **Complexity**: Moderate (metrics aggregation)  
 **Estimated**: 2-3 hours  
@@ -109,7 +109,7 @@
 
 ### 10. DiscoveryJobService (~24 queries)
 
-**File**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.service.ts`  
+**File**: `apps/server/src/modules/discovery-jobs/discovery-job.service.ts`  
 **Methods**: Many  
 **Complexity**: High (similar to ExtractionJobService)  
 **Estimated**: 4-6 hours (multi-session)  
@@ -121,14 +121,14 @@
 
 ### 11. GraphVectorSearchService (~3 queries)
 
-**File**: `apps/server-nest/src/modules/graph/graph-vector-search.service.ts`  
+**File**: `apps/server/src/modules/graph/graph-vector-search.service.ts`  
 **Complexity**: High (vector similarity with pgvector)  
 **Recommendation**: Keep as raw SQL (pgvector operators)  
 **Action**: Mark as "Complete - Strategic Raw SQL"
 
 ### 12. SearchService (~5 queries)
 
-**File**: `apps/server-nest/src/modules/search/search.service.ts`  
+**File**: `apps/server/src/modules/search/search.service.ts`  
 **Complexity**: High (full-text search, tsvector)  
 **Recommendation**: Keep as raw SQL (PostgreSQL full-text)  
 **Action**: Mark as "Complete - Strategic Raw SQL"
@@ -147,7 +147,7 @@
 
 ### 14. GraphService (~50 queries)
 
-**File**: `apps/server-nest/src/modules/graph/graph.service.ts`  
+**File**: `apps/server/src/modules/graph/graph.service.ts`  
 **Complexity**: Very High (core graph operations)  
 **Estimated**: 6-10 hours (3-4 sessions)  
 **Impact**: Very High - core functionality
@@ -257,13 +257,13 @@ A service is "complete" when:
 
 ```bash
 # Find services with queries
-find apps/server-nest/src/modules -name "*.service.ts" -exec sh -c 'q=$(grep -c "db\.query" "$1"); if [ "$q" -gt 0 ]; then echo "$q $1"; fi' _ {} \; | sort -n
+find apps/server/src/modules -name "*.service.ts" -exec sh -c 'q=$(grep -c "db\.query" "$1"); if [ "$q" -gt 0 ]; then echo "$q $1"; fi' _ {} \; | sort -n
 
 # Check specific service
 grep -n "db.query" path/to/service.ts
 
 # List all entities
-ls apps/server-nest/src/entities/
+ls apps/server/src/entities/
 
 # Check migration status
 npm run migration:show

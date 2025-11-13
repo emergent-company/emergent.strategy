@@ -172,7 +172,7 @@ All 10 types from both active template packs, with full schemas for each
 
 ## Files Modified
 
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
   - Removed `LIMIT 1` from template pack query
   - Added schema merging logic for multiple packs
   - Enhanced logging to show pack processing

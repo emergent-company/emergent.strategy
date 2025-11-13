@@ -51,7 +51,7 @@ Traced prompt building through two different code paths:
 ## Solution Implemented
 
 ### 1. Updated PromptBuildOptions Interface
-**File:** `apps/server-nest/src/modules/chat/chat-generation.service.ts`
+**File:** `apps/server/src/modules/chat/chat-generation.service.ts`
 
 Added `graphContext` parameter to the interface:
 
@@ -66,7 +66,7 @@ export interface PromptBuildOptions {
 ```
 
 ### 2. Updated buildPrompt() Method
-**File:** `apps/server-nest/src/modules/chat/chat-generation.service.ts`
+**File:** `apps/server/src/modules/chat/chat-generation.service.ts`
 
 Added graph context section after MCP context:
 
@@ -93,7 +93,7 @@ buildPrompt(options: PromptBuildOptions): string {
 ```
 
 ### 3. Format Graph Objects in POST Endpoint
-**File:** `apps/server-nest/src/modules/chat/chat.controller.ts`
+**File:** `apps/server/src/modules/chat/chat.controller.ts`
 
 After line 700 (after graph search and filtering), added context string builder:
 
@@ -124,7 +124,7 @@ if (graphObjects.length > 0) {
 ```
 
 ### 4. Pass Graph Context to buildPrompt()
-**File:** `apps/server-nest/src/modules/chat/chat.controller.ts`
+**File:** `apps/server/src/modules/chat/chat.controller.ts`
 
 Updated buildPrompt() call at line 879:
 
@@ -209,11 +209,11 @@ To verify the fix is working:
 
 ## Files Modified
 
-1. `apps/server-nest/src/modules/chat/chat-generation.service.ts`
+1. `apps/server/src/modules/chat/chat-generation.service.ts`
    - Added `graphContext?: string` to PromptBuildOptions interface
    - Updated `buildPrompt()` to include graph context section
 
-2. `apps/server-nest/src/modules/chat/chat.controller.ts`
+2. `apps/server/src/modules/chat/chat.controller.ts`
    - Added graph context string builder (lines 702-725)
    - Updated buildPrompt() call to pass graphContext parameter (line 879)
    - Added prompt preview logging (line 893)

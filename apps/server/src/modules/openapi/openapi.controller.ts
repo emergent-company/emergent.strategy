@@ -10,7 +10,7 @@ import { join } from 'node:path';
 export class OpenApiController {
   @Get()
   json() {
-    // Reuse the file emitted at bootstrap (apps/server-nest/openapi.json)
+    // Reuse the file emitted at bootstrap (apps/server/openapi.json)
     const path = join(process.cwd(), 'openapi.json');
     try {
       const raw = readFileSync(path, 'utf-8');

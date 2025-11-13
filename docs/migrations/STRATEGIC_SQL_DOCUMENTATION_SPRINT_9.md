@@ -20,7 +20,7 @@ This sprint achieves **100% documentation coverage** across all 56 services in t
 
 ## Service 1: DiscoveryJobService
 
-**File**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.service.ts`  
+**File**: `apps/server/src/modules/discovery-jobs/discovery-job.service.ts`  
 **Category**: 🟡 **HYBRID - Business Logic + Strategic SQL Orchestration**  
 **Database Queries**: 24  
 **Lines**: 1,046  
@@ -507,7 +507,7 @@ WHERE discovery_job_id = $1
 
 ## Service 2: TemplatePackService
 
-**File**: `apps/server-nest/src/modules/template-packs/template-pack.service.ts`  
+**File**: `apps/server/src/modules/template-packs/template-pack.service.ts`  
 **Category**: 🟢 **TypeORM Complete** (4 queries) + 🔴 **Strategic SQL** (6 queries)  
 **Database Queries**: 10 total  
 **Lines**: 1,060  

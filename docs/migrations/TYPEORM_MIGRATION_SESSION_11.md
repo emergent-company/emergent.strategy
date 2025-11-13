@@ -14,7 +14,7 @@
 
 ### 1. TypeRegistryService (Fully Migrated)
 
-**File**: `apps/server-nest/src/modules/type-registry/type-registry.service.ts`  
+**File**: `apps/server/src/modules/type-registry/type-registry.service.ts`  
 **Complexity**: Moderate (7 queries total, complex GROUP BY with aggregations)  
 **Status**: ✅ **Fully Migrated**
 
@@ -44,7 +44,7 @@
 
 ### 2. MonitoringService (Fully Migrated)
 
-**File**: `apps/server-nest/src/modules/monitoring/monitoring.service.ts`  
+**File**: `apps/server/src/modules/monitoring/monitoring.service.ts`  
 **Complexity**: Moderate (7 queries total, subqueries for cost aggregation)  
 **Status**: ✅ **Fully Migrated**
 
@@ -71,7 +71,7 @@
 
 ### 1. ProjectObjectTypeRegistry
 
-**File**: `apps/server-nest/src/entities/project-object-type-registry.entity.ts`  
+**File**: `apps/server/src/entities/project-object-type-registry.entity.ts`  
 **Table**: `kb.project_object_type_registry`  
 **Purpose**: Project-level type registry for object schemas
 
@@ -84,7 +84,7 @@
 
 ### 2. LlmCallLog
 
-**File**: `apps/server-nest/src/entities/llm-call-log.entity.ts`  
+**File**: `apps/server/src/entities/llm-call-log.entity.ts`  
 **Table**: `kb.llm_call_logs`  
 **Purpose**: Track LLM API calls with token usage and cost
 
@@ -97,7 +97,7 @@
 
 ### 3. SystemProcessLog
 
-**File**: `apps/server-nest/src/entities/system-process-log.entity.ts`  
+**File**: `apps/server/src/entities/system-process-log.entity.ts`  
 **Table**: `kb.system_process_logs`  
 **Purpose**: General event logging with metadata
 
@@ -193,7 +193,7 @@ await this.typeRegistryRepo.delete({ projectId, typeName });
 
 ### Entity Registration
 
-**Issue**: New entities must be added to `apps/server-nest/src/entities/index.ts`  
+**Issue**: New entities must be added to `apps/server/src/entities/index.ts`  
 **Resolution**: Added exports and imports for all 3 new entities to central index
 
 ### Type Mapping
@@ -318,7 +318,7 @@ export class TypeRegistryModule {}
 
 ### Build Performance
 
-- **Time**: ~25 seconds (admin), ~15 seconds (server-nest)
+- **Time**: ~25 seconds (admin), ~15 seconds (server)
 - **Status**: ✅ No errors, only minor linting hints
 
 ### Runtime Performance
@@ -359,23 +359,23 @@ export class TypeRegistryModule {}
 
 ### New Entity Files (3)
 
-1. `apps/server-nest/src/entities/project-object-type-registry.entity.ts`
-2. `apps/server-nest/src/entities/llm-call-log.entity.ts`
-3. `apps/server-nest/src/entities/system-process-log.entity.ts`
+1. `apps/server/src/entities/project-object-type-registry.entity.ts`
+2. `apps/server/src/entities/llm-call-log.entity.ts`
+3. `apps/server/src/entities/system-process-log.entity.ts`
 
 ### Modified Service Files (2)
 
-1. `apps/server-nest/src/modules/type-registry/type-registry.service.ts` - Migrated to TypeORM
-2. `apps/server-nest/src/modules/monitoring/monitoring.service.ts` - Migrated to TypeORM
+1. `apps/server/src/modules/type-registry/type-registry.service.ts` - Migrated to TypeORM
+2. `apps/server/src/modules/monitoring/monitoring.service.ts` - Migrated to TypeORM
 
 ### Modified Module Files (2)
 
-1. `apps/server-nest/src/modules/type-registry/type-registry.module.ts` - Added TypeOrmModule
-2. `apps/server-nest/src/modules/monitoring/monitoring.module.ts` - Added TypeOrmModule
+1. `apps/server/src/modules/type-registry/type-registry.module.ts` - Added TypeOrmModule
+2. `apps/server/src/modules/monitoring/monitoring.module.ts` - Added TypeOrmModule
 
 ### Modified Index Files (1)
 
-1. `apps/server-nest/src/entities/index.ts` - Added 3 new entity exports
+1. `apps/server/src/entities/index.ts` - Added 3 new entity exports
 
 ---
 
@@ -395,7 +395,7 @@ curl http://localhost:3002/health
 tail -50 apps/logs/server/error.log
 
 # Count services with raw SQL
-find apps/server-nest/src/modules -name "*.service.ts" -exec sh -c 'q=$(grep -c "db\.query" "$1"); if [ "$q" -gt 0 ]; then echo "$q $1"; fi' _ {} \; | sort -n
+find apps/server/src/modules -name "*.service.ts" -exec sh -c 'q=$(grep -c "db\.query" "$1"); if [ "$q" -gt 0 ]; then echo "$q $1"; fi' _ {} \; | sort -n
 ```
 
 ---

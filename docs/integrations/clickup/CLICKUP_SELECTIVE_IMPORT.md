@@ -100,7 +100,7 @@ POST /api/v1/integrations/clickup/sync
 
 #### 1. ImportConfig Interface Update
 
-**File:** `apps/server-nest/src/modules/integrations/base-integration.ts`
+**File:** `apps/server/src/modules/integrations/base-integration.ts`
 
 Added `list_ids` parameter:
 
@@ -117,7 +117,7 @@ export interface ImportConfig {
 
 #### 2. ClickUpImportService.runFullImport() - Detection Logic
 
-**File:** `apps/server-nest/src/modules/clickup/clickup-import.service.ts`
+**File:** `apps/server/src/modules/clickup/clickup-import.service.ts`
 
 Added conditional branching:
 
@@ -143,7 +143,7 @@ if (config.list_ids && config.list_ids.length > 0) {
 
 #### 3. ClickUpImportService.importSpecificLists() - New Method
 
-**File:** `apps/server-nest/src/modules/clickup/clickup-import.service.ts`
+**File:** `apps/server/src/modules/clickup/clickup-import.service.ts`
 
 Optimized import path:
 
@@ -323,7 +323,7 @@ for (const listId of listIds) {
 
 **Backend:**
 ```typescript
-// apps/server-nest/src/modules/clickup/clickup-import.service.spec.ts
+// apps/server/src/modules/clickup/clickup-import.service.spec.ts
 
 describe('runFullImport with selective import', () => {
     it('should use full import when list_ids not provided', async () => {

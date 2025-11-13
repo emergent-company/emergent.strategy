@@ -195,24 +195,24 @@ const mockRow = {
 ### Test Execution
 ```bash
 # Run full test suite
-npm --prefix apps/server-nest test
+npm --prefix apps/server test
 
 # Run specific test file
-npm --prefix apps/server-nest test -- src/modules/template-packs/__tests__/template-pack.service.spec.ts
-npm --prefix apps/server-nest test -- src/modules/search/__tests__/path-summary.service.spec.ts
+npm --prefix apps/server test -- src/modules/template-packs/__tests__/template-pack.service.spec.ts
+npm --prefix apps/server test -- src/modules/search/__tests__/path-summary.service.spec.ts
 
 # Get detailed errors
-npm --prefix apps/server-nest test -- <file> 2>&1 | grep -A 10 "FAIL"
+npm --prefix apps/server test -- <file> 2>&1 | grep -A 10 "FAIL"
 ```
 
 ### Bulk Replacements
 ```bash
 # Replace direction values
-sed -i.bak "s/direction: 'outgoing'/direction: 'out'/g" apps/server-nest/src/modules/search/__tests__/path-summary.service.spec.ts
-sed -i '' "s/direction: 'incoming'/direction: 'in'/g" apps/server-nest/src/modules/search/__tests__/path-summary.service.spec.ts
+sed -i.bak "s/direction: 'outgoing'/direction: 'out'/g" apps/server/src/modules/search/__tests__/path-summary.service.spec.ts
+sed -i '' "s/direction: 'incoming'/direction: 'in'/g" apps/server/src/modules/search/__tests__/path-summary.service.spec.ts
 
 # Remove empty path_rels arrays
-sed -i.bak3 "/path_rels: \[\],$/d" apps/server-nest/src/modules/search/__tests__/path-summary.service.spec.ts
+sed -i.bak3 "/path_rels: \[\],$/d" apps/server/src/modules/search/__tests__/path-summary.service.spec.ts
 ```
 
 ### Analysis Commands
@@ -229,13 +229,13 @@ done
 ## Files Modified
 
 ### Test Files Fixed
-1. `apps/server-nest/src/modules/template-packs/__tests__/template-pack.service.spec.ts`
+1. `apps/server/src/modules/template-packs/__tests__/template-pack.service.spec.ts`
    - Changed all 5 tests from `getPool()` to `getClient()` mocking
    - Added full row data to all INSERT RETURNING mocks
    - Added proper set_config call mocks
    - **Result**: 5/5 tests passing (was 0/5)
 
-2. `apps/server-nest/src/modules/search/__tests__/path-summary.service.spec.ts`
+2. `apps/server/src/modules/search/__tests__/path-summary.service.spec.ts`
    - Global replace: `'outgoing'` → `'out'`, `'incoming'` → `'in'`
    - Added `path_rels` field to all 14 mock rows
    - Fixed 3 test expectations to match actual service behavior

@@ -290,7 +290,7 @@ for (const objectType of schema.objectTypeSchemas) {
 Create a service that generates specific tools from schemas:
 
 ```typescript
-// apps/server-nest/src/modules/mcp/services/tool-generator.service.ts
+// apps/server/src/modules/mcp/services/tool-generator.service.ts
 
 @Injectable()
 export class ToolGeneratorService {
@@ -339,7 +339,7 @@ export class ToolGeneratorService {
 Register generated tools at startup:
 
 ```typescript
-// apps/server-nest/src/modules/mcp/mcp.module.ts
+// apps/server/src/modules/mcp/mcp.module.ts
 
 @Module({
   imports: [TemplatePackModule, GraphModule],

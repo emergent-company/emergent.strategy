@@ -138,8 +138,8 @@ Total                           +118 tests +10.5%     Epic Win! 🎉
 - Pattern mastery: 10min → 25min → 50min per session (increasing complexity, consistent success)
 
 **Related Files/Conventions**:
-- `apps/server-nest/migrations/20251110_update_embedding_vec_dimensions.sql` (DB migration)
-- `apps/server-nest/tests/graph/graph-vector.controller.spec.ts` (hybrid stub pattern)
+- `apps/server/migrations/20251110_update_embedding_vec_dimensions.sql` (DB migration)
+- `apps/server/tests/graph/graph-vector.controller.spec.ts` (hybrid stub pattern)
 - `docs/TESTING_SPRINT_SESSION9_FINAL.md` (comprehensive report + 99.6% achievement)
 - New pattern: **Database Migration + Hybrid Test Module** (for E2E with real queries)
 
@@ -266,8 +266,8 @@ New: clientServiceAccountKey + apiServiceAccountKey +
 - Tests must update variable references after service refactoring
 
 **Related Files/Conventions**:
-- `apps/server-nest/src/modules/auth/__tests__/zitadel.service.spec.ts` (crypto mock + variable fixes)
-- `apps/server-nest/src/modules/auth/zitadel.service.ts` (PKCS#1 conversion logic lines 860-890)
+- `apps/server/src/modules/auth/__tests__/zitadel.service.spec.ts` (crypto mock + variable fixes)
+- `apps/server/src/modules/auth/zitadel.service.ts` (PKCS#1 conversion logic lines 860-890)
 - `docs/TESTING_SPRINT_SESSION8_FINAL.md` (comprehensive analysis + 98.7% milestone)
 - New pattern: **Crypto Module Mocking** (for key conversion, cryptographic operations)
 
@@ -312,7 +312,7 @@ const svc = new ProductVersionService(new FakeDb(() => client) as any);
 
 1. **Check constructor signature FIRST** (before analyzing infrastructure):
    ```bash
-   grep "constructor" apps/server-nest/src/modules/graph/product-version.service.ts
+   grep "constructor" apps/server/src/modules/graph/product-version.service.ts
    ```
 
 2. **Provide ALL constructor parameters**:
@@ -386,7 +386,7 @@ Session  Service            Passing Rate  Approach               Tests  Time
 - **Speed**: Fastest pattern yet (~10 minutes vs 30 min to 2 hours)
 
 **Related Files/Conventions**:
-- `apps/server-nest/tests/product-version.service.spec.ts` (Hybrid Mock Layer Alignment)
+- `apps/server/tests/product-version.service.spec.ts` (Hybrid Mock Layer Alignment)
 - `docs/TESTING_SPRINT_SESSION6_FINAL.md` (comprehensive analysis + 95% milestone)
 - New pattern: **Hybrid Mock Layer Alignment** (constructor + multi-layer mocking)
 
@@ -483,7 +483,7 @@ DataSource.query() (raw SQL)                     → FakeDataSource.query()
 - **Strategic Implication**: Target services with high reuse potential for maximum cascade effect
 
 **Related Files/Conventions**:
-- `apps/server-nest/tests/orgs.service.spec.ts` (Mock Layer Alignment fixes)
+- `apps/server/tests/orgs.service.spec.ts` (Mock Layer Alignment fixes)
 - `docs/TESTING_SPRINT_SESSION5_FINAL.md` (comprehensive analysis)
 - New pattern: **Mock Layer Alignment** (abstraction level matching)
 
@@ -671,8 +671,8 @@ const filteredDocs = docs.filter(doc => {
 4. Build mapping/lookup tables as last resort
 
 **Related Files/Conventions**:
-- `apps/server-nest/src/modules/clickup/clickup-import.service.ts` (importDocs using parent parameter)
-- `apps/server-nest/src/modules/clickup/clickup-api.client.ts` (getDocs with parent parameter support)
+- `apps/server/src/modules/clickup/clickup-import.service.ts` (importDocs using parent parameter)
+- `apps/server/src/modules/clickup/clickup-api.client.ts` (getDocs with parent parameter support)
 - ClickUp v3 API documentation: Check for query parameters on list/fetch endpoints
 
 **Performance Impact**:
@@ -769,8 +769,8 @@ do {
 - **Full Fetch**: Data imports, bulk operations, background sync, reports
 
 **Related Files/Conventions**:
-- `apps/server-nest/src/modules/clickup/clickup-import.service.ts` (fetchWorkspaceStructure method)
-- `apps/server-nest/src/modules/clickup/clickup-api.client.ts` (getDocs pagination)
+- `apps/server/src/modules/clickup/clickup-import.service.ts` (fetchWorkspaceStructure method)
+- `apps/server/src/modules/clickup/clickup-api.client.ts` (getDocs pagination)
 - `docs/CLICKUP_SELECT_LISTS_HANG_FIX.md` (full documentation)
 
 **Performance Impact**:
@@ -873,7 +873,7 @@ This proves the pattern: **ANY pagination loop MUST have these safety mechanisms
 - Test error scenarios during development
 
 **Related Files/Conventions**:
-- `apps/server-nest/src/modules/integrations/integrations.controller.ts` (added error handling to 3 endpoints)
+- `apps/server/src/modules/integrations/integrations.controller.ts` (added error handling to 3 endpoints)
 - NestJS HTTP exceptions: `@nestjs/common` - BadRequestException, UnauthorizedException, ForbiddenException
 - Error response structure: `{ error: { code, message, details } }`
 
@@ -1152,13 +1152,13 @@ Both should return 200 status code.
   - Security (not logged in URLs)
   - Consistency across the system
   - Cleaner API design (context in headers, business data in params/body)
-- Always grep for existing patterns: `grep -r "x-project-id" apps/server-nest/src/`
+- Always grep for existing patterns: `grep -r "x-project-id" apps/server/src/`
 - Frontend should never manually add `X-Org-ID` or `X-Project-ID` headers - the `use-api` hook does it automatically
 
 **Related Files/Conventions**:
 - `apps/admin/src/hooks/use-api.ts` (lines 29-30: header construction)
-- `apps/server-nest/src/modules/documents/documents.controller.ts` (correct pattern)
-- `apps/server-nest/src/modules/template-packs/template-pack.controller.ts` (correct pattern)
+- `apps/server/src/modules/documents/documents.controller.ts` (correct pattern)
+- `apps/server/src/modules/template-packs/template-pack.controller.ts` (correct pattern)
 
 ### 2025-10-16 - Forgot to Re-enable Scope Enforcement in E2E Contexts
 
@@ -1176,10 +1176,10 @@ Both should return 200 status code.
 - Keep regression tests that assert the flag is disabled when scope-related suites run.
 
 **Related Files/Conventions**:
-- `apps/server-nest/tests/e2e/e2e-context.ts`
-- `apps/server-nest/src/modules/auth/scopes.guard.ts`
+- `apps/server/tests/e2e/e2e-context.ts`
+- `apps/server/src/modules/auth/scopes.guard.ts`
 - `docs/TEST_FIX_SESSION_4_FINAL.md` (records impact of `SCOPES_DISABLED=1`)
-- `apps/server-nest/src/modules/integrations/integrations.controller.ts` (was wrong, now fixed)
+- `apps/server/src/modules/integrations/integrations.controller.ts` (was wrong, now fixed)
 
 **System Pattern**:
 ```
@@ -1207,7 +1207,7 @@ Backend Controller → Reads req.headers['x-org-id'], req.headers['x-project-id'
 
 **Why It Was Wrong**: Missing the method-level `}` meant the compiler flagged unrelated code, slowing diagnosis. The root cause was a simple structural omission hidden by a large diff.
 
-**Correct Approach**: After wrapping in `runWithTenantContext`, explicitly add both `});` and the method's closing `}` before moving on. Immediately run `nx run server-nest:build` (or targeted tests) to confirm the file still parses.
+**Correct Approach**: After wrapping in `runWithTenantContext`, explicitly add both `});` and the method's closing `}` before moving on. Immediately run `nx run server:build` (or targeted tests) to confirm the file still parses.
 
 **Prevention**:
 - Use editor bracket matching or run Prettier/TS compiler after structural edits.
@@ -1215,8 +1215,8 @@ Backend Controller → Reads req.headers['x-org-id'], req.headers['x-project-id'
 - When big diffs are unavoidable, rely on automated checks quickly instead of waiting until later.
 
 **Related Files/Conventions**:
-- `apps/server-nest/src/modules/graph/graph.service.ts`
-- `apps/server-nest/src/common/database/database.service.ts` (`runWithTenantContext` usage pattern)
+- `apps/server/src/modules/graph/graph.service.ts`
+- `apps/server/src/common/database/database.service.ts` (`runWithTenantContext` usage pattern)
 
 ---
 
@@ -1236,8 +1236,8 @@ Backend Controller → Reads req.headers['x-org-id'], req.headers['x-project-id'
 - Reflect schema differences (org vs tenant) directly in TypeScript typings and tests.
 
 **Related Files/Conventions**:
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
-- `apps/server-nest/src/modules/extraction-jobs/__tests__/extraction-worker.service.spec.ts`
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
+- `apps/server/src/modules/extraction-jobs/__tests__/extraction-worker.service.spec.ts`
 - `information_schema.columns` checks for `kb.object_extraction_jobs`
 
 ---
@@ -1276,7 +1276,7 @@ Backend Controller → Reads req.headers['x-org-id'], req.headers['x-project-id'
 **Related Files/Conventions**:
 - `tools/workspace-cli/pm2/ecosystem.apps.cjs` - PM2 process configuration (check `args` array)
 - `apps/admin/package.json` - "dev": "vite" (Vite HMR built-in)
-- `apps/server-nest/package.json` - "start:dev": "ts-node-dev --respawn" (watch mode)
+- `apps/server/package.json` - "start:dev": "ts-node-dev --respawn" (watch mode)
 - `.github/copilot-instructions.md` - Added "Development Environment" section with hot reload info
 - `docs/HOT_RELOAD.md` - Created comprehensive hot reload documentation
 
@@ -1333,7 +1333,7 @@ objects_created, relationships_created, suggestions_created
 - Use TypeScript database schema libraries (e.g., Kysely, Drizzle) for type-safe schema management
 
 **Related Files/Conventions**:
-- `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts` (updateProgress method)
+- `apps/server/src/modules/extraction-jobs/extraction-job.service.ts` (updateProgress method)
 - `apps/admin/src/pages/admin/pages/extraction-jobs/detail.tsx` (progress calculations)
 - `docs/EXTRACTION_PROGRESS_TRACKING_ISSUES.md` (full analysis)
 
@@ -1410,8 +1410,8 @@ const objectKey = entity.business_key || this.generateKeyFromName(entity.name, e
 - Consider making business_key required in LLM prompt if it's important
 
 **Related Files/Conventions**:
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` (key generation)
-- `apps/server-nest/src/modules/graph/graph.service.ts` (object creation, key constraint)
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` (key generation)
+- `apps/server/src/modules/graph/graph.service.ts` (object creation, key constraint)
 - Key pattern: `{type}-{normalized-name}-{hash}` (e.g., `location-sweden-a1b2c3d4`)
 
 ---
@@ -1432,7 +1432,7 @@ const objectKey = entity.business_key || this.generateKeyFromName(entity.name, e
 
 **Correct Approach**:
 1. **First**: Create migration automation script before applying any migration:
-   - Read migration files from `apps/server-nest/migrations/` directory
+   - Read migration files from `apps/server/migrations/` directory
    - Track applied migrations in database table (`kb.schema_migrations`)
    - Auto-detect connection method (Docker container or direct psql)
    - Handle credentials from environment variables
@@ -1441,9 +1441,9 @@ const objectKey = entity.business_key || this.generateKeyFromName(entity.name, e
    
 2. **Then**: Use the script for all future migrations:
    ```bash
-   npx nx run server-nest:migrate -- --list      # Check status
-   npx nx run server-nest:migrate -- --dry-run   # Preview changes
-   npx nx run server-nest:migrate                # Apply pending
+   npx nx run server:migrate -- --list      # Check status
+   npx nx run server:migrate -- --dry-run   # Preview changes
+   npx nx run server:migrate                # Apply pending
    ```
 
 3. **Benefits**:
@@ -1455,7 +1455,7 @@ const objectKey = entity.business_key || this.generateKeyFromName(entity.name, e
    - Error tracking and debugging
 
 **Solution Implemented**:
-- Created `apps/server-nest/scripts/migrate.mjs`:
+- Created `apps/server/scripts/migrate.mjs`:
   * Node.js script that reads SQL files from migrations directory
   * Creates `kb.schema_migrations` table to track applied migrations
   * Compares filesystem migrations with database records
@@ -1464,7 +1464,7 @@ const objectKey = entity.business_key || this.generateKeyFromName(entity.name, e
   * Supports `--list`, `--dry-run` modes
   * Works with Docker or direct database connection
   
-- Added Nx target: `nx run server-nest:migrate`
+- Added Nx target: `nx run server:migrate`
   * Easy to remember command
   * Forwards all arguments (--dry-run, --list)
   * Integrates with existing Nx workflow
@@ -1484,8 +1484,8 @@ const objectKey = entity.business_key || this.generateKeyFromName(entity.name, e
 - Think about CI/CD: if you can't automate it, you can't deploy it reliably
 
 **Related Files/Conventions**:
-- `apps/server-nest/scripts/migrate.mjs` (migration runner)
-- `apps/server-nest/project.json` (Nx target definition)
+- `apps/server/scripts/migrate.mjs` (migration runner)
+- `apps/server/project.json` (Nx target definition)
 - `docs/DATABASE_MIGRATIONS.md` (comprehensive guide)
 - `kb.schema_migrations` table (tracks applied migrations)
 
@@ -1567,7 +1567,7 @@ grep "ExtractionWorkerService.processJob" logs/app.log
 ```
 
 **Files Modified**:
-- `apps/server-nest/src/common/logger/file-logger.service.ts`:
+- `apps/server/src/common/logger/file-logger.service.ts`:
   * Added `CallerInfo` interface
   * Added `getCallerInfo()` method (stack trace parsing)
   * Updated `writeToFile()` to include location info
@@ -1591,7 +1591,7 @@ grep "ExtractionWorkerService.processJob" logs/app.log
 - Document log format clearly for team consistency
 
 **Related Files/Conventions**:
-- `apps/server-nest/src/common/logger/file-logger.service.ts` (enhanced logger)
+- `apps/server/src/common/logger/file-logger.service.ts` (enhanced logger)
 - `docs/ENHANCED_LOGGING_SYSTEM.md` (comprehensive guide)
 - Node.js `Error.stack` API for stack trace capture
 - Pattern: `timestamp [LEVEL] [Context] file:line (method) - message`
@@ -1625,7 +1625,7 @@ Now you immediately know: File: `encryption.service.ts`, Line: `45`, Method: `en
 
 **Correct Approach**:
 1. **Before implementing frontend that calls an API**: Verify the endpoint exists in the backend controller
-2. **Check controller methods**: `grep -r "@Patch\|@Put\|@Post\|@Get\|@Delete" apps/server-nest/src/modules/<module>/`
+2. **Check controller methods**: `grep -r "@Patch\|@Put\|@Post\|@Get\|@Delete" apps/server/src/modules/<module>/`
 3. **If endpoint missing**: Implement backend first, then frontend
 4. **For new features requiring API changes**: 
    - Create migration (if database schema changes needed)
@@ -1656,10 +1656,10 @@ Now you immediately know: File: `encryption.service.ts`, Line: `45`, Method: `en
 - When implementing frontend API calls, first verify endpoint exists:
   ```bash
   # Check if endpoint exists
-  grep -r "@Patch.*projects" apps/server-nest/src/modules/projects/
+  grep -r "@Patch.*projects" apps/server/src/modules/projects/
   
   # Check DTO includes field
-  grep "kb_purpose" apps/server-nest/src/modules/projects/dto/
+  grep "kb_purpose" apps/server/src/modules/projects/dto/
   
   # Check database column exists
   # (use postgres MCP or check migrations)
@@ -1671,9 +1671,9 @@ Now you immediately know: File: `encryption.service.ts`, Line: `45`, Method: `en
 - Add to checklist: "Verified backend endpoint exists" before frontend PR
 
 **Related Files/Conventions**:
-- `apps/server-nest/src/modules/projects/projects.controller.ts` (added PATCH endpoint)
-- `apps/server-nest/src/modules/projects/projects.service.ts` (added update method)
-- `apps/server-nest/src/modules/projects/dto/project.dto.ts` (added UpdateProjectDto)
+- `apps/server/src/modules/projects/projects.controller.ts` (added PATCH endpoint)
+- `apps/server/src/modules/projects/projects.service.ts` (added update method)
+- `apps/server/src/modules/projects/dto/project.dto.ts` (added UpdateProjectDto)
 - `apps/admin/src/components/organisms/KBPurposeEditor/KBPurposeEditor.tsx` (frontend caller)
 - NestJS patterns: Controller (@Patch) → Service (business logic) → Database
 - Full-stack verification: Migration → DTO → Service → Controller → Frontend

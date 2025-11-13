@@ -61,7 +61,7 @@ await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=...`, {
 
 ### Unit Tests (Passing ✅)
 
-**File:** `apps/server-nest/src/modules/extraction-jobs/__tests__/entity-linking.service.spec.ts`
+**File:** `apps/server/src/modules/extraction-jobs/__tests__/entity-linking.service.spec.ts`
 
 **Coverage:** Complete testing of entity-linking logic
 - `findSimilarObject()` - key matching, name normalization, property key extraction
@@ -74,7 +74,7 @@ await fetch(`${ctx.baseUrl}/admin/extraction-jobs/${job.id}?project_id=...`, {
 
 ### E2E Tests (Require LLM ⚠️)
 
-**File:** `apps/server-nest/tests/e2e/extraction.entity-linking.e2e.spec.ts`
+**File:** `apps/server/tests/e2e/extraction.entity-linking.e2e.spec.ts`
 
 **Coverage:** Full pipeline integration
 - Document ingestion
@@ -136,7 +136,7 @@ Session summary covering:
 
 ### Updated Files
 
-**apps/server-nest/tests/e2e/extraction.entity-linking.e2e.spec.ts:**
+**apps/server/tests/e2e/extraction.entity-linking.e2e.spec.ts:**
 - Refactored 4 polling loops to manual completion
 - Tests now fail fast (<1 second vs 30 second timeout)
 - Ready to work when LLM configured
@@ -298,7 +298,7 @@ Even though tests still fail, the refactoring improved debugging experience.
 
 ### Modified Files
 
-1. **apps/server-nest/tests/e2e/extraction.entity-linking.e2e.spec.ts**
+1. **apps/server/tests/e2e/extraction.entity-linking.e2e.spec.ts**
    - Lines 137-163: Refactored test 1 polling loop
    - Lines 280-307: Refactored test 2 polling loop
    - Lines 418-445: Refactored test 3 polling loop

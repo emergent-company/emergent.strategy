@@ -20,7 +20,7 @@ This follows the exact pattern used in `huma-blueprint-ui` project, where migrat
 
 ### 1. DatabaseService.onModuleInit() - Added Migration Call
 
-**File**: `apps/server-nest/src/common/database/database.service.ts`
+**File**: `apps/server/src/common/database/database.service.ts`
 
 ```typescript
 async onModuleInit() {
@@ -49,7 +49,7 @@ async onModuleInit() {
 
 ### 2. main.ts - Removed Manual Migration Call
 
-**File**: `apps/server-nest/src/main.ts`
+**File**: `apps/server/src/main.ts`
 
 **Removed**:
 ```typescript
@@ -148,8 +148,8 @@ Migration execution is logged at the `DatabaseService` level:
 
 ### Local Development
 ```bash
-npm --prefix apps/server-nest run build
-npm --prefix apps/server-nest run start:dev
+npm --prefix apps/server run build
+npm --prefix apps/server run start:dev
 ```
 
 Check logs for:

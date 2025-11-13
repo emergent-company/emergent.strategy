@@ -176,9 +176,9 @@ Modified **two components** to use the same dynamic endpoint:
 
 - `apps/admin/src/pages/admin/pages/settings/project/auto-extraction.tsx` - Settings page (modified)
 - `apps/admin/src/components/organisms/ExtractionConfigModal.tsx` - Extraction modal (modified)
-- `apps/server-nest/src/modules/template-packs/template-pack.controller.ts` - API endpoint
-- `apps/server-nest/src/modules/template-packs/template-pack.service.ts` - Service logic
-- `apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` - Uses schemas for extraction
+- `apps/server/src/modules/template-packs/template-pack.controller.ts` - API endpoint
+- `apps/server/src/modules/template-packs/template-pack.service.ts` - Service logic
+- `apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` - Uses schemas for extraction
 
 ## Migration Notes
 

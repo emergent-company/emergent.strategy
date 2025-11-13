@@ -62,7 +62,7 @@ Based on API query results:
 
 ### Configuration Files
 
-**1. apps/server-nest/src/common/config/config.service.ts**
+**1. apps/server/src/common/config/config.service.ts**
 ```typescript
 // Before
 get vertexAiModel() { return this.env.VERTEX_AI_MODEL || 'gemini-1.5-flash-latest'; }
@@ -71,7 +71,7 @@ get vertexAiModel() { return this.env.VERTEX_AI_MODEL || 'gemini-1.5-flash-lates
 get vertexAiModel() { return this.env.VERTEX_AI_MODEL || 'gemini-2.5-flash'; }
 ```
 
-**2. apps/server-nest/src/common/config/config.schema.ts**
+**2. apps/server/src/common/config/config.schema.ts**
 ```typescript
 // Before
 VERTEX_AI_MODEL: process.env.VERTEX_AI_MODEL || 'gemini-1.5-flash-latest',
@@ -80,7 +80,7 @@ VERTEX_AI_MODEL: process.env.VERTEX_AI_MODEL || 'gemini-1.5-flash-latest',
 VERTEX_AI_MODEL: process.env.VERTEX_AI_MODEL || 'gemini-2.5-flash',
 ```
 
-**3. apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts**
+**3. apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts**
 - Updated model initialization default
 - Updated log messages
 - Updated debug info in successful extractions

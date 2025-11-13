@@ -181,6 +181,6 @@ const handleDelete = async (packId: string, packName: string) => {
 
 ## Documentation References
 
-- Backend endpoint: `apps/server-nest/src/modules/template-packs/template-pack.controller.ts`
-- Service layer: `apps/server-nest/src/modules/template-packs/template-pack.service.ts`
+- Backend endpoint: `apps/server/src/modules/template-packs/template-pack.controller.ts`
+- Service layer: `apps/server/src/modules/template-packs/template-pack.service.ts`
 - Frontend page: `apps/admin/src/pages/admin/pages/settings/project/templates.tsx`

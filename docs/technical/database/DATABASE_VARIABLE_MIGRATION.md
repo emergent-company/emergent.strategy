@@ -30,10 +30,10 @@ Successfully migrated all database environment variables from PostgreSQL's defau
 ## Files Modified
 
 ### Core Application (6 files)
-1. ✅ `apps/server-nest/src/common/config/config.schema.ts` - Schema definition
-2. ✅ `apps/server-nest/src/common/config/config.service.ts` - Service getters
-3. ✅ `apps/server-nest/tests/test-db-config.ts` - Test configuration helper
-4. ✅ `apps/server-nest/tests/setup.ts` - Global test setup
+1. ✅ `apps/server/src/common/config/config.schema.ts` - Schema definition
+2. ✅ `apps/server/src/common/config/config.service.ts` - Service getters
+3. ✅ `apps/server/tests/test-db-config.ts` - Test configuration helper
+4. ✅ `apps/server/tests/setup.ts` - Global test setup
 
 ### Environment Files (3 files)
 5. ✅ `.env` - Local development (user action completed)
@@ -51,12 +51,12 @@ Successfully migrated all database environment variables from PostgreSQL's defau
 15. ✅ `scripts/seed-emergent-framework.ts`
 16. ✅ `scripts/get-clickup-credentials.ts`
 17. ✅ `scripts/migrate-embedding-dimension.ts`
-18. ✅ `apps/server-nest/scripts/migrate.mjs`
+18. ✅ `apps/server/scripts/migrate.mjs`
 
 ### Test Files (4 files)
-19. ✅ `apps/server-nest/tests/e2e/cleanup.cascades.e2e.spec.ts`
-20. ✅ `apps/server-nest/tests/e2e/documents.chunking.e2e.spec.ts`
-21. ✅ `apps/server-nest/tests/unit/schema.indexes.spec.ts`
+19. ✅ `apps/server/tests/e2e/cleanup.cascades.e2e.spec.ts`
+20. ✅ `apps/server/tests/e2e/documents.chunking.e2e.spec.ts`
+21. ✅ `apps/server/tests/unit/schema.indexes.spec.ts`
 
 ### Workspace CLI (1 file)
 22. ✅ `tools/workspace-cli/src/config/dependency-processes.ts`
@@ -207,10 +207,10 @@ npm run workspace:start
 
 ```bash
 # Run unit tests
-nx test server-nest
+nx test server
 
 # Run E2E tests
-nx test-e2e server-nest
+nx test-e2e server
 ```
 
 ---

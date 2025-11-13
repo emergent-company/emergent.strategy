@@ -156,7 +156,7 @@ This plan **unifies two critical authentication enhancements** for spec-server-2
 
 #### 1.1 Database Migration
 
-**File**: `apps/server-nest/migrations/0004_auth_introspection_cache.sql`
+**File**: `apps/server/migrations/0004_auth_introspection_cache.sql`
 
 ```sql
 -- Migration: Auth Introspection Cache
@@ -193,7 +193,7 @@ npx tsx scripts/run-migrations.ts
 
 #### 1.2 PostgreSQL Cache Service
 
-**File**: `apps/server-nest/src/modules/auth/postgres-cache.service.ts`
+**File**: `apps/server/src/modules/auth/postgres-cache.service.ts`
 
 *(Complete implementation from auth-introspection plan - see original document)*
 
@@ -205,7 +205,7 @@ npx tsx scripts/run-migrations.ts
 
 #### 1.3 Cache Cleanup Service
 
-**File**: `apps/server-nest/src/modules/auth/cache-cleanup.service.ts`
+**File**: `apps/server/src/modules/auth/cache-cleanup.service.ts`
 
 *(Complete implementation from auth-introspection plan - see original document)*
 
@@ -222,7 +222,7 @@ npx tsx scripts/run-migrations.ts
 
 #### 2.1 Unified Zitadel Service
 
-**File**: `apps/server-nest/src/modules/auth/zitadel.service.ts`
+**File**: `apps/server/src/modules/auth/zitadel.service.ts`
 
 **Responsibilities**:
 1. Service account authentication (Client Credentials flow)
@@ -744,7 +744,7 @@ export class ZitadelService implements OnModuleInit {
 
 #### 2.2 Zitadel Introspection Service
 
-**File**: `apps/server-nest/src/modules/auth/zitadel-introspection.service.ts`
+**File**: `apps/server/src/modules/auth/zitadel-introspection.service.ts`
 
 *(Complete implementation from auth-introspection plan - delegates to ZitadelService for token and introspection call)*
 
@@ -756,7 +756,7 @@ export class ZitadelService implements OnModuleInit {
 
 #### 3.1 Update InvitesService
 
-**File**: `apps/server-nest/src/modules/invites/invites.service.ts`
+**File**: `apps/server/src/modules/invites/invites.service.ts`
 
 **New Method**: `createWithUser()`
 
@@ -968,7 +968,7 @@ export class InvitesService {
 
 #### 3.2 Update InvitesController
 
-**File**: `apps/server-nest/src/modules/invites/invites.controller.ts`
+**File**: `apps/server/src/modules/invites/invites.controller.ts`
 
 **New Endpoint**: `POST /invites/with-user`
 
@@ -1015,7 +1015,7 @@ export class InvitesController {
 
 #### 3.3 Update InvitesModule
 
-**File**: `apps/server-nest/src/modules/invites/invites.module.ts`
+**File**: `apps/server/src/modules/invites/invites.module.ts`
 
 ```typescript
 import { Module } from '@nestjs/common';
@@ -1044,7 +1044,7 @@ export class InvitesModule {}
 
 #### 4.1 Update AuthService
 
-**File**: `apps/server-nest/src/modules/auth/auth.service.ts`
+**File**: `apps/server/src/modules/auth/auth.service.ts`
 
 **Key Changes**:
 1. Add `ZitadelIntrospectionService` dependency
@@ -1057,14 +1057,14 @@ export class InvitesModule {}
 #### 4.2 Roles Decorator & Guard
 
 **Files**:
-- `apps/server-nest/src/modules/auth/roles.decorator.ts`
-- `apps/server-nest/src/modules/auth/roles.guard.ts`
+- `apps/server/src/modules/auth/roles.decorator.ts`
+- `apps/server/src/modules/auth/roles.guard.ts`
 
 *(Complete implementations from auth-introspection plan - see section 3.2)*
 
 #### 4.3 Update Auth Module
 
-**File**: `apps/server-nest/src/modules/auth/auth.module.ts`
+**File**: `apps/server/src/modules/auth/auth.module.ts`
 
 ```typescript
 import { Module } from '@nestjs/common';
@@ -1483,9 +1483,9 @@ git push
 
 ### Key Files to Review
 
-- `apps/server-nest/src/modules/auth/auth.service.ts` - Current auth logic
-- `apps/server-nest/src/modules/invites/invites.service.ts` - Current invite logic
-- `apps/server-nest/src/modules/user-profile/user-profile.service.ts` - User profile management
+- `apps/server/src/modules/auth/auth.service.ts` - Current auth logic
+- `apps/server/src/modules/invites/invites.service.ts` - Current invite logic
+- `apps/server/src/modules/user-profile/user-profile.service.ts` - User profile management
 - `docker-compose.coolify.yml` - Production configuration
 
 ### External Documentation

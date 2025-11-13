@@ -77,7 +77,7 @@ WHERE import_status='running';
 
 ### Priority 1: Fix Extraction Config Bug
 
-**Location:** `apps/server-nest/src/modules/clickup/clickup-import.service.ts` (lines ~975-1000)
+**Location:** `apps/server/src/modules/clickup/clickup-import.service.ts` (lines ~975-1000)
 
 **Current Code:**
 ```typescript
@@ -114,7 +114,7 @@ extraction_config: {
 
 ### Priority 2: Fix Space Filtering
 
-**Location:** `apps/server-nest/src/modules/clickup/clickup-import.service.ts` (lines ~650-675)
+**Location:** `apps/server/src/modules/clickup/clickup-import.service.ts` (lines ~650-675)
 
 **Current State:** Debug mode - accepting ALL documents from ALL spaces
 
@@ -188,9 +188,9 @@ describe('ClickUp Import', () => {
 
 ## Related Files
 
-- `apps/server-nest/src/modules/clickup/clickup-import.service.ts` (BUG LOCATION)
-- `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts` (needs validation)
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` (would have failed on these jobs)
+- `apps/server/src/modules/clickup/clickup-import.service.ts` (BUG LOCATION)
+- `apps/server/src/modules/extraction-jobs/extraction-job.service.ts` (needs validation)
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` (would have failed on these jobs)
 
 ## Database Schema Reference
 

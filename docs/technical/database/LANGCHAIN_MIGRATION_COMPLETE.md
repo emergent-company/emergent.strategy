@@ -18,7 +18,7 @@ All 6 migration tasks completed successfully:
 ### 2. E2E Test Implementation ✅
 Created comprehensive end-to-end test with realistic meeting transcript:
 
-**File:** `apps/server-nest/test/extraction-langchain-real.e2e-spec.ts`
+**File:** `apps/server/test/extraction-langchain-real.e2e-spec.ts`
 
 **Key Features:**
 - Uses real Google Gemini API (not mocked)
@@ -57,7 +57,7 @@ Created comprehensive guides:
    - Manual testing procedures
    - Troubleshooting guide
 
-3. **E2E Test README** (`apps/server-nest/test/README-LANGCHAIN-E2E.md`)
+3. **E2E Test README** (`apps/server/test/README-LANGCHAIN-E2E.md`)
    - How to run the E2E test
    - Expected output explained
    - Troubleshooting section
@@ -94,7 +94,7 @@ Created comprehensive guides:
 ### Documentation Files (4):
 1. `docs/LANGCHAIN_MIGRATION_SUMMARY.md`
 2. `docs/TESTING_LANGCHAIN_EXTRACTION.md`
-3. `apps/server-nest/test/README-LANGCHAIN-E2E.md`
+3. `apps/server/test/README-LANGCHAIN-E2E.md`
 4. `docs/spec/25-extraction-worker.md` (updated)
 
 ## Technical Details
@@ -167,7 +167,7 @@ To verify the migration works end-to-end:
 export GOOGLE_API_KEY=AIzaSyA5qbgYiirfeA_CI2K3AE7CnHpajt_MQVw
 
 # 2. Run E2E test
-cd apps/server-nest
+cd apps/server
 npm run test:e2e -- extraction-langchain-real.e2e-spec.ts
 
 # Expected: Test passes, 30-50 entities extracted from meeting transcript
@@ -266,7 +266,7 @@ Migration is successful when:
 For questions or issues:
 - **Migration Guide**: `docs/LANGCHAIN_MIGRATION_SUMMARY.md`
 - **Testing Guide**: `docs/TESTING_LANGCHAIN_EXTRACTION.md`
-- **E2E Test README**: `apps/server-nest/test/README-LANGCHAIN-E2E.md`
+- **E2E Test README**: `apps/server/test/README-LANGCHAIN-E2E.md`
 - **Specification**: `docs/spec/25-extraction-worker.md`
 
 ---

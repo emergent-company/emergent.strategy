@@ -6,7 +6,7 @@
 ## Problems Fixed
 
 ### 1. Backend: Empty Vector Validation
-**File**: `apps/server-nest/src/modules/ingestion/ingestion.service.ts`  
+**File**: `apps/server/src/modules/ingestion/ingestion.service.ts`  
 **Issue**: Upload failed with `500 Internal Server Error: vector must have at least 1 dimension`  
 **Root Cause**: Embedding service returning empty arrays `[]` which PostgreSQL pgvector cannot accept
 
@@ -92,6 +92,6 @@ const vecLiteral = (vec && vec.length > 0) ? '[' + vec.map(...).join(',') + ']' 
 
 ## Related Files
 
-- Backend: `apps/server-nest/src/modules/ingestion/ingestion.service.ts`
+- Backend: `apps/server/src/modules/ingestion/ingestion.service.ts`
 - Frontend: `apps/admin/src/pages/admin/apps/documents/index.tsx`
-- Enhanced Logging: `apps/server-nest/src/common/logger/file-logger.service.ts` (includes file/line info)
+- Enhanced Logging: `apps/server/src/common/logger/file-logger.service.ts` (includes file/line info)

@@ -19,7 +19,7 @@ Installed `@langchain/google-vertexai` package to use Vertex AI instead of the d
 
 ### 2. Code Updates
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+**File**: `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
 
 #### Import Change
 ```typescript

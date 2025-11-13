@@ -216,7 +216,7 @@ These three changes provide **80% of the accuracy improvement** with minimal eff
       },
       "permission": {
         "bash": {
-          "nx run server-nest:migrate": "allow",
+          "nx run server:migrate": "allow",
           "psql": "ask"
         }
       }
@@ -252,7 +252,7 @@ These three changes provide **80% of the accuracy improvement** with minimal eff
     },
 
     "migrate": {
-      "template": "Review pending database migrations:\n!`nx run server-nest:migrate -- --list`\n\nApply migrations if safe.",
+      "template": "Review pending database migrations:\n!`nx run server:migrate -- --list`\n\nApply migrations if safe.",
       "description": "Manage database migrations",
       "agent": "db"
     },
@@ -332,7 +332,7 @@ This is an Nx monorepo for a knowledge base system with NestJS backend and React
 
 ## Architecture
 
-- **Backend**: NestJS (apps/server-nest)
+- **Backend**: NestJS (apps/server)
   - PostgreSQL with RLS (Row Level Security)
   - Multi-tenant architecture (org_id, project_id)
   - Vertex AI integration for embeddings
@@ -362,7 +362,7 @@ Service Layer → Uses DatabaseService.runWithTenantContext()
 - See `.github/instructions/testid-conventions.instructions.md`
 
 ### Database Migrations
-- Use `nx run server-nest:migrate` (never manual psql)
+- Use `nx run server:migrate` (never manual psql)
 - Migrations tracked in `kb.schema_migrations` table
 - See `docs/DATABASE_MIGRATIONS.md`
 
@@ -478,7 +478,7 @@ subtask: true
 Check database state for $ARGUMENTS:
 
 1. Show pending migrations:
-   !`nx run server-nest:migrate -- --list`
+   !`nx run server:migrate -- --list`
 
 2. Use postgres MCP to verify schema exists
 
@@ -551,7 +551,7 @@ You specialize in the AI extraction pipeline. Focus areas:
 
 ```yaml
 bash:
-  'nx run server-nest:migrate': allow
+  'nx run server:migrate': allow
   'tsx scripts/migrate-embedding-dimension.ts': allow
   'tsx scripts/seed-*': allow
 ```
@@ -964,7 +964,7 @@ Before answering Nx questions, use the nx_workspace and nx_docs MCP tools.
 ## Key Projects
 
 - `admin`: React admin frontend (Vite + Storybook)
-- `server-nest`: NestJS backend
+- `server`: NestJS backend
 - `workspace-cli`: PM2-based workspace management
 
 ## Common Tasks
@@ -1029,7 +1029,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON kb.my_table TO authenticated;
 
 ## Migration Workflow
 
-1. Create migration script: `apps/server-nest/src/db/migrations/XXX_description.ts`
+1. Create migration script: `apps/server/src/db/migrations/XXX_description.ts`
 2. Test locally: `tsx scripts/run-migrations.ts`
 3. Verify with postgres MCP: Check schema, row counts
 4. Document in `docs/migrations/`
@@ -1360,10 +1360,10 @@ opencode
 
 # Test Plan agent (Tab to switch)
 <Tab>
-"Analyze the authentication flow in @apps/server-nest/src/modules/auth/"
+"Analyze the authentication flow in @apps/server/src/modules/auth/"
 
 # Test custom command
-"/test server-nest"
+"/test server"
 
 # Test subagent
 "@db check if kb_purpose column exists in projects table"

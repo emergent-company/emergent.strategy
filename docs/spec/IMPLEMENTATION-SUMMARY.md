@@ -42,7 +42,7 @@ This document summarizes the implementation of automatic object extraction and r
 ### 2. Backend Services
 
 #### IngestionService
-**File:** `apps/server-nest/src/modules/ingestion/ingestion.service.ts`
+**File:** `apps/server/src/modules/ingestion/ingestion.service.ts`
 
 **Changes:**
 - Extended `IngestResult` interface with `extractionJobId?: string`
@@ -57,7 +57,7 @@ This document summarizes the implementation of automatic object extraction and r
 ---
 
 #### NotificationsService  
-**File:** `apps/server-nest/src/modules/notifications/notifications.service.ts`
+**File:** `apps/server/src/modules/notifications/notifications.service.ts`
 
 **Changes:**
 - Extended `create()` method to accept 8 new optional fields
@@ -96,7 +96,7 @@ This document summarizes the implementation of automatic object extraction and r
 ---
 
 #### ExtractionWorkerService
-**File:** `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+**File:** `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 **Changes:**
 - Injected `NotificationsService` dependency
@@ -116,7 +116,7 @@ This document summarizes the implementation of automatic object extraction and r
 ---
 
 #### NotificationsController
-**File:** `apps/server-nest/src/modules/notifications/notifications.controller.ts`
+**File:** `apps/server/src/modules/notifications/notifications.controller.ts`
 
 **Changes:**
 - Added `GET /notifications/stats` - Returns unread/dismissed/total counts
@@ -137,8 +137,8 @@ This document summarizes the implementation of automatic object extraction and r
 ### 3. Testing
 
 #### Unit Tests (Created)
-- `apps/server-nest/src/modules/ingestion/ingestion.service.spec.ts`
-- `apps/server-nest/src/modules/notifications/notifications.service.spec.ts`
+- `apps/server/src/modules/ingestion/ingestion.service.spec.ts`
+- `apps/server/src/modules/notifications/notifications.service.spec.ts`
 
 These tests verify:
 - Auto-extraction trigger logic
@@ -153,7 +153,7 @@ These tests verify:
 ---
 
 #### E2E Tests (Created)
-- `apps/server-nest/test/auto-extraction-flow.e2e-spec.ts`
+- `apps/server/test/auto-extraction-flow.e2e-spec.ts`
 
 Tests the complete flow:
 1. Document ingestion triggers extraction job
@@ -426,19 +426,19 @@ NotificationsModule
 ## Files Modified
 
 ### Backend Services
-- `apps/server-nest/src/modules/ingestion/ingestion.service.ts` (MODIFIED)
-- `apps/server-nest/src/modules/ingestion/ingestion.module.ts` (MODIFIED)
-- `apps/server-nest/src/modules/notifications/notifications.service.ts` (MODIFIED)
-- `apps/server-nest/src/modules/notifications/dto/create-notification.dto.ts` (MODIFIED)
-- `apps/server-nest/src/modules/notifications/entities/notification.entity.ts` (MODIFIED)
-- `apps/server-nest/src/modules/notifications/notifications.controller.ts` (MODIFIED)
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` (MODIFIED)
-- `apps/server-nest/src/modules/extraction-jobs/extraction-job.module.ts` (MODIFIED)
+- `apps/server/src/modules/ingestion/ingestion.service.ts` (MODIFIED)
+- `apps/server/src/modules/ingestion/ingestion.module.ts` (MODIFIED)
+- `apps/server/src/modules/notifications/notifications.service.ts` (MODIFIED)
+- `apps/server/src/modules/notifications/dto/create-notification.dto.ts` (MODIFIED)
+- `apps/server/src/modules/notifications/entities/notification.entity.ts` (MODIFIED)
+- `apps/server/src/modules/notifications/notifications.controller.ts` (MODIFIED)
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` (MODIFIED)
+- `apps/server/src/modules/extraction-jobs/extraction-job.module.ts` (MODIFIED)
 
 ### Tests (Created)
-- `apps/server-nest/src/modules/ingestion/ingestion.service.spec.ts` (NEW)
-- `apps/server-nest/src/modules/notifications/notifications.service.spec.ts` (NEW)
-- `apps/server-nest/test/auto-extraction-flow.e2e-spec.ts` (NEW)
+- `apps/server/src/modules/ingestion/ingestion.service.spec.ts` (NEW)
+- `apps/server/src/modules/notifications/notifications.service.spec.ts` (NEW)
+- `apps/server/test/auto-extraction-flow.e2e-spec.ts` (NEW)
 
 ### Documentation
 - `docs/spec/28-automatic-extraction-and-notifications.md` (UPDATED)

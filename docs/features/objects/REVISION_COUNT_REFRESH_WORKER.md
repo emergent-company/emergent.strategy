@@ -13,7 +13,7 @@ Implemented a background worker service to periodically refresh the materialized
 
 ### 1. Service Creation
 
-**File:** `apps/server-nest/src/modules/graph/revision-count-refresh-worker.service.ts`
+**File:** `apps/server/src/modules/graph/revision-count-refresh-worker.service.ts`
 
 Key features:
 - Implements NestJS lifecycle hooks (`OnModuleInit`, `OnModuleDestroy`)
@@ -25,7 +25,7 @@ Key features:
 
 ### 2. Module Registration
 
-**File:** `apps/server-nest/src/modules/graph/graph.module.ts`
+**File:** `apps/server/src/modules/graph/graph.module.ts`
 
 Changes:
 - Added import for `RevisionCountRefreshWorkerService`
@@ -210,15 +210,15 @@ await revisionCountRefreshWorkerService.triggerRefresh();
 ## Files Modified
 
 ### New Files
-- `/Users/mcj/code/spec-server/apps/server-nest/src/modules/graph/revision-count-refresh-worker.service.ts`
+- `/Users/mcj/code/spec-server/apps/server/src/modules/graph/revision-count-refresh-worker.service.ts`
 - `/Users/mcj/code/spec-server/docs/REVISION_COUNT_REFRESH_WORKER.md` (this file)
 
 ### Modified Files
-- `apps/server-nest/src/modules/graph/graph.module.ts`:
+- `apps/server/src/modules/graph/graph.module.ts`:
   * Added `RevisionCountRefreshWorkerService` import
   * Added to providers array
 
-- `apps/server-nest/migrations/0006_revision_tracking.sql`:
+- `apps/server/migrations/0006_revision_tracking.sql`:
   * Added `SECURITY DEFINER` to `kb.refresh_revision_counts()` function
 
 - `docs/TAG_CLEANUP_AND_REVISION_TRACKING.md`:
@@ -260,7 +260,7 @@ This worker complements the existing revision tracking features:
 ## Related Documentation
 
 - `docs/TAG_CLEANUP_AND_REVISION_TRACKING.md` - Main feature documentation
-- `apps/server-nest/migrations/0006_revision_tracking.sql` - Database schema
+- `apps/server/migrations/0006_revision_tracking.sql` - Database schema
 - `.github/instructions/self-learning.instructions.md` - AI assistant learning log
 - `docs/DATABASE_MIGRATIONS.md` - Migration system guide
 

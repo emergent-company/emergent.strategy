@@ -104,7 +104,7 @@ CREATE TABLE kb.object_extraction_jobs (
 
 #### Document Entity
 
-**File**: `apps/server-nest/src/entities/document.entity.ts`
+**File**: `apps/server/src/entities/document.entity.ts`
 
 **Changes**:
 
@@ -114,7 +114,7 @@ CREATE TABLE kb.object_extraction_jobs (
 
 #### ObjectExtractionJob Entity
 
-**File**: `apps/server-nest/src/entities/object-extraction-job.entity.ts`
+**File**: `apps/server/src/entities/object-extraction-job.entity.ts`
 
 **Changes**:
 
@@ -126,7 +126,7 @@ CREATE TABLE kb.object_extraction_jobs (
 
 #### ExtractionJobService
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts`
+**File**: `apps/server/src/modules/extraction-jobs/extraction-job.service.ts`
 
 **Key Changes** (lines 499-534):
 
@@ -170,7 +170,7 @@ async processJob(jobId: string) {
 
 #### ExtractionWorkerService
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+**File**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 **Key Changes** (lines 173-278):
 
@@ -306,18 +306,18 @@ await this.db.runWithTenantContext(
 
 ### Migration Files (New)
 
-- `apps/server-nest/src/migrations/1762937376000-RemoveDocumentOrganizationId.ts`
-- `apps/server-nest/src/migrations/1762937500000-RemoveExtractionJobsOrganizationId.ts`
+- `apps/server/src/migrations/1762937376000-RemoveDocumentOrganizationId.ts`
+- `apps/server/src/migrations/1762937500000-RemoveExtractionJobsOrganizationId.ts`
 
 ### Entity Files (Modified)
 
-- `apps/server-nest/src/entities/document.entity.ts`
-- `apps/server-nest/src/entities/object-extraction-job.entity.ts`
+- `apps/server/src/entities/document.entity.ts`
+- `apps/server/src/entities/object-extraction-job.entity.ts`
 
 ### Service Files (Modified)
 
-- `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts`
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+- `apps/server/src/modules/extraction-jobs/extraction-job.service.ts`
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 ### Documentation (New/Updated)
 

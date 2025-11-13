@@ -245,7 +245,7 @@ WHERE ptpi.project_id = '<project-uuid>';
 - `/docs/MISSING_TEMPLATE_PACKS.md` - Original investigation
 - `/docs/MEETING_PACK_SEED_FIX.md` - Password issue fix
 - `/docs/TEMPLATE_PACK_OBJECT_TYPES_FIX.md` - Display issue fix
-- `apps/server-nest/src/modules/template-packs/seeds/` - All seed functions
+- `apps/server/src/modules/template-packs/seeds/` - All seed functions
 
 ## Success Criteria
 - [x] All three template packs seeded to database

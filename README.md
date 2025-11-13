@@ -66,7 +66,7 @@ Every protected endpoint enforces one or more OAuth-style scopes. Missing scopes
 }
 ```
 
-See `SECURITY_SCOPES.md` for the complete catalogue and mapping to endpoints. The generated OpenAPI (`apps/server-nest/openapi.yaml`) annotates each operation with `x-required-scopes`.
+See `SECURITY_SCOPES.md` for the complete catalogue and mapping to endpoints. The generated OpenAPI (`apps/server/openapi.yaml`) annotates each operation with `x-required-scopes`.
 
 ## Schema-Aware Chat (MCP Integration)
 
@@ -295,16 +295,16 @@ pagination: { limit?: number; cursor?: string | null; direction?: 'forward' | 'b
 
 Server caps `limit` at 50 and echoes `meta.request.limit` plus `requested_limit`. Backward pages return items preceding the supplied cursor item (cursor item excluded) and reuse `nextCursor` to continue moving further backward. Ranks are per-request and may shift slightly; rely on item identity instead of cross-request rank comparisons.
 
-See: `apps/server-nest/README.md` ("Graph Search Cursor Pagination Semantics") or the dedicated spec doc `docs/spec/graph-search-pagination.md` for full details.
+See: `apps/server/README.md` ("Graph Search Cursor Pagination Semantics") or the dedicated spec doc `docs/spec/graph-search-pagination.md` for full details.
 
 ## Graph Test Helper & Benchmark
 
-Graph unit and service-level tests rely on a unified in-memory emulator at `apps/server-nest/tests/helpers/fake-graph-db.ts` documented in `apps/server-nest/tests/helpers/README.md`. When changing `GraphService` SQL patterns (DISTINCT ON head selection, history queries, search filtering) update the helper first so test failures clearly surface unsupported patterns.
+Graph unit and service-level tests rely on a unified in-memory emulator at `apps/server/tests/helpers/fake-graph-db.ts` documented in `apps/server/tests/helpers/README.md`. When changing `GraphService` SQL patterns (DISTINCT ON head selection, history queries, search filtering) update the helper first so test failures clearly surface unsupported patterns.
 
 Lightweight relationship throughput benchmark (create + patch cycles) can be run to spot gross regressions:
 
 ```
-npm --prefix apps/server-nest run bench:graph:relationships
+npm --prefix apps/server run bench:graph:relationships
 ```
 
 Output is JSON summarizing ops/sec and avg ms/op using the FakeGraphDb (not a substitute for real DB profiling).

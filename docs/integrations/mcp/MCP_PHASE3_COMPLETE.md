@@ -11,7 +11,7 @@ Phase 3 is now fully complete with all data access tools implemented and buildin
 ## Phase 3 Breakdown
 
 ### Part 1: Specific Data Tools ✅ (Completed Previously)
-**File**: `apps/server-nest/src/modules/mcp/tools/specific-data.tool.ts` (395 lines)
+**File**: `apps/server/src/modules/mcp/tools/specific-data.tool.ts` (395 lines)
 
 Implemented 6 tools for common, high-value queries:
 
@@ -25,7 +25,7 @@ Implemented 6 tools for common, high-value queries:
 These tools provide type-specific DTOs (PersonDto, TaskDto) with strongly-typed properties tailored to each domain object.
 
 ### Part 2: Generic Data Tools ✅ (Just Completed)
-**File**: `apps/server-nest/src/modules/mcp/tools/generic-data.tool.ts` (320 lines)
+**File**: `apps/server/src/modules/mcp/tools/generic-data.tool.ts` (320 lines)
 
 Implemented 3 fallback tools for querying any object type:
 
@@ -271,7 +271,7 @@ properties: obj.properties || {} // Handle undefined properties
 
 ## Module Registration
 
-Updated `apps/server-nest/src/modules/mcp/mcp.module.ts`:
+Updated `apps/server/src/modules/mcp/mcp.module.ts`:
 
 ```typescript
 import { Module } from '@nestjs/common';
@@ -302,7 +302,7 @@ export class McpModule {}
 
 ### Build Verification
 ```bash
-npm --prefix apps/server-nest run build
+npm --prefix apps/server run build
 ```
 
 **Result**: Exit code 0 ✅ - Clean build, no compilation errors
@@ -422,14 +422,14 @@ All primary GraphService methods for data access are now utilized.
 ## File Summary
 
 ### Created Files
-1. ✅ `apps/server-nest/src/modules/mcp/tools/generic-data.tool.ts` (320 lines)
+1. ✅ `apps/server/src/modules/mcp/tools/generic-data.tool.ts` (320 lines)
    - GenericDataTool class with 3 @Tool methods
    - Comprehensive JSDoc documentation
    - Error handling and transformation logic
    - Example usage in comments
 
 ### Modified Files
-1. ✅ `apps/server-nest/src/modules/mcp/mcp.module.ts`
+1. ✅ `apps/server/src/modules/mcp/mcp.module.ts`
    - Added GenericDataTool import
    - Added GenericDataTool to providers
    - Updated module documentation

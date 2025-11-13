@@ -11,7 +11,7 @@
 All core infrastructure for Coolify deployment has been created:
 
 ### ✅ Docker Infrastructure
-- ✅ `apps/server-nest/Dockerfile` - Backend NestJS API
+- ✅ `apps/server/Dockerfile` - Backend NestJS API
 - ✅ `apps/admin/Dockerfile` - Frontend React app with Nginx
 - ✅ `docker-compose.yml` - Production compose with all services
 - ✅ `.dockerignore` - Optimized build context
@@ -361,7 +361,7 @@ In Coolify UI:
 docker buildx version
 
 # Test build locally
-cd apps/server-nest && docker build .
+cd apps/server && docker build .
 
 # Check for syntax errors in Dockerfile
 docker build --check .

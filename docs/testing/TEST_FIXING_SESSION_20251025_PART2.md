@@ -237,7 +237,7 @@ This preserves the new architecture while achieving compatibility.
 
 ```bash
 # Apply migrations
-cd apps/server-nest
+cd apps/server
 POSTGRES_USER=spec POSTGRES_PASSWORD=spec POSTGRES_DB=spec POSTGRES_HOST=localhost POSTGRES_PORT=5437 node scripts/migrate.mjs
 
 # Run tests

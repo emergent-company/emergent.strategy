@@ -190,7 +190,7 @@ These services **optimally leverage PostgreSQL features** that TypeORM doesn't s
 #### 1. ✅ IngestionService - COMPLETE (Session 18)
 
 **Status**: Partially migrated (1/5 TypeORM, 4/5 strategic SQL)  
-**File**: `apps/server-nest/src/modules/ingestion/ingestion.service.ts`
+**File**: `apps/server/src/modules/ingestion/ingestion.service.ts`
 
 **Migrated**:
 - shouldAutoExtract() - Simple project settings lookup via Repository.findOne()
@@ -206,7 +206,7 @@ These services **optimally leverage PostgreSQL features** that TypeORM doesn't s
 #### 2. ✅ TemplatePackService - COMPLETE (Session 19)
 
 **Status**: Partially migrated (5/14 TypeORM, 9/14 strategic SQL)  
-**File**: `apps/server-nest/src/modules/template-packs/template-pack.service.ts`  
+**File**: `apps/server/src/modules/template-packs/template-pack.service.ts`  
 **Time**: 3.5 hours  
 **Entities Created**: GraphTemplatePack, ProjectTemplatePack
 
@@ -233,7 +233,7 @@ These services **optimally leverage PostgreSQL features** that TypeORM doesn't s
 
 #### 3. ExtractionWorkerService (8 queries) - PRIORITY: LOW
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`  
+**File**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`  
 **Complexity**: Moderate  
 **Challenge**: Job orchestration, LLM integration, complex business logic  
 **Estimated Time**: 2-3 hours
@@ -280,7 +280,7 @@ These services **optimally leverage PostgreSQL features** that TypeORM doesn't s
 
 #### 7. TemplatePackService (14 queries) - PRIORITY: MEDIUM
 
-**File**: `apps/server-nest/src/modules/template-packs/template-pack.service.ts`  
+**File**: `apps/server/src/modules/template-packs/template-pack.service.ts`  
 **Complexity**: High  
 **Estimated Time**: 3-5 hours
 
@@ -310,7 +310,7 @@ These services **optimally leverage PostgreSQL features** that TypeORM doesn't s
 
 #### 8. DiscoveryJobService (24 queries) - PRIORITY: LOW
 
-**File**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.service.ts`  
+**File**: `apps/server/src/modules/discovery-jobs/discovery-job.service.ts`  
 **Complexity**: High  
 **Estimated Time**: 4-6 hours
 
@@ -354,7 +354,7 @@ These services **optimally leverage PostgreSQL features** that TypeORM doesn't s
 
 #### 10. GraphService (43 queries) - PRIORITY: VARIES
 
-**File**: `apps/server-nest/src/modules/graph/graph.service.ts`  
+**File**: `apps/server/src/modules/graph/graph.service.ts`  
 **Complexity**: Very High  
 **Estimated Time**: 10-15 hours (multi-session)
 

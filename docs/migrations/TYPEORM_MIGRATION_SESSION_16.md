@@ -684,9 +684,9 @@ Use arrow function wrapper for PostgreSQL functions:
 ## Build Verification
 
 ```bash
-$ npx nx run server-nest:build
+$ npx nx run server:build
 
-✅ Successfully ran target build for project server-nest
+✅ Successfully ran target build for project server
 ```
 
 **41st consecutive successful build** - no TypeScript errors, all imports resolved, all methods properly typed.

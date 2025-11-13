@@ -11,7 +11,7 @@
 
 ### 2. Module Structure Created
 ```
-apps/server-nest/src/modules/mcp/
+apps/server/src/modules/mcp/
 ├── dto/
 │   ├── schema.dto.ts      # Schema-related DTOs
 │   └── data.dto.ts        # Data tool DTOs
@@ -112,7 +112,7 @@ apps/server-nest/src/modules/mcp/
 
 ### Build Verification
 ```bash
-npm --prefix apps/server-nest run build
+npm --prefix apps/server run build
 ```
 ✅ **Status**: Build passes cleanly
 
@@ -180,11 +180,11 @@ After implementation, endpoints will appear at: `http://localhost:3001/api-docs#
 
 ## Files Created
 
-1. `apps/server-nest/src/modules/mcp/dto/schema.dto.ts` (169 lines)
-2. `apps/server-nest/src/modules/mcp/dto/data.dto.ts` (188 lines)
-3. `apps/server-nest/src/modules/mcp/mcp.controller.ts` (56 lines)
-4. `apps/server-nest/src/modules/mcp/mcp.module.ts` (36 lines)
-5. Updated: `apps/server-nest/src/modules/app.module.ts` (added McpModule import)
+1. `apps/server/src/modules/mcp/dto/schema.dto.ts` (169 lines)
+2. `apps/server/src/modules/mcp/dto/data.dto.ts` (188 lines)
+3. `apps/server/src/modules/mcp/mcp.controller.ts` (56 lines)
+4. `apps/server/src/modules/mcp/mcp.module.ts` (36 lines)
+5. Updated: `apps/server/src/modules/app.module.ts` (added McpModule import)
 
 **Total**: ~450 lines of new code
 

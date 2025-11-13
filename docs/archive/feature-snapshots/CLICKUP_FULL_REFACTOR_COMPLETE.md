@@ -210,7 +210,7 @@ If issues occur, revert to previous approach:
 
 1. **Revert code changes:**
    ```bash
-   git diff HEAD apps/server-nest/src/modules/clickup/clickup-import.service.ts
+   git diff HEAD apps/server/src/modules/clickup/clickup-import.service.ts
    # Review changes and revert if needed
    ```
 
@@ -283,7 +283,7 @@ If issues occur, revert to previous approach:
 
 - `docs/CLICKUP_EXTRACTION_CONFIG_BUG_FIX.md` - Emergency fix (Oct 21)
 - `docs/CLICKUP_IMPORT_REFACTOR_PLAN.md` - Original comprehensive plan
-- `apps/server-nest/src/modules/clickup/clickup-import.service.ts` - Implementation
+- `apps/server/src/modules/clickup/clickup-import.service.ts` - Implementation
 
 ---
 

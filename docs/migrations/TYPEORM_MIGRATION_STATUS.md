@@ -18,76 +18,76 @@ Successfully migrated 17 critical services to TypeORM across 10 sessions, elimin
 
 ### Core User & Auth
 
-- [x] **UserProfileService** - `apps/server-nest/src/modules/user-profile/user-profile.service.ts`
+- [x] **UserProfileService** - `apps/server/src/modules/user-profile/user-profile.service.ts`
 
   - All methods: getById, getByZitadelId, create, update
   - Queries eliminated: ~12
 
-- [x] **PermissionService** - `apps/server-nest/src/modules/auth/permission.service.ts`
+- [x] **PermissionService** - `apps/server/src/modules/auth/permission.service.ts`
 
   - All methods: checkOrgPermission, checkProjectPermission, getUserRoles
   - Queries eliminated: ~8
   - Impact: Critical path - every authenticated request
 
-- [x] **InvitesService** - `apps/server-nest/src/modules/invites/invites.service.ts`
+- [x] **InvitesService** - `apps/server/src/modules/invites/invites.service.ts`
 
   - All methods: create, createWithUser, accept
   - Queries eliminated: ~8
 
-- [x] **PostgresCacheService** - `apps/server-nest/src/modules/auth/postgres-cache.service.ts`
+- [x] **PostgresCacheService** - `apps/server/src/modules/auth/postgres-cache.service.ts`
   - All methods: get, set, invalidate, cleanupExpired
   - Queries eliminated: ~4
   - Pattern: TypeORM operators (MoreThan, LessThan)
 
 ### Organization & Projects
 
-- [x] **OrgsService** - `apps/server-nest/src/modules/orgs/orgs.service.ts`
+- [x] **OrgsService** - `apps/server/src/modules/orgs/orgs.service.ts`
 
   - All methods: list, get, create, delete
   - Queries eliminated: ~10
   - Bug fixed: Join syntax corrected (Session 10)
 
-- [x] **ProjectsService** - `apps/server-nest/src/modules/projects/projects.service.ts`
+- [x] **ProjectsService** - `apps/server/src/modules/projects/projects.service.ts`
   - All methods: list, getById, create, update, delete
   - Queries eliminated: ~12
 
 ### Content Management
 
-- [x] **DocumentsService** - `apps/server-nest/src/modules/documents/documents.service.ts`
+- [x] **DocumentsService** - `apps/server/src/modules/documents/documents.service.ts`
 
   - All methods: list, get, create, delete, getProjectOrg
   - Queries eliminated: ~15
   - Pattern: DataSource.query for LATERAL joins
 
-- [x] **ChunksService** - `apps/server-nest/src/modules/chunks/chunks.service.ts`
+- [x] **ChunksService** - `apps/server/src/modules/chunks/chunks.service.ts`
 
   - All methods: list
   - Queries eliminated: ~8
 
-- [x] **TagService** - `apps/server-nest/src/modules/graph/tag.service.ts`
+- [x] **TagService** - `apps/server/src/modules/graph/tag.service.ts`
   - All methods: list, get, getByName, create, update, delete
   - Queries eliminated: ~10
   - Pattern: Mixed (advisory locks + TypeORM)
 
 ### System & Config
 
-- [x] **NotificationsService** - `apps/server-nest/src/modules/notifications/notifications.service.ts`
+- [x] **NotificationsService** - `apps/server/src/modules/notifications/notifications.service.ts`
 
   - All 12 methods: create, getForUser, getUnreadCounts, markRead, markUnread, dismiss, clear, unclear, clearAll, snooze, unsnooze, getCounts
   - Queries eliminated: ~15
 
-- [x] **SettingsController** - `apps/server-nest/src/modules/settings/settings.controller.ts`
+- [x] **SettingsController** - `apps/server/src/modules/settings/settings.controller.ts`
 
   - All methods: list, getOne, update
   - Queries eliminated: ~3
 
-- [x] **SchemaRegistryService** - `apps/server-nest/src/modules/graph/schema-registry.service.ts`
+- [x] **SchemaRegistryService** - `apps/server/src/modules/graph/schema-registry.service.ts`
   - No queries (delegated to TypeRegistryService)
   - Status: Complete by design
 
 ### Embeddings & Versioning
 
-- [x] **EmbeddingPolicyService** - `apps/server-nest/src/modules/graph/embedding-policy.service.ts`
+- [x] **EmbeddingPolicyService** - `apps/server/src/modules/graph/embedding-policy.service.ts`
   - All methods: create, findByProject, findById, findByType, update, delete
   - Queries eliminated: ~10
 
@@ -97,7 +97,7 @@ Successfully migrated 17 critical services to TypeORM across 10 sessions, elimin
 
 ### EmbeddingJobsService (80% complete)
 
-**File**: `apps/server-nest/src/modules/graph/embedding-jobs.service.ts`
+**File**: `apps/server/src/modules/graph/embedding-jobs.service.ts`
 
 **Migrated** (4/5 methods):
 
@@ -116,7 +116,7 @@ Successfully migrated 17 critical services to TypeORM across 10 sessions, elimin
 
 ### ProductVersionService (50% complete)
 
-**File**: `apps/server-nest/src/modules/graph/product-version.service.ts`
+**File**: `apps/server/src/modules/graph/product-version.service.ts`
 
 **Migrated** (2/4 methods):
 
@@ -134,7 +134,7 @@ Successfully migrated 17 critical services to TypeORM across 10 sessions, elimin
 
 ### ChatService (56% complete)
 
-**File**: `apps/server-nest/src/modules/chat/chat.service.ts`
+**File**: `apps/server/src/modules/chat/chat.service.ts`
 
 **Migrated** (5/9 methods):
 
@@ -157,7 +157,7 @@ Successfully migrated 17 critical services to TypeORM across 10 sessions, elimin
 
 ### BranchService (33% complete)
 
-**File**: `apps/server-nest/src/modules/graph/branch.service.ts`
+**File**: `apps/server/src/modules/graph/branch.service.ts`
 
 **Migrated** (1/3 methods):
 
@@ -176,7 +176,7 @@ Successfully migrated 17 critical services to TypeORM across 10 sessions, elimin
 
 ### Entities (28 total)
 
-**Location**: `apps/server-nest/src/entities/`
+**Location**: `apps/server/src/entities/`
 
 All entities include:
 
@@ -189,7 +189,7 @@ All entities include:
 
 ### Migrations (6 applied)
 
-**Location**: `apps/server-nest/src/migrations/`
+**Location**: `apps/server/src/migrations/`
 
 1. `1762552930798-InitialSchema.ts`
 2. `1762553978599-AddOrgProjectTables.ts`

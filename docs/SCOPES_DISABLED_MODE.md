@@ -15,7 +15,7 @@ This is similar to how blueprint-ui works - authentication-only, no fine-grained
 
 ### ScopesGuard Behavior
 
-The `ScopesGuard` in `apps/server-nest/src/modules/auth/scopes.guard.ts` checks the environment variable:
+The `ScopesGuard` in `apps/server/src/modules/auth/scopes.guard.ts` checks the environment variable:
 
 ```typescript
 const scopesDisabled = process.env.SCOPES_DISABLED === '1';
@@ -146,8 +146,8 @@ For production with disabled scopes:
 ## Related Documentation
 
 - `docs/AUTH_SCOPES_FIX.md` - How to configure scopes (when re-enabling)
-- `apps/server-nest/src/modules/auth/scopes.guard.ts` - Implementation
-- `apps/server-nest/src/modules/auth/scopes.decorator.ts` - @Scopes() decorator
+- `apps/server/src/modules/auth/scopes.guard.ts` - Implementation
+- `apps/server/src/modules/auth/scopes.decorator.ts` - @Scopes() decorator
 - `SECURITY_SCOPES.md` - Full scope system documentation
 
 ---

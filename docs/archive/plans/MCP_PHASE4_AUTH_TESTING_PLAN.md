@@ -21,26 +21,26 @@ After achieving 95% unit test coverage for MCP tools (90/90 tests passing), we'r
 
 ### ✅ Existing Authentication Infrastructure
 
-**AuthGuard** (`apps/server-nest/src/modules/auth/auth.guard.ts`):
+**AuthGuard** (`apps/server/src/modules/auth/auth.guard.ts`):
 - Validates JWT bearer tokens
 - Extracts user from token
 - Attaches `req.user` for downstream use
-- Tested in `apps/server-nest/tests/auth.guard.spec.ts` (7 tests)
+- Tested in `apps/server/tests/auth.guard.spec.ts` (7 tests)
 
-**ScopesGuard** (`apps/server-nest/src/modules/auth/scopes.guard.ts`):
+**ScopesGuard** (`apps/server/src/modules/auth/scopes.guard.ts`):
 - Checks user scopes against required scopes
 - Supports dynamic scope expansion via `PermissionService`
 - Logs authorization events via `AuditService`
 - Supports `SCOPES_DISABLED=1` bypass for testing
-- Tested in `apps/server-nest/tests/scopes.guard.spec.ts` (8 tests)
+- Tested in `apps/server/tests/scopes.guard.spec.ts` (8 tests)
 
-**AuthService** (`apps/server-nest/src/modules/auth/auth.service.ts`):
+**AuthService** (`apps/server/src/modules/auth/auth.service.ts`):
 - Validates JWT tokens via JWKS
 - Supports mock tokens for testing (`e2e-all`, `no-scope`, `with-scope`)
 - Parses scopes from token claims
-- Tested in `apps/server-nest/tests/auth.service.jwt.spec.ts` (12 tests)
+- Tested in `apps/server/tests/auth.service.jwt.spec.ts` (12 tests)
 
-**PermissionService** (`apps/server-nest/src/modules/auth/permission.service.ts`):
+**PermissionService** (`apps/server/src/modules/auth/permission.service.ts`):
 - Computes effective scopes from user roles
 - Currently returns mock scopes (all granted)
 
@@ -58,7 +58,7 @@ chunksRead: 'chunks:read'
 
 ### 🚧 MCP Controller (NOT Protected)
 
-**Current State** (`apps/server-nest/src/modules/mcp/mcp.controller.ts`):
+**Current State** (`apps/server/src/modules/mcp/mcp.controller.ts`):
 ```typescript
 @Controller('mcp')
 @ApiTags('MCP')
@@ -120,7 +120,7 @@ export class McpController {
 
 ### Step 1: Add New Scopes to MOCK_SCOPES
 
-**File**: `apps/server-nest/src/modules/auth/auth.service.ts`
+**File**: `apps/server/src/modules/auth/auth.service.ts`
 
 ```typescript
 export const MOCK_SCOPES = {
@@ -140,7 +140,7 @@ export const MOCK_SCOPES = {
 
 ### Step 2: Protect MCP Controller Endpoints
 
-**File**: `apps/server-nest/src/modules/mcp/mcp.controller.ts`
+**File**: `apps/server/src/modules/mcp/mcp.controller.ts`
 
 ```typescript
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
@@ -178,7 +178,7 @@ export class McpController {
 
 ### Step 3: Create MCP Authentication E2E Tests
 
-**File**: `apps/server-nest/src/modules/mcp/__tests__/mcp-auth.e2e-spec.ts`
+**File**: `apps/server/src/modules/mcp/__tests__/mcp-auth.e2e-spec.ts`
 
 **Test Coverage** (20-25 tests):
 
@@ -275,7 +275,7 @@ describe('MCP Authentication E2E', () => {
 
 ### Step 4: Update Mock Tokens for Testing
 
-**File**: `apps/server-nest/src/modules/auth/auth.service.ts`
+**File**: `apps/server/src/modules/auth/auth.service.ts`
 
 Add new mock tokens for MCP testing:
 
@@ -347,7 +347,7 @@ All guard and auth service tests already exist:
 
 ### E2E Tests (New - To implement)
 
-**File**: `apps/server-nest/src/modules/mcp/__tests__/mcp-auth.e2e-spec.ts`
+**File**: `apps/server/src/modules/mcp/__tests__/mcp-auth.e2e-spec.ts`
 
 **Estimated**: 20-25 tests covering authentication and authorization flows
 
@@ -532,8 +532,8 @@ Once authentication is complete, consider:
 
 - `docs/MCP_TESTING_COMPLETE.md` - Unit testing summary
 - `docs/MCP_INTEGRATION_TESTING_RECOMMENDATIONS.md` - Integration test guidance
-- `apps/server-nest/tests/auth.guard.spec.ts` - Existing auth tests
-- `apps/server-nest/tests/scopes.guard.spec.ts` - Existing scope tests
+- `apps/server/tests/auth.guard.spec.ts` - Existing auth tests
+- `apps/server/tests/scopes.guard.spec.ts` - Existing scope tests
 - `SECURITY_SCOPES.md` - Current security model
 - `docs/spec/18-authorization-model.md` - Authorization architecture
 

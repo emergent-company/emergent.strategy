@@ -1,7 +1,7 @@
 # Docker Build Fixes Summary
 
 ## Overview
-Fixed Docker build failures for both `apps/admin` and `apps/server-nest` by adapting Dockerfiles to the npm workspace structure and resolving TypeScript compilation errors.
+Fixed Docker build failures for both `apps/admin` and `apps/server` by adapting Dockerfiles to the npm workspace structure and resolving TypeScript compilation errors.
 
 ## Problem Statement
 Both Docker builds were failing because:
@@ -182,22 +182,22 @@ docker build \
 # Result: ✓ built in 7.37s
 ```
 
-## Server Backend (`apps/server-nest`) - FULLY FIXED ✅
+## Server Backend (`apps/server`) - FULLY FIXED ✅
 
 ### Issues Found & Fixed
 1. **npm ci failure**: Same workspace issue as admin (package-lock.json not found)
 2. **@swc/core SIGBUS on Alpine**: Native module crash due to Alpine Linux's musl libc incompatibility
 3. **TypeScript compilation errors**: Missing type packages and 50+ implicit any errors
-4. **Missing root tsconfig.json**: server-nest extends root config but it wasn't copied to Docker
+4. **Missing root tsconfig.json**: server extends root config but it wasn't copied to Docker
 5. **@api/clickup module not found**: npm ci doesn't create symlinks for local file: dependencies in Docker
 
 ### Solution Applied (Complete)
 
 #### 1. Dockerfile Workspace Structure + Alpine→Debian (Commit b2f875b)
 ```dockerfile
-# Build context changed from apps/server-nest to repository root
+# Build context changed from apps/server to repository root
 # Base image changed from node:20-alpine to node:20-slim (Debian)
-# Usage: docker build -f apps/server-nest/Dockerfile .
+# Usage: docker build -f apps/server/Dockerfile .
 
 FROM node:20-slim AS builder  # Changed from alpine due to @swc/core compatibility
 
@@ -206,24 +206,24 @@ WORKDIR /build
 # Copy root workspace files FIRST
 COPY package*.json ./
 
-# Then copy server-nest package files
-COPY apps/server-nest/package*.json ./apps/server-nest/
+# Then copy server package files
+COPY apps/server/package*.json ./apps/server/
 
-# Copy root tsconfig.json (server-nest extends it)
+# Copy root tsconfig.json (server extends it)
 COPY tsconfig.json ./
 
 # Use workspace-aware npm ci
-RUN npm ci --workspace=apps/server-nest
+RUN npm ci --workspace=apps/server
 
-# Copy server-nest source (includes .api directory)
-COPY apps/server-nest ./apps/server-nest
+# Copy server source (includes .api directory)
+COPY apps/server ./apps/server
 
 # Manually create symlink for @api/clickup (npm ci doesn't handle file: deps)
-RUN mkdir -p apps/server-nest/node_modules/@api && \
-    ln -sf /build/apps/server-nest/.api/apis/clickup apps/server-nest/node_modules/@api/clickup
+RUN mkdir -p apps/server/node_modules/@api && \
+    ln -sf /build/apps/server/.api/apis/clickup apps/server/node_modules/@api/clickup
 
 # Build from subdirectory
-RUN cd apps/server-nest && npm run build
+RUN cd apps/server && npm run build
 
 # Runtime stage also uses slim (Debian)
 FROM node:20-slim
@@ -292,9 +292,9 @@ RUN apt-get update && apt-get install -y tini curl && rm -rf /var/lib/apt/lists/
    - **Dockerfile Location**: `apps/admin/Dockerfile` (unchanged)
 4. Save and trigger new deployment
 
-For server-nest (once TypeScript errors fixed):
+For server (once TypeScript errors fixed):
    - **Build Context**: `.` (root)
-   - **Dockerfile Location**: `apps/server-nest/Dockerfile`
+   - **Dockerfile Location**: `apps/server/Dockerfile`
 
 ## Build Commands
 
@@ -310,7 +310,7 @@ docker build \
 
 ### Server-Nest (Needs TypeScript fixes)
 ```bash
-docker build -f apps/server-nest/Dockerfile .
+docker build -f apps/server/Dockerfile .
 ```
 
 ## Commits Summary
@@ -323,7 +323,7 @@ docker build -f apps/server-nest/Dockerfile .
 | e118f89 | Fix: Handle optional parameters in formatDuration and formatCost | apps/admin/src/pages/admin/pages/monitoring/ChatSessionsListPage.tsx |
 | 3edd43e | Fix: Remove dotenv import and handle undefined cost in formatCost | apps/admin/vite.config.ts, ChatSessionsListPage.tsx |
 | f638c21 | Fix: Suppress Vite plugin type errors with @ts-expect-error | apps/admin/vite.config.ts |
-| b2f875b | Fix: Update server-nest Dockerfile for workspace structure | apps/server-nest/Dockerfile |
+| b2f875b | Fix: Update server Dockerfile for workspace structure | apps/server/Dockerfile |
 
 ## Documentation Created
 - `docs/COOLIFY_DOCKER_BUILD_FIX.md` - Detailed npm workspace fix explanation
@@ -340,7 +340,7 @@ docker build -f apps/server-nest/Dockerfile .
 ### For Server-Nest (Blocked)
 1. ❌ Fix TypeScript compilation errors (35 errors):
    - Add type annotations for 'any' parameters
-   - Install @types/pg: `npm install --save-dev @types/pg --workspace=apps/server-nest`
+   - Install @types/pg: `npm install --save-dev @types/pg --workspace=apps/server`
    - Fix spread type issues in template-pack.service.ts
 2. ❌ Test Docker build until successful
 3. ❌ Update Coolify Build Context to `.` (root)
@@ -380,7 +380,7 @@ docker build -f apps/server-nest/Dockerfile .
 
 ### Docker Configuration
 - `apps/admin/Dockerfile` - Complete workspace restructure
-- `apps/server-nest/Dockerfile` - Workspace + Alpine→Debian + manual symlink for @api/clickup
+- `apps/server/Dockerfile` - Workspace + Alpine→Debian + manual symlink for @api/clickup
 
 ### TypeScript/Application Code
 **Admin**:
@@ -389,10 +389,10 @@ docker build -f apps/server-nest/Dockerfile .
 - `apps/admin/vite.config.ts` - Removed dotenv, suppressed plugin warnings
 
 **Server-Nest**:
-- `apps/server-nest/package.json` - Added @types/pg, @langchain/textsplitters, @types/html-to-text
-- `apps/server-nest/src/common/database/database.service.ts` - Added PgPolicyRow interface, fixed 11 implicit any
-- `apps/server-nest/src/modules/*/**.service.ts` - Fixed 40+ implicit any parameters across 15+ files
-- `apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` - Updated langchain import path
+- `apps/server/package.json` - Added @types/pg, @langchain/textsplitters, @types/html-to-text
+- `apps/server/src/common/database/database.service.ts` - Added PgPolicyRow interface, fixed 11 implicit any
+- `apps/server/src/modules/*/**.service.ts` - Fixed 40+ implicit any parameters across 15+ files
+- `apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` - Updated langchain import path
 
 ### Files Deleted
 - `apps/admin/package-lock.json` - Conflicts with workspace, use root lock file
@@ -402,7 +402,7 @@ docker build -f apps/server-nest/Dockerfile .
 ```bash
 # Test from repository root (build context = .)
 docker build -f apps/admin/Dockerfile -t test-admin:latest .
-docker build -f apps/server-nest/Dockerfile -t test-server-nest:latest .
+docker build -f apps/server/Dockerfile -t test-server:latest .
 ```
 
 ## Next Steps for Deployment

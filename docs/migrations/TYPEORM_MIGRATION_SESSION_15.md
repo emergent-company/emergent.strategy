@@ -353,7 +353,7 @@ import { Org } from '../../entities/org.entity';
 
 ## Files Modified
 
-1. ✅ **Updated**: `apps/server-nest/src/modules/user/user-deletion.service.ts`
+1. ✅ **Updated**: `apps/server/src/modules/user/user-deletion.service.ts`
    - Changed imports (TypeORM instead of DatabaseService)
    - Updated constructor (8 repositories)
    - Migrated `deleteUserData()` (organization/project queries)
@@ -361,7 +361,7 @@ import { Org } from '../../entities/org.entity';
    - Removed legacy embeddings references
    - Updated `DeletionResult` interface
 
-2. ✅ **Updated**: `apps/server-nest/src/modules/user/user.module.ts`
+2. ✅ **Updated**: `apps/server/src/modules/user/user.module.ts`
    - Removed `DatabaseModule` import
    - Added `TypeOrmModule.forFeature([...])` with 8 entities
    - Updated imports for all entities

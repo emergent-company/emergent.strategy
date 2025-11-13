@@ -71,7 +71,7 @@ Three comprehensive documentation files have been created to guide the implement
 
 ### Services (6 files)
 ```
-apps/server-nest/src/modules/auth/
+apps/server/src/modules/auth/
 ├── postgres-cache.service.ts          (119 lines)
 ├── cache-cleanup.service.ts           (45 lines)
 ├── zitadel.service.ts                 (152 lines)
@@ -82,20 +82,20 @@ apps/server-nest/src/modules/auth/
 
 ### Database (1 file)
 ```
-apps/server-nest/migrations/
+apps/server/migrations/
 └── 0004_auth_introspection_cache.sql  (25 lines)
 ```
 
 ### Tests (2+ files)
 ```
-apps/server-nest/src/modules/auth/__tests__/
+apps/server/src/modules/auth/__tests__/
 ├── postgres-cache.service.spec.ts
 └── zitadel-introspection.service.spec.ts
 ```
 
 ### Updates (3 files)
 ```
-apps/server-nest/src/modules/auth/
+apps/server/src/modules/auth/
 ├── auth.service.ts          (add introspection, ~30 lines)
 └── auth.module.ts           (register services, ~10 lines)
 
@@ -248,7 +248,7 @@ cat docs/guides/auth-zitadel-introspection-quickstart.md
 
 ### 3. Run Database Migration (2 min)
 ```bash
-psql $DATABASE_URL < apps/server-nest/migrations/0004_auth_introspection_cache.sql
+psql $DATABASE_URL < apps/server/migrations/0004_auth_introspection_cache.sql
 ```
 
 ### 4. Configure Environment (5 min)
@@ -327,8 +327,8 @@ curl -H "Authorization: Bearer <real-token>" http://localhost:3002/api/orgs
 
 ### Code References
 - **Reference Implementation**: huma-blueprint-ui (`apps/api/src/auth/`)
-- **Current Auth**: spec-server-2 (`apps/server-nest/src/modules/auth/`)
-- **User Profiles**: spec-server-2 (`apps/server-nest/src/modules/user-profile/`)
+- **Current Auth**: spec-server-2 (`apps/server/src/modules/auth/`)
+- **User Profiles**: spec-server-2 (`apps/server/src/modules/user-profile/`)
 
 ### External Resources
 - **Zitadel Docs**: https://zitadel.com/docs

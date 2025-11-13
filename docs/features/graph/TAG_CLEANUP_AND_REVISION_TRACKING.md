@@ -33,7 +33,7 @@ Created `TagCleanupWorkerService` that:
 
 ### Implementation
 
-**File:** `apps/server-nest/src/modules/graph/tag-cleanup-worker.service.ts`
+**File:** `apps/server/src/modules/graph/tag-cleanup-worker.service.ts`
 
 ```typescript
 @Injectable()
@@ -322,20 +322,20 @@ await this.db.query('SELECT kb.refresh_revision_counts()');
 ## Files Modified
 
 ### New Files
-- `apps/server-nest/src/modules/graph/tag-cleanup-worker.service.ts` - Background worker for tag cleanup
-- `apps/server-nest/src/modules/graph/revision-count-refresh-worker.service.ts` - Background worker for revision count refresh
-- `apps/server-nest/migrations/0006_revision_tracking.sql` - Database migration for revision tracking
+- `apps/server/src/modules/graph/tag-cleanup-worker.service.ts` - Background worker for tag cleanup
+- `apps/server/src/modules/graph/revision-count-refresh-worker.service.ts` - Background worker for revision count refresh
+- `apps/server/migrations/0006_revision_tracking.sql` - Database migration for revision tracking
 - `docs/TAG_CLEANUP_AND_REVISION_TRACKING.md` (this file)
 
 ### Modified Files
-- `apps/server-nest/src/modules/graph/graph.module.ts`:
+- `apps/server/src/modules/graph/graph.module.ts`:
   * Added `TagCleanupWorkerService` to providers
   * Added `RevisionCountRefreshWorkerService` to providers
 
-- `apps/server-nest/src/modules/graph/graph.types.ts`:
+- `apps/server/src/modules/graph/graph.types.ts`:
   * Added `revision_count?: number` to `GraphObjectRow` and `GraphObjectDto`
 
-- `apps/server-nest/src/modules/graph/graph.service.ts`:
+- `apps/server/src/modules/graph/graph.service.ts`:
   * Updated `getObject()` to include revision_count via JOIN
 
 ---
@@ -454,7 +454,7 @@ Created `RevisionCountRefreshWorkerService` that:
 
 ### Implementation
 
-**File:** `apps/server-nest/src/modules/graph/revision-count-refresh-worker.service.ts`
+**File:** `apps/server/src/modules/graph/revision-count-refresh-worker.service.ts`
 
 Key features:
 - Runs immediately on startup, then periodically
@@ -539,7 +539,7 @@ If needed, both features can be rolled back independently:
 
 **1. Remove from module:**
 ```typescript
-// apps/server-nest/src/modules/graph/graph.module.ts
+// apps/server/src/modules/graph/graph.module.ts
 // Comment out or remove: TagCleanupWorkerService
 ```
 
@@ -553,7 +553,7 @@ npm run workspace:start
 
 **1. Remove refresh worker from module:**
 ```typescript
-// apps/server-nest/src/modules/graph/graph.module.ts
+// apps/server/src/modules/graph/graph.module.ts
 // Comment out or remove: RevisionCountRefreshWorkerService
 ```
 
@@ -583,10 +583,10 @@ COMMIT;
 
 **4. Revert code changes:**
 ```typescript
-// apps/server-nest/src/modules/graph/graph.types.ts
+// apps/server/src/modules/graph/graph.types.ts
 // Remove revision_count fields
 
-// apps/server-nest/src/modules/graph/graph.service.ts
+// apps/server/src/modules/graph/graph.service.ts
 // Revert getObject() to original SELECT without JOIN
 ```
 

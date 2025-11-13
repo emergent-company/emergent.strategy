@@ -145,9 +145,9 @@ After implementing fixes:
 
 ## Related Files
 
-- `apps/server-nest/src/modules/graph/graph.controller.ts` - Bulk update endpoint
-- `apps/server-nest/src/modules/graph/graph.service.ts` - patchObject method (line 473)
-- `apps/server-nest/src/modules/graph/dto/bulk-update-status.dto.ts` - Request DTO
+- `apps/server/src/modules/graph/graph.controller.ts` - Bulk update endpoint
+- `apps/server/src/modules/graph/graph.service.ts` - patchObject method (line 473)
+- `apps/server/src/modules/graph/dto/bulk-update-status.dto.ts` - Request DTO
 - `apps/admin/src/pages/admin/pages/objects/index.tsx` - handleBulkAccept handler
 - `docs/OBJECT_STATUS_ACCEPT_FEATURE.md` - Original feature documentation
 

@@ -12,7 +12,7 @@ The `getAvailableTemplatesForProject` service method was not including the `sour
 
 ### 1. Updated DTO Interface
 
-**File**: `apps/server-nest/src/modules/template-packs/dto/template-pack.dto.ts`
+**File**: `apps/server/src/modules/template-packs/dto/template-pack.dto.ts`
 
 Added `source` field to `AvailableTemplateDto`:
 
@@ -26,7 +26,7 @@ export interface AvailableTemplateDto {
 
 ### 2. Updated TypeScript Type
 
-**File**: `apps/server-nest/src/modules/template-packs/template-pack.types.ts`
+**File**: `apps/server/src/modules/template-packs/template-pack.types.ts`
 
 Added `source`, `discovery_job_id`, and `pending_review` fields to `TemplatePackRow`:
 
@@ -42,7 +42,7 @@ export interface TemplatePackRow {
 
 ### 3. Updated Service Method
 
-**File**: `apps/server-nest/src/modules/template-packs/template-pack.service.ts`
+**File**: `apps/server/src/modules/template-packs/template-pack.service.ts`
 
 Added `source` mapping in `getAvailableTemplatesForProject` method:
 
@@ -76,8 +76,8 @@ return packsResult.rows.map(pack => ({
 
 ## Related Files
 
-- Backend DTO: `apps/server-nest/src/modules/template-packs/dto/template-pack.dto.ts`
-- Backend Types: `apps/server-nest/src/modules/template-packs/template-pack.types.ts`
-- Backend Service: `apps/server-nest/src/modules/template-packs/template-pack.service.ts`
+- Backend DTO: `apps/server/src/modules/template-packs/dto/template-pack.dto.ts`
+- Backend Types: `apps/server/src/modules/template-packs/template-pack.types.ts`
+- Backend Service: `apps/server/src/modules/template-packs/template-pack.service.ts`
 - Frontend Page: `apps/admin/src/pages/admin/pages/settings/project/templates.tsx`
-- Migration: `apps/server-nest/migrations/20251019_extend_template_packs_for_discovery.sql`
+- Migration: `apps/server/migrations/20251019_extend_template_packs_for_discovery.sql`

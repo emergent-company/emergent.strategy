@@ -10,7 +10,7 @@ const AppDataSource = new DataSource({
   username: process.env.POSTGRES_USER || 'spec',
   password: process.env.POSTGRES_PASSWORD || 'spec',
   database: process.env.POSTGRES_DB || 'spec',
-  entities: ['apps/server-nest/dist/entities/*.entity.js'],
+  entities: ['apps/server/dist/entities/*.entity.js'],
   synchronize: false,
 });
 

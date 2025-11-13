@@ -21,7 +21,7 @@ A specialized MCP server for managing development tasks, service lifecycle, and 
 
 2. **Context Switching**:
    - Terminal commands executed in wrong directory
-   - Must remember correct paths: `cd apps/server-nest && npm run build`
+   - Must remember correct paths: `cd apps/server && npm run build`
    - No monorepo-aware navigation
 
 3. **Task Discovery**:
@@ -98,7 +98,7 @@ List all defined services with their current status.
 {
   services: Array<{
     name: string;              // "backend", "frontend", "db"
-    workspace: string;         // "apps/server-nest"
+    workspace: string;         // "apps/server"
     status: "running" | "stopped" | "error";
     pid?: number;              // Process ID if running
     port?: number;             // Port if network service
@@ -115,7 +115,7 @@ List all defined services with their current status.
   "services": [
     {
       "name": "backend",
-      "workspace": "apps/server-nest",
+      "workspace": "apps/server",
       "status": "running",
       "pid": 51399,
       "port": 3001,
@@ -269,8 +269,8 @@ Discover all available npm/yarn scripts across workspaces.
 ```typescript
 {
   workspaces: Array<{
-    path: string;              // "apps/server-nest"
-    name: string;              // "@spec-server/server-nest"
+    path: string;              // "apps/server"
+    name: string;              // "@spec-server/server"
     tasks: Array<{
       name: string;            // "build"
       command: string;         // "tsc -p tsconfig.json"
@@ -288,8 +288,8 @@ Discover all available npm/yarn scripts across workspaces.
 {
   "workspaces": [
     {
-      "path": "apps/server-nest",
-      "name": "@spec-server/server-nest",
+      "path": "apps/server",
+      "name": "@spec-server/server",
       "tasks": [
         {
           "name": "build",
@@ -318,7 +318,7 @@ Execute a task from package.json with context awareness.
 **Parameters**:
 ```typescript
 {
-  workspace: string;      // "apps/server-nest" or "." for root
+  workspace: string;      // "apps/server" or "." for root
   task: string;           // "build", "test", "lint"
   options?: {
     background?: boolean; // Run in background (default: false)
@@ -357,7 +357,7 @@ Execute a task from package.json with context awareness.
 **Example**:
 ```json
 {
-  "workspace": "apps/server-nest",
+  "workspace": "apps/server",
   "task": "build",
   "options": {
     "runDependencies": true,
@@ -1240,7 +1240,7 @@ Configuration file: `config/services.json`
   "services": [
     {
       "name": "backend",
-      "workspace": "apps/server-nest",
+      "workspace": "apps/server",
       "port": 3001,
       "startCommand": "npm start",
       "healthCheck": {
@@ -1384,13 +1384,13 @@ interface TaskState {
 {
   "error": {
     "code": "TASK_NOT_FOUND",
-    "message": "Task 'buld' not found in workspace 'apps/server-nest'",
-    "workspace": "apps/server-nest",
+    "message": "Task 'buld' not found in workspace 'apps/server'",
+    "workspace": "apps/server",
     "task": "buld",
     "availableTasks": ["build", "test", "lint", "start", "dev"],
     "suggestions": [
       "Did you mean 'build'?",
-      "List all tasks: list_tasks --workspace apps/server-nest"
+      "List all tasks: list_tasks --workspace apps/server"
     ]
   }
 }
@@ -1441,14 +1441,14 @@ const result = await mcp.call("dev_start", {
 
 // 1. Build backend
 const build = await mcp.call("run_task", {
-  workspace: "apps/server-nest",
+  workspace: "apps/server",
   task: "build",
   options: { runDependencies: true }
 });
 
 // 2. Run tests
 const tests = await mcp.call("run_tests", {
-  workspaces: ["apps/server-nest"],
+  workspaces: ["apps/server"],
   type: "unit",
   bail: false
 });
@@ -1457,7 +1457,7 @@ const tests = await mcp.call("run_tests", {
 {
   "success": true,
   "workspaces": [{
-    "path": "apps/server-nest",
+    "path": "apps/server",
     "passed": 145,
     "failed": 0,
     "duration": 12500
@@ -1607,7 +1607,7 @@ const git = await mcp.call("git_status");
 // Response shows package.json changed
 {
   "branch": "master",
-  "modified": ["package.json", "apps/server-nest/package.json"],
+  "modified": ["package.json", "apps/server/package.json"],
   "needsRebuild": true,
   "needsRestart": true
 }
@@ -1637,7 +1637,7 @@ await mcp.call("run_task", {
 
 // 4. Rebuild affected workspaces
 await mcp.call("run_task", {
-  workspace: "apps/server-nest",
+  workspace: "apps/server",
   task: "build"
 });
 
@@ -1648,7 +1648,7 @@ await mcp.call("dev_restart", {
 
 // 6. Run tests to verify
 await mcp.call("run_tests", {
-  workspaces: ["apps/server-nest"],
+  workspaces: ["apps/server"],
   type: "unit"
 });
 ```
@@ -1679,12 +1679,12 @@ const env = await mcp.call("get_env", {
 
 // 2. Validate config files
 const config = await mcp.call("validate_config", {
-  workspace: "apps/server-nest"
+  workspace: "apps/server"
 });
 
 // 3. Check .env file exists
 const workspace = await mcp.call("get_workspace_info", {
-  workspace: "apps/server-nest"
+  workspace: "apps/server"
 });
 
 // 4. Guide user to add missing env vars
@@ -1759,7 +1759,7 @@ const git = await mcp.call("git_status");
 
 // 2. Run linter on modified files
 const lint = await mcp.call("run_task", {
-  workspace: "apps/server-nest",
+  workspace: "apps/server",
   task: "lint",
   options: {
     args: ["--fix"]  // Auto-fix issues
@@ -1768,7 +1768,7 @@ const lint = await mcp.call("run_task", {
 
 // 3. Run tests
 const tests = await mcp.call("run_tests", {
-  workspaces: ["apps/server-nest"],
+  workspaces: ["apps/server"],
   type: "unit",
   bail: true  // Stop on first failure
 });
@@ -1920,7 +1920,7 @@ await mcp.call("dev_restart");  // Restart with new code
 ### Before Git Push
 ```typescript
 await mcp.call("run_task", {
-  workspace: "apps/server-nest",
+  workspace: "apps/server",
   task: "lint"
 });
 await mcp.call("run_tests", { type: "all" });
@@ -2087,7 +2087,7 @@ await mcp.call("run_task", {
 
 // 3. Lint and auto-fix
 await mcp.call("run_task", {
-  workspace: "apps/server-nest",
+  workspace: "apps/server",
   task: "lint",
   options: {
     args: ["--fix"]
@@ -2135,7 +2135,7 @@ await mcp.call("get_env", {
 
 // 2. Validate all config files
 await mcp.call("validate_config", {
-  workspace: "apps/server-nest"
+  workspace: "apps/server"
 });
 
 // 3. Set env var and restart
@@ -2224,11 +2224,11 @@ await mcp.call("get_logs", {
   grep: "error|failed",
   grepOptions: { context: 3 }
 });
-await mcp.call("check_dependencies", { workspace: "apps/server-nest" });
+await mcp.call("check_dependencies", { workspace: "apps/server" });
 
 // Pattern 5: "Tests failing"
 await mcp.call("run_tests", {
-  workspaces: ["apps/server-nest"],
+  workspaces: ["apps/server"],
   type: "unit",
   bail: false  // Run all tests to see all failures
 });

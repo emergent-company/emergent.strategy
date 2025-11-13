@@ -61,7 +61,7 @@ Or directly: `/admin/settings/ai/prompts`
 
 ## Configuring via Environment Variable
 
-### File: `apps/server-nest/.env`
+### File: `apps/server/.env`
 
 ```bash
 # Customizable base prompt for entity extraction (optional)
@@ -222,10 +222,10 @@ DO UPDATE SET value = EXCLUDED.value, updated_at = now();
 ## Related Files
 
 ### Backend
-- `apps/server-nest/src/common/config/config.service.ts` - Default prompt definition
-- `apps/server-nest/src/common/config/config.schema.ts` - Environment variable schema
-- `apps/server-nest/src/modules/settings/settings.controller.ts` - Settings API endpoints
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` - Prompt loading logic
+- `apps/server/src/common/config/config.service.ts` - Default prompt definition
+- `apps/server/src/common/config/config.schema.ts` - Environment variable schema
+- `apps/server/src/modules/settings/settings.controller.ts` - Settings API endpoints
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` - Prompt loading logic
 
 ### Frontend
 - `apps/admin/src/pages/admin/pages/settings/ai-prompts.tsx` - Settings UI
@@ -239,4 +239,4 @@ DO UPDATE SET value = EXCLUDED.value, updated_at = now();
 
 - [Template Pack Examples](./TEMPLATE_PACK_EXAMPLES.md) - How to add examples to object schemas
 - [Auto Discovery System](./AUTO_DISCOVERY_SYSTEM_SPEC.md) - Template pack configuration
-- [Extraction Worker](../apps/server-nest/src/modules/extraction-jobs/README.md) - Worker architecture
+- [Extraction Worker](../apps/server/src/modules/extraction-jobs/README.md) - Worker architecture

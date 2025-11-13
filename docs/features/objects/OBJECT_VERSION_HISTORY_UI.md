@@ -90,8 +90,8 @@ GET /api/graph/objects/:id/history?limit=50
 
 ### Backend
 - **No changes needed** - API already fully implemented!
-  - Controller: `apps/server-nest/src/modules/graph/graph.controller.ts` (line 145)
-  - Service: `apps/server-nest/src/modules/graph/graph.service.ts` (line 546)
+  - Controller: `apps/server/src/modules/graph/graph.controller.ts` (line 145)
+  - Service: `apps/server/src/modules/graph/graph.service.ts` (line 546)
 
 ## Usage
 When users open an object in the ObjectDetailModal, they'll see:

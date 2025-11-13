@@ -204,7 +204,7 @@ async searchObjectsWithNeighbors(
 
 ### Step 1: Update Extraction Worker ✅ Priority 1
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+**File**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 **Changes**:
 1. Set `status` field when creating objects (line ~800)
@@ -219,7 +219,7 @@ async searchObjectsWithNeighbors(
 
 ### Step 2: Simplify Embedding Logic ✅ Priority 1
 
-**File**: `apps/server-nest/src/modules/graph/graph.service.ts`
+**File**: `apps/server/src/modules/graph/graph.service.ts`
 
 **Changes**:
 1. Remove `embeddingPolicy` dependency from `createObject()`
@@ -236,14 +236,14 @@ async searchObjectsWithNeighbors(
 
 ### Step 3: Add Search with Neighbors ⏺️ Priority 2
 
-**File**: `apps/server-nest/src/modules/graph/graph.service.ts`
+**File**: `apps/server/src/modules/graph/graph.service.ts`
 
 **Changes**:
 1. Add `searchObjectsWithNeighbors()` method
 2. Combine vector search + relationship traversal
 3. Add to controller endpoint
 
-**File**: `apps/server-nest/src/modules/graph/graph.controller.ts`
+**File**: `apps/server/src/modules/graph/graph.controller.ts`
 
 **Changes**:
 1. Add new endpoint: `POST /graph/search-with-neighbors`
@@ -258,7 +258,7 @@ async searchObjectsWithNeighbors(
 
 ### Step 4: Update Chat to Use New Search 🔜 Priority 3
 
-**File**: `apps/server-nest/src/modules/chat/...` (chat service)
+**File**: `apps/server/src/modules/chat/...` (chat service)
 
 **Changes**:
 1. Replace current search with `searchObjectsWithNeighbors()`

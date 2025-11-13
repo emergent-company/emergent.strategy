@@ -24,7 +24,7 @@
 
 ### Service: TemplatePackService
 
-**File**: `apps/server-nest/src/modules/template-packs/template-pack.service.ts`
+**File**: `apps/server/src/modules/template-packs/template-pack.service.ts`
 
 **Total Queries**: 14
 
@@ -185,7 +185,7 @@ await query(`SELECT * FROM table WHERE id IN (${placeholders})`, ids);
 ### Phase 1 Build (After TypeORM Migrations)
 
 ```bash
-npx nx run server-nest:build
+npx nx run server:build
 ```
 
 **Result**: ✅ 43/43 units successful
@@ -193,7 +193,7 @@ npx nx run server-nest:build
 ### Phase 2 Build (After Strategic SQL Documentation)
 
 ```bash
-npx nx run server-nest:build
+npx nx run server:build
 ```
 
 **Result**: ✅ 43/43 units successful

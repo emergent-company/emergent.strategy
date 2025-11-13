@@ -17,7 +17,7 @@ Successfully implemented three major features:
 
 ### Implementation
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+**File**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 **Changes** (line ~792):
 ```typescript
@@ -85,9 +85,9 @@ ORDER BY (properties->>'_extraction_confidence')::numeric DESC;
 ### Implementation
 
 **Files**:
-- `apps/server-nest/src/modules/graph/graph.service.ts` (new method)
-- `apps/server-nest/src/modules/graph/graph.controller.ts` (new endpoint)
-- `apps/server-nest/src/modules/graph/dto/search-with-neighbors.dto.ts` (new DTO)
+- `apps/server/src/modules/graph/graph.service.ts` (new method)
+- `apps/server/src/modules/graph/graph.controller.ts` (new endpoint)
+- `apps/server/src/modules/graph/dto/search-with-neighbors.dto.ts` (new DTO)
 
 ### API Endpoint
 
@@ -499,7 +499,7 @@ EXTRACTION_CONFIDENCE_THRESHOLD_MIN=0.0     # Below = reject
 
 ### Build Check
 ```bash
-npm --prefix apps/server-nest run build
+npm --prefix apps/server run build
 # Should complete without errors
 ```
 
@@ -507,7 +507,7 @@ npm --prefix apps/server-nest run build
 ```bash
 npm run workspace:restart
 # Or via PM2:
-pm2 restart server-nest
+pm2 restart server
 ```
 
 ### Verify

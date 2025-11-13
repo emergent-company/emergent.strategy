@@ -30,24 +30,24 @@ This document tracks multiple migration efforts across the codebase, including:
 
 **Services Completed**:
 
-1. **ProductVersionService** (apps/server-nest/src/modules/graph/product-version.service.ts)
+1. **ProductVersionService** (apps/server/src/modules/graph/product-version.service.ts)
 
    - Strategic SQL: `create()` - PostgreSQL advisory locks + bulk INSERT for 1000s of members
    - Strategic SQL: `diffReleases()` - FULL OUTER JOIN (unsupported by TypeORM)
    - Migrated: `get()`, `list()` - TypeORM Repository
 
-2. **PathSummaryService** (apps/server-nest/src/modules/search/path-summary.service.ts)
+2. **PathSummaryService** (apps/server/src/modules/search/path-summary.service.ts)
 
    - Strategic SQL: `generatePathSummaries()` - WITH RECURSIVE for graph traversal + cycle detection
    - Rationale: O(depth) vs O(edges^depth) performance, PostgreSQL-specific DISTINCT ON
 
-3. **BranchService** (apps/server-nest/src/modules/graph/branch.service.ts)
+3. **BranchService** (apps/server/src/modules/graph/branch.service.ts)
 
    - Strategic SQL: `create()` - IS NOT DISTINCT FROM for null-safe uniqueness + lineage population
    - Strategic SQL: `ensureBranchLineage()` - Recursive tree operations with idempotent INSERT...ON CONFLICT
    - Migrated: `list()` - TypeORM Repository
 
-4. **EmbeddingJobsService** (apps/server-nest/src/modules/graph/embedding-jobs.service.ts)
+4. **EmbeddingJobsService** (apps/server/src/modules/graph/embedding-jobs.service.ts)
    - Strategic SQL: `dequeue()` - FOR UPDATE SKIP LOCKED (queue primitive, unsupported by TypeORM)
    - Migrated: `enqueue()`, `markFailed()`, `markCompleted()`, `stats()` - TypeORM Repository
 
@@ -71,7 +71,7 @@ This document tracks multiple migration efforts across the codebase, including:
 
 **Services Completed**:
 
-1. **GraphService** (apps/server-nest/src/modules/graph/graph.service.ts)
+1. **GraphService** (apps/server/src/modules/graph/graph.service.ts)
 
    - 35+ methods using PostgreSQL-specific features
    - Advisory locks for concurrent DAG operations
@@ -80,20 +80,20 @@ This document tracks multiple migration efforts across the codebase, including:
    - DISTINCT ON for query optimization
    - IS NOT DISTINCT FROM for null-safe comparisons
 
-2. **SearchService** (apps/server-nest/src/modules/search/search.service.ts)
+2. **SearchService** (apps/server/src/modules/search/search.service.ts)
 
    - Full-text search with `ts_rank()` and weighted ranking
    - Vector similarity search with pgvector `<=>` operator
    - Hybrid search with z-score normalization
    - Complex multi-field search with JSON aggregation
 
-3. **EncryptionService** (apps/server-nest/src/modules/integrations/encryption.service.ts)
+3. **EncryptionService** (apps/server/src/modules/integrations/encryption.service.ts)
 
    - PostgreSQL `pgcrypto` extension
    - `pgp_sym_encrypt()` and `pgp_sym_decrypt()` functions
    - Database-level AES-256 encryption for integration credentials
 
-4. **TagService** (apps/server-nest/src/modules/graph/tag.service.ts)
+4. **TagService** (apps/server/src/modules/graph/tag.service.ts)
    - Advisory lock in `create()` method for race-free tag creation
    - 95% of service already uses TypeORM Repository
    - Hybrid approach: Strategic SQL for concurrency, TypeORM for CRUD
@@ -133,7 +133,7 @@ This document tracks multiple migration efforts across the codebase, including:
 
 **Services Completed**:
 
-1. **ExtractionJobService** (apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts)
+1. **ExtractionJobService** (apps/server/src/modules/extraction-jobs/extraction-job.service.ts)
    - **20 strategic SQL methods + 1 TypeORM method** (95% strategic SQL)
    - Schema evolution pattern: Dynamic schema detection for zero-downtime migrations
    - FOR UPDATE SKIP LOCKED: PostgreSQL job queue primitive for concurrent workers
@@ -187,7 +187,7 @@ This document tracks multiple migration efforts across the codebase, including:
 
 **Services Completed**:
 
-1. **ChatService** (apps/server-nest/src/modules/chat/chat.service.ts)
+1. **ChatService** (apps/server/src/modules/chat/chat.service.ts)
    - **4 strategic SQL methods + 4 TypeORM methods + 1 helper** (44% strategic SQL, 44% TypeORM, 12% helper)
    - **Hybrid approach**: Demonstrates optimal balance between strategic SQL and TypeORM
    - IS NOT DISTINCT FROM: Null-safe optional filtering for multi-tenant queries
@@ -240,7 +240,7 @@ This document tracks multiple migration efforts across the codebase, including:
 
 **Services Completed**:
 
-1. **TypeRegistryService** (apps/server-nest/src/modules/type-registry/type-registry.service.ts)
+1. **TypeRegistryService** (apps/server/src/modules/type-registry/type-registry.service.ts)
    - **4 strategic SQL methods + 4 TypeORM methods + 1 helper** (44% strategic SQL, 44% TypeORM, 12% helper)
    - **Hybrid approach**: Demonstrates optimal balance similar to ChatService
    - COUNT FILTER: Conditional aggregation across multiple dimensions (enabled, source, objects)
@@ -298,7 +298,7 @@ This document tracks multiple migration efforts across the codebase, including:
 
 **Services Completed**:
 
-1. **TagCleanupWorkerService** (apps/server-nest/src/modules/graph/tag-cleanup-worker.service.ts)
+1. **TagCleanupWorkerService** (apps/server/src/modules/graph/tag-cleanup-worker.service.ts)
 
    - **1 strategic SQL method + 1 TypeORM method** (50% strategic SQL, 50% TypeORM)
    - **Hybrid approach**: JSONB operators + TypeORM bulk delete
@@ -306,21 +306,21 @@ This document tracks multiple migration efforts across the codebase, including:
    - TypeORM: `processBatch()` - Bulk delete with `.whereInIds()`
    - Background worker: 6-hour interval, graceful shutdown
 
-2. **RevisionCountRefreshWorkerService** (apps/server-nest/src/modules/graph/revision-count-refresh-worker.service.ts)
+2. **RevisionCountRefreshWorkerService** (apps/server/src/modules/graph/revision-count-refresh-worker.service.ts)
 
    - **2 strategic SQL methods** (100% strategic SQL)
    - Strategic SQL: `refreshRevisionCounts()` - PostgreSQL function call `kb.refresh_revision_counts()`
    - Strategic SQL: `getStatistics()` - COUNT FILTER aggregation (4th service using this pattern)
    - Background worker: 5-minute interval, materialized view refresh
 
-3. **EmbeddingWorkerService** (apps/server-nest/src/modules/graph/embedding-worker.service.ts)
+3. **EmbeddingWorkerService** (apps/server/src/modules/graph/embedding-worker.service.ts)
 
    - **2 TypeORM methods** (100% TypeORM Complete)
    - TypeORM: `processBatch()` - Repository.findOne() for job retrieval
    - TypeORM: `updateJobStatus()` - Repository.update() for status changes
    - Background worker: 30-second interval, external API integration
 
-4. **ExtractionWorkerService** (apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts)
+4. **ExtractionWorkerService** (apps/server/src/modules/extraction-jobs/extraction-worker.service.ts)
    - **0 database methods** (Business Logic Service)
    - **Orchestration layer**: Delegates all DB operations to ExtractionJobService, GraphService, DocumentsService
    - 2000+ lines of LLM integration logic (entity extraction, relationship linking, confidence scoring)
@@ -384,7 +384,7 @@ This document tracks multiple migration efforts across the codebase, including:
 
 **Services Completed**:
 
-1. **DocumentsService** (apps/server-nest/src/modules/documents/documents.service.ts)
+1. **DocumentsService** (apps/server/src/modules/documents/documents.service.ts)
 
    - **2 strategic SQL methods + 6 TypeORM methods** (25% strategic SQL, 75% TypeORM)
    - **Hybrid approach**: Demonstrates optimal balance for document management
@@ -392,7 +392,7 @@ This document tracks multiple migration efforts across the codebase, including:
    - TypeORM for CRUD: create, delete, count, findByIdWithChunks, findRecent with relations
    - **Key Pattern**: First service requiring LATERAL (literally no TypeORM alternative)
 
-2. **ProjectsService** (apps/server-nest/src/modules/graph/projects.service.ts)
+2. **ProjectsService** (apps/server/src/modules/graph/projects.service.ts)
 
    - **3 strategic SQL methods + 3 TypeORM methods** (50% strategic SQL, 50% TypeORM)
    - **Hybrid approach**: Manual transactions + pessimistic locking + simple CRUD
@@ -400,7 +400,7 @@ This document tracks multiple migration efforts across the codebase, including:
    - Manual transactions: Uses QueryRunner for atomic multi-step operations (TypeORM best practice)
    - Raw SQL JOIN: More readable than QueryBuilder for simple access control queries
 
-3. **OrgsService** (apps/server-nest/src/modules/orgs/orgs.service.ts)
+3. **OrgsService** (apps/server/src/modules/orgs/orgs.service.ts)
 
    - **3 strategic SQL methods + 3 TypeORM methods** (50% strategic SQL, 50% TypeORM)
    - **Hybrid approach**: Security JOINs + offline fallback + TypeORM CRUD
@@ -408,7 +408,7 @@ This document tracks multiple migration efforts across the codebase, including:
    - Offline fallback mode: In-memory cache when database unavailable (development/testing)
    - TypeORM for CRUD: create, update, delete operations
 
-4. **AuthService** (apps/server-nest/src/modules/auth/auth.service.ts)
+4. **AuthService** (apps/server/src/modules/auth/auth.service.ts)
    - **0 database methods** (Business Logic Service)
    - **Orchestration layer**: JWT validation, token refresh, session management
    - All database operations delegated to UserProfileService and OrgsService
@@ -483,28 +483,28 @@ This document tracks multiple migration efforts across the codebase, including:
 
 **Services Completed**:
 
-1. **NotificationsService** (apps/server-nest/src/integrations/notifications/notifications.service.ts)
+1. **NotificationsService** (apps/server/src/integrations/notifications/notifications.service.ts)
 
    - **Hybrid**: 5% strategic SQL, 95% TypeORM (644 lines)
    - Strategic SQL: `getUnreadCounts()`, `getCounts()` - COUNT FILTER aggregation (5th service using this pattern)
    - Strategic SQL: `getPreferences()` - Backward compatibility fallback for missing table
    - TypeORM: All CRUD operations, complex filtering with QueryBuilder, bulk updates
 
-2. **ChunksService** (apps/server-nest/src/documents/chunks/chunks.service.ts)
+2. **ChunksService** (apps/server/src/documents/chunks/chunks.service.ts)
 
    - **TypeORM Complete**: 100% TypeORM (66 lines)
    - Single method: `list(documentId?)` with QueryBuilder + relations
    - Backward compatibility: Handles missing `created_at` column with fallback to `id` sort
    - No strategic SQL needed
 
-3. **InvitesService** (apps/server-nest/src/invites/invites.service.ts)
+3. **InvitesService** (apps/server/src/invites/invites.service.ts)
 
    - **TypeORM Complete**: 100% TypeORM (301 lines)
    - Uses Repository for CRUD operations
    - Manual transactions: `accept()` method uses QueryRunner for atomic multi-step operations (TypeORM best practice)
    - No strategic SQL - confirms QueryRunner is TypeORM pattern, not strategic SQL
 
-4. **UserProfileService** (apps/server-nest/src/users/user-profile.service.ts)
+4. **UserProfileService** (apps/server/src/users/user-profile.service.ts)
    - **TypeORM Complete**: 100% TypeORM (147 lines)
    - Pure CRUD service with Repository methods
    - Methods: get, getById, upsertBase, update, listAlternativeEmails, addAlternativeEmail, deleteAlternativeEmail
@@ -571,7 +571,7 @@ This document tracks multiple migration efforts across the codebase, including:
 
 **Services Completed**:
 
-1. **DiscoveryJobService** (apps/server-nest/src/modules/discovery-jobs/discovery-job.service.ts)
+1. **DiscoveryJobService** (apps/server/src/modules/discovery-jobs/discovery-job.service.ts)
 
    - **Hybrid**: 25% TypeORM, 75% Strategic SQL (1,046 lines, 24 queries)
    - TypeORM: Job lifecycle operations (create, update, status changes) - 6 queries
@@ -581,7 +581,7 @@ This document tracks multiple migration efforts across the codebase, including:
    - Strategic SQL: Template pack creation with JSON aggregation - 2 queries
    - Architectural Pattern: LLM orchestration layer with database state management
 
-2. **TemplatePackService** (apps/server-nest/src/modules/template-packs/template-pack.service.ts)
+2. **TemplatePackService** (apps/server/src/modules/template-packs/template-pack.service.ts)
    - **Mixed**: 36% TypeORM Complete, 55% Strategic SQL, 9% Could Migrate (1,060 lines, 10 queries)
    - TypeORM: Basic CRUD operations (list, get, create, delete) - 4 queries (already migrated in Session 19)
    - Strategic SQL: Template assignment with RLS + transactions - 1 query
@@ -907,9 +907,9 @@ COMMIT;
 
 Files to update:
 
-- `apps/server-nest/src/modules/notifications/dto/notification.dto.ts`
-- `apps/server-nest/src/modules/notifications/notifications.service.ts`
-- `apps/server-nest/src/modules/notifications/notifications.controller.ts`
+- `apps/server/src/modules/notifications/dto/notification.dto.ts`
+- `apps/server/src/modules/notifications/notifications.service.ts`
+- `apps/server/src/modules/notifications/notifications.controller.ts`
 - `apps/admin/src/api/notifications.ts` (if exists)
 
 **3. Impact Assessment**
@@ -1138,8 +1138,8 @@ INSERT INTO core.user_profiles(subject_id) VALUES (gen_random_uuid()) RETURNING 
 
 All previous SQL and TypeORM migrations have been archived to:
 
-- `apps/server-nest/src/migrations/archive/`
-- `apps/server-nest/migrations-archive-old-sql/`
+- `apps/server/src/migrations/archive/`
+- `apps/server/migrations-archive-old-sql/`
 
 ### Multi-Tenancy Architecture
 

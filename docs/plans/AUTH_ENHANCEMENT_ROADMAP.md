@@ -346,7 +346,7 @@ vim .env
 
 ### 4. Run Database Migration
 ```bash
-psql $DATABASE_URL < apps/server-nest/migrations/0004_auth_introspection_cache.sql
+psql $DATABASE_URL < apps/server/migrations/0004_auth_introspection_cache.sql
 ```
 
 ### 5. Start Implementation
@@ -384,10 +384,10 @@ Follow the [Quick Start Guide](guides/auth-zitadel-introspection-quickstart.md) 
 - **Reference Implementation**: huma-blueprint-ui (apps/api/src/auth/)
 
 ### Existing Code
-- **Auth Module**: `apps/server-nest/src/modules/auth/`
-- **User Profile**: `apps/server-nest/src/modules/user-profile/`
-- **Permission Service**: `apps/server-nest/src/modules/auth/permission.service.ts`
-- **Audit Service**: `apps/server-nest/src/modules/auth/audit.service.ts`
+- **Auth Module**: `apps/server/src/modules/auth/`
+- **User Profile**: `apps/server/src/modules/user-profile/`
+- **Permission Service**: `apps/server/src/modules/auth/permission.service.ts`
+- **Audit Service**: `apps/server/src/modules/auth/audit.service.ts`
 
 ### External Resources
 - **Zitadel Docs**: https://zitadel.com/docs

@@ -151,10 +151,10 @@ GET /admin/extraction-jobs/${job.id}?project_id=00000000-0000-0000-0000-00000000
 
 ## Files to Investigate
 
-- `apps/server-nest/src/modules/type-registry/type-registry.service.ts` (how it handles RLS)
-- `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts` (compare with type registry)
-- `apps/server-nest/migrations/0001_init.sql` (line 2865 - extraction_jobs_select_policy)
-- `apps/server-nest/migrations/20251025_fix_extraction_jobs_policies.sql` (attempted fix)
+- `apps/server/src/modules/type-registry/type-registry.service.ts` (how it handles RLS)
+- `apps/server/src/modules/extraction-jobs/extraction-job.service.ts` (compare with type registry)
+- `apps/server/migrations/0001_init.sql` (line 2865 - extraction_jobs_select_policy)
+- `apps/server/migrations/20251025_fix_extraction_jobs_policies.sql` (attempted fix)
 
 ## Solutions
 

@@ -19,7 +19,7 @@
 
 ### Services Updated
 
-**ChatService** (`apps/server-nest/src/modules/chat/chat.service.ts`):
+**ChatService** (`apps/server/src/modules/chat/chat.service.ts`):
 - **Already had**: 5/9 methods using TypeORM (from Sessions 1-10)
 - **Migrated in Session 17**: 2 methods with 7 diagnostic queries
 - **Preserved**: 3 strategic SQL queries (dynamic WHERE, pgvector RRF)
@@ -381,7 +381,7 @@ TypeORM automatically maps:
 
 ### Source Code
 
-1. **`apps/server-nest/src/modules/chat/chat.service.ts`**
+1. **`apps/server/src/modules/chat/chat.service.ts`**
    - Migrated listConversations() diagnostics (5 queries)
    - Migrated getConversation() diagnostics (2 queries)
    - Fixed null handling (added && userId checks)

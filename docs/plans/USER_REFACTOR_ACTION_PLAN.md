@@ -33,7 +33,7 @@ We were in the middle of fixing E2E tests (21/68 failing). We should:
 ```bash
 git checkout -b feature/user-reference-refactor
 git add docs/USER_REFERENCE_REFACTOR.md
-git add apps/server-nest/src/migrations/20251025_refactor_user_references.sql
+git add apps/server/src/migrations/20251025_refactor_user_references.sql
 git commit -m "docs: add user reference refactor plan"
 ```
 
@@ -116,7 +116,7 @@ npx tsx scripts/run-migrations.ts
 
 ## Files Created
 
-- ✅ Migration: `apps/server-nest/src/migrations/20251025_refactor_user_references.sql`
+- ✅ Migration: `apps/server/src/migrations/20251025_refactor_user_references.sql`
 - ✅ Documentation: `docs/USER_REFERENCE_REFACTOR.md`
 - ✅ This file: `docs/USER_REFACTOR_ACTION_PLAN.md`
 

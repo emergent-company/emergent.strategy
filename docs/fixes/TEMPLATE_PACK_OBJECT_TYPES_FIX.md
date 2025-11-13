@@ -31,7 +31,7 @@ The templates settings page displayed "0 object types" for the "Extraction Demo 
 
 ### Updated Service Method
 
-**File**: `apps/server-nest/src/modules/template-packs/template-pack.service.ts`
+**File**: `apps/server/src/modules/template-packs/template-pack.service.ts`
 
 Added transformation in `getProjectTemplatePacks()` method:
 
@@ -124,10 +124,10 @@ POST /api/template-packs/projects/{projectId}/assign
 
 ## Related Files
 
-- Service: `apps/server-nest/src/modules/template-packs/template-pack.service.ts` (line 284-310)
-- Controller: `apps/server-nest/src/modules/template-packs/template-pack.controller.ts` (line 128-142)
+- Service: `apps/server/src/modules/template-packs/template-pack.service.ts` (line 284-310)
+- Controller: `apps/server/src/modules/template-packs/template-pack.controller.ts` (line 128-142)
 - Frontend: `apps/admin/src/pages/admin/pages/settings/project/templates.tsx` (line 240)
-- Types: `apps/server-nest/src/modules/template-packs/template-pack.types.ts`
+- Types: `apps/server/src/modules/template-packs/template-pack.types.ts`
 
 ## Testing
 

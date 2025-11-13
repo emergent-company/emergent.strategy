@@ -64,14 +64,14 @@ Use sed to replace all occurrences:
 
 ```bash
 # Fix projects table references
-find apps/server-nest -name "*.spec.ts" -type f -exec sed -i '' 's/INSERT INTO kb\.projects(org_id/INSERT INTO kb.projects(organization_id/g' {} +
+find apps/server -name "*.spec.ts" -type f -exec sed -i '' 's/INSERT INTO kb\.projects(org_id/INSERT INTO kb.projects(organization_id/g' {} +
 
 # Fix ON CONFLICT clauses
-find apps/server-nest -name "*.spec.ts" -type f -exec sed -i '' 's/ON CONFLICT(org_id,/ON CONFLICT(organization_id,/g' {} +
+find apps/server -name "*.spec.ts" -type f -exec sed -i '' 's/ON CONFLICT(org_id,/ON CONFLICT(organization_id,/g' {} +
 
 # Fix graph_objects org_id references
-find apps/server-nest -name "*.spec.ts" -type f -exec sed -i '' 's/graph_objects(id, org_id, project_id/graph_objects(id, organization_id, project_id/g' {} +
-find apps/server-nest -name "*.spec.ts" -type f -exec sed -i '' 's/graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, org_id, project_id/graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, organization_id, project_id/g' {} +
+find apps/server -name "*.spec.ts" -type f -exec sed -i '' 's/graph_objects(id, org_id, project_id/graph_objects(id, organization_id, project_id/g' {} +
+find apps/server -name "*.spec.ts" -type f -exec sed -i '' 's/graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, org_id, project_id/graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, organization_id, project_id/g' {} +
 ```
 
 ### Verification After Fix
@@ -129,5 +129,5 @@ The schema migration is **complete and successful**. The test failures are **exp
 - `docs/SCHEMA_CONSISTENCY_AUDIT_2025_10_24.md` - Initial audit
 - `docs/SCHEMA_CONSISTENCY_FINAL_RESULTS.md` - Migration results
 - `docs/SCHEMA_CONSISTENCY_COMPLETE.md` - Executive summary
-- `apps/server-nest/migrations/0003_standardize_schema_consistency.sql`
-- `apps/server-nest/migrations/0004_complete_schema_standardization.sql`
+- `apps/server/migrations/0003_standardize_schema_consistency.sql`
+- `apps/server/migrations/0004_complete_schema_standardization.sql`

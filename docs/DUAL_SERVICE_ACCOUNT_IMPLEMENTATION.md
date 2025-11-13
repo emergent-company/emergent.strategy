@@ -19,7 +19,7 @@ Successfully implemented dual service account architecture for Zitadel integrati
 
 ### Phase 2: NestJS Refactoring ✅
 
-**Modified:** `apps/server-nest/src/modules/auth/zitadel.service.ts`
+**Modified:** `apps/server/src/modules/auth/zitadel.service.ts`
 - Split `serviceAccountKey` → `clientServiceAccountKey` + `apiServiceAccountKey`
 - Split `cachedToken` → `cachedClientToken` + `cachedApiToken`
 - Created `loadClientServiceAccount()` and `loadApiServiceAccount()` methods
@@ -30,7 +30,7 @@ Successfully implemented dual service account architecture for Zitadel integrati
 - Maintains backward compatibility with legacy single-account mode
 - **Status:** Compiles with 0 TypeScript errors ✅
 
-**Created:** `apps/server-nest/src/modules/auth/auth.config.ts`
+**Created:** `apps/server/src/modules/auth/auth.config.ts`
 - `ZitadelDualServiceAccountConfig` interface
 - `ZitadelServiceAccountKey` interface
 - Type-safe configuration for dual service accounts
@@ -199,13 +199,13 @@ curl -X POST https://api.your-domain.com/users \
 ## Files Modified/Created
 
 ### Modified Files
-1. `apps/server-nest/src/modules/auth/zitadel.service.ts` - Core refactoring
+1. `apps/server/src/modules/auth/zitadel.service.ts` - Core refactoring
 2. `docker-compose.yml` - Environment variable configuration
 3. `.gitignore` - Added secrets/ directory
 
 ### Created Files
 1. `scripts/setup-zitadel-service-accounts.sh` - Provisioning automation
-2. `apps/server-nest/src/modules/auth/auth.config.ts` - Type definitions
+2. `apps/server/src/modules/auth/auth.config.ts` - Type definitions
 3. `docs/ZITADEL_DUAL_SERVICE_ACCOUNT_SETUP.md` - Complete setup guide
 4. `docs/ZITADEL_ENV_VARS.md` - Environment variables reference
 5. `secrets/README.md` - Secrets directory documentation

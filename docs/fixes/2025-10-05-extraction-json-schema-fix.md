@@ -132,7 +132,7 @@ After deploying this fix:
 
 1. **Restart Backend**:
    ```bash
-   cd apps/server-nest
+   cd apps/server
    npm run start:dev
    ```
 
@@ -187,7 +187,7 @@ When adding new extraction schemas in the future:
 ## Files Changed
 
 ```
-apps/server-nest/src/modules/extraction-jobs/
+apps/server/src/modules/extraction-jobs/
 ├── schemas/
 │   ├── base.schema.ts           ✅ Removed .min/.max from confidence
 │   ├── requirement.schema.ts    ✅ Removed .min from name

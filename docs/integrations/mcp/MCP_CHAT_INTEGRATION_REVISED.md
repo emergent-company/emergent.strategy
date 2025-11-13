@@ -76,7 +76,7 @@ This approach gives immediate value while building towards a flexible MCP host a
 
 ### 1. MCP Server (JSON-RPC 2.0)
 
-**File**: `apps/server-nest/src/modules/mcp/mcp-server.controller.ts`
+**File**: `apps/server/src/modules/mcp/mcp-server.controller.ts`
 
 **Endpoints**:
 - `POST /mcp/rpc` - Single JSON-RPC 2.0 endpoint for all methods
@@ -223,7 +223,7 @@ This approach gives immediate value while building towards a flexible MCP host a
 
 ### 2. MCP Client Service
 
-**File**: `apps/server-nest/src/modules/chat/mcp-client.service.ts`
+**File**: `apps/server/src/modules/chat/mcp-client.service.ts`
 
 **Purpose**: Connect to MCP servers (ours + future external) and invoke tools
 
@@ -372,7 +372,7 @@ private async sendRequest(method: string, params?: any): Promise<any> {
 
 ### 3. MCP Tool Detector (Unchanged)
 
-**File**: `apps/server-nest/src/modules/chat/mcp-tool-detector.service.ts`
+**File**: `apps/server/src/modules/chat/mcp-tool-detector.service.ts`
 
 Keyword-based detection to identify when user queries need MCP tools:
 
@@ -447,7 +447,7 @@ export class McpToolDetectorService {
 
 ### 4. Chat Controller Integration
 
-**File**: `apps/server-nest/src/modules/chat/chat.controller.ts`
+**File**: `apps/server/src/modules/chat/chat.controller.ts`
 
 **Changes to streamPost()**:
 

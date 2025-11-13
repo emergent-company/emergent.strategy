@@ -71,7 +71,7 @@ Users have no way to cancel multiple extraction jobs at once:
 
 #### 1.1. Locate Auto-Extraction Code
 
-**File:** `apps/server-nest/src/modules/clickup/clickup-import.service.ts`
+**File:** `apps/server/src/modules/clickup/clickup-import.service.ts`
 
 **Current code** (in `storeDocument` method, lines ~975-1000):
 ```typescript
@@ -105,7 +105,7 @@ const extractionJob = await this.extractionJobService.createJob({
 
 #### 1.3. Update Progress Messages
 
-**File:** `apps/server-nest/src/modules/clickup/clickup-import.service.ts`
+**File:** `apps/server/src/modules/clickup/clickup-import.service.ts`
 
 **Remove references to:**
 - "Creating extraction job..."
@@ -519,7 +519,7 @@ export function ExtractionJobCard({
 
 **More efficient than N individual requests:**
 
-**File:** `apps/server-nest/src/modules/extraction-jobs/extraction-job.controller.ts`
+**File:** `apps/server/src/modules/extraction-jobs/extraction-job.controller.ts`
 
 ```typescript
 @Post('bulk-cancel')

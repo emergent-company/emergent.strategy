@@ -20,8 +20,8 @@ error: column "kb_purpose" does not exist
 The code was selecting `kb_purpose` from the `kb.projects` table, but this column didn't exist in the database schema. The column is meant to store a description of the project's knowledge base purpose.
 
 **Code references:**
-- `apps/server-nest/src/modules/projects/projects.service.ts` line 38
-- `apps/server-nest/src/modules/projects/projects.service.ts` line 44
+- `apps/server/src/modules/projects/projects.service.ts` line 38
+- `apps/server/src/modules/projects/projects.service.ts` line 44
 
 **SQL queries:**
 ```sql
@@ -67,7 +67,7 @@ After migration:
 
 ## Applied
 ```bash
-cat apps/server-nest/src/migrations/0010_add_kb_purpose_to_projects.sql | docker exec -i spec-2_pg psql -U spec -d spec
+cat apps/server/src/migrations/0010_add_kb_purpose_to_projects.sql | docker exec -i spec-2_pg psql -U spec -d spec
 # ALTER TABLE
 # COMMENT
 ```
@@ -85,7 +85,7 @@ npm run workspace:restart -- --app server
 - ✅ User can now create organizations and projects
 
 ## Files Modified
-- **NEW:** `apps/server-nest/src/migrations/0010_add_kb_purpose_to_projects.sql`
+- **NEW:** `apps/server/src/migrations/0010_add_kb_purpose_to_projects.sql`
 
 ## Related Migrations
 - Migration 0009: Changed `subject_id` from UUID to TEXT (fixed Zitadel numeric user IDs)

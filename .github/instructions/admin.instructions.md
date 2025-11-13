@@ -21,7 +21,7 @@ Whenever you add a new feature OR make any fix/refactor that can affect runtime 
 ### 3. Build (ALWAYS before committing)
 - Run Admin type check/build: `nx run admin:build`.
 	- Treat any TypeScript error as a blocker.
-- If shared types changed (used by server) re-run server build too (`nx run server-nest:build`).
+- If shared types changed (used by server) re-run server build too (`nx run server:build`).
 
 ### 4. Playwright E2E Tests
 - Run targeted spec you touched first: `nx run admin:e2e -- e2e/specs/<spec>.spec.ts --project=chromium`.

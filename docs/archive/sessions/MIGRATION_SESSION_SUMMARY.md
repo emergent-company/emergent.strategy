@@ -169,13 +169,13 @@ async deleteUserData(zitadelUserId: string): Promise<DeletionResult> {
 ### Unit Tests
 ```bash
 # Run server unit tests
-npx nx run server-nest:test
+npx nx run server:test
 ```
 
 ### E2E Tests
 ```bash
 # Run full E2E suite
-npx nx run server-nest:test-e2e
+npx nx run server:test-e2e
 
 # Specifically test user deletion
 npx nx run admin:e2e -- e2e/specs/admin.user-deletion.spec.ts
@@ -276,17 +276,17 @@ npx nx run admin:e2e -- e2e/specs/admin.user-deletion.spec.ts
 - `docs/MIGRATION_SESSION_SUMMARY.md`
 
 ### Migration Scripts
-- `apps/server-nest/migrations/0003_add_user_id_architecture.sql`
-- `apps/server-nest/migrations/0002_rollback.sql`
+- `apps/server/migrations/0003_add_user_id_architecture.sql`
+- `apps/server/migrations/0002_rollback.sql`
 
 ### Code Files Modified
-- `apps/server-nest/src/modules/user/user-deletion.service.ts`
-- `apps/server-nest/src/modules/user/user.module.ts`
+- `apps/server/src/modules/user/user-deletion.service.ts`
+- `apps/server/src/modules/user/user.module.ts`
 
 ### Already Correct
-- `apps/server-nest/src/modules/user-profile/user-profile.service.ts`
-- `apps/server-nest/src/modules/orgs/orgs.controller.ts`
-- `apps/server-nest/src/modules/orgs/orgs.service.ts`
+- `apps/server/src/modules/user-profile/user-profile.service.ts`
+- `apps/server/src/modules/orgs/orgs.controller.ts`
+- `apps/server/src/modules/orgs/orgs.service.ts`
 
 ---
 

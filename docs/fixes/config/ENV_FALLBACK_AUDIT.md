@@ -22,7 +22,7 @@ Fallback values can hide configuration issues:
 These have security implications and should FAIL FAST if not set:
 
 #### 1. Encryption Key (DANGEROUS!)
-**File:** `apps/server-nest/src/modules/integrations/encryption.service.ts:28`
+**File:** `apps/server/src/modules/integrations/encryption.service.ts:28`
 ```typescript
 this.encryptionKey = process.env.INTEGRATION_ENCRYPTION_KEY || '';
 ```
@@ -51,7 +51,7 @@ password: process.env.POSTGRES_PASSWORD || '',  // Empty password!
 Variables that should be required in `config.schema.ts`:
 
 #### 3. Database Connection (Already in Schema but with Fallbacks Elsewhere)
-**File:** `apps/server-nest/src/common/config/config.schema.ts`
+**File:** `apps/server/src/common/config/config.schema.ts`
 ```typescript
 // Schema defines these as required (!), but many files still use fallbacks:
 POSTGRES_HOST!: string;  // Required in schema ✅
@@ -98,7 +98,7 @@ These are acceptable for local development:
 **Files:**
 - `apps/admin/vite.config.ts:15,18`
 - `apps/admin/e2e/utils/navigation.ts:8`
-- `apps/server-nest/scripts/check-e2e-deps.mjs:13`
+- `apps/server/scripts/check-e2e-deps.mjs:13`
 
 ```typescript
 const DEV_PORT = Number(process.env.ADMIN_PORT || 5175);  // ✅ OK
@@ -110,7 +110,7 @@ const API_TARGET = process.env.API_ORIGIN || `http://localhost:3001`;  // ✅ OK
 #### 6. Test Configuration
 **Files:**
 - `apps/admin/e2e/playwright.config.ts:34`
-- `apps/server-nest/tests/openapi-regression.spec.ts:35`
+- `apps/server/tests/openapi-regression.spec.ts:35`
 
 ```typescript
 const baseURL = process.env.E2E_BASE_URL || `http://localhost:${DEV_PORT}`;  // ✅ OK
@@ -179,7 +179,7 @@ process.env.POSTGRES_HOST || process.env.DB_HOST || 'localhost'
 
 ## Detailed File-by-File Analysis
 
-### Production Code (apps/server-nest/src)
+### Production Code (apps/server/src)
 
 #### CRITICAL - Remove Fallbacks
 
@@ -207,7 +207,7 @@ process.env.POSTGRES_HOST || process.env.DB_HOST || 'localhost'
 
 ---
 
-### Test Files (apps/server-nest/tests)
+### Test Files (apps/server/tests)
 
 #### REFACTOR - Use Test Environment Setup
 
@@ -484,12 +484,12 @@ openssl rand -base64 24
 ## Files to Modify (Summary)
 
 ### Immediate Changes
-- `apps/server-nest/src/modules/integrations/encryption.service.ts`
-- `apps/server-nest/src/main.ts` (add startup validation)
+- `apps/server/src/modules/integrations/encryption.service.ts`
+- `apps/server/src/main.ts` (add startup validation)
 
 ### Config Schema Updates
-- `apps/server-nest/src/common/config/config.schema.ts`
-- `apps/server-nest/src/modules/graph/google-vertex-embedding.provider.ts`
+- `apps/server/src/common/config/config.schema.ts`
+- `apps/server/src/modules/graph/google-vertex-embedding.provider.ts`
 
 ### Script Safety Updates (12 files)
 - `scripts/reset-db.ts`
@@ -502,15 +502,15 @@ openssl rand -base64 24
 - `scripts/get-clickup-credentials.ts`
 - `scripts/fix-my-conversations.mjs`
 - `scripts/migrate-embedding-dimension.ts`
-- `apps/server-nest/scripts/graph-backfill.ts`
-- `apps/server-nest/scripts/migrate-phase1.ts`
+- `apps/server/scripts/graph-backfill.ts`
+- `apps/server/scripts/migrate-phase1.ts`
 
 ### Test Infrastructure (5 files)
-- `apps/server-nest/tests/test-env.ts` (NEW)
-- `apps/server-nest/tests/setup.ts`
-- `apps/server-nest/tests/test-db-config.ts`
-- `apps/server-nest/tests/utils/db-describe.ts`
-- `apps/server-nest/tests/e2e/e2e-context.ts`
+- `apps/server/tests/test-env.ts` (NEW)
+- `apps/server/tests/setup.ts`
+- `apps/server/tests/test-db-config.ts`
+- `apps/server/tests/utils/db-describe.ts`
+- `apps/server/tests/e2e/e2e-context.ts`
 
 ### Documentation Updates
 - `.env.example` (add new required vars)

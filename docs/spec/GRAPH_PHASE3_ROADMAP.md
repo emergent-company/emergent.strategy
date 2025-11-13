@@ -80,8 +80,8 @@ This document now serves as both a **completion report** for Phase 3 and a **roa
 - ✅ Documented migration procedures for all scenarios
 
 **Deliverables**:
-- `apps/server-nest/src/common/config/config.service.ts` - `embeddingDimension` getter
-- `apps/server-nest/src/common/database/database.service.ts` - Dynamic schema generation
+- `apps/server/src/common/config/config.service.ts` - `embeddingDimension` getter
+- `apps/server/src/common/database/database.service.ts` - Dynamic schema generation
 - `docs/EMBEDDING_MIGRATION.md` - Comprehensive 400+ line migration guide
 - `scripts/migrate-embedding-dimension.ts` - Automated 600+ line migration tool
 - `docs/EMBEDDING_PRODUCTION_READINESS.md` - Implementation summary
@@ -119,13 +119,13 @@ See: [Embedding Production Readiness Summary](../docs/EMBEDDING_PRODUCTION_READI
 - ✅ Comprehensive documentation (`docs/EMBEDDING_POLICIES.md`)
 
 **Deliverables**:
-- `apps/server-nest/src/modules/graph/embedding-policy.entity.ts` - Entity and types
-- `apps/server-nest/src/modules/graph/embedding-policy.dto.ts` - DTOs with validation
-- `apps/server-nest/src/modules/graph/embedding-policy.service.ts` - Service with evaluation logic (300+ lines)
-- `apps/server-nest/src/modules/graph/graph.controller.ts` - REST API endpoints (5 endpoints)
-- `apps/server-nest/src/modules/graph/__tests__/embedding-policy.service.spec.ts` - Unit tests (648 lines)
-- `apps/server-nest/tests/e2e/graph.embedding-policies.e2e.spec.ts` - E2E tests (669 lines)
-- `apps/server-nest/docs/EMBEDDING_POLICIES.md` - Complete feature documentation (400+ lines)
+- `apps/server/src/modules/graph/embedding-policy.entity.ts` - Entity and types
+- `apps/server/src/modules/graph/embedding-policy.dto.ts` - DTOs with validation
+- `apps/server/src/modules/graph/embedding-policy.service.ts` - Service with evaluation logic (300+ lines)
+- `apps/server/src/modules/graph/graph.controller.ts` - REST API endpoints (5 endpoints)
+- `apps/server/src/modules/graph/__tests__/embedding-policy.service.spec.ts` - Unit tests (648 lines)
+- `apps/server/tests/e2e/graph.embedding-policies.e2e.spec.ts` - E2E tests (669 lines)
+- `apps/server/docs/EMBEDDING_POLICIES.md` - Complete feature documentation (400+ lines)
 
 **Technical Details**:
 - Policy evaluation at object creation time (deterministic)
@@ -142,7 +142,7 @@ See: [Embedding Production Readiness Summary](../docs/EMBEDDING_PRODUCTION_READI
 - `PATCH /graph/embedding-policies/:id` - Update policy
 - `DELETE /graph/embedding-policies/:id` - Delete policy
 
-See: [Embedding Policies Documentation](../apps/server-nest/docs/EMBEDDING_POLICIES.md)
+See: [Embedding Policies Documentation](../apps/server/docs/EMBEDDING_POLICIES.md)
 
 ---
 

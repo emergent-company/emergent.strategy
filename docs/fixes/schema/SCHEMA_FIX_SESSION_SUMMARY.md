@@ -182,7 +182,7 @@ curl http://localhost:3002/notifications/stats   # → 500 error
 ### After Fix:
 ```bash
 # Apply migrations
-node apps/server-nest/scripts/migrate.mjs
+node apps/server/scripts/migrate.mjs
 
 # Verify schema
 \d kb.notifications           # ✅ All 5 columns present
@@ -288,8 +288,8 @@ curl http://localhost:3002/notifications/stats   # → Should work (needs auth)
 ## Files Modified
 
 **Migrations Created**:
-- `apps/server-nest/migrations/20251026_fix_notifications_and_extraction_logging.sql`
-- `apps/server-nest/migrations/20251026_add_remaining_notification_and_logging_columns.sql`
+- `apps/server/migrations/20251026_fix_notifications_and_extraction_logging.sql`
+- `apps/server/migrations/20251026_add_remaining_notification_and_logging_columns.sql`
 
 **Documentation**:
 - `docs/SCHEMA_FIX_SESSION_SUMMARY.md` (this file)
@@ -305,7 +305,7 @@ curl http://localhost:3002/notifications/stats   # → Should work (needs auth)
 cd docker && source .env && cd .. && \
 POSTGRES_USER=$POSTGRES_USER POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
 POSTGRES_DB=$POSTGRES_DB POSTGRES_HOST=localhost POSTGRES_PORT=5437 \
-node apps/server-nest/scripts/migrate.mjs --list
+node apps/server/scripts/migrate.mjs --list
 ```
 
 ### Apply pending migrations:
@@ -313,7 +313,7 @@ node apps/server-nest/scripts/migrate.mjs --list
 cd docker && source .env && cd .. && \
 POSTGRES_USER=$POSTGRES_USER POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
 POSTGRES_DB=$POSTGRES_DB POSTGRES_HOST=localhost POSTGRES_PORT=5437 \
-node apps/server-nest/scripts/migrate.mjs
+node apps/server/scripts/migrate.mjs
 ```
 
 ### Check table schema:

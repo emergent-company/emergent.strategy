@@ -194,14 +194,14 @@ All foreign keys enforced at database level. Invalid references now impossible.
 ### Search for Code to Update
 ```bash
 # Find all org_id usage in services
-grep -r "org_id" apps/server-nest/src/**/*.service.ts
+grep -r "org_id" apps/server/src/**/*.service.ts
 
 # Find all org_id in DTOs
-grep -r "org_id" apps/server-nest/src/**/*.dto.ts
+grep -r "org_id" apps/server/src/**/*.dto.ts
 
 # Find all org_id in tests
-grep -r "org_id" apps/server-nest/src/**/*.spec.ts
-grep -r "org_id" apps/server-nest/test/**/*.spec.ts
+grep -r "org_id" apps/server/src/**/*.spec.ts
+grep -r "org_id" apps/server/test/**/*.spec.ts
 ```
 
 ## 🎯 Next Steps
@@ -214,8 +214,8 @@ grep -r "org_id" apps/server-nest/test/**/*.spec.ts
 5. ⏳ Fix any compilation errors
 
 ### Testing
-1. ⏳ Run unit tests: `nx run server-nest:test`
-2. ⏳ Run E2E tests: `nx run server-nest:test-e2e`
+1. ⏳ Run unit tests: `nx run server:test`
+2. ⏳ Run E2E tests: `nx run server:test-e2e`
 3. ⏳ Test foreign key constraints (try inserting invalid UUIDs)
 4. ⏳ Test cascading deletes
 
@@ -227,7 +227,7 @@ grep -r "org_id" apps/server-nest/test/**/*.spec.ts
 
 ## 📚 Related Documentation
 
-- Migration conventions: `apps/server-nest/MIGRATION_NAMING_CONVENTIONS.md`
+- Migration conventions: `apps/server/MIGRATION_NAMING_CONVENTIONS.md`
 - Original audit: `docs/SCHEMA_CONSISTENCY_AUDIT_2025_10_24.md`
 - Database migrations guide: `docs/DATABASE_MIGRATIONS.md`
 

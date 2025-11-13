@@ -129,7 +129,7 @@ Expected logs:
 
 ```bash
 # 1. Check configuration
-grep -E "CHAT_MODEL_ENABLED|VERTEX_AI" apps/server-nest/.env
+grep -E "CHAT_MODEL_ENABLED|VERTEX_AI" apps/server/.env
 
 # 2. Verify auth
 gcloud auth application-default print-access-token
@@ -147,20 +147,20 @@ npm run workspace:logs -- --follow
 ## What Changed Since Last Session
 
 ### Code Changes
-1. `apps/server-nest/src/common/config/config.service.ts`:
+1. `apps/server/src/common/config/config.service.ts`:
    - `chatModelEnabled` now checks for Vertex AI credentials
    - Debug logging includes Vertex AI status
 
-2. `apps/server-nest/src/modules/chat/chat-generation.service.ts`:
+2. `apps/server/src/modules/chat/chat-generation.service.ts`:
    - `hasKey` now accepts Vertex AI credentials
    - Already uses `ChatVertexAI` from `@langchain/google-vertexai`
 
-3. `apps/server-nest/src/modules/mcp/mcp-server.controller.ts`:
+3. `apps/server/src/modules/mcp/mcp-server.controller.ts`:
    - `checkScope()` respects `SCOPES_DISABLED=1` flag
 
 ### Services Restarted
 ```bash
-npm --prefix apps/server-nest run build  ✅ SUCCESS
+npm --prefix apps/server run build  ✅ SUCCESS
 npm run workspace:restart                  ✅ SUCCESS
 ```
 

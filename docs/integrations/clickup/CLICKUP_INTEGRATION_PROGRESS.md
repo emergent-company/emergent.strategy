@@ -21,8 +21,8 @@ The integration follows a **plugin architecture** with:
 #### 1. Database Schema & Migrations
 
 **Files Created:**
-- `apps/server-nest/migrations/0003_integrations_system.sql` - Integration tables
-- `apps/server-nest/migrations/0004_integration_source_tracking.sql` - Source tracking metadata
+- `apps/server/migrations/0003_integrations_system.sql` - Integration tables
+- `apps/server/migrations/0004_integration_source_tracking.sql` - Source tracking metadata
 
 **Tables:**
 - `kb.integrations` - Integration configuration and credentials (with pgcrypto encryption)
@@ -49,7 +49,7 @@ The integration follows a **plugin architecture** with:
 
 **Base Integration System:**
 
-File: `apps/server-nest/src/modules/integrations/`
+File: `apps/server/src/modules/integrations/`
 - `integrations.module.ts` - Module registration
 - `integrations.controller.ts` - REST API endpoints
 - `integrations.service.ts` - Business logic
@@ -71,7 +71,7 @@ POST   /api/v1/integrations/:name/sync     // Trigger sync
 
 **ClickUp Integration:**
 
-File: `apps/server-nest/src/modules/clickup/`
+File: `apps/server/src/modules/clickup/`
 - `clickup.module.ts` - Module registration
 - `clickup.integration.ts` - Integration implementation
 - `clickup-api.client.ts` - ClickUp API v2 client with rate limiting
@@ -249,8 +249,8 @@ Response: {
    - Cache result (optional, for performance)
 
 **Files to Modify:**
-- `apps/server-nest/src/modules/clickup/clickup.integration.ts`
-- `apps/server-nest/src/modules/clickup/clickup-import.service.ts`
+- `apps/server/src/modules/clickup/clickup.integration.ts`
+- `apps/server/src/modules/clickup/clickup-import.service.ts`
 - `apps/admin/src/api/integrations.ts` (add client method)
 
 ---
@@ -298,9 +298,9 @@ Response: {
    - Import tasks from selected lists only
 
 **Files to Modify:**
-- `apps/server-nest/src/modules/integrations/base-integration.ts`
-- `apps/server-nest/src/modules/clickup/clickup-import.service.ts`
-- `apps/server-nest/src/modules/clickup/clickup.integration.ts`
+- `apps/server/src/modules/integrations/base-integration.ts`
+- `apps/server/src/modules/clickup/clickup-import.service.ts`
+- `apps/server/src/modules/clickup/clickup.integration.ts`
 
 ---
 
@@ -387,7 +387,7 @@ Response: {
 
 **Integrations Module:**
 ```
-apps/server-nest/src/modules/integrations/
+apps/server/src/modules/integrations/
 ├── integrations.module.ts              ✅ Complete
 ├── integrations.controller.ts          ✅ Complete (8 endpoints)
 ├── integrations.service.ts             ✅ Complete
@@ -401,7 +401,7 @@ apps/server-nest/src/modules/integrations/
 
 **ClickUp Module:**
 ```
-apps/server-nest/src/modules/clickup/
+apps/server/src/modules/clickup/
 ├── clickup.module.ts                   ✅ Complete
 ├── clickup.integration.ts              ✅ Complete
 ├── clickup-api.client.ts               ✅ Complete
@@ -414,14 +414,14 @@ apps/server-nest/src/modules/clickup/
 
 **Migrations:**
 ```
-apps/server-nest/migrations/
+apps/server/migrations/
 ├── 0003_integrations_system.sql        ✅ Applied
 └── 0004_integration_source_tracking.sql ✅ Applied
 ```
 
 **Graph Types:**
 ```
-apps/server-nest/src/modules/graph/
+apps/server/src/modules/graph/
 └── graph.types.ts                      ✅ Updated (source tracking fields)
 ```
 
@@ -647,7 +647,7 @@ test.describe('Integration Gallery', () => {
 
 1. **Start Backend:**
    ```bash
-   cd apps/server-nest
+   cd apps/server
    npm run dev
    ```
 
@@ -659,8 +659,8 @@ test.describe('Integration Gallery', () => {
 
 3. **Apply Migrations:**
    ```bash
-   psql -d spec -f apps/server-nest/migrations/0003_integrations_system.sql
-   psql -d spec -f apps/server-nest/migrations/0004_integration_source_tracking.sql
+   psql -d spec -f apps/server/migrations/0003_integrations_system.sql
+   psql -d spec -f apps/server/migrations/0004_integration_source_tracking.sql
    ```
 
 ### Environment Variables
@@ -741,7 +741,7 @@ A: Stored in `properties` JSONB on graph objects. The data mapper extracts them 
 - `docs/spec/23-integration-gallery.md` - Integration system architecture
 
 ### Related Files
-- Backend: `apps/server-nest/src/modules/clickup/`
+- Backend: `apps/server/src/modules/clickup/`
 - Frontend: `apps/admin/src/pages/admin/pages/integrations/`
 - API Client: `apps/admin/src/api/integrations.ts`
 

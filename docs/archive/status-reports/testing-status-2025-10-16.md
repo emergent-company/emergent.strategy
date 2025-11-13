@@ -5,7 +5,7 @@
 **Command:**
 
 ```bash
-RUN_SCENARIOS=1 npm --prefix apps/server-nest run test
+RUN_SCENARIOS=1 npm --prefix apps/server run test
 ```
 
 **Context:**

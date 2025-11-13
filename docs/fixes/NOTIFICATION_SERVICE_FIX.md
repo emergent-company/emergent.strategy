@@ -44,7 +44,7 @@ The NotificationsService was using the wrong database column for recipient user 
 
 ## Solution
 
-### Changes Made to `apps/server-nest/src/modules/notifications/notifications.service.ts`
+### Changes Made to `apps/server/src/modules/notifications/notifications.service.ts`
 
 #### 1. Fixed Query Methods (12 total)
 
@@ -301,10 +301,10 @@ For context, this is how user identity works in the system:
 
 ## Related Files
 
-- `apps/server-nest/src/modules/notifications/notifications.service.ts` - Main service (fixed)
-- `apps/server-nest/src/modules/notifications/notifications.controller.ts` - Controller (unchanged)
-- `apps/server-nest/src/modules/notifications/dto/create-notification.dto.ts` - DTO (needs future refactor)
-- `apps/server-nest/migrations/0001_init.sql` - Database schema (correct)
+- `apps/server/src/modules/notifications/notifications.service.ts` - Main service (fixed)
+- `apps/server/src/modules/notifications/notifications.controller.ts` - Controller (unchanged)
+- `apps/server/src/modules/notifications/dto/create-notification.dto.ts` - DTO (needs future refactor)
+- `apps/server/migrations/0001_init.sql` - Database schema (correct)
 
 ## Session Context
 

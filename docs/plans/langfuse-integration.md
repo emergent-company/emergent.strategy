@@ -81,7 +81,7 @@ Based on the official LangFuse documentation for low-scale deployments, we will 
 
 -   **Files to modify:**
     *   `.env.example`
-    *   `apps/server-nest/src/common/config/config.service.ts`
+    *   `apps/server/src/common/config/config.service.ts`
 -   **Objective:** Add the necessary configuration for the LangFuse SDK.
 
 **Steps:**
@@ -91,8 +91,8 @@ Based on the official LangFuse documentation for low-scale deployments, we will 
 
 ### Task 2.3: Initialize LangFuse Client
 
--   **File to create:** `apps/server-nest/src/modules/langfuse/langfuse.service.ts`
--   **File to modify:** `apps/server-nest/src/modules/app.module.ts`
+-   **File to create:** `apps/server/src/modules/langfuse/langfuse.service.ts`
+-   **File to modify:** `apps/server/src/modules/app.module.ts`
 -   **Objective:** Create a dedicated service to manage the LangFuse client and make it available throughout the application.
 
 **Steps:**
@@ -105,10 +105,10 @@ Based on the official LangFuse documentation for low-scale deployments, we will 
 ### Task 2.4: Add Tracing to LLM Providers
 
 -   **Files to modify:**
-    *   `apps/server-nest/src/modules/extraction-jobs/llm/llm-provider.factory.ts`
-    *   `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
-    *   `apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts`
-    *   `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+    *   `apps/server/src/modules/extraction-jobs/llm/llm-provider.factory.ts`
+    *   `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+    *   `apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts`
+    *   `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 -   **Objective:** Wrap LLM calls with LangFuse tracing.
 
 **Steps:**
@@ -120,7 +120,7 @@ Based on the official LangFuse documentation for low-scale deployments, we will 
 
 ### Task 2.5: Extend MonitoringLoggerService
 
--   **File to modify:** `apps/server-nest/src/modules/monitoring/monitoring-logger.service.ts`
+-   **File to modify:** `apps/server/src/modules/monitoring/monitoring-logger.service.ts`
 -   **Objective:** Send LLM call data to LangFuse in addition to the existing logging.
 
 **Steps:**

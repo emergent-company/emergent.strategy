@@ -33,13 +33,13 @@ Migrating from npm to pnpm for better performance, stricter dependencies, and im
 - [ ] `pnpm-workspace.yaml` (NEW - workspace config)
 - [ ] `package.json` (root - add packageManager field, update scripts)
 - [ ] `apps/admin/Dockerfile` (install pnpm, replace npm ci)
-- [ ] `apps/server-nest/Dockerfile` (install pnpm, replace npm ci)
+- [ ] `apps/server/Dockerfile` (install pnpm, replace npm ci)
 - [ ] `.github/workflows/admin-e2e.yml` (add pnpm setup, replace npm ci)
 
 ### Important (Should change)
-- [ ] `apps/server-nest/package.json` (update scripts)
+- [ ] `apps/server/package.json` (update scripts)
 - [ ] `apps/admin/package.json` (update scripts)
-- [ ] `apps/server-nest/project.json` (update Nx commands)
+- [ ] `apps/server/project.json` (update Nx commands)
 - [ ] `README.md` (installation instructions)
 - [ ] `QUICK_START_DEV.md` (command examples)
 - [ ] `.github/copilot-instructions.md` (document pnpm usage)
@@ -57,7 +57,7 @@ Migrating from npm to pnpm for better performance, stricter dependencies, and im
 | `npm ci` | `pnpm install --frozen-lockfile` |
 | `npm run build` | `pnpm run build` or `pnpm build` |
 | `npm --prefix apps/admin run build` | `pnpm --filter admin run build` |
-| `npm --prefix apps/server-nest test` | `pnpm --filter server-nest test` |
+| `npm --prefix apps/server test` | `pnpm --filter server test` |
 
 ## Quick Start (After Migration)
 

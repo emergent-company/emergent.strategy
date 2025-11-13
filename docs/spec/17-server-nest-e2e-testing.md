@@ -1,7 +1,7 @@
 # Server (Nest) End-to-End Testing Spec
 
 ## Goal
-Establish a deterministic, DB‑backed E2E test layer for `apps/server-nest` that exercises real HTTP routes against a running Nest application instance with a real PostgreSQL schema, using an actual test user + org + project records. All tests:
+Establish a deterministic, DB‑backed E2E test layer for `apps/server` that exercises real HTTP routes against a running Nest application instance with a real PostgreSQL schema, using an actual test user + org + project records. All tests:
 - Authenticate with a real JWT (when auth infra available) or controlled fallback token until external IdP wiring is complete.
 - Run against an isolated PostgreSQL database schema (or database) seeded once per test session.
 - Clean (idempotently) all data owned by the dedicated E2E user between individual test files (suite isolation) while preserving the base org + project objects (unless the test mutates them intentionally).
@@ -44,12 +44,12 @@ DELETE FROM kb.documents WHERE project_id = $2;
 ```
 
 ## New / Updated Files (Planned)
-- `apps/server-nest/tests/e2e/` (folder)
+- `apps/server/tests/e2e/` (folder)
   - `e2e-context.ts` – create app, seed fixtures, expose teardown & cleanup helpers.
   - `auth-helpers.ts` – tokens & headers.
   - `org-project.fixtures.ts` – ensure org + project creation (SQL direct insert + select to avoid service races).
   - Example spec: `documents.create-and-list.e2e.spec.ts`.
-- `apps/server-nest/tests/global-setup.e2e.ts` (optional if we want one-off DB/schema setup when running only E2E suite).
+- `apps/server/tests/global-setup.e2e.ts` (optional if we want one-off DB/schema setup when running only E2E suite).
 - Update `AuthService` (optional follow-up) to recognize `e2e-all` token.
 - Add npm script: `"test:e2e": "npm run gen:openapi && vitest run --reporter=dot --passWithNoTests --include=tests/e2e/**/*.e2e.spec.ts"`.
 - Add docs section in this spec file (or separate `README-e2e.md`).
@@ -133,7 +133,7 @@ docker compose -f docker/docker-compose.yml up -d db
 createdb spec_e2e || true
 
 # Run only e2e specs
-npm --prefix apps/server-nest run test:e2e
+npm --prefix apps/server run test:e2e
 ```
 
 ## Open Questions
@@ -151,12 +151,12 @@ Legend: C = Covered (specs exist & green) | P = Partial (some aspects covered) |
 ### A. Ingestion & Documents
 | Scenario | Layer | Status | Notes / Planned Spec |
 |----------|-------|--------|----------------------|
-| Upload supported file (<10MB) succeeds | server-nest e2e | C | Covered by multiple specs using /ingest/upload (e.g. search.hybrid-modes, vector/lexical, chunking) – add dedicated success spec optional |
-| Unsupported file type rejected | server-nest e2e | M | Still missing explicit 415/400 test |
-| Oversize file (>10MB) rejected | server-nest e2e | C | `ingestion.error-paths.e2e.spec.ts` oversize test (400/413) |
-| List documents returns new doc after upload (no restart) | server-nest e2e | C | Verified indirectly via search & ingestion specs; direct list present in create-and-list |
-| Idempotent re‑ingest (same hash skipped) | server-nest e2e | C | `documents.dedup.e2e.spec.ts` (same project dedup) |
-| Chunks created & count exposed in list | server-nest e2e | P | `documents.chunking.e2e.spec.ts` validates >=2 chunks via SQL; exposure/count in list still missing |
+| Upload supported file (<10MB) succeeds | server e2e | C | Covered by multiple specs using /ingest/upload (e.g. search.hybrid-modes, vector/lexical, chunking) – add dedicated success spec optional |
+| Unsupported file type rejected | server e2e | M | Still missing explicit 415/400 test |
+| Oversize file (>10MB) rejected | server e2e | C | `ingestion.error-paths.e2e.spec.ts` oversize test (400/413) |
+| List documents returns new doc after upload (no restart) | server e2e | C | Verified indirectly via search & ingestion specs; direct list present in create-and-list |
+| Idempotent re‑ingest (same hash skipped) | server e2e | C | `documents.dedup.e2e.spec.ts` (same project dedup) |
+| Chunks created & count exposed in list | server e2e | P | `documents.chunking.e2e.spec.ts` validates >=2 chunks via SQL; exposure/count in list still missing |
 
 ### B. Processing & Indexing
 | Scenario | Layer | Status | Notes |
@@ -169,44 +169,44 @@ Legend: C = Covered (specs exist & green) | P = Partial (some aspects covered) |
 ### C. Hybrid Search
 | Scenario | Layer | Status | Notes |
 |----------|-------|--------|-------|
-| Default mode = hybrid | server-nest e2e | C | `search.hybrid-modes.e2e.spec.ts` (no mode param -> hybrid/lexical fallback) |
-| mode=vector only | server-nest e2e | C | `search.vector-only.e2e.spec.ts` |
-| mode=lexical only | server-nest e2e | C | `search.lexical-only.e2e.spec.ts` |
-| One modality empty → fallback | server-nest e2e | P | Fallback covered (embeddings disabled/vector fallback specs) but empty modality dataset case not isolated |
-| Citations include provenance (chunk id, document id) | server-nest e2e | P | Citations frames + persistence tested (`chat.citations-persistence`, `chat.citations`); explicit provenance field assertions to add |
+| Default mode = hybrid | server e2e | C | `search.hybrid-modes.e2e.spec.ts` (no mode param -> hybrid/lexical fallback) |
+| mode=vector only | server e2e | C | `search.vector-only.e2e.spec.ts` |
+| mode=lexical only | server e2e | C | `search.lexical-only.e2e.spec.ts` |
+| One modality empty → fallback | server e2e | P | Fallback covered (embeddings disabled/vector fallback specs) but empty modality dataset case not isolated |
+| Citations include provenance (chunk id, document id) | server e2e | P | Citations frames + persistence tested (`chat.citations-persistence`, `chat.citations`); explicit provenance field assertions to add |
 
 ### D. Multi‑Tenancy / Org & Project
 | Scenario | Layer | Status | Notes |
 |----------|-------|--------|-------|
-| Context headers required for project‑scoped endpoints | server-nest e2e | C | `org.project-rls.e2e.spec.ts` + `documents.project-required.e2e.spec.ts` + `chat.project-required.e2e.spec.ts` (400 on missing x-project-id) |
-| RLS: doc in project A not visible in project B | server-nest e2e | C | `org.project-rls.e2e.spec.ts` verifies isolation via header scoping (app-level enforcement) |
-| Invite lifecycle (create → accept → role) | server-nest e2e | M | needs invites API first |
+| Context headers required for project‑scoped endpoints | server e2e | C | `org.project-rls.e2e.spec.ts` + `documents.project-required.e2e.spec.ts` + `chat.project-required.e2e.spec.ts` (400 on missing x-project-id) |
+| RLS: doc in project A not visible in project B | server e2e | C | `org.project-rls.e2e.spec.ts` verifies isolation via header scoping (app-level enforcement) |
+| Invite lifecycle (create → accept → role) | server e2e | M | needs invites API first |
 
 ### E. Chat (Core CRUD) – Already Implemented Items
 | Scenario | Layer | Status | Notes |
 |----------|-------|--------|-------|
-| Create conversation + initial message persisted | server-nest e2e | C | `chat.basic-crud.e2e.spec.ts` |
-| List returns created conversation (private grouping) | server-nest e2e | C | after isolation fix |
-| Get conversation returns messages | server-nest e2e | C | |
-| Rename conversation updates title | server-nest e2e | C | |
-| Delete conversation removes from list | server-nest e2e | C | |
+| Create conversation + initial message persisted | server e2e | C | `chat.basic-crud.e2e.spec.ts` |
+| List returns created conversation (private grouping) | server e2e | C | after isolation fix |
+| Get conversation returns messages | server e2e | C | |
+| Rename conversation updates title | server e2e | C | |
+| Delete conversation removes from list | server e2e | C | |
 
 ### F. Chat (Extended Spec 12 – Progress)
 | Scenario | Layer | Status | Notes / Planned Spec |
 |----------|-------|--------|----------------------|
-| Privacy: create private conversation (visibility enforcement) | server-nest e2e (multi-user) | C | `chat.authorization.e2e.spec.ts` denies intruder rename/delete; list isolation covered |
-| Shared vs Private grouping accurate for two users | server-nest e2e | P | Owner/intruder listing partially covered; explicit shared grouping test pending |
-| SSE `/chat/stream` meta first event guarantee | server-nest e2e | P | Ordering of token/summary/done validated; explicit meta-first assertion pending |
-| SSE token streaming incremental accumulation | server-nest e2e | C | `chat.streaming-sse.e2e.spec.ts` token-0..4 sequence validated |
-| Error event terminates stream properly | server-nest e2e | M | Need forced upstream error spec |
-| Conversation title auto-naming rule | server-nest e2e | M | Awaiting naming logic test |
+| Privacy: create private conversation (visibility enforcement) | server e2e (multi-user) | C | `chat.authorization.e2e.spec.ts` denies intruder rename/delete; list isolation covered |
+| Shared vs Private grouping accurate for two users | server e2e | P | Owner/intruder listing partially covered; explicit shared grouping test pending |
+| SSE `/chat/stream` meta first event guarantee | server e2e | P | Ordering of token/summary/done validated; explicit meta-first assertion pending |
+| SSE token streaming incremental accumulation | server e2e | C | `chat.streaming-sse.e2e.spec.ts` token-0..4 sequence validated |
+| Error event terminates stream properly | server e2e | M | Need forced upstream error spec |
+| Conversation title auto-naming rule | server e2e | M | Awaiting naming logic test |
 
 ### G. Security / RLS / Auth
 | Scenario | Layer | Status | Notes |
 |----------|-------|--------|-------|
-| Unauthorized (no token) → 401 | server-nest e2e | M | Add dedicated `security.auth-errors.e2e.spec.ts` |
-| Forbidden private conversation access by non-owner | server-nest e2e | C | `chat.authorization.e2e.spec.ts` rename/delete blocked |
-| Cross-org data leakage attempt blocked | server-nest e2e | P | `rls.headers-validation.e2e.spec.ts` covers foreign project misuse; full cross-org leakage attempt still pending |
+| Unauthorized (no token) → 401 | server e2e | M | Add dedicated `security.auth-errors.e2e.spec.ts` |
+| Forbidden private conversation access by non-owner | server e2e | C | `chat.authorization.e2e.spec.ts` rename/delete blocked |
+| Cross-org data leakage attempt blocked | server e2e | P | `rls.headers-validation.e2e.spec.ts` covers foreign project misuse; full cross-org leakage attempt still pending |
 
 ### H. Performance (Targeted Harness – Deferred)
 | Scenario | Layer | Status | Notes |

@@ -64,7 +64,7 @@ INSERT INTO kb.graph_template_packs (
 
 ### 3. Meeting & Decision Management Pack
 
-**File**: `apps/server-nest/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`
+**File**: `apps/server/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`
 
 **Change**: Added `source` column to INSERT statement and parameter list
 
@@ -111,7 +111,7 @@ For databases that already have these packs with `source = 'manual'`:
 To verify the fix works for fresh database setup:
 
 1. **Reset database** (drop and recreate)
-2. **Run migrations**: `npx nx run server-nest:migrate`
+2. **Run migrations**: `npx nx run server:migrate`
 3. **Run seed scripts**:
    ```bash
    npx tsx scripts/seed-extraction-demo.ts
@@ -137,7 +137,7 @@ To verify the fix works for fresh database setup:
 
 - ✅ `scripts/seed-togaf-template.ts` - Added source='system' to INSERT
 - ✅ `scripts/seed-extraction-demo.ts` - Added source='system' to INSERT
-- ✅ `apps/server-nest/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts` - Added source='system' to INSERT
+- ✅ `apps/server/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts` - Added source='system' to INSERT
 
 ## Related Documentation
 

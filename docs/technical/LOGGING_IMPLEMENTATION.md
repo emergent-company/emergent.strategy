@@ -13,7 +13,7 @@
 
 ### 1. Enhanced Server-Side Error Logging
 
-**File:** `apps/server-nest/src/common/filters/http-exception.filter.ts`
+**File:** `apps/server/src/common/filters/http-exception.filter.ts`
 
 **Enhancements:**
 - Added request ID to logs
@@ -190,7 +190,7 @@ To fully debug the TOGAF removal error:
 
 ## Files Modified
 
-1. `apps/server-nest/src/common/filters/http-exception.filter.ts` - Enhanced error logging
+1. `apps/server/src/common/filters/http-exception.filter.ts` - Enhanced error logging
 2. `apps/admin/src/lib/error-logger.ts` - NEW: Browser error logger
 3. `apps/admin/src/hooks/use-api.ts` - Added error logging integration
 4. `apps/admin/src/main.tsx` - Initialize error logger

@@ -13,7 +13,7 @@ The Meeting & Decision Management template pack has been successfully implemente
 ### Files Created
 
 1. **Seed File:**
-   - `apps/server-nest/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`
+   - `apps/server/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`
    - 687 lines
    - Executable TypeScript seed script
 
@@ -133,7 +133,7 @@ To seed or update the template pack:
 
 ```bash
 # Direct execution
-npx tsx apps/server-nest/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts
+npx tsx apps/server/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts
 
 # Or via helper script
 npx tsx scripts/seed-meeting-pack.ts
@@ -224,5 +224,5 @@ Running the seed script again will:
 ## References
 
 - **Specification:** `docs/spec/39-meeting-decision-template-pack.md`
-- **Seed Implementation:** `apps/server-nest/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`
+- **Seed Implementation:** `apps/server/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`
 - **Admin UI:** `apps/admin/src/pages/admin/pages/settings/project/templates.tsx`

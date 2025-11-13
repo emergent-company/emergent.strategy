@@ -325,8 +325,8 @@ The system maintains backward compatibility, so you can keep old variables durin
 ## Reference
 
 - **Provisioning Script:** `scripts/setup-zitadel-service-accounts.sh`
-- **Service Implementation:** `apps/server-nest/src/modules/auth/zitadel.service.ts`
-- **Configuration Types:** `apps/server-nest/src/modules/auth/auth.config.ts`
+- **Service Implementation:** `apps/server/src/modules/auth/zitadel.service.ts`
+- **Configuration Types:** `apps/server/src/modules/auth/auth.config.ts`
 - **Docker Compose:** `docker-compose.yml`
 
 ## Support

@@ -1,13 +1,13 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "name": "server-nest",
+  "name": "server",
   "projectType": "application",
-  "sourceRoot": "apps/server-nest/src",
+  "sourceRoot": "apps/server/src",
   "targets": {
     "build": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm --prefix apps/server-nest run build",
+        "command": "npm --prefix apps/server run build",
         "forwardAllArgs": true
       }
     },
@@ -28,14 +28,14 @@
     "start-dev": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm --prefix apps/server-nest run start:dev",
+        "command": "npm --prefix apps/server run start:dev",
         "forwardAllArgs": true
       }
     },
     "test": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm --prefix apps/server-nest run test",
+        "command": "npm --prefix apps/server run test",
         "forwardAllArgs": true
       }
     },
@@ -56,40 +56,38 @@
     "test-coverage": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm --prefix apps/server-nest run test:coverage",
+        "command": "npm --prefix apps/server run test:coverage",
         "forwardAllArgs": true
       }
     },
     "test-coverage-e2e": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm --prefix apps/server-nest run test:coverage:e2e",
+        "command": "npm --prefix apps/server run test:coverage:e2e",
         "forwardAllArgs": true
       }
     },
     "test-e2e": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm --prefix apps/server-nest run test:e2e",
+        "command": "npm --prefix apps/server run test:e2e",
         "forwardAllArgs": true
       }
     },
     "test-scenarios": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm --prefix apps/server-nest run test:scenarios",
+        "command": "npm --prefix apps/server run test:scenarios",
         "forwardAllArgs": true
       }
     },
     "test-watch": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm --prefix apps/server-nest run test:watch",
+        "command": "npm --prefix apps/server run test:watch",
         "forwardAllArgs": true
       }
     }
   },
-  "tags": [
-    "scope:server"
-  ]
+  "tags": ["scope:server"]
 }

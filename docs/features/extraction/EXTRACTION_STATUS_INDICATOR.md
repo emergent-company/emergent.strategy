@@ -18,7 +18,7 @@ Users had no way to see:
 ### 1. Backend Changes
 
 #### DocumentDto (Enhanced)
-**File**: `apps/server-nest/src/modules/documents/dto/document.dto.ts`
+**File**: `apps/server/src/modules/documents/dto/document.dto.ts`
 
 **Added Fields**:
 ```typescript
@@ -49,7 +49,7 @@ extractionObjectsCount?: number;
 ```
 
 #### DocumentsService (Enhanced)
-**File**: `apps/server-nest/src/modules/documents/documents.service.ts`
+**File**: `apps/server/src/modules/documents/documents.service.ts`
 
 **Updated SQL Queries**:
 Both `list()` and `get()` methods now include extraction job information via LEFT JOIN LATERAL:
@@ -250,11 +250,11 @@ LIMIT 1
 ## Files Modified
 
 ### Backend
-1. `apps/server-nest/src/modules/documents/dto/document.dto.ts`
+1. `apps/server/src/modules/documents/dto/document.dto.ts`
    - Added `extractionStatus`, `extractionCompletedAt`, `extractionObjectsCount` fields
    - Added API documentation
 
-2. `apps/server-nest/src/modules/documents/documents.service.ts`
+2. `apps/server/src/modules/documents/documents.service.ts`
    - Updated `DocumentRow` interface
    - Enhanced `list()` query with LEFT JOIN LATERAL
    - Enhanced `get()` query with LEFT JOIN LATERAL

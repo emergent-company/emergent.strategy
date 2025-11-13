@@ -73,24 +73,24 @@ mcpAdmin: 'mcp:admin'        // Administrative operations (future)
 
 ### Core Implementation
 
-1. **apps/server-nest/src/modules/auth/auth.service.ts**
+1. **apps/server/src/modules/auth/auth.service.ts**
    - Added 4 MCP scopes to `MOCK_SCOPES`
    - Added 5 mock tokens with deterministic UUIDs
    - Updated token validation regex pattern
 
-2. **apps/server-nest/src/modules/mcp/mcp.controller.ts**
+2. **apps/server/src/modules/mcp/mcp.controller.ts**
    - Added `@UseGuards(AuthGuard, ScopesGuard)` at class level
    - Added `@Scopes('schema:read')` to both endpoints
    - Added `@ApiBearerAuth()` for OpenAPI documentation
    - Added error response decorators
 
-3. **apps/server-nest/src/modules/mcp/mcp.module.ts**
+3. **apps/server/src/modules/mcp/mcp.module.ts**
    - Added `AuthModule` to imports array
    - Updated module documentation
 
 ### Testing
 
-4. **apps/server-nest/tests/e2e/mcp-auth.e2e.spec.ts** (NEW)
+4. **apps/server/tests/e2e/mcp-auth.e2e.spec.ts** (NEW)
    - 25 comprehensive E2E tests
    - Covers all authentication and authorization scenarios
    - 100% pass rate
@@ -196,7 +196,7 @@ curl -H "Authorization: Bearer no-scope" \
 ### Run MCP Authentication Tests
 
 ```bash
-cd apps/server-nest
+cd apps/server
 npm run test:e2e -- tests/e2e/mcp-auth.e2e.spec.ts
 ```
 
@@ -222,7 +222,7 @@ Test Files  1 passed (1)
 ### Full Test Suite (Verify No Regressions)
 
 ```bash
-cd apps/server-nest
+cd apps/server
 npm run test
 ```
 

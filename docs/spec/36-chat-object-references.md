@@ -573,7 +573,7 @@ export function getTypeColor(type: string): string {
 ### 5.1. Chat Service Extensions
 
 ```typescript
-// apps/server-nest/src/modules/chat/chat.service.ts
+// apps/server/src/modules/chat/chat.service.ts
 
 @Injectable()
 export class ChatService {
@@ -786,7 +786,7 @@ Response:`;
 ### 5.2. Object Preview API
 
 ```typescript
-// apps/server-nest/src/modules/graph/graph.controller.ts
+// apps/server/src/modules/graph/graph.controller.ts
 
 @Controller('api/v1/graph/objects')
 export class GraphObjectsController {

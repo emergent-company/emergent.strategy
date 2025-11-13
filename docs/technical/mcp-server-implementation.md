@@ -4,7 +4,7 @@
 
 The Model Context Protocol (MCP) Server will provide a standardized interface for AI agents to interact with the project's database. Its primary purpose is to expose the data model (schema) and provide structured "tools" for agents to query and manipulate data.
 
-This document outlines the implementation of the MCP server within the existing `apps/server-nest` application, using the `@rekog/mcp-nest` library. This library is designed for building MCP servers in a NestJS environment and will allow us to seamlessly integrate with our existing services.
+This document outlines the implementation of the MCP server within the existing `apps/server` application, using the `@rekog/mcp-nest` library. This library is designed for building MCP servers in a NestJS environment and will allow us to seamlessly integrate with our existing services.
 
 ## 2. Core Concepts (MCP)
 
@@ -18,7 +18,7 @@ Our implementation will focus on exposing our data through a set of well-defined
 
 ## 3. Implementation with `@rekog/mcp-nest`
 
-We will integrate the `@rekog/mcp-nest` module into our `server-nest` application. This involves:
+We will integrate the `@rekog/mcp-nest` module into our `server` application. This involves:
 
 1.  Installing the npm package: `@rekog/mcp-nest`.
 2.  Importing and configuring the `McpModule` in our main `app.module.ts`.

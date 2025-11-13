@@ -23,7 +23,7 @@ Out of Scope (initial migration):
 - Rate limiting & metrics (instrumentation hooks can be stubbed).
 
 ## Deliverables
-- `apps/server-nest/` (or in-place refactor) with modular Nest structure.
+- `apps/server/` (or in-place refactor) with modular Nest structure.
 - Generated spec at runtime served under `/openapi/openapi.json` (+ temporary YAML compatibility if desired).
 - Post‑processed OpenAPI containing `x-tagGroups` matching prior manual spec.
 - Automated spec diff test preventing breaking changes.
@@ -44,7 +44,7 @@ Out of Scope (initial migration):
 ## Phase 1: Preparation & Planning
 Checklist:
 - [ ] Create migration branch `feat/nest-migration`.
-- [ ] Decide structure: new folder `apps/server-nest` vs in-place (default: new folder for parallel run).
+- [ ] Decide structure: new folder `apps/server` vs in-place (default: new folder for parallel run).
 - [ ] Lock current manual `openapi.yaml` snapshot (tag commit) for diff baseline.
 - [ ] Inventory env vars & config assumptions; draft env schema.
 - [ ] Capture performance baseline (p50/p95 latency for key endpoints, SSE start latency, memory).
@@ -148,7 +148,7 @@ Acceptance:
 ---
 ## Graph Module Versioning & Soft Delete (Added 2025-09-25)
 
-The graph objects & relationships now use an append-only versioning model with soft deletes implemented via tombstone head rows. Queries MUST follow the documented **head-first then filter** pattern to avoid resurfacing stale pre-delete versions. See detailed design & operational guidelines in `apps/server-nest/docs/graph-versioning.md`:
+The graph objects & relationships now use an append-only versioning model with soft deletes implemented via tombstone head rows. Queries MUST follow the documented **head-first then filter** pattern to avoid resurfacing stale pre-delete versions. See detailed design & operational guidelines in `apps/server/docs/graph-versioning.md`:
 
 Key points:
 - Each logical entity identified by `canonical_id`; latest state = max `version` (head).

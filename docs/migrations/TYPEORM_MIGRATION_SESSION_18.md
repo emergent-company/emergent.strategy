@@ -2,7 +2,7 @@
 
 **Date**: 2025-01-XX  
 **Service**: `IngestionService`  
-**File**: `apps/server-nest/src/modules/ingestion/ingestion.service.ts`  
+**File**: `apps/server/src/modules/ingestion/ingestion.service.ts`  
 **Queries Before**: 5 raw SQL queries  
 **Queries After**: 1 TypeORM, 4 strategic SQL  
 **Migration Coverage**: 20% (1/5)  
@@ -25,7 +25,7 @@ Session 18 successfully migrated **IngestionService** with surgical precision, c
 
 ### File Location
 ```
-apps/server-nest/src/modules/ingestion/ingestion.service.ts
+apps/server/src/modules/ingestion/ingestion.service.ts
 ```
 
 ### Service Purpose
@@ -433,14 +433,14 @@ async ingestText(...) { ... }
 ## Build Verification
 
 ```bash
-$ npx nx run server-nest:build
+$ npx nx run server:build
 
-> nx run server-nest:build
-> npm --prefix apps/server-nest run build
-> server-nest@0.1.0 build
+> nx run server:build
+> npm --prefix apps/server run build
+> server@0.1.0 build
 > npm run clean && tsc -p tsconfig.json
 
-✅ Successfully ran target build for project server-nest
+✅ Successfully ran target build for project server
 ```
 
 **Result**: **43/43 compilation units built successfully** with zero TypeScript errors.
@@ -684,7 +684,7 @@ it('should cache feature detection across multiple ingestions', async () => {
 
 1. **Verify E2E Tests**:
    ```bash
-   npx nx test server-nest --testPathPattern=ingestion
+   npx nx test server --testPathPattern=ingestion
    ```
    - Confirm shouldAutoExtract() TypeORM conversion works
    - Verify ingestText() transaction behavior unchanged
@@ -845,7 +845,7 @@ async ingestText({ text, sourceUrl, filename, mimeType, orgId, projectId }: { ..
 ## Appendix B: Migration Checklist
 
 ### Pre-Migration Analysis
-- [x] Service located: `apps/server-nest/src/modules/ingestion/ingestion.service.ts`
+- [x] Service located: `apps/server/src/modules/ingestion/ingestion.service.ts`
 - [x] Query count identified: 5 queries across 2 methods
 - [x] Entity dependency checked: Project entity exists with required fields
 - [x] Complexity assessed: 1 simple (shouldAutoExtract), 4+ complex (ingestText)
@@ -857,7 +857,7 @@ async ingestText({ text, sourceUrl, filename, mimeType, orgId, projectId }: { ..
 - [x] Injected projectRepository in constructor
 - [x] Migrated shouldAutoExtract() to Repository.findOne()
 - [x] Added comprehensive strategic SQL documentation to ingestText()
-- [x] Verified compilation: `npx nx run server-nest:build`
+- [x] Verified compilation: `npx nx run server:build`
 
 ### Post-Migration Verification
 - [x] Build successful: 43/43 units compiled
@@ -867,8 +867,8 @@ async ingestText({ text, sourceUrl, filename, mimeType, orgId, projectId }: { ..
 - [x] Session documentation created
 
 ### Testing Requirements
-- [ ] Run unit tests: `npx nx test server-nest --testPathPattern=ingestion`
-- [ ] Run E2E tests: `npx nx test-e2e server-nest`
+- [ ] Run unit tests: `npx nx test server --testPathPattern=ingestion`
+- [ ] Run E2E tests: `npx nx test-e2e server`
 - [ ] Verify auto-extraction triggering
 - [ ] Test feature detection caching
 - [ ] Confirm transaction rollback behavior

@@ -170,7 +170,7 @@ After the code changes:
 
 ```bash
 # 1. Verify code compiles
-npx nx run server-nest:build
+npx nx run server:build
 
 # 2. Check database accepts new values
 docker exec spec-server-2-db-1 psql -U spec -d spec -c "
@@ -192,7 +192,7 @@ docker exec spec-server-2-db-1 psql -U spec -d spec -c "
 
 - `docs/EXTRACTION_LOGS_SCHEMA_COMPARISON.md` - Full side-by-side schema comparison
 - `docs/EXTRACTION_LOGS_STATUS_FIX.md` - Details of the status value fix
-- Migration: `apps/server-nest/migrations/20251026_fix_notifications_and_extraction_logging.sql`
+- Migration: `apps/server/migrations/20251026_fix_notifications_and_extraction_logging.sql`
 
 ## Summary
 

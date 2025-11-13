@@ -73,7 +73,7 @@ No schema changes needed!
 
 ### Step 1: Create Migration
 
-**File**: `apps/server-nest/migrations/0028_monitoring_phase2_chat.sql`
+**File**: `apps/server/migrations/0028_monitoring_phase2_chat.sql`
 
 ```sql
 -- Phase 2: Chat Session & MCP Tool Monitoring
@@ -115,7 +115,7 @@ CREATE POLICY mcp_tool_calls_tenant_isolation ON kb.mcp_tool_calls
 
 ### Step 2: Add Entity Types
 
-**File**: `apps/server-nest/src/modules/monitoring/entities/mcp-tool-call.entity.ts`
+**File**: `apps/server/src/modules/monitoring/entities/mcp-tool-call.entity.ts`
 
 ```typescript
 export interface McpToolCall {
@@ -136,7 +136,7 @@ export interface McpToolCall {
 }
 ```
 
-**File**: `apps/server-nest/src/modules/monitoring/dto/chat-session.dto.ts`
+**File**: `apps/server/src/modules/monitoring/dto/chat-session.dto.ts`
 
 ```typescript
 import { ApiProperty } from '@nestjs/swagger';
@@ -222,7 +222,7 @@ export class ChatSessionDetailDto {
 
 ### Step 3: Add MonitoringLoggerService Methods
 
-**File**: `apps/server-nest/src/modules/monitoring/monitoring-logger.service.ts`
+**File**: `apps/server/src/modules/monitoring/monitoring-logger.service.ts`
 
 Add new methods for MCP tool call logging:
 
@@ -282,7 +282,7 @@ async logMcpToolCall(input: {
 
 ### Step 4: Add MonitoringService Methods
 
-**File**: `apps/server-nest/src/modules/monitoring/monitoring.service.ts`
+**File**: `apps/server/src/modules/monitoring/monitoring.service.ts`
 
 Add methods to query chat session data:
 
@@ -386,7 +386,7 @@ async getChatSessionDetail(sessionId: string): Promise<ChatSessionDetailDto | nu
 
 ### Step 5: Add Controller Endpoints
 
-**File**: `apps/server-nest/src/modules/monitoring/monitoring.controller.ts`
+**File**: `apps/server/src/modules/monitoring/monitoring.controller.ts`
 
 Add chat session endpoints:
 
@@ -463,7 +463,7 @@ async listChatSessions(
 
 ### Step 6: Inject MonitoringLoggerService into Chat Module
 
-**File**: `apps/server-nest/src/modules/chat/chat.module.ts`
+**File**: `apps/server/src/modules/chat/chat.module.ts`
 
 ```typescript
 import { MonitoringModule } from '../monitoring/monitoring.module';
@@ -478,7 +478,7 @@ import { MonitoringModule } from '../monitoring/monitoring.module';
 export class ChatModule {}
 ```
 
-**File**: `apps/server-nest/src/modules/chat/chat.service.ts`
+**File**: `apps/server/src/modules/chat/chat.service.ts`
 
 ```typescript
 import { MonitoringLoggerService } from '../monitoring/monitoring-logger.service';
@@ -628,7 +628,7 @@ getChatSessionToolCalls: async (sessionId: string, limit = 50, offset = 0) => {
 
 1. **Backend Testing**:
    - Create migration
-   - Run migration: `npx nx run server-nest:migrate`
+   - Run migration: `npx nx run server:migrate`
    - Verify tables created: Query `kb.mcp_tool_calls`
    - Test MonitoringLoggerService.logMcpToolCall()
    - Test MonitoringService queries

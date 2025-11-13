@@ -336,7 +336,7 @@ WHERE integration_metadata->>'avatar' = 'emoji::📃';
 3. **Check Import Progress:**
    ```bash
    # Monitor logs
-   tail -f apps/server-nest/logs/app.log | grep -i "doc\|page"
+   tail -f apps/server/logs/app.log | grep -i "doc\|page"
    ```
 
 4. **Verify Database:**
@@ -515,44 +515,44 @@ private async storeDocument(
 ### Files Modified
 
 1. **Database Migration**
-   - `apps/server-nest/migrations/20251021_add_document_hierarchy_and_metadata.sql`
+   - `apps/server/migrations/20251021_add_document_hierarchy_and_metadata.sql`
    - Status: ✅ Applied
 
 2. **Type Definitions**
-   - `apps/server-nest/src/modules/clickup/clickup.types.ts`
+   - `apps/server/src/modules/clickup/clickup.types.ts`
    - Lines: 244-327 (v3 API types)
    - Status: ✅ Complete
 
 3. **API Client**
-   - `apps/server-nest/src/modules/clickup/clickup-api.client.ts`
+   - `apps/server/src/modules/clickup/clickup-api.client.ts`
    - Lines: 348-460 (v3 methods)
    - Status: ✅ Complete
 
 4. **Data Mapper**
-   - `apps/server-nest/src/modules/clickup/clickup-data-mapper.service.ts`
+   - `apps/server/src/modules/clickup/clickup-data-mapper.service.ts`
    - Lines: 390-497 (mapDoc, mapPage)
    - Status: ✅ Complete
 
 5. **Import Service**
-   - `apps/server-nest/src/modules/clickup/clickup-import.service.ts`
+   - `apps/server/src/modules/clickup/clickup-import.service.ts`
    - Lines: 336-356 (docs import in runFullImport)
    - Lines: 589-745 (importDocs, importPages methods)
    - Status: ✅ Complete
 
 6. **Document DTO**
-   - `apps/server-nest/src/modules/documents/dto/document.dto.ts`
+   - `apps/server/src/modules/documents/dto/document.dto.ts`
    - Added: `parentDocumentId`, `integrationMetadata`
    - Status: ✅ Complete
 
 7. **Base Integration Config**
-   - `apps/server-nest/src/modules/integrations/base-integration.ts`
+   - `apps/server/src/modules/integrations/base-integration.ts`
    - Added: `space_ids` to ImportConfig
    - Status: ✅ Complete
 
 ### Files Not Modified (Future Work)
 
 1. **Graph Service** (needs integration)
-   - `apps/server-nest/src/modules/graph/graph.service.ts`
+   - `apps/server/src/modules/graph/graph.service.ts`
 
 2. **Admin UI** (needs enhancement)
    - `apps/admin/src/pages/admin/pages/documents/*.tsx`

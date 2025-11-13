@@ -290,7 +290,7 @@ Expected logs:
 
 - `EXTRACTION_DUPLICATE_KEY_HANDLING.md` - Original skip strategy implementation
 - `docs/DATABASE_MIGRATIONS.md` - Version history in graph_objects table
-- `apps/server-nest/src/modules/graph/graph.service.ts` - patchObject implementation
+- `apps/server/src/modules/graph/graph.service.ts` - patchObject implementation
 
 ## Date
 

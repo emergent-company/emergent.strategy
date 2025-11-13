@@ -16,7 +16,7 @@
 **Root Cause:** `evaluatePredicates()` expects to receive the properties object directly, but was being passed the entire row/edge object. JSON Pointer paths like `/status` tried to resolve from `row.status` (doesn't exist) instead of `properties.status` (correct).
 
 **Files Modified:**
-- `apps/server-nest/src/modules/graph/graph.service.ts` (5 locations)
+- `apps/server/src/modules/graph/graph.service.ts` (5 locations)
 
 **Changes:**
 ```typescript
@@ -43,7 +43,7 @@ evaluatePredicates(e.properties || {}, [dto.edgeFilter])
 **Root Cause:** The predicate fix triggered a rebuild, changing the OpenAPI artifact hash.
 
 **Files Modified:**
-- `apps/server-nest/tests/openapi-regression.spec.ts`
+- `apps/server/tests/openapi-regression.spec.ts`
 
 **Changes:**
 ```typescript

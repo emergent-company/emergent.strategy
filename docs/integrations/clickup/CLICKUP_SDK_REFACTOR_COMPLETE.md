@@ -2,7 +2,7 @@
 
 ## Summary
 
-Successfully refactored the ClickUp API client (`apps/server-nest/src/modules/clickup/clickup-api.client.ts`) from using manual axios HTTP calls to using the official ClickUp SDK (`@api/clickup` v2.0.0).
+Successfully refactored the ClickUp API client (`apps/server/src/modules/clickup/clickup-api.client.ts`) from using manual axios HTTP calls to using the official ClickUp SDK (`@api/clickup` v2.0.0).
 
 ## Changes Made
 
@@ -70,15 +70,15 @@ The SDK has type mismatches at lines 129, 142, and 314 related to JSON Schema ty
 
 ## Testing Recommendations
 
-1. **Type Check**: `npx tsc --noEmit apps/server-nest/src/modules/clickup/clickup-api.client.ts` ✅
-2. **Full Build**: `npx nx run server-nest:build` ✅ (our code compiles)
+1. **Type Check**: `npx tsc --noEmit apps/server/src/modules/clickup/clickup-api.client.ts` ✅
+2. **Full Build**: `npx nx run server:build` ✅ (our code compiles)
 3. **Runtime Test**: Verify `testConnection()` works with real API token
 4. **Integration Test**: Run import service to verify docs fetching works
 5. **Validate**: Check that line 743 space-filtering functionality works correctly
 
 ## Files Modified
 
-- `apps/server-nest/src/modules/clickup/clickup-api.client.ts` (506 → 418 lines)
+- `apps/server/src/modules/clickup/clickup-api.client.ts` (506 → 418 lines)
   - Complete rewrite of HTTP client layer
   - All 15+ API methods updated
   - New `sdkCall()` helper method
@@ -86,8 +86,8 @@ The SDK has type mismatches at lines 129, 142, and 314 related to JSON Schema ty
 
 ## Files Unchanged (Backward Compatible)
 
-- `apps/server-nest/src/modules/clickup/clickup-import.service.ts` ✅
-- `apps/server-nest/src/modules/clickup/clickup-sync.service.ts` ✅
+- `apps/server/src/modules/clickup/clickup-import.service.ts` ✅
+- `apps/server/src/modules/clickup/clickup-sync.service.ts` ✅
 - All other ClickUp integration files ✅
 
 ## Next Steps

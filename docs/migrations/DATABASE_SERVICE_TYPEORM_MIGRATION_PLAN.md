@@ -90,7 +90,7 @@ class DatabaseService {
 
 ## Phase 1: DatabaseService Core Refactoring
 
-### File: `apps/server-nest/src/common/database/database.service.ts`
+### File: `apps/server/src/common/database/database.service.ts`
 
 **Lines to Modify**: 50, 110-181, 313-431, 478-569
 
@@ -406,7 +406,7 @@ private async switchToRlsApplicationRole(): Promise<void> {
 **Solution**: Update TypeORM configuration to connect as `app_rls` user:
 
 ```typescript
-// apps/server-nest/src/typeorm.config.ts
+// apps/server/src/typeorm.config.ts
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
   host: process.env.DB_HOST,
@@ -470,7 +470,7 @@ async onModuleDestroy() {
 
 ## Phase 2: Update Service Consumers
 
-### File: `apps/server-nest/src/modules/chat/chat.service.ts`
+### File: `apps/server/src/modules/chat/chat.service.ts`
 
 **Lines to Modify**: 397-426
 
@@ -550,7 +550,7 @@ async createMessage(...) {
 
 ---
 
-### File: `apps/server-nest/src/modules/auth/permission.service.ts`
+### File: `apps/server/src/modules/auth/permission.service.ts`
 
 **Pattern**: RLS enforcement checks
 
@@ -603,7 +603,7 @@ async checkPermission(orgId: string, projectId: string, objectId: string) {
 
 ---
 
-### File: `apps/server-nest/src/modules/auth/auth.service.ts`
+### File: `apps/server/src/modules/auth/auth.service.ts`
 
 **Pattern**: Pre-tenant-context operations (token introspection)
 
@@ -656,7 +656,7 @@ async introspectToken(token: string) {
 
 ## Phase 3: TypeORM Configuration Updates
 
-### File: `apps/server-nest/src/typeorm.config.ts`
+### File: `apps/server/src/typeorm.config.ts`
 
 **Change**: Connect as `app_rls` role by default
 
@@ -738,7 +738,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
 
 ### 4.1: RLS Enforcement Tests
 
-**Test File**: `apps/server-nest/test/database-service.e2e-spec.ts`
+**Test File**: `apps/server/test/database-service.e2e-spec.ts`
 
 ```typescript
 describe('DatabaseService RLS Enforcement (QueryRunner)', () => {

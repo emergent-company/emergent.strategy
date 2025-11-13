@@ -185,8 +185,8 @@ it('should load extraction config using TemplatePackService', async () => {
 ✅ **Build Status**: SUCCESS - Zero TypeScript errors
 
 ```bash
-npx nx run server-nest:build
-# Result: Successfully ran target build for project server-nest
+npx nx run server:build
+# Result: Successfully ran target build for project server
 ```
 
 All migrations compile cleanly with proper type checking.

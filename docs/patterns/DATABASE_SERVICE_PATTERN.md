@@ -92,7 +92,7 @@ const users = await userRepository.find(); // Automatically filtered!
 
 ### 1. Automatic RLS Context Application
 
-**File:** `apps/server-nest/src/common/database/database.service.ts:313-380`
+**File:** `apps/server/src/common/database/database.service.ts:313-380`
 
 Every call to `db.query()` or `db.getClient()` automatically applies the current tenant context:
 
@@ -135,7 +135,7 @@ async query(text, params) {
 
 ### 2. AsyncLocalStorage for Request Isolation
 
-**File:** `apps/server-nest/src/common/database/database.service.ts:72`
+**File:** `apps/server/src/common/database/database.service.ts:72`
 
 ```typescript
 private readonly tenantContextStorage = new AsyncLocalStorage<TenantStore>();
@@ -194,7 +194,7 @@ await db.runWithTenantContext(orgId, projectId, async () => {
 
 ### 4. Role-Based Security
 
-**File:** `apps/server-nest/src/common/database/database.service.ts:478-569`
+**File:** `apps/server/src/common/database/database.service.ts:478-569`
 
 On startup, DatabaseService switches from the configured (often bypass) role to `app_rls`:
 
@@ -238,7 +238,7 @@ async switchToRlsApplicationRole() {
 
 ### 5. Migration Management
 
-**File:** `apps/server-nest/src/common/database/database.service.ts:244-311`
+**File:** `apps/server/src/common/database/database.service.ts:244-311`
 
 ```typescript
 async runMigrations() {
@@ -267,7 +267,7 @@ async runMigrations() {
 
 ### 6. Health Check & Policy Verification
 
-**File:** `apps/server-nest/src/common/database/database.service.ts:576-616`
+**File:** `apps/server/src/common/database/database.service.ts:576-616`
 
 ```typescript
 async getRlsPolicyStatus() {
@@ -452,7 +452,7 @@ const results = await documentRepository
 
 **Example:** TagService uses both TypeORM AND DatabaseService
 
-**File:** `apps/server-nest/src/modules/graph/tag.service.ts:40-80`
+**File:** `apps/server/src/modules/graph/tag.service.ts:40-80`
 
 ```typescript
 async create(projectId: string, dto: CreateTagDto) {
@@ -627,7 +627,7 @@ export class SearchService {
 }
 ```
 
-**File:** `apps/server-nest/src/modules/search/search.service.ts:50-60`
+**File:** `apps/server/src/modules/search/search.service.ts:50-60`
 
 ### Pattern 2: Transaction with Advisory Lock
 
@@ -678,7 +678,7 @@ export class TagService {
 }
 ```
 
-**File:** `apps/server-nest/src/modules/graph/tag.service.ts:40-90`
+**File:** `apps/server/src/modules/graph/tag.service.ts:40-90`
 
 **Why this pattern?**
 
@@ -731,7 +731,7 @@ export class ExtractionWorkerService {
 }
 ```
 
-**File:** `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts:115-180`
+**File:** `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts:115-180`
 
 **Why this pattern?**
 
@@ -818,7 +818,7 @@ export class EncryptionService {
 }
 ```
 
-**File:** `apps/server-nest/src/modules/integrations/encryption.service.ts:71-115`
+**File:** `apps/server/src/modules/integrations/encryption.service.ts:71-115`
 
 **Why this pattern?**
 
@@ -856,7 +856,7 @@ export class EmbeddingJobsService {
 }
 ```
 
-**File:** `apps/server-nest/src/modules/graph/embedding-jobs.service.ts:200-215`
+**File:** `apps/server/src/modules/graph/embedding-jobs.service.ts:200-215`
 
 **Why this pattern?**
 
@@ -913,7 +913,7 @@ export class GraphService {
 }
 ```
 
-**File:** `apps/server-nest/src/modules/graph/graph.service.ts:80-115`
+**File:** `apps/server/src/modules/graph/graph.service.ts:80-115`
 
 **Why this pattern?**
 

@@ -7,7 +7,7 @@ Created a comprehensive logging infrastructure for ClickUp import operations, mi
 ## Files Created
 
 ### 1. ClickUpImportLoggerService
-**File**: `apps/server-nest/src/modules/clickup/clickup-import-logger.service.ts` (509 lines)
+**File**: `apps/server/src/modules/clickup/clickup-import-logger.service.ts` (509 lines)
 
 **Features**:
 - Dual logging: Database + JSONL files
@@ -26,7 +26,7 @@ Created a comprehensive logging infrastructure for ClickUp import operations, mi
 - `getIntegrationSessions()` - Recent import history
 
 ### 2. Database Migration
-**File**: `apps/server-nest/src/migrations/20251022_add_clickup_import_logs.sql`
+**File**: `apps/server/src/migrations/20251022_add_clickup_import_logs.sql`
 
 **Table**: `kb.clickup_import_logs`
 
@@ -94,7 +94,7 @@ Added npm scripts:
 ```
 
 ### ClickUpModule
-Updated: `apps/server-nest/src/modules/clickup/clickup.module.ts`
+Updated: `apps/server/src/modules/clickup/clickup.module.ts`
 
 **Changes**:
 - Added import: `ClickUpImportLoggerService`
@@ -238,13 +238,13 @@ Each should log:
 
 ## Files Modified
 
-1. `apps/server-nest/src/modules/clickup/clickup.module.ts` - Added logger to providers/exports
+1. `apps/server/src/modules/clickup/clickup.module.ts` - Added logger to providers/exports
 2. `package.json` - Added log:pretty and log:clickup scripts
 
 ## Files Created
 
-1. `apps/server-nest/src/modules/clickup/clickup-import-logger.service.ts` - Logger service (509 lines)
-2. `apps/server-nest/src/migrations/20251022_add_clickup_import_logs.sql` - Database schema
+1. `apps/server/src/modules/clickup/clickup-import-logger.service.ts` - Logger service (509 lines)
+2. `apps/server/src/migrations/20251022_add_clickup_import_logs.sql` - Database schema
 3. `scripts/pretty-print-log.js` - Pretty-print utility (executable)
 4. `docs/CLICKUP_IMPORT_LOGGING.md` - Comprehensive documentation
 5. `docs/CLICKUP_IMPORT_LOGGING_IMPLEMENTATION.md` - This summary

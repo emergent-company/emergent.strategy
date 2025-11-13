@@ -488,9 +488,9 @@ EXTRACTION_CHUNK_OVERLAP=500
 ## Related Documentation
 
 - **Enhanced Error Logging**: `docs/EXTRACTION_JOB_43E7FED5_INVESTIGATION.md`
-- **LLM Provider Interface**: `apps/server-nest/src/modules/extraction-jobs/llm/llm-provider.interface.ts`
-- **Extraction Worker**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
-- **Config Service**: `apps/server-nest/src/common/config/config.service.ts`
+- **LLM Provider Interface**: `apps/server/src/modules/extraction-jobs/llm/llm-provider.interface.ts`
+- **Extraction Worker**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
+- **Config Service**: `apps/server/src/common/config/config.service.ts`
 
 ## References
 

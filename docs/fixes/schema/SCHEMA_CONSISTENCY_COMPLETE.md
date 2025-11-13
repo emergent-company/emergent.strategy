@@ -202,8 +202,8 @@ INSERT INTO kb.integrations (
 - ✅ Tests already use `organization_id`
 
 ### Testing Required
-- ⏳ Run unit tests: `nx run server-nest:test`
-- ⏳ Run E2E tests: `nx run server-nest:test-e2e`
+- ⏳ Run unit tests: `nx run server:test`
+- ⏳ Run E2E tests: `nx run server:test-e2e`
 - ⏳ Test FK constraints with invalid data
 - ⏳ Test cascading deletes
 
@@ -244,7 +244,7 @@ All schema consistency issues have been resolved:
 
 ## 📚 Related Documentation
 
-- Migration conventions: `apps/server-nest/MIGRATION_NAMING_CONVENTIONS.md`
+- Migration conventions: `apps/server/MIGRATION_NAMING_CONVENTIONS.md`
 - Schema audit: `docs/SCHEMA_CONSISTENCY_AUDIT_2025_10_24.md`
 - Final results: `docs/SCHEMA_CONSISTENCY_FINAL_RESULTS.md`
 - Database migrations: `docs/DATABASE_MIGRATIONS.md`

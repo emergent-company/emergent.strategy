@@ -281,7 +281,7 @@ curl -X POST "http://localhost:3001/api/v1/integrations/clickup/sync" \
 ### Backend Files
 
 ```
-apps/server-nest/src/
+apps/server/src/
 ├── modules/
 │   ├── clickup/
 │   │   ├── clickup-api.client.ts          (API wrapper)
@@ -397,7 +397,7 @@ docs/
 ### Manual Testing Checklist
 
 #### Pre-Testing Setup
-- [ ] Backend server running (`npm run dev` in apps/server-nest)
+- [ ] Backend server running (`npm run dev` in apps/server)
 - [ ] Frontend dev server running (`npm run dev` in apps/admin)
 - [ ] PostgreSQL database running
 - [ ] ClickUp integration configured with valid API token
@@ -706,12 +706,12 @@ describe('WorkspaceTree', () => {
 
 1. **Database Migration**
    ```bash
-   npm run migrate:up --workspace=apps/server-nest
+   npm run migrate:up --workspace=apps/server
    ```
 
 2. **Backend Deployment**
    ```bash
-   cd apps/server-nest
+   cd apps/server
    npm run build
    npm run start:prod
    ```

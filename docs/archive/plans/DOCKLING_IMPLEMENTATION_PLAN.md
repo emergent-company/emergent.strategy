@@ -520,7 +520,7 @@ volumes:
 
 #### 4.1 Storage Service (Provider-Agnostic)
 
-File: apps/server-nest/src/modules/storage/storage.service.ts
+File: apps/server/src/modules/storage/storage.service.ts
 
 import { Injectable, Logger } from '@nestjs/common';
 import { AppConfigService } from '../../common/config/config.service';
@@ -662,7 +662,7 @@ export class StorageService {
 
 #### 4.2 Document Parsing Worker (Critical Service)
 
-File: apps/server-nest/src/modules/documents/document-parsing-worker.service.ts
+File: apps/server/src/modules/documents/document-parsing-worker.service.ts
 
 Key features:
 

@@ -235,7 +235,7 @@ CORS_ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com
 The application validates **all required variables** before starting:
 
 ```typescript
-// apps/server-nest/src/main.ts
+// apps/server/src/main.ts
 function validateEnvironment() {
   const required = {
     'POSTGRES_HOST': 'localhost',
@@ -291,7 +291,7 @@ validateEnvVars(DB_REQUIREMENTS);
 Tests use centralized `test-env.ts`:
 
 ```typescript
-// apps/server-nest/tests/test-env.ts
+// apps/server/tests/test-env.ts
 export function setupTestEnvironment() {
   // Sets sensible defaults for local dev
   process.env.POSTGRES_HOST = process.env.POSTGRES_HOST || 'localhost';
@@ -412,10 +412,10 @@ If you're updating an existing development environment:
 - `ENV_FALLBACK_FIXES.md` - Implementation plan
 
 ### Key Files
-- `apps/server-nest/src/main.ts` - Startup validation
-- `apps/server-nest/src/modules/integrations/encryption.service.ts` - Encryption key validation
+- `apps/server/src/main.ts` - Startup validation
+- `apps/server/src/modules/integrations/encryption.service.ts` - Encryption key validation
 - `scripts/lib/env-validator.ts` - Script validation utility
-- `apps/server-nest/tests/test-env.ts` - Test environment setup
+- `apps/server/tests/test-env.ts` - Test environment setup
 
 ### Support
 If you encounter issues not covered in this guide:

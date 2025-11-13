@@ -202,9 +202,9 @@ curl http://localhost:3001/health
 
 ## Related Files
 
-- `/Users/mcj/code/spec-server/apps/server-nest/src/modules/extraction-jobs/extraction-job.module.ts` (MODIFIED)
-- `/Users/mcj/code/spec-server/apps/server-nest/src/modules/discovery-jobs/discovery-job.module.ts` (unchanged)
-- `/Users/mcj/code/spec-server/apps/server-nest/src/modules/discovery-jobs/discovery-job.service.ts` (unchanged)
+- `/Users/mcj/code/spec-server/apps/server/src/modules/extraction-jobs/extraction-job.module.ts` (MODIFIED)
+- `/Users/mcj/code/spec-server/apps/server/src/modules/discovery-jobs/discovery-job.module.ts` (unchanged)
+- `/Users/mcj/code/spec-server/apps/server/src/modules/discovery-jobs/discovery-job.service.ts` (unchanged)
 
 ## Impact
 

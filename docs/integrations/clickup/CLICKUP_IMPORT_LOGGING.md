@@ -8,7 +8,7 @@ The ClickUp import logging system provides comprehensive tracking of import oper
 
 ### 1. ClickUpImportLoggerService
 
-Located: `apps/server-nest/src/modules/clickup/clickup-import-logger.service.ts`
+Located: `apps/server/src/modules/clickup/clickup-import-logger.service.ts`
 
 **Features:**
 - Dual logging: Database table (`kb.clickup_import_logs`) + JSONL files (`logs/clickup-import/*.jsonl`)
@@ -324,7 +324,7 @@ npm run db:migrate
 
 ## Related Files
 
-- Logger Service: `apps/server-nest/src/modules/clickup/clickup-import-logger.service.ts`
-- Migration: `apps/server-nest/src/migrations/20251022_add_clickup_import_logs.sql`
+- Logger Service: `apps/server/src/modules/clickup/clickup-import-logger.service.ts`
+- Migration: `apps/server/src/migrations/20251022_add_clickup_import_logs.sql`
 - Pretty-Print: `scripts/pretty-print-log.js`
-- Module Registration: `apps/server-nest/src/modules/clickup/clickup.module.ts`
+- Module Registration: `apps/server/src/modules/clickup/clickup.module.ts`

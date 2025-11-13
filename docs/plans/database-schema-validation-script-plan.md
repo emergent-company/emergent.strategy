@@ -14,7 +14,7 @@
    - Created `kb.documents` and `kb.chunks` tables
    - Created basic indexes
 
-2. **Full Migrations** (`apps/server-nest/migrations/0001_init.sql`) contain:
+2. **Full Migrations** (`apps/server/migrations/0001_init.sql`) contain:
    - Same `kb` schema creation (not idempotent - `CREATE SCHEMA kb` without `IF NOT EXISTS`)
    - 31 columns in `kb.object_extraction_jobs`
    - Full `kb.graph_embedding_jobs` table
@@ -328,7 +328,7 @@ async function fixSchema(client: Client, diff: SchemaDiff, options: FixOptions):
 
 ### Phase 1: Make Migrations Idempotent
 
-**File**: Update `apps/server-nest/migrations/0001_init.sql`
+**File**: Update `apps/server/migrations/0001_init.sql`
 
 **Changes**:
 ```sql
@@ -405,7 +405,7 @@ tsx scripts/validate-schema.ts --fix
 
 ### Phase 3: Integrate with Startup
 
-**Add to `apps/server-nest/src/main.ts`**:
+**Add to `apps/server/src/main.ts`**:
 
 ```typescript
 // Before starting server
@@ -712,7 +712,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 **Option 2**: Docker init = first migration
 ```bash
 # Copy migration to docker init
-cp apps/server-nest/migrations/0001_init.sql docker/init.sql
+cp apps/server/migrations/0001_init.sql docker/init.sql
 # Mark migration as applied automatically on first run
 ```
 

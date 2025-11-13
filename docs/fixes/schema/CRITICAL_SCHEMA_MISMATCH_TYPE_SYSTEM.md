@@ -111,7 +111,7 @@ CREATE TABLE kb.relationship_type_schemas (
 ## Code That Depends on Old Schema
 
 ### SchemaRegistryService
-**File**: `apps/server-nest/src/modules/graph/schema-registry.service.ts`
+**File**: `apps/server/src/modules/graph/schema-registry.service.ts`
 
 ```typescript
 async getObjectValidator(projectId: string | null, type: string): Promise<ValidateFunction | undefined> {
@@ -251,8 +251,8 @@ stderr | tests/e2e/graph.traversal-advanced.e2e.spec.ts > Graph Advanced Travers
 
 [ERROR] Unhandled non-HTTP exception: error: column "project_id" does not exist
     at /Users/mcj/code/spec-server-2/node_modules/pg/lib/client.js:545:17
-    at DatabaseService.query (/Users/mcj/code/spec-server-2/apps/server-nest/src/common/database/database.service.ts:166:24)
-    at SchemaRegistryService.getObjectValidator (/Users/mcj/code/spec-server-2/apps/server-nest/src/modules/graph/schema-registry.service.ts:38:21)
+    at DatabaseService.query (/Users/mcj/code/spec-server-2/apps/server/src/common/database/database.service.ts:166:24)
+    at SchemaRegistryService.getObjectValidator (/Users/mcj/code/spec-server-2/apps/server/src/modules/graph/schema-registry.service.ts:38:21)
 ```
 
 ## Next Steps
@@ -266,8 +266,8 @@ stderr | tests/e2e/graph.traversal-advanced.e2e.spec.ts > Graph Advanced Travers
 
 ## Related Files
 
-- `apps/server-nest/migrations/0001_init.sql` - Refactored schema
-- `apps/server-nest/migrations/_old/0001_complete_schema.sql` - Production schema
-- `apps/server-nest/src/modules/graph/schema-registry.service.ts` - Breaks with new schema
-- `apps/server-nest/src/modules/type-registry/type-registry.service.ts` - May handle schema creation
+- `apps/server/migrations/0001_init.sql` - Refactored schema
+- `apps/server/migrations/_old/0001_complete_schema.sql` - Production schema
+- `apps/server/src/modules/graph/schema-registry.service.ts` - Breaks with new schema
+- `apps/server/src/modules/type-registry/type-registry.service.ts` - May handle schema creation
 - Tests: `tests/e2e/graph.*.e2e.spec.ts` - 22+ failures from this issue

@@ -43,7 +43,7 @@ Updated the prompt builder to:
 
 ### Changes Made
 
-**File:** `apps/server-nest/src/modules/chat/chat-generation.service.ts`
+**File:** `apps/server/src/modules/chat/chat-generation.service.ts`
 
 #### 1. Updated Base System Prompt
 
@@ -180,7 +180,7 @@ This fix improves **all** chat responses, not just entity queries:
 
 ## Related Files
 
-- `apps/server-nest/src/modules/chat/chat-generation.service.ts` - Prompt builder with markdown instructions
+- `apps/server/src/modules/chat/chat-generation.service.ts` - Prompt builder with markdown instructions
 - `apps/admin/src/pages/admin/chat/conversation/index.tsx` - Markdown renderer
 - `docs/CHAT_MARKDOWN_RENDERING.md` - Markdown rendering documentation
 

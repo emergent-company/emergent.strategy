@@ -552,7 +552,7 @@ describeWithDb('ExtractionWorker Integration', (getDb) => {
 **Tools**:
 - Jest with NestJS testing utilities
 - `describeWithDb` for integration tests
-- Coverage report: `nx run server-nest:test-coverage`
+- Coverage report: `nx run server:test-coverage`
 
 ---
 
@@ -645,10 +645,10 @@ describeWithDb('ExtractionWorker Integration', (getDb) => {
 
 ```bash
 # Run full test suite with coverage
-nx run server-nest:test-coverage
+nx run server:test-coverage
 
 # View HTML report
-open apps/server-nest/coverage/lcov-report/index.html
+open apps/server/coverage/lcov-report/index.html
 ```
 
 ### Target Metrics

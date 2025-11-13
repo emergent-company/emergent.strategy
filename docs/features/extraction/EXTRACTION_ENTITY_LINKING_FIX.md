@@ -27,7 +27,7 @@ The extraction job controller (`ExtractionJobController`) requires two HTTP head
 These headers are validated in the controller's helper methods:
 
 ```typescript
-// apps/server-nest/src/modules/extraction-jobs/extraction-job.controller.ts
+// apps/server/src/modules/extraction-jobs/extraction-job.controller.ts
 
 private getOrganizationId(req: Request): string {
     const header = req.headers['x-org-id'];
@@ -271,12 +271,12 @@ Add extraction worker to the E2E environment setup:
 
 ### ✅ Fixed
 
-- `apps/server-nest/tests/e2e/extraction.entity-linking.e2e.spec.ts`
+- `apps/server/tests/e2e/extraction.entity-linking.e2e.spec.ts`
   - Lines 35, 179, 329, 456: Added `x-org-id` and `x-project-id` headers
 
 ### 📝 Needs Update (Option 1)
 
-- `apps/server-nest/tests/e2e/extraction.entity-linking.e2e.spec.ts`
+- `apps/server/tests/e2e/extraction.entity-linking.e2e.spec.ts`
   - Lines 137-151: Replace polling loop with manual job completion
   - Lines 281-295: Replace polling loop with manual job completion
   - Lines 417-431: Replace polling loop with manual job completion
@@ -284,10 +284,10 @@ Add extraction worker to the E2E environment setup:
 
 ## Related Files
 
-- `apps/server-nest/src/modules/extraction-jobs/extraction-job.controller.ts` - Controller requiring headers
-- `apps/server-nest/tests/e2e/phase1.workflows.e2e.spec.ts` - Example of manual job completion pattern
-- `apps/server-nest/tests/e2e/auth-helpers.ts` - Helper for creating auth headers
-- `apps/server-nest/tests/e2e/e2e-context.ts` - E2E test context setup
+- `apps/server/src/modules/extraction-jobs/extraction-job.controller.ts` - Controller requiring headers
+- `apps/server/tests/e2e/phase1.workflows.e2e.spec.ts` - Example of manual job completion pattern
+- `apps/server/tests/e2e/auth-helpers.ts` - Helper for creating auth headers
+- `apps/server/tests/e2e/e2e-context.ts` - E2E test context setup
 
 ## Lessons Learned
 

@@ -99,15 +99,15 @@ The original migration `0001_dynamic_type_system_phase1.sql` creates the broken 
 
 ## Related Code
 
-- **Database Service**: `apps/server-nest/src/common/database/database.service.ts`
+- **Database Service**: `apps/server/src/common/database/database.service.ts`
   - Sets tenant context to empty strings for system operations
   - Method: `runWithTenantContext(orgId, projectId, callback)`
 
-- **Extraction Worker**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+- **Extraction Worker**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
   - Runs background jobs without user context
   - Uses `SYSTEM_USER_ID` constant for system operations
 
-- **Type Registry**: `apps/server-nest/src/modules/type-registry/type-registry.service.ts`
+- **Type Registry**: `apps/server/src/modules/type-registry/type-registry.service.ts`
   - Queries type registry with tenant context
   - Method: `getProjectTypes(projectId)`
 

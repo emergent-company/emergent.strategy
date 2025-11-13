@@ -10,7 +10,7 @@ Added configurable extraction base prompt to the Admin UI Settings page, allowin
 
 ### 1. Backend Configuration Schema
 
-**File**: `apps/server-nest/src/common/config/config.schema.ts`
+**File**: `apps/server/src/common/config/config.schema.ts`
 
 - Added `EXTRACTION_BASE_PROMPT` environment variable to `EnvVariables` class
 - Added to validation defaults in `validate()` function
@@ -25,7 +25,7 @@ EXTRACTION_BASE_PROMPT?: string; // Base instruction prompt for LLM entity extra
 
 ### 2. Backend Configuration Service
 
-**File**: `apps/server-nest/src/common/config/config.service.ts`
+**File**: `apps/server/src/common/config/config.service.ts`
 
 - Added `extractionBasePrompt` getter with built-in default
 - Added comprehensive JSDoc explaining the priority: Database → Environment → Default
@@ -49,7 +49,7 @@ Return your response as a valid JSON array matching the expected schema format.`
 
 ### 3. Settings Controller - Database Integration
 
-**File**: `apps/server-nest/src/modules/settings/settings.controller.ts`
+**File**: `apps/server/src/modules/settings/settings.controller.ts`
 
 **Changes**:
 - Converted from placeholder implementation to real database-backed service
@@ -68,7 +68,7 @@ PUT    /api/settings/:key     → Update/create setting (body: { value: any })
 
 ### 4. Extraction Worker - Database Setting Loading
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+**File**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 **Changes**:
 - Updated `loadExtractionConfig()` method to check database first
@@ -140,7 +140,7 @@ try {
 
 ### 6. Environment Variable Documentation
 
-**File**: `apps/server-nest/.env.example`
+**File**: `apps/server/.env.example`
 
 **Added**:
 ```bash

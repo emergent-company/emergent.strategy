@@ -25,7 +25,7 @@
 - `valid_from` (never implemented)
 
 **Files Fixed:**
-- `apps/server-nest/src/modules/graph/graph.service.ts`
+- `apps/server/src/modules/graph/graph.service.ts`
   - Line ~449: `createRelationship` RETURNING clause
   - Line ~540: `patchRelationship` RETURNING clause
   - Line ~586: `restoreRelationship` RETURNING clause
@@ -51,20 +51,20 @@ service = module.get<TypeRegistryService>(TypeRegistryService);
 ```
 
 **Files Fixed:**
-1. `apps/server-nest/src/modules/type-registry/__tests__/type-registry.service.spec.ts`
+1. `apps/server/src/modules/type-registry/__tests__/type-registry.service.spec.ts`
    - Converted from Jest to Vitest
    - Added manual mock assignment
    - Result: 16 failures → 4 failures
 
-2. `apps/server-nest/src/modules/template-packs/__tests__/template-pack.service.spec.ts`
+2. `apps/server/src/modules/template-packs/__tests__/template-pack.service.spec.ts`
    - Added manual mock assignment
    - Result: Multiple failures → passing
 
-3. `apps/server-nest/src/modules/graph/__tests__/embedding-policy.service.spec.ts`
+3. `apps/server/src/modules/graph/__tests__/embedding-policy.service.spec.ts`
    - Added manual mock assignment
    - Result: Multiple failures → passing
 
-4. `apps/server-nest/src/modules/search/__tests__/path-summary.service.spec.ts`
+4. `apps/server/src/modules/search/__tests__/path-summary.service.spec.ts`
    - Added manual mock assignment
    - Result: 12 failures → 2 failures (deduplication logic still has issues)
 
@@ -83,7 +83,7 @@ service = module.get<TypeRegistryService>(TypeRegistryService);
 - Used `mockResolvedValueOnce` for proper sequential mock calls
 
 **Files Fixed:**
-- `apps/server-nest/src/modules/type-registry/__tests__/type-registry.service.spec.ts`
+- `apps/server/src/modules/type-registry/__tests__/type-registry.service.spec.ts`
   - Result: 17 failures → 0 failures (24/24 passing)
 
 **Tests Fixed:** 18 tests in type-registry that were failing with various mock/expectation issues
@@ -96,7 +96,7 @@ service = module.get<TypeRegistryService>(TypeRegistryService);
 - `docker/docker-compose.yml` - Port mappings (8100:8080, 8101:3000)
 - `docker/zitadel.env` - Login v2 URIs
 - `apps/admin/.env` - Vite Zitadel issuer
-- `apps/server-nest/.env` - Backend auth configuration
+- `apps/server/.env` - Backend auth configuration
 - `.env` (root) - Multiple Zitadel URL references
 - `RUNBOOK.md` - Documentation
 - `apps/admin/README.md` - Admin app guide
@@ -198,22 +198,22 @@ service = module.get<TypeRegistryService>(TypeRegistryService);
 
 ### Run All Tests
 ```bash
-npm --prefix apps/server-nest run test
+npm --prefix apps/server run test
 ```
 
 ### Run Specific Test File
 ```bash
-npm --prefix apps/server-nest test -- src/modules/type-registry/__tests__/type-registry.service.spec.ts
+npm --prefix apps/server test -- src/modules/type-registry/__tests__/type-registry.service.spec.ts
 ```
 
 ### Check Test Coverage
 ```bash
-npm --prefix apps/server-nest run test:coverage
+npm --prefix apps/server run test:coverage
 ```
 
 ### Debug Single Test
 ```bash
-npm --prefix apps/server-nest test -- path/to/test.spec.ts --reporter=verbose
+npm --prefix apps/server test -- path/to/test.spec.ts --reporter=verbose
 ```
 
 ## Conclusion

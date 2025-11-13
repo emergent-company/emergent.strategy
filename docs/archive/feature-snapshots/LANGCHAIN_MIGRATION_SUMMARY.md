@@ -17,7 +17,7 @@ Successfully migrated the extraction worker from direct Google Vertex AI SDK usa
 ### 1. ✅ Installed Dependencies
 
 ```bash
-npm install --prefix apps/server-nest zod
+npm install --prefix apps/server zod
 ```
 
 **New Dependencies:**
@@ -28,7 +28,7 @@ npm install --prefix apps/server-nest zod
 
 ### 2. ✅ Created Zod Schemas (8 Entity Types)
 
-**Location**: `apps/server-nest/src/modules/extraction-jobs/schemas/`
+**Location**: `apps/server/src/modules/extraction-jobs/schemas/`
 
 **Files Created:**
 - `base.schema.ts` - Base schema with confidence, source_text, extraction_reasoning
@@ -56,7 +56,7 @@ export const RequirementSchema = BaseExtractedEntitySchema.extend({
 
 ### 3. ✅ Created LangChain Extraction Provider
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+**File**: `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
 
 **Key Features:**
 - Implements `ILLMProvider` interface (consistent with existing VertexAIProvider)
@@ -78,7 +78,7 @@ this.model = new ChatGoogleGenerativeAI({
 
 ### 4. ✅ Updated LLM Provider Factory
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/llm/llm-provider.factory.ts`
+**File**: `apps/server/src/modules/extraction-jobs/llm/llm-provider.factory.ts`
 
 **Changes:**
 - Added `LangChainGeminiProvider` as dependency
@@ -97,7 +97,7 @@ if (this.langChainProvider.isConfigured()) {
 
 ### 5. ✅ Updated Module Registration
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-job.module.ts`
+**File**: `apps/server/src/modules/extraction-jobs/extraction-job.module.ts`
 
 **Changes:**
 - Added `LangChainGeminiProvider` to providers array
@@ -106,7 +106,7 @@ if (this.langChainProvider.isConfigured()) {
 
 ### 6. ✅ Updated Configuration Service
 
-**File**: `apps/server-nest/src/common/config/config.service.ts`
+**File**: `apps/server/src/common/config/config.service.ts`
 
 **Changes:**
 - Updated `extractionWorkerEnabled` to check for **either**:
@@ -168,7 +168,7 @@ VERTEX_AI_MODEL=gemini-1.5-pro-002      # Model
 ### ✅ Type Check Passed
 
 ```bash
-cd apps/server-nest && npm run build
+cd apps/server && npm run build
 # ✅ Success - No TypeScript errors
 ```
 

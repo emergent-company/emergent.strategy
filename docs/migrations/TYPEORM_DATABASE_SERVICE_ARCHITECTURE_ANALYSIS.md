@@ -18,7 +18,7 @@ Our current dual-architecture (TypeORM + DatabaseService) is **intentional and o
 
 ### 1. TypeORM DataSource (Primary ORM)
 
-**Location**: `apps/server-nest/src/typeorm.config.ts`, `apps/server-nest/src/modules/app.module.ts:38-59`
+**Location**: `apps/server/src/typeorm.config.ts`, `apps/server/src/modules/app.module.ts:38-59`
 
 **Configuration**:
 
@@ -62,7 +62,7 @@ TemplatePackService     McpToolSelectorService    InvitesService
 
 ### 2. DatabaseService (RLS + Raw SQL)
 
-**Location**: `apps/server-nest/src/common/database/database.service.ts`
+**Location**: `apps/server/src/common/database/database.service.ts`
 
 **Connection Pool**: Custom `pg.Pool` instance (lines 50, 126-132)
 
@@ -230,7 +230,7 @@ class DatabaseService {
 
 **Files to Modify**:
 
-1. `apps/server-nest/src/common/database/database.service.ts` (963 lines)
+1. `apps/server/src/common/database/database.service.ts` (963 lines)
 
    - Replace `pg.Pool` with `DataSource.createQueryRunner()`
    - Update `query()` method (lines 313-380)
@@ -484,8 +484,8 @@ export class ChatService {
 
 ## References
 
-- `apps/server-nest/src/common/database/database.service.ts` - DatabaseService implementation
-- `apps/server-nest/src/typeorm.config.ts` - TypeORM DataSource configuration
-- `apps/server-nest/src/modules/app.module.ts:38-59` - TypeORM module setup
+- `apps/server/src/common/database/database.service.ts` - DatabaseService implementation
+- `apps/server/src/typeorm.config.ts` - TypeORM DataSource configuration
+- `apps/server/src/modules/app.module.ts:38-59` - TypeORM module setup
 - TypeORM Documentation: https://github.com/typeorm/typeorm/blob/master/docs/
 - PostgreSQL Row-Level Security: https://www.postgresql.org/docs/current/ddl-rowsecurity.html

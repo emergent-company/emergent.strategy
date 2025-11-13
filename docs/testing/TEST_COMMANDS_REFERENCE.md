@@ -6,7 +6,7 @@ Complete reference for running all test suites in the Spec Server project.
 
 ```bash
 # Server Tests (Backend API)
-cd apps/server-nest
+cd apps/server
 npm test                    # Unit tests only (fast, 805 tests, ~9s)
 npm run test:e2e           # E2E + Integration tests (requires database)
 npm run test:all           # All tests (unit + e2e)
@@ -25,7 +25,7 @@ npm run test:coverage:all         # All coverage reports
 
 ---
 
-## Server Tests (apps/server-nest)
+## Server Tests (apps/server)
 
 ### Prerequisites
 
@@ -43,7 +43,7 @@ npm run workspace:start-all
 
 ### Unit Tests (Fast, No Dependencies)
 
-Run from `apps/server-nest/` directory:
+Run from `apps/server/` directory:
 
 ```bash
 # Run all unit tests (default)
@@ -68,7 +68,7 @@ npm run test:coverage
 
 ### E2E Tests (Requires Database)
 
-Run from `apps/server-nest/` directory:
+Run from `apps/server/` directory:
 
 ```bash
 # Run all E2E + Integration tests
@@ -91,7 +91,7 @@ npm run test:coverage:e2e
 
 ### Scenario Tests (Complex User Journeys)
 
-Run from `apps/server-nest/` directory:
+Run from `apps/server/` directory:
 
 ```bash
 # Run scenario tests
@@ -106,7 +106,7 @@ npm run test:scenarios
 
 ### Integration Tests (Specific Services)
 
-Run from `apps/server-nest/` directory:
+Run from `apps/server/` directory:
 
 ```bash
 # ClickUp integration test (requires real API access)
@@ -121,7 +121,7 @@ npm run test:integration:clickup
 
 ### All Server Tests
 
-Run from `apps/server-nest/` directory:
+Run from `apps/server/` directory:
 
 ```bash
 # Run unit tests then E2E tests
@@ -130,7 +130,7 @@ npm run test:all
 
 ### CI/CD Commands
 
-Run from `apps/server-nest/` directory:
+Run from `apps/server/` directory:
 
 ```bash
 # CI mode (with environment variable)
@@ -280,7 +280,7 @@ npm run test:smoke
 **Server (Vitest)**:
 
 ```bash
-cd apps/server-nest
+cd apps/server
 
 # Specific unit test
 npm test -- tests/unit/auth/auth.service.spec.ts
@@ -318,7 +318,7 @@ npm run e2e -- --debug
 **Server**:
 
 ```bash
-cd apps/server-nest
+cd apps/server
 npm run test:watch              # Unit tests
 npm run test:watch -- tests/unit/auth/  # Specific directory
 ```
@@ -336,7 +336,7 @@ npm run e2e:ui                  # Interactive E2E
 **Server Tests (Vitest)**:
 
 ```bash
-cd apps/server-nest
+cd apps/server
 
 # Node debugger
 node --inspect-brk node_modules/.bin/vitest run tests/unit/auth.service.spec.ts
@@ -366,7 +366,7 @@ npm run e2e -- e2e/specs/smoke.spec.ts --debug
 ### Server Tests Structure
 
 ```
-apps/server-nest/tests/
+apps/server/tests/
 ├── unit/                   # Unit tests (805 tests)
 │   ├── auth/
 │   ├── chat/
@@ -414,12 +414,12 @@ apps/admin/
 
 ```bash
 # 1. Fast feedback loop (unit tests only)
-cd apps/server-nest
+cd apps/server
 npm test
 
 # 2. Before committing (include E2E)
 npm run workspace:deps:start    # Start database (from root)
-cd apps/server-nest
+cd apps/server
 npm run test:all                # Run everything
 ```
 
@@ -441,7 +441,7 @@ npm run e2e                    # Full suite
 **On Every Commit**:
 
 ```bash
-cd apps/server-nest
+cd apps/server
 npm run test:ci                # Unit tests + coverage
 npm run build                  # Verify build
 
@@ -545,9 +545,9 @@ npx playwright install
 
 | Command                     | Location            | Purpose           | Requires DB |
 | --------------------------- | ------------------- | ----------------- | ----------- |
-| `npm test`                  | `apps/server-nest/` | Unit tests        | ❌          |
-| `npm run test:e2e`          | `apps/server-nest/` | E2E + Integration | ✅          |
-| `npm run test:all`          | `apps/server-nest/` | All server tests  | ✅          |
+| `npm test`                  | `apps/server/` | Unit tests        | ❌          |
+| `npm run test:e2e`          | `apps/server/` | E2E + Integration | ✅          |
+| `npm run test:all`          | `apps/server/` | All server tests  | ✅          |
 | `npm test`                  | `apps/admin/`       | Component tests   | ❌          |
 | `npm run e2e`               | `apps/admin/`       | Playwright E2E    | ❌\*        |
 | `npm run test:coverage:all` | Root                | All coverage      | ✅          |

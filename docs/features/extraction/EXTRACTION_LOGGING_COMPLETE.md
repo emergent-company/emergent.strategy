@@ -343,10 +343,10 @@ WHERE logged_at < NOW() - INTERVAL '90 days';
 
 ## Related Files
 
-- **Migration**: `apps/server-nest/migrations/20251019_add_extraction_logs.sql` ✅
-- **Service**: `apps/server-nest/src/modules/extraction-jobs/extraction-logger.service.ts` ✅
-- **Worker**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` ✅
-- **Controller**: `apps/server-nest/src/modules/extraction-jobs/extraction-job.controller.ts` ✅
+- **Migration**: `apps/server/migrations/20251019_add_extraction_logs.sql` ✅
+- **Service**: `apps/server/src/modules/extraction-jobs/extraction-logger.service.ts` ✅
+- **Worker**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` ✅
+- **Controller**: `apps/server/src/modules/extraction-jobs/extraction-job.controller.ts` ✅
 - **Modal Component**: `apps/admin/src/components/organisms/ExtractionLogsModal/` ✅
 - **Page Integration**: `apps/admin/src/pages/admin/pages/extraction-jobs/detail.tsx` ✅
 - **Documentation**: `docs/EXTRACTION_LOGGING_IMPLEMENTATION.md`

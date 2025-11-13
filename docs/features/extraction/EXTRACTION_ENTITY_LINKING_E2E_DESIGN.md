@@ -2,7 +2,7 @@
 
 ## Summary
 
-The extraction.entity-linking E2E tests (`apps/server-nest/tests/e2e/extraction.entity-linking.e2e.spec.ts`) are **correctly designed but require LLM API configuration** to run. They cannot be "fixed" by manual job completion because they test the **full extraction pipeline**, not just job management.
+The extraction.entity-linking E2E tests (`apps/server/tests/e2e/extraction.entity-linking.e2e.spec.ts`) are **correctly designed but require LLM API configuration** to run. They cannot be "fixed" by manual job completion because they test the **full extraction pipeline**, not just job management.
 
 ## Problem Discovered
 
@@ -48,7 +48,7 @@ The tests specifically verify entity-linking logic scenarios:
 
 ### Unit Tests (Work Without LLM ✅)
 
-**File:** `apps/server-nest/src/modules/extraction-jobs/__tests__/entity-linking.service.spec.ts`
+**File:** `apps/server/src/modules/extraction-jobs/__tests__/entity-linking.service.spec.ts`
 
 These test the EntityLinkingService **in isolation** with mocked dependencies:
 - `findSimilarObject()` - key matching, name normalization
@@ -60,7 +60,7 @@ These test the EntityLinkingService **in isolation** with mocked dependencies:
 
 ### E2E Tests (Require LLM ⚠️)
 
-**File:** `apps/server-nest/tests/e2e/extraction.entity-linking.e2e.spec.ts`
+**File:** `apps/server/tests/e2e/extraction.entity-linking.e2e.spec.ts`
 
 Test full pipeline integration with real:
 - Database operations
@@ -71,7 +71,7 @@ Test full pipeline integration with real:
 
 **Status:** 4 tests failing (timeout → no LLM configured)
 
-**File:** `apps/server-nest/tests/e2e/extraction-worker.e2e.spec.ts`
+**File:** `apps/server/tests/e2e/extraction-worker.e2e.spec.ts`
 
 Similar full pipeline tests (job creation, worker polling, LLM extraction).
 
@@ -79,7 +79,7 @@ Similar full pipeline tests (job creation, worker polling, LLM extraction).
 
 ## Comparison with phase1.workflows
 
-**phase1.workflows tests** (`apps/server-nest/tests/e2e/phase1.workflows.e2e.spec.ts`):
+**phase1.workflows tests** (`apps/server/tests/e2e/phase1.workflows.e2e.spec.ts`):
 - Test **job management endpoints** only
 - Create, update, list, delete jobs
 - Don't require extraction to actually run
@@ -228,16 +228,16 @@ Add to test file header:
  * - Service account with Vertex AI permissions
  * 
  * Alternative: See unit tests for entity-linking logic
- * (apps/server-nest/src/modules/extraction-jobs/__tests__/entity-linking.service.spec.ts)
+ * (apps/server/src/modules/extraction-jobs/__tests__/entity-linking.service.spec.ts)
  */
 ```
 
 ## Related Documentation
 
-- **Unit Tests:** `apps/server-nest/src/modules/extraction-jobs/__tests__/entity-linking.service.spec.ts`
-- **E2E Tests:** `apps/server-nest/tests/e2e/extraction.entity-linking.e2e.spec.ts`
-- **Worker Service:** `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
-- **Linking Service:** `apps/server-nest/src/modules/extraction-jobs/entity-linking.service.ts`
+- **Unit Tests:** `apps/server/src/modules/extraction-jobs/__tests__/entity-linking.service.spec.ts`
+- **E2E Tests:** `apps/server/tests/e2e/extraction.entity-linking.e2e.spec.ts`
+- **Worker Service:** `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
+- **Linking Service:** `apps/server/src/modules/extraction-jobs/entity-linking.service.ts`
 - **Header Fix:** `docs/EXTRACTION_ENTITY_LINKING_FIX.md`
 
 ## Progress Impact

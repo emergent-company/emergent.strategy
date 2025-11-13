@@ -17,7 +17,7 @@ Successfully implemented comprehensive test suite for SpecificDataTool with 30 p
 ### What Was Completed
 
 ✅ **SpecificDataTool Tests**: 30/30 passing (~95% coverage)
-- File created: `apps/server-nest/src/modules/mcp/__tests__/specific-data.tool.spec.ts`
+- File created: `apps/server/src/modules/mcp/__tests__/specific-data.tool.spec.ts`
 - 30 comprehensive tests across 6 tool methods
 - All tests passing on first run (after fixing 2 minor TypeScript errors)
 - No build errors after fixes
@@ -238,7 +238,7 @@ Test Files  1 passed (1)
 
 ### All MCP Tests Combined
 ```bash
-npm --prefix apps/server-nest run test -- src/modules/mcp/__tests__/
+npm --prefix apps/server run test -- src/modules/mcp/__tests__/
 ```
 
 **Expected Results**:
@@ -322,7 +322,7 @@ Tests verify metadata structure on every response.
 ## File Changes
 
 ### Created
-- `apps/server-nest/src/modules/mcp/__tests__/specific-data.tool.spec.ts` (847 lines)
+- `apps/server/src/modules/mcp/__tests__/specific-data.tool.spec.ts` (847 lines)
   * 30 comprehensive tests
   * 6 describe blocks (one per tool method)
   * GraphService mock setup with 3 methods
@@ -429,24 +429,24 @@ My personal recommendation: **Option A** (complete GenericDataTool) then **Optio
 
 ### Run All MCP Tests
 ```bash
-npm --prefix apps/server-nest run test -- src/modules/mcp/__tests__/
+npm --prefix apps/server run test -- src/modules/mcp/__tests__/
 ```
 
 ### Run Specific Component Tests
 ```bash
-npm --prefix apps/server-nest run test -- schema-version.service.spec.ts
-npm --prefix apps/server-nest run test -- schema.tool.spec.ts
-npm --prefix apps/server-nest run test -- specific-data.tool.spec.ts
+npm --prefix apps/server run test -- schema-version.service.spec.ts
+npm --prefix apps/server run test -- schema.tool.spec.ts
+npm --prefix apps/server run test -- specific-data.tool.spec.ts
 ```
 
 ### Run Coverage Report
 ```bash
-npm --prefix apps/server-nest run test:coverage -- src/modules/mcp/
+npm --prefix apps/server run test:coverage -- src/modules/mcp/
 ```
 
 ### Watch Mode (Development)
 ```bash
-npm --prefix apps/server-nest run test:watch -- specific-data.tool.spec.ts
+npm --prefix apps/server run test:watch -- specific-data.tool.spec.ts
 ```
 
 ---

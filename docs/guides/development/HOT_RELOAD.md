@@ -33,13 +33,13 @@ Both the Admin frontend and API backend are configured with hot reload (auto-res
 **Script:** `npm run start:dev` → `ts-node-dev --respawn --no-notify --ignore-watch node_modules src/main.ts`
 
 **How it works:**
-- Detects changes to `.ts` files in `apps/server-nest/src/`
+- Detects changes to `.ts` files in `apps/server/src/`
 - Automatically recompiles TypeScript
 - Restarts the NestJS application
 - Preserves compilation cache for faster restarts
 
 **Watch paths:**
-- `apps/server-nest/src/**/*.ts`
+- `apps/server/src/**/*.ts`
 - Excludes `node_modules/`
 
 **Performance:**
@@ -68,7 +68,7 @@ npm run server:start   # ts-node-dev watch enabled
 
 **Result:**
 - Edit any file in `apps/admin/src/` → browser updates instantly
-- Edit any file in `apps/server-nest/src/` → server restarts automatically
+- Edit any file in `apps/server/src/` → server restarts automatically
 
 ### Checking Hot Reload Status
 
@@ -105,7 +105,7 @@ If you want to run the compiled server without watch mode:
 
 ```bash
 # Build TypeScript to JavaScript
-cd apps/server-nest
+cd apps/server
 npm run build
 
 # Run compiled version
@@ -130,7 +130,7 @@ export default defineConfig({
 ```
 
 #### Server (ts-node-dev)
-Edit `apps/server-nest/package.json`:
+Edit `apps/server/package.json`:
 
 ```json
 {
@@ -222,7 +222,7 @@ The workspace CLI uses PM2 to supervise processes. Hot reload works seamlessly w
    ```
 
 3. **Check file is in watch path:**
-   - Only `apps/server-nest/src/**/*.ts` files trigger restart
+   - Only `apps/server/src/**/*.ts` files trigger restart
    - Changes to `node_modules/` are ignored
    - Changes to `.env` require manual restart
 

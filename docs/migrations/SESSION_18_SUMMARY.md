@@ -94,7 +94,7 @@ Added comprehensive strategic SQL documentation:
 
 ## Files Changed
 
-1. **apps/server-nest/src/modules/ingestion/ingestion.service.ts**:
+1. **apps/server/src/modules/ingestion/ingestion.service.ts**:
    - Added TypeORM imports (InjectRepository, Repository)
    - Injected projectRepository
    - Migrated shouldAutoExtract() to TypeORM

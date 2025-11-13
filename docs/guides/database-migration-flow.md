@@ -20,13 +20,13 @@ The database schema is managed by a **unified migration system** that ensures:
 ### Single Source of Truth
 
 **Migration Runner**: `scripts/run-migrations.ts`
-- Runs all `.sql` files from `apps/server-nest/migrations/`
+- Runs all `.sql` files from `apps/server/migrations/`
 - Tracks applied migrations in `public.schema_migrations`
 - Executes in transactions (rollback on failure)
 - Used by BOTH manual runs and application startup
 
 **No Duplication**: DatabaseService calls the same script
-- Located: `apps/server-nest/src/common/database/database.service.ts`
+- Located: `apps/server/src/common/database/database.service.ts`
 - Calls: `scripts/run-migrations.ts` via exec
 - Throws error if migrations fail → app won't start
 

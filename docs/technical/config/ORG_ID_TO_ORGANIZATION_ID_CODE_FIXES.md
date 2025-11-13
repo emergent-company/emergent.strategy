@@ -8,28 +8,28 @@ After migrating the database schema from `org_id` to `organization_id` in tables
 
 ### 1. SQL Query Fixes (Critical - Causing 500 errors)
 
-#### `apps/server-nest/src/modules/chat/chat.service.ts`
+#### `apps/server/src/modules/chat/chat.service.ts`
 - **Line 49**: Changed WHERE clause from `org_id IS NOT DISTINCT FROM` → `organization_id IS NOT DISTINCT FROM`
 - **Line 58**: Changed WHERE clause from `org_id IS NOT DISTINCT FROM` → `organization_id IS NOT DISTINCT FROM`
 - **Line 67**: Changed SELECT from `org_id` → `organization_id`
 - **Line 207**: Changed INSERT column from `org_id` → `organization_id`
 - **Line 222**: Changed INSERT column from `org_id` → `organization_id` (retry path)
 
-#### `apps/server-nest/src/modules/ingestion/ingestion.service.ts`
+#### `apps/server/src/modules/ingestion/ingestion.service.ts`
 - **Line 209**: Changed CTE alias from `AS org_id` → `AS organization_id`
 - **Line 214**: Changed INSERT column from `org_id` → `organization_id`
 - **Line 255**: Changed CTE alias from `AS org_id` → `AS organization_id`
 - **Line 260**: Changed INSERT column from `org_id` → `organization_id`
 
-#### `apps/server-nest/src/modules/auth/permission.service.ts`
+#### `apps/server/src/modules/auth/permission.service.ts`
 - **Line 69**: Changed SELECT column from `org_id` → `organization_id`
 
-#### `apps/server-nest/src/modules/graph/tag.service.ts`
+#### `apps/server/src/modules/graph/tag.service.ts`
 - **Line 66**: Changed INSERT column from `org_id` → `organization_id`
 - **Line 68**: Changed RETURNING column from `org_id` → `organization_id`
 - **Line 173**: Changed RETURNING column from `org_id` → `organization_id`
 
-#### `apps/server-nest/src/modules/graph/product-version.service.ts`
+#### `apps/server/src/modules/graph/product-version.service.ts`
 - **Line 36**: Changed INSERT column from `org_id` → `organization_id`
 - **Line 38**: Changed RETURNING column from `org_id` → `organization_id`
 
@@ -53,22 +53,22 @@ sed -i '' 's/org_id/organization_id/g' tests/e2e/graph.*.e2e.spec.ts tests/e2e/p
 The following still use `org_id` as **variable names** internally but correctly map to `organization_id` columns:
 
 #### TypeScript Interfaces/Types
-- `apps/server-nest/src/modules/graph/graph.types.ts` - `org_id?: string | null;` (interface property)
-- `apps/server-nest/src/modules/graph/dto/create-graph-object.dto.ts` - `org_id?: string;` (DTO property)
-- `apps/server-nest/src/modules/graph/dto/history.dto.ts` - `org_id!: string | null;` (DTO property)
-- `apps/server-nest/src/modules/extraction-jobs/dto/extraction-job.dto.ts` - `org_id?: string;` (DTO property)
+- `apps/server/src/modules/graph/graph.types.ts` - `org_id?: string | null;` (interface property)
+- `apps/server/src/modules/graph/dto/create-graph-object.dto.ts` - `org_id?: string;` (DTO property)
+- `apps/server/src/modules/graph/dto/history.dto.ts` - `org_id!: string | null;` (DTO property)
+- `apps/server/src/modules/extraction-jobs/dto/extraction-job.dto.ts` - `org_id?: string;` (DTO property)
 
 #### Service Layer Variable Names
-- `apps/server-nest/src/modules/graph/graph.service.ts` - Uses `org_id` as variable name but correctly inserts into `organization_id` column
-- `apps/server-nest/src/modules/graph/graph.controller.ts` - Maps `dto.organization_id` to `org_id` variable
+- `apps/server/src/modules/graph/graph.service.ts` - Uses `org_id` as variable name but correctly inserts into `organization_id` column
+- `apps/server/src/modules/graph/graph.controller.ts` - Maps `dto.organization_id` to `org_id` variable
 
 #### Query Parameters (API Surface)
-- `apps/server-nest/src/modules/type-registry/type-registry.controller.ts` - `@Query('org_id')` decorators (9 occurrences)
-- `apps/server-nest/src/modules/template-packs/template-pack.controller.ts` - `@Query('org_id')` decorator
+- `apps/server/src/modules/type-registry/type-registry.controller.ts` - `@Query('org_id')` decorators (9 occurrences)
+- `apps/server/src/modules/template-packs/template-pack.controller.ts` - `@Query('org_id')` decorator
 
 #### Worker Services
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` - Maps `job.organization_id` to `org_id` property when creating graph objects (4 occurrences)
-- `apps/server-nest/src/modules/clickup/clickup-import.service.ts` - Uses `org_id` variable name
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` - Maps `job.organization_id` to `org_id` property when creating graph objects (4 occurrences)
+- `apps/server/src/modules/clickup/clickup-import.service.ts` - Uses `org_id` variable name
 
 ### 4. Not Changed (Intentionally)
 
@@ -78,7 +78,7 @@ The following still use `org_id` as **variable names** internally but correctly 
 - `apps/admin/e2e/specs/*.ts` - Playwright tests mock API responses with `org_id`
 
 #### Test Specs/Mocks
-- `apps/server-nest/tests/orgs.service.spec.ts` - SQL query string in test assertion
+- `apps/server/tests/orgs.service.spec.ts` - SQL query string in test assertion
 - Unit test files that mock data structures
 
 #### OpenAPI/Documentation

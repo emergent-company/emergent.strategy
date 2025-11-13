@@ -116,7 +116,7 @@ Requires bearer token authentication (same as other integration endpoints).
 
 #### 1. ClickUpImportService.fetchWorkspaceStructure()
 
-**File:** `apps/server-nest/src/modules/clickup/clickup-import.service.ts`
+**File:** `apps/server/src/modules/clickup/clickup-import.service.ts`
 
 New method that orchestrates the fetching of the workspace structure:
 
@@ -145,7 +145,7 @@ async fetchWorkspaceStructure(
 
 #### 2. ClickUpIntegration.getWorkspaceStructure()
 
-**File:** `apps/server-nest/src/modules/clickup/clickup.integration.ts`
+**File:** `apps/server/src/modules/clickup/clickup.integration.ts`
 
 Wrapper method that calls the import service:
 
@@ -155,7 +155,7 @@ async getWorkspaceStructure(): Promise<any>
 
 #### 3. IntegrationsService.getClickUpWorkspaceStructure()
 
-**File:** `apps/server-nest/src/modules/integrations/integrations.service.ts`
+**File:** `apps/server/src/modules/integrations/integrations.service.ts`
 
 Service layer method that:
 1. Retrieves the ClickUp integration configuration
@@ -172,7 +172,7 @@ async getClickUpWorkspaceStructure(
 
 #### 4. IntegrationsController.getClickUpWorkspaceStructure()
 
-**File:** `apps/server-nest/src/modules/integrations/integrations.controller.ts`
+**File:** `apps/server/src/modules/integrations/integrations.controller.ts`
 
 Controller endpoint:
 
@@ -375,7 +375,7 @@ ETag: "structure-hash"
 
 **Backend:**
 ```typescript
-// apps/server-nest/src/modules/clickup/clickup-import.service.spec.ts
+// apps/server/src/modules/clickup/clickup-import.service.spec.ts
 describe('fetchWorkspaceStructure', () => {
     it('should fetch and structure workspace hierarchy', async () => {
         // Mock ClickUp API responses

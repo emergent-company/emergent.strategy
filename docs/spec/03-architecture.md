@@ -65,7 +65,7 @@ SSE Implementation (Chat)
 - Abort support: pass `AbortSignal` from request; if client disconnects (`close` event), complete observable and cancel LLM call.
 
 Incremental Migration Plan
-1. Create `apps/server-nest` (or refactor in-place if repo simplicity preferred). Scaffold with Nest CLI (`nest new`).
+1. Create `apps/server` (or refactor in-place if repo simplicity preferred). Scaffold with Nest CLI (`nest new`).
 2. Implement core cross‑cutting modules (Config, Database, Auth) + HealthModule first; verify build & OpenAPI output.
 3. Port read‑only endpoints (health, settings, orgs, projects, documents, chunks, search) maintaining identical routes.
 4. Implement ChatModule SSE with a mock retrieval first; validate streaming contract matches existing Admin UI consumer.

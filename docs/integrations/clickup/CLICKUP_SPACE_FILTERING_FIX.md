@@ -179,13 +179,13 @@ Where N = pages of docs, M = number of selected spaces
 
 ## Files Modified
 
-1. `/apps/server-nest/src/modules/clickup/clickup-import.service.ts`
+1. `/apps/server/src/modules/clickup/clickup-import.service.ts`
    - Added folder-to-space mapping before document processing
    - Replaced broken space ID filtering with folder-based filtering
    - Enhanced safety mechanisms (MAX_ITERATIONS, cursor deduplication)
    - Improved logging for debugging
 
-2. `/apps/server-nest/src/modules/clickup/clickup-api.client.ts`
+2. `/apps/server/src/modules/clickup/clickup-api.client.ts`
    - Already had `getFolders(spaceId)` method (used by fix)
    - `getFolder(folderId)` added during investigation (not used in final solution)
 

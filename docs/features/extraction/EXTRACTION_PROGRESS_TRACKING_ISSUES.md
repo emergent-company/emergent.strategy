@@ -33,7 +33,7 @@ WHERE table_schema = 'kb' AND table_name = 'object_extraction_jobs';
 -- Missing: total_items, processed_items, successful_items, failed_items
 ```
 
-**Backend Code References** (apps/server-nest/src/modules/extraction-jobs/):
+**Backend Code References** (apps/server/src/modules/extraction-jobs/):
 - `extraction-job.service.ts` lines 292-303: `updateJob()` method sets these fields
 - `extraction-worker.service.ts` lines 520-548: `updateProgress()` method called during processing
 - `extraction-job.service.ts` lines 620-648: `updateProgress()` implementation
@@ -84,7 +84,7 @@ null value in column "key" of relation "graph_objects" violates not-null constra
 
 ### ✅ Issue 2 Fixed: Key Generation (October 18, 2025)
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+**File**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 **Changes**:
 1. Added `generateKeyFromName()` private method (lines 1373-1405):
@@ -168,9 +168,9 @@ null value in column "key" of relation "graph_objects" violates not-null constra
 ## Related Files
 
 ### Backend
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` - Worker logic, key generation
-- `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts` - Job management, progress updates
-- `apps/server-nest/src/modules/graph/graph.service.ts` - Object creation (requires non-null key)
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` - Worker logic, key generation
+- `apps/server/src/modules/extraction-jobs/extraction-job.service.ts` - Job management, progress updates
+- `apps/server/src/modules/graph/graph.service.ts` - Object creation (requires non-null key)
 
 ### Frontend
 - `apps/admin/src/pages/admin/pages/extraction-jobs/detail.tsx` - Progress UI calculations
