@@ -261,9 +261,10 @@ export class TemplatePackService {
     if (userId) {
       try {
         // Try to find user by zitadel_user_id or by id
+        // Note: id is UUID, zitadel_user_id is text, so we need to handle type casting
         const userResult = await this.db.query(
           `SELECT id FROM core.user_profiles 
-                     WHERE id = $1 OR zitadel_user_id = $1 
+                     WHERE id::text = $1 OR zitadel_user_id = $1 
                      LIMIT 1`,
           [userId]
         );

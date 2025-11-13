@@ -9,6 +9,11 @@ import {
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { AppConfigService } from '../config/config.service';
 import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { DataSource, QueryRunner } from 'typeorm';
+import type { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
+
+// Re-export QueryRunner for consumers
+export { QueryRunner };
 
 export interface PgConfig {
   host?: string;
@@ -45,9 +50,69 @@ interface PgPolicyRow {
   with_check: string | null;
 }
 
+/**
+ * Adapter that wraps TypeORM QueryRunner to provide a pg PoolClient-compatible interface.
+ * This allows existing code that expects PoolClient to work with QueryRunner seamlessly.
+ */
+class QueryRunnerAdapter {
+  constructor(private readonly queryRunner: QueryRunner) {}
+
+  async query<T extends QueryResultRow = any>(
+    text: string,
+    params?: any[]
+  ): Promise<QueryResult<T>> {
+    const result = await this.queryRunner.query(text, params);
+
+    // TypeORM's queryRunner.query() returns different formats based on query type:
+    // - SELECT/INSERT...RETURNING: [{row1}, {row2}, ...]
+    // - UPDATE...RETURNING: [[{row1}, {row2}], affectedCount]
+    // - UPDATE/DELETE (no RETURNING): [[], affectedCount]
+
+    let rows: T[];
+    let rowCount: number;
+
+    if (Array.isArray(result)) {
+      // Detect UPDATE...RETURNING format: [[rows], count]
+      if (
+        result.length === 2 &&
+        Array.isArray(result[0]) &&
+        typeof result[1] === 'number'
+      ) {
+        rows = result[0];
+        rowCount = result[1];
+      } else {
+        // SELECT/INSERT format: [rows]
+        rows = result;
+        rowCount = result.length;
+      }
+    } else {
+      // Single row result
+      rows = [result];
+      rowCount = 1;
+    }
+
+    return {
+      rows,
+      rowCount,
+      command: text.trim().split(/\s+/)[0].toUpperCase() as any,
+      fields: [],
+      oid: 0,
+    } as QueryResult<T>;
+  }
+
+  async release(): Promise<void> {
+    await this.queryRunner.release();
+  }
+
+  // Expose the underlying QueryRunner for cases where direct access is needed
+  get underlying(): QueryRunner {
+    return this.queryRunner;
+  }
+}
+
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
-  private pool!: Pool;
+  private dataSource!: DataSource;
   private online = false;
   private readonly logger = new Logger(DatabaseService.name);
   // Guard for lazy init path (when getClient/query used before Nest lifecycle onModuleInit fires in certain test harnesses)
@@ -84,11 +149,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Get the raw connection pool for operations that need to bypass tenant RLS context.
+   * Get the raw DataSource for operations that need to bypass tenant RLS context.
    * Used by UserProfileService for authentication operations that happen before tenant context exists.
+   * @deprecated Prefer using query() or getClient() for tenant-aware operations
    */
-  getPool(): Pool | null {
-    return this.pool || null;
+  getPool(): DataSource | null {
+    return this.dataSource || null;
   }
 
   private resolveAppRlsPassword(): string {
@@ -122,14 +188,40 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     try {
-      // Establish initial pool using configured (likely owner / bypass) role
-      this.pool = new Pool({
-        host: this.config.dbHost,
-        port: this.config.dbPort,
-        user: this.config.dbUser,
-        password: this.config.dbPassword,
-        database: this.config.dbName,
-      });
+      // Import TypeORM DataSource configuration
+      const typeormConfigModule = await import('../../typeorm.config');
+      const baseDataSource = typeormConfigModule.default;
+
+      // Override config with runtime env vars if provided (allows owner role for migrations)
+      if (!baseDataSource.isInitialized) {
+        // Apply config overrides before initialization - options are readonly so create new DataSource if needed
+        const baseOptions = baseDataSource.options as PostgresConnectionOptions;
+        const hasOverrides =
+          (this.config.dbHost && this.config.dbHost !== baseOptions.host) ||
+          (this.config.dbPort && this.config.dbPort !== baseOptions.port) ||
+          (this.config.dbUser && this.config.dbUser !== baseOptions.username) ||
+          (this.config.dbPassword &&
+            this.config.dbPassword !== baseOptions.password) ||
+          (this.config.dbName && this.config.dbName !== baseOptions.database);
+
+        if (hasOverrides) {
+          const newOptions = {
+            ...baseOptions,
+            host: this.config.dbHost || baseOptions.host,
+            port: this.config.dbPort || baseOptions.port,
+            username: this.config.dbUser || baseOptions.username,
+            password: this.config.dbPassword || baseOptions.password,
+            database: this.config.dbName || baseOptions.database,
+          };
+          this.dataSource = new DataSource(newOptions);
+        } else {
+          this.dataSource = baseDataSource;
+        }
+
+        await this.dataSource.initialize();
+      } else {
+        this.dataSource = baseDataSource;
+      }
 
       // Wait for database to be ready with retries
       await this.waitForDatabase();
@@ -181,9 +273,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy() {
-    if (this.pool) {
+    if (this.dataSource && this.dataSource.isInitialized) {
       try {
-        await this.pool.end();
+        await this.dataSource.destroy();
       } catch {
         /* ignore */
       }
@@ -207,7 +299,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         this.logger.log(
           `Attempting database connection (${attempt}/${maxAttempts})...`
         );
-        await this.pool.query('SELECT 1');
+        await this.dataSource.query('SELECT 1');
         this.logger.log('✓ Database connection successful');
         return;
       } catch (error) {
@@ -242,29 +334,19 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
    * Throws error if migrations fail - app will not start with incomplete schema.
    */
   async runMigrations(): Promise<void> {
-    if (!this.pool) {
+    if (!this.dataSource) {
       this.logger.error(
-        'Cannot run migrations - database pool not initialized'
+        'Cannot run migrations - database DataSource not initialized'
       );
-      throw new Error('Database pool not initialized');
+      throw new Error('Database DataSource not initialized');
     }
 
     const start = Date.now();
     this.logger.log('Running database migrations...');
 
-    let dataSource: any = null;
     try {
-      // Dynamically import the TypeORM DataSource configuration
-      const typeormConfigModule = await import('../../typeorm.config');
-      dataSource = typeormConfigModule.default;
-
-      // Initialize the DataSource connection
-      if (!dataSource.isInitialized) {
-        await dataSource.initialize();
-      }
-
-      // Run pending migrations
-      const migrations = await dataSource.runMigrations({
+      // Run pending migrations using the existing DataSource
+      const migrations = await this.dataSource.runMigrations({
         transaction: 'all', // Run all migrations in a single transaction
       });
 
@@ -295,18 +377,6 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       );
 
       throw new Error(`Migration failed: ${errorMessage}`);
-    } finally {
-      // Clean up the DataSource connection
-      if (dataSource?.isInitialized) {
-        try {
-          await dataSource.destroy();
-        } catch (err) {
-          this.logger.warn(
-            'Failed to destroy TypeORM DataSource: ' +
-              (err instanceof Error ? err.message : String(err))
-          );
-        }
-      }
     }
   }
 
@@ -314,7 +384,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     text: string,
     params?: any[]
   ): Promise<QueryResult<T>> {
-    if (!this.pool) {
+    if (!this.dataSource) {
       await this.lazyInit();
     }
     if (!this.online) {
@@ -328,7 +398,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     }
     // If tenant context has been set, ensure the executing session has the
     // correct GUCs before running the user query. We cannot rely on a prior
-    // set_config call because the Pool may give us a different connection.
+    // set_config call because the connection pool may give us a different connection.
     const store = this.tenantContextStorage.getStore();
     const effectiveOrgRaw = store?.orgId ?? this.currentOrgId ?? null;
     const effectiveProjectRaw =
@@ -338,7 +408,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       this.currentOrgId !== undefined ||
       this.currentProjectId !== undefined;
     if (hasContext) {
-      const client = await this.pool.connect();
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
       try {
         const effectiveOrg = effectiveOrgRaw ?? '';
         const effectiveProject = effectiveProjectRaw ?? '';
@@ -351,7 +422,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             rowSecurity: wildcard ? 'on (wildcard)' : 'on (scoped)',
           });
         }
-        await client.query(
+        await queryRunner.query(
           'SELECT set_config($1,$2,false), set_config($3,$4,false), set_config($5,$6,false)',
           [
             'app.current_organization_id',
@@ -371,22 +442,98 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             rowSecurity: wildcard ? 'on (wildcard)' : 'on (scoped)',
           });
         }
-        return await client.query<T>(text, params);
+        const result = await queryRunner.query(text, params);
+
+        // Convert TypeORM result format to pg QueryResult format
+        // TypeORM's behavior for different query types:
+        // - SELECT/INSERT...RETURNING: returns array of rows directly: [{...}, {...}]
+        // - UPDATE...RETURNING: returns [rows_array, affected_count]: [[{...}], 1]
+        // - DELETE/UPDATE without RETURNING: returns [[], affected_count]
+
+        let rows: T[];
+        let rowCount: number;
+
+        if (Array.isArray(result)) {
+          // Check if this is the UPDATE...RETURNING format: [[rows], count]
+          if (
+            result.length === 2 &&
+            Array.isArray(result[0]) &&
+            typeof result[1] === 'number'
+          ) {
+            // UPDATE...RETURNING format: extract rows from nested array
+            rows = result[0];
+            rowCount = result[1]; // Use actual affected count from TypeORM
+          } else {
+            // SELECT/INSERT...RETURNING format: use array directly
+            rows = result;
+            rowCount = result.length;
+          }
+        } else {
+          // Single object result (shouldn't happen, but handle it)
+          rows = [result];
+          rowCount = 1;
+        }
+
+        return {
+          rows,
+          rowCount,
+          command: text.trim().split(/\s+/)[0].toUpperCase() as any,
+          fields: [],
+          oid: 0,
+        } as unknown as QueryResult<T>;
       } finally {
-        client.release();
+        await queryRunner.release();
       }
     }
-    return this.pool.query<T>(text, params);
+    const result = await this.dataSource.query(text, params);
+
+    // Convert TypeORM result format to pg QueryResult format
+    // TypeORM's behavior for different query types:
+    // - SELECT/INSERT...RETURNING: returns array of rows directly: [{...}, {...}]
+    // - UPDATE...RETURNING: returns [rows_array, affected_count]: [[{...}], 1]
+    // - DELETE/UPDATE without RETURNING: returns [[], affected_count]
+
+    let rows: T[];
+    let rowCount: number;
+
+    if (Array.isArray(result)) {
+      // Check if this is the UPDATE...RETURNING format: [[rows], count]
+      if (
+        result.length === 2 &&
+        Array.isArray(result[0]) &&
+        typeof result[1] === 'number'
+      ) {
+        // UPDATE...RETURNING format: extract rows from nested array
+        rows = result[0];
+        rowCount = result[1]; // Use actual affected count from TypeORM
+      } else {
+        // SELECT/INSERT...RETURNING format: use array directly
+        rows = result;
+        rowCount = result.length;
+      }
+    } else {
+      // Single object result (shouldn't happen, but handle it)
+      rows = [result];
+      rowCount = 1;
+    }
+
+    return {
+      rows,
+      rowCount,
+      command: text.trim().split(/\s+/)[0].toUpperCase() as any,
+      fields: [],
+      oid: 0,
+    } as unknown as QueryResult<T>;
   }
 
-  async getClient(): Promise<PoolClient> {
-    if (!this.pool) {
+  async getClient(): Promise<QueryRunnerAdapter> {
+    if (!this.dataSource) {
       await this.lazyInit();
     }
-    // After lazy init the pool may still be undefined when SKIP_DB was set at process start.
+    // After lazy init the dataSource may still be undefined when SKIP_DB was set at process start.
     // Previously this produced a TypeError (reading 'connect' of undefined) which masked the
     // underlying configuration issue and surfaced as opaque 500s across many endpoints.
-    if (!this.pool) {
+    if (!this.dataSource) {
       throw new Error(
         'Database disabled (SKIP_DB set) – transactional operation not permitted. Unset SKIP_DB or run with DB_AUTOINIT=true for tests.'
       );
@@ -396,7 +543,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         'Database offline – cannot acquire client. Check connectivity or initialization logs.'
       );
     }
-    const client = await this.pool.connect();
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
     try {
       const store = this.tenantContextStorage.getStore();
       const orgRaw = store?.orgId ?? this.currentOrgId ?? null;
@@ -412,7 +560,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
           rowSecurity: wildcard ? 'on (wildcard)' : 'on (scoped)',
         });
       }
-      await client.query(
+      await queryRunner.query(
         'SELECT set_config($1,$2,false), set_config($3,$4,false), set_config($5,$6,false)',
         [
           'app.current_organization_id',
@@ -424,10 +572,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         ]
       );
     } catch (err) {
-      client.release();
+      await queryRunner.release();
       throw err;
     }
-    return client;
+    return new QueryRunnerAdapter(queryRunner);
   }
 
   isOnline() {
@@ -439,9 +587,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
    * This occurs in some test harnesses that instantiate providers manually. Keeps semantics idempotent.
    */
   private async lazyInit() {
-    if (this.pool || this.initializing || this.config.skipDb) {
-      if (!this.pool && this.config.skipDb) {
-        // Explicitly skipped DB – leave pool undefined; callers should rely on offline guards.
+    if (this.dataSource || this.initializing || this.config.skipDb) {
+      if (!this.dataSource && this.config.skipDb) {
+        // Explicitly skipped DB – leave dataSource undefined; callers should rely on offline guards.
         this.online = false;
       }
       if (this.initializing) await this.initializing; // wait existing attempt
@@ -449,14 +597,39 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     }
     this.initializing = (async () => {
       try {
-        this.pool = new Pool({
-          host: this.config.dbHost,
-          port: this.config.dbPort,
-          user: this.config.dbUser,
-          password: this.config.dbPassword,
-          database: this.config.dbName,
-        });
-        await this.pool.query('SELECT 1');
+        // Import TypeORM DataSource configuration
+        const typeormConfigModule = await import('../../typeorm.config');
+        const baseDataSource = typeormConfigModule.default;
+
+        // Apply config overrides before initialization - options are readonly so create new DataSource if needed
+        const baseOptions = baseDataSource.options as PostgresConnectionOptions;
+        const hasOverrides =
+          (this.config.dbHost && this.config.dbHost !== baseOptions.host) ||
+          (this.config.dbPort && this.config.dbPort !== baseOptions.port) ||
+          (this.config.dbUser && this.config.dbUser !== baseOptions.username) ||
+          (this.config.dbPassword &&
+            this.config.dbPassword !== baseOptions.password) ||
+          (this.config.dbName && this.config.dbName !== baseOptions.database);
+
+        if (hasOverrides) {
+          const newOptions = {
+            ...baseOptions,
+            host: this.config.dbHost || baseOptions.host,
+            port: this.config.dbPort || baseOptions.port,
+            username: this.config.dbUser || baseOptions.username,
+            password: this.config.dbPassword || baseOptions.password,
+            database: this.config.dbName || baseOptions.database,
+          };
+          this.dataSource = new DataSource(newOptions);
+        } else {
+          this.dataSource = baseDataSource;
+        }
+
+        if (!this.dataSource.isInitialized) {
+          await this.dataSource.initialize();
+        }
+
+        await this.dataSource.query('SELECT 1');
         // Schema is now managed entirely by migrations (no ensureSchema)
         try {
           await this.switchToRlsApplicationRole();
@@ -476,15 +649,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     await this.initializing;
   }
   private async switchToRlsApplicationRole() {
-    if (!this.pool) return;
-    const res = await this.pool.query<{
-      bypass: boolean;
-      super: boolean;
-      user: string;
-    }>(
+    if (!this.dataSource) return;
+    const res = await this.dataSource.query(
       `SELECT rolbypassrls as bypass, rolsuper as super, rolname as user FROM pg_roles WHERE rolname = current_user`
     );
-    const row = res.rows[0];
+    const row = res[0] as { bypass: boolean; super: boolean; user: string };
     // Treat superuser the same as bypass for RLS purposes (superuser always bypasses policies)
     if (row && !row.bypass && !row.super) {
       this.logger.log(
@@ -497,31 +666,32 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     );
     // Create role if missing
     const appRlsPassword = this.resolveAppRlsPassword();
-    const roleExists = await this.pool.query<{ exists: boolean }>(
+    const roleExists = await this.dataSource.query(
       `SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='app_rls')`
     );
-    if (!roleExists.rows[0]?.exists) {
+    const existsRow = roleExists[0] as { exists: boolean };
+    if (!existsRow?.exists) {
       const escapedPasswordForCreate = appRlsPassword.replace(/'/g, "''");
-      await this.pool.query(
+      await this.dataSource.query(
         `CREATE ROLE app_rls LOGIN PASSWORD '${escapedPasswordForCreate}'`
       );
     }
     // Grant privileges (idempotent)
-    await this.pool.query(`GRANT USAGE ON SCHEMA kb TO app_rls`);
-    await this.pool.query(`GRANT CREATE ON SCHEMA kb TO app_rls`);
-    await this.pool.query(
+    await this.dataSource.query(`GRANT USAGE ON SCHEMA kb TO app_rls`);
+    await this.dataSource.query(`GRANT CREATE ON SCHEMA kb TO app_rls`);
+    await this.dataSource.query(
       `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA kb TO app_rls`
     );
-    await this.pool.query(
+    await this.dataSource.query(
       `ALTER DEFAULT PRIVILEGES IN SCHEMA kb GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_rls`
     );
     // Grant access to core.user_profiles for user profile creation during authentication
-    await this.pool.query(`GRANT USAGE ON SCHEMA core TO app_rls`);
-    await this.pool.query(`GRANT CREATE ON SCHEMA core TO app_rls`);
-    await this.pool.query(
+    await this.dataSource.query(`GRANT USAGE ON SCHEMA core TO app_rls`);
+    await this.dataSource.query(`GRANT CREATE ON SCHEMA core TO app_rls`);
+    await this.dataSource.query(
       `GRANT SELECT, INSERT, UPDATE, DELETE ON core.user_profiles TO app_rls`
     );
-    await this.pool.query(
+    await this.dataSource.query(
       `GRANT SELECT, INSERT, UPDATE, DELETE ON core.user_emails TO app_rls`
     );
     // Rotate password each startup so updating APP_RLS_PASSWORD takes effect without manual intervention.
@@ -529,7 +699,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       // ALTER ROLE doesn't support parameterized queries, so we must use string literal
       // Escape single quotes in password by doubling them (SQL standard)
       const escapedPassword = appRlsPassword.replace(/'/g, "''");
-      await this.pool.query(`ALTER ROLE app_rls PASSWORD '${escapedPassword}'`);
+      await this.dataSource.query(
+        `ALTER ROLE app_rls PASSWORD '${escapedPassword}'`
+      );
       this.logger.log('[DatabaseService] Rotated password for role app_rls');
     } catch (e) {
       this.logger.warn(
@@ -537,26 +709,23 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
           (e as Error).message
       );
     }
-    // Recreate pool with app_rls
-    await this.pool.end();
-    this.pool = new Pool({
-      host: this.config.dbHost,
-      port: this.config.dbPort,
-      user: 'app_rls',
+    // Recreate DataSource with app_rls credentials
+    await this.dataSource.destroy();
+    const baseOptions = this.dataSource.options as PostgresConnectionOptions;
+    const newOptions = {
+      ...baseOptions,
+      username: 'app_rls',
       password: appRlsPassword,
-      database: this.config.dbName,
-    });
-    await this.pool.query('SELECT 1');
+    };
+    this.dataSource = new DataSource(newOptions);
+    await this.dataSource.initialize();
+    await this.dataSource.query('SELECT 1');
     // Log confirmation of new role status
     try {
-      const verify = await this.pool.query<{
-        user: string;
-        bypass: boolean;
-        super: boolean;
-      }>(
+      const verify = await this.dataSource.query(
         `SELECT current_user as user, (SELECT rolbypassrls FROM pg_roles WHERE rolname=current_user) as bypass, (SELECT rolsuper FROM pg_roles WHERE rolname=current_user) as super`
       );
-      const v = verify.rows[0];
+      const v = verify[0] as { user: string; bypass: boolean; super: boolean };
       this.logger.log(
         `[DatabaseService] Now running as role '${v.user}' (bypass=${v.bypass}, super=${v.super}) with graph_objects RLS enforced`
       );
@@ -579,13 +748,14 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     count: number;
     hash: string | null;
   }> {
-    if (!this.pool || !this.online)
+    if (!this.dataSource || !this.online)
       return { policies_ok: false, count: 0, hash: null };
     try {
-      const res = await this.pool.query<{ policyname: string }>(
+      const result = await this.dataSource.query<{ policyname: string }>(
         `SELECT policyname FROM pg_policies WHERE schemaname='kb' AND tablename IN ('graph_objects','graph_relationships')`
       );
-      const names = res.rows.map((r: any) => r.policyname).sort();
+      const rows = Array.isArray(result) ? result : [result];
+      const names = rows.map((r: any) => r.policyname).sort();
       const expected = [
         'graph_objects_delete',
         'graph_objects_insert',
@@ -649,14 +819,14 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   ) {
     this.currentOrgId = orgId;
     this.currentProjectId = projectId;
-    if (!this.pool) {
+    if (!this.dataSource) {
       await this.lazyInit();
     }
-    if (!this.pool) return; // DB disabled
+    if (!this.dataSource) return; // DB disabled
     try {
       const orgSetting = orgId ?? '';
       const projectSetting = projectId ?? '';
-      await this.pool.query(
+      await this.dataSource.query(
         'SELECT set_config($1,$2,false), set_config($3,$4,false), set_config($5,$6,false)',
         [
           'app.current_organization_id',
@@ -748,7 +918,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     scopeLabel: string,
     graphPolicyPredicate: string
   ) {
-    if (!this.pool) return;
+    if (!this.dataSource) return;
     const canonical = this.getCanonicalGraphPolicies(graphPolicyPredicate);
     const canonicalKeys = new Set(canonical.map((p) => `${p.table}:${p.name}`));
     const normalizePredicate = (expr: string | null | undefined) => {
@@ -776,8 +946,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
           return null;
       }
     };
-    const fetchPolicies = async () =>
-      this.pool!.query<{
+    const fetchPolicies = async () => {
+      const result = await this.dataSource!.query<{
         policyname: string;
         tablename: string;
         command: string | null;
@@ -786,6 +956,15 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       }>(
         "SELECT policyname, tablename, cmd AS command, qual, with_check FROM pg_policies WHERE schemaname='kb' AND tablename IN ('graph_objects','graph_relationships')"
       );
+      const rows = Array.isArray(result) ? result : [result];
+      return {
+        rows,
+        rowCount: rows.length,
+        command: 'SELECT' as any,
+        fields: [],
+        oid: 0,
+      };
+    };
 
     // Drop any legacy policies that are no longer part of the canonical set
     const existingRes = await fetchPolicies();
