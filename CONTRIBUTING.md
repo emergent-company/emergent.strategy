@@ -145,43 +145,100 @@ After applying migrations, always regenerate the schema documentation to keep it
 
 ## Database Patterns
 
-Spec Server 2 uses a **hybrid approach** to database operations: TypeORM for standard CRUD operations and Strategic SQL for PostgreSQL-specific features.
+Spec Server 2 uses a **hybrid approach** to database operations: TypeORM for standard CRUD operations and Strategic SQL for PostgreSQL-specific features. Additionally, **DatabaseService** provides critical multi-tenant Row-Level Security (RLS) infrastructure.
 
 ### Quick Decision Tree
 
 ```
-Does the operation require PostgreSQL-specific features?
-├─ Yes → Use Strategic SQL
-│   ├─ Advisory locks → Strategic SQL
-│   ├─ Recursive CTEs → Strategic SQL
-│   ├─ Full-text search (ts_rank) → Strategic SQL
-│   ├─ Vector search (pgvector) → Strategic SQL
-│   ├─ Window functions → Strategic SQL
-│   ├─ COUNT FILTER → Strategic SQL
-│   ├─ LATERAL joins → Strategic SQL
-│   ├─ pgcrypto functions → Strategic SQL
-│   └─ FOR UPDATE SKIP LOCKED → Strategic SQL
+Does the operation need multi-tenant RLS enforcement?
+├─ Yes → Use DatabaseService (with or without TypeORM)
+│   ├─ Tenant-scoped queries → DatabaseService.query() with RLS context
+│   ├─ Cross-tenant admin operations → DatabaseService with role switching
+│   ├─ Pre-authentication queries → DatabaseService.getPool() (bypass RLS)
+│   ├─ Background jobs → DatabaseService with runWithTenantContext()
+│   └─ Distributed locks → DatabaseService with pg_advisory_xact_lock()
 │
-└─ No → Does it need complex filtering or JOINs?
-    ├─ Yes → Use TypeORM QueryBuilder
-    │   ├─ Multiple WHERE conditions → QueryBuilder
-    │   ├─ Dynamic filtering → QueryBuilder
-    │   ├─ JOINs across relations → QueryBuilder
-    │   ├─ Complex sorting → QueryBuilder
-    │   └─ Pagination → QueryBuilder
+└─ No → Does the operation require PostgreSQL-specific features?
+    ├─ Yes → Use Strategic SQL (via DatabaseService or TypeORM)
+    │   ├─ Advisory locks → DatabaseService.query()
+    │   ├─ Recursive CTEs → DatabaseService.query()
+    │   ├─ Full-text search (ts_rank) → DatabaseService.query()
+    │   ├─ Vector search (pgvector) → DatabaseService.query()
+    │   ├─ Window functions → DatabaseService.query()
+    │   ├─ COUNT FILTER → DatabaseService.query()
+    │   ├─ LATERAL joins → DatabaseService.query()
+    │   ├─ pgcrypto functions → DatabaseService.query()
+    │   └─ FOR UPDATE SKIP LOCKED → DatabaseService.query()
     │
-    └─ No → Does it need a transaction?
-        ├─ Yes → Use TypeORM QueryRunner
-        │   ├─ Multi-step atomic operations → QueryRunner
-        │   ├─ Validation between steps → QueryRunner
-        │   └─ Complex business logic → QueryRunner
+    └─ No → Does it need complex filtering or JOINs?
+        ├─ Yes → Use TypeORM QueryBuilder
+        │   ├─ Multiple WHERE conditions → QueryBuilder
+        │   ├─ Dynamic filtering → QueryBuilder
+        │   ├─ JOINs across relations → QueryBuilder
+        │   ├─ Complex sorting → QueryBuilder
+        │   └─ Pagination → QueryBuilder
         │
-        └─ No → Use TypeORM Repository
-            ├─ Create entity → Repository.save()
-            ├─ Read by ID → Repository.findOne()
-            ├─ Update entity → Repository.update()
-            ├─ Delete entity → Repository.softDelete()
-            └─ Simple queries → Repository.find()
+        └─ No → Does it need a transaction?
+            ├─ Yes → Use TypeORM QueryRunner
+            │   ├─ Multi-step atomic operations → QueryRunner
+            │   ├─ Validation between steps → QueryRunner
+            │   └─ Complex business logic → QueryRunner
+            │
+            └─ No → Use TypeORM Repository
+                ├─ Create entity → Repository.save()
+                ├─ Read by ID → Repository.findOne()
+                ├─ Update entity → Repository.update()
+                ├─ Delete entity → Repository.softDelete()
+                └─ Simple queries → Repository.find()
+```
+
+### When to Use DatabaseService
+
+Use **DatabaseService** when:
+
+- ✅ **Multi-tenant RLS enforcement** - Operations must respect Row-Level Security policies
+- ✅ **Tenant context management** - Need to set/switch tenant context for queries
+- ✅ **Cross-tenant operations** - Admin operations that need to query multiple tenants
+- ✅ **Pre-authentication queries** - Operations before user is authenticated (e.g., login)
+- ✅ **Background jobs** - Async tasks that need tenant context
+- ✅ **PostgreSQL-specific features with RLS** - Advisory locks, CTEs, etc. with tenant isolation
+
+**Example: Multi-tenant Query with RLS Context**
+
+```typescript
+@Injectable()
+export class ProjectService {
+  constructor(private readonly db: DatabaseService) {}
+
+  async getProjects(orgId: string): Promise<Project[]> {
+    // RLS context is automatically applied via AsyncLocalStorage
+    const result = await this.db.query(
+      `
+      SELECT * FROM projects
+      WHERE organization_id = $1
+      ORDER BY created_at DESC
+      `,
+      [orgId]
+    );
+
+    return result.rows;
+  }
+
+  async crossTenantSearch(searchTerm: string): Promise<Project[]> {
+    // Admin operation: temporarily bypass tenant context
+    return await this.db.runWithTenantContext(null, async () => {
+      const result = await this.db.query(
+        `
+        SELECT * FROM projects
+        WHERE name ILIKE $1
+        LIMIT 100
+        `,
+        [`%${searchTerm}%`]
+      );
+      return result.rows;
+    });
+  }
+}
 ```
 
 ### When to Use TypeORM
@@ -268,30 +325,39 @@ async create(projectId: string, name: string): Promise<Tag> {
 
 ### Decision Matrix
 
-| Requirement          | Use Strategic SQL | Use TypeORM     |
-| -------------------- | ----------------- | --------------- |
-| Simple CRUD          | ❌                | ✅ Repository   |
-| Complex filtering    | ❌                | ✅ QueryBuilder |
-| PostgreSQL-specific  | ✅ Raw SQL        | ❌              |
-| Performance-critical | ✅ Raw SQL        | ❌              |
-| Transactions         | ❌                | ✅ QueryRunner  |
-| Portability needed   | ❌                | ✅ TypeORM      |
+| Requirement          | Use DatabaseService | Use Strategic SQL | Use TypeORM     |
+| -------------------- | ------------------- | ----------------- | --------------- |
+| Multi-tenant RLS     | ✅ Required         | ⚠️ Manual RLS     | ❌ No RLS       |
+| Tenant context mgmt  | ✅ Built-in         | ❌                | ❌              |
+| Cross-tenant queries | ✅ Role switching   | ⚠️ Manual         | ❌              |
+| Pre-auth operations  | ✅ getPool()        | ❌                | ❌              |
+| Advisory locks       | ✅ query()          | ✅ Raw SQL        | ❌              |
+| PostgreSQL-specific  | ✅ query()          | ✅ Raw SQL        | ❌              |
+| Performance-critical | ✅ query()          | ✅ Raw SQL        | ❌              |
+| Simple CRUD          | ⚠️ Use TypeORM      | ❌                | ✅ Repository   |
+| Complex filtering    | ⚠️ Use TypeORM      | ❌                | ✅ QueryBuilder |
+| Transactions         | ✅ Managed clients  | ⚠️ Manual         | ✅ QueryRunner  |
+| Type safety          | ⚠️ Manual casting   | ⚠️ Manual casting | ✅ Full         |
 
 ### Pattern Documentation
 
 For comprehensive guides with examples from actual services, see:
 
+- **[DatabaseService Pattern Guide](./docs/patterns/DATABASE_SERVICE_PATTERN.md)** - Multi-tenant RLS infrastructure and tenant context management
 - **[TypeORM Patterns Guide](./docs/patterns/TYPEORM_PATTERNS.md)** - 9 core TypeORM patterns with detailed examples
 - **[Strategic SQL Patterns Guide](./docs/patterns/STRATEGIC_SQL_PATTERNS.md)** - 12 PostgreSQL-specific patterns
+- **[Testing TypeORM Guide](./docs/patterns/TESTING_TYPEORM.md)** - Unit, integration, and E2E testing patterns
 
 ### Best Practices
 
-1. **Document why Strategic SQL is used** - Add comments explaining why TypeORM wasn't sufficient
-2. **Use parameterized queries** - Always use `$1, $2, $3` placeholders to prevent SQL injection
-3. **Test against real database** - Integration tests should use actual PostgreSQL, not mocks
-4. **Monitor performance** - Use `EXPLAIN ANALYZE` for slow queries
-5. **Prefer soft deletes** - Use `deleted_at` timestamps instead of hard deletes
-6. **Handle backward compatibility** - Support zero-downtime migrations
+1. **Always set tenant context** - Use `@RequireTenantContext()` guard or `runWithTenantContext()` for multi-tenant operations
+2. **Document why Strategic SQL is used** - Add comments explaining why TypeORM wasn't sufficient
+3. **Use parameterized queries** - Always use `$1, $2, $3` placeholders to prevent SQL injection
+4. **Test against real database** - Integration tests should use actual PostgreSQL, not mocks
+5. **Monitor performance** - Use `EXPLAIN ANALYZE` for slow queries
+6. **Prefer soft deletes** - Use `deleted_at` timestamps instead of hard deletes
+7. **Handle backward compatibility** - Support zero-downtime migrations
+8. **Release database clients** - Always call `client.release()` when using managed connections
 
 ---
 
