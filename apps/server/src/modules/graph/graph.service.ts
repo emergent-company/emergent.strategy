@@ -1169,10 +1169,10 @@ export class GraphService {
         if (!head.rowCount) throw new NotFoundException('object_not_found');
         if (head.rows[0].deleted_at)
           throw new BadRequestException('already_deleted');
-        const ftsVectorSql = `to_tsvector('simple', coalesce($10,'') || ' ' || coalesce($11,'') || ' ' || coalesce($12,'') )`;
+        const ftsVectorSql = `to_tsvector('simple', coalesce($9,'') || ' ' || coalesce($10,'') || ' ' || coalesce($11,'') )`;
         const tombstone = await client.query<GraphObjectRow>(
           `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, project_id, deleted_at, fts, embedding, embedding_updated_at)
-                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now(), ${ftsVectorSql}, NULL, NULL)
+                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_TIMESTAMP, ${ftsVectorSql}, NULL, NULL)
                      RETURNING id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, fts, created_at`,
           [
             head.rows[0].type,
@@ -1242,7 +1242,7 @@ export class GraphService {
         );
         // The restored version becomes the new HEAD (supersedes_id IS NULL)
         // FTS parameters use positions at end of array (after branch_id)
-        const ftsVectorSql = `to_tsvector('simple', coalesce($10,'') || ' ' || coalesce($11,'') || ' ' || coalesce($12,'') )`;
+        const ftsVectorSql = `to_tsvector('simple', coalesce($9,'') || ' ' || coalesce($10,'') || ' ' || coalesce($11,'') )`;
         const restored = await client.query<GraphObjectRow>(
           `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, project_id, branch_id, deleted_at, fts, embedding, embedding_updated_at)
                      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NULL, ${ftsVectorSql}, NULL, NULL)

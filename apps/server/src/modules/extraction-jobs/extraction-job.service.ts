@@ -201,6 +201,7 @@ export class ExtractionJobService {
     );
 
     const columns: string[] = [
+      'tenant_id',
       schema.projectColumn,
       'source_type',
       'status',
@@ -209,6 +210,7 @@ export class ExtractionJobService {
       'source_id',
     ];
     const values: any[] = [
+      organizationId,
       projectId,
       dto.source_type,
       ExtractionJobStatus.PENDING,
@@ -454,14 +456,18 @@ export class ExtractionJobService {
     const whereJobIndex = paramIndex;
     const whereProjectIndex = paramIndex + 1;
 
-    const result = await this.db.query<ExtractionJobDto>(
-      `UPDATE kb.object_extraction_jobs 
+    const sql = `UPDATE kb.object_extraction_jobs 
              SET ${updates.join(', ')}
              WHERE id = $${whereJobIndex}
                AND ${schema.projectColumn} = $${whereProjectIndex}
-             RETURNING *`,
-      [...params, jobId, projectId]
-    );
+             RETURNING *`;
+    const allParams = [...params, jobId, projectId];
+
+    // Debug: Log the full SQL and parameters
+    this.logger.debug(`Update SQL: ${sql}`);
+    this.logger.debug(`Update params: ${JSON.stringify(allParams)}`);
+
+    const result = await this.db.query<ExtractionJobDto>(sql, allParams);
 
     if (!result.rowCount) {
       throw new NotFoundException(`Extraction job ${jobId} not found`);
