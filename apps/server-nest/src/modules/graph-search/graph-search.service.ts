@@ -9,9 +9,15 @@ import {
   GraphSearchExpansionMetaDto,
 } from './dto/graph-search-response.dto';
 import { GraphChannel, GraphRole } from './dto/graph-search.enums';
-import { GraphSearchRepository } from './graph-search.repository';
+import { GraphSearchRepository, CandidateRow } from './graph-search.repository';
 import { EmbeddingService } from './embedding.service';
 import { encodeGraphCursor, decodeGraphCursor } from './cursor.util';
+import {
+  calculateStatistics,
+  normalizeScore,
+  fuseScores,
+  type ScoreStatistics,
+} from '../../common/database/sql-patterns/hybrid-search.util';
 
 // Placeholder service implementation that will later call actual pipeline components.
 @Injectable()
@@ -118,38 +124,35 @@ export class GraphSearchService {
     if (!lexical.length) warnings.push('lexical_empty');
     if (!vector.length) warnings.push('vector_empty');
 
-    // index by id
-    const merged = new Map<string, { lexical?: number; vector?: number }>();
+    // Build candidate map: id -> { lexicalScore?, vectorScore? }
+    const candidateMap = new Map<
+      string,
+      { lexicalScore?: number; vectorScore?: number }
+    >();
+
     for (const r of lexical) {
-      const ex = merged.get(r.id) || {};
-      ex.lexical = r.lexical_score ?? 0;
-      merged.set(r.id, ex);
+      candidateMap.set(r.id, {
+        lexicalScore: r.lexical_score ?? 0,
+      });
     }
+
     for (const r of vector) {
-      const ex = merged.get(r.id) || {};
-      ex.vector = r.vector_score ?? 0;
-      merged.set(r.id, ex);
+      const existing = candidateMap.get(r.id);
+      if (existing) {
+        existing.vectorScore = r.vector_score ?? 0;
+      } else {
+        candidateMap.set(r.id, {
+          vectorScore: r.vector_score ?? 0,
+        });
+      }
     }
 
-    const lexScores = lexical.map((r) => r.lexical_score ?? 0);
-    const vecScores = vector.map((r) => r.vector_score ?? 0);
+    // Calculate statistics for normalization using shared utility
+    const lexicalScores = lexical.map((r) => r.lexical_score ?? 0);
+    const vectorScores = vector.map((r) => r.vector_score ?? 0);
 
-    const norm = (
-      arr: number[]
-    ): {
-      values: Map<string, number>;
-      stats: { mean: number; std: number };
-    } => {
-      if (!arr.length) return { values: new Map(), stats: { mean: 0, std: 1 } };
-      const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
-      const variance =
-        arr.reduce((a, b) => a + (b - mean) ** 2, 0) / arr.length;
-      const std = Math.sqrt(variance) || 1;
-      return { values: new Map(), stats: { mean, std } };
-    };
-
-    const lexStats = norm(lexScores); // we only need stats for placeholder now
-    const vecStats = norm(vecScores);
+    const lexicalStats = calculateStatistics(lexicalScores);
+    const vectorStats = calculateStatistics(vectorScores);
 
     // Weighted sum: if one channel missing, weight other as 1.0
     const weightLex =
@@ -158,39 +161,56 @@ export class GraphSearchService {
       lexical.length && vector.length ? 0.45 : vector.length ? 1 : 0;
 
     const fuseStart = performance.now();
-    // Deterministic ordering: score desc, tie-break by id asc
-    const fusedPool: GraphSearchItemDto[] = Array.from(merged.entries())
-      .map(([id, sc]) => {
-        // simple z-score using channel-specific stats
-        const zLex =
-          sc.lexical !== undefined && lexStats.stats.std
-            ? (sc.lexical - lexStats.stats.mean) / lexStats.stats.std
+
+    // Fuse scores using centralized utility logic
+    const fusedPool: GraphSearchItemDto[] = Array.from(candidateMap.entries())
+      .map(([id, scores]) => {
+        // Normalize scores using z-score (without sigmoid, matching original behavior)
+        const normalizedLex =
+          scores.lexicalScore !== undefined
+            ? normalizeScore(scores.lexicalScore, lexicalStats, {
+                normalization: 'zscore',
+                applySigmoid: false,
+              })
             : 0;
-        const zVec =
-          sc.vector !== undefined && vecStats.stats.std
-            ? (sc.vector - vecStats.stats.mean) / vecStats.stats.std
+
+        const normalizedVec =
+          scores.vectorScore !== undefined
+            ? normalizeScore(scores.vectorScore, vectorStats, {
+                normalization: 'zscore',
+                applySigmoid: false,
+              })
             : 0;
-        const fused = zLex * weightLex + zVec * weightVec;
+
+        // Fuse normalized scores
+        const fusedScore = fuseScores(
+          normalizedLex,
+          normalizedVec,
+          weightLex,
+          weightVec
+        );
+
         return {
           object_id: id,
           canonical_id: id,
-          score: fused,
-          rank: 0, // fill after sort
+          score: fusedScore,
+          rank: 0, // filled after sort
           role: GraphRole.PRIMARY,
           fields: { title: id },
           truncated_fields: [],
           reasons: [
-            ...(sc.lexical !== undefined
-              ? [{ channel: GraphChannel.LEXICAL, score: sc.lexical }]
+            ...(scores.lexicalScore !== undefined
+              ? [{ channel: GraphChannel.LEXICAL, score: scores.lexicalScore }]
               : []),
-            ...(sc.vector !== undefined
-              ? [{ channel: GraphChannel.VECTOR, score: sc.vector }]
+            ...(scores.vectorScore !== undefined
+              ? [{ channel: GraphChannel.VECTOR, score: scores.vectorScore }]
               : []),
           ],
           explanation: 'fused_weighted_sum',
         };
       })
       .sort((a, b) => {
+        // Deterministic ordering: score desc, tie-break by id asc
         if (b.score === a.score) return a.object_id.localeCompare(b.object_id);
         return b.score - a.score;
       });
@@ -362,13 +382,13 @@ export class GraphSearchService {
       };
       (meta as any).channel_stats = {
         lexical: {
-          mean: lexStats.stats.mean,
-          std: lexStats.stats.std,
+          mean: lexicalStats.mean,
+          std: lexicalStats.std,
           count: lexical.length,
         },
         vector: {
-          mean: vecStats.stats.mean,
-          std: vecStats.stats.std,
+          mean: vectorStats.mean,
+          std: vectorStats.std,
           count: vector.length,
         },
       };
