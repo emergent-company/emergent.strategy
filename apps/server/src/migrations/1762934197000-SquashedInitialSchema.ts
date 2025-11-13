@@ -109,6 +109,22 @@ export class SquashedInitialSchema1762934197000 implements MigrationInterface {
       `CREATE UNIQUE INDEX "IDX_6f5a7e4467cdc44037f209122e" ON "kb"."chunks" ("document_id", "chunk_index") `
     );
 
+    // Create function and trigger for full-text search on chunks
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION kb.update_tsv() RETURNS trigger AS $$
+      BEGIN
+          NEW.tsv := to_tsvector('simple', NEW.text);
+          RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql
+    `);
+
+    await queryRunner.query(`
+      CREATE TRIGGER trg_chunks_tsv
+          BEFORE INSERT OR UPDATE ON kb.chunks
+          FOR EACH ROW EXECUTE FUNCTION kb.update_tsv()
+    `);
+
     await queryRunner.query(
       `CREATE TABLE "kb"."documents" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "organization_id" uuid, "project_id" uuid, "source_url" text, "filename" text, "mime_type" text, "content" text, "content_hash" text, "integration_metadata" jsonb, "parent_document_id" uuid, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_ac51aa5181ee2036f5ca482857c" PRIMARY KEY ("id"))`
     );
@@ -496,6 +512,12 @@ export class SquashedInitialSchema1762934197000 implements MigrationInterface {
     await queryRunner.query(
       `DROP MATERIALIZED VIEW IF EXISTS kb.graph_object_revision_counts`
     );
+
+    // Drop chunks full-text search trigger and function
+    await queryRunner.query(
+      `DROP TRIGGER IF EXISTS trg_chunks_tsv ON kb.chunks`
+    );
+    await queryRunner.query(`DROP FUNCTION IF EXISTS kb.update_tsv()`);
 
     // Drop all foreign key constraints
     await queryRunner.query(
