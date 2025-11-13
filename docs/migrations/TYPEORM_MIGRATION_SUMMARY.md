@@ -3,7 +3,7 @@
 **Status**: 🎉 **100% COMPLETE** 🎉  
 **Total Services**: 56/56 (100%)  
 **Documentation**: 9 Sprints (November 2025 - January 2025)  
-**Total Documentation**: ~10,000+ lines of analysis
+**Total Documentation**: ~12,000+ lines of analysis and pattern guides
 
 ---
 
@@ -14,10 +14,11 @@ The TypeORM migration project successfully documented all 56 services in the cod
 ### Key Achievements
 
 - ✅ **100% service coverage** - All 56 services analyzed and documented
-- ✅ **Clear architectural patterns** - Established guidelines for TypeORM vs Strategic SQL
+- ✅ **Clear architectural patterns** - Established guidelines for TypeORM vs Strategic SQL vs DatabaseService
 - ✅ **Performance optimization** - Identified where raw SQL provides 10x-100x performance gains
 - ✅ **Zero technical debt** - All "strategic SQL" is now intentional, documented architecture
 - ✅ **Migration roadmap** - Clear path forward for implementing TypeORM where beneficial
+- ✅ **Multi-tenant RLS infrastructure** - Documented DatabaseService pattern for Row-Level Security
 
 ---
 
@@ -455,7 +456,8 @@ These services could benefit from migrating simple queries to TypeORM, but Strat
 
 - ✅ `docs/patterns/TYPEORM_PATTERNS.md` - Standard patterns guide (~1,200 lines)
 - ✅ `docs/patterns/STRATEGIC_SQL_PATTERNS.md` - Strategic SQL guide (~1,500 lines)
-- ✅ `CONTRIBUTING.md` - Complete contribution guide with database patterns section (~700 lines)
+- ✅ `docs/patterns/DATABASE_SERVICE_PATTERN.md` - Multi-tenant RLS infrastructure guide (~1,850 lines)
+- ✅ `CONTRIBUTING.md` - Complete contribution guide with database patterns section (~700 lines, updated with DatabaseService)
 
 **Patterns Documented**:
 
@@ -493,18 +495,21 @@ These services could benefit from migrating simple queries to TypeORM, but Strat
 **Deliverables** (Completed):
 
 - ✅ Updated `CONTRIBUTING.md` with complete database patterns section
-- ✅ Added decision tree for TypeORM vs Strategic SQL
+- ✅ Added decision tree for TypeORM vs Strategic SQL vs DatabaseService
 - ✅ Added development workflow and testing guidelines
 - ✅ Created Pull Request process documentation
+- ✅ Integrated DatabaseService pattern into developer guidelines
 
 **Decision Tree**:
 
 ```
-Does the operation require PostgreSQL-specific features?
-├─ Yes → Use Strategic SQL (document why)
-└─ No → Does it need complex filtering?
-    ├─ Yes → Use TypeORM QueryBuilder
-    └─ No → Use TypeORM Repository
+Does the operation need multi-tenant RLS enforcement?
+├─ Yes → Use DatabaseService (with or without TypeORM)
+└─ No → Does the operation require PostgreSQL-specific features?
+    ├─ Yes → Use Strategic SQL (document why)
+    └─ No → Does it need complex filtering?
+        ├─ Yes → Use TypeORM QueryBuilder
+        └─ No → Use TypeORM Repository
 ```
 
 ### Step 3: Implement Hybrid Service Migrations (8 weeks, optional)
@@ -553,6 +558,63 @@ Does the operation require PostgreSQL-specific features?
 - ✅ Integration test patterns
 - ✅ Real examples from existing test files (ChunksService, InvitesService, UserProfileService)
 
+### Step 4.5: Document DatabaseService Pattern ✅ COMPLETE
+
+**Status**: Completed January 2025  
+**Commit**: TBD - Comprehensive DatabaseService pattern documentation
+
+**Deliverables** (Completed):
+
+- ✅ `docs/patterns/DATABASE_SERVICE_PATTERN.md` - Multi-tenant RLS infrastructure guide (~1,850 lines)
+- ✅ Updated `CONTRIBUTING.md` with DatabaseService decision tree
+- ✅ Updated `TYPEORM_MIGRATION_SUMMARY.md` with new deliverable
+
+**DatabaseService Features Documented** (6 major features):
+
+1. ✅ Automatic RLS Context Application - AsyncLocalStorage-based request isolation
+2. ✅ Tenant Context Management API - Setting/switching tenant context
+3. ✅ Role-Based Security - app_rls role with limited permissions
+4. ✅ Migration Management - DDL operations with elevated privileges
+5. ✅ Health Checks - RLS policy verification and monitoring
+6. ✅ Pre-Authentication Operations - Bypassing RLS for login/signup
+
+**Usage Patterns Documented** (7 patterns with real examples):
+
+1. ✅ Simple RLS-enforced Query
+2. ✅ Transaction with Advisory Lock
+3. ✅ Cross-Tenant Operation (Admin)
+4. ✅ Pre-Authentication Query (Bypass RLS)
+5. ✅ Encryption/Decryption with pgcrypto
+6. ✅ Queue Operations with Row Locking
+7. ✅ Complex Graph Traversal with CTEs
+
+**Additional Coverage**:
+
+- ✅ RLS Context Lifecycle (request → response)
+- ✅ Common Use Cases (multi-tenant SaaS, background jobs, admin operations)
+- ✅ Testing Patterns (unit, integration, E2E)
+- ✅ Best Practices (7 DOs)
+- ✅ Anti-Patterns (7 DON'Ts)
+- ✅ Troubleshooting Guide (6 common problems with solutions)
+- ✅ Real examples from 27+ services using DatabaseService
+
+**Why DatabaseService Exists**:
+
+The DatabaseService provides critical multi-tenant Row-Level Security (RLS) infrastructure that TypeORM doesn't offer. It's not redundant with TypeORM but rather complementary, providing:
+
+- Automatic tenant context propagation via AsyncLocalStorage
+- PostgreSQL RLS policy enforcement for data isolation
+- Role-based security with limited app_rls role permissions
+- Cross-tenant operations for admin functionality
+- Pre-authentication query support (bypassing RLS)
+
+**27+ Services Using DatabaseService**:
+
+- **Strategic SQL Services**: GraphService, SearchService, PathSummaryService, BranchService, TagService, EmbeddingJobsService, ExtractionWorkerService, EncryptionService, ProductVersionService, TemplatePackService
+- **Other Services**: PermissionService, ChatService, OrgsService, ProjectsService, DiscoveryJobService, UserProfileService (pre-auth), and 12+ more
+
+**Key Insight**: DatabaseService is the **foundation** for multi-tenant data isolation. Most services use it in combination with TypeORM (hybrid approach) or for PostgreSQL-specific features.
+
 ### Step 5: Monitor and Optimize (Ongoing)
 
 **Metrics to Track**:
@@ -578,12 +640,31 @@ Does the operation require PostgreSQL-specific features?
 
 **Implication**: The goal is **not** to eliminate all raw SQL, but to use TypeORM where it provides value (CRUD operations, type safety) and Strategic SQL where it's optimal (advanced features, performance).
 
-### 2. Hybrid Is the Best Approach
+### 2. DatabaseService Provides Essential Multi-Tenant Infrastructure
 
-**Finding**: 18% of services benefit from using both TypeORM and Strategic SQL.
+**Finding**: 27+ services depend on DatabaseService for Row-Level Security (RLS) enforcement and tenant context management.
+
+**Implication**: DatabaseService is **not** redundant with TypeORM. It provides critical multi-tenant infrastructure:
+
+- Automatic RLS context propagation via AsyncLocalStorage
+- Tenant context management for data isolation
+- Role-based security (app_rls with limited permissions)
+- Cross-tenant operations for admin functionality
+- Pre-authentication operations (bypassing RLS)
 
 **Pattern**:
 
+- ✅ DatabaseService for multi-tenant RLS enforcement
+- ✅ TypeORM for type-safe CRUD operations
+- ✅ Strategic SQL for PostgreSQL-specific features
+
+### 3. Hybrid Is the Best Approach
+
+**Finding**: 18% of services benefit from using both TypeORM and Strategic SQL, and many more use DatabaseService + TypeORM.
+
+**Pattern**:
+
+- ✅ DatabaseService for RLS context (most services)
 - ✅ TypeORM Repository for basic CRUD
 - ✅ TypeORM QueryBuilder for complex filtering
 - ✅ Strategic SQL for PostgreSQL-specific features
@@ -592,9 +673,10 @@ Does the operation require PostgreSQL-specific features?
 
 - Type safety for common operations
 - Performance for complex operations
+- Multi-tenant data isolation
 - Maintainability (clear separation of concerns)
 
-### 3. Manual Transactions Are TypeORM Best Practice
+### 4. Manual Transactions Are TypeORM Best Practice
 
 **Finding**: Manual transactions via QueryRunner are the recommended TypeORM pattern for complex multi-step operations.
 
@@ -626,7 +708,7 @@ try {
 }
 ```
 
-### 4. COUNT FILTER Is a Standard Pattern
+### 5. COUNT FILTER Is a Standard Pattern
 
 **Finding**: 5 services use COUNT FILTER for conditional aggregations.
 
@@ -647,7 +729,7 @@ FROM table;
 
 **Recommendation**: Document as standard pattern in Strategic SQL guide.
 
-### 5. Backward Compatibility Is Essential
+### 6. Backward Compatibility Is Essential
 
 **Finding**: Multiple services include fallbacks for missing columns/tables.
 
@@ -708,10 +790,11 @@ The TypeORM migration documentation project is **100% complete** with all 56 ser
 1. **50% of services use TypeORM exclusively** - proving TypeORM is valuable for CRUD operations
 2. **32% of services require Strategic SQL** - proving raw SQL is necessary for advanced features
 3. **18% of services benefit from hybrid approach** - proving both patterns have value
-4. **Zero technical debt** - all Strategic SQL is now documented, intentional architecture
-5. **Clear path forward** - Phase 1 roadmap provides actionable next steps
+4. **27+ services depend on DatabaseService** - proving multi-tenant RLS infrastructure is critical
+5. **Zero technical debt** - all Strategic SQL is now documented, intentional architecture
+6. **Clear path forward** - Phase 1 roadmap provides actionable next steps
 
-The hybrid approach (TypeORM + Strategic SQL) is the optimal architecture for this codebase, balancing type safety, maintainability, and performance.
+The hybrid approach (DatabaseService + TypeORM + Strategic SQL) is the optimal architecture for this codebase, balancing multi-tenant isolation, type safety, maintainability, and performance.
 
 ---
 
@@ -719,6 +802,10 @@ The hybrid approach (TypeORM + Strategic SQL) is the optimal architecture for th
 
 - [MIGRATION_TRACKING.md](./MIGRATION_TRACKING.md) - Overall migration progress
 - [PHASE_1_COMPLETE.md](./PHASE_1_COMPLETE.md) - Phase 1 completion details
+- [DATABASE_SERVICE_PATTERN.md](../patterns/DATABASE_SERVICE_PATTERN.md) - Multi-tenant RLS infrastructure guide
+- [TYPEORM_PATTERNS.md](../patterns/TYPEORM_PATTERNS.md) - TypeORM patterns guide
+- [STRATEGIC_SQL_PATTERNS.md](../patterns/STRATEGIC_SQL_PATTERNS.md) - Strategic SQL patterns guide
+- [TESTING_TYPEORM.md](../patterns/TESTING_TYPEORM.md) - Testing patterns guide
 - [STRATEGIC_SQL_DOCUMENTATION_SPRINT_2.md](./STRATEGIC_SQL_DOCUMENTATION_SPRINT_2.md) - Sprint 2 analysis
 - [STRATEGIC_SQL_DOCUMENTATION_SPRINT_3.md](./STRATEGIC_SQL_DOCUMENTATION_SPRINT_3.md) - Sprint 3 analysis
 - [STRATEGIC_SQL_DOCUMENTATION_SPRINT_4.md](./STRATEGIC_SQL_DOCUMENTATION_SPRINT_4.md) - Sprint 4 analysis
