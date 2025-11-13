@@ -3,24 +3,82 @@ import { DatabaseService } from '../../src/common/database/database.service';
 import { AppConfigService } from '../../src/common/config/config.service';
 import { validate } from '../../src/common/config/config.schema';
 
-// We will mock 'pg' Pool so we don't need a real Postgres instance.
+// Mock TypeORM DataSource so we don't need a real Postgres instance.
 // Each test can override implementation details via mock implementations.
-vi.mock('pg', () => {
-  class MockClient {
-    release = vi.fn();
-  }
-  class MockPool {
-    async query() {
-      return { rows: [], rowCount: 0, command: 'SELECT', fields: [], oid: 0 };
-    }
+vi.mock('typeorm', async () => {
+  const actual = await vi.importActual<typeof import('typeorm')>('typeorm');
+
+  class MockQueryRunner {
+    isReleased = false;
     async connect() {
-      return new MockClient();
+      return this;
     }
-    async end() {
+    async query() {
+      return [];
+    }
+    async release() {
+      this.isReleased = true;
+    }
+    async startTransaction() {
       /* noop */
     }
+    async commitTransaction() {
+      /* noop */
+    }
+    async rollbackTransaction() {
+      /* noop */
+    }
+    get manager() {
+      return {
+        save: vi.fn(),
+        findOne: vi.fn(),
+      };
+    }
   }
-  return { Pool: MockPool };
+
+  class MockDataSource {
+    isInitialized = false;
+    options: any = {
+      type: 'postgres',
+      host: 'localhost',
+      port: 5432,
+      username: 'test',
+      database: 'test',
+    };
+    async initialize() {
+      this.isInitialized = true;
+      return this;
+    }
+    async query() {
+      return [];
+    }
+    async destroy() {
+      this.isInitialized = false;
+    }
+    createQueryRunner() {
+      return new MockQueryRunner();
+    }
+  }
+
+  return {
+    ...actual,
+    DataSource: MockDataSource,
+  };
+});
+
+// Mock the typeorm.config module that's dynamically imported by DatabaseService
+vi.mock('../../src/typeorm.config', async () => {
+  const { DataSource } = await import('typeorm');
+  const mockDataSource = new DataSource({
+    type: 'postgres',
+    host: 'localhost',
+    port: 5432,
+    username: 'test',
+    database: 'test',
+  });
+  return {
+    default: mockDataSource,
+  };
 });
 
 // Helper to build fresh config + db per test with current process.env
@@ -59,9 +117,9 @@ describe('DatabaseService extended behaviour', () => {
   });
 
   it('lazy init failure leaves service offline', async () => {
-    const { Pool }: any = await import('pg');
-    // First call (connectivity check) throws
-    vi.spyOn(Pool.prototype as any, 'query').mockRejectedValueOnce(
+    const { DataSource }: any = await import('typeorm');
+    // Mock initialization to fail
+    vi.spyOn(DataSource.prototype as any, 'initialize').mockRejectedValueOnce(
       new Error('connectivity fail')
     );
     const { db } = buildServices();
@@ -70,8 +128,9 @@ describe('DatabaseService extended behaviour', () => {
   });
 
   it('query returns empty rows when offline (after induced failure)', async () => {
-    const { Pool }: any = await import('pg');
-    vi.spyOn(Pool.prototype as any, 'query').mockRejectedValueOnce(
+    const { DataSource }: any = await import('typeorm');
+    // Mock query to fail during lazy init connectivity check
+    vi.spyOn(DataSource.prototype as any, 'query').mockRejectedValueOnce(
       new Error('offline now')
     );
     const { db } = buildServices();

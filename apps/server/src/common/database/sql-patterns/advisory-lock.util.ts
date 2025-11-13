@@ -1,4 +1,4 @@
-import { PoolClient } from 'pg';
+import { PoolClient, QueryResult, QueryResultRow } from 'pg';
 
 /**
  * Advisory Lock Utility
@@ -21,6 +21,17 @@ import { PoolClient } from 'pg';
  * );
  * ```
  */
+
+/**
+ * Database client interface for advisory lock utilities.
+ * Accepts both pg PoolClient and TypeORM QueryRunner adapter.
+ */
+export interface DatabaseClient {
+  query<T extends QueryResultRow = any>(
+    text: string,
+    params?: any[]
+  ): Promise<QueryResult<T>>;
+}
 
 /**
  * Generate a consistent lock key from a string identifier.
@@ -75,7 +86,7 @@ export function generateLockKey(key: string): string {
  * }
  */
 export async function acquireAdvisoryLock<T>(
-  client: PoolClient,
+  client: DatabaseClient,
   lockKey: string,
   fn: () => Promise<T>
 ): Promise<T> {
@@ -144,7 +155,7 @@ export async function acquireAdvisoryLock<T>(
  * }
  */
 export async function acquireAdvisoryLockInTransaction<T>(
-  client: PoolClient,
+  client: DatabaseClient,
   lockKey: string,
   fn: () => Promise<T>
 ): Promise<T> {
