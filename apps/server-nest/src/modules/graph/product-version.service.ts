@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
+import { acquireAdvisoryLock } from '../../common/database/sql-patterns';
 import { CreateProductVersionDto } from './dto/create-product-version.dto';
 import { ProductVersion } from '../../entities/product-version.entity';
 import { ProductVersionMember } from '../../entities/product-version-member.entity';
@@ -126,73 +127,79 @@ export class ProductVersionService {
     if (!name) throw new BadRequestException('name_required');
     const client = await this.db.getClient();
     try {
-      await client.query('BEGIN');
-      // Serialize by logical identity (project + lower(name))
-      await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [
+      const result = await acquireAdvisoryLock(
+        client,
         `product_version|${projectId}|${name.toLowerCase()}`,
-      ]);
-      const existing = await client.query<{ id: string }>(
-        `SELECT id FROM kb.product_versions WHERE project_id=$1 AND LOWER(name)=LOWER($2) LIMIT 1`,
-        [projectId, name]
+        async () => {
+          // Check for duplicate name
+          const existing = await client.query<{ id: string }>(
+            `SELECT id FROM kb.product_versions WHERE project_id=$1 AND LOWER(name)=LOWER($2) LIMIT 1`,
+            [projectId, name]
+          );
+          if (existing.rowCount)
+            throw new BadRequestException('product_version_name_exists');
+
+          // Validate base version if provided
+          let baseId: string | null = null;
+          if (dto.base_product_version_id) {
+            const base = await client.query<{ id: string }>(
+              `SELECT id FROM kb.product_versions WHERE id=$1 AND project_id=$2`,
+              [dto.base_product_version_id, projectId]
+            );
+            if (!base.rowCount)
+              throw new NotFoundException('base_product_version_not_found');
+            baseId = base.rows[0].id;
+          }
+
+          // Insert product version
+          const inserted = await client.query<ProductVersionRow>(
+            `INSERT INTO kb.product_versions(project_id, name, description, base_product_version_id)
+             VALUES ($1,$2,$3,$4)
+             RETURNING id, project_id, name, description, base_product_version_id, created_at`,
+            [projectId, name, dto.description ?? null, baseId]
+          );
+          const pv = inserted.rows[0];
+
+          // Enumerate latest object versions per canonical (project scope, excluding deleted)
+          const heads = await client.query<{
+            canonical_id: string;
+            id: string;
+          }>(
+            `SELECT DISTINCT ON (canonical_id) canonical_id, id
+             FROM kb.graph_objects
+             WHERE project_id = $1 AND deleted_at IS NULL
+             ORDER BY canonical_id, version DESC`,
+            [projectId]
+          );
+
+          if (heads.rowCount) {
+            // Bulk insert membership (avoid ON CONFLICT due to enforced PK uniqueness)
+            const values: string[] = [];
+            const params: any[] = [];
+            heads.rows.forEach((r, idx) => {
+              const base = idx * 3;
+              values.push(`($${base + 1}, $${base + 2}, $${base + 3})`);
+              params.push(pv.id, r.canonical_id, r.id);
+            });
+            await client.query(
+              `INSERT INTO kb.product_version_members(product_version_id, object_canonical_id, object_version_id)
+               VALUES ${values.join(',')}`,
+              params
+            );
+          }
+
+          return {
+            id: pv.id,
+            name: pv.name,
+            description: pv.description,
+            created_at: pv.created_at,
+            member_count: heads.rowCount as number,
+            base_product_version_id: pv.base_product_version_id,
+          };
+        }
       );
-      if (existing.rowCount)
-        throw new BadRequestException('product_version_name_exists');
-      let baseId: string | null = null;
-      if (dto.base_product_version_id) {
-        const base = await client.query<{ id: string }>(
-          `SELECT id FROM kb.product_versions WHERE id=$1 AND project_id=$2`,
-          [dto.base_product_version_id, projectId]
-        );
-        if (!base.rowCount)
-          throw new NotFoundException('base_product_version_not_found');
-        baseId = base.rows[0].id;
-      }
-      const inserted = await client.query<ProductVersionRow>(
-        `INSERT INTO kb.product_versions(project_id, name, description, base_product_version_id)
-         VALUES ($1,$2,$3,$4)
-         RETURNING id, project_id, name, description, base_product_version_id, created_at`,
-        [projectId, name, dto.description ?? null, baseId]
-      );
-      const pv = inserted.rows[0];
-      // Enumerate latest object versions per canonical (project scope, excluding deleted)
-      const heads = await client.query<{ canonical_id: string; id: string }>(
-        `SELECT DISTINCT ON (canonical_id) canonical_id, id
-         FROM kb.graph_objects
-         WHERE project_id = $1 AND deleted_at IS NULL
-         ORDER BY canonical_id, version DESC`,
-        [projectId]
-      );
-      if (heads.rowCount) {
-        // Bulk insert membership (avoid ON CONFLICT due to enforced PK uniqueness)
-        const values: string[] = [];
-        const params: any[] = [];
-        heads.rows.forEach((r, idx) => {
-          const base = idx * 3;
-          values.push(`($${base + 1}, $${base + 2}, $${base + 3})`);
-          params.push(pv.id, r.canonical_id, r.id);
-        });
-        await client.query(
-          `INSERT INTO kb.product_version_members(product_version_id, object_canonical_id, object_version_id)
-           VALUES ${values.join(',')}`,
-          params
-        );
-      }
-      await client.query('COMMIT');
-      return {
-        id: pv.id,
-        name: pv.name,
-        description: pv.description,
-        created_at: pv.created_at,
-        member_count: heads.rowCount as number,
-        base_product_version_id: pv.base_product_version_id,
-      };
-    } catch (e) {
-      try {
-        await client.query('ROLLBACK');
-      } catch {
-        /* ignore */
-      }
-      throw e;
+
+      return result;
     } finally {
       client.release();
     }

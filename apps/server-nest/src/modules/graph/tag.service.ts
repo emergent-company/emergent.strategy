@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
+import { acquireAdvisoryLock } from '../../common/database/sql-patterns';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
 import { Tag } from '../../entities/tag.entity';
@@ -43,55 +44,49 @@ export class TagService {
 
     const client = await this.db.getClient();
     try {
-      await client.query('BEGIN');
-
-      // Serialize by logical identity (project + lower(name))
-      await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [
+      const result = await acquireAdvisoryLock(
+        client,
         `tag|${projectId}|${name.toLowerCase()}`,
-      ]);
+        async () => {
+          // Check if tag name already exists in project
+          const existing = await client.query<{ id: string }>(
+            `SELECT id FROM kb.tags WHERE project_id=$1 AND LOWER(name)=LOWER($2) LIMIT 1`,
+            [projectId, name]
+          );
+          if (existing.rowCount)
+            throw new BadRequestException('tag_name_exists');
 
-      // Check if tag name already exists in project
-      const existing = await client.query<{ id: string }>(
-        `SELECT id FROM kb.tags WHERE project_id=$1 AND LOWER(name)=LOWER($2) LIMIT 1`,
-        [projectId, name]
+          // Verify product version exists and belongs to project
+          const version = await client.query<{ id: string }>(
+            `SELECT id FROM kb.product_versions WHERE id=$1 AND project_id=$2`,
+            [dto.product_version_id, projectId]
+          );
+          if (!version.rowCount)
+            throw new NotFoundException('product_version_not_found');
+
+          // Insert tag using TypeORM
+          const tag = this.tagRepository.create({
+            projectId,
+            productVersionId: dto.product_version_id,
+            name: dto.name,
+            description: dto.description || null,
+          });
+
+          const savedTag = await this.tagRepository.save(tag);
+
+          return {
+            id: savedTag.id,
+            project_id: savedTag.projectId,
+            product_version_id: savedTag.productVersionId,
+            name: savedTag.name,
+            description: savedTag.description,
+            created_at: savedTag.createdAt.toISOString(),
+            updated_at: savedTag.updatedAt.toISOString(),
+          };
+        }
       );
-      if (existing.rowCount) throw new BadRequestException('tag_name_exists');
 
-      // Verify product version exists and belongs to project
-      const version = await client.query<{ id: string }>(
-        `SELECT id FROM kb.product_versions WHERE id=$1 AND project_id=$2`,
-        [dto.product_version_id, projectId]
-      );
-      if (!version.rowCount)
-        throw new NotFoundException('product_version_not_found');
-
-      // Insert tag using TypeORM
-      const tag = this.tagRepository.create({
-        projectId,
-        productVersionId: dto.product_version_id,
-        name: dto.name,
-        description: dto.description || null,
-      });
-
-      const savedTag = await this.tagRepository.save(tag);
-
-      await client.query('COMMIT');
-      return {
-        id: savedTag.id,
-        project_id: savedTag.projectId,
-        product_version_id: savedTag.productVersionId,
-        name: savedTag.name,
-        description: savedTag.description,
-        created_at: savedTag.createdAt.toISOString(),
-        updated_at: savedTag.updatedAt.toISOString(),
-      };
-    } catch (e) {
-      try {
-        await client.query('ROLLBACK');
-      } catch {
-        /* ignore */
-      }
-      throw e;
+      return result;
     } finally {
       client.release();
     }
