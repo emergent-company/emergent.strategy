@@ -44,7 +44,7 @@ All 4 services share common background worker characteristics:
 
 ## Service 1: TagCleanupWorkerService
 
-**File**: `apps/server-nest/src/modules/graph/tag-cleanup-worker.service.ts`  
+**File**: `apps/server/src/modules/graph/tag-cleanup-worker.service.ts`  
 **Lines**: 188  
 **Status**: **Hybrid (1 Strategic SQL + 1 TypeORM)**  
 **Migration Strategy**: Keep strategic SQL for JSONB operators
@@ -225,7 +225,7 @@ this.logger.log(
 
 ## Service 2: RevisionCountRefreshWorkerService
 
-**File**: `apps/server-nest/src/modules/graph/revision-count-refresh-worker.service.ts`  
+**File**: `apps/server/src/modules/graph/revision-count-refresh-worker.service.ts`  
 **Lines**: 179  
 **Status**: **Strategic SQL (2/2 methods = 100%)**  
 **Migration Strategy**: Keep strategic SQL for PostgreSQL function calls + COUNT FILTER
@@ -412,7 +412,7 @@ private async logStatistics(): Promise<void> {
 
 ## Service 3: EmbeddingWorkerService
 
-**File**: `apps/server-nest/src/modules/graph/embedding-worker.service.ts`  
+**File**: `apps/server/src/modules/graph/embedding-worker.service.ts`  
 **Lines**: 219  
 **Status**: **TypeORM Complete (2/2 methods = 100%)**  
 **Migration Strategy**: Already migrated, no action required
@@ -548,7 +548,7 @@ async processJob(job: EmbeddingJob): Promise<void> {
 
 ## Service 4: ExtractionWorkerService
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`  
+**File**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`  
 **Lines**: 2000+  
 **Status**: **Business Logic Service (0 database methods)**  
 **Migration Strategy**: Not applicable - orchestration layer
@@ -886,7 +886,7 @@ async processBatch(): Promise<void> {
 - **Recommendation**: Extract base `BackgroundWorkerService` abstract class
 
 ```typescript
-// Proposed: apps/server-nest/src/common/background-worker.service.ts
+// Proposed: apps/server/src/common/background-worker.service.ts
 export abstract class BackgroundWorkerService
   implements OnModuleInit, OnModuleDestroy
 {

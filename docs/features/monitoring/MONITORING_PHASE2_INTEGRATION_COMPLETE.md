@@ -9,7 +9,7 @@ Successfully integrated the Phase 2 monitoring backend with the actual chat and 
 
 ### 1. ChatService Integration ✅
 
-**File:** `apps/server-nest/src/modules/chat/chat.service.ts`
+**File:** `apps/server/src/modules/chat/chat.service.ts`
 
 **Changes:**
 - ✅ Imported `MonitoringLoggerService`
@@ -79,7 +79,7 @@ Successfully integrated the Phase 2 monitoring backend with the actual chat and 
 
 ### 2. McpClientService Integration ✅
 
-**File:** `apps/server-nest/src/modules/chat/mcp-client.service.ts`
+**File:** `apps/server/src/modules/chat/mcp-client.service.ts`
 
 **Changes:**
 - ✅ Imported `MonitoringLoggerService`
@@ -530,9 +530,9 @@ LIMIT 1;
 **Next priority:** Frontend implementation to provide visibility into the logged data through the admin dashboard.
 
 **Files Modified:**
-1. `apps/server-nest/src/modules/chat/chat.service.ts` ✅
-2. `apps/server-nest/src/modules/chat/mcp-client.service.ts` ✅
-3. `apps/server-nest/src/modules/chat/chat.module.ts` ✅ (from previous step)
+1. `apps/server/src/modules/chat/chat.service.ts` ✅
+2. `apps/server/src/modules/chat/mcp-client.service.ts` ✅
+3. `apps/server/src/modules/chat/chat.module.ts` ✅ (from previous step)
 
 **Files Created:**
 - `docs/MONITORING_PHASE2_INTEGRATION_COMPLETE.md` (this file)

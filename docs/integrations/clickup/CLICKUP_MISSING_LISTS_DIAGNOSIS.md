@@ -77,7 +77,7 @@ Added comments to API client methods noting that pagination status is undocument
 1. **Check Server Logs**:
    ```bash
    # Look for ClickUp fetch logs
-   tail -f apps/server-nest/logs/app.log | grep ClickUp
+   tail -f apps/server/logs/app.log | grep ClickUp
    ```
 
 2. **Open ClickUp Sync Modal** - This triggers structure fetch

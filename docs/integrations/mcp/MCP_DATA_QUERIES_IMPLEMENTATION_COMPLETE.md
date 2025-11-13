@@ -19,7 +19,7 @@ Added two new MCP tools to the JSON-RPC 2.0 server:
 - **Scope Required**: `data:read`
 - **Parameters**: None
 - **Returns**: Array of entity types with name, description, and count
-- **Implementation**: `apps/server-nest/src/modules/mcp/mcp-server.controller.ts` (lines 605-644)
+- **Implementation**: `apps/server/src/modules/mcp/mcp-server.controller.ts` (lines 605-644)
 
 **Query**:
 ```sql
@@ -54,7 +54,7 @@ ORDER BY tr.name
   - `sort_by` (optional, default "created_at"): Sort field
   - `sort_order` (optional, default "desc"): Sort direction
 - **Returns**: Array of entities with pagination metadata
-- **Implementation**: `apps/server-nest/src/modules/mcp/mcp-server.controller.ts` (lines 646-755)
+- **Implementation**: `apps/server/src/modules/mcp/mcp-server.controller.ts` (lines 646-755)
 
 **Query**:
 ```sql
@@ -90,7 +90,7 @@ Enhanced `McpToolDetectorService` with two new intents:
 - **Keywords**: "what entities", "available entities", "what can I query", "list entity types"
 - **Confidence**: 0.9
 - **Arguments**: None
-- **Implementation**: `apps/server-nest/src/modules/chat/mcp-tool-detector.service.ts` (lines 169-185)
+- **Implementation**: `apps/server/src/modules/chat/mcp-tool-detector.service.ts` (lines 169-185)
 
 #### Intent: `entity-query`
 - **Tool**: `query_entities`
@@ -101,7 +101,7 @@ Enhanced `McpToolDetectorService` with two new intents:
   - `type_name`: Extracted from pattern "show {type}s" → capitalized singular form
   - `limit`: Extracted from "show N items" patterns (default: 10)
   - `sort_by`/`sort_order`: Set to `created_at`/`desc` for "recent/latest/last"
-- **Implementation**: `apps/server-nest/src/modules/chat/mcp-tool-detector.service.ts` (lines 187-206)
+- **Implementation**: `apps/server/src/modules/chat/mcp-tool-detector.service.ts` (lines 187-206)
 
 **Dynamic Type Extraction**:
 - Looks for query verbs (show, list, recent, latest, last, find, get)
@@ -114,7 +114,7 @@ Enhanced `McpToolDetectorService` with two new intents:
 Updated type definitions to support new intents:
 
 **Changes**:
-- `apps/server-nest/src/modules/chat/chat.controller.ts` (line 484):
+- `apps/server/src/modules/chat/chat.controller.ts` (line 484):
   - Added `'entity-query' | 'entity-list'` to detectedIntent type
 
 **Existing Handling**:
@@ -162,7 +162,7 @@ Found 15 Decisions (showing 5):
 (10 more Decisions available)
 ```
 
-**Implementation**: `apps/server-nest/src/modules/chat/chat-generation.service.ts` (lines 47-70, 118-172)
+**Implementation**: `apps/server/src/modules/chat/chat-generation.service.ts` (lines 47-70, 118-172)
 
 ## Key Features
 
@@ -200,27 +200,27 @@ Found 15 Decisions (showing 5):
 ## File Changes
 
 ### Modified Files
-1. `apps/server-nest/src/modules/mcp/mcp.module.ts`
+1. `apps/server/src/modules/mcp/mcp.module.ts`
    - Added `DatabaseModule` import
 
-2. `apps/server-nest/src/modules/mcp/mcp-server.controller.ts`
+2. `apps/server/src/modules/mcp/mcp-server.controller.ts`
    - Added `DatabaseService` injection
    - Added `list_entity_types` tool handler (40 lines)
    - Added `query_entities` tool handler (110 lines)
    - Updated tools/list response with new tool definitions
    - Updated tool routing switch statement
 
-3. `apps/server-nest/src/modules/chat/mcp-tool-detector.service.ts`
+3. `apps/server/src/modules/chat/mcp-tool-detector.service.ts`
    - Updated `ToolDetectionResult` interface
    - Updated `KeywordPattern` interface
    - Added `entity-list` pattern (17 lines)
    - Added `entity-query` pattern (20 lines)
    - Added cases in `buildArguments` method (50 lines)
 
-4. `apps/server-nest/src/modules/chat/chat.controller.ts`
+4. `apps/server/src/modules/chat/chat.controller.ts`
    - Updated `detectedIntent` type definition
 
-5. `apps/server-nest/src/modules/chat/chat-generation.service.ts`
+5. `apps/server/src/modules/chat/chat-generation.service.ts`
    - Updated `PromptBuildOptions` interface
    - Added intent-specific instructions for entity queries
    - Added `formatJsonContext` cases for entity results (60 lines)

@@ -13,7 +13,7 @@ Task 6 successfully implemented a production-ready **MCP Client Service** for co
 
 ### What Was Implemented
 
-1. **MCP Client Service** (`apps/server-nest/src/modules/chat/mcp-client.service.ts` - ~400 lines)
+1. **MCP Client Service** (`apps/server/src/modules/chat/mcp-client.service.ts` - ~400 lines)
    - JSON-RPC 2.0 client implementation
    - Lifecycle management (initialize, capability negotiation)
    - Tool discovery (listTools)
@@ -23,11 +23,11 @@ Task 6 successfully implemented a production-ready **MCP Client Service** for co
    - Session state management
    - Request ID counter
 
-2. **Module Integration** (`apps/server-nest/src/modules/chat/chat.module.ts`)
+2. **Module Integration** (`apps/server/src/modules/chat/chat.module.ts`)
    - Registered McpClientService as provider
    - Exported for use in ChatController
 
-3. **Unit Tests** (`apps/server-nest/src/modules/chat/__tests__/mcp-client.service.spec.ts` - ~600 lines)
+3. **Unit Tests** (`apps/server/src/modules/chat/__tests__/mcp-client.service.spec.ts` - ~600 lines)
    - 13 comprehensive tests covering all scenarios
    - Initialize lifecycle (success, HTTP errors, JSON-RPC errors, network errors)
    - Tool listing (success, not initialized)
@@ -407,11 +407,11 @@ McpError: Tool not found
 ## Integration Details
 
 ### Files Created
-1. **Service:** `apps/server-nest/src/modules/chat/mcp-client.service.ts` (~400 lines)
-2. **Tests:** `apps/server-nest/src/modules/chat/__tests__/mcp-client.service.spec.ts` (~600 lines)
+1. **Service:** `apps/server/src/modules/chat/mcp-client.service.ts` (~400 lines)
+2. **Tests:** `apps/server/src/modules/chat/__tests__/mcp-client.service.spec.ts` (~600 lines)
 
 ### Files Modified
-1. **Module:** `apps/server-nest/src/modules/chat/chat.module.ts`
+1. **Module:** `apps/server/src/modules/chat/chat.module.ts`
    - Added `McpClientService` import
    - Added to providers array
    - Added to exports array
@@ -468,7 +468,7 @@ McpError: Tool not found
 
 ## Build Verification
 
-**Command:** `npm --prefix apps/server-nest run build`  
+**Command:** `npm --prefix apps/server run build`  
 **Result:** ✅ **Build Successful**
 
 No TypeScript compilation errors. All types correct. Service ready for production use.
@@ -654,7 +654,7 @@ try {
 
 **Purpose:** Keyword-based detection of when to use MCP tools.
 
-**File:** `apps/server-nest/src/modules/chat/mcp-tool-detector.service.ts`
+**File:** `apps/server/src/modules/chat/mcp-tool-detector.service.ts`
 
 **Keywords:**
 - "version", "schema version" → `schema_version` tool

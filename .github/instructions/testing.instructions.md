@@ -10,7 +10,7 @@ Testing spans multiple applications (React admin SPA, NestJS API, automation too
 
 ## Automation Entry Points
 
-- **Nx Targets (canonical):** Always prefer `nx run <project>:<target>` to execute tasks. Examples: `nx run admin:test`, `nx run server-nest:test`, `nx run workspace-cli:workspace:start`.
+- **Nx Targets (canonical):** Always prefer `nx run <project>:<target>` to execute tasks. Examples: `nx run admin:test`, `nx run server:test`, `nx run workspace-cli:workspace:start`.
 - **Workspace CLI shorthands:** The `npm run workspace:<action>` aliases still exist but simply call the Nx targets above. Use them only when automation requires npm scripts specifically.
 - **Direct npm scripts:** Only fall back to `npm --prefix apps/<project> run <script>` when no Nx target exists yet (track any gaps and add a target).
 
@@ -30,16 +30,16 @@ Always ensure dependencies are running (
 
 Fallback aliases: `npm --prefix apps/admin run <script>` remain available if you need to bypass Nx caching or run community scripts without targets.
 
-### Server Backend (`apps/server-nest`)
-- **Unit tests:** `nx run server-nest:test`
-- **E2E integration:** `nx run server-nest:test-e2e`
-- **Coverage:** `nx run server-nest:test-coverage`
-- **Type check / build:** `nx run server-nest:build`
-- **Watch mode:** `nx run server-nest:test-watch`
-- **Scenario suite:** `nx run server-nest:test-scenarios`
-- **E2E coverage:** `nx run server-nest:test-coverage-e2e`
+### Server Backend (`apps/server`)
+- **Unit tests:** `nx run server:test`
+- **E2E integration:** `nx run server:test-e2e`
+- **Coverage:** `nx run server:test-coverage`
+- **Type check / build:** `nx run server:build`
+- **Watch mode:** `nx run server:test-watch`
+- **Scenario suite:** `nx run server:test-scenarios`
+- **E2E coverage:** `nx run server:test-coverage-e2e`
 
-Fallback aliases: `npm --prefix apps/server-nest run <script>` should only be used when introducing new scripts and before wiring an Nx target.
+Fallback aliases: `npm --prefix apps/server run <script>` should only be used when introducing new scripts and before wiring an Nx target.
 
 ### Workspace CLI (`tools/workspace-cli`)
 Keeps build/test scripts thin. Rarely needs direct testing during feature work, but full verification is available through `nx run workspace-cli:verify` (still wraps the underlying npm script).
@@ -82,19 +82,19 @@ nx run workspace-cli:workspace:start        # Launch API + Admin services under 
 ### Server (Jest)
 ```bash
 # Unit tests
-nx run server-nest:test
+nx run server:test
 
 # E2E tests
-nx run server-nest:test-e2e
+nx run server:test-e2e
 
 # Continuous watch (local only)
-nx run server-nest:test-watch
+nx run server:test-watch
 ```
 
 ### Combined Regression Loop
 ```bash
-nx run server-nest:test
-nx run server-nest:test-e2e
+nx run server:test
+nx run server:test-e2e
 nx run admin:test
 E2E_FORCE_TOKEN=1 nx run admin:e2e
 ```
@@ -102,7 +102,7 @@ E2E_FORCE_TOKEN=1 nx run admin:e2e
 ## Coverage Reports
 
 - **Admin:** `nx run admin:test-coverage` → `apps/admin/coverage/`
-- **Server:** `nx run server-nest:test-coverage` → `apps/server-nest/coverage/`
+- **Server:** `nx run server:test-coverage` → `apps/server/coverage/`
 - **Aggregate helper:** `nx run repo-scripts:test-coverage-all`
 
 Open coverage locally with `open apps/<project>/coverage/lcov-report/index.html` (macOS).
@@ -214,14 +214,14 @@ Additional debugging:
 
 | Area | Pattern |
 | --- | --- |
-| Server unit | `apps/server-nest/src/**/*.spec.ts` |
-| Server e2e | `apps/server-nest/test/**/*.e2e-spec.ts` |
+| Server unit | `apps/server/src/**/*.spec.ts` |
+| Server e2e | `apps/server/test/**/*.e2e-spec.ts` |
 | Admin unit | `apps/admin/src/**/*.{test.ts,test.tsx}` |
 | Admin e2e | `apps/admin/e2e/specs/**/*.spec.ts` |
 
 Search helpers:
 ```bash
-find apps/server-nest -name "*.spec.ts" -o -name "*.e2e-spec.ts"
+find apps/server -name "*.spec.ts" -o -name "*.e2e-spec.ts"
 find apps/admin/src -name "*.test.ts" -o -name "*.test.tsx"
 ```
 
@@ -232,17 +232,17 @@ find apps/admin/src -name "*.test.ts" -o -name "*.test.tsx"
 | Admin unit tests | `nx run admin:test` | `npm --prefix apps/admin run test` | Append `-- -t "name"` for focused run |
 | Admin coverage | `nx run admin:test-coverage` | `npm --prefix apps/admin run test:coverage` | Coverage report under `apps/admin/coverage/` |
 | Admin E2E | `E2E_FORCE_TOKEN=1 nx run admin:e2e` | `E2E_FORCE_TOKEN=1 npx playwright test -c apps/admin/e2e/playwright.config.ts` | Start deps/services first |
-| Server unit tests | `nx run server-nest:test` | `npm --prefix apps/server-nest run test` | Use `-- --testNamePattern` to filter |
-| Server E2E | `nx run server-nest:test-e2e` | `npm --prefix apps/server-nest run test:e2e` | Requires Postgres + Zitadel running |
-| Server coverage | `nx run server-nest:test-coverage` | `npm --prefix apps/server-nest run test:coverage` | Generates `apps/server-nest/coverage/` |
+| Server unit tests | `nx run server:test` | `npm --prefix apps/server run test` | Use `-- --testNamePattern` to filter |
+| Server E2E | `nx run server:test-e2e` | `npm --prefix apps/server run test:e2e` | Requires Postgres + Zitadel running |
+| Server coverage | `nx run server:test-coverage` | `npm --prefix apps/server run test:coverage` | Generates `apps/server/coverage/` |
 | Workspace status | `nx run workspace-cli:workspace:status` | `npm run workspace:status` | Reports Docker + PM2 health |
 
 Common loop:
 ```bash
 nx run workspace-cli:workspace:deps:start
 nx run workspace-cli:workspace:start
-nx run server-nest:test
-nx run server-nest:test-e2e
+nx run server:test
+nx run server:test-e2e
 nx run admin:test
 E2E_FORCE_TOKEN=1 nx run admin:e2e
 nx run workspace-cli:workspace:stop

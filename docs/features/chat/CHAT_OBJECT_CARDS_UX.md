@@ -355,7 +355,7 @@ export function useObjectDetails(objectId: string, objectType: string) {
 Need to add endpoint to fetch full object details by ID:
 
 ```typescript
-// apps/server-nest/src/modules/graph/graph.controller.ts
+// apps/server/src/modules/graph/graph.controller.ts
 
 @Get('objects/:id')
 @ApiOkResponse({ description: 'Get object by ID' })

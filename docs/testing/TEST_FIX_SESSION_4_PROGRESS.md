@@ -12,7 +12,7 @@
 
 ### The Predicate Evaluation Bug
 
-**Location:** `apps/server-nest/src/modules/graph/graph.service.ts`
+**Location:** `apps/server/src/modules/graph/graph.service.ts`
 
 **Issue:** The `evaluatePredicates` function was being called with the entire row/edge object instead of just the `.properties` field. This caused all property-based filters to fail because JSON Pointer paths like `/status` tried to resolve from `row.status` (doesn't exist) instead of `row.properties.status` (correct location).
 
@@ -254,7 +254,7 @@ Success:     +11% success rate improvement
 
 ### Priority 1: Low-Hanging Fruit (2 tests, ~5 min)
 1. **OpenAPI snapshot** - Likely just needs update
-   - Command: `npm --prefix apps/server-nest test -- tests/openapi-regression.spec.ts`
+   - Command: `npm --prefix apps/server test -- tests/openapi-regression.spec.ts`
    - Fix: Update snapshot or fix schema
 
 ### Priority 2: Auth Tests (2 tests, ~15 min)
@@ -313,7 +313,7 @@ Success:     +11% success rate improvement
 ## Documentation Updates
 
 ### Files Modified This Session
-1. ✅ `apps/server-nest/src/modules/graph/graph.service.ts` (5 locations)
+1. ✅ `apps/server/src/modules/graph/graph.service.ts` (5 locations)
    - Fixed predicate evaluation to pass `.properties` instead of full row/edge
    - Added `|| {}` fallback for null safety
    - Updated comments to clarify property object requirement

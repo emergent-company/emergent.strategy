@@ -47,7 +47,7 @@ corepack prepare pnpm@latest --activate
 ```yaml
 packages:
   - 'apps/admin'
-  - 'apps/server-nest'
+  - 'apps/server'
   - 'tools/workspace-cli'
 ```
 
@@ -74,7 +74,7 @@ pnpm list --depth 0
 
 # Test build commands
 pnpm --filter admin build
-pnpm --filter server-nest build
+pnpm --filter server build
 ```
 
 **Expected results**:
@@ -92,14 +92,14 @@ pnpm --filter server-nest build
 
 #### Before (npm):
 ```json
-"clean": "npm --prefix apps/server-nest run clean || true && rimraf apps/admin/dist || true",
-"build": "npm run clean && npm run build:server-nest && npm run build:admin",
+"clean": "npm --prefix apps/server run clean || true && rimraf apps/admin/dist || true",
+"build": "npm run clean && npm run build:server && npm run build:admin",
 ```
 
 #### After (pnpm):
 ```json
-"clean": "pnpm --filter server-nest run clean || true && rimraf apps/admin/dist || true",
-"build": "pnpm run clean && pnpm run build:server-nest && pnpm run build:admin",
+"clean": "pnpm --filter server run clean || true && rimraf apps/admin/dist || true",
+"build": "pnpm run clean && pnpm run build:server && pnpm run build:admin",
 ```
 
 **Full script replacement map**:
@@ -108,7 +108,7 @@ pnpm --filter server-nest build
 |-------------|----------------|
 | `npm run <script>` | `pnpm run <script>` or `pnpm <script>` |
 | `npm --prefix apps/admin run build` | `pnpm --filter admin run build` |
-| `npm --prefix apps/server-nest run test` | `pnpm --filter server-nest run test` |
+| `npm --prefix apps/server run test` | `pnpm --filter server run test` |
 | `npm ci` | `pnpm install --frozen-lockfile` |
 | `npm install` | `pnpm install` |
 
@@ -116,25 +116,25 @@ pnpm --filter server-nest build
 
 ```bash
 # Line 14: clean
-- "clean": "npm --prefix apps/server-nest run clean || true && rimraf apps/admin/dist || true",
-+ "clean": "pnpm --filter server-nest run clean || true && rimraf apps/admin/dist || true",
+- "clean": "npm --prefix apps/server run clean || true && rimraf apps/admin/dist || true",
++ "clean": "pnpm --filter server run clean || true && rimraf apps/admin/dist || true",
 
 # Line 30: build
-- "build": "npm run clean && npm run build:server-nest && npm run build:admin",
-+ "build": "pnpm run clean && pnpm run build:server-nest && pnpm run build:admin",
+- "build": "npm run clean && npm run build:server && npm run build:admin",
++ "build": "pnpm run clean && pnpm run build:server && pnpm run build:admin",
 
 # Line 47-49: bench commands
-- "bench:graph:relationships": "npm --prefix apps/server-nest run bench:graph:relationships",
-+ "bench:graph:relationships": "pnpm --filter server-nest run bench:graph:relationships",
+- "bench:graph:relationships": "npm --prefix apps/server run bench:graph:relationships",
++ "bench:graph:relationships": "pnpm --filter server run bench:graph:relationships",
 ```
 
 ### 2.2 Workspace package scripts
 
 **Files**:
-- `apps/server-nest/package.json`
+- `apps/server/package.json`
 - `apps/admin/package.json`
 
-#### apps/server-nest/package.json
+#### apps/server/package.json
 
 ```bash
 # Line 11: build
@@ -160,15 +160,15 @@ pnpm --filter server-nest build
 
 ### 2.3 Nx project.json commands
 
-**File**: `apps/server-nest/project.json`
+**File**: `apps/server/project.json`
 
 ```bash
 # Line 10, 31, 38, 59, 66, 73, 80, 87 (8 occurrences)
-- "command": "npm --prefix apps/server-nest run build",
-+ "command": "pnpm --filter server-nest run build",
+- "command": "npm --prefix apps/server run build",
++ "command": "pnpm --filter server run build",
 
-- "command": "npm --prefix apps/server-nest run start:dev",
-+ "command": "pnpm --filter server-nest run start:dev",
+- "command": "npm --prefix apps/server run start:dev",
++ "command": "pnpm --filter server run start:dev",
 ```
 
 **Note**: Consider whether to use pnpm directly or keep using `nx run` commands which abstract the underlying tool.
@@ -258,7 +258,7 @@ RUN cd apps/admin && pnpm run build
 
 ### 3.2 Server-nest Dockerfile
 
-**File**: `apps/server-nest/Dockerfile`
+**File**: `apps/server/Dockerfile`
 
 #### Changes required:
 
@@ -274,31 +274,31 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 ```dockerfile
 # Before
 COPY package.json package-lock.json ./
-COPY apps/server-nest/package.json apps/server-nest/package-lock.json ./apps/server-nest/
+COPY apps/server/package.json apps/server/package-lock.json ./apps/server/
 
 # After
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
-COPY apps/server-nest/package.json ./apps/server-nest/
+COPY apps/server/package.json ./apps/server/
 ```
 
 **Line 52-54: Replace npm ci**
 ```dockerfile
 # Before
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --workspace=apps/server-nest --ignore-scripts
+    npm ci --workspace=apps/server --ignore-scripts
 
 # After
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --filter server-nest --frozen-lockfile
+    pnpm install --filter server --frozen-lockfile
 ```
 
 **Line 67: Update build command**
 ```dockerfile
 # Before
-RUN cd apps/server-nest && npm run build
+RUN cd apps/server && npm run build
 
 # After
-RUN cd apps/server-nest && pnpm run build
+RUN cd apps/server && pnpm run build
 ```
 
 **Complete diff preview**:
@@ -320,22 +320,22 @@ RUN cd apps/server-nest && pnpm run build
 +# Copy pnpm workspace and root package files
 +COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
  
--# Copy server-nest package files
--COPY apps/server-nest/package.json apps/server-nest/package-lock.json ./apps/server-nest/
-+# Copy server-nest package file
-+COPY apps/server-nest/package.json ./apps/server-nest/
+-# Copy server package files
+-COPY apps/server/package.json apps/server/package-lock.json ./apps/server/
++# Copy server package file
++COPY apps/server/package.json ./apps/server/
  
 -# Install dependencies with npm cache mount (workspace-aware, skip prepare scripts like husky)
 -RUN --mount=type=cache,target=/root/.npm \
--    npm ci --workspace=apps/server-nest --ignore-scripts
+-    npm ci --workspace=apps/server --ignore-scripts
 +# Install dependencies with pnpm cache mount
 +RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-+    pnpm install --filter server-nest --frozen-lockfile
++    pnpm install --filter server --frozen-lockfile
  
 -# Build the application
--RUN cd apps/server-nest && npm run build
+-RUN cd apps/server && npm run build
 +# Build the application  
-+RUN cd apps/server-nest && pnpm run build
++RUN cd apps/server && pnpm run build
 ```
 
 ### 3.3 Update docker-compose files
@@ -360,12 +360,12 @@ docker build -f apps/admin/Dockerfile . -t admin:pnpm-test \
   --build-arg VITE_ZITADEL_ISSUER=http://localhost:8080 \
   --build-arg VITE_ZITADEL_CLIENT_ID=test
 
-# Test server-nest build
-docker build -f apps/server-nest/Dockerfile . -t server-nest:pnpm-test
+# Test server build
+docker build -f apps/server/Dockerfile . -t server:pnpm-test
 
 # Verify build artifacts
 docker run --rm admin:pnpm-test ls -la /usr/share/nginx/html
-docker run --rm server-nest:pnpm-test ls -la /app/dist
+docker run --rm server:pnpm-test ls -la /app/dist
 ```
 
 **Success criteria**:
@@ -565,7 +565,7 @@ This project uses **pnpm** for dependency management.
 - `pnpm run <script>` - Run a root script
 - `pnpm --filter <workspace> <command>` - Run command in specific workspace
 - `pnpm --filter admin build` - Build admin app
-- `pnpm --filter server-nest test` - Run server tests
+- `pnpm --filter server test` - Run server tests
 
 ### Workspace Commands
 
@@ -606,7 +606,7 @@ git checkout master
 cat > pnpm-workspace.yaml <<EOF
 packages:
   - 'apps/admin'
-  - 'apps/server-nest'
+  - 'apps/server'
   - 'tools/workspace-cli'
 EOF
 
@@ -625,7 +625,7 @@ pnpm run build
 
 # 8. Run tests
 pnpm --filter admin test
-pnpm --filter server-nest test
+pnpm --filter server test
 
 # 9. If all successful, update all files (Phase 2-5 changes)
 # (Use prepared scripts or manual editing)
@@ -651,7 +651,7 @@ pnpm run test
 
 # Test Docker builds
 docker build -f apps/admin/Dockerfile . -t admin:test
-docker build -f apps/server-nest/Dockerfile . -t server-nest:test
+docker build -f apps/server/Dockerfile . -t server:test
 
 # Start workspace
 pnpm run workspace:deps:start
@@ -852,22 +852,22 @@ pnpm install
 
 # 2. Root build
 pnpm run build
-# Expected: Both admin and server-nest build successfully
+# Expected: Both admin and server build successfully
 
 # 3. Workspace-specific builds
 pnpm --filter admin build
-pnpm --filter server-nest build
+pnpm --filter server build
 # Expected: Each workspace builds independently
 
 # 4. Tests
 pnpm --filter admin test
-pnpm --filter server-nest test
-pnpm --filter server-nest test:e2e
+pnpm --filter server test
+pnpm --filter server test:e2e
 # Expected: All tests pass
 
 # 5. Docker builds
 docker build -f apps/admin/Dockerfile . -t admin:pnpm-test
-docker build -f apps/server-nest/Dockerfile . -t server-nest:pnpm-test
+docker build -f apps/server/Dockerfile . -t server:pnpm-test
 # Expected: Builds complete, no missing dependencies
 
 # 6. Workspace management
@@ -881,7 +881,7 @@ pnpm run workspace:deps:stop
 
 # 7. Nx commands
 nx run admin:test
-nx run server-nest:test
+nx run server:test
 nx run admin:e2e
 # Expected: Nx commands still work (they call pnpm internally)
 ```

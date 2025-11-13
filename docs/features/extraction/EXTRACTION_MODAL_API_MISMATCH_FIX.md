@@ -34,7 +34,7 @@ The `apps/admin/src/api/type-registry.ts` file was created with incorrect TypeSc
 
 **Backend (Correct):**
 ```typescript
-// apps/server-nest/src/modules/type-registry/type-registry.controller.ts
+// apps/server/src/modules/type-registry/type-registry.controller.ts
 @Get('projects/:projectId')
 async getProjectTypes(...): Promise<TypeRegistryEntryDto[]> {
   return this.typeRegistryService.getProjectTypes(projectId, orgId, query);
@@ -183,9 +183,9 @@ packages/
 
 - **Frontend API Client:** `apps/admin/src/api/type-registry.ts`
 - **Frontend Modal:** `apps/admin/src/components/organisms/ExtractionConfigModal.tsx`
-- **Backend Controller:** `apps/server-nest/src/modules/type-registry/type-registry.controller.ts`
-- **Backend Service:** `apps/server-nest/src/modules/type-registry/type-registry.service.ts`
-- **Backend DTOs:** `apps/server-nest/src/modules/type-registry/dto/type-registry.dto.ts`
+- **Backend Controller:** `apps/server/src/modules/type-registry/type-registry.controller.ts`
+- **Backend Service:** `apps/server/src/modules/type-registry/type-registry.service.ts`
+- **Backend DTOs:** `apps/server/src/modules/type-registry/dto/type-registry.dto.ts`
 
 ## Impact
 

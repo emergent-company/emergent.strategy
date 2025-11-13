@@ -67,7 +67,7 @@ LLM: "You can query: Decision (42), Project (18), Document (156)"
 ## Implementation Checklist
 
 ### 1. Add MCP Tools (2 hours)
-**File**: `apps/server-nest/src/modules/mcp/mcp-server.controller.ts`
+**File**: `apps/server/src/modules/mcp/mcp-server.controller.ts`
 
 - [ ] Add `list_entity_types` endpoint
   - Queries `kb.type_registry` table
@@ -82,7 +82,7 @@ LLM: "You can query: Decision (42), Project (18), Document (156)"
 - [ ] Add scope checks (`schema:read` for list, `data:read` for query)
 
 ### 2. Update Detector (1 hour)
-**File**: `apps/server-nest/src/modules/chat/mcp-tool-detector.service.ts`
+**File**: `apps/server/src/modules/chat/mcp-tool-detector.service.ts`
 
 - [ ] Add `'entity-query'` to intent types
 - [ ] Add pattern with keywords:
@@ -99,14 +99,14 @@ LLM: "You can query: Decision (42), Project (18), Document (156)"
   - Sort preference ("recent" → sort: desc)
 
 ### 3. Inform LLM (30 min)
-**File**: `apps/server-nest/src/modules/chat/chat-generation.service.ts`
+**File**: `apps/server/src/modules/chat/chat-generation.service.ts`
 
 - [ ] Add `availableEntityTypes` to `PromptBuildOptions`
 - [ ] Update `buildPrompt()` to include entity types in system prompt
 - [ ] Format entity list for LLM context
 
 ### 4. Update Controller (1 hour)
-**File**: `apps/server-nest/src/modules/chat/chat.controller.ts`
+**File**: `apps/server/src/modules/chat/chat.controller.ts`
 
 - [ ] Fetch entity types on conversation start
 - [ ] Handle `entity-query` and `entity-list` intents

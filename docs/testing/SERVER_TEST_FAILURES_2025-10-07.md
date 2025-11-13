@@ -344,7 +344,7 @@ expect(pathData.summary).toContain('implements');
 
 ### Command Run
 ```bash
-npm --prefix apps/server-nest run test
+npm --prefix apps/server run test
 ```
 
 ### Environment

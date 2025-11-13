@@ -66,7 +66,7 @@ apps/admin/src/pages/admin/superadmin/
 
 ### New Module: `MonitoringModule`
 ```
-apps/server-nest/src/modules/monitoring/
+apps/server/src/modules/monitoring/
 ├── monitoring.module.ts          # Module registration, exports MonitoringLoggerService
 ├── monitoring.controller.ts      # API endpoints (GET resources, logs, etc.)
 ├── monitoring.service.ts         # Query business logic
@@ -117,7 +117,7 @@ POST /api/admin/monitoring/client-logs  (Phase 3)
 
 1. **Create Database Migration** (Phase 1)
    - Tables: `kb.system_process_logs`, `kb.llm_call_logs`
-   - Migration file: `apps/server-nest/migrations/YYYYMMDD_monitoring_phase1.sql`
+   - Migration file: `apps/server/migrations/YYYYMMDD_monitoring_phase1.sql`
 
 2. **Implement Backend** (Phase 1)
    - Create `MonitoringModule` structure

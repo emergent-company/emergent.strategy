@@ -10,13 +10,13 @@
 
 ```bash
 # Count queries in the service
-grep -c "db.query" apps/server-nest/src/modules/path/service.ts
+grep -c "db.query" apps/server/src/modules/path/service.ts
 
 # Check service size
-wc -l apps/server-nest/src/modules/path/service.ts
+wc -l apps/server/src/modules/path/service.ts
 
 # List all methods
-grep -n "async.*(" apps/server-nest/src/modules/path/service.ts
+grep -n "async.*(" apps/server/src/modules/path/service.ts
 ```
 
 ### Step 2: Check/Create Entity
@@ -24,7 +24,7 @@ grep -n "async.*(" apps/server-nest/src/modules/path/service.ts
 Check if entity exists:
 
 ```bash
-ls apps/server-nest/src/entities/your-entity.entity.ts
+ls apps/server/src/entities/your-entity.entity.ts
 ```
 
 If not, create entity following existing patterns:
@@ -136,7 +136,7 @@ const results = await this.dataSource.query(
 
 ```bash
 # Build
-npm run build:server-nest
+npm run build:server
 
 # Restart
 npx pm2 restart spec-server-2-server
@@ -325,7 +325,7 @@ return {
 
 After migrating a service:
 
-- [ ] Build succeeds: `npm run build:server-nest`
+- [ ] Build succeeds: `npm run build:server`
 - [ ] No TypeScript errors
 - [ ] Server restarts successfully
 - [ ] Health check passes: `curl http://localhost:3002/health`
@@ -339,7 +339,7 @@ After migrating a service:
 
 ```bash
 # Build
-npm run build:server-nest
+npm run build:server
 
 # Restart server
 npx pm2 restart spec-server-2-server

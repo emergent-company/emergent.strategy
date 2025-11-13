@@ -291,17 +291,17 @@ Tracking comprehensive test implementation for the MCP server module. Goal: Achi
 
 ### Run All MCP Tests
 ```bash
-npm --prefix apps/server-nest run test -- mcp
+npm --prefix apps/server run test -- mcp
 ```
 
 ### Run Specific Test File
 ```bash
-npm --prefix apps/server-nest run test -- schema-version.service.spec.ts
+npm --prefix apps/server run test -- schema-version.service.spec.ts
 ```
 
 ### Run With Coverage
 ```bash
-npm --prefix apps/server-nest run test:coverage -- mcp
+npm --prefix apps/server run test:coverage -- mcp
 ```
 
 ---

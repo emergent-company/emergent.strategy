@@ -302,12 +302,12 @@ PKCS#1 → PKCS#8 conversion                      → Mock crypto.createPrivateK
 **None** - All fixes were already applied from previous investigation session!
 
 ### Files Verified as Correct:
-- `apps/server-nest/src/modules/auth/__tests__/zitadel.service.spec.ts` ✅
+- `apps/server/src/modules/auth/__tests__/zitadel.service.spec.ts` ✅
   - Crypto mock present (lines 19-28)
   - Variable names updated correctly
   - All 23 tests passing
 
-- `apps/server-nest/src/modules/auth/zitadel.service.ts` ✅
+- `apps/server/src/modules/auth/zitadel.service.ts` ✅
   - Dual service account architecture implemented
   - PKCS#1 to PKCS#8 conversion logic present (lines 860-890)
   - Token caching for both CLIENT and API accounts

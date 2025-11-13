@@ -28,7 +28,7 @@ This document provides a step-by-step implementation plan for building the Docum
 
 1. **Install Google Cloud Dependencies**
    ```bash
-   cd apps/server-nest
+   cd apps/server
    npm install @google-cloud/vertexai
    npm install @google-cloud/aiplatform
    ```

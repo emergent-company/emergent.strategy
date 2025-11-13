@@ -10,7 +10,7 @@ All runtime logs now live in the project root `logs/` directory. The main files 
 | --- | --- | --- |
 | `logs/app.log` | NestJS FileLogger | Structured Nest logs (startup, service diagnostics, workers) |
 | `logs/errors.log` | NestJS FileLogger & GlobalHttpExceptionFilter | Fatal errors, bootstrap failures, JSON-structured 5xx responses |
-| `logs/api.log` | `scripts/dev-manager.mjs` | Background `npm run dev:server-nest` stdout/stderr (ts-node-dev restarts, migration output) |
+| `logs/api.log` | `scripts/dev-manager.mjs` | Background `npm run dev:server` stdout/stderr (ts-node-dev restarts, migration output) |
 | `logs/admin.log` | `scripts/dev-manager.mjs` | Background Vite dev server output and proxy errors |
 | `logs/db.log` | Docker `postgres` service | Postgres statements, connections, and collector output |
 | `logs/e2e-tests/` | `scripts/run-e2e-with-logs.mjs` | Timestamped Playwright stdout/stderr and summary JSON |
@@ -32,7 +32,7 @@ npm run dev-manager:logs:snapshot -- --json
 
 The script prints grouped sections for the backend API, admin frontend, NestJS application logs, aggregated error log, Postgres log, and any other `.log` files discovered in the root `logs/` directory.
 
-Previous per-app folders (for example `apps/server-nest/logs/`) are no longer used and can be removed safely. To change the destination, set `LOG_DIR` (global) or stack-specific variables such as `ERROR_LOG_DIR` before starting services.
+Previous per-app folders (for example `apps/server/logs/`) are no longer used and can be removed safely. To change the destination, set `LOG_DIR` (global) or stack-specific variables such as `ERROR_LOG_DIR` before starting services.
 
 ## Server-Side Logging (API/Backend)
 
@@ -242,7 +242,7 @@ errorLogger.logNetworkError(url, method, error);
 To integrate with external error tracking:
 
 1. Install Sentry SDK
-2. In `apps/server-nest/src/common/filters/http-exception.filter.ts`:
+2. In `apps/server/src/common/filters/http-exception.filter.ts`:
    ```typescript
    // Before appendFileSync
    if (status >= 500 && exception instanceof Error) {

@@ -12,7 +12,7 @@ The auto-discovery system's LLM integration is now fully functional. The system 
 
 ### 1. LLM Provider Extensions (LangChainGeminiProvider)
 
-**File:** `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+**File:** `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
 
 Added two new AI-powered discovery methods:
 
@@ -56,7 +56,7 @@ Added two new AI-powered discovery methods:
 
 ### 2. Discovery Service LLM Integration
 
-**File:** `apps/server-nest/src/modules/discovery-jobs/discovery-job.service.ts`
+**File:** `apps/server/src/modules/discovery-jobs/discovery-job.service.ts`
 
 #### Updated `extractTypesFromBatch()` Method (Lines 238-280)
 
@@ -146,7 +146,7 @@ return relationships;
 
 ### 3. Dependency Injection Setup
 
-**File:** `apps/server-nest/src/modules/discovery-jobs/discovery-job.service.ts`
+**File:** `apps/server/src/modules/discovery-jobs/discovery-job.service.ts`
 
 Added LLM provider to service constructor:
 ```typescript

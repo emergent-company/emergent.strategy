@@ -2,7 +2,7 @@
 
 **Based on**: Working implementation from huma-blueprint-ui  
 **Date**: October 31, 2025  
-**Target**: spec-server-2 (apps/server-nest/)  
+**Target**: spec-server-2 (apps/server/)  
 **Status**: Ready to Implement
 
 ---
@@ -60,7 +60,7 @@ This plan implements **Zitadel Token Introspection** using the **proven, working
 
 #### 1.1 Database Migration
 
-**File**: `apps/server-nest/migrations/0004_auth_introspection_cache.sql`
+**File**: `apps/server/migrations/0004_auth_introspection_cache.sql`
 
 ```sql
 -- Migration: Auth Introspection Cache
@@ -92,7 +92,7 @@ COMMENT ON COLUMN kb.auth_introspection_cache.expires_at IS
 
 #### 1.2 PostgreSQL Cache Service
 
-**File**: `apps/server-nest/src/modules/auth/postgres-cache.service.ts`
+**File**: `apps/server/src/modules/auth/postgres-cache.service.ts`
 
 ```typescript
 import { Injectable, Logger } from '@nestjs/common';
@@ -228,7 +228,7 @@ export class PostgresCacheService {
 
 #### 1.3 Cache Cleanup Service
 
-**File**: `apps/server-nest/src/modules/auth/cache-cleanup.service.ts`
+**File**: `apps/server/src/modules/auth/cache-cleanup.service.ts`
 
 ```typescript
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
@@ -283,7 +283,7 @@ export class CacheCleanupService implements OnModuleInit, OnModuleDestroy {
 
 #### 2.1 Zitadel Service
 
-**File**: `apps/server-nest/src/modules/auth/zitadel.service.ts`
+**File**: `apps/server/src/modules/auth/zitadel.service.ts`
 
 ```typescript
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
@@ -472,7 +472,7 @@ export class ZitadelService implements OnModuleInit {
 
 #### 2.2 Zitadel Introspection Service
 
-**File**: `apps/server-nest/src/modules/auth/zitadel-introspection.service.ts`
+**File**: `apps/server/src/modules/auth/zitadel-introspection.service.ts`
 
 ```typescript
 import { Injectable, Logger } from '@nestjs/common';
@@ -657,7 +657,7 @@ export class ZitadelIntrospectionService {
 
 #### 3.1 Update AuthService
 
-**File**: `apps/server-nest/src/modules/auth/auth.service.ts`
+**File**: `apps/server/src/modules/auth/auth.service.ts`
 
 **Changes at line 72 (`validateToken` method)**:
 
@@ -746,7 +746,7 @@ export interface AuthUser {
 
 #### 3.2 Roles Decorator & Guard
 
-**File**: `apps/server-nest/src/modules/auth/roles.decorator.ts`
+**File**: `apps/server/src/modules/auth/roles.decorator.ts`
 
 ```typescript
 import { SetMetadata } from '@nestjs/common';
@@ -756,7 +756,7 @@ export const ROLES_KEY = 'roles';
 export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
 ```
 
-**File**: `apps/server-nest/src/modules/auth/roles.guard.ts`
+**File**: `apps/server/src/modules/auth/roles.guard.ts`
 
 ```typescript
 import { Injectable, CanActivate, ExecutionContext, Logger } from '@nestjs/common';
@@ -806,7 +806,7 @@ export class RolesGuard implements CanActivate {
 
 #### 3.3 Update Auth Module
 
-**File**: `apps/server-nest/src/modules/auth/auth.module.ts`
+**File**: `apps/server/src/modules/auth/auth.module.ts`
 
 ```typescript
 import { Module } from '@nestjs/common';
@@ -853,7 +853,7 @@ export class AuthModule {}
 
 #### 3.4 Environment Variables
 
-**File**: `.env.example` (root or `apps/server-nest/.env.example`)
+**File**: `.env.example` (root or `apps/server/.env.example`)
 
 ```bash
 # --- Node Environment ---

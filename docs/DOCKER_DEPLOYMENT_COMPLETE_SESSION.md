@@ -52,7 +52,7 @@ TypeError: pathRegexp is not a function
 
 **Solution** (Commits 077d4d6, 3ae017d):
 ```json
-// apps/server-nest/package.json
+// apps/server/package.json
 "dependencies": {
   "@nestjs/passport": "^11.0.5",
   "passport": "^0.7.0",
@@ -75,7 +75,7 @@ TypeError: pathToRegexp.parse is not a function
 ```
 
 **Root Cause**:
-- `apps/server-nest/package.json` had explicit `"path-to-regexp": "^8.3.0"`
+- `apps/server/package.json` had explicit `"path-to-regexp": "^8.3.0"`
 - Swagger requires path-to-regexp 3.x API
 - Version 8.x has breaking changes, removed `.parse()` method
 
@@ -84,11 +84,11 @@ TypeError: pathToRegexp.parse is not a function
   - 0.1.12 (Express 4.x internal) ✅
   - 3.3.0 (needed for Swagger) ⚠️
   - 6.3.0 (oas package) ✅
-  - 8.3.0 (explicit server-nest dependency) ❌
+  - 8.3.0 (explicit server dependency) ❌
 
 **Solution** (Commits e4f4979, 72dda88, 172534f):
 ```json
-// apps/server-nest/package.json
+// apps/server/package.json
 "dependencies": {
   "path-to-regexp": "3.3.0"  // Changed from "^8.3.0"
 }
@@ -180,12 +180,12 @@ Removed from `clickup-api.client.ts`:
 **File Changes**:
 - `package.json`: Removed `"@api/clickup": "file:.api/apis/clickup"`
 - `tsconfig.json`: Removed `.api` from exclude array
-- **Deleted**: `apps/server-nest/.api/` directory (entire SDK package)
+- **Deleted**: `apps/server/.api/` directory (entire SDK package)
 - **Dockerfile builder stage**: Removed:
   - Debug logging for `.api` directory
-  - Symlink creation: `ln -sf /build/apps/server-nest/.api/apis/clickup`
+  - Symlink creation: `ln -sf /build/apps/server/.api/apis/clickup`
 - **Dockerfile production stage**: Removed:
-  - `COPY --from=builder /build/apps/server-nest/.api ./.api`
+  - `COPY --from=builder /build/apps/server/.api ./.api`
   - `ln -sf /app/.api/apis/clickup node_modules/@api/clickup`
 
 **Lockfile**: Ran `npm install` to update package-lock.json
@@ -204,7 +204,7 @@ $ npm run build
 
 **Docker Build**:
 ```bash
-$ docker build -f apps/server-nest/Dockerfile -t spec-server-test:latest .
+$ docker build -f apps/server/Dockerfile -t spec-server-test:latest .
 ✅ Success - Image built in 39.8s
 ```
 
@@ -306,17 +306,17 @@ Integration: Plain HTTP fetch() calls ✅
 
 ### Configuration Files
 1. `package.json` (root) - Express override
-2. `apps/server-nest/package.json` - Passport deps, path-to-regexp 3.3.0, removed @api/clickup
-3. `apps/server-nest/tsconfig.json` - Removed .api exclude
+2. `apps/server/package.json` - Passport deps, path-to-regexp 3.3.0, removed @api/clickup
+3. `apps/server/tsconfig.json` - Removed .api exclude
 
 ### Source Code
-4. `apps/server-nest/src/modules/clickup/clickup-api.client.ts` - 8 methods rewritten with fetch()
+4. `apps/server/src/modules/clickup/clickup-api.client.ts` - 8 methods rewritten with fetch()
 
 ### Docker
-5. `apps/server-nest/Dockerfile` - Removed .api directory handling
+5. `apps/server/Dockerfile` - Removed .api directory handling
 
 ### Deleted
-6. `apps/server-nest/.api/` - Entire directory deleted
+6. `apps/server/.api/` - Entire directory deleted
 
 ---
 

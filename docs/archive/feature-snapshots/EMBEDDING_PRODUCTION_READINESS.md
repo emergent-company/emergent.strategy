@@ -12,7 +12,7 @@ Successfully implemented configurable embedding dimensions to support production
 
 ## Changes Made
 
-### 1. Configuration Service (`apps/server-nest/src/common/config/config.service.ts`)
+### 1. Configuration Service (`apps/server/src/common/config/config.service.ts`)
 
 Added `embeddingDimension` getter:
 - Reads `EMBEDDING_DIMENSION` environment variable
@@ -36,7 +36,7 @@ get embeddingDimension(): number {
 }
 ```
 
-### 2. Database Service (`apps/server-nest/src/common/database/database.service.ts`)
+### 2. Database Service (`apps/server/src/common/database/database.service.ts`)
 
 Replaced all hardcoded `vector(32)` with dynamic `vector(${this.config.embeddingDimension})`:
 - Minimal re-upgrade path (line ~179)
@@ -172,7 +172,7 @@ await this.pool.query(`
 
 ✅ Server builds cleanly with dynamic dimension:
 ```bash
-npm run build:server-nest
+npm run build:server
 # ✓ No TypeScript errors
 ```
 
@@ -275,10 +275,10 @@ For 100k objects with avg 500 characters each:
 
 ### Updated Files
 
-1. **`apps/server-nest/src/common/config/config.service.ts`**
+1. **`apps/server/src/common/config/config.service.ts`**
    - Added `embeddingDimension` getter
 
-2. **`apps/server-nest/src/common/database/database.service.ts`**
+2. **`apps/server/src/common/database/database.service.ts`**
    - Replaced 4 hardcoded `vector(32)` references with dynamic dimension
 
 3. **`package.json`**

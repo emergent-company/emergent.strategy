@@ -24,7 +24,7 @@ The repository uses **npm workspaces** (monorepo structure):
 {
   "workspaces": [
     "apps/admin",
-    "apps/server-nest",
+    "apps/server",
     "tools/workspace-cli"
   ]
 }

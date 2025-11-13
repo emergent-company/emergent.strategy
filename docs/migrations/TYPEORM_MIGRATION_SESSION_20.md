@@ -2,7 +2,7 @@
 
 **Date**: November 8, 2025  
 **Service**: ExtractionWorkerService  
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`  
+**File**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`  
 **Migration Type**: Partial (Service Delegation + TypeORM)  
 **Session Duration**: ~1 hour  
 **Status**: ✅ **COMPLETE**
@@ -667,8 +667,8 @@ describe('Strategic SQL', () => {
 
 **Compilation**: ✅ **SUCCESS**
 ```bash
-npx nx run server-nest:build
-# Successfully ran target build for project server-nest
+npx nx run server:build
+# Successfully ran target build for project server
 ```
 
 **No TypeScript errors**  

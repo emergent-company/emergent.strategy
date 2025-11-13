@@ -89,7 +89,7 @@ These packs are set to `source = 'system'` via migration:
 2. **TOGAF Enterprise Architecture**
 3. **Meeting & Decision Management**
 
-Migration file: `apps/server-nest/migrations/20251019_extend_template_packs_for_discovery.sql`
+Migration file: `apps/server/migrations/20251019_extend_template_packs_for_discovery.sql`
 
 ```sql
 UPDATE kb.graph_template_packs
@@ -230,8 +230,8 @@ No backend changes needed - it uses `SELECT *` which includes `source`.
 - `apps/admin/src/pages/admin/pages/settings/project/templates.tsx` (updated)
 
 ### Backend
-- `apps/server-nest/src/modules/template-packs/template-pack.service.ts` (no changes needed)
-- `apps/server-nest/migrations/20251019_extend_template_packs_for_discovery.sql` (sets system source)
+- `apps/server/src/modules/template-packs/template-pack.service.ts` (no changes needed)
+- `apps/server/migrations/20251019_extend_template_packs_for_discovery.sql` (sets system source)
 
 ### Documentation
 - `docs/TEMPLATE_PACK_GROUPING.md` (this file)

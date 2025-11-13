@@ -26,7 +26,7 @@ Frontend Cost Analytics page (`/admin/monitoring/analytics`) was showing 500 Int
 - Server now correctly listening on port 3001 as configured in `SERVER_PORT=3001`
 
 ### 2. DTO Fix
-**File**: `apps/server-nest/src/modules/monitoring/dto/resource-query.dto.ts`
+**File**: `apps/server/src/modules/monitoring/dto/resource-query.dto.ts`
 
 Changed:
 ```typescript
@@ -102,8 +102,8 @@ Backend (MonitoringController)
 
 - `apps/admin/src/pages/admin/monitoring/analytics/index.tsx` - Cost Analytics page
 - `apps/admin/src/api/monitoring.ts` - Monitoring API client
-- `apps/server-nest/src/modules/monitoring/monitoring.controller.ts` - Backend controller
-- `apps/server-nest/src/modules/monitoring/dto/resource-query.dto.ts` - Query DTO (fixed)
+- `apps/server/src/modules/monitoring/monitoring.controller.ts` - Backend controller
+- `apps/server/src/modules/monitoring/dto/resource-query.dto.ts` - Query DTO (fixed)
 - `apps/admin/vite.config.ts` - Proxy configuration
 - `.env` - SERVER_PORT=3001
 

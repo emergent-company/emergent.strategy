@@ -536,7 +536,7 @@ When starting a new service migration:
 
 ```bash
 # Search for related service methods
-grep -r "getProject\|listProjects" apps/server-nest/src/modules/*/
+grep -r "getProject\|listProjects" apps/server/src/modules/*/
 ```
 
 2. **Review recent sessions**:

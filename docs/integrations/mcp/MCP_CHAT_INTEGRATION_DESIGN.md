@@ -101,7 +101,7 @@ User Question → Chat Controller → MCP Tool Detector → Tool Router
 #### 1. MCP Tool Detector
 **Purpose**: Analyze user message to determine if MCP tools should be invoked
 
-**Location**: `apps/server-nest/src/modules/chat/mcp-tool-detector.service.ts`
+**Location**: `apps/server/src/modules/chat/mcp-tool-detector.service.ts`
 
 **Logic**:
 ```typescript
@@ -126,7 +126,7 @@ const schemaKeywords = [
 #### 2. MCP Tool Router
 **Purpose**: Execute appropriate MCP tool based on detected intent
 
-**Location**: `apps/server-nest/src/modules/chat/mcp-tool-router.service.ts`
+**Location**: `apps/server/src/modules/chat/mcp-tool-router.service.ts`
 
 **Methods**:
 ```typescript
@@ -137,7 +137,7 @@ async searchTypes(projectId: string, orgId: string, query: string): Promise<Type
 ```
 
 #### 3. Enhanced Chat Generation
-**Modify**: `apps/server-nest/src/modules/chat/chat-generation.service.ts`
+**Modify**: `apps/server/src/modules/chat/chat-generation.service.ts`
 
 **Configuration Note**: The service uses `this.config.vertexAiModel` which reads from `VERTEX_AI_MODEL` environment variable. This can be any Vertex AI model (e.g., `gemini-1.5-flash-latest`, `gemini-1.5-pro-002`, `gemini-2.0-flash-exp`).
 

@@ -182,7 +182,7 @@ After this migration, these are the established patterns for all test imports:
 ### Final Structure After Phase 4
 
 ```
-apps/server-nest/
+apps/server/
 ├── tests/
 │   ├── unit/              # Unit tests (126 files, 805 passing)
 │   │   ├── auth/
@@ -390,8 +390,8 @@ The following issues were discovered during final verification and are **not** c
 ## Related Documentation
 
 - [Test Organization Consolidated](./TEST_ORGANIZATION_CONSOLIDATED.md) - Overall test architecture
-- [tests/integration/README.md](../../apps/server-nest/tests/integration/README.md) - Integration test guidelines
-- [tests/e2e/integration/README.md](../../apps/server-nest/tests/e2e/integration/README.md) - E2E integration details
+- [tests/integration/README.md](../../apps/server/tests/integration/README.md) - Integration test guidelines
+- [tests/e2e/integration/README.md](../../apps/server/tests/e2e/integration/README.md) - E2E integration details
 - [Testing Guide](./TESTING_GUIDE.md) - Comprehensive testing documentation
 
 ## Next Steps (Optional)

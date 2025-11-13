@@ -144,8 +144,8 @@ If more ClickUp API methods are needed:
 
 ## Files Modified
 
-- `apps/server-nest/src/modules/clickup/clickup-api.client.ts`: Replaced SDK calls with REST calls
-- `apps/server-nest/tests/clickup-real.integration.spec.ts`: Tests now pass
+- `apps/server/src/modules/clickup/clickup-api.client.ts`: Replaced SDK calls with REST calls
+- `apps/server/tests/clickup-real.integration.spec.ts`: Tests now pass
 
 ## Overall E2E Test Status
 

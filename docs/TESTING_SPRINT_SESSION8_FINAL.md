@@ -362,7 +362,7 @@ Raw SQL (DataSource.query)                       → FakeDb / FakeClient
 ## Files Modified
 
 ### Test File Changes
-**File**: `/Users/mcj/code/spec-server-2/apps/server-nest/src/modules/auth/__tests__/zitadel.service.spec.ts`
+**File**: `/Users/mcj/code/spec-server-2/apps/server/src/modules/auth/__tests__/zitadel.service.spec.ts`
 
 **Changes**:
 1. Added crypto module mock (lines 19-28)
@@ -374,7 +374,7 @@ Raw SQL (DataSource.query)                       → FakeDb / FakeClient
 **Tests Fixed**: 17 → 0 failures ✅
 
 ### Service File (Read-Only)
-**File**: `/Users/mcj/code/spec-server-2/apps/server-nest/src/modules/auth/zitadel.service.ts`
+**File**: `/Users/mcj/code/spec-server-2/apps/server/src/modules/auth/zitadel.service.ts`
 
 **No changes needed** - Service implementation is correct, tests adapted to match.
 

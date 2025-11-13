@@ -376,8 +376,8 @@ Frontend Display
 
 - `docs/GRAPH_SEARCH_WITH_NEIGHBORS.md` - Full technical spec
 - `docs/IMPLEMENTATION_COMPLETE_STATUS_SEARCH.md` - Original implementation
-- `apps/server-nest/src/modules/graph/graph.service.ts` - Search implementation
-- `apps/server-nest/src/modules/graph/graph-vector-search.service.ts` - Vector similarity
+- `apps/server/src/modules/graph/graph.service.ts` - Search implementation
+- `apps/server/src/modules/graph/graph-vector-search.service.ts` - Vector similarity
 
 ## Next Steps
 

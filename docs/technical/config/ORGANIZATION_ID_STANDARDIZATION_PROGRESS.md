@@ -158,7 +158,7 @@ User explicitly stated: "I don't want to see org_id or tenant_id anymore"
 - notifications.service.spec.ts (needs checking)
 
 ### 🏗️ BUILD STATUS
-- ✅ **Backend Build**: PASSING (`nx run server-nest:build`)
+- ✅ **Backend Build**: PASSING (`nx run server:build`)
 - ⚠️ **Tests**: Not yet run after refactoring
 - 🔴 **Frontend**: Not yet checked for org_id/tenant_id usage
 
@@ -254,9 +254,9 @@ User explicitly stated: "I don't want to see org_id or tenant_id anymore"
 
 4. **After code updates, run**:
    ```bash
-   nx run server-nest:build
-   nx run server-nest:test
-   nx run server-nest:test-e2e
+   nx run server:build
+   nx run server:test
+   nx run server:test-e2e
    ```
 
 ### 📊 PROGRESS METRICS

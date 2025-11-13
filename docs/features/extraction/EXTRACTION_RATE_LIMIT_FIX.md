@@ -52,7 +52,7 @@ WHERE id = '3052d52e-6ffd-45cb-94f3-d13216ed5e59';
 
 ### 2. Add Rate Limit Configuration
 
-Add to `apps/server-nest/.env`:
+Add to `apps/server/.env`:
 
 ```bash
 # Extraction Rate Limits (adjust based on Vertex AI tier)
@@ -110,7 +110,7 @@ nx run workspace-cli:workspace:start
 
 The current system has rate limiting but doesn't handle 429 errors from Vertex AI properly. Enhancement needed:
 
-**File:** `apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts`
+**File:** `apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts`
 
 **Current behavior:**
 - Catches error, logs it, continues with next chunk
@@ -194,7 +194,7 @@ tail -50 apps/logs/server/error.log | grep -i "429\|rate"
 **PM2 Config:** `tools/workspace-cli/pm2/ecosystem.apps.cjs`
 - ✅ No hardcoded Vertex AI settings (uses .env)
 
-**Environment:** `apps/server-nest/.env`
+**Environment:** `apps/server/.env`
 ```bash
 # Vertex AI Configuration
 VERTEX_AI_PROJECT_ID=spec-server-dev
@@ -220,7 +220,7 @@ EXTRACTION_RATE_LIMIT_TPM=30000 # Or higher based on your quota
 
 The system has a sophisticated rate limiter:
 
-**File:** `apps/server-nest/src/modules/extraction-jobs/rate-limiter.service.ts`
+**File:** `apps/server/src/modules/extraction-jobs/rate-limiter.service.ts`
 
 **Features:**
 - ✅ Token bucket algorithm
@@ -294,12 +294,12 @@ A: Yes! NestJS reads .env at startup. Use `npm run workspace:stop && npm run wor
 
 ## Related Files
 
-- `apps/server-nest/.env` - Configuration
-- `apps/server-nest/.env.example` - Configuration template
+- `apps/server/.env` - Configuration
+- `apps/server/.env.example` - Configuration template
 - `tools/workspace-cli/pm2/ecosystem.apps.cjs` - PM2 process config
-- `apps/server-nest/src/modules/extraction-jobs/rate-limiter.service.ts` - Rate limiter
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` - Worker
-- `apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` - Vertex AI client
+- `apps/server/src/modules/extraction-jobs/rate-limiter.service.ts` - Rate limiter
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` - Worker
+- `apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` - Vertex AI client
 
 ## Next Steps
 

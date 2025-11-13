@@ -189,8 +189,8 @@ You can configure scope grants per user/role in Zitadel:
 ## 📚 Related Files
 
 - Frontend scope config: `apps/admin/src/contexts/auth.tsx` (line 31)
-- Backend scope definitions: `apps/server-nest/src/modules/auth/auth.service.ts` (lines 20-48)
-- Scope guard implementation: `apps/server-nest/src/modules/auth/scopes.guard.ts`
+- Backend scope definitions: `apps/server/src/modules/auth/auth.service.ts` (lines 20-48)
+- Scope guard implementation: `apps/server/src/modules/auth/scopes.guard.ts`
 - OIDC utilities: `apps/admin/src/auth/oidc.ts`
 
 ## 🐛 Troubleshooting

@@ -90,7 +90,7 @@ npm run test:unit
 nx run workspace-cli:workspace:deps:start
 
 # Apply migrations
-nx run server-nest:migrate
+nx run server:migrate
 
 # Run integration tests
 npm run test:integration
@@ -131,7 +131,7 @@ npm run test:all  # Includes integration tests
 ## Directory Structure
 
 ```
-apps/server-nest/
+apps/server/
 ├── tests/
 │   ├── integration/           # NEW: Integration tests
 │   │   ├── README.md          # Integration test guide

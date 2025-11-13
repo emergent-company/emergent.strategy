@@ -196,7 +196,7 @@ Or manually:
 
 ```bash
 # Terminal 1: Backend API
-cd apps/server-nest && npm run start:dev
+cd apps/server && npm run start:dev
 
 # Terminal 2: Admin Frontend
 cd apps/admin && npm run dev

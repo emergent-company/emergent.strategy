@@ -18,7 +18,7 @@ Implemented document chunking with overlap in `vertex-ai.provider.ts`, matching 
 ## Changes Made
 
 ### 1. Added Document Chunking
-- **File**: `apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts`
+- **File**: `apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts`
 - **New Import**: `RecursiveCharacterTextSplitter` from LangChain
 - **New Methods**:
   - `splitDocumentIntoChunks()` - Splits document with smart separators and overlap
@@ -192,7 +192,7 @@ Created comprehensive documentation:
 
 ```
 Modified:
-  apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts
+  apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts
 
 Created:
   docs/EXTRACTION_CHUNKING_IMPLEMENTATION.md

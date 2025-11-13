@@ -313,7 +313,7 @@ To verify LLM monitoring is working:
 
 ### Update Pricing (Monthly)
 
-Edit `apps/server-nest/src/modules/monitoring/config/llm-pricing.config.ts`:
+Edit `apps/server/src/modules/monitoring/config/llm-pricing.config.ts`:
 
 ```typescript
 export const LLM_PRICING = {
@@ -361,10 +361,10 @@ No migration needed - costs are recalculated on read.
 
 ## Related Files
 
-- `apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` - LLM provider with monitoring
-- `apps/server-nest/src/modules/monitoring/monitoring-logger.service.ts` - Logging service
-- `apps/server-nest/src/modules/monitoring/config/llm-pricing.config.ts` - Pricing configuration
-- `apps/server-nest/migrations/20251022_monitoring_phase1.sql` - Database schema
+- `apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` - LLM provider with monitoring
+- `apps/server/src/modules/monitoring/monitoring-logger.service.ts` - Logging service
+- `apps/server/src/modules/monitoring/config/llm-pricing.config.ts` - Pricing configuration
+- `apps/server/migrations/20251022_monitoring_phase1.sql` - Database schema
 
 ## References
 

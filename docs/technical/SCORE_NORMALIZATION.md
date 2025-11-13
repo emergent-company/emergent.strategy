@@ -110,15 +110,15 @@ GET /search?q=explain+vector+embeddings&mode=hybrid&lexicalWeight=0.3&vectorWeig
 ## Related Documentation
 
 - **Roadmap**: `docs/spec/GRAPH_PHASE3_ROADMAP.md` - Priority #4a
-- **Tests**: `apps/server-nest/tests/score-normalization.spec.ts`
-- **Utility**: `apps/server-nest/src/modules/search/score-normalization.util.ts`
-- **Service**: `apps/server-nest/src/modules/search/search.service.ts`
+- **Tests**: `apps/server/tests/score-normalization.spec.ts`
+- **Utility**: `apps/server/src/modules/search/score-normalization.util.ts`
+- **Service**: `apps/server/src/modules/search/search.service.ts`
 
 ## Verification
 
 ```bash
 # Run tests
-cd apps/server-nest
+cd apps/server
 npm test -- score-normalization.spec.ts
 
 # Build verification

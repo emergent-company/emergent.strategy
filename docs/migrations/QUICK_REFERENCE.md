@@ -137,10 +137,10 @@ const result = await this.dataSource.query(`
 
 ```bash
 # 1. Create entity file
-apps/server-nest/src/entities/my-entity.entity.ts
+apps/server/src/entities/my-entity.entity.ts
 
 # 2. Add to index
-apps/server-nest/src/entities/index.ts
+apps/server/src/entities/index.ts
 
 # 3. Add to module
 @Module({
@@ -184,13 +184,13 @@ tail -50 apps/logs/server/error.log | grep -v "Zitadel"
 
 ```bash
 # Count migrated services
-find apps/server-nest/src/modules -name "*.service.ts" -exec sh -c '
+find apps/server/src/modules -name "*.service.ts" -exec sh -c '
   q=$(grep -c "\.query(" "$1" 2>/dev/null)
   if [ "$q" = "0" ]; then echo "1"; fi
 ' _ {} \; | wc -l
 
 # List services needing migration
-find apps/server-nest/src/modules -name "*.service.ts" -exec sh -c '
+find apps/server/src/modules -name "*.service.ts" -exec sh -c '
   if ! grep -q "Repository\|DataSource" "$1" 2>/dev/null && \
      grep -q "db\.query" "$1" 2>/dev/null; then
     q=$(grep -c "db\.query" "$1")
@@ -199,7 +199,7 @@ find apps/server-nest/src/modules -name "*.service.ts" -exec sh -c '
 ' _ {} \; | sort -n
 
 # Check specific service
-grep -c "db\.query" apps/server-nest/src/modules/SERVICE/SERVICE.service.ts
+grep -c "db\.query" apps/server/src/modules/SERVICE/SERVICE.service.ts
 ```
 
 ---

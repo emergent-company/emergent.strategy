@@ -103,7 +103,7 @@ GROUP BY external_source, project_id, type;
 
 ### Updated `GraphObjectRow` Interface
 
-File: `apps/server-nest/src/modules/graph/graph.types.ts`
+File: `apps/server/src/modules/graph/graph.types.ts`
 
 ```typescript
 export interface GraphObjectRow {
@@ -123,7 +123,7 @@ export interface GraphObjectRow {
 
 ### URL Construction Patterns
 
-File: `apps/server-nest/src/modules/clickup/clickup-data-mapper.service.ts`
+File: `apps/server/src/modules/clickup/clickup-data-mapper.service.ts`
 
 ```typescript
 private buildClickUpUrl(type: string, id: string): string | undefined {
@@ -178,7 +178,7 @@ mapTask(task: ClickUpTask, listId: string): InternalDocument {
 
 ### Import Service Updates
 
-File: `apps/server-nest/src/modules/clickup/clickup-import.service.ts`
+File: `apps/server/src/modules/clickup/clickup-import.service.ts`
 
 The import service now:
 1. Sets workspace ID in mapper for URL construction: `this.dataMapper.setWorkspaceId(workspaceId)`

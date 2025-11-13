@@ -40,26 +40,26 @@ const apps = [
       WORKSPACE_SERVICE_ID: 'admin',
       WORKSPACE_PROCESS_NAMESPACE: WORKSPACE_NAMESPACE,
       WORKSPACE_RESTART_MAX: String(DEFAULT_MAX_RESTARTS),
-      WORKSPACE_RESTART_WINDOW_SEC: '600'
+      WORKSPACE_RESTART_WINDOW_SEC: '600',
     },
     env_development: {
       NODE_ENV: 'development',
-      LOG_LEVEL: 'debug'
+      LOG_LEVEL: 'debug',
     },
     env_staging: {
       NODE_ENV: 'staging',
-      LOG_LEVEL: 'info'
+      LOG_LEVEL: 'info',
     },
     env_production: {
       NODE_ENV: 'production',
-      LOG_LEVEL: 'warn'
-    }
+      LOG_LEVEL: 'warn',
+    },
   },
   {
     name: `${WORKSPACE_NAMESPACE}-server`,
     namespace: WORKSPACE_NAMESPACE,
     script: 'npm run start:dev',
-    cwd: resolveCwd('apps/server-nest'),
+    cwd: resolveCwd('apps/server'),
     interpreter: '/bin/bash',
     interpreter_args: '-c',
     max_restarts: DEFAULT_MAX_RESTARTS,
@@ -76,24 +76,24 @@ const apps = [
       WORKSPACE_PROCESS_NAMESPACE: WORKSPACE_NAMESPACE,
       WORKSPACE_RESTART_MAX: String(DEFAULT_MAX_RESTARTS),
       WORKSPACE_RESTART_WINDOW_SEC: '600',
-      HTTP_LOG_PATH: path.join(repoRoot, 'logs', 'http.log')
+      HTTP_LOG_PATH: path.join(repoRoot, 'logs', 'http.log'),
     },
     env_development: {
       NODE_ENV: 'development',
       LOG_LEVEL: 'debug',
-      HTTP_LOG_PATH: path.join(repoRoot, 'logs', 'http.log')
+      HTTP_LOG_PATH: path.join(repoRoot, 'logs', 'http.log'),
     },
     env_staging: {
       NODE_ENV: 'staging',
-      LOG_LEVEL: 'info'
+      LOG_LEVEL: 'info',
     },
     env_production: {
       NODE_ENV: 'production',
-      LOG_LEVEL: 'warn'
-    }
-  }
+      LOG_LEVEL: 'warn',
+    },
+  },
 ];
 
 module.exports = {
-  apps
+  apps,
 };

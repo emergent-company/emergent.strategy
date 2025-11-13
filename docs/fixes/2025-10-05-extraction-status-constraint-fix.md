@@ -39,7 +39,7 @@ When the extraction system tried to create or update a job with status `'require
 
 ### 1. Updated Database Schema
 
-**File**: `apps/server-nest/src/common/database/database.service.ts`
+**File**: `apps/server/src/common/database/database.service.ts`
 
 Changed the check constraint to include `'requires_review'`:
 
@@ -124,8 +124,8 @@ To verify the fix works:
 
 ## Related Files
 
-- `apps/server-nest/src/common/database/database.service.ts` - Schema definition
-- `apps/server-nest/src/modules/extraction-jobs/dto/extraction-job.dto.ts` - TypeScript enum
+- `apps/server/src/common/database/database.service.ts` - Schema definition
+- `apps/server/src/modules/extraction-jobs/dto/extraction-job.dto.ts` - TypeScript enum
 - `docs/migrations/010-add-requires-review-status.sql` - Migration SQL
 
 ## Prevention

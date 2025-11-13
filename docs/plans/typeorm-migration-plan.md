@@ -35,11 +35,11 @@
 ### Database Layer (Current)
 
 **Files**:
-- `apps/server-nest/src/common/database/database.service.ts` (707 lines)
-- `apps/server-nest/src/common/database/database.module.ts`
+- `apps/server/src/common/database/database.service.ts` (707 lines)
+- `apps/server/src/common/database/database.module.ts`
 - `scripts/run-migrations.ts` (194 lines)
 - `scripts/validate-schema.ts` (custom validation)
-- `apps/server-nest/migrations/0001_init.sql` (155KB SQL file)
+- `apps/server/migrations/0001_init.sql` (155KB SQL file)
 
 **Issues**:
 1. **Custom pool management** - Manual PostgreSQL client handling
@@ -75,7 +75,7 @@ const documents = result.rows.map(row => ({
 #### 1. Entities (TypeScript Classes)
 
 ```typescript
-// apps/server-nest/src/entities/document.entity.ts
+// apps/server/src/entities/document.entity.ts
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { Chunk } from './chunk.entity';
 
@@ -113,7 +113,7 @@ export class Document {
 #### 2. TypeORM Module Configuration
 
 ```typescript
-// apps/server-nest/src/app.module.ts
+// apps/server/src/app.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -144,7 +144,7 @@ export class AppModule {}
 #### 3. Repository Injection
 
 ```typescript
-// apps/server-nest/src/modules/documents/documents.service.ts
+// apps/server/src/modules/documents/documents.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -181,7 +181,7 @@ export class DocumentsService {
 #### 4. TypeORM Migrations (TypeScript)
 
 ```typescript
-// apps/server-nest/src/migrations/1699999999999-InitialSchema.ts
+// apps/server/src/migrations/1699999999999-InitialSchema.ts
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class InitialSchema1699999999999 implements MigrationInterface {
@@ -214,7 +214,7 @@ export class InitialSchema1699999999999 implements MigrationInterface {
    ```
 
 2. Create DataSource configuration
-   - File: `apps/server-nest/src/data-source.ts`
+   - File: `apps/server/src/data-source.ts`
    - Configure for PostgreSQL
    - Set entity and migration paths
 
@@ -538,7 +538,7 @@ npm install @nestjs/typeorm typeorm
 
 **Create DataSource config**:
 ```typescript
-// apps/server-nest/src/typeorm.config.ts
+// apps/server/src/typeorm.config.ts
 import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
 
@@ -574,7 +574,7 @@ export default new DataSource({
 
 **Entity structure**:
 ```
-apps/server-nest/src/
+apps/server/src/
   entities/
     document.entity.ts
     chunk.entity.ts
@@ -623,7 +623,7 @@ npm run migration:generate InitialSchema
 ### Step 4: Update App Module (Day 5)
 
 ```typescript
-// apps/server-nest/src/app.module.ts
+// apps/server/src/app.module.ts
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { entities } from './entities';
 
@@ -666,7 +666,7 @@ export class AppModule {}
 - ❌ `database.service.ts` (custom pool management)
 - ❌ `scripts/run-migrations.ts` (use TypeORM CLI)
 - ❌ `scripts/validate-schema.ts` (TypeORM validates schema)
-- ❌ `apps/server-nest/migrations/*.sql` (move to archive)
+- ❌ `apps/server/migrations/*.sql` (move to archive)
 
 **Update**:
 - Workspace start validation (simpler with TypeORM)

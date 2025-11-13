@@ -111,17 +111,17 @@ Content-Type: application/json
 
 ## Files Modified
 
-1. `apps/server-nest/src/modules/projects/dto/project.dto.ts`
+1. `apps/server/src/modules/projects/dto/project.dto.ts`
    - Added `UpdateProjectDto` class
    - Added `kb_purpose` field to `ProjectDto`
    - Added validation decorators
 
-2. `apps/server-nest/src/modules/projects/projects.service.ts`
+2. `apps/server/src/modules/projects/projects.service.ts`
    - Added `update()` method (50 lines)
    - Builds dynamic SQL based on provided fields
    - Returns updated project with kb_purpose
 
-3. `apps/server-nest/src/modules/projects/projects.controller.ts`
+3. `apps/server/src/modules/projects/projects.controller.ts`
    - Added `Patch` import from `@nestjs/common`
    - Added `UpdateProjectDto` import
    - Added `@Patch(':id')` endpoint handler

@@ -41,9 +41,9 @@ nx run admin:test -- --run --reporter=list
 ### Server (Nest API)
 
 ```bash
-nx run server-nest:setup --profile development
-nx run server-nest:start --profile development
-nx run server-nest:test -- --runInBand
+nx run server:setup --profile development
+nx run server:start --profile development
+nx run server:test -- --runInBand
 ```
 
 All application commands are wrappers around `tools/workspace-cli/src/cli.ts`, so you can invoke the CLI directly when needed:

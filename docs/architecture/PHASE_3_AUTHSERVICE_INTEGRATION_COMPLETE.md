@@ -17,7 +17,7 @@ Phase 3 successfully integrated ZitadelService into AuthService, establishing Zi
 ## Implementation Summary
 
 ### 1. ZitadelService Enhancement
-**File:** `apps/server-nest/src/modules/auth/zitadel.service.ts`
+**File:** `apps/server/src/modules/auth/zitadel.service.ts`
 
 Added `isConfigured()` method to allow AuthService to check Zitadel availability:
 
@@ -32,7 +32,7 @@ isConfigured(): boolean {
 ---
 
 ### 2. AuthService Integration
-**File:** `apps/server-nest/src/modules/auth/auth.service.ts`
+**File:** `apps/server/src/modules/auth/auth.service.ts`
 
 #### Changes Made:
 
@@ -128,7 +128,7 @@ private async mapIntrospectionToAuthUser(introspection: IntrospectionResult): Pr
 ---
 
 ### 3. Test Coverage
-**File:** `apps/server-nest/tests/auth.service.spec.ts`
+**File:** `apps/server/tests/auth.service.spec.ts`
 
 #### Test Statistics:
 - **Total Tests:** 25 (16 existing + 9 new)
@@ -258,7 +258,7 @@ Token → Static Check → Introspection (if configured) → JWKS Validation →
 ## Test Execution Results
 
 ```bash
-$ npm --prefix apps/server-nest run test -- auth.service.spec.ts
+$ npm --prefix apps/server run test -- auth.service.spec.ts
 
  ✓ tests/auth.service.spec.ts (25 tests) 39ms
 

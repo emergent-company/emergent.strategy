@@ -41,7 +41,7 @@ if (!isCircular) {
 ```
 
 **Files Modified:**
-- `apps/server-nest/src/modules/graph/graph.service.ts` (2 locations)
+- `apps/server/src/modules/graph/graph.service.ts` (2 locations)
   - Line ~1006 (phased traversal)
   - Line ~1245 (BFS traversal)
 
@@ -102,7 +102,7 @@ if (trackPaths && current.path) {
 ```
 
 **Files Modified:**
-- `apps/server-nest/src/modules/graph/graph.service.ts`
+- `apps/server/src/modules/graph/graph.service.ts`
   - Line ~1145: Added `queued` Set initialization
   - Line ~1153-1165: Updated dequeue path tracking with limit check
   - Line ~1239-1260: Updated enqueue logic with queued/seen tracking
@@ -138,7 +138,7 @@ if (trackPaths && current.path) {
 ```
 
 **Files Modified:**
-- `apps/server-nest/src/modules/graph/graph.service.ts` (Line ~1154)
+- `apps/server/src/modules/graph/graph.service.ts` (Line ~1154)
 
 ---
 
@@ -198,7 +198,7 @@ if (nextDepth < phase.maxDepth) {
 This fix allows the traversal to correctly implement "transparent filtering" - nodes that don't match filters are excluded from results but the algorithm still traverses through them to find matching nodes beyond.
 
 **Files Modified:**
-- `apps/server-nest/src/modules/graph/graph.service.ts` (Lines ~990-1040)
+- `apps/server/src/modules/graph/graph.service.ts` (Lines ~990-1040)
 
 ---
 
@@ -264,13 +264,13 @@ if (sql.includes('SELECT DISTINCT ON (canonical_id)') &&
 - Important lesson: Mock database tests need to be updated when SQL query structure changes
 
 **Files Modified:**
-- `apps/server-nest/tests/graph.service.extended.spec.ts` (Lines ~119, ~200)
+- `apps/server/tests/graph.service.extended.spec.ts` (Lines ~119, ~200)
 
 ---
 
 ## Code Changes Summary
 
-### File: `apps/server-nest/src/modules/graph/graph.service.ts`
+### File: `apps/server/src/modules/graph/graph.service.ts`
 
 **Changes:**
 1. **Circular Path Detection (2 locations):**
@@ -288,7 +288,7 @@ if (sql.includes('SELECT DISTINCT ON (canonical_id)') &&
    - Moved filtering logic after traversal decision (~lines 1010-1030)
    - Separated "add to results" from "add to queue"
 
-### File: `apps/server-nest/tests/graph.service.extended.spec.ts`
+### File: `apps/server/tests/graph.service.extended.spec.ts`
 
 **Changes:**
 1. **Updated SQL Pattern Matching:**

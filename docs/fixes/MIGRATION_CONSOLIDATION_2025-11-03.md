@@ -16,7 +16,7 @@ Consolidated migrations to work on completely empty database without ALTER state
    - Required because code queries `WHERE id = $1` (UserProfileService.getById, InvitesService, TemplatePackService)
 
 2. **Removed migration 0005**
-   - Deleted `apps/server-nest/migrations/0005_add_user_profiles_id_column.sql`
+   - Deleted `apps/server/migrations/0005_add_user_profiles_id_column.sql`
    - ALTER TABLE statements no longer needed
    - 0001_init.sql now creates complete schema from scratch
 
@@ -66,11 +66,11 @@ User will delete production database and rebuild from scratch:
 5. **Incremental additions** - new migrations only add new tables/features
 
 ## Related Files
-- `apps/server-nest/migrations/0001_init.sql` - Main schema (updated with UNIQUE constraint)
-- `apps/server-nest/migrations/0005_add_user_profiles_id_column.sql` - Deleted (redundant)
-- `apps/server-nest/src/modules/user-profile/user-profile.service.ts` - Uses id column in queries
-- `apps/server-nest/src/modules/invites/invites.service.ts` - Queries by id
-- `apps/server-nest/src/modules/template-packs/template-pack.service.ts` - Selects id
+- `apps/server/migrations/0001_init.sql` - Main schema (updated with UNIQUE constraint)
+- `apps/server/migrations/0005_add_user_profiles_id_column.sql` - Deleted (redundant)
+- `apps/server/src/modules/user-profile/user-profile.service.ts` - Uses id column in queries
+- `apps/server/src/modules/invites/invites.service.ts` - Queries by id
+- `apps/server/src/modules/template-packs/template-pack.service.ts` - Selects id
 
 ## Commit History
 - `e28bc95` - chore: consolidate migrations for clean database creation

@@ -169,18 +169,18 @@ Successfully removed **all critical security and configuration fallbacks** acros
 ## Files Modified
 
 ### Security & Bootstrap
-- ✅ `apps/server-nest/src/modules/integrations/encryption.service.ts`
-- ✅ `apps/server-nest/src/main.ts`
+- ✅ `apps/server/src/modules/integrations/encryption.service.ts`
+- ✅ `apps/server/src/main.ts`
 
 ### Configuration
-- ✅ `apps/server-nest/src/common/config/config.schema.ts`
-- ✅ `apps/server-nest/src/modules/graph/google-vertex-embedding.provider.ts`
+- ✅ `apps/server/src/common/config/config.schema.ts`
+- ✅ `apps/server/src/modules/graph/google-vertex-embedding.provider.ts`
 
 ### Test Infrastructure
-- ✅ `apps/server-nest/tests/setup.ts`
-- ✅ `apps/server-nest/tests/test-db-config.ts`
-- ✅ `apps/server-nest/tests/e2e/e2e-context.ts`
-- ✅ `apps/server-nest/tests/utils/db-describe.ts`
+- ✅ `apps/server/tests/setup.ts`
+- ✅ `apps/server/tests/test-db-config.ts`
+- ✅ `apps/server/tests/e2e/e2e-context.ts`
+- ✅ `apps/server/tests/utils/db-describe.ts`
 
 ### Scripts (Database Operations)
 - ✅ `scripts/reset-db.ts`
@@ -192,7 +192,7 @@ Successfully removed **all critical security and configuration fallbacks** acros
 - ✅ `scripts/run-migrations.ts`
 - ✅ `scripts/get-clickup-credentials.ts`
 - ✅ `scripts/migrate-embedding-dimension.ts`
-- ✅ `apps/server-nest/scripts/graph-backfill.ts`
+- ✅ `apps/server/scripts/graph-backfill.ts`
 
 **Total Files Modified:** 19  
 **Total Files Created:** 5  

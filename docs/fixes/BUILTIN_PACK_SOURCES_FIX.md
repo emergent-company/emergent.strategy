@@ -72,7 +72,7 @@ SELECT name, source FROM kb.graph_template_packs;
 
 ## Files Changed
 
-- `apps/server-nest/migrations/20251020_fix_builtin_pack_sources.sql` (new migration)
+- `apps/server/migrations/20251020_fix_builtin_pack_sources.sql` (new migration)
 
 ## Related Documentation
 

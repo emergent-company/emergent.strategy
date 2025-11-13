@@ -21,19 +21,19 @@ WHERE debug_info IS NOT NULL;
 ```
 
 ### 2. Backend DTOs
-**File:** `apps/server-nest/src/modules/extraction-jobs/dto/extraction-job.dto.ts`
+**File:** `apps/server/src/modules/extraction-jobs/dto/extraction-job.dto.ts`
 - Added `debug_info?: Record<string, any>` field to `UpdateExtractionJobDto`
 - Added `debug_info?: Record<string, any>` field to `ExtractionJobDto` (response)
 - Includes API documentation and validation decorators
 
 ### 3. Service Layer
-**File:** `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts`
+**File:** `apps/server/src/modules/extraction-jobs/extraction-job.service.ts`
 - Updated `updateJob()` to handle `debug_info` in SQL UPDATE queries
 - Updated `markCompleted()` to accept `debug_info` parameter
 - Updated row mapping to include `debug_info` field
 
 ### 4. LLM Provider Enhancement
-**File:** `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+**File:** `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
 - Modified `extractEntities()` to collect per-type LLM call debug data
 - Modified `extractEntitiesForType()` to return `{ entities, prompt, rawResponse }`
 - Captures for each LLM call:
@@ -69,7 +69,7 @@ WHERE debug_info IS NOT NULL;
 ```
 
 ### 5. Worker Instrumentation
-**File:** `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+**File:** `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 - Extracts debug info from `extractionResult.raw_response`
 - Passes debug info to `markCompleted()` calls (both success and requires_review paths)
 - Debug data stored in database upon job completion
@@ -161,10 +161,10 @@ WHERE debug_info IS NOT NULL;
 
 ### Backend
 1. `docs/migrations/010-extraction-jobs-debug-info.sql` (new)
-2. `apps/server-nest/src/modules/extraction-jobs/dto/extraction-job.dto.ts`
-3. `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts`
-4. `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
-5. `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+2. `apps/server/src/modules/extraction-jobs/dto/extraction-job.dto.ts`
+3. `apps/server/src/modules/extraction-jobs/extraction-job.service.ts`
+4. `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+5. `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 ### Frontend
 6. `apps/admin/src/api/extraction-jobs.ts`

@@ -10,8 +10,8 @@ npx nx run admin:build    # TypeScript compilation + Vite build
 npx nx run admin:lint     # ESLint code quality checks
 
 # Server (Backend)
-npx nx run server-nest:build    # TypeScript compilation
-# Note: server-nest doesn't have lint configured yet
+npx nx run server:build    # TypeScript compilation
+# Note: server doesn't have lint configured yet
 ```
 
 ## Full Verification Script
@@ -36,7 +36,7 @@ fi
 echo "✅ Admin checks passed!"
 
 echo "🔍 Checking Server Backend..."
-npx nx run server-nest:build
+npx nx run server:build
 if [ $? -ne 0 ]; then
     echo "❌ Server build failed!"
     exit 1
@@ -150,7 +150,7 @@ cd apps/admin && npm run build -- --mode development
 # 4. Before committing, run full checks
 npx nx run admin:build
 npx nx run admin:lint
-npx nx run server-nest:build
+npx nx run server:build
 ```
 
 ### Before Creating PR
@@ -159,7 +159,7 @@ npx nx run server-nest:build
 # Run all checks
 npx nx run admin:build && \
 npx nx run admin:lint && \
-npx nx run server-nest:build && \
+npx nx run server:build && \
 echo "✅ Ready for PR!"
 ```
 
@@ -176,7 +176,7 @@ These same commands should run in CI:
   run: npx nx run admin:lint
 
 - name: Build Server
-  run: npx nx run server-nest:build
+  run: npx nx run server:build
 ```
 
 ## Troubleshooting
@@ -204,7 +204,7 @@ These same commands should run in CI:
 **Golden Rule**: At the end of every implementation session:
 
 ```bash
-npx nx run admin:build && npx nx run admin:lint && npx nx run server-nest:build
+npx nx run admin:build && npx nx run admin:lint && npx nx run server:build
 ```
 
 If all three pass, you're good to commit! 🎉

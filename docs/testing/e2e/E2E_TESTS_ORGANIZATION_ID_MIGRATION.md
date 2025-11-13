@@ -107,7 +107,7 @@ Successfully consolidated integration tests into E2E suite, automated dependency
 ### Prerequisites
 All dependencies are automatically checked and started:
 ```bash
-cd apps/server-nest
+cd apps/server
 npm run test:e2e
 ```
 

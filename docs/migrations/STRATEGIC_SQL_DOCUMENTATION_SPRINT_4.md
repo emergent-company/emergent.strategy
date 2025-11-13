@@ -13,7 +13,7 @@ This document provides comprehensive documentation for **ChatService**, which de
 
 ## 1. ChatService (chat.service.ts)
 
-**Location**: `apps/server-nest/src/modules/chat/chat.service.ts`  
+**Location**: `apps/server/src/modules/chat/chat.service.ts`  
 **Lines of Code**: ~584 lines  
 **Strategic SQL Methods**: 4  
 **TypeORM Methods**: 4  

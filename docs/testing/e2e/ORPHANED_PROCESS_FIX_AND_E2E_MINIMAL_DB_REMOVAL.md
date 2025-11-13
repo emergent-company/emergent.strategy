@@ -254,7 +254,7 @@ These files document the history of the codebase and should be preserved for ref
 ## Verification
 
 ### Build Status
-✅ Server builds successfully: `npm run build` in `apps/server-nest/` completes without errors
+✅ Server builds successfully: `npm run build` in `apps/server/` completes without errors
 
 ### Process Check
 ✅ No orphaned processes: `ps aux | grep -E "vitest|node.*test"` returns empty
@@ -305,7 +305,7 @@ ENABLE_WORKERS_IN_TESTS=true NODE_ENV=test npm run test:e2e
 ### Test Current State
 ```bash
 # All tests should use NODE_ENV=test automatically
-cd apps/server-nest
+cd apps/server
 npm run test:e2e
 
 # Verify no E2E_MINIMAL_DB references in active code

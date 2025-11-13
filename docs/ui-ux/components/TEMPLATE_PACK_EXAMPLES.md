@@ -190,10 +190,10 @@ The system does NOT validate examples against schemas automatically. Ensure your
 
 ## Related Files
 
-- `apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` - Vertex AI prompt builder
-- `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts` - LangChain prompt builder
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` - Schema loading
-- `apps/server-nest/src/modules/template-packs/dto/template-pack.dto.ts` - DTO definitions
+- `apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` - Vertex AI prompt builder
+- `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts` - LangChain prompt builder
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` - Schema loading
+- `apps/server/src/modules/template-packs/dto/template-pack.dto.ts` - DTO definitions
 
 ## Future Enhancements
 

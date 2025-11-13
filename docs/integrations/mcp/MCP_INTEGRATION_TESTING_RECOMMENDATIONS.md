@@ -193,7 +193,7 @@ For production confidence, consider:
 ### Step 1: Create Test Data Helper
 
 ```typescript
-// apps/server-nest/src/modules/mcp/__tests__/helpers/test-data.helper.ts
+// apps/server/src/modules/mcp/__tests__/helpers/test-data.helper.ts
 
 export class McpTestDataHelper {
   constructor(private db: DatabaseService) {}
@@ -240,7 +240,7 @@ export class McpTestDataHelper {
 ### Step 2: Create Base Integration Test Class
 
 ```typescript
-// apps/server-nest/src/modules/mcp/__tests__/helpers/mcp-integration-base.ts
+// apps/server/src/modules/mcp/__tests__/helpers/mcp-integration-base.ts
 
 export abstract class McpIntegrationTestBase {
   protected app: INestApplication;
@@ -278,7 +278,7 @@ export abstract class McpIntegrationTestBase {
 ### Step 3: Write Focused Tests
 
 ```typescript
-// apps/server-nest/src/modules/mcp/__tests__/schema-integration.e2e-spec.ts
+// apps/server/src/modules/mcp/__tests__/schema-integration.e2e-spec.ts
 
 describe('Schema Integration Tests', () => {
   let testContext: McpIntegrationTestBase;
@@ -338,7 +338,7 @@ This approach is faster for initial validation and can be automated later if nee
 - `MCP_TESTING_PROGRESS.md` - Real-time progress tracker
 - `MCP_TESTING_COMPLETE.md` - Final unit testing summary
 - `MCP_TESTING_SESSION_*_COMPLETE.md` - Detailed session reports
-- `apps/server-nest/src/modules/mcp/__tests__/` - All unit test files
+- `apps/server/src/modules/mcp/__tests__/` - All unit test files
 
 ---
 

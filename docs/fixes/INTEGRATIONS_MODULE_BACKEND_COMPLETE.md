@@ -21,7 +21,7 @@ Successfully implemented the IntegrationsModule backend infrastructure with AES-
 - Applied migration successfully to database
 
 ### 2. Data Transfer Objects (DTOs) ✅
-**File:** `apps/server-nest/src/modules/integrations/dto/integration.dto.ts`
+**File:** `apps/server/src/modules/integrations/dto/integration.dto.ts`
 
 - `IntegrationSettings` interface (sensitive key-value pairs)
 - `IntegrationDto` interface (full integration data)
@@ -34,7 +34,7 @@ Successfully implemented the IntegrationsModule backend infrastructure with AES-
 **Validation:** All DTOs use `class-validator` decorators (`@IsString`, `@IsBoolean`, `@IsUUID`, `@IsOptional`)
 
 ### 3. Encryption Service ✅
-**File:** `apps/server-nest/src/modules/integrations/encryption.service.ts`
+**File:** `apps/server/src/modules/integrations/encryption.service.ts`
 
 **Features:**
 - AES-256 encryption using PostgreSQL pgcrypto
@@ -55,7 +55,7 @@ Successfully implemented the IntegrationsModule backend infrastructure with AES-
 - Encrypted data stored as base64 text
 
 ### 4. Integrations Service ✅
-**File:** `apps/server-nest/src/modules/integrations/integrations.service.ts`
+**File:** `apps/server/src/modules/integrations/integrations.service.ts`
 
 **Features:**
 - Full CRUD operations for integrations
@@ -76,7 +76,7 @@ Successfully implemented the IntegrationsModule backend infrastructure with AES-
 8. `generateWebhookSecret()`: Creates secure 32-byte hex secret
 
 ### 5. Integrations Controller ✅
-**File:** `apps/server-nest/src/modules/integrations/integrations.controller.ts`
+**File:** `apps/server/src/modules/integrations/integrations.controller.ts`
 
 **API Endpoints:**
 - `GET /api/v1/integrations?project_id=xxx&org_id=yyy` - List integrations
@@ -93,7 +93,7 @@ Successfully implemented the IntegrationsModule backend infrastructure with AES-
 - Bearer token authentication
 
 ### 6. Integrations Module ✅
-**File:** `apps/server-nest/src/modules/integrations/integrations.module.ts`
+**File:** `apps/server/src/modules/integrations/integrations.module.ts`
 
 **Configuration:**
 - Imports: `DatabaseModule`, `AppConfigModule`
@@ -102,7 +102,7 @@ Successfully implemented the IntegrationsModule backend infrastructure with AES-
 - Exports: `IntegrationsService`, `EncryptionService` (for ClickUpModule)
 
 ### 7. App Module Registration ✅
-**File:** `apps/server-nest/src/modules/app.module.ts`
+**File:** `apps/server/src/modules/app.module.ts`
 
 - Added `IntegrationsModule` to imports array
 - Module properly wired into application

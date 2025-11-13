@@ -40,7 +40,7 @@ This confirmed that the SQL query fixes (15 statements across 5 service files) s
 
 ```bash
 # Search for duplicate configuration
-grep -r "process\.env\.PGHOST.*=" apps/server-nest/**/*.spec.ts
+grep -r "process\.env\.PGHOST.*=" apps/server/**/*.spec.ts
 ```
 
 **Found**: 5 test files with ~10-15 lines each of duplicate env var setup:
@@ -59,7 +59,7 @@ Plus 3 files already updated in Session 1:
 
 ### 3. Created Unified Configuration Module
 
-**File**: `apps/server-nest/tests/test-db-config.ts` (52 lines)
+**File**: `apps/server/tests/test-db-config.ts` (52 lines)
 
 **Features**:
 - Single source of truth for all database connection parameters
@@ -154,9 +154,9 @@ beforeAll(async () => {
 
 ```bash
 # Search for manual env var assignments
-grep -r "process\.env\.PGHOST.*=" apps/server-nest/**/*.spec.ts
-grep -r "process\.env\.PGPORT.*=" apps/server-nest/**/*.spec.ts
-grep -r "process\.env\.PGUSER.*=" apps/server-nest/**/*.spec.ts
+grep -r "process\.env\.PGHOST.*=" apps/server/**/*.spec.ts
+grep -r "process\.env\.PGPORT.*=" apps/server/**/*.spec.ts
+grep -r "process\.env\.PGUSER.*=" apps/server/**/*.spec.ts
 
 # All searches returned: No matches found ✅
 ```
@@ -355,8 +355,8 @@ npm run test:e2e
 
 ### Search for Configuration Duplicates
 ```bash
-grep -r "process\.env\.PGHOST.*=" apps/server-nest/**/*.spec.ts
-grep -r "process\.env\.POSTGRES_HOST" apps/server-nest/**/*.spec.ts
+grep -r "process\.env\.PGHOST.*=" apps/server/**/*.spec.ts
+grep -r "process\.env\.POSTGRES_HOST" apps/server/**/*.spec.ts
 ```
 
 ### Check Test Database Connection
@@ -394,7 +394,7 @@ nx run workspace-cli:workspace:logs -- --service=server
 ## Files Modified This Session
 
 ### Created
-- ✅ `apps/server-nest/tests/test-db-config.ts` (52 lines)
+- ✅ `apps/server/tests/test-db-config.ts` (52 lines)
 - ✅ `docs/DATABASE_CONFIG_UNIFICATION.md` (185 lines)
 - ✅ `docs/ORG_ID_MIGRATION_SESSION_2_SUMMARY.md` (this document)
 
@@ -428,7 +428,7 @@ From Session 1:
 
 From Session 2:
 - `docs/DATABASE_CONFIG_UNIFICATION.md` - Configuration unification guide
-- `apps/server-nest/tests/test-db-config.ts` - Unified configuration module
+- `apps/server/tests/test-db-config.ts` - Unified configuration module
 
 General:
 - `.github/instructions/testing.instructions.md` - Testing best practices

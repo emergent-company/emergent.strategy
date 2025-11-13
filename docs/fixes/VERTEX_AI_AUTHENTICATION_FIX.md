@@ -28,7 +28,7 @@ According to `@langchain/google-vertexai` documentation, ChatVertexAI uses this 
 
 **Files Modified**:
 - `.env` - Commented out `GOOGLE_API_KEY`
-- `apps/server-nest/.env` - Commented out `GOOGLE_API_KEY`
+- `apps/server/.env` - Commented out `GOOGLE_API_KEY`
 
 **Action**:
 ```bash
@@ -54,9 +54,9 @@ new ChatVertexAI({
 ```
 
 **Files Modified**:
-- `apps/server-nest/src/modules/discovery-jobs/discovery-llm.provider.ts`
-- `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
-- `apps/server-nest/src/modules/chat/chat-generation.service.ts`
+- `apps/server/src/modules/discovery-jobs/discovery-llm.provider.ts`
+- `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+- `apps/server/src/modules/chat/chat-generation.service.ts`
 
 **Why**: 
 - `authOptions.projectId` tells google-auth-library which GCP project to authenticate against
@@ -65,7 +65,7 @@ new ChatVertexAI({
 
 ### 3. Improved Discovery Error Handling
 
-**File Modified**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.service.ts`
+**File Modified**: `apps/server/src/modules/discovery-jobs/discovery-job.service.ts`
 
 **Change 1 - Batch Failure Tracking**:
 ```typescript

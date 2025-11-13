@@ -25,8 +25,8 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 - **Lint:** `nx run admin:lint`
 - **Test:**
   - `nx run admin:test`
-  - `nx run server-nest:test`
-  - `nx run server-nest:test-e2e`
+  - `nx run server:test`
+  - `nx run server:test-e2e`
 - **Run a single test:** `nx test admin --testFile=path/to/your/test-file.spec.ts`
 
 # Code Style Guidelines

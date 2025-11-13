@@ -72,7 +72,7 @@ The test database has an **outdated unique constraint** that:
    ```
 
 ### Long-term (Process Fix):
-1. ✅ Add migration system (already done - `apps/server-nest/scripts/migrate.mjs`)
+1. ✅ Add migration system (already done - `apps/server/scripts/migrate.mjs`)
 2. ✅ Track applied migrations in database (`kb.schema_migrations` table)
 3. 🔲 Add test setup that ensures fresh database before test runs
 4. 🔲 Document database reset procedure in test documentation
@@ -80,14 +80,14 @@ The test database has an **outdated unique constraint** that:
 
 ## Files Affected
 
-- `apps/server-nest/src/modules/graph/graph.service.ts` (line 540 - INSERT query)
-- `apps/server-nest/tests/e2e/phase1.workflows.e2e.spec.ts` (line 516 - failing assertion)
-- `apps/server-nest/migrations/0001_init.sql` (line 2081 - correct index definition)
+- `apps/server/src/modules/graph/graph.service.ts` (line 540 - INSERT query)
+- `apps/server/tests/e2e/phase1.workflows.e2e.spec.ts` (line 516 - failing assertion)
+- `apps/server/migrations/0001_init.sql` (line 2081 - correct index definition)
 
 ## Next Steps
 
 1. Start fresh postgres container or reset test database
-2. Run `nx run server-nest:migrate` to apply latest schema
+2. Run `nx run server:migrate` to apply latest schema
 3. Verify index exists with correct name:
    ```sql
    SELECT indexname, indexdef 

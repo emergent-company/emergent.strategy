@@ -8,7 +8,7 @@ Implemented the complete backend-to-frontend flow for saving discovery results a
 
 ### 1. New Controller Endpoint
 
-**File**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.controller.ts`
+**File**: `apps/server/src/modules/discovery-jobs/discovery-job.controller.ts`
 
 **Endpoint**: `POST /api/discovery-jobs/:jobId/finalize`
 
@@ -52,7 +52,7 @@ Implemented the complete backend-to-frontend flow for saving discovery results a
 
 ### 2. Service Method
 
-**File**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.service.ts`
+**File**: `apps/server/src/modules/discovery-jobs/discovery-job.service.ts`
 
 **Method**: `finalizeDiscoveryAndCreatePack()`
 
@@ -421,8 +421,8 @@ WHERE id = '{jobId}';
 ## Related Files
 
 **Backend**:
-- `apps/server-nest/src/modules/discovery-jobs/discovery-job.controller.ts`
-- `apps/server-nest/src/modules/discovery-jobs/discovery-job.service.ts`
+- `apps/server/src/modules/discovery-jobs/discovery-job.controller.ts`
+- `apps/server/src/modules/discovery-jobs/discovery-job.service.ts`
 
 **Frontend**:
 - `apps/admin/src/components/organisms/DiscoveryWizard/Step5_Complete.tsx`

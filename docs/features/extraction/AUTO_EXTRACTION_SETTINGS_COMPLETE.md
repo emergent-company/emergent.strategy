@@ -22,7 +22,7 @@ This document describes the complete implementation of auto-extraction settings 
 ### 1. Database Schema Changes
 
 #### Migration 0005 (Modified)
-**File**: `apps/server-nest/migrations/0005_auto_extraction_and_notifications.sql`
+**File**: `apps/server/migrations/0005_auto_extraction_and_notifications.sql`
 
 **Change**: Changed default from `true` to `false`
 ```sql
@@ -36,7 +36,7 @@ ADD COLUMN IF NOT EXISTS auto_extract_objects BOOLEAN NOT NULL DEFAULT false,
 **Impact**: All NEW projects created after this change will have auto-extraction disabled by default.
 
 #### Migration 0006 (New)
-**File**: `apps/server-nest/migrations/0006_disable_auto_extract_by_default.sql`
+**File**: `apps/server/migrations/0006_disable_auto_extract_by_default.sql`
 
 **Purpose**: Update all EXISTING projects to disable auto-extraction
 ```sql
@@ -64,7 +64,7 @@ SELECT COUNT(*) FROM kb.projects WHERE auto_extract_objects = true;
 ### 2. Backend API Changes
 
 #### UpdateProjectDto (Enhanced)
-**File**: `apps/server-nest/src/modules/projects/dto/project.dto.ts`
+**File**: `apps/server/src/modules/projects/dto/project.dto.ts`
 
 **Added Fields**:
 ```typescript
@@ -95,7 +95,7 @@ auto_extract_config?: any;
 ```
 
 #### ProjectDto (Enhanced)
-**File**: `apps/server-nest/src/modules/projects/dto/project.dto.ts`
+**File**: `apps/server/src/modules/projects/dto/project.dto.ts`
 
 **Added Response Fields**:
 ```typescript
@@ -122,7 +122,7 @@ auto_extract_config?: any;
 ```
 
 #### ProjectsService.update() (Enhanced)
-**File**: `apps/server-nest/src/modules/projects/projects.service.ts`
+**File**: `apps/server/src/modules/projects/projects.service.ts`
 
 **Added Support for New Fields**:
 ```typescript
@@ -150,7 +150,7 @@ async update(projectId: string, updates: {
 ```
 
 #### ProjectsService.getById() (Enhanced)
-**File**: `apps/server-nest/src/modules/projects/projects.service.ts`
+**File**: `apps/server/src/modules/projects/projects.service.ts`
 
 **Added Fields to Response**:
 ```typescript
@@ -176,7 +176,7 @@ async getById(id: string): Promise<ProjectDto | null> {
 ```
 
 #### ProjectRow Interface (Updated)
-**File**: `apps/server-nest/src/modules/projects/projects.service.ts`
+**File**: `apps/server/src/modules/projects/projects.service.ts`
 
 ```typescript
 interface ProjectRow { 

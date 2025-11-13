@@ -110,14 +110,14 @@ npm run build
 
 # Lint a specific project
 nx run admin:lint
-nx run server-nest:lint
+nx run server:lint
 
 # Test a specific project
 nx run admin:test
-nx run server-nest:test
+nx run server:test
 
 # Run E2E tests
-nx run server-nest:test-e2e
+nx run server:test-e2e
 
 # Run a single test file
 nx test admin --testFile=path/to/test.spec.ts

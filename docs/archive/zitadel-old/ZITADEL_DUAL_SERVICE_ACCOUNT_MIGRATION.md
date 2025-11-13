@@ -109,11 +109,11 @@ type Zitadel struct {
 
 ### Current Implementation Issues
 
-**File: `apps/server-nest/src/modules/auth/strategies/zitadel.strategy.ts`**
+**File: `apps/server/src/modules/auth/strategies/zitadel.strategy.ts`**
 - Uses single `ZITADEL_CLIENT_JWT_PATH`
 - Loads service account for introspection
 
-**File: `apps/server-nest/src/modules/auth/zitadel.service.ts`**
+**File: `apps/server/src/modules/auth/zitadel.service.ts`**
 - Uses SAME service account for Management API
 - Functions: `createUser()`, `updateUserMetadata()`, `getAccessToken()`, etc.
 
@@ -256,7 +256,7 @@ echo "3. Restart server container"
 
 #### 2.1 Configuration Updates
 
-**File:** `apps/server-nest/src/modules/auth/auth.config.ts` (create new)
+**File:** `apps/server/src/modules/auth/auth.config.ts` (create new)
 
 ```typescript
 export interface ZitadelConfig {
@@ -277,7 +277,7 @@ export interface ZitadelConfig {
 }
 ```
 
-**File:** `apps/server-nest/.env` or `docker/.env`
+**File:** `apps/server/.env` or `docker/.env`
 
 ```bash
 # Zitadel Configuration
@@ -302,7 +302,7 @@ ZITADEL_RETRY_MAX=5
 
 #### 2.2 Strategy Updates (Introspection)
 
-**File:** `apps/server-nest/src/modules/auth/strategies/zitadel.strategy.ts`
+**File:** `apps/server/src/modules/auth/strategies/zitadel.strategy.ts`
 
 **Changes:**
 - Load service account from `ZITADEL_CLIENT_JWT_PATH` (no change)
@@ -337,7 +337,7 @@ constructor() {
 
 #### 2.3 Service Updates (Management API)
 
-**File:** `apps/server-nest/src/modules/auth/zitadel.service.ts`
+**File:** `apps/server/src/modules/auth/zitadel.service.ts`
 
 **Changes:**
 - Add new method to load API service account

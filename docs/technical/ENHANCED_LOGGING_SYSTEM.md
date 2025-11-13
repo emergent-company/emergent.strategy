@@ -324,7 +324,7 @@ No code changes needed - just restart the application!
 
 ### Source Code
 
-Location: `apps/server-nest/src/common/logger/file-logger.service.ts`
+Location: `apps/server/src/common/logger/file-logger.service.ts`
 
 Key methods:
 - `getCallerInfo()`: Extracts file/line/method from stack trace

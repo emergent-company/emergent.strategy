@@ -32,7 +32,7 @@ throw new BadRequestException({
 });
 ```
 
-The global exception filter (apps/server-nest/src/common/filters/http-exception.filter.ts) checks `typeof anyRes.error === 'object'` to extract error codes. When `error` is a string, it can't extract the code and defaults to `'internal'`.
+The global exception filter (apps/server/src/common/filters/http-exception.filter.ts) checks `typeof anyRes.error === 'object'` to extract error codes. When `error` is a string, it can't extract the code and defaults to `'internal'`.
 
 ### The Fix
 

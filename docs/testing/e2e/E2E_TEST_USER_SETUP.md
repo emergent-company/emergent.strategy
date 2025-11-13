@@ -144,8 +144,8 @@ If Zitadel supports API user creation, we can automate this. Check Zitadel Manag
 
 ## Related Files
 
-- **Service**: `apps/server-nest/src/modules/user/user-deletion.service.ts`
-- **Controller**: `apps/server-nest/src/modules/user/user-deletion.controller.ts`
+- **Service**: `apps/server/src/modules/user/user-deletion.service.ts`
+- **Controller**: `apps/server/src/modules/user/user-deletion.controller.ts`
 - **Test Helpers**: `apps/admin/e2e/helpers/test-user.ts`
 - **Clean User Fixture**: `apps/admin/e2e/fixtures/cleanUser.ts`
 - **Example Test**: `apps/admin/e2e/specs/setup-guard.spec.ts`

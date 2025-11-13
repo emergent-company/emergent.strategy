@@ -82,9 +82,9 @@ Expected log output:
 
 ## Related Files
 
-- `apps/server-nest/src/modules/user-profile/user-profile.service.ts` - Applied pool bypass
-- `apps/server-nest/src/modules/auth/auth.service.ts` - Calls ensureUserProfile
-- `apps/server-nest/src/common/database/database.service.ts` - RLS context logic
+- `apps/server/src/modules/user-profile/user-profile.service.ts` - Applied pool bypass
+- `apps/server/src/modules/auth/auth.service.ts` - Calls ensureUserProfile
+- `apps/server/src/common/database/database.service.ts` - RLS context logic
 
 ## Prevention
 

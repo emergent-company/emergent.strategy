@@ -10,7 +10,7 @@ Describe the change. What feature/bug does this address?
 
 ## Graph / FakeGraphDb Checklist
 If you touched graph logic or tests:
-- [ ] Added/updated SQL pattern(s) in `apps/server-nest/tests/helpers/fake-graph-db.ts`
+- [ ] Added/updated SQL pattern(s) in `apps/server/tests/helpers/fake-graph-db.ts`
 - [ ] Updated helper README if new pattern class added
 - [ ] Verified head selection semantics (DISTINCT ON then outer tombstone filter) preserved
 - [ ] Multiplicity logic unchanged OR new tests added

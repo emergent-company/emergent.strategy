@@ -472,20 +472,20 @@ Before committing tests:
 
 ```bash
 # Unit tests (fast)
-nx test server-nest
+nx test server
 nx test admin
 
 # E2E tests (slower)
-nx test-e2e server-nest
+nx test-e2e server
 
 # Single test file
-nx test server-nest --testFile=tests/unit/auth/auth.service.spec.ts
+nx test server --testFile=tests/unit/auth/auth.service.spec.ts
 
 # Watch mode
-nx test server-nest --watch
+nx test server --watch
 
 # Coverage
-nx test server-nest --coverage
+nx test server --coverage
 ```
 
 ## Common Commands with Expected Outputs
@@ -493,7 +493,7 @@ nx test server-nest --coverage
 ### Run unit tests
 
 ```bash
-$ nx test server-nest
+$ nx test server
 ✓ tests/unit/auth/auth.service.spec.ts (5 tests) 23ms
 ✓ tests/unit/graph/graph.service.spec.ts (12 tests) 45ms
 ...
@@ -504,7 +504,7 @@ Tests  156 passed (156)
 ### Run e2e tests
 
 ```bash
-$ nx test-e2e server-nest
+$ nx test-e2e server
 ✓ tests/e2e/auth-flow.e2e-spec.ts (3 tests) 1234ms
 ✓ tests/e2e/extraction-flow.e2e-spec.ts (5 tests) 2145ms
 ...
@@ -515,7 +515,7 @@ Tests  23 passed (23)
 ### Run single test
 
 ```bash
-$ nx test server-nest --testFile=tests/unit/auth/auth.service.spec.ts
+$ nx test server --testFile=tests/unit/auth/auth.service.spec.ts
 ✓ tests/unit/auth/auth.service.spec.ts (5 tests) 23ms
 Test Files  1 passed (1)
 Tests  5 passed (5)
@@ -567,7 +567,7 @@ vi.spyOn(); // not jest.spyOn()
 ## File Organization
 
 ```
-apps/server-nest/
+apps/server/
   tests/
     unit/                      # Unit tests
       auth/                    # Mirror src structure

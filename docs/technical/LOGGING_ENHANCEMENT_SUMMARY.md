@@ -117,7 +117,7 @@ Location information is automatically added! 🎉
 ## Implementation
 
 ### Files Modified
-- `apps/server-nest/src/common/logger/file-logger.service.ts`
+- `apps/server/src/common/logger/file-logger.service.ts`
 
 ### Key Changes
 1. Added `getCallerInfo()` method (extracts file/line/method from stack trace)

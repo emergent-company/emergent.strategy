@@ -39,7 +39,7 @@ Total applied: 13 migrations in database
 
 ### 2. Discovery Job Service ✅
 
-**File**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.service.ts`
+**File**: `apps/server/src/modules/discovery-jobs/discovery-job.service.ts`
 
 **Total Lines**: ~700 lines
 
@@ -70,7 +70,7 @@ Total applied: 13 migrations in database
 
 ### 3. Discovery Job Controller ✅
 
-**File**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.controller.ts`
+**File**: `apps/server/src/modules/discovery-jobs/discovery-job.controller.ts`
 
 **Total Lines**: ~95 lines
 
@@ -93,7 +93,7 @@ DELETE /discovery-jobs/:jobId
 
 ### 4. Discovery Job Module ✅
 
-**File**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.module.ts`
+**File**: `apps/server/src/modules/discovery-jobs/discovery-job.module.ts`
 
 **Configuration**:
 ```typescript
@@ -121,7 +121,7 @@ export class DiscoveryJobModule {}
 
 ### 5. App Module Integration ✅
 
-**File**: `apps/server-nest/src/modules/app.module.ts`
+**File**: `apps/server/src/modules/app.module.ts`
 
 **Changes**:
 - Added `import { DiscoveryJobModule } from './discovery-jobs/discovery-job.module';`
@@ -142,7 +142,7 @@ AppModule
 
 ## Build Verification
 
-**Command**: `npm --prefix apps/server-nest run build`
+**Command**: `npm --prefix apps/server run build`
 
 **Result**: ✅ **Success** - No TypeScript compilation errors
 
@@ -182,7 +182,7 @@ AppModule
 ### Immediate (Required for Basic Functionality)
 
 #### 1. LLM Provider Integration 🔲
-**File**: `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+**File**: `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
 
 **Add Methods**:
 ```typescript
@@ -225,7 +225,7 @@ async discoverRelationships(params: {
 **Priority**: HIGH (Core functionality)
 
 #### 2. Update Discovery Service to Use Real LLM 🔲
-**File**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.service.ts`
+**File**: `apps/server/src/modules/discovery-jobs/discovery-job.service.ts`
 
 **Changes**:
 - Line 221: Replace mock implementation in `extractTypesFromBatch()`
@@ -240,7 +240,7 @@ async discoverRelationships(params: {
 ### Backend Testing
 
 #### 3. Unit Tests 🔲
-**File**: `apps/server-nest/src/modules/discovery-jobs/__tests__/discovery-job.service.spec.ts`
+**File**: `apps/server/src/modules/discovery-jobs/__tests__/discovery-job.service.spec.ts`
 
 **Test Coverage**:
 - Job creation and lifecycle
@@ -253,7 +253,7 @@ async discoverRelationships(params: {
 **Priority**: MEDIUM (Quality assurance)
 
 #### 4. Integration Tests 🔲
-**File**: `apps/server-nest/tests/e2e/discovery-jobs.e2e-spec.ts`
+**File**: `apps/server/tests/e2e/discovery-jobs.e2e-spec.ts`
 
 **Test Scenarios**:
 - Full discovery flow end-to-end
@@ -496,10 +496,10 @@ None currently. Could add:
 ## Related Documentation
 
 - **Specification**: `docs/AUTO_DISCOVERY_SYSTEM_SPEC.md` (24KB, complete)
-- **Migration Scripts**: `apps/server-nest/migrations/20251019_*.sql` (4 files)
-- **Service Code**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.service.ts`
-- **Controller Code**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.controller.ts`
-- **Module Code**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.module.ts`
+- **Migration Scripts**: `apps/server/migrations/20251019_*.sql` (4 files)
+- **Service Code**: `apps/server/src/modules/discovery-jobs/discovery-job.service.ts`
+- **Controller Code**: `apps/server/src/modules/discovery-jobs/discovery-job.controller.ts`
+- **Module Code**: `apps/server/src/modules/discovery-jobs/discovery-job.module.ts`
 
 ---
 

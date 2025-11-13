@@ -61,7 +61,7 @@ Breaking down the corrected UUID:
 
 ### Changes Made
 
-1. **File: `apps/server-nest/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`**
+1. **File: `apps/server/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`**
    - Updated PACK_ID constant to valid UUID v4
    
 2. **Database:**
@@ -102,9 +102,9 @@ When generating UUIDs manually for seeds/fixtures:
 
 ## Related Files
 
-- Seed: `apps/server-nest/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`
-- DTO: `apps/server-nest/src/modules/template-packs/dto/template-pack.dto.ts`
-- Controller: `apps/server-nest/src/modules/template-packs/template-pack.controller.ts`
+- Seed: `apps/server/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`
+- DTO: `apps/server/src/modules/template-packs/dto/template-pack.dto.ts`
+- Controller: `apps/server/src/modules/template-packs/template-pack.controller.ts`
 - Frontend: `apps/admin/src/pages/admin/pages/settings/project/templates.tsx`
 - Spec: `docs/spec/39-meeting-decision-template-pack.md`
 - Implementation Doc: `docs/spec/39-meeting-decision-template-pack-implementation.md`

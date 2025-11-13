@@ -175,13 +175,13 @@ Editable prompt templates and suggestions:
 
 1) Chat RAG System Prompt (server)
    - Key: `chat.systemPrompt`
-  - Default (legacy simple server removed; now provided by Nest implementation in `apps/server-nest`):
+  - Default (legacy simple server removed; now provided by Nest implementation in `apps/server`):
      "You are a helpful assistant. Answer the user question using only the provided CONTEXT. Cite sources inline using bracketed numbers like [1], [2], matching the provided context order. If the answer can't be derived from the CONTEXT, say you don't know rather than hallucinating."
    - Notes: No variable placeholders. Keep guardrails about using only CONTEXT and not hallucinating.
 
 2) Chat RAG Human Template (server)
    - Key: `chat.userTemplate`
-  - Default (legacy simple server removed; now provided by Nest implementation in `apps/server-nest`):
+  - Default (legacy simple server removed; now provided by Nest implementation in `apps/server`):
      "Question:\n{question}\n\nCONTEXT (citations in order):\n{context}\n\nProvide a concise, well-structured answer."
    - Required placeholders: `{question}`, `{context}`.
    - Validation: Reject save if required placeholders are missing.

@@ -99,7 +99,7 @@ const transformedObjects: GraphObject[] = response.items.map(obj => ({
 
 ### 3. Backend Type Updates
 
-#### GraphObjectRow Interface (`apps/server-nest/src/modules/graph/graph.types.ts`)
+#### GraphObjectRow Interface (`apps/server/src/modules/graph/graph.types.ts`)
 
 Added status field to the type definition:
 ```typescript
@@ -122,7 +122,7 @@ export interface GraphObjectRow {
 
 ### 4. Backend Query Updates
 
-#### GraphService (`apps/server-nest/src/modules/graph/graph.service.ts`)
+#### GraphService (`apps/server/src/modules/graph/graph.service.ts`)
 
 **searchObjects()** - Added status to SELECT:
 ```sql
@@ -206,8 +206,8 @@ The status column uses daisyUI badge components with semantic colors:
 ## Related Documentation
 
 - **Status Setting Logic**: `docs/IMPLEMENTATION_COMPLETE_STATUS_SEARCH.md`
-- **Confidence Scoring**: `apps/server-nest/src/modules/extraction-jobs/confidence-scorer.service.ts`
-- **Extraction Worker**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+- **Confidence Scoring**: `apps/server/src/modules/extraction-jobs/confidence-scorer.service.ts`
+- **Extraction Worker**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 - **Database Schema**: Column already exists in `kb.graph_objects`
 
 ## Files Modified
@@ -224,10 +224,10 @@ The status column uses daisyUI badge components with semantic colors:
    - Updated transformation logic (both FTS and regular search)
 
 ### Backend
-3. `apps/server-nest/src/modules/graph/graph.types.ts`
+3. `apps/server/src/modules/graph/graph.types.ts`
    - Added status to GraphObjectRow interface
 
-4. `apps/server-nest/src/modules/graph/graph.service.ts`
+4. `apps/server/src/modules/graph/graph.service.ts`
    - Added status to searchObjects() SELECT query
    - Added status to searchObjectsFts() column list
 

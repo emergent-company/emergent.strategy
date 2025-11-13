@@ -2,7 +2,7 @@
 
 **Date:** 2025-10-25  
 **Status:** Migration Created - Pending Application  
-**Migration:** `apps/server-nest/src/migrations/20251025_refactor_user_references.sql`
+**Migration:** `apps/server/src/migrations/20251025_refactor_user_references.sql`
 
 ## Problem Statement
 
@@ -258,7 +258,7 @@ This allows users to authenticate via multiple providers!
 
 ## Related Files
 
-- **Migration:** `apps/server-nest/src/migrations/20251025_refactor_user_references.sql`
+- **Migration:** `apps/server/src/migrations/20251025_refactor_user_references.sql`
 - **This Document:** `docs/USER_REFERENCE_REFACTOR.md`
 - **Test SQL Fixes:** See `docs/TEST_FIX_SESSION_4_FINAL.md` for org_id fixes
 

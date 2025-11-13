@@ -12,7 +12,7 @@ Successfully implemented keyword-based intent detection service for MCP tool inv
 
 A stateless NestJS service that analyzes user messages and determines when to invoke MCP tools.
 
-**Location**: `apps/server-nest/src/modules/chat/mcp-tool-detector.service.ts`
+**Location**: `apps/server/src/modules/chat/mcp-tool-detector.service.ts`
 
 **Key Features**:
 - Keyword-based pattern matching (exact + partial keywords with context)
@@ -179,7 +179,7 @@ const typePatternMatch = normalized.match(
 ### Chat Module Registration
 
 ```typescript
-// apps/server-nest/src/modules/chat/chat.module.ts
+// apps/server/src/modules/chat/chat.module.ts
 @Module({
   providers: [
     ChatService,
@@ -383,11 +383,11 @@ async streamPost(...) {
 ## Files Changed
 
 ### Created
-- `apps/server-nest/src/modules/chat/mcp-tool-detector.service.ts` (~425 lines)
-- `apps/server-nest/src/modules/chat/__tests__/mcp-tool-detector.service.spec.ts` (~332 lines)
+- `apps/server/src/modules/chat/mcp-tool-detector.service.ts` (~425 lines)
+- `apps/server/src/modules/chat/__tests__/mcp-tool-detector.service.spec.ts` (~332 lines)
 
 ### Modified
-- `apps/server-nest/src/modules/chat/chat.module.ts` (added provider + export)
+- `apps/server/src/modules/chat/chat.module.ts` (added provider + export)
 
 ## Test Results
 

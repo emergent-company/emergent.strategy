@@ -26,7 +26,7 @@ env_development: {
 
 **Rationale**: PM2 config should not override `.env` file settings. This allows developers to customize Vertex AI configuration per environment without modifying PM2 config.
 
-### 2. Server .env File (`apps/server-nest/.env`)
+### 2. Server .env File (`apps/server/.env`)
 **Added** Vertex AI configuration:
 ```bash
 # --- Extraction Worker (Google Vertex AI) ---
@@ -116,7 +116,7 @@ Users now see:
 1. Stop workspace: `npm run workspace:stop`
 2. Verify `.env` has correct settings:
    ```bash
-   grep VERTEX_AI apps/server-nest/.env
+   grep VERTEX_AI apps/server/.env
    ```
 3. Start workspace: `npm run workspace:start`
 4. Check logs for model being used:
@@ -144,7 +144,7 @@ git checkout tools/workspace-cli/pm2/ecosystem.apps.cjs
 
 ### Revert to gemini-2.5-pro:
 ```bash
-# Edit apps/server-nest/.env
+# Edit apps/server/.env
 VERTEX_AI_MODEL=gemini-2.5-pro
 ```
 
@@ -155,8 +155,8 @@ git checkout apps/admin/src/components/organisms/ObjectDetailModal/ObjectDetailM
 
 ## Related Files
 - `tools/workspace-cli/pm2/ecosystem.apps.cjs` - PM2 process configuration
-- `apps/server-nest/.env` - Server environment variables
-- `apps/server-nest/.env.example` - Environment template (already had correct settings)
+- `apps/server/.env` - Server environment variables
+- `apps/server/.env.example` - Environment template (already had correct settings)
 - `apps/admin/src/components/organisms/ObjectDetailModal/ObjectDetailModal.tsx` - Version history UI
 - `docs/OBJECT_VERSION_HISTORY_UI.md` - UI implementation guide
 

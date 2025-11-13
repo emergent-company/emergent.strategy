@@ -146,13 +146,13 @@ Need review - any test checking user relationships
 
 ```bash
 # Check for remaining subject_id references in code
-grep -r "subject_id" apps/server-nest/src/ --include="*.ts" | grep -v "zitadel_user_id" | wc -l
+grep -r "subject_id" apps/server/src/ --include="*.ts" | grep -v "zitadel_user_id" | wc -l
 
 # Check for owner_subject_id references
-grep -r "owner_subject_id" apps/server-nest/src/ --include="*.ts" | wc -l
+grep -r "owner_subject_id" apps/server/src/ --include="*.ts" | wc -l
 
 # Run tests to see what breaks
-cd apps/server-nest && npm run test:e2e 2>&1 | grep "FAIL" | wc -l
+cd apps/server && npm run test:e2e 2>&1 | grep "FAIL" | wc -l
 ```
 
 ## Rollback Plan (If Needed)
@@ -165,7 +165,7 @@ npm run workspace:stop
 cat backup_before_user_refactor_20251025_001648.sql | docker exec -i spec-server-2-db-1 psql -U spec spec
 
 # Revert code changes
-git checkout apps/server-nest/src/modules/user-profile/
+git checkout apps/server/src/modules/user-profile/
 
 # Restart
 npm run workspace:start

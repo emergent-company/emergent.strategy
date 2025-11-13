@@ -6,6 +6,7 @@
 ## Executive Summary
 
 The production Zitadel instance is experiencing continuous authentication failures when attempting to verify JWT assertions. The issue affects both:
+
 1. **Service account token requests** (JWT bearer assertion flow)
 2. **Token introspection endpoint** (validating user tokens)
 
@@ -14,11 +15,11 @@ The root cause is that Zitadel's internal key lookup is failing with "no rows in
 ## Error Pattern
 
 ```
-level=ERROR msg="request error" 
-oidc_error.parent="ID=OIDC-AhX2u Message=Errors.Internal 
-Parent=(invalid signature (error fetching keys: ID=QUERY-Tha6f Message=Errors.AuthNKey.NotFound Parent=(sql: no rows in result set)))" 
-oidc_error.description=Errors.Internal 
-oidc_error.type=server_error 
+level=ERROR msg="request error"
+oidc_error.parent="ID=OIDC-AhX2u Message=Errors.Internal
+Parent=(invalid signature (error fetching keys: ID=QUERY-Tha6f Message=Errors.AuthNKey.NotFound Parent=(sql: no rows in result set)))"
+oidc_error.description=Errors.Internal
+oidc_error.type=server_error
 status_code=500
 ```
 
@@ -27,9 +28,11 @@ Frequency: Every ~10 seconds continuously
 ## Investigation Steps Performed
 
 ### 1. Local Build Verification ✅
-- Both `apps/server-nest` and `apps/admin` build successfully with no errors
+
+- Both `apps/server` and `apps/admin` build successfully with no errors
 
 ### 2. Production Container Health ✅
+
 - All containers running and healthy:
   - Zitadel v2.64.1
   - PostgreSQL 16 with pgvector
@@ -38,11 +41,12 @@ Frequency: Every ~10 seconds continuously
   - SignOz monitoring stack
 
 ### 3. Database Key Verification ✅
+
 Keys exist in the database:
 
 ```sql
 -- projections.authn_keys2 (Service Account Keys)
-SELECT id, identifier, type, enabled 
+SELECT id, identifier, type, enabled
 FROM projections.authn_keys2;
 
 Result: 1 key found
@@ -54,7 +58,7 @@ Result: 1 key found
 
 ```sql
 -- projections.keys4 (Signing Keys)
-SELECT id, algorithm, use 
+SELECT id, algorithm, use
 FROM projections.keys4;
 
 Result: 3 keys found
@@ -63,7 +67,9 @@ Result: 3 keys found
 ```
 
 ### 4. Service Account Configuration ✅
+
 From `ZITADEL_CLIENT_JWT` environment variable:
+
 ```json
 {
   "type": "application",
@@ -77,11 +83,13 @@ From `ZITADEL_CLIENT_JWT` environment variable:
 ### 5. Authentication Flow Testing
 
 #### Test 1: User Token Introspection (Basic Auth) ❌
+
 - **Method**: Basic Auth with client_id:client_secret
 - **Result**: 400 "invalid_client - client must be authenticated"
 - **Conclusion**: Wrong authentication method
 
 #### Test 2: Service Account Token Request (Bearer/JWT) ❌
+
 - **Method**: JWT bearer assertion (correct method matching server code)
 - **Request**: POST /oauth/v2/token with signed JWT
 - **Result**: 500 "Errors.Internal"
@@ -89,8 +97,10 @@ From `ZITADEL_CLIENT_JWT` environment variable:
 - **Conclusion**: Zitadel cannot find keys to verify the JWT assertion
 
 ### 6. Server Implementation Review ✅
+
 Confirmed server uses correct authentication flow:
-- `apps/server-nest/src/modules/auth/zitadel.service.ts`
+
+- `apps/server/src/modules/auth/zitadel.service.ts`
 - Creates JWT assertion with service account key
 - Exchanges for access token
 - Uses access token as Bearer token for introspection
@@ -113,12 +123,14 @@ Zitadel is experiencing an internal database query issue where:
 
 Despite continuous errors, **user authentication is working correctly** because:
 
-1. **Server has fallback mechanism**: 
+1. **Server has fallback mechanism**:
+
    - Attempts introspection → fails with 500
    - Falls back to JWKS verification → succeeds
    - User sessions work normally
 
 2. **User token validation works**:
+
    - Tested with actual user token
    - Token is valid (email: maciej@kucharz.net, sub: 344996893673129988)
    - Users can login and access protected resources
@@ -140,11 +152,13 @@ While not breaking functionality, the issues indicate:
 ## Attempted Fixes
 
 ### 1. Zitadel Container Restart ❌
+
 - Restarted container
 - Errors persisted immediately
 - Conclusion: Not a transient state issue
 
 ### 2. Database Connection ✅
+
 - Database is healthy
 - Postgres logs show normal operations
 - No connection pool issues
@@ -152,9 +166,11 @@ While not breaking functionality, the issues indicate:
 ## Recommended Actions
 
 ### Immediate (Optional)
+
 Since production is working, no immediate action required. However, if you want to eliminate the errors:
 
 1. **Check Zitadel Admin Console**
+
    - Login to https://spec-zitadel.kucharz.net
    - Navigate to Applications → Service Accounts
    - Verify service account configuration
@@ -166,7 +182,9 @@ Since production is working, no immediate action required. However, if you want 
    - Check if any migration steps were missed
 
 ### Short-term
+
 1. **Monitor JWKS fallback**
+
    - Ensure JWKS verification continues to work
    - Add alerting if JWKS starts failing
    - Track fallback usage frequency
@@ -177,12 +195,15 @@ Since production is working, no immediate action required. However, if you want 
    - Compare with database schema
 
 ### Long-term
+
 1. **Consider Zitadel Upgrade**
+
    - Current version: v2.64.1
    - Check if newer versions fix this issue
    - Review changelog for relevant fixes
 
 2. **Report to Zitadel Team**
+
    - This appears to be a bug in Zitadel's key lookup logic
    - Keys exist but query returns empty result set
    - Provide this investigation as bug report
@@ -195,7 +216,9 @@ Since production is working, no immediate action required. However, if you want 
 ## DIAGNOSTIC RESULTS - Projection Lag Confirmed! 🎯
 
 ### Related GitHub Issue
+
 **https://github.com/zitadel/zitadel/issues/7948** - Same exact error, same root cause!
+
 - Status: Open since May 14, 2024
 - Assigned to Zitadel team member `muhlemmer`
 - Identified as storage projection issue
@@ -220,6 +243,7 @@ Gap: ~22,814 position units behind
 ### Key Status
 
 ✅ **Service account key EXISTS in projection:**
+
 ```
 ID: 345047982275561476
 Aggregate: 344995882057336836 (project)
@@ -232,6 +256,7 @@ Created: 2025-11-03 09:03:44
 ```
 
 ✅ **Key event EXISTS in eventstore:**
+
 ```
 Event: project.application.oidc.key.added
 Position: 1762160624.227309
@@ -251,6 +276,7 @@ The key EXISTS and is BEFORE the projection position, but Zitadel is still repor
 ### Evidence from GitHub Issue #7948
 
 The Zitadel team identified this as a **storage projection issue** where:
+
 - Events are written correctly to eventstore ✅
 - Projection processes events ✅
 - But queries against projection return empty results ❌
@@ -263,6 +289,7 @@ This matches our situation exactly!
 **Root Cause**: ✅ **Confirmed - Known Zitadel Bug (GitHub #7948)**
 
 The investigation revealed:
+
 1. Our Zitadel instance has the **exact same bug** as GitHub issue #7948
 2. Service account key exists in database with correct data
 3. Key was added at position 1762160624, projection is at 1762183367 (key should be visible)
@@ -271,7 +298,8 @@ The investigation revealed:
 
 The errors are being successfully handled by the server's JWKS fallback mechanism. Users can authenticate normally and all protected endpoints work correctly.
 
-**Decision Required**: 
+**Decision Required**:
+
 1. ✅ **Accept current state**: Acknowledge this is a known Zitadel bug, rely on fallback (RECOMMENDED)
 2. **Try projection reset**: Dangerous - could break more things
 3. **Wait for Zitadel fix**: Monitor GitHub issue #7948 for resolution
@@ -283,12 +311,13 @@ The errors are being successfully handled by the server's JWKS fallback mechanis
 ⚠️ **Warning**: These are theoretical workarounds based on the GitHub issue. They could make things worse!
 
 1. **Projection Reset** (from Zitadel docs):
+
    ```bash
    # This forces Zitadel to rebuild the projection from events
    # DANGEROUS - could break authentication completely
    docker exec db-container psql -U zitadel -d zitadel -c \
      "DELETE FROM projections.current_states WHERE projection_name = 'projections.authn_keys2'"
-   
+
    # Then restart Zitadel to trigger rebuild
    docker restart zitadel-container
    ```
@@ -301,6 +330,7 @@ The errors are being successfully handled by the server's JWKS fallback mechanis
    ```
 
 **Why NOT to try these**:
+
 - Current system is working perfectly via fallback
 - Could break authentication completely if projection rebuild fails
 - Zitadel team is still investigating root cause (GitHub #7948)
@@ -316,11 +346,13 @@ The errors are being successfully handled by the server's JWKS fallback mechanis
 4. ✅ Error logs are just noise (can be filtered)
 
 **Monitor GitHub Issue**: https://github.com/zitadel/zitadel/issues/7948
+
 - Watch for updates from Zitadel team
 - Upgrade when fix is released
 - Consider adding comment with our diagnostic data
 
 **Optional - Add Log Filter**:
+
 ```bash
 # Filter out the known noisy errors in log viewer
 # or add to server log aggregation config

@@ -30,7 +30,7 @@ When the filter saw `error` as a STRING instead of an OBJECT, it couldn't extrac
 
 ## Solution
 
-Updated three exception throws in `apps/server-nest/src/modules/ingestion/ingestion.controller.ts` to use the correct nested format:
+Updated three exception throws in `apps/server/src/modules/ingestion/ingestion.controller.ts` to use the correct nested format:
 
 ### Change 1: File Required Error (Line 80)
 ```typescript
@@ -85,7 +85,7 @@ throw new BadRequestException({
 });
 ```
 
-The global exception filter (`apps/server-nest/src/common/filters/http-exception.filter.ts`) expects this structure:
+The global exception filter (`apps/server/src/common/filters/http-exception.filter.ts`) expects this structure:
 - It checks `if (typeof anyRes.error === 'object')` (lines 36-45)
 - Extracts `nested.code` from `anyRes.error.code` if error is an object
 - Falls back to generic codes if error is not an object or code is missing
@@ -120,15 +120,15 @@ The global exception filter (`apps/server-nest/src/common/filters/http-exception
 
 ## Files Modified
 
-1. **apps/server-nest/src/modules/ingestion/ingestion.controller.ts** (lines 80-91)
+1. **apps/server/src/modules/ingestion/ingestion.controller.ts** (lines 80-91)
    - Fixed 3 exception format errors
    - Changed `'empty-content'` → `'empty'` to match test expectations
 
 ## Related Files
 
-- **Exception Filter**: `apps/server-nest/src/common/filters/http-exception.filter.ts`
-- **Service Layer**: `apps/server-nest/src/modules/ingestion/ingestion.service.ts` (already correct)
-- **Test Suite**: `apps/server-nest/tests/e2e/ingestion.error-paths.e2e.spec.ts`
+- **Exception Filter**: `apps/server/src/common/filters/http-exception.filter.ts`
+- **Service Layer**: `apps/server/src/modules/ingestion/ingestion.service.ts` (already correct)
+- **Test Suite**: `apps/server/tests/e2e/ingestion.error-paths.e2e.spec.ts`
 
 ## Lessons Learned
 

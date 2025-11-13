@@ -133,7 +133,7 @@ throw new UnsupportedMediaTypeException({
 
 ### Changes Made
 
-**File**: `apps/server-nest/src/modules/ingestion/ingestion.controller.ts`
+**File**: `apps/server/src/modules/ingestion/ingestion.controller.ts`
 
 1. **Line 80** - File required error:
    ```typescript
@@ -236,7 +236,7 @@ Backend throws → NestJS wraps → Frontend parses → User sees readable messa
 ## Related Files
 
 - **Frontend fix**: `apps/admin/src/hooks/use-api.ts` (fetchForm function, lines 141-158)
-- **Backend fix**: `apps/server-nest/src/modules/ingestion/ingestion.controller.ts` (exception throws)
+- **Backend fix**: `apps/server/src/modules/ingestion/ingestion.controller.ts` (exception throws)
 - **Frontend display**: `apps/admin/src/pages/admin/apps/documents/index.tsx` (uploadError state)
 
 ## Technical Details

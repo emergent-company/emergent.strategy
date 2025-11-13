@@ -1,7 +1,7 @@
 # Strategic SQL Documentation - Sprint 5: TypeRegistryService
 
 **Service**: TypeRegistryService  
-**File**: `apps/server-nest/src/modules/type-registry/type-registry.service.ts`  
+**File**: `apps/server/src/modules/type-registry/type-registry.service.ts`  
 **Analysis Date**: 2025-11-13  
 **Status**: ✅ Complete (Hybrid Strategic SQL + TypeORM)
 
@@ -656,7 +656,7 @@ WHERE to_tsvector('english', type_name || ' ' || description) @@ plainto_tsquery
 **Entity**: `ProjectObjectTypeRegistry`
 
 ```typescript
-// apps/server-nest/src/entities/project-object-type-registry.entity.ts
+// apps/server/src/entities/project-object-type-registry.entity.ts
 @Entity({ schema: 'kb', name: 'project_object_type_registry' })
 export class ProjectObjectTypeRegistry {
   @PrimaryGeneratedColumn('uuid')

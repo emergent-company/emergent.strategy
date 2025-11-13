@@ -1,14 +1,17 @@
 # Dev Runbook
 
 This project provides a minimal ingestion server aligned with the spec. It stores docuSPA/server integration
+
 - Frontend issuer: set to `http://localhost:8100` (see `apps/admin/.env.example`).
-- Server-side validation: set the same issuer and fetch JWKS from `http://localhost:8100` (see `apps/server-nest/.env.example`).ts and chunks in Postgres (pgvector + FTS) and uses Google Gemini for embeddings.
+- Server-side validation: set the same issuer and fetch JWKS from `http://localhost:8100` (see `apps/server/.env.example`).
 
 Prereqs
+
 - Node.js >= 20.19
 - Docker
 
-1) Start foundational services with the Workspace CLI
+1. Start foundational services with the Workspace CLI
+
 - From the repository root, launch Docker dependencies under PM2 supervision:
 
 ```bash
@@ -29,11 +32,13 @@ cd docker
 docker compose up -d db zitadel login
 ```
 
-2) Configure environment
+2. Configure environment
+
 - Copy `.env.example` to `.env` and fill `GOOGLE_API_KEY` (required).
 - Default Postgres creds match docker-compose: spec/spec/spec.
 
-3) Install and run
+3. Install and run
+
 - In project root:
 
 ```bash
@@ -57,11 +62,13 @@ npm run workspace:deps:restart    # restart Docker dependencies
 npm run workspace:deps:stop       # stop Docker dependencies
 ```
 
-4) Ingest
+4. Ingest
+
 - POST http://localhost:3001/ingest/url with JSON `{ "url": "https://example.com" }`
 - POST http://localhost:3001/ingest/upload (multipart form field `file`)
 
-5) Smoke test
+5. Smoke test
+
 - In another terminal:
 
 ```bash
@@ -69,6 +76,7 @@ npm run test:smoke
 ```
 
 Notes
+
 - The DB schema defines: `kb.documents` and `kb.chunks` with `embedding vector(768)` and FTS `tsv`.
 - Embeddings model: `text-embedding-004` (Google Gemini).
 - Content types: basic HTML and text are supported inline; extend parsers for PDF/Docx later.
@@ -88,27 +96,31 @@ open http://localhost:8101/ui/v2/login
 ```
 
 Ports & endpoints
+
 - OIDC issuer (API): http://localhost:8100
 - Login v2 UI: http://localhost:8101/ui/v2/login
 
 Admin account (dev)
+
 - Email: admin@example.com
 - Username: admin
 - Password: value of `ZITADEL_ADMIN_PASSWORD` (default in dev: `admin12345`)
 - Change these before exposing the stack beyond local dev.
 
 Environment keys to verify (`docker/zitadel.env`)
+
 - Master key: `ZITADEL_MASTERKEY` must be 32 chars; compose runs with `--masterkeyFromEnv`.
 - DB user (runtime):
-	- `ZITADEL_DATABASE_POSTGRES_HOST=db`, `PORT=5432`, `DATABASE=zitadel`
-	- `ZITADEL_DATABASE_POSTGRES_USER_USERNAME=zitadel`, `..._PASSWORD=zitadel`, `..._SSL_MODE=disable`
+  - `ZITADEL_DATABASE_POSTGRES_HOST=db`, `PORT=5432`, `DATABASE=zitadel`
+  - `ZITADEL_DATABASE_POSTGRES_USER_USERNAME=zitadel`, `..._PASSWORD=zitadel`, `..._SSL_MODE=disable`
 - DB admin (init/migrations):
-	- `ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME=spec`, `..._PASSWORD=spec`
-	- `ZITADEL_DATABASE_POSTGRES_ADMIN_HOST=db`, `..._PORT=5432`, `..._SSL_MODE=disable`
+  - `ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME=spec`, `..._PASSWORD=spec`
+  - `ZITADEL_DATABASE_POSTGRES_ADMIN_HOST=db`, `..._PORT=5432`, `..._SSL_MODE=disable`
 - External/tls (dev): `ZITADEL_EXTERNALDOMAIN=localhost`, `ZITADEL_EXTERNALSECURE=false`, `ZITADEL_TLS_ENABLED=false`
 - Login v2 (dev): `ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED=true` and base URLs pointing to port 8101
 
 Reset/recover (stale volume or init failures)
+
 - To fully reset dev data: `docker compose -f docker/docker-compose.yml down -v`
 - If Postgres already exists and Zitadel can’t create its role/db, create them manually:
 
@@ -121,16 +133,19 @@ docker exec -it spec_pg psql -U spec -d postgres \
 ```
 
 Common errors and fixes
+
 - "No master key provided": ensure `ZITADEL_MASTERKEY` is present and Zitadel command includes `--masterkeyFromEnv`.
 - "sslmode is invalid": set both user and admin `..._SSL_MODE=disable` in `docker/zitadel.env`.
 - "password authentication failed for user \"zitadel\"": verify the role/password exists (create manually or reset volumes).
 - "permission denied to create role": admin creds must be a Postgres superuser in dev (`spec/spec`).
 
 SPA/server integration
+
 - Frontend issuer: set to `http://localhost:8080` (see `apps/admin/.env.example`).
-- Server-side validation: set the same issuer and fetch JWKS from `http://localhost:8080` (see `apps/server-nest/.env.example`).
+- Server-side validation: set the same issuer and fetch JWKS from `http://localhost:8080` (see `apps/server/.env.example`).
 
 More details
+
 - See [Zitadel Setup Guide](docs/setup/ZITADEL_SETUP_GUIDE.md) for the complete walkthrough, configuration, and troubleshooting.
 
 ## Schema Resilience & Dual Mode Behavior
@@ -144,11 +159,11 @@ The backend operates in two schema modes:
 
 Services detect feature availability at runtime and degrade gracefully:
 
-| Component | Primary Behavior | On Missing Column / Constraint | Fallback |
-|-----------|------------------|--------------------------------|----------|
-| Ingestion (documents) | Hash-based dedup via `content_hash` + unique index | `42703` (column) or detection failure | Raw content equality per project |
-| Ingestion (chunks) | Insert with `embedding` + ON CONFLICT(upsert) | `42703` (embedding) or `42P10` (constraint) | Re-insert w/o embedding and/or without upsert |
-| Chunks listing | SELECT includes `embedding`, `created_at` | `42703` | Re-run query excluding absent columns, order by `chunk_index` |
+| Component             | Primary Behavior                                   | On Missing Column / Constraint              | Fallback                                                      |
+| --------------------- | -------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------- |
+| Ingestion (documents) | Hash-based dedup via `content_hash` + unique index | `42703` (column) or detection failure       | Raw content equality per project                              |
+| Ingestion (chunks)    | Insert with `embedding` + ON CONFLICT(upsert)      | `42703` (embedding) or `42P10` (constraint) | Re-insert w/o embedding and/or without upsert                 |
+| Chunks listing        | SELECT includes `embedding`, `created_at`          | `42703`                                     | Re-run query excluding absent columns, order by `chunk_index` |
 
 Flags like `hasEmbedding` are computed defensively so downstream features remain stable even without embeddings.
 
@@ -159,27 +174,32 @@ When `content_hash` exists a project-scoped unique index (`idx_documents_project
 ### Operator Signals
 
 One-time warnings:
+
 ```
 kb.documents.content_hash missing; using raw content equality for dedup
 kb.chunks.embedding column missing; continuing without embeddings
 ```
+
 These are informational unless vector / semantic search relevance is a SLO driver.
 
 ### Migration Pattern
+
 1. Deploy additive migration (new columns & indexes).
 2. Instances auto-detect; no coordinated restart required.
 3. Monitor ingest latency, dedup hit %, search relevance metrics.
 4. After stable adoption, fallback branches can be retired.
 
 ### Choosing a Mode
-| Use Case | Recommended Mode |
-|----------|------------------|
-| Fast unit/E2E loop, onboarding | Minimal |
-| Performance & relevance benchmarking | Full |
-| Production parity verification | Full |
-| Resilience regression tests | Minimal |
+
+| Use Case                             | Recommended Mode |
+| ------------------------------------ | ---------------- |
+| Fast unit/E2E loop, onboarding       | Minimal          |
+| Performance & relevance benchmarking | Full             |
+| Production parity verification       | Full             |
+| Resilience regression tests          | Minimal          |
 
 ### Troubleshooting
+
 1. Inspect logs for `42703` / `42P10` to confirm fallback path usage.
 2. `\d kb.documents` / `\d kb.chunks` (psql) to verify expected columns.
 3. Ensure `idx_documents_project_hash` exists for optimal dedup (full mode).
@@ -194,11 +214,13 @@ The system favors forward progress; absence of advanced columns never blocks ing
 ### Deployment
 
 **Initial deployment:**
+
 ```bash
 ./scripts/deploy-coolify.sh
 ```
 
 **Update environment variables:**
+
 ```bash
 # Edit variables
 vim .env.production
@@ -213,18 +235,21 @@ coolify app restart $COOLIFY_APP_UUID --preview
 ```
 
 **Manual deployment via CLI:**
+
 ```bash
 coolify app deploy <APP_UUID> --preview
 coolify app logs <APP_UUID> --preview --follow
 ```
 
 **Trigger from Git:**
+
 - Push to main branch (if auto-deploy enabled in Coolify)
 - Or manually trigger in Coolify UI: Application → Deployments → Deploy
 
 ### Monitoring
 
 **View logs:**
+
 ```bash
 # Follow all service logs
 coolify app logs <APP_UUID> --preview --follow
@@ -240,6 +265,7 @@ coolify app logs <APP_UUID> --preview | tail -100
 ```
 
 **Check service health:**
+
 ```bash
 # Via health endpoints
 curl https://api.yourdomain.com/health
@@ -254,6 +280,7 @@ docker compose exec server curl http://localhost:3002/health
 ```
 
 **Monitor resources:**
+
 ```bash
 # In Coolify UI: Application → Metrics
 # Or via Docker:
@@ -267,12 +294,14 @@ docker compose exec server df -h
 ### Scaling
 
 **Horizontal scaling:**
+
 1. In Coolify UI: Application → Resources → Replicas
 2. Increase replicas for `server` and `admin` services
 3. Load balancing handled automatically by Traefik
 4. Database services should remain at 1 replica
 
 **Vertical scaling:**
+
 1. In Coolify UI: Application → Resources → Limits
 2. Adjust CPU and memory limits per service
 3. Recommended limits:
@@ -284,6 +313,7 @@ docker compose exec server df -h
 ### Backup & Restore
 
 **Database backup:**
+
 ```bash
 # SSH into Coolify server
 ssh your-coolify-server
@@ -299,6 +329,7 @@ ls -lh backup_*.sql*
 ```
 
 **Restore from backup:**
+
 ```bash
 # Stop server to prevent writes
 docker compose stop server
@@ -314,11 +345,13 @@ docker compose start server
 ```
 
 **Zitadel backup:**
+
 ```bash
 docker compose exec zitadel-db pg_dump -U postgres zitadel > zitadel_backup_$(date +%Y%m%d).sql
 ```
 
 **Volume backup:**
+
 ```bash
 # Backup volume to tar
 docker run --rm -v spec-server-2_postgres-data:/data -v $(pwd):/backup \
@@ -332,6 +365,7 @@ docker run --rm -v spec-server-2_postgres-data:/data -v $(pwd):/backup \
 ### Maintenance
 
 **Update application code:**
+
 ```bash
 # 1. Push changes to Git
 git push origin main
@@ -344,9 +378,10 @@ coolify app deploy <APP_UUID> --preview
 ```
 
 **Update dependencies:**
+
 ```bash
 # 1. Update package.json locally
-cd apps/server-nest && npm update
+cd apps/server && npm update
 cd ../admin && npm update
 
 # 2. Commit and push
@@ -359,6 +394,7 @@ git push
 ```
 
 **Database migrations:**
+
 ```bash
 # Automatic on container start if DB_AUTOINIT=true
 
@@ -371,6 +407,7 @@ docker compose exec db psql -U spec -d spec -c \
 ```
 
 **Clear Docker cache:**
+
 ```bash
 # Rebuild without cache
 coolify app deploy <APP_UUID> --preview --no-cache
@@ -380,6 +417,7 @@ docker compose build --no-cache
 ```
 
 **Restart services:**
+
 ```bash
 # Restart all services
 coolify app restart <APP_UUID> --preview
@@ -394,6 +432,7 @@ docker compose restart server && docker compose ps
 ### Troubleshooting Production Issues
 
 **Service won't start:**
+
 ```bash
 # Check logs
 coolify app logs <APP_UUID> --preview | tail -200
@@ -409,6 +448,7 @@ docker compose exec server sh
 ```
 
 **Database connection issues:**
+
 ```bash
 # Verify database is running
 docker compose ps db
@@ -424,6 +464,7 @@ docker compose exec server env | grep -E "POSTGRES|PGHOST"
 ```
 
 **High memory usage:**
+
 ```bash
 # Check memory usage
 docker stats --no-stream
@@ -436,6 +477,7 @@ docker compose restart server
 ```
 
 **SSL/Certificate issues:**
+
 ```bash
 # Check certificate status in Coolify UI
 # Or test manually:
@@ -446,6 +488,7 @@ curl -vI https://api.yourdomain.com 2>&1 | grep -E "(SSL|certificate|CN=)"
 ```
 
 **Build failures:**
+
 ```bash
 # Check build logs
 coolify app logs <APP_UUID> --preview | grep -A 50 "Building"
@@ -461,6 +504,7 @@ docker builder prune -af
 ```
 
 **Authentication failures:**
+
 ```bash
 # Check Zitadel is running
 docker compose ps zitadel
@@ -477,6 +521,7 @@ docker compose logs zitadel --tail=100
 ### Performance Tuning
 
 **Database optimization:**
+
 ```bash
 # Analyze query performance
 docker compose exec db psql -U spec -d spec -c "EXPLAIN ANALYZE SELECT ..."
@@ -490,6 +535,7 @@ docker compose exec db psql -U spec -d spec -c "VACUUM ANALYZE"
 ```
 
 **Enable query logging (temporary):**
+
 ```bash
 # Edit docker-compose.yml and add to db environment:
 # POSTGRES_LOG_STATEMENT=all
@@ -502,6 +548,7 @@ docker compose logs db -f | grep "LOG:  statement:"
 ```
 
 **Connection pooling:**
+
 ```bash
 # Check active connections
 docker compose exec db psql -U spec -d spec -c \
@@ -514,6 +561,7 @@ docker compose exec db psql -U spec -d spec -c "SHOW max_connections"
 ### Emergency Procedures
 
 **Complete service restart:**
+
 ```bash
 # Stop all services
 docker compose down
@@ -527,6 +575,7 @@ curl https://api.yourdomain.com/health
 ```
 
 **Rollback deployment:**
+
 ```bash
 # Via Coolify UI: Application → Deployments → Rollback to previous
 # Or redeploy previous Git commit
@@ -535,6 +584,7 @@ git checkout <previous-commit>
 ```
 
 **Database recovery:**
+
 ```bash
 # 1. Stop server
 docker compose stop server
@@ -550,6 +600,7 @@ docker compose start server
 ```
 
 **Clean slate restart:**
+
 ```bash
 # ⚠️  WARNING: This deletes all data!
 

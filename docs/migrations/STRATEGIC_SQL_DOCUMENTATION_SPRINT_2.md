@@ -13,7 +13,7 @@ This document provides comprehensive documentation for services using PostgreSQL
 
 ## 1. GraphService (graph.service.ts)
 
-**Location**: `apps/server-nest/src/modules/graph/graph.service.ts`  
+**Location**: `apps/server/src/modules/graph/graph.service.ts`  
 **Lines of Code**: ~2300 lines  
 **Strategic SQL Methods**: 35+
 
@@ -309,7 +309,7 @@ org_id = guc.rows[0]?.org || null;
 
 ## 2. SearchService (search.service.ts)
 
-**Location**: `apps/server-nest/src/modules/search/search.service.ts`  
+**Location**: `apps/server/src/modules/search/search.service.ts`  
 **Lines of Code**: ~260 lines  
 **Strategic SQL Methods**: 3 (lexical, vector, hybrid)
 
@@ -453,7 +453,7 @@ for (const row of lexicalResults.rows) {
 
 ## 3. EncryptionService (encryption.service.ts)
 
-**Location**: `apps/server-nest/src/modules/integrations/encryption.service.ts`  
+**Location**: `apps/server/src/modules/integrations/encryption.service.ts`  
 **Lines of Code**: ~168 lines  
 **Strategic SQL Methods**: 2 (encrypt, decrypt)
 
@@ -534,7 +534,7 @@ SELECT convert_from(
 
 ## 4. TagService (tag.service.ts)
 
-**Location**: `apps/server-nest/src/modules/graph/tag.service.ts`  
+**Location**: `apps/server/src/modules/graph/tag.service.ts`  
 **Lines of Code**: ~229 lines  
 **Strategic SQL Methods**: 1 (create with advisory lock)
 

@@ -342,8 +342,8 @@ const orgRepo = createMockRepository({
 
 ### Session 5 Files
 - **This Report**: `docs/TESTING_SPRINT_SESSION5_FINAL.md`
-- **Test File**: `apps/server-nest/tests/orgs.service.spec.ts` (6 fixes applied)
-- **Service File**: `apps/server-nest/src/modules/orgs/orgs.service.ts` (no changes)
+- **Test File**: `apps/server/tests/orgs.service.spec.ts` (6 fixes applied)
+- **Service File**: `apps/server/src/modules/orgs/orgs.service.ts` (no changes)
 
 ### Related Documentation
 - **Session 3**: `docs/TESTING_SPRINT_SESSION3_FINAL.md` (90% milestone)

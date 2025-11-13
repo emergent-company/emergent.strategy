@@ -28,7 +28,7 @@ All issues have been resolved with proper TypeORM mocking patterns and environme
 
 ### 1. NotificationsService Tests (11 failures) ✅
 
-**File**: `apps/server-nest/tests/unit/notifications/notifications.service.spec.ts`
+**File**: `apps/server/tests/unit/notifications/notifications.service.spec.ts`
 
 #### Problem
 
@@ -160,7 +160,7 @@ mockRepository.createQueryBuilder.mockReturnValue({
 
 ### 2. EmbeddingsService Tests (2 failures) ✅
 
-**File**: `apps/server-nest/tests/unit/utils/embeddings.service.real.spec.ts`
+**File**: `apps/server/tests/unit/utils/embeddings.service.real.spec.ts`
 
 #### Problem
 
@@ -302,10 +302,10 @@ const mockConfig = createMock<AppConfigService>({
 
 **Files Fixed**:
 
-- `apps/server-nest/tests/unit/auth/auth-scope-denied.spec.ts`
-- `apps/server-nest/tests/unit/graph/graph-merge-apply.spec.ts`
-- `apps/server-nest/tests/unit/graph/graph-merge-fastforward.spec.ts`
-- `apps/server-nest/tests/unit/ingestion/validation-ingestion.spec.ts`
+- `apps/server/tests/unit/auth/auth-scope-denied.spec.ts`
+- `apps/server/tests/unit/graph/graph-merge-apply.spec.ts`
+- `apps/server/tests/unit/graph/graph-merge-fastforward.spec.ts`
+- `apps/server/tests/unit/ingestion/validation-ingestion.spec.ts`
 
 #### Problem
 
@@ -524,29 +524,29 @@ const notification = {
 
 ### Test Files (6)
 
-1. ✅ `apps/server-nest/tests/unit/notifications/notifications.service.spec.ts`
+1. ✅ `apps/server/tests/unit/notifications/notifications.service.spec.ts`
 
    - Complete rewrite with TypeORM mocking
    - Fixed 11 test failures
 
-2. ✅ `apps/server-nest/tests/unit/utils/embeddings.service.real.spec.ts`
+2. ✅ `apps/server/tests/unit/utils/embeddings.service.real.spec.ts`
 
    - Complete rewrite with environment setup
    - Fixed 2 test failures
 
-3. ✅ `apps/server-nest/tests/unit/auth/auth-scope-denied.spec.ts`
+3. ✅ `apps/server/tests/unit/auth/auth-scope-denied.spec.ts`
 
    - Import path correction
 
-4. ✅ `apps/server-nest/tests/unit/graph/graph-merge-apply.spec.ts`
+4. ✅ `apps/server/tests/unit/graph/graph-merge-apply.spec.ts`
 
    - Import path correction
 
-5. ✅ `apps/server-nest/tests/unit/graph/graph-merge-fastforward.spec.ts`
+5. ✅ `apps/server/tests/unit/graph/graph-merge-fastforward.spec.ts`
 
    - Import path correction
 
-6. ✅ `apps/server-nest/tests/unit/ingestion/validation-ingestion.spec.ts`
+6. ✅ `apps/server/tests/unit/ingestion/validation-ingestion.spec.ts`
    - Import path correction
 
 ### Documentation (This file)

@@ -50,7 +50,7 @@ User Message → LLM Selector → Tool + Arguments
 
 ### McpToolSelectorService
 
-**Location:** `apps/server-nest/src/modules/chat/mcp-tool-selector.service.ts`
+**Location:** `apps/server/src/modules/chat/mcp-tool-selector.service.ts`
 
 **Key Methods:**
 
@@ -114,7 +114,7 @@ const jsonMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
 
 ### Chat Controller Integration
 
-**Location:** `apps/server-nest/src/modules/chat/chat.controller.ts`
+**Location:** `apps/server/src/modules/chat/chat.controller.ts`
 
 **Changes:**
 1. Injected `McpToolSelectorService` into constructor
@@ -305,7 +305,7 @@ echo $VERTEX_AI_PROJECT_ID
 echo $VERTEX_AI_CHAT_MODEL
 
 # Check server logs
-tail -f apps/server-nest/logs/app.log | grep "LLM tool selection"
+tail -f apps/server/logs/app.log | grep "LLM tool selection"
 
 # Test Vertex AI connection directly
 curl -H "Authorization: Bearer $(gcloud auth print-access-token)" \

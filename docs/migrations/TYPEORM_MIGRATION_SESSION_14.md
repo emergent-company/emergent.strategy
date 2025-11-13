@@ -28,7 +28,7 @@ Successfully migrated **IntegrationsService** from raw SQL to TypeORM, achieving
 
 ### Entity Created
 
-**File**: `apps/server-nest/src/entities/integration.entity.ts`
+**File**: `apps/server/src/entities/integration.entity.ts`
 
 **Key Features**:
 - Proper column name mapping (`org_id` → `organizationId`)
@@ -298,10 +298,10 @@ constructor(
 
 ## Files Modified
 
-1. ✅ **Created**: `apps/server-nest/src/entities/integration.entity.ts`
-2. ✅ **Updated**: `apps/server-nest/src/entities/index.ts` (added Integration export)
-3. ✅ **Updated**: `apps/server-nest/src/modules/integrations/integrations.service.ts`
-4. ✅ **Updated**: `apps/server-nest/src/modules/integrations/integrations.module.ts`
+1. ✅ **Created**: `apps/server/src/entities/integration.entity.ts`
+2. ✅ **Updated**: `apps/server/src/entities/index.ts` (added Integration export)
+3. ✅ **Updated**: `apps/server/src/modules/integrations/integrations.service.ts`
+4. ✅ **Updated**: `apps/server/src/modules/integrations/integrations.module.ts`
 
 **Total**: 1 new file, 3 updated files
 
@@ -355,7 +355,7 @@ For services with BYTEA columns or PostgreSQL-specific encoding:
 - No TypeORM equivalent
 - Marked as "Strategic Raw SQL" in roadmap
 
-**File**: `apps/server-nest/src/modules/integrations/encryption.service.ts`
+**File**: `apps/server/src/modules/integrations/encryption.service.ts`
 
 ---
 

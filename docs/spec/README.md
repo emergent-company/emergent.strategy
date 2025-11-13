@@ -18,7 +18,7 @@ This repository describes a system that ingests all “facts” about a potentia
 - 14-reference-projects.md — Guidelines for keeping external templates as read-only references
 - 15-passkey-auth.md — Passkey-based authentication flows
 - 16-user-profile.md — User profile data model & operations
-- 17-server-nest-e2e-testing.md — Backend E2E testing strategy
+- 17-server-e2e-testing.md — Backend E2E testing strategy
 - 18-authorization-model.md — Authorization & RBAC model
 - 19-dynamic-object-graph.md — Dynamic graph & schema/branch architecture
 - 20-graph-overview.md — Plain-language project graph feature overview
@@ -47,9 +47,9 @@ The system now supports template-based object type management with AI-powered au
 
 **Implementation Status:**
 - ✅ **Phase 1 (Partial)**: Database schema, Template Pack module, unit tests complete
-  - See `apps/server-nest/PHASE1_IMPLEMENTATION.md` for details
-  - Migration: `apps/server-nest/src/migrations/0001_dynamic_type_system_phase1.sql`
-  - Module: `apps/server-nest/src/modules/template-packs/`
+  - See `apps/server/PHASE1_IMPLEMENTATION.md` for details
+  - Migration: `apps/server/src/migrations/0001_dynamic_type_system_phase1.sql`
+  - Module: `apps/server/src/modules/template-packs/`
 - 🚧 **Phase 1 (Remaining)**: Type registry service, schema validation, E2E tests
 - ⏳ **Phase 2**: Smart Ingestion with AI extraction
 - ⏳ **Phase 3**: Type Discovery engine
@@ -59,7 +59,7 @@ The system now supports template-based object type management with AI-powered au
 Storage/Retrieval: Postgres with pgvector for embeddings and built-in FTS for keyword search; hybrid fusion (vector + FTS) is the default; optional Neo4j for graph reranking.
 Model Choice: Google Gemini. Embeddings use `text-embedding-004`.
 
-Backend server is consolidated under `apps/server-nest` (NestJS). See RUNBOOK.md for running Postgres (Docker) and the Nest server.
+Backend server is consolidated under `apps/server` (NestJS). See RUNBOOK.md for running Postgres (Docker) and the Nest server.
 
 ## Frontend (Admin UI)
 

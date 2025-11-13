@@ -48,7 +48,7 @@ SELECT input_tokens, output_tokens FROM kb.llm_call_logs LIMIT 1;
 
 ### 1. Added Missing Model to Pricing Config
 
-**File**: `apps/server-nest/src/modules/monitoring/config/llm-pricing.config.ts`
+**File**: `apps/server/src/modules/monitoring/config/llm-pricing.config.ts`
 
 ```typescript
 // Gemini 2.5 Flash - Latest fast model (Dec 2024)
@@ -170,7 +170,7 @@ When Google releases new Gemini models:
 
 2. **Add to pricing config** immediately
    ```typescript
-   // apps/server-nest/src/modules/monitoring/config/llm-pricing.config.ts
+   // apps/server/src/modules/monitoring/config/llm-pricing.config.ts
    'gemini-X.Y-flash': {
        input_per_1k_tokens: ...,
        output_per_1k_tokens: ...,
@@ -200,10 +200,10 @@ If count > 0: New model detected, add to pricing config!
 
 ## Related Files
 
-- `apps/server-nest/src/modules/monitoring/config/llm-pricing.config.ts` (pricing config)
-- `apps/server-nest/src/modules/monitoring/monitoring-logger.service.ts` (cost calculation)
-- `apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` (LLM integration)
-- `apps/server-nest/migrations/0027_backfill_llm_costs.sql` (backfill script)
+- `apps/server/src/modules/monitoring/config/llm-pricing.config.ts` (pricing config)
+- `apps/server/src/modules/monitoring/monitoring-logger.service.ts` (cost calculation)
+- `apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` (LLM integration)
+- `apps/server/migrations/0027_backfill_llm_costs.sql` (backfill script)
 
 ---
 

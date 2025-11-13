@@ -9,11 +9,11 @@ Added the ability to accept objects individually or in bulk from the UI. Objects
 
 #### 1. Updated DTOs
 
-**File:** `apps/server-nest/src/modules/graph/dto/patch-graph-object.dto.ts`
+**File:** `apps/server/src/modules/graph/dto/patch-graph-object.dto.ts`
 - Added `status` field (optional, string, max 64 characters)
 - Allows status to be updated when patching an object
 
-**File:** `apps/server-nest/src/modules/graph/dto/bulk-update-status.dto.ts` (NEW)
+**File:** `apps/server/src/modules/graph/dto/bulk-update-status.dto.ts` (NEW)
 - Created new DTO for bulk status updates
 - Fields:
   - `ids`: Array of object IDs (required, min 1)
@@ -21,7 +21,7 @@ Added the ability to accept objects individually or in bulk from the UI. Objects
 
 #### 2. Updated GraphService
 
-**File:** `apps/server-nest/src/modules/graph/graph.service.ts`
+**File:** `apps/server/src/modules/graph/graph.service.ts`
 - Modified `patchObject()` method to handle status updates
 - Changes:
   1. Extract `status` from patch input
@@ -45,7 +45,7 @@ RETURNING id, ..., key, status, properties, ...
 
 #### 3. New Controller Endpoint
 
-**File:** `apps/server-nest/src/modules/graph/graph.controller.ts`
+**File:** `apps/server/src/modules/graph/graph.controller.ts`
 - Added `POST /graph/objects/bulk-update-status` endpoint
 - Requires `graph:write` scope
 - Features:
@@ -256,10 +256,10 @@ Potential improvements:
 ## Related Files
 
 ### Backend
-- `apps/server-nest/src/modules/graph/dto/patch-graph-object.dto.ts`
-- `apps/server-nest/src/modules/graph/dto/bulk-update-status.dto.ts`
-- `apps/server-nest/src/modules/graph/graph.service.ts`
-- `apps/server-nest/src/modules/graph/graph.controller.ts`
+- `apps/server/src/modules/graph/dto/patch-graph-object.dto.ts`
+- `apps/server/src/modules/graph/dto/bulk-update-status.dto.ts`
+- `apps/server/src/modules/graph/graph.service.ts`
+- `apps/server/src/modules/graph/graph.controller.ts`
 
 ### Frontend
 - `apps/admin/src/components/organisms/ObjectBrowser/ObjectBrowser.tsx`

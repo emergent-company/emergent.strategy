@@ -184,18 +184,18 @@ All 7 test failures have been fixed by adjusting expectations to match actual im
 3. `tests/e2e/mcp-auth.e2e.spec.ts` - 26 E2E authentication tests
 
 ### Updated Files:
-1. `apps/server-nest/src/modules/auth/auth.service.ts`:
+1. `apps/server/src/modules/auth/auth.service.ts`:
    - Added 4 MCP scopes to `MOCK_SCOPES`
    - Added 4 mock test tokens
    - Updated token regex pattern
 
-2. `apps/server-nest/src/modules/mcp/mcp.controller.ts`:
+2. `apps/server/src/modules/mcp/mcp.controller.ts`:
    - Added `@UseGuards(AuthGuard, ScopesGuard)`
    - Added `@ApiBearerAuth()` for OpenAPI
    - Added `@Scopes('schema:read')` to both endpoints
    - Added auth error response documentation
 
-3. `apps/server-nest/src/modules/mcp/mcp.module.ts`:
+3. `apps/server/src/modules/mcp/mcp.module.ts`:
    - Imported `AuthModule`
    - Updated module documentation
 

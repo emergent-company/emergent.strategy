@@ -52,8 +52,8 @@ error: column "org_id" of relation "projects" does not exist
 ## Files Modified
 
 ### Database
-- `apps/server-nest/migrations/0003_standardize_schema_consistency.sql`
-- `apps/server-nest/migrations/0004_complete_schema_standardization.sql`
+- `apps/server/migrations/0003_standardize_schema_consistency.sql`
+- `apps/server/migrations/0004_complete_schema_standardization.sql`
 
 ### Test Files (34 files updated)
 - `src/modules/graph/**/*.spec.ts` (15 files)
@@ -61,8 +61,8 @@ error: column "org_id" of relation "projects" does not exist
 - Various other test files with SQL references
 
 ### Application Code
-- `apps/server-nest/src/modules/graph/graph.service.ts` (20+ SQL query fixes)
-- `apps/server-nest/.api/apis/clickup/types.ts` (added @ts-nocheck)
+- `apps/server/src/modules/graph/graph.service.ts` (20+ SQL query fixes)
+- `apps/server/.api/apis/clickup/types.ts` (added @ts-nocheck)
 
 ### Test Helper Scripts
 - `scripts/find-org-id-usage.sh` (created for verification)
@@ -136,7 +136,7 @@ The schema is now consistent, maintainable, and follows best practices for forei
 
 ### Run tests
 ```bash
-cd apps/server-nest
+cd apps/server
 npx vitest run --passWithNoTests
 ```
 

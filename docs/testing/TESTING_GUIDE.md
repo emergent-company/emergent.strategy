@@ -9,8 +9,8 @@ This guide provides comprehensive testing standards for the Spec Server project.
 **Related Documentation**:
 
 - [AI Agent Testing Guide](./AI_AGENT_GUIDE.md) - Condensed guide optimized for AI coding assistants
-- [Vitest Configuration](../../apps/server-nest/vitest.config.ts)
-- [Package Scripts](../../apps/server-nest/package.json)
+- [Vitest Configuration](../../apps/server/vitest.config.ts)
+- [Package Scripts](../../apps/server/package.json)
 
 ## Table of Contents
 
@@ -217,7 +217,7 @@ All tests follow a semantic folder structure that clearly indicates test type:
 
 ```
 apps/
-  server-nest/
+  server/
     tests/
       unit/                      # Unit tests
         auth/                    # Mirror source module structure
@@ -603,23 +603,23 @@ All test commands use `nx` to run tasks on projects:
 
 ```bash
 # Unit tests (fast, no external dependencies)
-nx test server-nest          # Run all unit tests for server-nest
+nx test server          # Run all unit tests for server
 nx test admin                # Run all unit tests for admin
 
 # E2E tests (slower, requires database and auth)
-nx test-e2e server-nest      # Run all e2e tests for server-nest
+nx test-e2e server      # Run all e2e tests for server
 
 # Integration tests (moderate speed)
-nx test server-nest --testFile=tests/integration/*.integration.spec.ts
+nx test server --testFile=tests/integration/*.integration.spec.ts
 
 # Single test file
-nx test server-nest --testFile=tests/unit/auth/auth.service.spec.ts
+nx test server --testFile=tests/unit/auth/auth.service.spec.ts
 
 # Watch mode (re-run on file changes)
-nx test server-nest --watch
+nx test server --watch
 
 # Coverage
-nx test server-nest --coverage
+nx test server --coverage
 ```
 
 ### Test Configuration
@@ -645,7 +645,7 @@ docker compose -f docker/docker-compose.yml up -d
 cp .env.test.local.example .env.test.local
 
 # Run e2e tests
-nx test-e2e server-nest
+nx test-e2e server
 ```
 
 ## Writing Good Tests
@@ -832,18 +832,18 @@ Key differences:
 
 Tests are scattered across:
 
-- `/apps/server-nest/test/` (e2e tests)
-- `/apps/server-nest/tests/` (mixed unit tests)
-- `/apps/server-nest/src/modules/*/__tests__/` (co-located unit tests)
-- `/apps/server-nest/src/modules/*/*.spec.ts` (inline spec files)
+- `/apps/server/test/` (e2e tests)
+- `/apps/server/tests/` (mixed unit tests)
+- `/apps/server/src/modules/*/__tests__/` (co-located unit tests)
+- `/apps/server/src/modules/*/*.spec.ts` (inline spec files)
 
 ### Target State
 
 All tests organized by type:
 
-- `/apps/server-nest/tests/unit/` (all unit tests, mirroring src structure)
-- `/apps/server-nest/tests/e2e/` (all e2e tests)
-- `/apps/server-nest/tests/integration/` (all integration tests)
+- `/apps/server/tests/unit/` (all unit tests, mirroring src structure)
+- `/apps/server/tests/e2e/` (all e2e tests)
+- `/apps/server/tests/integration/` (all integration tests)
 
 ### Migration Progress
 

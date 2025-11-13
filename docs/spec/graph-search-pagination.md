@@ -101,7 +101,7 @@ Invalid cursor (malformed / decoding fails): treated as initial page (no error).
 - Optional `anchorStrategy` parameter if alternate ordering modes are introduced.
 
 ---
-See also: `apps/server-nest/README.md` (inline summary) and root `README.md` section "Graph Search Pagination (Summary)".
+See also: `apps/server/README.md` (inline summary) and root `README.md` section "Graph Search Pagination (Summary)".
 
 ## Acceptance Tests (AT-GSP Series)
 The canonical list of pagination acceptance tests is tracked centrally in `docs/spec/10-roadmap.md` (Graph Search Pagination – Tracking). Summary below for quick reference:

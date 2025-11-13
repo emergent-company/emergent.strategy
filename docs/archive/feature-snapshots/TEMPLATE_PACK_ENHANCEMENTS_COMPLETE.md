@@ -12,10 +12,10 @@ This document summarizes three major enhancements to the template pack system:
 
 ### Backend Changes
 
-**File**: `apps/server-nest/src/modules/template-packs/dto/template-pack.dto.ts`
+**File**: `apps/server/src/modules/template-packs/dto/template-pack.dto.ts`
 - Added `relationship_count: number` field to `AvailableTemplateDto` interface
 
-**File**: `apps/server-nest/src/modules/template-packs/template-pack.service.ts`
+**File**: `apps/server/src/modules/template-packs/template-pack.service.ts`
 - Updated `getAvailableTemplatesForProject()` method to calculate relationship count:
   ```typescript
   const relationshipTypes = Object.keys(pack.relationship_type_schemas || {});
@@ -46,7 +46,7 @@ This document summarizes three major enhancements to the template pack system:
 
 ### Backend Changes
 
-**File**: `apps/server-nest/src/modules/template-packs/template-pack.service.ts`
+**File**: `apps/server/src/modules/template-packs/template-pack.service.ts`
 - Added new method `getCompiledObjectTypesForProject()`:
   - Queries all active template pack assignments for project
   - Loads full template packs by ID
@@ -54,7 +54,7 @@ This document summarizes three major enhancements to the template pack system:
   - Tracks source packs using `_sources` metadata
   - Returns compiled schemas as `Record<string, any>`
 
-**File**: `apps/server-nest/src/modules/template-packs/template-pack.controller.ts`
+**File**: `apps/server/src/modules/template-packs/template-pack.controller.ts`
 - Added new endpoint:
   ```typescript
   @Get('projects/:projectId/compiled-types')
@@ -156,7 +156,7 @@ Object type schemas can now include an `examples` array:
 
 ### Backend Changes - LLM Providers
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts`
+**File**: `apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts`
 - Updated `buildPrompt()` method to include examples:
   ```typescript
   if (schema.examples && Array.isArray(schema.examples) && schema.examples.length > 0) {
@@ -168,7 +168,7 @@ Object type schemas can now include an `examples` array:
   ```
 - Also added schema description before properties
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+**File**: `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
 - Updated `buildTypeSpecificPrompt()` method similarly:
   - Added description display
   - Added examples section with JSON formatting
@@ -304,11 +304,11 @@ Expected response structure:
 ## Files Modified
 
 ### Backend
-1. `apps/server-nest/src/modules/template-packs/dto/template-pack.dto.ts`
-2. `apps/server-nest/src/modules/template-packs/template-pack.service.ts`
-3. `apps/server-nest/src/modules/template-packs/template-pack.controller.ts`
-4. `apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts`
-5. `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+1. `apps/server/src/modules/template-packs/dto/template-pack.dto.ts`
+2. `apps/server/src/modules/template-packs/template-pack.service.ts`
+3. `apps/server/src/modules/template-packs/template-pack.controller.ts`
+4. `apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts`
+5. `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
 
 ### Frontend
 1. `apps/admin/src/pages/admin/pages/settings/project/templates.tsx`

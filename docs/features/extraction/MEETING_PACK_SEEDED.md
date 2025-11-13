@@ -99,7 +99,7 @@ WHERE name = 'Meeting & Decision Management';
 
 ### Related Files
 
-- Seed implementation: `apps/server-nest/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`
+- Seed implementation: `apps/server/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`
 - Seed script: `scripts/seed-meeting-pack.ts`
 - Specification: `docs/spec/39-meeting-decision-template-pack.md`
 - Documentation: `docs/spec/39-meeting-decision-template-pack-implementation.md`

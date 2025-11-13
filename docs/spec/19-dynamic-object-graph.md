@@ -1814,7 +1814,7 @@ Cross‑Reference: See Sections 8A / 8B / 8C for retrieval, normalization, and n
 Roadmap Acceptance Tests Mapping: Refer to `docs/spec/10-roadmap.md` (Graph Search Pagination – Tracking) for AT-GSP-* test IDs covering these checklist items (e.g., AT-GSP-1..18). Keep this section's statuses in sync when updating test outcomes.
 
 ### 20.3 Benchmark Baseline (2025-09-27)
-Initial synthetic traversal performance baseline captured using `npm --prefix apps/server-nest run graph:bench -- --nodes=200 --branch=2 --depth=3 --roots=3 --limit=120 --runs=3 --warmup=1`.
+Initial synthetic traversal performance baseline captured using `npm --prefix apps/server run graph:bench -- --nodes=200 --branch=2 --depth=3 --roots=3 --limit=120 --runs=3 --warmup=1`.
 
 Environment Notes:
 - Local dev machine (macOS) – single run; values are indicative (not production SLOs).
@@ -1839,7 +1839,7 @@ Next Actions:
 3. Persist benchmark JSONL artifacts under `logs/benchmarks/` and compare deltas (simple percent drift alert > +30%).
 4. After implementing `/graph/expand`, replicate baseline to ensure semantic feature additions do not regress traversal core.
 
-CI Guard (Implemented 2025-09-27): `npm --prefix apps/server-nest run graph:bench:ci` executes a fixed-parameter benchmark (overridable via `GRAPH_BENCH_*` env vars) and enforces p95 thresholds (depth1 20ms / depth2 40ms / depth3 60ms). Fails pipeline with non-zero exit if exceeded. Adjust thresholds via env to tune sensitivity per environment.
+CI Guard (Implemented 2025-09-27): `npm --prefix apps/server run graph:bench:ci` executes a fixed-parameter benchmark (overridable via `GRAPH_BENCH_*` env vars) and enforces p95 thresholds (depth1 20ms / depth2 40ms / depth3 60ms). Fails pipeline with non-zero exit if exceeded. Adjust thresholds via env to tune sensitivity per environment.
 
 NOTE: Replace approximate `~` values with precise numbers if future automated capture writes a machine-readable markdown excerpt.
 

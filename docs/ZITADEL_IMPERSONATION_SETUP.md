@@ -65,7 +65,7 @@ For backend services that need to impersonate users:
 Add token exchange capability to your backend:
 
 ```typescript
-// apps/server-nest/src/modules/auth/token-exchange.service.ts
+// apps/server/src/modules/auth/token-exchange.service.ts
 
 import { Injectable, Logger } from '@nestjs/common';
 
@@ -256,7 +256,7 @@ export function ImpersonateUserButton({ targetUserId, targetUserName }: Imperson
 ### 6. Backend Endpoint for Impersonation
 
 ```typescript
-// apps/server-nest/src/modules/auth/auth.controller.ts
+// apps/server/src/modules/auth/auth.controller.ts
 
 import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from './auth.guard';
@@ -488,7 +488,7 @@ async function actAsUser(userId: string, action: () => Promise<any>) {
 
 ## Related Files
 
-- `/apps/server-nest/src/modules/auth/auth.service.ts` - Current auth implementation
-- `/apps/server-nest/src/modules/auth/zitadel.service.ts` - Zitadel integration
+- `/apps/server/src/modules/auth/auth.service.ts` - Current auth implementation
+- `/apps/server/src/modules/auth/zitadel.service.ts` - Zitadel integration
 - `/apps/admin/src/auth/oidc.ts` - Frontend OIDC implementation
 - `/apps/admin/src/contexts/auth.tsx` - Auth context and token management

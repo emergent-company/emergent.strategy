@@ -29,7 +29,7 @@ await pool.query(`DELETE FROM kb.graph_embedding_jobs WHERE project_id = $1`, [p
 ```
 
 ### 2. Graph Objects Schema Missing Critical Columns
-**File:** `apps/server-nest/migrations/0001_init.sql`  
+**File:** `apps/server/migrations/0001_init.sql`  
 **Error:** Graph object creation returned `500 Internal Server Error`
 
 **Problem:** 
@@ -50,7 +50,7 @@ The simplified schema had only 13 columns:
 **Fix:** Restored full schema from `0001_init.sql.old` (21 columns total)
 
 ### 3. Graph Relationships Schema Column Name Mismatch
-**File:** `apps/server-nest/migrations/0001_init.sql`  
+**File:** `apps/server/migrations/0001_init.sql`  
 **Error:** Service layer couldn't insert relationships
 
 **Problem:**
@@ -61,7 +61,7 @@ The simplified schema had only 13 columns:
 **Fix:** Restored full schema with `src_id`/`dst_id` naming and all missing columns
 
 ### 4. Missing Membership Unique Constraints
-**File:** `apps/server-nest/migrations/0001_init.sql`  
+**File:** `apps/server/migrations/0001_init.sql`  
 **Error:** `there is no unique or exclusion constraint matching the ON CONFLICT specification`
 
 **Problem:**
@@ -90,7 +90,7 @@ await exec(pool, 'DELETE FROM public.schema_migrations');
 1. **`tests/e2e/e2e-context.ts`**
    - Fixed cleanup query to use `project_id` instead of non-existent `object_id`
 
-2. **`apps/server-nest/migrations/0001_init.sql`**
+2. **`apps/server/migrations/0001_init.sql`**
    - Restored full `graph_objects` table schema (13 → 21 columns)
    - Restored full `graph_relationships` table schema with correct column names (`src_id`/`dst_id`)
    - Added unique indexes for membership tables
@@ -148,9 +148,9 @@ Running E2E tests immediately after schema changes would have caught these issue
 For future schema refactors:
 
 1. **Before changing schema:**
-   - Grep for all column names being changed: `grep -r "old_column_name" apps/server-nest/src/`
-   - Search for ON CONFLICT clauses: `grep -r "ON CONFLICT" apps/server-nest/src/`
-   - Check test cleanup code: `grep -r "DELETE FROM" apps/server-nest/tests/`
+   - Grep for all column names being changed: `grep -r "old_column_name" apps/server/src/`
+   - Search for ON CONFLICT clauses: `grep -r "ON CONFLICT" apps/server/src/`
+   - Check test cleanup code: `grep -r "DELETE FROM" apps/server/tests/`
 
 2. **During refactor:**
    - Keep old schema accessible for reference (`.old` backup)
