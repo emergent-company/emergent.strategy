@@ -638,7 +638,7 @@ Before starting manual tests, ensure:
 npm run workspace:status
 
 # 2. Verify MCP is enabled (should see CHAT_ENABLE_MCP=1)
-grep CHAT_ENABLE_MCP apps/server-nest/.env
+grep CHAT_ENABLE_MCP apps/server/.env
 
 # 3. Check logs for any startup errors
 npm run workspace:logs -- --follow

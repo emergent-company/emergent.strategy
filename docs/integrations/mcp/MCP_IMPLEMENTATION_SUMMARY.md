@@ -31,7 +31,7 @@ This document provides a comprehensive summary of the MCP (Model Context Protoco
 
 #### Key Files
 ```
-apps/server-nest/src/modules/mcp/
+apps/server/src/modules/mcp/
 ├── mcp.module.ts          # Module definition
 ├── mcp.controller.ts      # REST endpoints
 ├── dto/
@@ -1029,13 +1029,13 @@ AI Agent
 **Development**:
 ```bash
 # Build
-npm --prefix apps/server-nest run build
+npm --prefix apps/server run build
 
 # Run in dev mode
-npm --prefix apps/server-nest run start:dev
+npm --prefix apps/server run start:dev
 
 # Run tests (when implemented)
-npm --prefix apps/server-nest run test
+npm --prefix apps/server run test
 ```
 
 **Verification**:
@@ -1071,7 +1071,7 @@ curl http://localhost:3001/mcp/schema/version
 For questions, issues, or contributions related to MCP server implementation:
 
 - Check existing documentation in `docs/MCP_*.md` files
-- Review NestJS module code in `apps/server-nest/src/modules/mcp/`
+- Review NestJS module code in `apps/server/src/modules/mcp/`
 - Consult [@rekog/mcp-nest examples](https://github.com/rekogai/mcp-nest/tree/main/examples)
 
 ---

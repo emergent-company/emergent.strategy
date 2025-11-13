@@ -129,11 +129,11 @@ SyntaxError: Unexpected token '{'
 
 ## Files Modified
 
-1. `apps/server-nest/src/modules/clickup/clickup-api.client.ts` - Replaced SDK methods with fetch()
-2. `apps/server-nest/package.json` - Removed @api/clickup dependency
-3. `apps/server-nest/tsconfig.json` - Removed .api from exclude
-4. `apps/server-nest/Dockerfile` - Removed .api directory handling
-5. Deleted `apps/server-nest/.api/` directory completely
+1. `apps/server/src/modules/clickup/clickup-api.client.ts` - Replaced SDK methods with fetch()
+2. `apps/server/package.json` - Removed @api/clickup dependency
+3. `apps/server/tsconfig.json` - Removed .api from exclude
+4. `apps/server/Dockerfile` - Removed .api directory handling
+5. Deleted `apps/server/.api/` directory completely
 
 ## Next Steps for Deployment
 

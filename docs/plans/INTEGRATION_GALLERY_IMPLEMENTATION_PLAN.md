@@ -201,7 +201,7 @@ const decryptQuery = `
 
 #### File Structure
 ```
-apps/server-nest/src/modules/integrations/
+apps/server/src/modules/integrations/
 ├── integrations.module.ts
 ├── integrations.controller.ts
 ├── integrations.service.ts
@@ -551,7 +551,7 @@ export class EncryptionUtil {
 
 #### File Structure
 ```
-apps/server-nest/src/modules/clickup/
+apps/server/src/modules/clickup/
 ├── clickup.module.ts
 ├── clickup.service.ts
 ├── clickup-importer.service.ts
@@ -1532,8 +1532,8 @@ npm run openapi:generate
 - **Spec 22**: `docs/spec/22-clickup-integration.md`
 - **Spec 23**: `docs/spec/23-integration-gallery.md`
 - **Existing Patterns**:
-  - Extraction jobs: `apps/server-nest/src/modules/extraction-jobs/`
-  - Auth guards: `apps/server-nest/src/modules/auth/`
+  - Extraction jobs: `apps/server/src/modules/extraction-jobs/`
+  - Auth guards: `apps/server/src/modules/auth/`
   - DaisyUI components: `apps/admin/src/components/`
 
 ---

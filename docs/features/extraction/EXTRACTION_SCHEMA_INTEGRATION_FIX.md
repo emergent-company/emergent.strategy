@@ -61,17 +61,17 @@ The LLM should receive:
 
 ### Files Involved
 
-1. **`apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`**
+1. **`apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`**
    - Method: `loadExtractionPrompt()` → Needs to become `loadExtractionConfig()`
    - Currently loads only `extraction_prompts` from template pack
    - **FIX**: Also load `object_type_schemas` and return both
 
-2. **`apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts`**
+2. **`apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts`**
    - Method: `extractEntities()` → receives `extractionPrompt` string
    - Method: `buildPrompt()` → constructs final prompt for LLM
    - **FIX**: Accept object schemas as parameter and include them in prompt
 
-3. **`apps/server-nest/src/modules/extraction-jobs/llm/llm-provider.interface.ts`**
+3. **`apps/server/src/modules/extraction-jobs/llm/llm-provider.interface.ts`**
    - Interface: `extractEntities()` signature
    - **FIX**: Update to accept object schemas
 
@@ -137,7 +137,7 @@ const objectSchemas = extractionConfig.objectSchemas;
 
 ### Step 3: Update LLM Provider Interface
 
-In `apps/server-nest/src/modules/extraction-jobs/llm/llm-provider.interface.ts`:
+In `apps/server/src/modules/extraction-jobs/llm/llm-provider.interface.ts`:
 
 ```typescript
 export interface LlmProvider {
@@ -152,7 +152,7 @@ export interface LlmProvider {
 
 ### Step 4: Update Vertex AI Provider
 
-In `apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts`:
+In `apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts`:
 
 ```typescript
 async extractEntities(

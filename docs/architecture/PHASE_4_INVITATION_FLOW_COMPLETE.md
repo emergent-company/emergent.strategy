@@ -17,7 +17,7 @@ Phase 4 successfully integrated ZitadelService into InvitesService, enabling aut
 ## Implementation Summary
 
 ### 1. InvitesService Enhancement
-**File:** `apps/server-nest/src/modules/invites/invites.service.ts`
+**File:** `apps/server/src/modules/invites/invites.service.ts`
 
 #### Changes Made:
 
@@ -89,7 +89,7 @@ async accept(token: string, userId: string)
 ---
 
 ### 2. InvitesController Enhancement
-**File:** `apps/server-nest/src/modules/invites/invites.controller.ts`
+**File:** `apps/server/src/modules/invites/invites.controller.ts`
 
 #### New Endpoint: `POST /invites/with-user`
 
@@ -137,7 +137,7 @@ async createWithUser(
 ---
 
 ### 3. Test Coverage
-**File:** `apps/server-nest/tests/invites.service.spec.ts`
+**File:** `apps/server/tests/invites.service.spec.ts`
 
 #### Test Statistics:
 - **Total Tests:** 17 (7 existing + 10 new)
@@ -425,7 +425,7 @@ CREATE TABLE core.user_profiles (
 ## Test Execution Results
 
 ```bash
-$ npm --prefix apps/server-nest run test -- invites.service.spec.ts
+$ npm --prefix apps/server run test -- invites.service.spec.ts
 
  ✓ tests/invites.service.spec.ts (17 tests) 9ms
 

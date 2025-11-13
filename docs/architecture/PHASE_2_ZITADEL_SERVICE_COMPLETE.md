@@ -11,7 +11,7 @@ Successfully implemented and tested the ZitadelService - a dual-purpose service 
 
 ## Implementation Summary
 
-### File: `apps/server-nest/src/modules/auth/zitadel.service.ts`
+### File: `apps/server/src/modules/auth/zitadel.service.ts`
 - **Lines of Code**: 720+
 - **Build Status**: ✅ TypeScript compilation successful
 - **Test Status**: ✅ 23/23 tests passing
@@ -180,7 +180,7 @@ private async requestAccessToken(assertion: string): Promise<ZitadelTokenRespons
 
 ## Testing Strategy
 
-### Test File: `apps/server-nest/src/modules/auth/__tests__/zitadel.service.spec.ts`
+### Test File: `apps/server/src/modules/auth/__tests__/zitadel.service.spec.ts`
 - **Lines of Code**: 600+
 - **Test Framework**: Vitest
 - **Test Count**: 23 tests across 10 describe blocks
@@ -254,7 +254,7 @@ private async requestAccessToken(assertion: string): Promise<ZitadelTokenRespons
 
 ### Module Registration
 ```typescript
-// apps/server-nest/src/modules/auth/auth.module.ts
+// apps/server/src/modules/auth/auth.module.ts
 @Module({
     imports: [
         forwardRef(() => UserProfileModule),
@@ -486,10 +486,10 @@ private mapIntrospectionToDecodedToken(introspection: IntrospectionResult): Deco
 - Phase 2 section (lines 200-700)
 
 ### Related Code
-- `apps/server-nest/src/modules/auth/zitadel.service.ts` (implementation)
-- `apps/server-nest/src/modules/auth/__tests__/zitadel.service.spec.ts` (tests)
-- `apps/server-nest/src/modules/auth/auth.module.ts` (registration)
-- `apps/server-nest/src/modules/auth/postgres-cache.service.ts` (cache integration)
+- `apps/server/src/modules/auth/zitadel.service.ts` (implementation)
+- `apps/server/src/modules/auth/__tests__/zitadel.service.spec.ts` (tests)
+- `apps/server/src/modules/auth/auth.module.ts` (registration)
+- `apps/server/src/modules/auth/postgres-cache.service.ts` (cache integration)
 
 ### External Documentation
 - [Zitadel Management API Documentation](https://zitadel.com/docs/apis/resources/mgmt)

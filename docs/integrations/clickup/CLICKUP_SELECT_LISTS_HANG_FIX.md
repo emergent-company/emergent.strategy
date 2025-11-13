@@ -190,7 +190,7 @@ this.logger.log(`Workspace structure fetched: ${spaces.length} spaces, ${allDocs
 
 ### Files Modified
 
-1. **`apps/server-nest/src/modules/clickup/clickup-import.service.ts`**
+1. **`apps/server/src/modules/clickup/clickup-import.service.ts`**
    - Method: `fetchWorkspaceStructure()`
    - Lines: 64-164 (updated)
    - Changes:

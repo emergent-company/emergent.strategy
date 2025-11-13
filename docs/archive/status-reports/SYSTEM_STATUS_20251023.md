@@ -122,11 +122,11 @@ All proxy errors are from 12:47-12:50 when backend was temporarily down.
 ## File System Cleanup
 
 ### Removed
-- ✅ `/apps/server-nest/src/migrations/` - Wrong migration directory (entire directory deleted)
+- ✅ `/apps/server/src/migrations/` - Wrong migration directory (entire directory deleted)
 - ✅ Duplicate migration files in wrong location
 
 ### Correct Locations
-- ✅ Migrations: `/apps/server-nest/migrations/*.sql`
+- ✅ Migrations: `/apps/server/migrations/*.sql`
 - ✅ PM2 configs: `/tools/workspace-cli/pm2/*.cjs` (directory-based prefixing)
 
 ## Recent Git Operations

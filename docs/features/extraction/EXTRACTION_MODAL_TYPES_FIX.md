@@ -203,8 +203,8 @@ export function createTypeRegistryClient(
 ## Related Files
 - `apps/admin/src/components/organisms/ExtractionConfigModal.tsx` - Fixed component
 - `apps/admin/src/api/type-registry.ts` - New API client
-- `apps/server-nest/src/modules/type-registry/type-registry.controller.ts` - Backend endpoint
-- `apps/server-nest/src/modules/type-registry/type-registry.service.ts` - Service
+- `apps/server/src/modules/type-registry/type-registry.controller.ts` - Backend endpoint
+- `apps/server/src/modules/type-registry/type-registry.service.ts` - Service
 
 ## Benefits
 1. ✅ Shows actual object types from installed template packs

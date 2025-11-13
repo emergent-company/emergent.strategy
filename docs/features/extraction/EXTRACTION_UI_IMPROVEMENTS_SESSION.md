@@ -202,7 +202,7 @@ await this.extractionLogger.logStep({
 ```
 
 ### Files Changed
-- `/Users/mcj/code/spec-server/apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` (lines 476-542)
+- `/Users/mcj/code/spec-server/apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` (lines 476-542)
 
 ### Benefits
 - ✅ Halves the number of timeline entries (one instead of two per extraction)
@@ -239,7 +239,7 @@ npm --prefix apps/admin run build
 ✅ No errors
 
 # Server typecheck
-npm --prefix apps/server-nest run build
+npm --prefix apps/server run build
 ✅ No errors
 ```
 
@@ -247,7 +247,7 @@ npm --prefix apps/server-nest run build
 1. `apps/admin/src/pages/admin/pages/objects/index.tsx` - Object name priority fix (2 locations)
 2. `apps/admin/src/components/organisms/ExtractionConfigModal.tsx` - Default all types checked
 3. `apps/admin/src/components/organisms/ExtractionLogsModal/ExtractionLogsModal.tsx` - Tokens column moved to details
-4. `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` - Combined extract_entities log entry
+4. `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` - Combined extract_entities log entry
 
 ### Testing Recommendations
 1. **Object Browser**: Navigate to /admin/objects and verify objects show readable names

@@ -23,7 +23,7 @@ The **Dynamic Object Graph system** is now fully operational with all Phase 1 an
 - Version management for schema evolution
 
 **Files**:
-- `apps/server-nest/src/modules/graph/schema-registry.service.ts`
+- `apps/server/src/modules/graph/schema-registry.service.ts`
 - Tests: `__tests__/graph-schema-registry.spec.ts`
 
 **API**: Internal service (not exposed as REST endpoints)
@@ -61,8 +61,8 @@ The **Dynamic Object Graph system** is now fully operational with all Phase 1 an
   - Returns detailed merge summary
 
 **Files**:
-- `apps/server-nest/src/modules/graph/branch.service.ts`
-- `apps/server-nest/src/modules/graph/dto/merge.dto.ts`
+- `apps/server/src/modules/graph/branch.service.ts`
+- `apps/server/src/modules/graph/dto/merge.dto.ts`
 
 **Test Coverage**: 29/29 diff tests passing
 
@@ -83,8 +83,8 @@ The **Dynamic Object Graph system** is now fully operational with all Phase 1 an
 - `GET /product-versions/:id/diff/:otherId` - Compare releases
 
 **Files**:
-- `apps/server-nest/src/modules/graph/product-version.service.ts`
-- `apps/server-nest/src/modules/graph/product-version.controller.ts`
+- `apps/server/src/modules/graph/product-version.service.ts`
+- `apps/server/src/modules/graph/product-version.controller.ts`
 
 **Authorization**: Requires `graph:read` or `graph:write` scopes
 
@@ -103,7 +103,7 @@ The **Dynamic Object Graph system** is now fully operational with all Phase 1 an
 **Test Coverage**: 29/29 unit tests passing (AT-P0-DIFF-1..4)
 
 **Files**:
-- `apps/server-nest/src/modules/graph/utils/diff.util.ts`
+- `apps/server/src/modules/graph/utils/diff.util.ts`
 - Tests: `__tests__/diff.util.spec.ts`
 
 **Integration**: Used in `createObject`, `patchObject`, and merge operations
@@ -235,10 +235,10 @@ The **Dynamic Object Graph system** is now fully operational with all Phase 1 an
 6. `DELETE /tags/:id` - Delete tag
 
 **Files**:
-- `apps/server-nest/src/modules/graph/tag.service.ts` (200+ lines)
-- `apps/server-nest/src/modules/graph/tag.controller.ts` (190+ lines)
-- `apps/server-nest/src/modules/graph/dto/create-tag.dto.ts`
-- `apps/server-nest/src/modules/graph/dto/update-tag.dto.ts`
+- `apps/server/src/modules/graph/tag.service.ts` (200+ lines)
+- `apps/server/src/modules/graph/tag.controller.ts` (190+ lines)
+- `apps/server/src/modules/graph/dto/create-tag.dto.ts`
+- `apps/server/src/modules/graph/dto/update-tag.dto.ts`
 
 **Constraints**:
 - Tag names are immutable (retagging requires delete + recreate)
@@ -352,7 +352,7 @@ From `scripts/graph-benchmark.ts` (local dev, 2025-09-27):
 
 ### Core Services
 ```
-apps/server-nest/src/modules/graph/
+apps/server/src/modules/graph/
 ├── graph.service.ts              (1,515 lines - core CRUD + traversal)
 ├── branch.service.ts             (merge logic)
 ├── schema-registry.service.ts    (validation)
@@ -364,7 +364,7 @@ apps/server-nest/src/modules/graph/
 
 ### Controllers
 ```
-apps/server-nest/src/modules/graph/
+apps/server/src/modules/graph/
 ├── graph.controller.ts           (objects + relationships + traversal)
 ├── branch.controller.ts          (branching + merge)
 ├── product-version.controller.ts (release management)
@@ -373,7 +373,7 @@ apps/server-nest/src/modules/graph/
 
 ### DTOs (Validation)
 ```
-apps/server-nest/src/modules/graph/dto/
+apps/server/src/modules/graph/dto/
 ├── create-graph-object.dto.ts
 ├── patch-graph-object.dto.ts
 ├── create-graph-relationship.dto.ts
@@ -385,7 +385,7 @@ apps/server-nest/src/modules/graph/dto/
 
 ### Tests
 ```
-apps/server-nest/src/modules/graph/__tests__/
+apps/server/src/modules/graph/__tests__/
 ├── diff.util.spec.ts             (29 tests)
 ├── graph-schema-registry.spec.ts
 ├── graph-relationship.multiplicity.spec.ts
@@ -429,7 +429,7 @@ apps/server-nest/src/modules/graph/__tests__/
 1. **Database**: Apply tags migration after ensuring `kb.product_versions` exists
    ```bash
    psql postgresql://spec:spec@localhost:5432/spec -f \
-     apps/server-nest/src/migrations/9999999999998_tags_table.sql
+     apps/server/src/migrations/9999999999998_tags_table.sql
    ```
 
 2. **Application**: Deploy server (no breaking changes)

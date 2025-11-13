@@ -6,7 +6,7 @@
 
 No manual commands needed - just start the server:
 ```bash
-npm --prefix apps/server-nest run start:dev
+npm --prefix apps/server run start:dev
 ```
 
 Migrations execute before the app accepts requests, ensuring schema is always up-to-date.
@@ -15,20 +15,20 @@ Migrations execute before the app accepts requests, ensuring schema is always up
 
 ```bash
 # 1. Create migration file in the migrations directory
-touch apps/server-nest/src/common/database/migrations/$(date +%Y%m%d)_your_description.sql
+touch apps/server/src/common/database/migrations/$(date +%Y%m%d)_your_description.sql
 
 # 2. Edit the file with your SQL (make it idempotent!)
 # Example: CREATE TABLE IF NOT EXISTS ...
 
 # 3. Restart the server - migrations run automatically
-npm --prefix apps/server-nest run start:dev
+npm --prefix apps/server run start:dev
 ```
 
 ## Skipping Migrations (Development Only)
 
 If you need to skip migrations temporarily:
 ```bash
-SKIP_MIGRATIONS=1 npm --prefix apps/server-nest run start:dev
+SKIP_MIGRATIONS=1 npm --prefix apps/server run start:dev
 ```
 
 ## Migration Flow
@@ -79,7 +79,7 @@ ON kb.user_preferences(user_id);
 
 **Migrations not running:**
 - Check logs for "Running database migrations..." message
-- Verify files are in `apps/server-nest/src/common/database/migrations/`
+- Verify files are in `apps/server/src/common/database/migrations/`
 - Ensure files end with `.sql` extension
 - Check for `SKIP_MIGRATIONS=1` environment variable
 
@@ -93,7 +93,7 @@ ON kb.user_preferences(user_id);
 Previous versions used `scripts/migrate.mjs` with Nx commands:
 ```bash
 # OBSOLETE - No longer available
-npx nx run server-nest:migrate
+npx nx run server:migrate
 ```
 
 This script was removed as migrations now run automatically in the application lifecycle.
@@ -101,4 +101,4 @@ This script was removed as migrations now run automatically in the application l
 ## Related Documentation
 
 - [Migration Lifecycle Fix](../MIGRATION_LIFECYCLE_FIX.md) - How automatic migrations were implemented
-- [Migration Naming Conventions](../../apps/server-nest/MIGRATION_NAMING_CONVENTIONS.md) - File naming patterns
+- [Migration Naming Conventions](../../apps/server/MIGRATION_NAMING_CONVENTIONS.md) - File naming patterns

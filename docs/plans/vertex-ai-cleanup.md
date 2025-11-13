@@ -179,9 +179,9 @@ const embedding = Array.from(new Float32Array(embeddingBuffer.buffer));
 
 **Files to delete**:
 ```bash
-rm apps/server-nest/src/modules/embeddings/embeddings.service.ts
-rm apps/server-nest/src/modules/embeddings/embeddings.module.ts
-rmdir apps/server-nest/src/modules/embeddings/
+rm apps/server/src/modules/embeddings/embeddings.service.ts
+rm apps/server/src/modules/embeddings/embeddings.module.ts
+rmdir apps/server/src/modules/embeddings/
 ```
 
 **Dependency to remove** (check package.json):
@@ -198,7 +198,7 @@ npm uninstall @langchain/google-genai
 
 #### Task 2.1: Update GoogleVertexEmbeddingProvider
 
-**File**: `apps/server-nest/src/modules/graph/google-vertex-embedding.provider.ts`
+**File**: `apps/server/src/modules/graph/google-vertex-embedding.provider.ts`
 
 **Current**:
 ```typescript
@@ -233,7 +233,7 @@ this.logger.warn('Vertex AI Embeddings not configured: GCP_PROJECT_ID missing');
 
 #### Task 2.3: Update Config Schema
 
-**File**: `apps/server-nest/src/common/config/config.schema.ts`
+**File**: `apps/server/src/common/config/config.schema.ts`
 
 **Check if these exist** (if so, remove):
 ```typescript
@@ -341,8 +341,8 @@ VERTEX_AI_MODEL=gemini-2.5-flash
 #### Task 4.1: Update Test Environment Setup
 
 **Files to update**:
-- `apps/server-nest/tests/scenarios/helpers/load-env.ts`
-- `apps/server-nest/tests/scenarios/setup-chat-debug.ts`
+- `apps/server/tests/scenarios/helpers/load-env.ts`
+- `apps/server/tests/scenarios/setup-chat-debug.ts`
 
 **Change from**:
 ```typescript
@@ -528,7 +528,7 @@ this.logger.warn('Vertex AI Embeddings not configured: GCP_PROJECT_ID missing');
 
 **Step 2: Update Config Schema** (if needed)
 
-**File**: `apps/server-nest/src/common/config/config.schema.ts`
+**File**: `apps/server/src/common/config/config.schema.ts`
 
 Remove any references to:
 - `VERTEX_EMBEDDING_PROJECT`

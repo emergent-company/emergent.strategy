@@ -377,12 +377,12 @@ Status: ✅ Applied successfully
 
 ## Related Files
 
-- Migration: `apps/server-nest/migrations/20251021_add_chat_prompt_template.sql`
-- DTOs: `apps/server-nest/src/modules/projects/dto/project.dto.ts`
-- Service: `apps/server-nest/src/modules/projects/projects.service.ts`
-- Generation: `apps/server-nest/src/modules/chat/chat-generation.service.ts`
-- Controller: `apps/server-nest/src/modules/chat/chat.controller.ts`
-- Tests: `apps/server-nest/src/modules/chat/__tests__/chat-generation.spec.ts`
+- Migration: `apps/server/migrations/20251021_add_chat_prompt_template.sql`
+- DTOs: `apps/server/src/modules/projects/dto/project.dto.ts`
+- Service: `apps/server/src/modules/projects/projects.service.ts`
+- Generation: `apps/server/src/modules/chat/chat-generation.service.ts`
+- Controller: `apps/server/src/modules/chat/chat.controller.ts`
+- Tests: `apps/server/src/modules/chat/__tests__/chat-generation.spec.ts`
 
 ## See Also
 

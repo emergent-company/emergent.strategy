@@ -35,7 +35,7 @@ WHERE id = '7df65817-2c04-48b1-b95e-8788aaedca0a';
 Added `recoverOrphanedJobs()` method to `ExtractionWorkerService` that runs on module initialization:
 
 ```typescript
-// apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts
+// apps/server/src/modules/extraction-jobs/extraction-worker.service.ts
 
 async onModuleInit() {
     // ... existing checks ...
@@ -301,6 +301,6 @@ To fix the currently stuck job `7df65817-2c04-48b1-b95e-8788aaedca0a`:
 ---
 
 **Files Modified**:
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
-- `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts`
-- `apps/server-nest/src/modules/extraction-jobs/extraction-job.controller.ts`
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
+- `apps/server/src/modules/extraction-jobs/extraction-job.service.ts`
+- `apps/server/src/modules/extraction-jobs/extraction-job.controller.ts`

@@ -120,8 +120,8 @@ The dashboard should now successfully load extraction jobs without the 422 error
 ## Related Files
 
 - **Frontend API Client**: `/apps/admin/src/api/monitoring.ts`
-- **Backend DTO**: `/apps/server-nest/src/modules/monitoring/dto/resource-query.dto.ts`
-- **Backend Controller**: `/apps/server-nest/src/modules/monitoring/monitoring.controller.ts`
+- **Backend DTO**: `/apps/server/src/modules/monitoring/dto/resource-query.dto.ts`
+- **Backend Controller**: `/apps/server/src/modules/monitoring/monitoring.controller.ts`
 
 ## Prevention
 

@@ -129,7 +129,7 @@ it('queues requests beyond RPM and awaits capacity', async () => {
 
 **Solution Implemented**:
 ```bash
-rm apps/server-nest/tests/embeddings.service.real.spec.ts
+rm apps/server/tests/embeddings.service.real.spec.ts
 ```
 
 **Decision Rationale**:
@@ -398,7 +398,7 @@ Success rate                    100%
 ## Files Modified in Session 10
 
 ### File 1: rate-limiter.service.spec.ts
-**Path**: `apps/server-nest/src/modules/extraction-jobs/__tests__/rate-limiter.service.spec.ts`  
+**Path**: `apps/server/src/modules/extraction-jobs/__tests__/rate-limiter.service.spec.ts`  
 **Status**: ✅ 12/12 passing (was 11/12 + 1 skip)  
 **Change**: Lines 137-168 - Implemented skipped test with multi-step fake timer async
 
@@ -436,7 +436,7 @@ it('queues requests beyond RPM and awaits capacity', async () => {
 ---
 
 ### File 2: chat.service.spec.ts
-**Path**: `apps/server-nest/tests/chat.service.spec.ts`  
+**Path**: `apps/server/tests/chat.service.spec.ts`  
 **Status**: ✅ 18/18 passing (was 18/19 + 1 skip, test count reduced)  
 **Change**: Lines 173-220 deleted (48 lines total)
 
@@ -456,7 +456,7 @@ it.skip('retries on FK violations and logs them', async () => {
 ---
 
 ### File 3: embeddings.service.real.spec.ts
-**Path**: `apps/server-nest/tests/embeddings.service.real.spec.ts`  
+**Path**: `apps/server/tests/embeddings.service.real.spec.ts`  
 **Status**: ✅ File deleted (48 lines)  
 **Change**: Entire file removed
 
@@ -469,7 +469,7 @@ it.skip('retries on FK violations and logs them', async () => {
 ---
 
 ### File 4: embedding-provider.vertex.spec.ts
-**Path**: `apps/server-nest/src/modules/graph/__tests__/embedding-provider.vertex.spec.ts`  
+**Path**: `apps/server/src/modules/graph/__tests__/embedding-provider.vertex.spec.ts`  
 **Status**: ✅ 4/4 passing (was 0/4 timeout in suite)  
 **Changes**: 3 modifications
 

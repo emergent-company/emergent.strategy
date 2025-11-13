@@ -28,9 +28,9 @@ npm --prefix apps/admin run e2e:chat
 ### Server (Backend)
 
 ```bash
-npm --prefix apps/server-nest run test
-npm --prefix apps/server-nest run test:coverage
-npm --prefix apps/server-nest run test:e2e
+npm --prefix apps/server run test
+npm --prefix apps/server run test:coverage
+npm --prefix apps/server run test:e2e
 ```
 
 Use headed/debug E2E flows only when triaging failures and note any manual steps performed.
@@ -69,7 +69,7 @@ Review the test execution output for:
 - **Debug logs**: `logs/debug.log` - Debug/verbose messages (development only)
 
 **Server E2E Logs:**
-- Check `apps/server-nest/test/` for test output
+- Check `apps/server/test/` for test output
 - Review `logs/errors.log` for backend errors during test execution
 
 ### Analyze Error Context
@@ -237,7 +237,7 @@ After completing the test cycle, create or append to the dev journal:
 
 ### Preferred Command Patterns
 - `npm --prefix apps/admin run <script>` for frontend unit/E2E targets
-- `npm --prefix apps/server-nest run <script>` for backend unit/E2E targets
+- `npm --prefix apps/server run <script>` for backend unit/E2E targets
 - `npm run workspace:<target>` for cross-cutting orchestration (deps, status, logs)
 
 ### Log File Priority:

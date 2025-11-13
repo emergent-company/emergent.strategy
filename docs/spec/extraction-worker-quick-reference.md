@@ -311,7 +311,7 @@ GET /extraction-worker/metrics
 ## Contact & Support
 
 For questions or issues:
-1. Check logs: `apps/server-nest/logs/`
+1. Check logs: `apps/server/logs/`
 2. Review metrics: `GET /extraction-worker/metrics`
 3. Check job details: `GET /extraction-jobs/:jobId`
 4. Open issue with reproduction steps

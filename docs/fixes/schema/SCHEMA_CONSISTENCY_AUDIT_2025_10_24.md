@@ -113,7 +113,7 @@ After applying this migration, code must be updated to use `organization_id`:
 **Files that need updates**:
 ```bash
 # Search for org_id usage in services
-grep -r "org_id" apps/server-nest/src/**/*.service.ts
+grep -r "org_id" apps/server/src/**/*.service.ts
 
 # Expected changes:
 # - Replace SELECT/WHERE clauses using org_id
@@ -135,7 +135,7 @@ WHERE organization_id = $1
 **Files that need updates**:
 ```bash
 # Search for org_id in DTOs
-grep -r "org_id" apps/server-nest/src/**/*.dto.ts
+grep -r "org_id" apps/server/src/**/*.dto.ts
 
 # Update all DTOs to use organization_id
 ```
@@ -145,8 +145,8 @@ grep -r "org_id" apps/server-nest/src/**/*.dto.ts
 **Files that need updates**:
 ```bash
 # Search for org_id in tests
-grep -r "org_id" apps/server-nest/src/**/*.spec.ts
-grep -r "org_id" apps/server-nest/test/**/*.spec.ts
+grep -r "org_id" apps/server/src/**/*.spec.ts
+grep -r "org_id" apps/server/test/**/*.spec.ts
 ```
 
 ## Verification Steps
@@ -237,6 +237,6 @@ If issues are found, create a rollback migration:
 
 ## Related Documentation
 
-- Migration file: `apps/server-nest/migrations/0003_standardize_schema_consistency.sql`
-- Naming conventions: `apps/server-nest/MIGRATION_NAMING_CONVENTIONS.md`
+- Migration file: `apps/server/migrations/0003_standardize_schema_consistency.sql`
+- Naming conventions: `apps/server/MIGRATION_NAMING_CONVENTIONS.md`
 - Database setup: `docs/DATABASE_MIGRATIONS.md`

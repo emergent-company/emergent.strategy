@@ -606,7 +606,7 @@ curl http://localhost:3001/health/heap
 pm2 monit
 
 # Check for memory leaks
-node --inspect apps/server-nest/src/main.ts
+node --inspect apps/server/src/main.ts
 ```
 
 **Solutions**:
@@ -623,7 +623,7 @@ node --inspect apps/server-nest/src/main.ts
 
 1. **Define tool in MCP server**:
 ```typescript
-// apps/server-nest/src/modules/mcp/mcp-server.ts
+// apps/server/src/modules/mcp/mcp-server.ts
 {
   name: 'relationship_search',
   description: 'Search for relationships between types',
@@ -645,7 +645,7 @@ case 'relationship_search':
 
 3. **Update detector patterns**:
 ```typescript
-// apps/server-nest/src/modules/mcp/mcp-tool-detector.service.ts
+// apps/server/src/modules/mcp/mcp-tool-detector.service.ts
 if (message.match(/relationship.*between/i)) {
   return {
     shouldUseMcp: true,
@@ -680,7 +680,7 @@ const schemaVersionPatterns = [
 ### Changing System Prompts
 
 ```typescript
-// apps/server-nest/src/modules/chat/chat-generation.service.ts
+// apps/server/src/modules/chat/chat-generation.service.ts
 private getSystemPromptForIntent(intent?: string): string {
   switch (intent) {
     case 'schema-version':

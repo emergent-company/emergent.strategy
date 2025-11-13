@@ -71,7 +71,7 @@ interface AutoExtractionConfig {
 ### 2.4 Updated Ingestion Flow
 
 ```typescript
-// apps/server-nest/src/modules/ingestion/ingestion.service.ts
+// apps/server/src/modules/ingestion/ingestion.service.ts
 
 interface IngestResult {
   documentId: string;
@@ -243,7 +243,7 @@ interface ExtractionSummary {
 ### 3.3 Notification Creation on Job Completion
 
 ```typescript
-// apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts
+// apps/server/src/modules/extraction-jobs/extraction-worker.service.ts
 
 private async processJob(job: ExtractionJobDto) {
   const startTime = Date.now();
@@ -410,7 +410,7 @@ private async sendFailureNotification(job: ExtractionJobDto, error: Error) {
 ### 4.1 REST API
 
 ```typescript
-// apps/server-nest/src/modules/notifications/notifications.controller.ts
+// apps/server/src/modules/notifications/notifications.controller.ts
 
 @Controller('notifications')
 @UseGuards(AuthGuard, ScopesGuard)
@@ -457,7 +457,7 @@ export class NotificationsController {
 ### 4.2 WebSocket/SSE for Real-time Updates
 
 ```typescript
-// apps/server-nest/src/modules/notifications/notifications.gateway.ts
+// apps/server/src/modules/notifications/notifications.gateway.ts
 
 @WebSocketGateway({ namespace: '/notifications' })
 export class NotificationsGateway {
@@ -842,7 +842,7 @@ ALTER TABLE kb.notifications
 
 ### 8.2 Backend Services Implementation
 
-**IngestionService (`apps/server-nest/src/modules/ingestion/ingestion.service.ts`)**
+**IngestionService (`apps/server/src/modules/ingestion/ingestion.service.ts`)**
 - ✅ Extended `IngestResult` interface with `extractionJobId?: string`
 - ✅ Added `shouldAutoExtract(projectId)` method
 - ✅ Injected `ExtractionJobService`
@@ -850,7 +850,7 @@ ALTER TABLE kb.notifications
 - ✅ Returns `extractionJobId` in response
 - ✅ Graceful error handling (doesn't fail ingestion if job creation fails)
 
-**NotificationsService (`apps/server-nest/src/modules/notifications/notifications.service.ts`)**
+**NotificationsService (`apps/server/src/modules/notifications/notifications.service.ts`)**
 - ✅ Extended `create()` to support new fields: type, severity, related_resource_type, related_resource_id, read, dismissed, actions, expires_at
 - ✅ Added `dismiss(notificationId, userId)` method
 - ✅ Added `getCounts(userId)` method returning {unread, dismissed, total}
@@ -861,7 +861,7 @@ ALTER TABLE kb.notifications
   - Action buttons with smart styling (View Objects, Review Objects, View Job Details)
 - ✅ Added `notifyExtractionFailed()` for failure notifications with retry info
 
-**ExtractionWorkerService (`apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`)**
+**ExtractionWorkerService (`apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`)**
 - ✅ Injected `NotificationsService`
 - ✅ Calls notification service after job completion (both success and requires_review)
 - ✅ Calls notification service after job failure
@@ -873,7 +873,7 @@ ALTER TABLE kb.notifications
   - `willRetryJob()` - Checks if job will auto-retry
   - `getJobRetryCount()` - Gets current retry count
 
-**NotificationsController (`apps/server-nest/src/modules/notifications/notifications.controller.ts`)**
+**NotificationsController (`apps/server/src/modules/notifications/notifications.controller.ts`)**
 - ✅ `GET /notifications` - List notifications with filters (tab, category, unread_only, search)
 - ✅ `GET /notifications/counts` - Legacy unread counts by tab
 - ✅ `GET /notifications/stats` - New counts (unread, dismissed, total)
@@ -995,7 +995,7 @@ ALTER TABLE kb.notifications
 
 ### 10.1 Unit Tests
 
-**IngestionService Tests** (`apps/server-nest/src/modules/ingestion/ingestion.service.spec.ts`)
+**IngestionService Tests** (`apps/server/src/modules/ingestion/ingestion.service.spec.ts`)
 - ✅ `shouldAutoExtract()` method:
   - Returns null when project doesn't exist
   - Returns null when `auto_extract_objects = false`
@@ -1007,7 +1007,7 @@ ALTER TABLE kb.notifications
   - Includes extraction config in job creation
   - Returns `extractionJobId` in result
 
-**NotificationsService Tests** (`apps/server-nest/src/modules/notifications/notifications.service.spec.ts`)
+**NotificationsService Tests** (`apps/server/src/modules/notifications/notifications.service.spec.ts`)
 - ✅ `create()` with new fields:
   - Accepts and stores all new fields (type, severity, actions, etc.)
   - Handles optional fields gracefully
@@ -1028,7 +1028,7 @@ ALTER TABLE kb.notifications
   - Includes error message in details
   - Adds appropriate action buttons
 
-**ExtractionWorkerService Tests** (`apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.spec.ts`)
+**ExtractionWorkerService Tests** (`apps/server/src/modules/extraction-jobs/extraction-worker.service.spec.ts`)
 - ✅ Helper methods:
   - `countObjectsByType()` - Aggregates correctly
   - `calculateAverageConfidence()` - Computes average
@@ -1042,7 +1042,7 @@ ALTER TABLE kb.notifications
 
 ### 10.2 Integration Tests
 
-**Full Flow Test** (`apps/server-nest/test/auto-extraction-flow.e2e-spec.ts`)
+**Full Flow Test** (`apps/server/test/auto-extraction-flow.e2e-spec.ts`)
 - ✅ Document upload → auto-extraction → notification flow:
   1. Create project with `auto_extract_objects = true`
   2. Upload document via ingestion endpoint
@@ -1054,7 +1054,7 @@ ALTER TABLE kb.notifications
   8. Test notification dismiss endpoint
   9. Verify notification counts endpoint
 
-**API Tests** (`apps/server-nest/test/notifications-api.e2e-spec.ts`)
+**API Tests** (`apps/server/test/notifications-api.e2e-spec.ts`)
 - ✅ NotificationsController endpoints:
   - `GET /notifications` - List with filters
   - `GET /notifications/stats` - Returns counts
@@ -1118,19 +1118,19 @@ const testNotification = {
 
 ```bash
 # Run all unit tests
-npm --prefix apps/server-nest test
+npm --prefix apps/server test
 
 # Run specific test file
-npm --prefix apps/server-nest test -- ingestion.service.spec.ts
+npm --prefix apps/server test -- ingestion.service.spec.ts
 
 # Run with coverage
-npm --prefix apps/server-nest test:cov
+npm --prefix apps/server test:cov
 
 # Run e2e tests
-npm --prefix apps/server-nest test:e2e
+npm --prefix apps/server test:e2e
 
 # Run specific e2e test
-npm --prefix apps/server-nest test:e2e -- auto-extraction-flow.e2e-spec.ts
+npm --prefix apps/server test:e2e -- auto-extraction-flow.e2e-spec.ts
 ```
 
 ---

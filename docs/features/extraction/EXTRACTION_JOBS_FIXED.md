@@ -24,7 +24,7 @@
 
 **Files Updated:**
 - `.env` (root): Updated rate limits and model
-- `apps/server-nest/.env`: Updated rate limits and model
+- `apps/server/.env`: Updated rate limits and model
 
 **Configuration Changes:**
 ```bash
@@ -232,7 +232,7 @@ gemini-2.5-flash should be:
 ```
 
 ### Server Configuration
-**File:** `apps/server-nest/.env`
+**File:** `apps/server/.env`
 ```diff
 + # Extraction Rate Limits
 + # Conservative rate limits for Vertex AI free tier to avoid HTTP 429 errors
@@ -282,7 +282,7 @@ grep "Rate limiter initialized" apps/logs/server/out.log | tail -1
 **Documentation:** Added to `docs/DEV_PROCESS_MANAGER.md` and this file.
 
 ### 2. Multiple .env Files
-**Problem:** Both root `.env` and `apps/server-nest/.env` had rate limit settings, causing confusion.
+**Problem:** Both root `.env` and `apps/server/.env` had rate limit settings, causing confusion.
 
 **Solution:** Root `.env` is loaded first, then app-specific `.env` can override. Keep settings consistent or document precedence clearly.
 

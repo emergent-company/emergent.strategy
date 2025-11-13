@@ -147,26 +147,26 @@ Tests       27 failed | 1007 passed | 39 skipped (1073)
 ## Files Modified
 
 ### Test Fixes (Session 4)
-1. `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.spec.ts`
+1. `apps/server/src/modules/extraction-jobs/extraction-job.service.spec.ts`
    - Removed duplicate mockOrganizationId parameter
    - Fixed expected parameter count (9 → 8)
 
-2. `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.spec.ts`
+2. `apps/server/src/modules/extraction-jobs/extraction-worker.service.spec.ts`
    - Added third mock query for kb.settings base prompt
    - Updated expected query call counts (2 → 3)
    - Added extractionBasePrompt to mock config
    - Updated test expectations for config fallback
 
-3. `apps/server-nest/tests/unit/embeddings.service.spec.ts`
+3. `apps/server/tests/unit/embeddings.service.spec.ts`
    - Updated for Vertex AI migration (GOOGLE_API_KEY → EMBEDDING_PROVIDER)
    - Added env cleanup and proper API key setup
 
-4. `apps/server-nest/tests/orgs.service.spec.ts`
+4. `apps/server/tests/orgs.service.spec.ts`
    - Fixed regex pattern (org_id → organization_id)
 
 ### Migration Files
-1. `apps/server-nest/migrations/0001_init.sql` - **NEW CONSOLIDATED MIGRATION**
-2. `apps/server-nest/migrations/_old/*.sql` - Backed up original migrations
+1. `apps/server/migrations/0001_init.sql` - **NEW CONSOLIDATED MIGRATION**
+2. `apps/server/migrations/_old/*.sql` - Backed up original migrations
 
 ## Why This Matters
 
@@ -186,7 +186,7 @@ Tests       27 failed | 1007 passed | 39 skipped (1073)
 
 ## Backup Location
 
-All original migrations safely backed up in: `apps/server-nest/migrations/_old/`
+All original migrations safely backed up in: `apps/server/migrations/_old/`
 
 Can be restored if needed, but consolidated version is now the single source of truth.
 

@@ -33,7 +33,7 @@ Found 1 primary results:
 - Includes `primaryResults` and `neighbors` structure
 
 ### Test 2: Chat Integration Code Review
-**File**: `apps/server-nest/src/modules/chat/chat.controller.ts`
+**File**: `apps/server/src/modules/chat/chat.controller.ts`
 
 **Verified**:
 - Lines 300-346: GET /:id/stream has graph search integration
@@ -71,7 +71,7 @@ if (graphSearchEnabled) {
 ```
 
 ### Test 3: LLM Context Enhancement
-**File**: `apps/server-nest/src/modules/chat/chat.controller.ts`  
+**File**: `apps/server/src/modules/chat/chat.controller.ts`  
 **Lines**: 372-420
 
 **Verified**: Graph objects are formatted into LLM prompt:
@@ -94,7 +94,7 @@ const prompt = `You are a helpful assistant...${contextString}\nQuestion: ${user
 ```
 
 ### Test 4: Summary Stats
-**File**: `apps/server-nest/src/modules/chat/chat.controller.ts`  
+**File**: `apps/server/src/modules/chat/chat.controller.ts`  
 **Lines**: 485-492
 
 **Verified**: Summary frame includes graph objects count:
@@ -219,8 +219,8 @@ This bypasses auth for testing (development only!)
 
 ### Method 3: Verify Code
 The integration code is at:
-- `apps/server-nest/src/modules/chat/chat.controller.ts:300-346` (GET endpoint)
-- `apps/server-nest/src/modules/chat/chat.controller.ts:598-629` (POST endpoint)
+- `apps/server/src/modules/chat/chat.controller.ts:300-346` (GET endpoint)
+- `apps/server/src/modules/chat/chat.controller.ts:598-629` (POST endpoint)
 
 ## Conclusion
 

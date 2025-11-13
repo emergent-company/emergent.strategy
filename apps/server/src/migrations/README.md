@@ -44,4 +44,4 @@ npm run db:migrate:revert
 
 ## Migration History
 
-All migrations are TypeORM migrations (`.ts` files). The old SQL-based migration system has been archived in `apps/server-nest/migrations-archive-old-sql/`.
+All migrations are TypeORM migrations (`.ts` files). The old SQL-based migration system has been archived in `apps/server/migrations-archive-old-sql/`.

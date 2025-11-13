@@ -440,7 +440,7 @@ useEffect(() => {
 
 ## Resources
 
-- Backend code: `apps/server-nest/src/modules/discovery-jobs/`
+- Backend code: `apps/server/src/modules/discovery-jobs/`
 - Spec document: `docs/AUTO_DISCOVERY_SYSTEM_SPEC.md`
 - LLM integration: `docs/AUTO_DISCOVERY_LLM_INTEGRATION_COMPLETE.md`
 - Module fix: `docs/AUTO_DISCOVERY_MODULE_DEPENDENCY_FIX.md`

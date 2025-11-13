@@ -33,7 +33,7 @@
 
 #### 1. TypeRegistryService ✅
 
-**File**: `apps/server-nest/src/modules/type-registry/type-registry.service.ts`  
+**File**: `apps/server/src/modules/type-registry/type-registry.service.ts`  
 **Complexity**: Moderate (7 methods, GROUP BY aggregations)  
 **Strategy**: Mixed - DataSource.query for aggregations, TypeORM for CRUD
 
@@ -53,7 +53,7 @@
 
 #### 2. MonitoringService ✅
 
-**File**: `apps/server-nest/src/modules/monitoring/monitoring.service.ts`  
+**File**: `apps/server/src/modules/monitoring/monitoring.service.ts`  
 **Complexity**: Moderate (4 methods, subquery aggregations)  
 **Strategy**: Mixed - DataSource.query for subqueries, QueryBuilder for retrieval
 
@@ -72,7 +72,7 @@
 
 #### 3. AuditService ✅
 
-**File**: `apps/server-nest/src/modules/auth/audit.service.ts`  
+**File**: `apps/server/src/modules/auth/audit.service.ts`  
 **Complexity**: Low (2 queries)  
 **Strategy**: TypeORM Repository for INSERT, QueryBuilder for dynamic SELECT
 
@@ -86,7 +86,7 @@
 
 #### 4. EmbeddingWorkerService ✅
 
-**File**: `apps/server-nest/src/modules/graph/embedding-worker.service.ts`  
+**File**: `apps/server/src/modules/graph/embedding-worker.service.ts`  
 **Complexity**: Low (2 queries)  
 **Strategy**: TypeORM Repository for SELECT and UPDATE
 
@@ -98,7 +98,7 @@
 
 #### 5. TagCleanupWorkerService ✅
 
-**File**: `apps/server-nest/src/modules/graph/tag-cleanup-worker.service.ts`  
+**File**: `apps/server/src/modules/graph/tag-cleanup-worker.service.ts`  
 **Complexity**: Moderate (2 queries, JSONB operators)  
 **Strategy**: Mixed - DataSource.query for JSONB ?, QueryBuilder for DELETE
 
@@ -110,7 +110,7 @@
 
 #### 6. RevisionCountRefreshWorkerService ✅
 
-**File**: `apps/server-nest/src/modules/graph/revision-count-refresh-worker.service.ts`  
+**File**: `apps/server/src/modules/graph/revision-count-refresh-worker.service.ts`  
 **Complexity**: Moderate (2 queries, PostgreSQL functions)  
 **Strategy**: DataSource.query for function calls and COUNT FILTER
 
@@ -123,7 +123,7 @@
 
 #### 7. MCPToolSelectorService ✅
 
-**File**: `apps/server-nest/src/modules/chat/mcp-tool-selector.service.ts`  
+**File**: `apps/server/src/modules/chat/mcp-tool-selector.service.ts`  
 **Complexity**: Low (1 query)  
 **Strategy**: DataSource.query for GROUP BY
 
@@ -135,7 +135,7 @@
 
 #### 8. EntityLinkingService ✅
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/entity-linking.service.ts`  
+**File**: `apps/server/src/modules/extraction-jobs/entity-linking.service.ts`  
 **Complexity**: Moderate (3 queries)  
 **Strategy**: Mixed - Repository for exact match, DataSource for vector search
 
@@ -149,7 +149,7 @@
 
 #### 9. MonitoringLoggerService ✅
 
-**File**: `apps/server-nest/src/modules/monitoring/monitoring-logger.service.ts`  
+**File**: `apps/server/src/modules/monitoring/monitoring-logger.service.ts`  
 **Complexity**: Moderate (5 queries, all INSERTs and UPDATEs)  
 **Strategy**: Full TypeORM Repository
 
@@ -165,7 +165,7 @@
 
 #### 10. UserProfileService (Completed) ✅
 
-**File**: `apps/server-nest/src/modules/user-profile/user-profile.service.ts`  
+**File**: `apps/server/src/modules/user-profile/user-profile.service.ts`  
 **Complexity**: Low (1 remaining query)  
 **Strategy**: Completed migration
 
@@ -409,42 +409,42 @@ await dataSource.query(
 
 ### New Entity Files (5)
 
-1. `apps/server-nest/src/entities/project-object-type-registry.entity.ts`
-2. `apps/server-nest/src/entities/llm-call-log.entity.ts`
-3. `apps/server-nest/src/entities/system-process-log.entity.ts`
-4. `apps/server-nest/src/entities/audit-log.entity.ts`
-5. `apps/server-nest/src/entities/user-notification-preferences.entity.ts`
+1. `apps/server/src/entities/project-object-type-registry.entity.ts`
+2. `apps/server/src/entities/llm-call-log.entity.ts`
+3. `apps/server/src/entities/system-process-log.entity.ts`
+4. `apps/server/src/entities/audit-log.entity.ts`
+5. `apps/server/src/entities/user-notification-preferences.entity.ts`
 
 ### Updated Entity Files (1)
 
-1. `apps/server-nest/src/entities/notification.entity.ts` - Added missing columns
+1. `apps/server/src/entities/notification.entity.ts` - Added missing columns
 
 ### Migrated Service Files (11)
 
-1. `apps/server-nest/src/modules/type-registry/type-registry.service.ts`
-2. `apps/server-nest/src/modules/monitoring/monitoring.service.ts`
-3. `apps/server-nest/src/modules/monitoring/monitoring-logger.service.ts`
-4. `apps/server-nest/src/modules/auth/audit.service.ts`
-5. `apps/server-nest/src/modules/graph/embedding-worker.service.ts`
-6. `apps/server-nest/src/modules/graph/tag-cleanup-worker.service.ts`
-7. `apps/server-nest/src/modules/graph/revision-count-refresh-worker.service.ts`
-8. `apps/server-nest/src/modules/chat/mcp-tool-selector.service.ts`
-9. `apps/server-nest/src/modules/extraction-jobs/entity-linking.service.ts`
-10. `apps/server-nest/src/modules/user-profile/user-profile.service.ts` (completed)
+1. `apps/server/src/modules/type-registry/type-registry.service.ts`
+2. `apps/server/src/modules/monitoring/monitoring.service.ts`
+3. `apps/server/src/modules/monitoring/monitoring-logger.service.ts`
+4. `apps/server/src/modules/auth/audit.service.ts`
+5. `apps/server/src/modules/graph/embedding-worker.service.ts`
+6. `apps/server/src/modules/graph/tag-cleanup-worker.service.ts`
+7. `apps/server/src/modules/graph/revision-count-refresh-worker.service.ts`
+8. `apps/server/src/modules/chat/mcp-tool-selector.service.ts`
+9. `apps/server/src/modules/extraction-jobs/entity-linking.service.ts`
+10. `apps/server/src/modules/user-profile/user-profile.service.ts` (completed)
 
 ### Module Files Updated (7)
 
-1. `apps/server-nest/src/modules/type-registry/type-registry.module.ts`
-2. `apps/server-nest/src/modules/monitoring/monitoring.module.ts`
-3. `apps/server-nest/src/modules/auth/auth.module.ts`
-4. `apps/server-nest/src/modules/graph/graph.module.ts`
-5. `apps/server-nest/src/modules/chat/chat.module.ts`
-6. `apps/server-nest/src/modules/extraction-jobs/extraction-job.module.ts`
-7. `apps/server-nest/src/modules/notifications/notifications.module.ts`
+1. `apps/server/src/modules/type-registry/type-registry.module.ts`
+2. `apps/server/src/modules/monitoring/monitoring.module.ts`
+3. `apps/server/src/modules/auth/auth.module.ts`
+4. `apps/server/src/modules/graph/graph.module.ts`
+5. `apps/server/src/modules/chat/chat.module.ts`
+6. `apps/server/src/modules/extraction-jobs/extraction-job.module.ts`
+7. `apps/server/src/modules/notifications/notifications.module.ts`
 
 ### Central Configuration (1)
 
-1. `apps/server-nest/src/entities/index.ts` - Added 5 new entity exports
+1. `apps/server/src/entities/index.ts` - Added 5 new entity exports
 
 ---
 
@@ -720,7 +720,7 @@ await dataSource.query(`
 npm run build
 
 # Build server only
-npm run build:server-nest
+npm run build:server
 
 # Restart server
 npx pm2 restart spec-server-2-server
@@ -732,13 +732,13 @@ curl http://localhost:3002/health | jq .
 tail -50 apps/logs/server/error.log
 
 # Count services with raw SQL
-find apps/server-nest/src/modules -name "*.service.ts" -exec sh -c 'q=$(grep -c "\.query(" "$1" 2>/dev/null); if [ "$q" -gt "0" ]; then echo "1"; fi' _ {} \; | wc -l
+find apps/server/src/modules -name "*.service.ts" -exec sh -c 'q=$(grep -c "\.query(" "$1" 2>/dev/null); if [ "$q" -gt "0" ]; then echo "1"; fi' _ {} \; | wc -l
 
 # Count services WITHOUT raw SQL (fully migrated)
-find apps/server-nest/src/modules -name "*.service.ts" -exec sh -c 'q=$(grep -c "\.query(" "$1" 2>/dev/null); if [ "$q" = "0" ]; then echo "1"; fi' _ {} \; | wc -l
+find apps/server/src/modules -name "*.service.ts" -exec sh -c 'q=$(grep -c "\.query(" "$1" 2>/dev/null); if [ "$q" = "0" ]; then echo "1"; fi' _ {} \; | wc -l
 
 # List fully migrated services
-find apps/server-nest/src/modules -name "*.service.ts" -exec sh -c 'q=$(grep -c "\.query(" "$1" 2>/dev/null); if [ "$q" = "0" ]; then basename "$1" .service.ts; fi' _ {} \; | sort
+find apps/server/src/modules -name "*.service.ts" -exec sh -c 'q=$(grep -c "\.query(" "$1" 2>/dev/null); if [ "$q" = "0" ]; then basename "$1" .service.ts; fi' _ {} \; | sort
 ```
 
 ---

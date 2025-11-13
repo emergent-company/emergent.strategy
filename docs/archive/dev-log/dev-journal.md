@@ -84,9 +84,9 @@ Available migrations: 4
 - `apps/admin/e2e/specs/auth.setup.ts` - Sanitized credential logging
 - `scripts/run-migrations.ts` - Created comprehensive migration runner
 - `package.json` (root) - Added `db:migrate` script
-- `apps/server-nest/package.json` - Integrated migrations into `start:dev`
-- `apps/server-nest/src/migrations/0001_dynamic_type_system_phase1.sql` - Fixed SQL syntax
-- `apps/server-nest/src/migrations/9999999999999_graph_search_initial.sql` - Fixed schema references
+- `apps/server/package.json` - Integrated migrations into `start:dev`
+- `apps/server/src/migrations/0001_dynamic_type_system_phase1.sql` - Fixed SQL syntax
+- `apps/server/src/migrations/9999999999999_graph_search_initial.sql` - Fixed schema references
 
 ---
 
@@ -136,7 +136,7 @@ Each entry should follow this structure:
 
 **Fixes Applied**:
 1. ✅ **FileLogger Path Fix**: Changed FileLogger to use project root logs directory
-   - Before: Used `process.cwd()` → `apps/server-nest/logs/`
+   - Before: Used `process.cwd()` → `apps/server/logs/`
    - After: Used `join(process.cwd(), '..', '..')` → project root `logs/`
    - Result: app.log now created successfully (18KB)
 
@@ -241,7 +241,7 @@ Failed to fetch notification counts: Error: Request failed (500)
 **Fixes Required**:
 
 **Fix 1: Create Database Migration** (PRIORITY 1 - Blocking)
-- **File**: Create new migration `apps/server-nest/prisma/migrations/YYYYMMDD_create_notifications_table.sql`
+- **File**: Create new migration `apps/server/prisma/migrations/YYYYMMDD_create_notifications_table.sql`
 - **Change**: Add notifications table to core schema
 ```sql
 CREATE TABLE core.notifications (
@@ -266,7 +266,7 @@ CREATE INDEX idx_notifications_created_at ON core.notifications(created_at);
 - **Verification**: Run migration, then query `SELECT COUNT(*) FROM core.notifications`
 
 **Fix 2: Backend Error Handling** (PRIORITY 2 - Important)
-- **File**: `apps/server-nest/src/modules/notifications/notifications.controller.ts`
+- **File**: `apps/server/src/modules/notifications/notifications.controller.ts`
 - **Change**: Add try-catch with graceful degradation for missing table
 ```typescript
 async getNotifications(@Req() req: Request) {

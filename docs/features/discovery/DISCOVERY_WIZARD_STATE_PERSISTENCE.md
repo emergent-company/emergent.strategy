@@ -151,8 +151,8 @@ Users can cancel current job and start over:
 
 - `/apps/admin/src/components/organisms/DiscoveryWizard/DiscoveryWizard.tsx` - Main wizard with server state loading
 - `/apps/admin/src/components/organisms/DiscoveryWizard/Step3_ReviewTypes.tsx` - Error boundary implementation
-- `/apps/server-nest/src/modules/discovery-jobs/discovery-job.controller.ts` - API endpoints
-- `/apps/server-nest/src/modules/discovery-jobs/discovery-llm.provider.ts` - Updated `maxOutputTokens` to 65536
+- `/apps/server/src/modules/discovery-jobs/discovery-job.controller.ts` - API endpoints
+- `/apps/server/src/modules/discovery-jobs/discovery-llm.provider.ts` - Updated `maxOutputTokens` to 65536
 
 ## Key Takeaways
 

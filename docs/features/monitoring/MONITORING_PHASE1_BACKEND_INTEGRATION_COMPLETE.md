@@ -203,33 +203,33 @@ Consider adding logs for:
 
 ## Files Modified
 
-1. `apps/server-nest/src/modules/app.module.ts` - Added MonitoringModule import
-2. `apps/server-nest/src/modules/extraction-jobs/extraction-job.module.ts` - Added MonitoringModule import
-3. `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` - Added MonitoringLoggerService injection and logging calls
+1. `apps/server/src/modules/app.module.ts` - Added MonitoringModule import
+2. `apps/server/src/modules/extraction-jobs/extraction-job.module.ts` - Added MonitoringModule import
+3. `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` - Added MonitoringLoggerService injection and logging calls
 
 ## Files Created (Previously)
 
 1. Database:
-   - `apps/server-nest/migrations/20251022_monitoring_phase1.sql`
+   - `apps/server/migrations/20251022_monitoring_phase1.sql`
 
 2. Configuration:
-   - `apps/server-nest/src/modules/monitoring/config/llm-pricing.config.ts`
+   - `apps/server/src/modules/monitoring/config/llm-pricing.config.ts`
 
 3. Types:
-   - `apps/server-nest/src/modules/monitoring/entities/system-process-log.entity.ts`
-   - `apps/server-nest/src/modules/monitoring/entities/llm-call-log.entity.ts`
+   - `apps/server/src/modules/monitoring/entities/system-process-log.entity.ts`
+   - `apps/server/src/modules/monitoring/entities/llm-call-log.entity.ts`
 
 4. DTOs:
-   - `apps/server-nest/src/modules/monitoring/dto/resource-query.dto.ts`
-   - `apps/server-nest/src/modules/monitoring/dto/resource-detail.dto.ts`
+   - `apps/server/src/modules/monitoring/dto/resource-query.dto.ts`
+   - `apps/server/src/modules/monitoring/dto/resource-detail.dto.ts`
 
 5. Services:
-   - `apps/server-nest/src/modules/monitoring/monitoring-logger.service.ts`
-   - `apps/server-nest/src/modules/monitoring/monitoring.service.ts`
+   - `apps/server/src/modules/monitoring/monitoring-logger.service.ts`
+   - `apps/server/src/modules/monitoring/monitoring.service.ts`
 
 6. API:
-   - `apps/server-nest/src/modules/monitoring/monitoring.controller.ts`
-   - `apps/server-nest/src/modules/monitoring/monitoring.module.ts`
+   - `apps/server/src/modules/monitoring/monitoring.controller.ts`
+   - `apps/server/src/modules/monitoring/monitoring.module.ts`
 
 ## Testing Checklist
 

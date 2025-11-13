@@ -246,7 +246,7 @@ curl -H "Authorization: Bearer schema-read-token" \
 ```bash
 # Test your MCP tools (same as Claude Desktop!)
 npx @modelcontextprotocol/inspector \
-  node apps/server-nest/dist/mcp-stdio.js
+  node apps/server/dist/mcp-stdio.js
 
 # Interactive UI, same transport as production
 ```

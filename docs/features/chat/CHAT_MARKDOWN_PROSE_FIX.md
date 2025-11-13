@@ -233,12 +233,12 @@ return pieces.join('');  // Join without separator (whitespace already in tokens
 ```
 
 **Files Modified:**
-1. **`apps/server-nest/src/modules/chat/chat-generation.service.ts`** (line 236-248)
+1. **`apps/server/src/modules/chat/chat-generation.service.ts`** (line 236-248)
    - Changed tokenization from `split(/\s+/)` to `match(/(\s+)|(\S+)/g)`
    - Changed return from `join(' ')` to `join('')`
    - Increased token cap from 128 → 256 → **2048** to accommodate whitespace tokens
 
-2. **`apps/server-nest/src/modules/chat/chat.controller.ts`** (line 627, line 367)
+2. **`apps/server/src/modules/chat/chat.controller.ts`** (line 627, line 367)
    - POST `/chat/stream` endpoint: Changed `tokens.join(' ')` to `tokens.join('')`
    - GET `/chat/:id/stream` endpoint: Changed `tokens.join(' ')` to `tokens.join('')`
 

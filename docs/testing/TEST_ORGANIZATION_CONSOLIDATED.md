@@ -159,7 +159,7 @@ npm run test:all  # Full suite
 ## Directory Structure
 
 ```
-apps/server-nest/
+apps/server/
 ├── tests/
 │   ├── e2e/                    # E2E tests (HTTP endpoints)
 │   │   ├── integration/        # Service integration tests (optional location)

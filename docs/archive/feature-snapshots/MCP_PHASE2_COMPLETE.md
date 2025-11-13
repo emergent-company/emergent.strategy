@@ -10,7 +10,7 @@ Phase 2 successfully implemented the SchemaTool service with 4 MCP tools exposin
 
 ## What Was Implemented
 
-### 1. Schema Tool Service (`apps/server-nest/src/modules/mcp/tools/schema.tool.ts`)
+### 1. Schema Tool Service (`apps/server/src/modules/mcp/tools/schema.tool.ts`)
 
 Created injectable service with 4 MCP tools:
 
@@ -57,7 +57,7 @@ Created injectable service with 4 MCP tools:
 
 ### 2. Module Registration
 
-Updated `apps/server-nest/src/modules/mcp/mcp.module.ts`:
+Updated `apps/server/src/modules/mcp/mcp.module.ts`:
 - Added `SchemaTool` import
 - Added `SchemaTool` to providers array
 - Updated documentation to mark Phase 2 complete
@@ -84,7 +84,7 @@ During implementation, discovered and corrected several API mismatches:
 ## Build Verification
 
 ```bash
-npm --prefix apps/server-nest run build
+npm --prefix apps/server run build
 # Exit code: 0 ✅
 ```
 
@@ -110,7 +110,7 @@ All TypeScript compilation errors resolved:
 - [ ] Verify schema_version metadata present
 
 ### Unit Tests (TODO - Phase 2.5)
-Create `apps/server-nest/src/modules/mcp/tools/__tests__/schema.tool.spec.ts`:
+Create `apps/server/src/modules/mcp/tools/__tests__/schema.tool.spec.ts`:
 - Mock TemplatePackService
 - Test each tool method independently
 - Test error handling scenarios
@@ -150,10 +150,10 @@ Using snake_case in tool names (`schema_getTemplatePacks`) instead of dot notati
 ## File Changes
 
 ### New Files (1)
-- `apps/server-nest/src/modules/mcp/tools/schema.tool.ts` (312 lines)
+- `apps/server/src/modules/mcp/tools/schema.tool.ts` (312 lines)
 
 ### Modified Files (1)
-- `apps/server-nest/src/modules/mcp/mcp.module.ts` (+2 imports, +1 provider)
+- `apps/server/src/modules/mcp/mcp.module.ts` (+2 imports, +1 provider)
 
 ### Related Documentation
 - `docs/mcp-server-implementation-plan.md` - Overall plan

@@ -52,13 +52,13 @@ If you see these in logs, investigate:
 
 If 100 documents too few/many for preview, adjust in:
 ```typescript
-// apps/server-nest/src/modules/clickup/clickup-import.service.ts
+// apps/server/src/modules/clickup/clickup-import.service.ts
 const MAX_PREVIEW_DOCS = 100; // Change this value
 const MAX_ITERATIONS = 10;    // Or this for safety ceiling
 ```
 
 ## Files Changed
-- ✅ `apps/server-nest/src/modules/clickup/clickup-import.service.ts` (lines 64-170)
+- ✅ `apps/server/src/modules/clickup/clickup-import.service.ts` (lines 64-170)
 - ✅ Build verified successful
 
 ## Documentation

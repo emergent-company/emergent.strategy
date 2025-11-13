@@ -6,7 +6,7 @@ This document provides concrete code changes to fix the fallback issues identifi
 
 ### Fix 1: Encryption Service - Fail Fast on Missing Key
 
-**File:** `apps/server-nest/src/modules/integrations/encryption.service.ts`
+**File:** `apps/server/src/modules/integrations/encryption.service.ts`
 
 **Current Code (Line 28):**
 ```typescript
@@ -49,7 +49,7 @@ if (!this.encryptionKey) {
 
 ### Fix 2: Add Startup Environment Validation
 
-**File:** `apps/server-nest/src/main.ts`
+**File:** `apps/server/src/main.ts`
 
 Add new validation function before `bootstrap()`:
 
@@ -136,7 +136,7 @@ async function bootstrap() {
 
 ### Fix 3: Add Vertex AI Config to Schema
 
-**File:** `apps/server-nest/src/common/config/config.schema.ts`
+**File:** `apps/server/src/common/config/config.schema.ts`
 
 Add after existing Vertex AI variables:
 
@@ -170,7 +170,7 @@ static envDefaults = {
 
 ### Fix 4: Remove Fallbacks from Vertex Embedding Provider
 
-**File:** `apps/server-nest/src/modules/graph/google-vertex-embedding.provider.ts`
+**File:** `apps/server/src/modules/graph/google-vertex-embedding.provider.ts`
 
 **Lines 47, 64, 86, 88 - Remove fallbacks:**
 
@@ -314,7 +314,7 @@ Apply the same pattern to:
 
 ### Fix 8: Create Test Environment Setup
 
-**New File:** `apps/server-nest/tests/test-env.ts`
+**New File:** `apps/server/tests/test-env.ts`
 
 ```typescript
 /**
@@ -366,7 +366,7 @@ export function setupTestEnvironment() {
 
 ### Fix 9: Update Test Setup Files
 
-**File:** `apps/server-nest/tests/setup.ts`
+**File:** `apps/server/tests/setup.ts`
 
 ```typescript
 import { setupTestEnvironment } from './test-env';
@@ -378,7 +378,7 @@ setupTestEnvironment();
 // Remove all inline fallbacks - they're handled in test-env.ts
 ```
 
-**File:** `apps/server-nest/tests/test-db-config.ts`
+**File:** `apps/server/tests/test-db-config.ts`
 
 ```typescript
 import { setupTestEnvironment } from './test-env';

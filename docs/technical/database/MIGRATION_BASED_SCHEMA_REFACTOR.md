@@ -101,9 +101,9 @@ const version = filename.replace('.sql', '');
 
 **Also Fixed:** Migration directory path
 ```typescript
-// Before: apps/server-nest/src/migrations  ❌
-// After:  apps/server-nest/migrations      ✅
-const MIGRATIONS_DIR = path.join(PROJECT_ROOT, 'apps/server-nest/migrations');
+// Before: apps/server/src/migrations  ❌
+// After:  apps/server/migrations      ✅
+const MIGRATIONS_DIR = path.join(PROJECT_ROOT, 'apps/server/migrations');
 ```
 
 ## Test Results
@@ -311,10 +311,10 @@ run-migrations.ts
 
 - `scripts/full-reset-db.ts` - simplified database reset (104 lines)
 - `scripts/run-migrations.ts` - migration runner with tracking
-- `apps/server-nest/migrations/0001_init.sql` - complete base schema (650+ lines)
-- `apps/server-nest/migrations/20251025_add_integration_metadata.sql` - enhancement
-- `apps/server-nest/migrations/20251025_fix_extraction_jobs_policies.sql` - security
-- `apps/server-nest/migrations/*.old` - backed up old migrations for reference
+- `apps/server/migrations/0001_init.sql` - complete base schema (650+ lines)
+- `apps/server/migrations/20251025_add_integration_metadata.sql` - enhancement
+- `apps/server/migrations/20251025_fix_extraction_jobs_policies.sql` - security
+- `apps/server/migrations/*.old` - backed up old migrations for reference
 
 ## Migration Workflow
 
@@ -324,7 +324,7 @@ run-migrations.ts
 
 1. Create migration file:
 ```bash
-cd apps/server-nest/migrations
+cd apps/server/migrations
 touch 20251026_add_project_status.sql
 ```
 
@@ -351,7 +351,7 @@ npx tsx scripts/full-reset-db.ts
 
 5. Verify E2E tests pass:
 ```bash
-cd apps/server-nest && npm run test:e2e
+cd apps/server && npm run test:e2e
 ```
 
 ### No More Manual Sync! ✅

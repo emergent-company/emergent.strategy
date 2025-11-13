@@ -15,7 +15,7 @@
 
 ### Current Layout
 ```
-apps/server-nest/
+apps/server/
 ├── tests/                          # Mixed: unit + integration + scope tests
 │   ├── e2e/                       # ✅ Good: E2E tests already separated (60+ files)
 │   ├── scenarios/                 # ❌ Problem: E2E test in wrong place
@@ -43,7 +43,7 @@ apps/server-nest/
 ### Option A: Flat Structure (Simpler)
 
 ```
-apps/server-nest/
+apps/server/
 ├── tests/
 │   ├── unit/                      # No external dependencies (805 tests)
 │   │   ├── auth/
@@ -121,7 +121,7 @@ apps/server-nest/
 ### Option B: Nested by Module (More Complex)
 
 ```
-apps/server-nest/
+apps/server/
 ├── tests/
 │   ├── auth/
 │   │   ├── unit/
@@ -167,9 +167,9 @@ apps/server-nest/
 ### Phase 1: Create New Structure (Non-Breaking)
 ```bash
 # Create new directories
-mkdir -p apps/server-nest/tests/unit/{auth,chat,graph,search,documents,openapi,services}
-mkdir -p apps/server-nest/tests/integration/{database,graph,merge}
-mkdir -p apps/server-nest/tests/scoped
+mkdir -p apps/server/tests/unit/{auth,chat,graph,search,documents,openapi,services}
+mkdir -p apps/server/tests/integration/{database,graph,merge}
+mkdir -p apps/server/tests/scoped
 # E2E already organized in tests/e2e/
 ```
 
@@ -243,7 +243,7 @@ After moving files, update relative imports:
 Use find/replace or automated tool:
 ```bash
 # Example: Update imports in moved files
-cd apps/server-nest/tests/unit
+cd apps/server/tests/unit
 find . -name "*.spec.ts" -exec sed -i '' "s|from '\./utils/|from '../../utils/|g" {} \;
 find . -name "*.spec.ts" -exec sed -i '' "s|from '\./helpers/|from '../../helpers/|g" {} \;
 ```

@@ -10,7 +10,7 @@
 ## Changes Made
 
 ### Files Modified
-- `apps/server-nest/src/modules/chat/chat.controller.ts`
+- `apps/server/src/modules/chat/chat.controller.ts`
 
 ### Locations Updated
 
@@ -150,20 +150,20 @@ const prompt = `You are a helpful assistant for querying knowledge graphs and sc
 
 ### Tests That May Need Updates
 1. **Chat E2E Tests**: Expecting citations in responses
-   - File: `apps/server-nest/tests/e2e/chat.e2e.spec.ts`
+   - File: `apps/server/tests/e2e/chat.e2e.spec.ts`
    - Update: Expect empty `citations` array or conditionally check based on flag
 
 2. **Chat Controller Tests**: Mock `retrieveCitations()` calls
-   - File: `apps/server-nest/src/modules/chat/__tests__/chat.controller.spec.ts`
+   - File: `apps/server/src/modules/chat/__tests__/chat.controller.spec.ts`
    - Update: Verify feature flag behavior
 
 3. **Chat Service Tests**: Citation retrieval logic
-   - File: `apps/server-nest/src/modules/chat/__tests__/chat.service.spec.ts`
+   - File: `apps/server/src/modules/chat/__tests__/chat.service.spec.ts`
    - Status: No changes needed (service method still exists)
 
 ### Test Command
 ```bash
-npm --prefix apps/server-nest run test
+npm --prefix apps/server run test
 ```
 
 ---
@@ -173,7 +173,7 @@ npm --prefix apps/server-nest run test
 ### Build Status
 ✅ TypeScript compilation successful
 ```bash
-npm --prefix apps/server-nest run build
+npm --prefix apps/server run build
 # Output: Success, no errors
 ```
 

@@ -176,7 +176,7 @@ If sequential processing becomes too slow for large batches:
 
 ## Files Modified
 
-- `apps/server-nest/src/modules/graph/graph.controller.ts` (line 165-195)
+- `apps/server/src/modules/graph/graph.controller.ts` (line 165-195)
   - Changed from `Promise.allSettled` to sequential `for` loop
   - Added detailed logging at each step
   - Improved error handling with typed results

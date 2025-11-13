@@ -59,20 +59,20 @@ User clicks login
 #### A. Token Validation (Incoming Requests)
 
 **Method 1**: Passport-Zitadel Strategy (Token Introspection)
-- **File**: `apps/server-nest/src/modules/auth/strategies/zitadel.strategy.ts`
+- **File**: `apps/server/src/modules/auth/strategies/zitadel.strategy.ts`
 - **Flow**: Frontend sends Bearer token → Zitadel introspects token → Returns user info
 - **Uses**: CLIENT service account with JWT-bearer grant to authenticate introspection request
 - **Caching**: PostgreSQL cache (`auth_introspection_cache` table)
 
 **Method 2**: JWT Validation (Fallback)
-- **File**: `apps/server-nest/src/modules/auth/auth.service.ts`
+- **File**: `apps/server/src/modules/auth/auth.service.ts`
 - **Flow**: Validate JWT signature using Zitadel's JWKS
 - **Uses**: No service account needed (public key validation)
 
 #### B. Management API Calls (Outgoing Requests)
 
 **Service**: `ZitadelService` 
-- **File**: `apps/server-nest/src/modules/auth/zitadel.service.ts`
+- **File**: `apps/server/src/modules/auth/zitadel.service.ts`
 - **Purpose**: Create users, manage roles, send notifications
 - **Uses**: API service account with JWT-bearer grant
 - **Grant Type**: `urn:ietf:params:oauth:grant-type:jwt-bearer`

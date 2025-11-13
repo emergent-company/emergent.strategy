@@ -36,7 +36,7 @@ If you want to run tests multiple times without restarting the database:
 npm run db:e2e:up
 
 # Run tests (can run multiple times)
-npx nx run server-nest:test-e2e
+npx nx run server:test-e2e
 
 # Stop and remove database
 npm run db:e2e:down
@@ -49,7 +49,7 @@ npm run db:e2e:down
 npm run db:e2e:up
 
 # Run specific test
-npx nx run server-nest:test-e2e --testFile=apps/server-nest/tests/e2e/document-ingestion.spec.ts
+npx nx run server:test-e2e --testFile=apps/server/tests/e2e/document-ingestion.spec.ts
 
 # Clean up
 npm run db:e2e:down
@@ -172,7 +172,7 @@ For GitHub Actions or other CI systems:
     timeout 30 sh -c 'until docker inspect spec-e2e-db --format="{{.State.Health.Status}}" | grep -q healthy; do sleep 1; done'
 
 - name: Run E2E Tests
-  run: npx nx run server-nest:test-e2e
+  run: npx nx run server:test-e2e
 
 - name: Stop E2E Database
   if: always()

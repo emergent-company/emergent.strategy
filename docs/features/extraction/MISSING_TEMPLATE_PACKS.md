@@ -37,7 +37,7 @@ Only **1 pack** exists in database:
 
 ### 2. Meeting & Decision Management Pack
 
-**Location**: `apps/server-nest/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`  
+**Location**: `apps/server/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`  
 **Pack ID**: `9f8d7e6c-5b4a-4c2d-8e0f-9a8b7c6d5e4f`  
 **Version**: 1.0.0  
 **Description**: Template pack for managing meetings, decisions, action items, and questions
@@ -223,6 +223,6 @@ The packs exist in the codebase but were never executed/seeded:
 ## Related Files
 
 - TOGAF JSON: `reference/togaf-core-template-pack.json`
-- Meeting seed: `apps/server-nest/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`
+- Meeting seed: `apps/server/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts`
 - Seed script: `scripts/seed-meeting-pack.ts`
-- Service: `apps/server-nest/src/modules/template-packs/template-pack.service.ts`
+- Service: `apps/server/src/modules/template-packs/template-pack.service.ts`

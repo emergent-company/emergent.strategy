@@ -117,7 +117,7 @@
 
 ### 5. API Endpoint Already Exists! ✅
 **Endpoint:** `GET /graph/objects/:id`
-**Controller:** `apps/server-nest/src/modules/graph/graph.controller.ts` (line 119)
+**Controller:** `apps/server/src/modules/graph/graph.controller.ts` (line 119)
 **Scope:** Requires `graph:read` permission
 **Response:** Returns latest version of graph object with all properties
 

@@ -8,13 +8,13 @@ The migration system provides automated tracking and application of SQL schema c
 
 ```bash
 # List current migration status
-npx nx run server-nest:migrate -- --list
+npx nx run server:migrate -- --list
 
 # Preview pending migrations (dry run)
-npx nx run server-nest:migrate -- --dry-run
+npx nx run server:migrate -- --dry-run
 
 # Apply all pending migrations
-npx nx run server-nest:migrate
+npx nx run server:migrate
 ```
 
 ## Features
@@ -44,11 +44,11 @@ NNNN_description.sql             # Sequential numbers (legacy compatibility)
 
 ## Creating New Migrations
 
-1. Create a new SQL file in `apps/server-nest/migrations/`:
+1. Create a new SQL file in `apps/server/migrations/`:
 
 ```bash
 # Use date-based naming for new migrations
-touch apps/server-nest/migrations/$(date +%Y%m%d)_add_user_preferences.sql
+touch apps/server/migrations/$(date +%Y%m%d)_add_user_preferences.sql
 ```
 
 2. Write your SQL statements:
@@ -77,13 +77,13 @@ COMMIT;
 3. Test with dry run first:
 
 ```bash
-npx nx run server-nest:migrate -- --dry-run
+npx nx run server:migrate -- --dry-run
 ```
 
 4. Apply the migration:
 
 ```bash
-npx nx run server-nest:migrate
+npx nx run server:migrate
 ```
 
 ## Migration Best Practices
@@ -166,7 +166,7 @@ SELECT EXISTS(
 Shows which migrations have been applied and which are pending:
 
 ```bash
-npx nx run server-nest:migrate -- --list
+npx nx run server:migrate -- --list
 ```
 
 **Output:**
@@ -187,7 +187,7 @@ Total: 2 applied, 1 pending
 Preview what would be applied without making changes:
 
 ```bash
-npx nx run server-nest:migrate -- --dry-run
+npx nx run server:migrate -- --dry-run
 ```
 
 ### Apply Migrations
@@ -195,7 +195,7 @@ npx nx run server-nest:migrate -- --dry-run
 Run all pending migrations:
 
 ```bash
-npx nx run server-nest:migrate
+npx nx run server:migrate
 ```
 
 **Output:**
@@ -232,7 +232,7 @@ COMMIT;
 2. **Apply the rollback migration:**
 
 ```bash
-npx nx run server-nest:migrate
+npx nx run server:migrate
 ```
 
 3. **Document the rollback** in the migration filename:
@@ -251,7 +251,7 @@ Connects to `spec_pg` container:
 
 ```bash
 # No configuration needed - works out of the box
-npx nx run server-nest:migrate
+npx nx run server:migrate
 ```
 
 ### 2. Direct Connection (Fallback)
@@ -265,7 +265,7 @@ export POSTGRES_USER=spec
 export POSTGRES_DB=spec
 export POSTGRES_PASSWORD=spec
 
-npx nx run server-nest:migrate
+npx nx run server:migrate
 ```
 
 ## Troubleshooting
@@ -275,7 +275,7 @@ npx nx run server-nest:migrate
 **Check the error message:**
 
 ```bash
-npx nx run server-nest:migrate -- --list
+npx nx run server:migrate -- --list
 ```
 
 Query the failed migration:
@@ -343,7 +343,7 @@ Add to your deployment pipeline:
 ```yaml
 # .github/workflows/deploy.yml
 - name: Run Database Migrations
-  run: npx nx run server-nest:migrate
+  run: npx nx run server:migrate
   env:
     POSTGRES_HOST: ${{ secrets.DB_HOST }}
     POSTGRES_PORT: ${{ secrets.DB_PORT }}

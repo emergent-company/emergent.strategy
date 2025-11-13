@@ -27,7 +27,7 @@
 - **Indexes**: job_id, job_step, operation type, errors
 
 ### 2. Extraction Logger Service (COMPLETED)
-- **File**: `apps/server-nest/src/modules/extraction-jobs/extraction-logger.service.ts`
+- **File**: `apps/server/src/modules/extraction-jobs/extraction-logger.service.ts`
 - **Methods**:
   - `logStep(params)` - Log a single extraction step
   - `getJobLogs(jobId)` - Get all logs for a job
@@ -81,7 +81,7 @@
 ## What Needs To Be Done 🚧
 
 ### 5. Worker Integration (IN PROGRESS)
-**File**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+**File**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 **Need to add logging calls at key points**:
 
@@ -361,8 +361,8 @@ const fetchLogs = async () => {
 
 ## Related Files
 
-- **Database**: `apps/server-nest/migrations/20251019_add_extraction_logs.sql`
-- **Service**: `apps/server-nest/src/modules/extraction-jobs/extraction-logger.service.ts`
-- **Controller**: `apps/server-nest/src/modules/extraction-jobs/extraction-job.controller.ts` (logs endpoint)
-- **Worker**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` (needs integration)
+- **Database**: `apps/server/migrations/20251019_add_extraction_logs.sql`
+- **Service**: `apps/server/src/modules/extraction-jobs/extraction-logger.service.ts`
+- **Controller**: `apps/server/src/modules/extraction-jobs/extraction-job.controller.ts` (logs endpoint)
+- **Worker**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` (needs integration)
 - **Frontend**: `apps/admin/src/pages/admin/pages/extraction-jobs/detail.tsx` (needs UI)

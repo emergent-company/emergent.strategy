@@ -335,46 +335,46 @@ await dataSource.query(
 
 ### New Entity Files (8)
 
-1. `apps/server-nest/src/entities/project-object-type-registry.entity.ts`
-2. `apps/server-nest/src/entities/llm-call-log.entity.ts`
-3. `apps/server-nest/src/entities/system-process-log.entity.ts`
-4. `apps/server-nest/src/entities/audit-log.entity.ts`
-5. `apps/server-nest/src/entities/clickup-import-log.entity.ts`
-6. `apps/server-nest/src/entities/clickup-sync-state.entity.ts`
-7. `apps/server-nest/src/entities/object-extraction-log.entity.ts`
+1. `apps/server/src/entities/project-object-type-registry.entity.ts`
+2. `apps/server/src/entities/llm-call-log.entity.ts`
+3. `apps/server/src/entities/system-process-log.entity.ts`
+4. `apps/server/src/entities/audit-log.entity.ts`
+5. `apps/server/src/entities/clickup-import-log.entity.ts`
+6. `apps/server/src/entities/clickup-sync-state.entity.ts`
+7. `apps/server/src/entities/object-extraction-log.entity.ts`
 
 ### Updated Entity Files (1)
 
-1. `apps/server-nest/src/entities/document.entity.ts` - Added parent_document_id
+1. `apps/server/src/entities/document.entity.ts` - Added parent_document_id
 
 ### Migrated Service Files (13)
 
 Session 11:
 
-1. `apps/server-nest/src/modules/type-registry/type-registry.service.ts`
-2. `apps/server-nest/src/modules/monitoring/monitoring.service.ts`
+1. `apps/server/src/modules/type-registry/type-registry.service.ts`
+2. `apps/server/src/modules/monitoring/monitoring.service.ts`
 
-Session 12: 3. `apps/server-nest/src/modules/auth/audit.service.ts` 4. `apps/server-nest/src/modules/graph/embedding-worker.service.ts` 5. `apps/server-nest/src/modules/graph/tag-cleanup-worker.service.ts` 6. `apps/server-nest/src/modules/graph/revision-count-refresh-worker.service.ts` 7. `apps/server-nest/src/modules/chat/mcp-tool-selector.service.ts` 8. `apps/server-nest/src/modules/extraction-jobs/entity-linking.service.ts` 9. `apps/server-nest/src/modules/monitoring/monitoring-logger.service.ts`
+Session 12: 3. `apps/server/src/modules/auth/audit.service.ts` 4. `apps/server/src/modules/graph/embedding-worker.service.ts` 5. `apps/server/src/modules/graph/tag-cleanup-worker.service.ts` 6. `apps/server/src/modules/graph/revision-count-refresh-worker.service.ts` 7. `apps/server/src/modules/chat/mcp-tool-selector.service.ts` 8. `apps/server/src/modules/extraction-jobs/entity-linking.service.ts` 9. `apps/server/src/modules/monitoring/monitoring-logger.service.ts`
 
-Session 13: 10. `apps/server-nest/src/modules/clickup/clickup-import-logger.service.ts` 11. `apps/server-nest/src/modules/clickup/clickup-import.service.ts` 12. `apps/server-nest/src/modules/extraction-jobs/extraction-logger.service.ts` 13. `apps/server-nest/src/modules/user-profile/user-profile.service.ts` (completed)
+Session 13: 10. `apps/server/src/modules/clickup/clickup-import-logger.service.ts` 11. `apps/server/src/modules/clickup/clickup-import.service.ts` 12. `apps/server/src/modules/extraction-jobs/extraction-logger.service.ts` 13. `apps/server/src/modules/user-profile/user-profile.service.ts` (completed)
 
 ### Module Files Updated (9)
 
 Session 11:
 
-1. `apps/server-nest/src/modules/type-registry/type-registry.module.ts`
-2. `apps/server-nest/src/modules/monitoring/monitoring.module.ts`
+1. `apps/server/src/modules/type-registry/type-registry.module.ts`
+2. `apps/server/src/modules/monitoring/monitoring.module.ts`
 
-Session 12: 3. `apps/server-nest/src/modules/auth/auth.module.ts` 4. `apps/server-nest/src/modules/graph/graph.module.ts` 5. `apps/server-nest/src/modules/chat/chat.module.ts`
+Session 12: 3. `apps/server/src/modules/auth/auth.module.ts` 4. `apps/server/src/modules/graph/graph.module.ts` 5. `apps/server/src/modules/chat/chat.module.ts`
 
-Session 13: 6. `apps/server-nest/src/modules/clickup/clickup.module.ts` 7. `apps/server-nest/src/modules/extraction-jobs/extraction-job.module.ts` 8. `apps/server-nest/src/modules/extraction-jobs/extraction-job.controller.ts` (method rename)
+Session 13: 6. `apps/server/src/modules/clickup/clickup.module.ts` 7. `apps/server/src/modules/extraction-jobs/extraction-job.module.ts` 8. `apps/server/src/modules/extraction-jobs/extraction-job.controller.ts` (method rename)
 
 ### Strategic Raw SQL Marked (4)
 
-1. `apps/server-nest/src/modules/search/path-summary.service.ts`
-2. `apps/server-nest/src/modules/integrations/encryption.service.ts`
-3. `apps/server-nest/src/modules/graph/graph-vector-search.service.ts`
-4. `apps/server-nest/src/modules/search/search.service.ts`
+1. `apps/server/src/modules/search/path-summary.service.ts`
+2. `apps/server/src/modules/integrations/encryption.service.ts`
+3. `apps/server/src/modules/graph/graph-vector-search.service.ts`
+4. `apps/server/src/modules/search/search.service.ts`
 
 ---
 
@@ -621,7 +621,7 @@ await dataSource.query(
 npm run build
 
 # Build server only
-npm run build:server-nest
+npm run build:server
 
 # Restart server
 npx pm2 restart spec-server-2-server
@@ -630,10 +630,10 @@ npx pm2 restart spec-server-2-server
 curl http://localhost:3002/health | jq .
 
 # Count fully migrated services
-find apps/server-nest/src/modules -name "*.service.ts" -exec sh -c 'q=$(grep -c "\.query(" "$1" 2>/dev/null); if [ "$q" = "0" ]; then echo "1"; fi' _ {} \; 2>/dev/null | wc -l
+find apps/server/src/modules -name "*.service.ts" -exec sh -c 'q=$(grep -c "\.query(" "$1" 2>/dev/null); if [ "$q" = "0" ]; then echo "1"; fi' _ {} \; 2>/dev/null | wc -l
 
 # List services still needing migration
-find apps/server-nest/src/modules -name "*.service.ts" -exec sh -c 'if ! grep -q "Repository\|DataSource" "$1" 2>/dev/null && grep -q "db\.query" "$1" 2>/dev/null; then echo "$(basename $1)"; fi' _ {} \; 2>/dev/null
+find apps/server/src/modules -name "*.service.ts" -exec sh -c 'if ! grep -q "Repository\|DataSource" "$1" 2>/dev/null && grep -q "db\.query" "$1" 2>/dev/null; then echo "$(basename $1)"; fi' _ {} \; 2>/dev/null
 ```
 
 ---

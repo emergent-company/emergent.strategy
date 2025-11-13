@@ -13,7 +13,7 @@ This document provides comprehensive documentation for services using PostgreSQL
 
 ## 1. ExtractionJobService (extraction-job.service.ts)
 
-**Location**: `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts`  
+**Location**: `apps/server/src/modules/extraction-jobs/extraction-job.service.ts`  
 **Lines of Code**: ~1,229 lines  
 **Strategic SQL Methods**: 20+  
 **Hybrid Status**: **95% Strategic SQL + 5% TypeORM** (1 method already migrated)

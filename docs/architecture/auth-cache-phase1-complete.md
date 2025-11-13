@@ -11,7 +11,7 @@ Successfully implemented a PostgreSQL-based introspection cache to reduce Zitade
 ## Components Delivered
 
 ### 1. Database Migration
-**File**: `apps/server-nest/migrations/0004_auth_introspection_cache.sql`
+**File**: `apps/server/migrations/0004_auth_introspection_cache.sql`
 
 Created table `kb.auth_introspection_cache` with:
 - **token_hash** VARCHAR(128) PRIMARY KEY - SHA-512 hash of access tokens
@@ -28,7 +28,7 @@ Created table `kb.auth_introspection_cache` with:
 **Status**: ✅ Applied to database and verified
 
 ### 2. PostgresCacheService
-**File**: `apps/server-nest/src/modules/auth/postgres-cache.service.ts` (202 lines)
+**File**: `apps/server/src/modules/auth/postgres-cache.service.ts` (202 lines)
 
 Core cache service providing:
 
@@ -48,7 +48,7 @@ Core cache service providing:
 **Status**: ✅ Implemented and tested (19/19 tests passing)
 
 ### 3. CacheCleanupService
-**File**: `apps/server-nest/src/modules/auth/cache-cleanup.service.ts` (98 lines)
+**File**: `apps/server/src/modules/auth/cache-cleanup.service.ts` (98 lines)
 
 Automated background cleanup worker:
 
@@ -62,7 +62,7 @@ Automated background cleanup worker:
 **Status**: ✅ Implemented (tested via integration with PostgresCacheService)
 
 ### 4. Test Suite
-**File**: `apps/server-nest/src/modules/auth/__tests__/postgres-cache.service.spec.ts`
+**File**: `apps/server/src/modules/auth/__tests__/postgres-cache.service.spec.ts`
 
 Comprehensive unit tests with 95%+ code coverage:
 
@@ -83,7 +83,7 @@ Comprehensive unit tests with 95%+ code coverage:
 
 ## Module Registration
 
-Updated `apps/server-nest/src/modules/auth/auth.module.ts`:
+Updated `apps/server/src/modules/auth/auth.module.ts`:
 - Added `DatabaseModule` import (provides DatabaseService dependency)
 - Added `PostgresCacheService` to providers and exports
 - Added `CacheCleanupService` to providers
@@ -191,10 +191,10 @@ With Phase 1 complete, we're ready to implement the ZitadelService in Phase 2:
 ## References
 
 - **Implementation Plan**: `docs/architecture/unified-auth-service-account-implementation-plan.md`
-- **Database Migration**: `apps/server-nest/migrations/0004_auth_introspection_cache.sql`
-- **Cache Service**: `apps/server-nest/src/modules/auth/postgres-cache.service.ts`
-- **Cleanup Service**: `apps/server-nest/src/modules/auth/cache-cleanup.service.ts`
-- **Test Suite**: `apps/server-nest/src/modules/auth/__tests__/postgres-cache.service.spec.ts`
+- **Database Migration**: `apps/server/migrations/0004_auth_introspection_cache.sql`
+- **Cache Service**: `apps/server/src/modules/auth/postgres-cache.service.ts`
+- **Cleanup Service**: `apps/server/src/modules/auth/cache-cleanup.service.ts`
+- **Test Suite**: `apps/server/src/modules/auth/__tests__/postgres-cache.service.spec.ts`
 
 ---
 

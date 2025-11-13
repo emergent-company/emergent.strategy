@@ -7,8 +7,8 @@ When extracting entities, the system would **fail with `object_key_exists` error
 **Error Stack Trace:**
 ```
 BadRequestException: object_key_exists
-    at /Users/mcj/code/spec-server/apps/server-nest/src/modules/graph/graph.service.ts:271:31
-    at ExtractionWorkerService.processJob (/Users/mcj/code/spec-server/apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts:799:45)
+    at /Users/mcj/code/spec-server/apps/server/src/modules/graph/graph.service.ts:271:31
+    at ExtractionWorkerService.processJob (/Users/mcj/code/spec-server/apps/server/src/modules/extraction-jobs/extraction-worker.service.ts:799:45)
 ```
 
 This happened because:
@@ -243,9 +243,9 @@ Add to job summary:
 
 ## Related Files
 
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` (lines 777-920)
-- `apps/server-nest/src/modules/graph/graph.service.ts` (line 271 - throws `object_key_exists`)
-- `apps/server-nest/src/modules/extraction-jobs/extraction-logger.service.ts` (logging)
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` (lines 777-920)
+- `apps/server/src/modules/graph/graph.service.ts` (line 271 - throws `object_key_exists`)
+- `apps/server/src/modules/extraction-jobs/extraction-logger.service.ts` (logging)
 
 ## Testing
 

@@ -16,7 +16,7 @@ Successfully implemented end-to-end MCP (Model Context Protocol) integration for
 
 ### Backend Integration (Week 1)
 
-1. **MCP Server** (`apps/server-nest/src/modules/mcp/mcp-server.ts`)
+1. **MCP Server** (`apps/server/src/modules/mcp/mcp-server.ts`)
    - JSON-RPC 2.0 endpoint at `POST /mcp/rpc`
    - Three schema tools: `schema_version`, `schema_changelog`, `type_info`
    - Direct PostgreSQL queries to `kb.*` schema tables

@@ -162,7 +162,7 @@ If issues arise, a rollback script can be created to:
 ## Related Documentation
 
 - `docs/USER_ID_ARCHITECTURE_MIGRATION.md` - Comprehensive architecture guide
-- `apps/server-nest/migrations/0003_add_user_id_architecture.sql` - Migration script
+- `apps/server/migrations/0003_add_user_id_architecture.sql` - Migration script
 
 ## Migration Execution Log
 

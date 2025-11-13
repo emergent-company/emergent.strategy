@@ -153,7 +153,7 @@ Return ONLY a JSON object with this structure (no markdown, no code blocks):
         const path = await import('path');
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
-        // Use workspace root logs directory (go up 3 levels from apps/server-nest/dist)
+        // Use workspace root logs directory (go up 3 levels from apps/server/dist)
         const workspaceRoot = path.join(__dirname, '..', '..', '..');
         const logsDir = path.join(workspaceRoot, 'logs');
 

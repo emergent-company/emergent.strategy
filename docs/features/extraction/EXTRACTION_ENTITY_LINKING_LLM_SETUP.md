@@ -2,7 +2,7 @@
 
 ## Overview
 
-The extraction entity-linking E2E tests (`apps/server-nest/tests/e2e/extraction.entity-linking.e2e.spec.ts`) validate that the entity-linking logic works correctly within the full extraction pipeline. These tests require a configured LLM provider to run.
+The extraction entity-linking E2E tests (`apps/server/tests/e2e/extraction.entity-linking.e2e.spec.ts`) validate that the entity-linking logic works correctly within the full extraction pipeline. These tests require a configured LLM provider to run.
 
 ## Current Status
 
@@ -54,7 +54,7 @@ Without LLM configuration, step 1 cannot happen, making the tests non-functional
    ```
 3. Run tests:
    ```bash
-   npm --prefix apps/server-nest run test:e2e -- extraction.entity-linking
+   npm --prefix apps/server run test:e2e -- extraction.entity-linking
    ```
 
 ### Option 2: Google Vertex AI (Production)
@@ -72,7 +72,7 @@ Without LLM configuration, step 1 cannot happen, making the tests non-functional
    ```
 4. Run tests:
    ```bash
-   npm --prefix apps/server-nest run test:e2e -- extraction.entity-linking
+   npm --prefix apps/server run test:e2e -- extraction.entity-linking
    ```
 
 ## Configuration Options
@@ -139,8 +139,8 @@ export EXTRACTION_RATE_LIMIT_TPM=5000
 ## Related Documentation
 
 - `docs/EXTRACTION_ENTITY_LINKING_E2E_DESIGN.md` - Test design analysis
-- `apps/server-nest/src/modules/extraction-jobs/entity-linking.service.spec.ts` - Unit tests
-- `apps/server-nest/src/modules/extraction-jobs/README.md` - Extraction system overview
+- `apps/server/src/modules/extraction-jobs/entity-linking.service.spec.ts` - Unit tests
+- `apps/server/src/modules/extraction-jobs/README.md` - Extraction system overview
 
 ## Future Improvements
 

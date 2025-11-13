@@ -6,8 +6,8 @@ User reported missing database schema elements and requested sync from develop b
 ## Problems Identified
 
 ### 1. Missing Migrations
-We were creating migrations in **wrong directory**: `apps/server-nest/src/migrations/` 
-The correct location is: `apps/server-nest/migrations/`
+We were creating migrations in **wrong directory**: `apps/server/src/migrations/` 
+The correct location is: `apps/server/migrations/`
 
 **Missing migrations discovered:**
 - `20251019_create_discovery_jobs.sql` - Discovery jobs table
@@ -20,12 +20,12 @@ The correct location is: `apps/server-nest/migrations/`
 
 ### 2. Duplicate Migration Files
 We had created:
-- `apps/server-nest/src/migrations/0009_change_subject_id_to_text.sql` (duplicate)
-- `apps/server-nest/src/migrations/0010_add_kb_purpose_to_projects.sql` (duplicate)
+- `apps/server/src/migrations/0009_change_subject_id_to_text.sql` (duplicate)
+- `apps/server/src/migrations/0010_add_kb_purpose_to_projects.sql` (duplicate)
 
 These already existed in correct location:
-- `apps/server-nest/migrations/20251021_change_all_subject_ids_to_text.sql`
-- `apps/server-nest/migrations/20251019_add_kb_purpose_to_projects.sql`
+- `apps/server/migrations/20251021_change_all_subject_ids_to_text.sql`
+- `apps/server/migrations/20251019_add_kb_purpose_to_projects.sql`
 
 ### 3. PM2 Process Naming
 Old system used environment variable `COMPOSE_PROJECT_NAME` (manual configuration).
@@ -49,11 +49,11 @@ git stash pop
 
 ### 2. Applied Missing Migrations
 ```bash
-cat apps/server-nest/migrations/20251019_create_discovery_jobs.sql | docker exec -i spec-2_pg psql -U spec -d spec
-cat apps/server-nest/migrations/20251019_create_discovery_type_candidates.sql | docker exec -i spec-2_pg psql -U spec -d spec
-cat apps/server-nest/migrations/20251019_extend_template_packs_for_discovery.sql | docker exec -i spec-2_pg psql -U spec -d spec
-cat apps/server-nest/migrations/20251022_monitoring_phase1.sql | docker exec -i spec-2_pg psql -U spec -d spec
-cat apps/server-nest/migrations/20251023_add_monitoring_tables_rls_policies.sql | docker exec -i spec-2_pg psql -U spec -d spec
+cat apps/server/migrations/20251019_create_discovery_jobs.sql | docker exec -i spec-2_pg psql -U spec -d spec
+cat apps/server/migrations/20251019_create_discovery_type_candidates.sql | docker exec -i spec-2_pg psql -U spec -d spec
+cat apps/server/migrations/20251019_extend_template_packs_for_discovery.sql | docker exec -i spec-2_pg psql -U spec -d spec
+cat apps/server/migrations/20251022_monitoring_phase1.sql | docker exec -i spec-2_pg psql -U spec -d spec
+cat apps/server/migrations/20251023_add_monitoring_tables_rls_policies.sql | docker exec -i spec-2_pg psql -U spec -d spec
 ```
 
 **Result:**
@@ -166,9 +166,9 @@ SELECT tablename FROM pg_tables WHERE schemaname = 'kb' ORDER BY tablename;
 - `tools/workspace-cli/src/config/dependency-processes.ts`
 
 ### Duplicate migrations to clean up:
-- ❌ `apps/server-nest/src/migrations/0009_change_subject_id_to_text.sql` (remove - duplicate)
-- ❌ `apps/server-nest/src/migrations/0010_add_kb_purpose_to_projects.sql` (remove - duplicate)
-- ✅ Keep in correct location: `apps/server-nest/migrations/`
+- ❌ `apps/server/src/migrations/0009_change_subject_id_to_text.sql` (remove - duplicate)
+- ❌ `apps/server/src/migrations/0010_add_kb_purpose_to_projects.sql` (remove - duplicate)
+- ✅ Keep in correct location: `apps/server/migrations/`
 
 ## Current Status
 

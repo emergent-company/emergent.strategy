@@ -189,7 +189,7 @@ Browser
 ```
 
 ## Files Modified
-- `apps/server-nest/src/modules/chat/chat.controller.ts`
+- `apps/server/src/modules/chat/chat.controller.ts`
   - Added `filterGraphObjectMetadata()` helper function (lines 96-124)
   - Updated POST /stream endpoint (lines 647-680)
   - Updated GET /:id/stream endpoint (lines 358-373)

@@ -2,7 +2,7 @@
 
 Status: Draft (v0.1 – initial role model)  
 Target Version: >= 0.3.0 (first enforcement)  
-Related Specs: `02-requirements.md`, `03-architecture.md` (AuthN/AuthZ), `17-server-nest-e2e-testing.md` (E2E coverage)  
+Related Specs: `02-requirements.md`, `03-architecture.md` (AuthN/AuthZ), `17-server-e2e-testing.md` (E2E coverage)  
 AuthN Provider: Zitadel (OIDC)  
 
 ---
@@ -300,7 +300,7 @@ Error envelope (standardize):
 
 ## 13. Testing Strategy
 
-Add / extend E2E suites (see `17-server-nest-e2e-testing.md`):
+Add / extend E2E suites (see `17-server-e2e-testing.md`):
 - `security.roles-matrix.e2e.spec.ts` – Matrix of key endpoints vs roles (generate programmatically from mapping constant, skip future scopes).
 - `invites.lifecycle.e2e.spec.ts` – create → accept → idempotent re-accept → revoke.
 - `org.visibility.e2e.spec.ts` – project_user can read org, cannot modify.

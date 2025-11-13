@@ -97,7 +97,7 @@ await this.extractionLogger.logStep({
 
 ## Changes Made
 
-**File:** `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+**File:** `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 
 - **Lines 775-797**: Removed first `logStep` call (input-only)
 - **Lines 806-830**: Updated second `logStep` call to include both `inputData` and `outputData`
@@ -127,8 +127,8 @@ await this.extractionLogger.logStep({
 
 ## Related Files
 
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` (line 806-830)
-- `apps/server-nest/src/modules/extraction-jobs/extraction-logger.service.ts` (logStep method)
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` (line 806-830)
+- `apps/server/src/modules/extraction-jobs/extraction-logger.service.ts` (logStep method)
 - `apps/admin/src/pages/admin/pages/extraction-jobs/detail.tsx` (timeline rendering)
 
 ## Pattern for Future Operations

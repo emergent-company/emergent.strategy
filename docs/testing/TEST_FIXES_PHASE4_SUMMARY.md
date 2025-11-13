@@ -9,14 +9,14 @@
 ## Fixes Applied ✅
 
 ### 1. OpenAPI Regression Test (FIXED)
-**File**: `apps/server-nest/tests/openapi-regression.spec.ts`  
+**File**: `apps/server/tests/openapi-regression.spec.ts`  
 **Issue**: Hash mismatch - expected old hash, got new hash  
 **Root Cause**: OpenAPI spec changed due to new MCP endpoints  
 **Fix**: Updated `EXPECTED_HASH` to `0cbfe3a0a5a6e7cc3a9cc8b395995870a6bcac45b991aea7d5d492c01324919a`  
 **Status**: ✅ PASSING
 
 ### 2. OpenAPI Scope Golden Test (FIXED)
-**File**: `apps/server-nest/tests/openapi-scope-golden-full.spec.ts`  
+**File**: `apps/server/tests/openapi-scope-golden-full.spec.ts`  
 **Issue**: Expected 105 endpoints, got 118 endpoints (13 new)  
 **Root Cause**: New endpoints added (MCP + discovery + admin extraction logs + others)  
 **Fix**: Added 13 new endpoint entries to EXPECTED map:
@@ -37,7 +37,7 @@
 **Status**: ✅ PASSING
 
 ### 3. Extraction Worker Tests (PARTIALLY FIXED)
-**File**: `apps/server-nest/src/modules/extraction-jobs/__tests__/extraction-worker.service.spec.ts`  
+**File**: `apps/server/src/modules/extraction-jobs/__tests__/extraction-worker.service.spec.ts`  
 **Issue**: Tests calling `loadExtractionPrompt()` method that no longer exists  
 **Root Cause**: Method was refactored/renamed to `loadExtractionConfig()` with different implementation  
 **Fix Applied**: 
@@ -62,7 +62,7 @@ SELECT value FROM kb.settings WHERE key = 'extraction.basePrompt'
 ## Deferred Issues (Require More Investigation)
 
 ### 4. Projects Service Test (1 failure)
-**File**: `apps/server-nest/tests/projects.service.spec.ts`  
+**File**: `apps/server/tests/projects.service.spec.ts`  
 **Test**: "list returns rows mapped when no orgId"  
 **Issue**: Query returns empty array instead of expected project data  
 **Expected**: `[{ id: "...", name: "P1", orgId: "..." }]`  
@@ -89,7 +89,7 @@ SELECT value FROM kb.settings WHERE key = 'extraction.basePrompt'
 **Status**: ⏸️ DEFERRED
 
 ### 6. Chat Generation Service (2 failures)
-**File**: `apps/server-nest/tests/chat-generation.service.spec.ts`  
+**File**: `apps/server/tests/chat-generation.service.spec.ts`  
 **Tests**:
 1. "invokes real model path and streams tokens with logging enabled"
 2. "logs warning and rethrows on model failure"
@@ -105,7 +105,7 @@ SELECT value FROM kb.settings WHERE key = 'extraction.basePrompt'
 **Status**: ⏸️ DEFERRED (External Dependency)
 
 ### 7. Vertex Embedding Provider (2 failures)
-**File**: `apps/server-nest/src/modules/graph/__tests__/embedding-provider.vertex.spec.ts`  
+**File**: `apps/server/src/modules/graph/__tests__/embedding-provider.vertex.spec.ts`  
 **Tests**:
 1. "falls back on HTTP error but stays deterministic"
 2. "converts remote vector to Buffer when successful"

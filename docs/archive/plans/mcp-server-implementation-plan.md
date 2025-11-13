@@ -37,7 +37,7 @@ This document provides a detailed implementation plan for building an MCP (Model
 
 #### 1.1 Install Dependencies
 ```bash
-cd apps/server-nest
+cd apps/server
 npm install @rekog/mcp-nest
 ```
 
@@ -46,7 +46,7 @@ npm install @rekog/mcp-nest
 #### 1.2 Create MCP Module Structure
 Create new module directories:
 ```
-apps/server-nest/src/modules/mcp/
+apps/server/src/modules/mcp/
 ├── mcp.module.ts           # Main MCP module
 ├── tools/
 │   ├── schema.tool.ts      # Schema exposure tools
@@ -69,7 +69,7 @@ apps/server-nest/src/modules/mcp/
 - [ ] Add module-level README with usage examples
 
 #### 1.3 Configure MCP Module
-Update `apps/server-nest/src/modules/app.module.ts`:
+Update `apps/server/src/modules/app.module.ts`:
 
 ```typescript
 import { McpModule } from '@rekog/mcp-nest';
@@ -98,7 +98,7 @@ export class AppModule {}
 ### Phase 2: Schema Exposure Tools (Week 1-2)
 
 #### 2.1 Create Schema DTOs
-File: `apps/server-nest/src/modules/mcp/dto/schema.dto.ts`
+File: `apps/server/src/modules/mcp/dto/schema.dto.ts`
 
 ```typescript
 import { IsString, IsOptional } from 'class-validator';
@@ -166,7 +166,7 @@ export class TemplatePackDetailsDto extends TemplatePackSummaryDto {
 ```
 
 #### 2.2 Implement Schema Tool
-File: `apps/server-nest/src/modules/mcp/tools/schema.tool.ts`
+File: `apps/server/src/modules/mcp/tools/schema.tool.ts`
 
 ```typescript
 import { Injectable } from '@nestjs/common';
@@ -251,7 +251,7 @@ export class SchemaTool {
 ```
 
 #### 2.3 Register Schema Tool
-Update `apps/server-nest/src/modules/mcp/mcp.module.ts`:
+Update `apps/server/src/modules/mcp/mcp.module.ts`:
 
 ```typescript
 import { Module } from '@nestjs/common';
@@ -279,7 +279,7 @@ export class McpToolsModule {}
 > **Design Decision**: We're implementing **both specific tools** (e.g., `getPersons()`, `getTasks()`) **and generic fallbacks** (`data.getObjectsByType()`) for optimal discoverability and flexibility. See `docs/mcp-tools-design-comparison.md` for rationale.
 
 #### 3.1 Create Specific Tool DTOs
-File: `apps/server-nest/src/modules/mcp/dto/data.dto.ts`
+File: `apps/server/src/modules/mcp/dto/data.dto.ts`
 
 ```typescript
 import { IsString, IsOptional, IsInt, Min } from 'class-validator';
@@ -349,7 +349,7 @@ export class GraphObjectDto {
 ```
 
 #### 3.2 Implement Specific Tools (Discoverable)
-File: `apps/server-nest/src/modules/mcp/tools/specific-data.tool.ts`
+File: `apps/server/src/modules/mcp/tools/specific-data.tool.ts`
 
 ```typescript
 import { Injectable } from '@nestjs/common';
@@ -561,7 +561,7 @@ export class SpecificDataTool {
 ```
 
 #### 3.3 Implement Generic Fallback Tools
-File: `apps/server-nest/src/modules/mcp/tools/generic-data.tool.ts`
+File: `apps/server/src/modules/mcp/tools/generic-data.tool.ts`
 
 ```typescript
 import { Injectable } from '@nestjs/common';
@@ -709,7 +709,7 @@ export class GenericDataTool {
 ```
 
 #### 3.4 Register All Tools
-Update `apps/server-nest/src/modules/mcp/mcp.module.ts`:
+Update `apps/server/src/modules/mcp/mcp.module.ts`:
 
 ```typescript
 import { Module } from '@nestjs/common';
@@ -769,7 +769,7 @@ CREATE TABLE kb.template_pack_current (
 
 #### 3.5.2 Add Version Endpoints
 
-File: `apps/server-nest/src/modules/mcp/mcp.controller.ts`
+File: `apps/server/src/modules/mcp/mcp.controller.ts`
 
 ```typescript
 import { Controller, Get, Query } from '@nestjs/common';
@@ -819,7 +819,7 @@ export class McpController {
 
 #### 3.5.3 Update TemplatePackService with Versioning
 
-File: `apps/server-nest/src/modules/template-packs/template-pack.service.ts`
+File: `apps/server/src/modules/template-packs/template-pack.service.ts`
 
 ```typescript
 import * as crypto from 'crypto';
@@ -969,7 +969,7 @@ MCP_SCHEMA_ENABLE_NOTIFICATIONS=false      # WebSocket notifications (future)
 ### Phase 4: Authentication & Authorization (Week 2-3)
 
 #### 4.1 Create MCP Auth Guard
-File: `apps/server-nest/src/modules/mcp/guards/mcp-auth.guard.ts`
+File: `apps/server/src/modules/mcp/guards/mcp-auth.guard.ts`
 
 ```typescript
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
@@ -1055,7 +1055,7 @@ Consider adding scope requirements to tools:
 
 #### 5.1 Create AI Agent Module
 ```
-apps/server-nest/src/modules/ai-agent/
+apps/server/src/modules/ai-agent/
 ├── ai-agent.module.ts
 ├── ai-agent.controller.ts
 ├── ai-agent.service.ts
@@ -1066,7 +1066,7 @@ apps/server-nest/src/modules/ai-agent/
 ```
 
 #### 5.2 Implement AI Agent Service
-File: `apps/server-nest/src/modules/ai-agent/ai-agent.service.ts`
+File: `apps/server/src/modules/ai-agent/ai-agent.service.ts`
 
 ```typescript
 import { Injectable } from '@nestjs/common';
@@ -1109,7 +1109,7 @@ export class AiAgentService {
 ```
 
 #### 5.3 Create AI Agent Controller
-File: `apps/server-nest/src/modules/ai-agent/ai-agent.controller.ts`
+File: `apps/server/src/modules/ai-agent/ai-agent.controller.ts`
 
 ```typescript
 import { Controller, Post, Body, Sse } from '@nestjs/common';

@@ -1,7 +1,7 @@
 # TypeORM Migration Session 19: TemplatePackService
 
 **Date:** 2025-11-08  
-**Service:** `apps/server-nest/src/modules/template-packs/template-pack.service.ts`  
+**Service:** `apps/server/src/modules/template-packs/template-pack.service.ts`  
 **Complexity:** High (14 queries total: 5 migrated, 9 strategic SQL)  
 **Time Spent:** ~3.5 hours  
 **Build Status:** ✅ 43/43 successful
@@ -1066,7 +1066,7 @@ Does it have complex business logic (loops, conditionals)?
 ### Build Status
 
 ```bash
-npx nx run server-nest:build
+npx nx run server:build
 ```
 
 **Result:** ✅ 43/43 units successful (0 errors)

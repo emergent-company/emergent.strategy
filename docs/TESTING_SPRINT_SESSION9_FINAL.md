@@ -75,7 +75,7 @@ Error: expected 32 dimensions, not 768
 
 ### Phase 1: Database Migration ✅
 
-**Created**: `apps/server-nest/migrations/20251110_update_embedding_vec_dimensions.sql`
+**Created**: `apps/server/migrations/20251110_update_embedding_vec_dimensions.sql`
 
 ```sql
 -- Migration: Update embedding_vec dimensions from 32 to 768
@@ -269,13 +269,13 @@ describe('Graph Vector Controller Endpoints', () => {
 ## 📝 Files Modified
 
 ### 1. Migration File (NEW)
-**Path**: `apps/server-nest/migrations/20251110_update_embedding_vec_dimensions.sql`
+**Path**: `apps/server/migrations/20251110_update_embedding_vec_dimensions.sql`
 - **Size**: 30 lines
 - **Purpose**: ALTER vector column dimensions
 - **Status**: ✅ Applied to development database
 
 ### 2. Test Configuration (MODIFIED)
-**Path**: `apps/server-nest/tests/graph/graph-vector.controller.spec.ts`
+**Path**: `apps/server/tests/graph/graph-vector.controller.spec.ts`
 - **Size**: 336 lines
 - **Changes**:
   - Added import: `GraphObjectsController`
@@ -440,8 +440,8 @@ Session 9 successfully achieved **99.6% test coverage** by:
 
 - `TESTING_SPRINT_SESSION8_FINAL.md` - Previous session (98.7% achievement)
 - `TESTING_SPRINT_SESSION8.5_FINAL.md` - Zitadel fixes (intermediate step)
-- `apps/server-nest/migrations/20251110_update_embedding_vec_dimensions.sql` - Migration file
-- `apps/server-nest/tests/graph/graph-vector.controller.spec.ts` - Test implementation
+- `apps/server/migrations/20251110_update_embedding_vec_dimensions.sql` - Migration file
+- `apps/server/tests/graph/graph-vector.controller.spec.ts` - Test implementation
 
 ---
 

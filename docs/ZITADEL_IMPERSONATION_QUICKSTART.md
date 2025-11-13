@@ -58,7 +58,7 @@ curl -X POST "http://localhost:8080/oauth/v2/token" \
 
 ### Step 4: Implement Backend (1 minute)
 
-Add to `apps/server-nest/src/modules/auth/auth.module.ts`:
+Add to `apps/server/src/modules/auth/auth.module.ts`:
 
 ```typescript
 import { TokenExchangeService } from './token-exchange.service';

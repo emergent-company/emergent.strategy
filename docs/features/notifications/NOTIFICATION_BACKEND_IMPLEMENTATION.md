@@ -12,7 +12,7 @@ Implemented a complete backend notification system for the admin dashboard, incl
 ## 📋 What Was Implemented
 
 ### 1. Database Migration
-**File:** `apps/server-nest/src/migrations/0002_notifications_system.sql`
+**File:** `apps/server/src/migrations/0002_notifications_system.sql`
 
 - ✅ **kb.notifications** table with all required columns
 - ✅ **kb.user_notification_preferences** table for user settings
@@ -122,7 +122,7 @@ POST   /api/notifications/:id/unsnooze  // Remove snooze
 ## 📁 File Structure
 
 ```
-apps/server-nest/src/
+apps/server/src/
 ├── migrations/
 │   └── 0002_notifications_system.sql          # Database schema
 └── modules/
@@ -159,7 +159,7 @@ Changes:
 npm run migrate:up 0002_notifications_system
 
 # Option B: Manual psql execution
-psql -U postgres -d kb -f apps/server-nest/src/migrations/0002_notifications_system.sql
+psql -U postgres -d kb -f apps/server/src/migrations/0002_notifications_system.sql
 ```
 
 **Verify:**
@@ -179,7 +179,7 @@ psql -U postgres -d kb -f apps/server-nest/src/migrations/0002_notifications_sys
 ### 2. Start Backend Server
 
 ```bash
-cd apps/server-nest
+cd apps/server
 npm run start:dev
 ```
 
@@ -370,7 +370,7 @@ WHERE user_id = 'YOUR_USER_ID' AND cleared_at IS NULL;
 - **Spec:** `docs/spec/35-admin-notification-inbox.md`
 - **Event Catalog:** `docs/notification-event-catalog.md`
 - **Frontend Implementation:** `apps/admin/src/components/organisms/NotificationInbox/`
-- **Backend Implementation:** `apps/server-nest/src/modules/notifications/`
+- **Backend Implementation:** `apps/server/src/modules/notifications/`
 
 ---
 

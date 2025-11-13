@@ -34,12 +34,12 @@
 ### Files Created
 
 ```
-apps/server-nest/src/common/database/sql-patterns/
+apps/server/src/common/database/sql-patterns/
 ├── index.ts                           # Re-exports all utilities
 ├── advisory-lock.util.ts              # Pattern 1: Advisory locks
 └── hybrid-search.util.ts              # Pattern 3: Hybrid search
 
-apps/server-nest/tests/unit/common/database/sql-patterns/
+apps/server/tests/unit/common/database/sql-patterns/
 ├── advisory-lock.util.spec.ts         # Advisory lock tests
 └── hybrid-search.util.spec.ts         # Hybrid search tests (25 tests)
 ```
@@ -86,10 +86,10 @@ After analyzing 31 services and reviewing the comprehensive `STRATEGIC_SQL_PATTE
 
 **Implementation Details**:
 
-- **File**: `apps/server-nest/src/common/database/sql-patterns/advisory-lock.util.ts`
+- **File**: `apps/server/src/common/database/sql-patterns/advisory-lock.util.ts`
 - **Exports**: `acquireAdvisoryLock()`, `generateLockKey()`
 - **Refactored Services**: TagService, ProductVersionService
-- **Test File**: `apps/server-nest/tests/unit/common/database/sql-patterns/advisory-lock.util.spec.ts`
+- **Test File**: `apps/server/tests/unit/common/database/sql-patterns/advisory-lock.util.spec.ts`
 - **Code Impact**: 87% reduction per usage (40 lines → 5 lines)
 
 #### Current Usage Pattern
@@ -137,7 +137,7 @@ try {
 **Proposed Utility**: `acquireAdvisoryLock<T>(lockKey: string, fn: () => Promise<T>): Promise<T>`
 
 ```typescript
-// apps/server-nest/src/common/database/sql-patterns/advisory-lock.util.ts
+// apps/server/src/common/database/sql-patterns/advisory-lock.util.ts
 
 import { DatabaseService } from '../database.service';
 import { createHash } from 'crypto';
@@ -314,7 +314,7 @@ private async withTenantContext<T>(
 **Proposed Enhancement**: Standardize RLS context API in `DatabaseService`
 
 ```typescript
-// apps/server-nest/src/common/database/database.service.ts
+// apps/server/src/common/database/database.service.ts
 
 /**
  * Execute function with RLS context variables set for transaction
@@ -383,10 +383,10 @@ async withRLSContext<T>(
 
 **Implementation Details**:
 
-- **File**: `apps/server-nest/src/common/database/sql-patterns/hybrid-search.util.ts`
+- **File**: `apps/server/src/common/database/sql-patterns/hybrid-search.util.ts`
 - **Exports**: `hybridSearch()`, `calculateStatistics()`, `normalizeScore()`, `fuseScores()`, types
 - **Refactored Services**: SearchService (full SQL utility), GraphSearchService (normalization utilities)
-- **Test File**: `apps/server-nest/tests/unit/common/database/sql-patterns/hybrid-search.util.spec.ts` (25 tests)
+- **Test File**: `apps/server/tests/unit/common/database/sql-patterns/hybrid-search.util.spec.ts` (25 tests)
 - **Code Impact**: ~113 lines eliminated across services
 
 #### Current Usage Pattern
@@ -454,7 +454,7 @@ async hybridSearch(
 **Proposed Utility**: Parameterized hybrid search builder
 
 ```typescript
-// apps/server-nest/src/common/database/sql-patterns/hybrid-search.util.ts
+// apps/server/src/common/database/sql-patterns/hybrid-search.util.ts
 
 export interface HybridSearchConfig {
   table: string; // e.g., 'documents', 'kb.graph_objects'
@@ -629,7 +629,7 @@ async getUnreadCounts(userId: string): Promise<UnreadCounts> {
 **Proposed Utility**: Type-safe count aggregation helper (limited utility)
 
 ```typescript
-// apps/server-nest/src/common/database/sql-patterns/count-filter.util.ts
+// apps/server/src/common/database/sql-patterns/count-filter.util.ts
 
 export interface CountFilter {
   name: string; // e.g., 'unread_important'
@@ -800,7 +800,7 @@ These patterns are already well-documented in `STRATEGIC_SQL_PATTERNS.md` and do
 ## Proposed Utility Library Structure
 
 ```
-apps/server-nest/src/common/database/
+apps/server/src/common/database/
 ├── database.service.ts
 ├── database.module.ts
 └── sql-patterns/
@@ -813,7 +813,7 @@ apps/server-nest/src/common/database/
 ### Index File (Re-exports)
 
 ```typescript
-// apps/server-nest/src/common/database/sql-patterns/index.ts
+// apps/server/src/common/database/sql-patterns/index.ts
 
 export { acquireAdvisoryLock, generateLockKey } from './advisory-lock.util';
 

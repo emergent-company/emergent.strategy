@@ -43,7 +43,7 @@ kb.auth_introspection_cache (
 
 ```bash
 # Run the migration
-psql $DATABASE_URL < apps/server-nest/migrations/0004_auth_introspection_cache.sql
+psql $DATABASE_URL < apps/server/migrations/0004_auth_introspection_cache.sql
 ```
 
 ### 2. Copy Services
@@ -53,24 +53,24 @@ Copy these files from huma-blueprint-ui to spec-server-2:
 ```bash
 # Cache services
 cp /path/to/huma/apps/api/src/auth/postgres-cache.service.ts \
-   apps/server-nest/src/modules/auth/
+   apps/server/src/modules/auth/
 
 cp /path/to/huma/apps/api/src/auth/cache-cleanup.service.ts \
-   apps/server-nest/src/modules/auth/
+   apps/server/src/modules/auth/
 
 # Zitadel services
 cp /path/to/huma/apps/api/src/auth/zitadel.service.ts \
-   apps/server-nest/src/modules/auth/
+   apps/server/src/modules/auth/
 
 cp /path/to/huma/apps/api/src/auth/zitadel-introspection.service.ts \
-   apps/server-nest/src/modules/auth/
+   apps/server/src/modules/auth/
 
 # Role authorization
 cp /path/to/huma/apps/api/src/auth/roles.decorator.ts \
-   apps/server-nest/src/modules/auth/
+   apps/server/src/modules/auth/
 
 cp /path/to/huma/apps/api/src/auth/roles.guard.ts \
-   apps/server-nest/src/modules/auth/
+   apps/server/src/modules/auth/
 ```
 
 ### 3. Update AuthService
@@ -367,8 +367,8 @@ AUTH_TEST_STATIC_TOKENS=1
 
 ## Next Steps
 
-1. **Run Tests**: `nx test server-nest`
-2. **Run E2E Tests**: `nx test-e2e server-nest`
+1. **Run Tests**: `nx test server`
+2. **Run E2E Tests**: `nx test-e2e server`
 3. **Check Coverage**: Ensure all new code has tests
 4. **Update Documentation**: Document any project-specific roles
 5. **Deploy to Staging**: Test with real production tokens
@@ -380,7 +380,7 @@ AUTH_TEST_STATIC_TOKENS=1
 - **Full Plan**: [auth-zitadel-introspection-implementation-plan.md](../architecture/auth-zitadel-introspection-implementation-plan.md)
 - **Reference Implementation**: huma-blueprint-ui (apps/api/src/auth/)
 - **Zitadel Docs**: https://zitadel.com/docs
-- **Existing Auth**: `apps/server-nest/src/modules/auth/`
+- **Existing Auth**: `apps/server/src/modules/auth/`
 
 ---
 

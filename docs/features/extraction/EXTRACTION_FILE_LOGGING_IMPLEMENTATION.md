@@ -105,12 +105,12 @@ Every log entry automatically includes:
 ## File Changes
 
 ### New Files
-- `apps/server-nest/src/modules/extraction-jobs/extraction-logger.service.ts` - Core logging service
+- `apps/server/src/modules/extraction-jobs/extraction-logger.service.ts` - Core logging service
 - `logs/extraction/` - Log directory (added to .gitignore)
 - `logs/extraction/README.md` - Documentation for log format and usage
 
 ### Modified Files
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`:
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`:
   - Added log context management
   - Updated LLM logging to include full content
   - Removed duplicate log calls

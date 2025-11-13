@@ -8,7 +8,7 @@ The chat generation system now supports **Vertex AI** as the primary LLM provide
 
 ### Config Service Updates
 
-**File**: `apps/server-nest/src/common/config/config.service.ts`
+**File**: `apps/server/src/common/config/config.service.ts`
 
 Updated `chatModelEnabled` getter to support both authentication methods:
 
@@ -26,7 +26,7 @@ get chatModelEnabled() {
 
 ### Chat Generation Service Updates
 
-**File**: `apps/server-nest/src/modules/chat/chat-generation.service.ts`
+**File**: `apps/server/src/modules/chat/chat-generation.service.ts`
 
 Updated `hasKey` getter to check for Vertex AI credentials:
 
@@ -102,7 +102,7 @@ Check that authentication is working:
 gcloud auth application-default print-access-token
 
 # Check configuration
-grep -E "VERTEX_AI|CHAT_MODEL_ENABLED" apps/server-nest/.env
+grep -E "VERTEX_AI|CHAT_MODEL_ENABLED" apps/server/.env
 ```
 
 Expected output:
@@ -205,8 +205,8 @@ npm run workspace:restart
 **Solution**:
 1. Check `.env`:
    ```bash
-   grep CHAT_MODEL_ENABLED apps/server-nest/.env
-   grep VERTEX_AI_PROJECT_ID apps/server-nest/.env
+   grep CHAT_MODEL_ENABLED apps/server/.env
+   grep VERTEX_AI_PROJECT_ID apps/server/.env
    ```
 2. Verify ADC:
    ```bash
@@ -326,7 +326,7 @@ Expected logs:
 
 ```bash
 # Check all chat-related vars
-grep -E "CHAT_|VERTEX_AI" apps/server-nest/.env
+grep -E "CHAT_|VERTEX_AI" apps/server/.env
 
 # Expected output:
 # CHAT_MODEL_ENABLED=true

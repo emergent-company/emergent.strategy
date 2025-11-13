@@ -42,7 +42,7 @@ The MCP Server endpoints (`POST /mcp/rpc`) are protected with:
 Without the token, the HTTP request returns **401 Unauthorized**.
 
 #### Fix Applied:
-Updated `apps/server-nest/src/modules/chat/chat.controller.ts` to extract and forward the user's bearer token:
+Updated `apps/server/src/modules/chat/chat.controller.ts` to extract and forward the user's bearer token:
 
 ```typescript
 // ✅ AFTER (CORRECT)
@@ -84,7 +84,7 @@ data: {"type":"mcp_tool","tool":"schema_version","status":"completed"}
 #### Related Documentation:
 - `SECURITY_SCOPES.md` - Documents MCP authentication requirements
 - `docs/MCP_CHAT_INTEGRATION_DESIGN.md` - Section "Authorization Strategy > Token Forwarding"
-- `apps/server-nest/tests/e2e/mcp-auth.e2e.spec.ts` - E2E tests verify 401 without token
+- `apps/server/tests/e2e/mcp-auth.e2e.spec.ts` - E2E tests verify 401 without token
 
 ---
 
@@ -100,7 +100,7 @@ data: {"type":"error","error":"chat model disabled"}
 ```
 
 #### Root Cause:
-The `GOOGLE_API_KEY` environment variable was **commented out** in `apps/server-nest/.env`, and the config service didn't recognize Vertex AI credentials as valid:
+The `GOOGLE_API_KEY` environment variable was **commented out** in `apps/server/.env`, and the config service didn't recognize Vertex AI credentials as valid:
 
 ```bash
 # Before
@@ -119,7 +119,7 @@ get enabled(): boolean {
 #### Fix Applied:
 **Implemented Option C:** Configure Vertex AI support throughout the stack.
 
-**1. Updated Config Service** (`apps/server-nest/src/common/config/config.service.ts`):
+**1. Updated Config Service** (`apps/server/src/common/config/config.service.ts`):
 ```typescript
 // After (FIXED)
 get chatModelEnabled() { 
@@ -128,7 +128,7 @@ get chatModelEnabled() {
 }
 ```
 
-**2. Updated Chat Generation Service** (`apps/server-nest/src/modules/chat/chat-generation.service.ts`):
+**2. Updated Chat Generation Service** (`apps/server/src/modules/chat/chat-generation.service.ts`):
 ```typescript
 // After (FIXED)
 get hasKey(): boolean { 
@@ -162,7 +162,7 @@ VERTEX_AI_MODEL=gemini-2.5-flash
 #### Verification:
 ```bash
 # Rebuild and restart
-npm --prefix apps/server-nest run build
+npm --prefix apps/server run build
 npm run workspace:restart
 
 # Test: "What is the current schema version?"

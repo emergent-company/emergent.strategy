@@ -22,7 +22,7 @@ Unknown name "exclusiveMinimum" at 'generation_config.response_schema.properties
 **Fix Applied**:
 - Changed `z.number().positive()` to `z.number().min(0.1)`
 - This generates `minimum: 0.1` instead of `exclusiveMinimum: 0`
-- File: `apps/server-nest/src/modules/extraction-jobs/schemas/task.schema.ts`
+- File: `apps/server/src/modules/extraction-jobs/schemas/task.schema.ts`
 
 ### 2. JSON Parsing Errors: Malformed LLM Responses
 
@@ -46,7 +46,7 @@ SyntaxError: Expected ',' or '}' after property value in JSON at position 12064 
   2. Log the error with context
   3. Skip that specific entity type and continue with others
   4. Return debug information about the failure
-- File: `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+- File: `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
 
 ```typescript
 catch (error) {
@@ -266,10 +266,10 @@ tail -f /tmp/backend.log | grep "JSON parsing error"
 
 ## Files Modified
 
-1. `apps/server-nest/src/modules/extraction-jobs/schemas/task.schema.ts`
+1. `apps/server/src/modules/extraction-jobs/schemas/task.schema.ts`
    - Changed `.positive()` to `.min(0.1)`
 
-2. `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+2. `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
    - Added JSON parsing error handling
    - Added graceful degradation for failed entity types
 
@@ -280,7 +280,7 @@ tail -f /tmp/backend.log | grep "JSON parsing error"
 
 - [Gemini 2.5 Upgrade](../extraction/gemini-2.5-upgrade.md) - Model upgrade notes
 - [Extraction System Overview](../spec/05-ingestion-workflows.md) - Architecture
-- [Entity Schemas](../../apps/server-nest/src/modules/extraction-jobs/schemas/) - All entity type definitions
+- [Entity Schemas](../../apps/server/src/modules/extraction-jobs/schemas/) - All entity type definitions
 
 ---
 

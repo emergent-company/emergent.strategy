@@ -247,11 +247,11 @@ Dashboard → Click Job Row → JobDetailModal Opens
 ## Files Modified in This Session
 
 ### Backend Integration
-1. `apps/server-nest/src/modules/app.module.ts` - Added MonitoringModule import
-2. `apps/server-nest/src/modules/extraction-jobs/extraction-job.module.ts` - Added MonitoringModule import
-3. `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` - Added MonitoringLoggerService injection + 3 logging calls
-4. `apps/server-nest/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` - **NEW**: Added MonitoringLoggerService injection + LLM call tracking
-5. `apps/server-nest/src/modules/extraction-jobs/llm/llm-provider.interface.ts` - **NEW**: Updated interface to accept optional context parameter
+1. `apps/server/src/modules/app.module.ts` - Added MonitoringModule import
+2. `apps/server/src/modules/extraction-jobs/extraction-job.module.ts` - Added MonitoringModule import
+3. `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` - Added MonitoringLoggerService injection + 3 logging calls
+4. `apps/server/src/modules/extraction-jobs/llm/vertex-ai.provider.ts` - **NEW**: Added MonitoringLoggerService injection + LLM call tracking
+5. `apps/server/src/modules/extraction-jobs/llm/llm-provider.interface.ts` - **NEW**: Updated interface to accept optional context parameter
 
 ### Documentation
 6. `docs/MONITORING_PHASE1_BACKEND_INTEGRATION_COMPLETE.md` - Comprehensive backend documentation
@@ -355,9 +355,9 @@ ORDER BY total_cost_usd DESC;
 - **Plan Document**: `docs/SUPERADMIN_DASHBOARD_PLAN.md`
 - **Clarifications**: `docs/SYSTEM_MONITORING_CLARIFICATIONS.md`
 - **Backend Integration**: `docs/MONITORING_PHASE1_BACKEND_INTEGRATION_COMPLETE.md`
-- **Migration**: `apps/server-nest/migrations/20251022_monitoring_phase1.sql`
-- **API Controller**: `apps/server-nest/src/modules/monitoring/monitoring.controller.ts`
-- **Logger Service**: `apps/server-nest/src/modules/monitoring/monitoring-logger.service.ts`
+- **Migration**: `apps/server/migrations/20251022_monitoring_phase1.sql`
+- **API Controller**: `apps/server/src/modules/monitoring/monitoring.controller.ts`
+- **Logger Service**: `apps/server/src/modules/monitoring/monitoring-logger.service.ts`
 
 ---
 

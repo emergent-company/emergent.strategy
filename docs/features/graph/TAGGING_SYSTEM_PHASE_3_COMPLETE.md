@@ -291,7 +291,7 @@ npm --prefix apps/admin run build
 
 ### Server Build ✅
 ```bash
-npm --prefix apps/server-nest run build
+npm --prefix apps/server run build
 ✓ built successfully
 ```
 

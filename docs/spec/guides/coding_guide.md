@@ -27,7 +27,7 @@ private memory: OrgRecord[] = [] // ❌ use `data` instead
 
 ## Backend / NestJS Supplement: Module & File Naming Conventions
 
-1. **Module Directory:** Each domain feature lives under `apps/server-nest/src/modules/<feature>`.
+1. **Module Directory:** Each domain feature lives under `apps/server/src/modules/<feature>`.
 2. **File Names:** Use kebab-case with feature prefix: `<feature>.module.ts`, `<feature>.controller.ts`, `<feature>.service.ts`. DTOs reside in a nested `dto/` folder: `dto/<entity>.dto.ts`.
 3. **Class Names:** PascalCase suffixed: `OrgsModule`, `OrgsController`, `OrgsService`; DTOs suffixed with `Dto` (e.g. `OrgDto`).
 4. **Decorators Order (recommended):** `@ApiTags` → `@Controller` → method-level route decorators (`@Get`, `@Post`, etc.) → interceptors/guards → Swagger response decorators → custom composite decorators (e.g. `@ApiStandardErrors`). Keep them vertically grouped.

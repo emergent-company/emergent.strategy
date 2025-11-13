@@ -424,11 +424,11 @@ Swagger/OpenAPI docs will automatically reflect these changes via decorators.
 
 ## Related Files
 
-- `apps/server-nest/src/modules/graph/embedding-policy.entity.ts`
-- `apps/server-nest/src/modules/graph/embedding-policy.dto.ts`
-- `apps/server-nest/src/modules/graph/embedding-policy.service.ts`
-- `apps/server-nest/src/modules/graph/graph.service.ts`
-- `apps/server-nest/migrations/20251021_add_excluded_statuses_to_embedding_policies.sql`
+- `apps/server/src/modules/graph/embedding-policy.entity.ts`
+- `apps/server/src/modules/graph/embedding-policy.dto.ts`
+- `apps/server/src/modules/graph/embedding-policy.service.ts`
+- `apps/server/src/modules/graph/graph.service.ts`
+- `apps/server/migrations/20251021_add_excluded_statuses_to_embedding_policies.sql`
 
 ## Next Steps (Optional Enhancements)
 

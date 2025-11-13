@@ -36,7 +36,7 @@ Transform tags from type-specific schema properties to universal meta properties
   - Filter objects by selected tags
 
 ### 4. Backend Tag Aggregation 🔄 TODO
-- **Location**: `apps/server-nest/src/modules/graph/graph.service.ts` or similar
+- **Location**: `apps/server/src/modules/graph/graph.service.ts` or similar
 - **Task**: Create method to query all distinct tags across objects
 - **SQL Query**:
   ```sql
@@ -49,7 +49,7 @@ Transform tags from type-specific schema properties to universal meta properties
 - **Purpose**: Get list of existing tags to pass to extraction process
 
 ### 5. Extraction Integration 🔄 TODO
-- **Location**: `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+- **Location**: `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
 - **Task**: Query all existing tags before starting extraction job
 - **Flow**:
   1. Query distinct tags from database
@@ -57,7 +57,7 @@ Transform tags from type-specific schema properties to universal meta properties
   3. Store tags in `properties.tags` when creating objects
 
 ### 6. LLM Prompt Enhancement 🔄 TODO
-- **Location**: `apps/server-nest/src/modules/llm/providers/vertex-ai.provider.ts`
+- **Location**: `apps/server/src/modules/llm/providers/vertex-ai.provider.ts`
 - **Task**: Modify `buildPrompt()` to include available tags list
 - **Instruction**: Add to prompt:
   ```
@@ -323,14 +323,14 @@ WHERE properties->'tags' ?| ARRAY['team-sync', 'weekly'];
 ## Related Files
 
 ### Modified
-- `apps/server-nest/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts` - Removed 5 tags properties
+- `apps/server/src/modules/template-packs/seeds/meeting-decision-pack.seed.ts` - Removed 5 tags properties
 
 ### To Modify
 - `apps/admin/src/components/organisms/ObjectBrowser/ObjectBrowser.tsx` - Add tag filtering
 - `apps/admin/src/pages/admin/pages/objects/index.tsx` - Pass available tags to ObjectBrowser
-- `apps/server-nest/src/modules/graph/graph.service.ts` - Add getAllTags() method
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` - Query and pass tags to LLM
-- `apps/server-nest/src/modules/llm/providers/vertex-ai.provider.ts` - Include tags in prompt
+- `apps/server/src/modules/graph/graph.service.ts` - Add getAllTags() method
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` - Query and pass tags to LLM
+- `apps/server/src/modules/llm/providers/vertex-ai.provider.ts` - Include tags in prompt
 
 ## Session Notes
 

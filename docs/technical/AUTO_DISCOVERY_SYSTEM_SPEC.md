@@ -206,7 +206,7 @@ COMMENT ON COLUMN kb.graph_template_packs.pending_review IS 'Whether pack needs 
 
 ### 1. Discovery Service
 
-**File**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.service.ts`
+**File**: `apps/server/src/modules/discovery-jobs/discovery-job.service.ts`
 
 ```typescript
 import { Injectable, Logger } from '@nestjs/common';
@@ -919,7 +919,7 @@ Return JSON array of relationships.`;
 
 ### 2. LLM Provider Extensions
 
-**File**: `apps/server-nest/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
+**File**: `apps/server/src/modules/extraction-jobs/llm/langchain-gemini.provider.ts`
 
 Add these methods to the existing `LangChainGeminiProvider` class:
 
@@ -991,7 +991,7 @@ async discoverRelationships(
 
 ### 3. Discovery Controller
 
-**File**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.controller.ts`
+**File**: `apps/server/src/modules/discovery-jobs/discovery-job.controller.ts`
 
 ```typescript
 import { 
@@ -1072,7 +1072,7 @@ export class DiscoveryJobController {
 
 ### 4. Module Registration
 
-**File**: `apps/server-nest/src/modules/discovery-jobs/discovery-job.module.ts`
+**File**: `apps/server/src/modules/discovery-jobs/discovery-job.module.ts`
 
 ```typescript
 import { Module } from '@nestjs/common';

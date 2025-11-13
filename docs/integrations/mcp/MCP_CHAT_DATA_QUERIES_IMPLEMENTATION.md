@@ -24,7 +24,7 @@ Include entity types in system prompt or via MCP tool
 
 ### Phase 1: Add MCP Data Query Tools
 
-#### File: `apps/server-nest/src/modules/mcp/mcp-server.controller.ts`
+#### File: `apps/server/src/modules/mcp/mcp-server.controller.ts`
 
 Add two new tools:
 
@@ -218,7 +218,7 @@ Update the MCP server's tool list in `tools/list` response:
 
 ### Phase 2: Update MCP Tool Detector
 
-#### File: `apps/server-nest/src/modules/chat/mcp-tool-detector.service.ts`
+#### File: `apps/server/src/modules/chat/mcp-tool-detector.service.ts`
 
 Add new intent and patterns:
 
@@ -382,7 +382,7 @@ private buildArguments(
 Update `ChatGenerationService.buildPrompt()` to include available entity types:
 
 ```typescript
-// File: apps/server-nest/src/modules/chat/chat-generation.service.ts
+// File: apps/server/src/modules/chat/chat-generation.service.ts
 
 buildPrompt(options: PromptBuildOptions): string {
     const { message, mcpToolContext, detectedIntent, availableEntityTypes } = options;
@@ -410,7 +410,7 @@ buildPrompt(options: PromptBuildOptions): string {
 Call `list_entity_types` tool when chat conversation starts:
 
 ```typescript
-// File: apps/server-nest/src/modules/chat/chat.controller.ts
+// File: apps/server/src/modules/chat/chat.controller.ts
 
 async streamChat(req: Request, res: Response) {
     // ... existing code ...
@@ -443,7 +443,7 @@ async streamChat(req: Request, res: Response) {
 
 ### Phase 4: Update Chat Controller to Handle New Tools
 
-#### File: `apps/server-nest/src/modules/chat/chat.controller.ts`
+#### File: `apps/server/src/modules/chat/chat.controller.ts`
 
 Update tool detection and invocation:
 

@@ -32,7 +32,7 @@ Sprint 8 analyzed the final batch of high-priority services, pushing the overall
 
 ## Service 1: NotificationsService
 
-**File**: `apps/server-nest/src/integrations/notifications/notifications.service.ts`
+**File**: `apps/server/src/integrations/notifications/notifications.service.ts`
 **Total Lines**: 644
 **Classification**: **Hybrid** (5% Strategic SQL, 95% TypeORM)
 **Migration Effort**: Low (1-2 days)
@@ -314,7 +314,7 @@ NotificationsService manages user notifications with support for notification pr
 
 ## Service 2: ChunksService
 
-**File**: `apps/server-nest/src/documents/chunks/chunks.service.ts`
+**File**: `apps/server/src/documents/chunks/chunks.service.ts`
 **Total Lines**: 66
 **Classification**: **TypeORM Complete** (100% TypeORM)
 **Migration Effort**: Zero (already complete)
@@ -435,7 +435,7 @@ try {
 
 ## Service 3: InvitesService
 
-**File**: `apps/server-nest/src/invites/invites.service.ts`
+**File**: `apps/server/src/invites/invites.service.ts`
 **Total Lines**: 301
 **Classification**: **TypeORM Complete** (100% TypeORM)
 **Migration Effort**: Zero (already complete)
@@ -704,7 +704,7 @@ InvitesService manages organization invitations with CRUD operations and complex
 
 ## Service 4: UserProfileService
 
-**File**: `apps/server-nest/src/users/user-profile.service.ts`
+**File**: `apps/server/src/users/user-profile.service.ts`
 **Total Lines**: 147
 **Classification**: **TypeORM Complete** (100% TypeORM)
 **Migration Effort**: Zero (already complete)

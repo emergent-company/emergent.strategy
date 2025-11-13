@@ -12,7 +12,7 @@ Execute the complete test suite across all applications in this monorepo. This p
 This is a monorepo with the following testable applications:
 
 1. **Admin Frontend** (`apps/admin/`) - React + Vite + Vitest (unit) + Playwright (E2E)
-2. **Server Backend** (`apps/server-nest/`) - NestJS + Jest (unit & E2E)
+2. **Server Backend** (`apps/server/`) - NestJS + Jest (unit & E2E)
 
 ## Test Execution Order
 
@@ -22,17 +22,17 @@ Follow this sequence to run all tests:
 
 #### Unit Tests
 ```bash
-npm --prefix apps/server-nest run test
+npm --prefix apps/server run test
 ```
 
 #### E2E Tests
 ```bash
-npm --prefix apps/server-nest run test:e2e
+npm --prefix apps/server run test:e2e
 ```
 
 #### Coverage Report
 ```bash
-npm --prefix apps/server-nest run test:coverage
+npm --prefix apps/server run test:coverage
 ```
 
 ### 2. Admin Frontend Tests
@@ -98,12 +98,12 @@ echo "🧪 Starting Complete Test Suite..."
 echo ""
 
 echo "1️⃣ Running Server Unit Tests..."
-npm --prefix apps/server-nest run test
+npm --prefix apps/server run test
 echo "✅ Server unit tests passed"
 echo ""
 
 echo "2️⃣ Running Server E2E Tests..."
-npm --prefix apps/server-nest run test:e2e
+npm --prefix apps/server run test:e2e
 echo "✅ Server E2E tests passed"
 echo ""
 
@@ -116,7 +116,7 @@ echo "✅ Admin E2E tests passed"
 echo ""
 
 echo "5️⃣ Running Coverage Reports..."
-npm --prefix apps/server-nest run test:coverage
+npm --prefix apps/server run test:coverage
 npm --prefix apps/admin run test:coverage
 echo "✅ Coverage reports generated"
 echo ""
@@ -130,7 +130,7 @@ After running tests with coverage, view the HTML reports:
 
 ### Server Coverage
 ```bash
-open apps/server-nest/coverage/lcov-report/index.html
+open apps/server/coverage/lcov-report/index.html
 ```
 
 ### Admin Coverage
@@ -154,7 +154,7 @@ Run failed tests with verbose output:
 
 ```bash
 # Server (Jest)
-npm --prefix apps/server-nest run test -- --verbose --testNamePattern="failing test name"
+npm --prefix apps/server run test -- --verbose --testNamePattern="failing test name"
 
 # Admin (Vitest)
 npm --prefix apps/admin run test -- -t "failing test name"
@@ -164,19 +164,19 @@ npm --prefix apps/admin run test -- -t "failing test name"
 
 ### Run Only Unit Tests
 ```bash
-npm --prefix apps/server-nest run test
+npm --prefix apps/server run test
 npm --prefix apps/admin run test
 ```
 
 ### Run Only E2E Tests
 ```bash
-npm --prefix apps/server-nest run test:e2e
+npm --prefix apps/server run test:e2e
 npm --prefix apps/admin run e2e
 ```
 
 ### Generate All Coverage Reports
 ```bash
-npm --prefix apps/server-nest run test:coverage
+npm --prefix apps/server run test:coverage
 npm --prefix apps/admin run test:coverage
 ```
 

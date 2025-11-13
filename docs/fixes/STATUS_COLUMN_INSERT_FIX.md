@@ -16,7 +16,7 @@ It was **missing** from the INSERT statement, so status values were never writte
 
 ### 1. Added status to method parameter destructuring
 
-**File:** `apps/server-nest/src/modules/graph/graph.service.ts` (line ~183)
+**File:** `apps/server/src/modules/graph/graph.service.ts` (line ~183)
 
 ```typescript
 async createObject(input: CreateGraphObjectDto & { branch_id?: string | null }, ctx?: GraphTenantContext): Promise<GraphObjectDto> {
@@ -35,7 +35,7 @@ async createObject(input: CreateGraphObjectDto & { branch_id?: string | null }, 
 
 ### 2. Updated INSERT statement to include status column
 
-**File:** `apps/server-nest/src/modules/graph/graph.service.ts` (line ~292)
+**File:** `apps/server/src/modules/graph/graph.service.ts` (line ~292)
 
 **Before:**
 ```sql
@@ -92,8 +92,8 @@ Expected results:
 - ✅ Fix deployed and ready
 
 ## Related Files
-1. `apps/server-nest/src/modules/graph/graph.service.ts` - Fixed INSERT statement
-2. `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts` - Sets status based on confidence
+1. `apps/server/src/modules/graph/graph.service.ts` - Fixed INSERT statement
+2. `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts` - Sets status based on confidence
 3. `apps/admin/src/components/organisms/ObjectBrowser/ObjectBrowser.tsx` - Displays status in UI
 4. `docs/STATUS_COLUMN_UI_IMPLEMENTATION.md` - Original UI implementation
 

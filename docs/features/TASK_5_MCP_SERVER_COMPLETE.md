@@ -11,7 +11,7 @@
 
 Created a fully functional **MCP Server** implementing the Model Context Protocol via JSON-RPC 2.0.
 
-**File Created**: `apps/server-nest/src/modules/mcp/mcp-server.controller.ts` (~650 lines)
+**File Created**: `apps/server/src/modules/mcp/mcp-server.controller.ts` (~650 lines)
 
 ---
 
@@ -343,7 +343,7 @@ curl -X POST http://localhost:3001/mcp/rpc \
 ✅ **Authentication Integration**: Uses existing guards
 
 ```bash
-npm --prefix apps/server-nest run build
+npm --prefix apps/server run build
 # ✅ Build successful
 ```
 
@@ -358,7 +358,7 @@ npm --prefix apps/server-nest run build
 - Use in ChatController
 
 **Estimated**: 3 hours  
-**File**: `apps/server-nest/src/modules/chat/mcp-client.service.ts`
+**File**: `apps/server/src/modules/chat/mcp-client.service.ts`
 
 ---
 

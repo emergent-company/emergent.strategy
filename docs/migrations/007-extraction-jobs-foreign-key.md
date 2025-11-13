@@ -67,18 +67,18 @@ Existing rows with `created_by` values cannot be reliably migrated because:
 ### Backend
 
 **Files Modified**:
-- `apps/server-nest/src/modules/extraction-jobs/dto/extraction-job.dto.ts`
+- `apps/server/src/modules/extraction-jobs/dto/extraction-job.dto.ts`
   - `CreateExtractionJobDto.created_by?: string` → `subject_id?: string` (UUID validation)
   - `ExtractionJobDto.created_by?: string` → `subject_id?: string`
   
-- `apps/server-nest/src/modules/extraction-jobs/extraction-job.service.ts`
+- `apps/server/src/modules/extraction-jobs/extraction-job.service.ts`
   - INSERT statement uses `subject_id` column
   - `mapRowToDto` maps `row.subject_id` instead of `row.created_by`
   
-- `apps/server-nest/src/modules/extraction-jobs/extraction-worker.service.ts`
+- `apps/server/src/modules/extraction-jobs/extraction-worker.service.ts`
   - Notification checks use `job.subject_id` instead of `job.created_by`
   
-- `apps/server-nest/src/common/database/database.service.ts`
+- `apps/server/src/common/database/database.service.ts`
   - CREATE TABLE statement updated with FK constraint
   - Added index for `subject_id`
 
@@ -146,5 +146,5 @@ Other tables that correctly use `subject_id`:
 ## References
 
 - Spec: `/docs/spec/16-user-profile.md` - User profile system architecture
-- Auth: `/apps/server-nest/src/modules/auth/auth.service.ts` - JWT claim mapping
-- Migration: `/apps/server-nest/src/common/database/migrations/007-extraction-jobs-subject-id-fk.sql`
+- Auth: `/apps/server/src/modules/auth/auth.service.ts` - JWT claim mapping
+- Migration: `/apps/server/src/common/database/migrations/007-extraction-jobs-subject-id-fk.sql`

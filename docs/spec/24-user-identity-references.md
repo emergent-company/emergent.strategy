@@ -19,7 +19,7 @@ This document defines the **canonical pattern** for referencing users in the dat
 When a JWT arrives from the authentication provider:
 
 ```typescript
-// apps/server-nest/src/modules/auth/auth.service.ts
+// apps/server/src/modules/auth/auth.service.ts
 private mapClaims(payload: JWTPayload): AuthUser | null {
     if (!payload.sub) return null;
     const rawSub = String(payload.sub);
@@ -405,7 +405,7 @@ Priority migration queue:
 - [User Profile Spec](./16-user-profile.md) - User profile system design
 - [Authorization Model](./18-authorization-model.md) - Permission system
 - [Migration 007](../docs/migrations/007-extraction-jobs-foreign-key.md) - Extraction jobs fix
-- [Auth Service](../apps/server-nest/src/modules/auth/auth.service.ts) - JWT claim mapping
+- [Auth Service](../apps/server/src/modules/auth/auth.service.ts) - JWT claim mapping
 
 ## Questions & Answers
 

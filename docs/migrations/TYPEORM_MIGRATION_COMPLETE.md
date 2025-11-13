@@ -747,13 +747,13 @@ Don't migrate all at once. Instead:
 
 ```bash
 # Count fully migrated services
-find apps/server-nest/src/modules -name "*.service.ts" -exec sh -c '
+find apps/server/src/modules -name "*.service.ts" -exec sh -c '
   q=$(grep -c "\.query(" "$1" 2>/dev/null)
   if [ "$q" = "0" ]; then echo "1"; fi
 ' _ {} \; 2>/dev/null | wc -l
 
 # List services needing migration
-find apps/server-nest/src/modules -name "*.service.ts" -exec sh -c '
+find apps/server/src/modules -name "*.service.ts" -exec sh -c '
   if ! grep -q "Repository\|DataSource" "$1" 2>/dev/null && \
      grep -q "db\.query" "$1" 2>/dev/null; then
     echo "$(basename $1)"
@@ -761,23 +761,23 @@ find apps/server-nest/src/modules -name "*.service.ts" -exec sh -c '
 ' _ {} \; 2>/dev/null | sort
 
 # Count queries in a service
-grep -c "db\.query\|this\.db\.query" apps/server-nest/src/modules/SERVICE/SERVICE.service.ts
+grep -c "db\.query\|this\.db\.query" apps/server/src/modules/SERVICE/SERVICE.service.ts
 ```
 
 ### Migration Workflow
 
 ```bash
 # 1. Create entity (if needed)
-vi apps/server-nest/src/entities/new-entity.entity.ts
+vi apps/server/src/entities/new-entity.entity.ts
 
 # 2. Add to index
-vi apps/server-nest/src/entities/index.ts
+vi apps/server/src/entities/index.ts
 
 # 3. Update module
-vi apps/server-nest/src/modules/MODULE/MODULE.module.ts
+vi apps/server/src/modules/MODULE/MODULE.module.ts
 
 # 4. Migrate service
-vi apps/server-nest/src/modules/MODULE/MODULE.service.ts
+vi apps/server/src/modules/MODULE/MODULE.service.ts
 
 # 5. Build and test
 npm run build

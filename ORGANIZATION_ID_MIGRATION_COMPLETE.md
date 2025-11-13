@@ -24,6 +24,7 @@ Successfully completed migration from `org_id` to `organization_id` across the e
 ## TypeScript Changes ✅
 
 ### DTOs Fixed
+
 - `ExtractionJobDto`: Fixed duplicate `organization_id` identifier (changed to `org_id` for deprecated field)
 - `CreateGraphObjectDto`: Fixed duplicate identifier
 - `GraphRelationshipRow`: `org_id` → `organization_id`
@@ -31,29 +32,36 @@ Successfully completed migration from `org_id` to `organization_id` across the e
 - `CreateBranchDto`: `org_id` → `organization_id`
 
 ### Service Files Fixed (8 files)
+
 1. **extraction-job.service.ts**:
+
    - Line 136: Removed nonsensical cast, now uses `dto.organization_id` directly
    - Line 932: Removed `org_id` property assignment from return object
 
 2. **branch.service.ts**:
+
    - Line 36: Destructuring changed from `org_id` to `organization_id`
    - Line 53-55: INSERT SQL updated to use `organization_id` column
    - Line 56: Parameter reference changed to `organization_id`
 
 3. **graph.controller.ts**:
+
    - Line 83: searchObjects call parameter `org_id` → `organization_id`
    - Line 101: searchObjectsFts call parameter `org_id` → `organization_id`
 
 4. **graph.service.ts**:
+
    - Line 1073: FTS search parameter `org_id` → `organization_id`
 
 5. **ingestion.service.ts**:
+
    - Line 76: Query type annotation `org_id` → `organization_id`
    - Line 76: SELECT statement changed to `organization_id`
    - Line 155: Query type annotation `org_id` → `organization_id`
    - Line 155: SELECT statement changed to `organization_id`
 
 6. **integrations.service.ts**:
+
    - Line 610: DTO property assignment `org_id` → `organization_id`
 
 7. **projects.service.ts**:
@@ -61,6 +69,7 @@ Successfully completed migration from `org_id` to `organization_id` across the e
    - Line 97: INSERT/RETURNING SQL changed to `organization_id`
 
 ### Test Files Fixed
+
 - **fake-graph-db.ts**: Critical parameter indexing bug fixed
   - Labels: index 3 (was 4)
   - organization_id: index 4 (was 7)
@@ -68,6 +77,7 @@ Successfully completed migration from `org_id` to `organization_id` across the e
 - **projects.service.spec.ts**: Mock changed to return `organization_id`
 
 ### Bulk Property Access Fix
+
 - **39 occurrences** of `.org_id` property access replaced with `.organization_id`
 - **13 source files** affected:
   - permission.service.ts
@@ -87,22 +97,28 @@ Successfully completed migration from `org_id` to `organization_id` across the e
 ## Test Results
 
 ### Before Migration
+
 - **798 passing**, 245 failing (77% pass rate)
 
 ### After Database Migration
+
 - **864 passing**, 180 failing (83% pass rate)
 
 ### After TypeScript Fixes (Phase 4)
+
 - **879 passing**, 166 failing (84% pass rate)
 - **138 more tests passing** than initial state
 
 ### After Phase 5 (Nov 11, 2025)
+
 - **1083 passing**, 12 failing (99% pass rate)
 - **342 more tests passing** than initial state
 - **48 Phase 5 tests** all passing
 
 ### Graph Tests Status
+
 All graph core tests passing (10/10):
+
 - ✅ graph.objects.spec.ts (2 tests)
 - ✅ graph.history.spec.ts (2 tests)
 - ✅ graph.search.spec.ts (4 tests)
@@ -113,8 +129,9 @@ All graph core tests passing (10/10):
 ### Remaining Test Failures (12 - unrelated to migration)
 
 Categories:
+
 - Extraction worker tests (3 failures) - Mock configuration issues
-- Product version tests (6 failures) - DTO validation issues  
+- Product version tests (6 failures) - DTO validation issues
 - Graph validation tests (3 failures) - Mock database query handling
 
 **Phase 5 Migration Impact**: None - all 48 tests modified in Phase 5 are passing
@@ -122,6 +139,7 @@ Categories:
 ## Migration Commands Reference
 
 ### Database Verification
+
 ```bash
 # Check for any remaining org_id columns
 docker exec -i $(docker ps -q -f name=postgres) psql -U kb_user -d kb_db \\
@@ -131,17 +149,19 @@ docker exec -i $(docker ps -q -f name=postgres) psql -U kb_user -d kb_db \\
 ```
 
 ### TypeScript Verification
+
 ```bash
 # Build check
-npm --prefix apps/server-nest run build
+npm --prefix apps/server run build
 
 # Should complete without errors ✅
 ```
 
 ### Test Execution
+
 ```bash
 # Run unit tests (skip openapi generation)
-cd apps/server-nest && npx vitest run --passWithNoTests
+cd apps/server && npx vitest run --passWithNoTests
 
 # Expected: 879 passing, 166 failing
 ```
@@ -149,9 +169,11 @@ cd apps/server-nest && npx vitest run --passWithNoTests
 ## Critical Fixes Applied
 
 ### 1. fake-graph-db.ts Parameter Bug
+
 **The breakthrough fix** that made graph search tests work:
 
 **Before (BROKEN)**:
+
 ```typescript
 // Parameters read from wrong indices
 labels: params?.[4] || [],           // ❌ Wrong index
@@ -160,9 +182,10 @@ status: params?.[2] ?? null           // ❌ Wrong index
 ```
 
 **After (FIXED)**:
+
 ```typescript
 // Correct parameter mapping from graph.service.ts createObject:
-// $1=type, $2=key, $3=properties, $4=labels, $5=org_id, $6=project_id, 
+// $1=type, $2=key, $3=properties, $4=labels, $5=org_id, $6=project_id,
 // $7=branch_id, $8=change_summary, $9=hash, $10=JSON, $11=status
 labels: params?.[3] || [],           // ✅ Correct
 organization_id: params?.[4] ?? null, // ✅ Correct
@@ -172,9 +195,11 @@ status: params?.[10] ?? null          // ✅ Correct
 This single fix resolved 4 graph search test failures.
 
 ### 2. Bulk Property Access Fix
+
 Applied across all source files:
+
 ```bash
-find apps/server-nest/src -name "*.ts" -type f ! -name "*.spec.ts" \\
+find apps/server/src -name "*.ts" -type f ! -name "*.spec.ts" \\
   -exec perl -i -pe 's/\\.org_id\\b/.organization_id/g' {} +
 ```
 
@@ -183,11 +208,13 @@ Result: **39 replacements** in 13 files
 ## Next Steps
 
 1. **Fix remaining 12 test failures** (unrelated to migration):
+
    - Extraction worker service mocks
    - Product version DTO validation
    - Graph relationship validation mocks
 
 2. **Production deployment preparation**:
+
    - Test rollback migration (`RemoveOrgIdFromProjectTables down()`)
    - Verify RLS policies work correctly with project-scoped tables
    - Test E2E flows (especially chat conversations)
@@ -201,22 +228,28 @@ Result: **39 replacements** in 13 files
 ## Lessons Learned
 
 ### 1. Parameter Indexing Critical
+
 When emulating SQL with mocks (fake-graph-db), parameter indices must EXACTLY match the actual SQL. Off-by-one errors cause subtle bugs.
 
 ### 2. Bulk Operations After Manual Fixes
+
 After fixing DTOs and types, use bulk find/replace for property accesses. Manual fixes are too error-prone for 39 occurrences.
 
 ### 3. Type Annotations vs Runtime
+
 Query result type annotations must match actual column names returned by SELECT statements. TypeScript can't validate SQL strings.
 
 ### 4. Test-Driven Migration
+
 Run tests frequently during migration:
+
 - After database changes
 - After DTO changes
 - After service changes
-Immediate feedback prevents compounding errors.
+  Immediate feedback prevents compounding errors.
 
 ### 5. Mock Data Mirrors Schema
+
 Test mocks must be updated alongside schema changes. The `projectRow` mock returning `org_id` when service expected `organization_id` caused test failures.
 
 ## Timeline
@@ -233,16 +266,19 @@ Test mocks must be updated alongside schema changes. The `projectRow` mock retur
 ### Phase 5: Remove Redundant Organization ID (Nov 11, 2025)
 
 **Migration:**
-- `apps/server-nest/src/migrations/1762897877000-RemoveOrgIdFromProjectTables.ts`
+
+- `apps/server/src/migrations/1762897877000-RemoveOrgIdFromProjectTables.ts`
   - Drops `organization_id` column from `branches`, `chat_conversations`, `object_type_schemas`
   - Includes rollback migration
 
 **Entity Updates:**
+
 - `src/entities/branch.entity.ts` - Removed `organizationId` field
 - `src/entities/chat-conversation.entity.ts` - Removed `organizationId` field
 - `src/entities/object-type-schema.entity.ts` - Removed `organizationId` field
 
 **Service Updates:**
+
 - `src/modules/graph/branch.service.ts`
   - Removed `organization_id` from `CreateBranchDto`
   - Updated INSERT to use 3 params instead of 4
@@ -253,6 +289,7 @@ Test mocks must be updated alongside schema changes. The `projectRow` mock retur
 - `src/modules/graph/graph.types.ts` - Updated `BranchRow` type
 
 **Test Updates (All Passing):**
+
 - `tests/unit/graph/branch.service.spec.ts` - 6 tests ✅
 - `tests/unit/chat/chat.service.spec.ts` - 18 tests ✅
 - `tests/unit/type-registry/type-registry.service.spec.ts` - 24 tests ✅
@@ -260,11 +297,13 @@ Test mocks must be updated alongside schema changes. The `projectRow` mock retur
 ### Previous Phases
 
 #### Database
-- `apps/server-nest/migrations/20241022_rename_org_id_to_organization_id.sql`
-- `apps/server-nest/migrations/20241023_rename_org_id_to_organization_id_phase2.sql`
-- `apps/server-nest/migrations/20241024_org_id_final_cleanup.sql`
+
+- `apps/server/migrations/20241022_rename_org_id_to_organization_id.sql`
+- `apps/server/migrations/20241023_rename_org_id_to_organization_id_phase2.sql`
+- `apps/server/migrations/20241024_org_id_final_cleanup.sql`
 
 ### TypeScript (13 files)
+
 - `src/modules/extraction-jobs/dto/extraction-job.dto.ts`
 - `src/modules/extraction-jobs/extraction-job.service.ts`
 - `src/modules/graph/dto/create-graph-object.dto.ts`
@@ -278,6 +317,7 @@ Test mocks must be updated alongside schema changes. The `projectRow` mock retur
 - Plus 13 additional files via bulk property access fix
 
 ### Tests (2 files)
+
 - `tests/helpers/fake-graph-db.ts` (critical bug fix)
 - `src/modules/projects/__tests__/projects.service.spec.ts`
 
