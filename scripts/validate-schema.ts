@@ -32,7 +32,7 @@ if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath });
 }
 
-const MIGRATIONS_DIR = path.join(PROJECT_ROOT, 'apps/server/migrations');
+const MIGRATIONS_DIR = path.join(PROJECT_ROOT, 'apps/server/src/migrations');
 
 // ANSI colors
 const RED = '\x1b[31m';
@@ -195,10 +195,12 @@ async function checkFunctionExists(
 
 async function getAppliedMigrations(client: Client): Promise<Set<string>> {
   try {
+    // TypeORM uses 'typeorm_migrations' table, not 'schema_migrations'
     const result = await client.query(
-      `SELECT version FROM public.schema_migrations ORDER BY version`
+      `SELECT name FROM public.typeorm_migrations ORDER BY name`
     );
-    return new Set(result.rows.map((r) => r.version));
+    // TypeORM stores full migration names (e.g., "1762934197000-SquashedInitialSchema")
+    return new Set(result.rows.map((r) => r.name));
   } catch (error) {
     // Table doesn't exist yet
     return new Set();
@@ -212,8 +214,10 @@ function getAvailableMigrations(): string[] {
 
   return fs
     .readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith('.sql'))
-    .map((f) => f.replace('.sql', ''))
+    .filter(
+      (f) => f.endsWith('.ts') && !f.endsWith('.d.ts') && f !== 'README.md'
+    )
+    .map((f) => f.replace('.ts', ''))
     .sort();
 }
 
@@ -247,7 +251,7 @@ async function validateSchema(
 
   if (applied.size === 0) {
     console.log(
-      `  ${YELLOW}⚠${NC} No migrations tracked (schema_migrations is empty)`
+      `  ${YELLOW}⚠${NC} No migrations tracked (typeorm_migrations is empty)`
     );
     result.warnings.push('Migration tracking table is empty or missing');
     result.migrationIssues++;
