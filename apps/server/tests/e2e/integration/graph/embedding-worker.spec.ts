@@ -1,13 +1,13 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Test } from '@nestjs/testing';
-import { AppConfigModule } from '../../../src/common/config/config.module';
-import { DatabaseModule } from '../../../src/common/database/database.module';
-import { GraphModule } from '../../../src/modules/graph/graph.module';
-import { GraphService } from '../../../src/modules/graph/graph.service';
-import { EmbeddingJobsService } from '../../../src/modules/graph/embedding-jobs.service';
-import { EmbeddingWorkerService } from '../../../src/modules/graph/embedding-worker.service';
-import { DatabaseService } from '../../../src/common/database/database.service';
-import { ensureEmbeddingJobsTable } from '../../../src/test-utils/ensure-embedding-jobs-table';
+import { AppConfigModule } from '../../../../src/common/config/config.module';
+import { DatabaseModule } from '../../../../src/common/database/database.module';
+import { GraphModule } from '../../../../src/modules/graph/graph.module';
+import { GraphService } from '../../../../src/modules/graph/graph.service';
+import { EmbeddingJobsService } from '../../../../src/modules/graph/embedding-jobs.service';
+import { EmbeddingWorkerService } from '../../../../src/modules/graph/embedding-worker.service';
+import { DatabaseService } from '../../../../src/common/database/database.service';
+import { ensureEmbeddingJobsTable } from '../../../../src/test-utils/ensure-embedding-jobs-table';
 
 // Integration test: enqueue job -> worker processes -> embedding populated.
 

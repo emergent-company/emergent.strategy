@@ -1,22 +1,22 @@
 import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { Module } from '@nestjs/common';
-import { GraphModule } from '../../../src/modules/graph/graph.module';
-import { DatabaseModule } from '../../../src/common/database/database.module';
-import { AppConfigModule } from '../../../src/common/config/config.module';
-import { AppConfigService } from '../../../src/common/config/config.service';
+import { GraphModule } from '../../../../src/modules/graph/graph.module';
+import { DatabaseModule } from '../../../../src/common/database/database.module';
+import { AppConfigModule } from '../../../../src/common/config/config.module';
+import { AppConfigService } from '../../../../src/common/config/config.service';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { DatabaseService } from '../../../src/common/database/database.service';
+import { DatabaseService } from '../../../../src/common/database/database.service';
 import { v4 as uuid } from 'uuid';
 import { randomUUID } from 'crypto';
-import { baseVec, variantVec } from '../../utils/vector-helpers';
-import { DummySha256EmbeddingProvider } from '../../../src/modules/graph/embedding.provider';
-import { GoogleVertexEmbeddingProvider } from '../../../src/modules/graph/google-vertex-embedding.provider';
-import { GraphService } from '../../../src/modules/graph/graph.service';
-import { EmbeddingJobsService } from '../../../src/modules/graph/embedding-jobs.service';
-import { GraphVectorSearchService } from '../../../src/modules/graph/graph-vector-search.service';
-import { GraphObjectsController } from '../../../src/modules/graph/graph.controller';
+import { baseVec, variantVec } from '../../../utils/vector-helpers';
+import { DummySha256EmbeddingProvider } from '../../../../src/modules/graph/embedding.provider';
+import { GoogleVertexEmbeddingProvider } from '../../../../src/modules/graph/google-vertex-embedding.provider';
+import { GraphService } from '../../../../src/modules/graph/graph.service';
+import { EmbeddingJobsService } from '../../../../src/modules/graph/embedding-jobs.service';
+import { GraphVectorSearchService } from '../../../../src/modules/graph/graph-vector-search.service';
+import { GraphObjectsController } from '../../../../src/modules/graph/graph.controller';
 
 // Stub to avoid TypeRegistryModule's repository creation
 @Module({

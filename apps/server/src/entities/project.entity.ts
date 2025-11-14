@@ -1,4 +1,13 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { Org } from './org.entity';
 
 @Entity({ schema: 'kb', name: 'projects' })
 export class Project {
@@ -7,6 +16,10 @@ export class Project {
 
   @Column({ name: 'organization_id', type: 'uuid' })
   organizationId: string;
+
+  @ManyToOne(() => Org, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'organization_id' })
+  organization: Org;
 
   @Column({ type: 'text' })
   name: string;

@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import { describe, it, beforeAll, beforeEach, expect } from 'vitest';
-import { DatabaseService } from '../../../src/common/database/database.service';
-import { SchemaRegistryService } from '../../../src/modules/graph/schema-registry.service';
-import { GraphService } from '../../../src/modules/graph/graph.service';
-import { AppConfigService } from '../../../src/common/config/config.service';
+import { DatabaseService } from '../../../../src/common/database/database.service';
+import { SchemaRegistryService } from '../../../../src/modules/graph/schema-registry.service';
+import { GraphService } from '../../../../src/modules/graph/graph.service';
+import { AppConfigService } from '../../../../src/common/config/config.service';
 import { getTestDbConfig, getTestDbServiceConfig } from '../../e2e/test-db-config';
 
 async function seedProject(db: DatabaseService) {

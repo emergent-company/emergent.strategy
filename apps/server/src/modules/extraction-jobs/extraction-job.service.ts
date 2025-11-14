@@ -201,7 +201,6 @@ export class ExtractionJobService {
     );
 
     const columns: string[] = [
-      'tenant_id',
       schema.projectColumn,
       'source_type',
       'status',
@@ -210,7 +209,6 @@ export class ExtractionJobService {
       'source_id',
     ];
     const values: any[] = [
-      organizationId,
       projectId,
       dto.source_type,
       ExtractionJobStatus.PENDING,
@@ -399,19 +397,19 @@ export class ExtractionJobService {
     }
 
     if (schema.discoveredTypesColumn && dto.discovered_types !== undefined) {
-      // JSONB column requires JSON string
+      // For JSONB columns, must stringify arrays explicitly - pg driver uses PostgreSQL array syntax otherwise
       pushUpdate(
         schema.discoveredTypesColumn,
-        JSON.stringify(dto.discovered_types)
+        dto.discovered_types ? JSON.stringify(dto.discovered_types) : null
       );
     }
 
     if (schema.createdObjectsColumn && dto.created_objects !== undefined) {
       if (schema.createdObjectsIsArray) {
-        // JSONB column requires JSON string
+        // For JSONB columns, must stringify arrays explicitly - pg driver uses PostgreSQL array syntax otherwise
         pushUpdate(
           schema.createdObjectsColumn,
-          JSON.stringify(dto.created_objects)
+          dto.created_objects ? JSON.stringify(dto.created_objects) : null
         );
       } else {
         const count = Array.isArray(dto.created_objects)
@@ -642,7 +640,9 @@ export class ExtractionJobService {
 
     if (schema.createdObjectsColumn) {
       const value = schema.createdObjectsIsArray
-        ? results.created_objects ?? null
+        ? results.created_objects
+          ? JSON.stringify(results.created_objects)
+          : null
         : results.created_objects
         ? results.created_objects.length
         : null;
@@ -657,7 +657,11 @@ export class ExtractionJobService {
       assignments.push(
         `${schema.discoveredTypesColumn} = COALESCE($${idx}, ${schema.discoveredTypesColumn})`
       );
-      params.push(results.discovered_types ?? null);
+      params.push(
+        results.discovered_types
+          ? JSON.stringify(results.discovered_types)
+          : null
+      );
       idx += 1;
     }
 
@@ -1099,14 +1103,44 @@ export class ExtractionJobService {
     const failedItems = info.failedItemsColumn
       ? Number(row[info.failedItemsColumn] ?? 0)
       : 0;
-    const discoveredTypes = info.discoveredTypesColumn
-      ? row[info.discoveredTypesColumn] || []
-      : row.discovered_types || [];
+    let discoveredTypes: string[] = [];
+    if (info.discoveredTypesColumn) {
+      const value = row[info.discoveredTypesColumn];
+      // pg driver automatically parses JSONB as objects/arrays
+      if (Array.isArray(value)) {
+        discoveredTypes = value;
+      } else if (typeof value === 'string') {
+        // Fallback for string representation
+        try {
+          discoveredTypes = JSON.parse(value);
+        } catch {
+          discoveredTypes = [];
+        }
+      } else {
+        discoveredTypes = [];
+      }
+    } else if (Array.isArray(row.discovered_types)) {
+      discoveredTypes = row.discovered_types;
+    }
 
     let createdObjects: string[] = [];
     if (info.createdObjectsColumn) {
       if (info.createdObjectsIsArray) {
-        createdObjects = row[info.createdObjectsColumn] || [];
+        const value = row[info.createdObjectsColumn];
+        this.logger.debug(
+          `Reading created_objects from column '${
+            info.createdObjectsColumn
+          }': type=${typeof value}, value=${JSON.stringify(value)}`
+        );
+        if (typeof value === 'string') {
+          try {
+            createdObjects = JSON.parse(value);
+          } catch {
+            createdObjects = [];
+          }
+        } else if (Array.isArray(value)) {
+          createdObjects = value;
+        }
       } else {
         const count = Number(row[info.createdObjectsColumn] ?? 0);
         createdObjects =

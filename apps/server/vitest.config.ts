@@ -8,26 +8,7 @@ export default defineConfig({
     include: ['tests/unit/**/*.spec.ts'],
     // Exclude all tests requiring external infrastructure (DB, APIs, services)
     // These run via vitest.e2e.config.ts with: npm run test:e2e
-    exclude: [
-      'tests/e2e/**',
-      'tests/integration/**',
-      '**/clickup-real.integration.spec.ts',
-      '**/schema.indexes.spec.ts',
-      // Graph tests requiring database (suffix pattern or explicit)
-      'tests/unit/graph/embedding-worker.backoff.spec.ts',
-      'tests/unit/graph/embedding-worker.spec.ts',
-      'tests/unit/graph/graph-branching.spec.ts',
-      'tests/unit/graph/graph-embedding.enqueue.spec.ts',
-      'tests/unit/graph/graph-fts.search.spec.ts',
-      'tests/unit/graph/graph-relationship.multiplicity.negative.spec.ts',
-      'tests/unit/graph/graph-relationship.multiplicity.spec.ts',
-      'tests/unit/graph/graph-rls.policies.spec.ts',
-      'tests/unit/graph/graph-rls.security.spec.ts',
-      'tests/unit/graph/graph-rls.strict-init.spec.ts',
-      'tests/unit/graph/graph-validation.schema-negative.spec.ts',
-      'tests/unit/graph/graph-validation.spec.ts',
-      'tests/unit/graph/graph-vector.controller.spec.ts', // Requires real database, TypeORM initialization conflicts with vitest module loading
-    ],
+    exclude: ['tests/e2e/**', 'tests/integration/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'lcov'],

@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { Test } from '@nestjs/testing';
-import { AppConfigModule } from '../../../src/common/config/config.module';
-import { DatabaseModule } from '../../../src/common/database/database.module';
-import { GraphModule } from '../../../src/modules/graph/graph.module';
-import { GraphService } from '../../../src/modules/graph/graph.service';
-import { EmbeddingJobsService } from '../../../src/modules/graph/embedding-jobs.service';
-import { EmbeddingWorkerService } from '../../../src/modules/graph/embedding-worker.service';
-import { ensureEmbeddingJobsTable } from '../../../src/test-utils/ensure-embedding-jobs-table';
+import { AppConfigModule } from '../../../../src/common/config/config.module';
+import { DatabaseModule } from '../../../../src/common/database/database.module';
+import { GraphModule } from '../../../../src/modules/graph/graph.module';
+import { GraphService } from '../../../../src/modules/graph/graph.service';
+import { EmbeddingJobsService } from '../../../../src/modules/graph/embedding-jobs.service';
+import { EmbeddingWorkerService } from '../../../../src/modules/graph/embedding-worker.service';
+import { ensureEmbeddingJobsTable } from '../../../../src/test-utils/ensure-embedding-jobs-table';
 
 // Test that a failure during embedding processing triggers backoff (attempt_count increments and job rescheduled)
 

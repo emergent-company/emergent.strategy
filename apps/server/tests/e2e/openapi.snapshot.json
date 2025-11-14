@@ -479,11 +479,6 @@
             },
             "type": "object"
           },
-          "organization_id": {
-            "description": "Organization ID",
-            "example": "550e8400-e29b-41d4-a716-446655440000",
-            "type": "string"
-          },
           "project_id": {
             "description": "Project ID",
             "example": "550e8400-e29b-41d4-a716-446655440001",
@@ -520,7 +515,6 @@
           }
         },
         "required": [
-          "organization_id",
           "project_id",
           "source_type",
           "extraction_config"
@@ -540,6 +534,10 @@
         "type": "object"
       },
       "CreateInviteDto": {
+        "properties": {},
+        "type": "object"
+      },
+      "CreateInviteWithUserDto": {
         "properties": {},
         "type": "object"
       },
@@ -924,14 +922,6 @@
             "description": "Job ID",
             "type": "string"
           },
-          "org_id": {
-            "description": "Legacy organization ID (deprecated)",
-            "type": "string"
-          },
-          "organization_id": {
-            "description": "Organization ID",
-            "type": "string"
-          },
           "processed_items": {
             "description": "Processed items count",
             "type": "number"
@@ -995,7 +985,6 @@
         },
         "required": [
           "id",
-          "organization_id",
           "project_id",
           "source_type",
           "source_metadata",
@@ -4104,6 +4093,91 @@
         ]
       }
     },
+    "/auth/test-passport": {
+      "get": {
+        "operationId": "AuthController_testPassport",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Test passport-zitadel introspection"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "org:read"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Auth"
+        ],
+        "x-required-scopes": [
+          "org:read"
+        ]
+      }
+    },
     "/chat/conversations": {
       "get": {
         "operationId": "ChatController_listConversations",
@@ -5939,6 +6013,15 @@
                 "asc",
                 "desc"
               ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter objects by branch ID. Use \"null\" to search main branch (branch_id IS NULL). Omit to search all branches.",
+            "in": "query",
+            "name": "branch_id",
+            "required": false,
+            "schema": {
               "type": "string"
             }
           }
@@ -7808,6 +7891,36 @@
         ],
         "x-required-scopes": [
           "org:read"
+        ]
+      }
+    },
+    "/invites/with-user": {
+      "post": {
+        "operationId": "InvitesController_createWithUser",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInviteWithUserDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "org:invite:create",
+          "project:invite:create"
         ]
       }
     },
@@ -11396,14 +11509,6 @@
           {
             "in": "query",
             "name": "org_id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "tenant_id",
             "required": true,
             "schema": {
               "type": "string"
