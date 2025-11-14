@@ -155,6 +155,514 @@
         ]
       }
     },
+    "/auth/test-passport": {
+      "get": {
+        "operationId": "AuthController_testPassport",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Test passport-zitadel introspection"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "org:read"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "org:read"
+        ]
+      }
+    },
+    "/user/profile": {
+      "get": {
+        "operationId": "UserProfileController_getSelf",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      },
+      "put": {
+        "operationId": "UserProfileController_updateSelf",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      }
+    },
+    "/user/profile/emails": {
+      "get": {
+        "operationId": "UserProfileController_listEmails",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AlternativeEmailDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      },
+      "post": {
+        "operationId": "UserProfileController_addEmail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddAlternativeEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlternativeEmailDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      }
+    },
+    "/user/profile/emails/{email}": {
+      "delete": {
+        "operationId": "UserProfileController_removeEmail",
+        "parameters": [
+          {
+            "name": "email",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "status": "deleted"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      }
+    },
     "/settings": {
       "get": {
         "operationId": "SettingsController_list",
@@ -1585,14 +2093,6 @@
           },
           {
             "name": "org_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "tenant_id",
             "required": true,
             "in": "query",
             "schema": {
@@ -3677,6 +4177,15 @@
                 "asc",
                 "desc"
               ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "branch_id",
+            "required": false,
+            "in": "query",
+            "description": "Filter objects by branch ID. Use \"null\" to search main branch (branch_id IS NULL). Omit to search all branches.",
+            "schema": {
               "type": "string"
             }
           }
@@ -7798,6 +8307,36 @@
         ]
       }
     },
+    "/invites/with-user": {
+      "post": {
+        "operationId": "InvitesController_createWithUser",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInviteWithUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "org:invite:create",
+          "project:invite:create"
+        ]
+      }
+    },
     "/invites": {
       "post": {
         "operationId": "InvitesController_create",
@@ -7854,429 +8393,6 @@
         ],
         "x-required-scopes": [
           "org:read"
-        ]
-      }
-    },
-    "/user/profile": {
-      "get": {
-        "operationId": "UserProfileController_getSelf",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserProfileDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "bad-request",
-                      "message": "Invalid request"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "forbidden",
-                      "message": "Insufficient permissions"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "internal",
-                      "message": "Unexpected error"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "UserProfile"
-        ]
-      },
-      "put": {
-        "operationId": "UserProfileController_updateSelf",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateUserProfileDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserProfileDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error"
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "forbidden",
-                      "message": "Insufficient permissions"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "internal",
-                      "message": "Unexpected error"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "UserProfile"
-        ]
-      }
-    },
-    "/user/profile/emails": {
-      "get": {
-        "operationId": "UserProfileController_listEmails",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AlternativeEmailDto"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "bad-request",
-                      "message": "Invalid request"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "forbidden",
-                      "message": "Insufficient permissions"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "internal",
-                      "message": "Unexpected error"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "UserProfile"
-        ]
-      },
-      "post": {
-        "operationId": "UserProfileController_addEmail",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AddAlternativeEmailDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AlternativeEmailDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "bad-request",
-                      "message": "Invalid request"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "forbidden",
-                      "message": "Insufficient permissions"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "internal",
-                      "message": "Unexpected error"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "UserProfile"
-        ]
-      }
-    },
-    "/user/profile/emails/{email}": {
-      "delete": {
-        "operationId": "UserProfileController_removeEmail",
-        "parameters": [
-          {
-            "name": "email",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "status": "deleted"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "bad-request",
-                      "message": "Invalid request"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "unauthorized",
-                      "message": "Missing or invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "forbidden",
-                      "message": "Insufficient permissions"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "error": {
-                      "code": "internal",
-                      "message": "Unexpected error"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "UserProfile"
         ]
       }
     },
@@ -9388,6 +9504,132 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "schema:read"
+        ]
+      }
+    },
+    "/user/delete-account": {
+      "post": {
+        "operationId": "UserDeletionController_deleteAccount",
+        "summary": "Delete user account and all data",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Account deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "deleted": {
+                      "type": "object",
+                      "properties": {
+                        "organizations": {
+                          "type": "number"
+                        },
+                        "projects": {
+                          "type": "number"
+                        },
+                        "documents": {
+                          "type": "number"
+                        },
+                        "chunks": {
+                          "type": "number"
+                        },
+                        "embeddings": {
+                          "type": "number"
+                        },
+                        "extractionJobs": {
+                          "type": "number"
+                        },
+                        "graphObjects": {
+                          "type": "number"
+                        },
+                        "integrations": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "duration_ms": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "user"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "account:delete"
+        ]
+      }
+    },
+    "/user/test-cleanup": {
+      "post": {
+        "operationId": "UserDeletionController_testCleanup",
+        "summary": "Clean up test user data (test environments only)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Test data cleaned up successfully"
+          },
+          "403": {
+            "description": "Forbidden - not a test environment or test user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "account:delete"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "user"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-required-scopes": [
+          "account:delete"
         ]
       }
     }
@@ -9457,6 +9699,9 @@
       "name": "Tags"
     },
     {
+      "name": "user"
+    },
+    {
       "name": "UserProfile"
     }
   ],
@@ -9470,6 +9715,77 @@
       }
     },
     "schemas": {
+      "UserProfileDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Internal UUID user id (primary key)",
+            "format": "uuid"
+          },
+          "subjectId": {
+            "type": "string",
+            "description": "Canonical internal user id (subject id, from identity provider) - DEPRECATED: use id",
+            "format": "uuid"
+          },
+          "zitadelUserId": {
+            "type": "object",
+            "description": "Zitadel user ID (external auth provider)"
+          },
+          "firstName": {
+            "type": "object"
+          },
+          "lastName": {
+            "type": "object"
+          },
+          "displayName": {
+            "type": "object",
+            "description": "Display name fallback (explicit) or derived (first + last)"
+          },
+          "phoneE164": {
+            "type": "object",
+            "description": "E.164 formatted phone number, leading + and digits"
+          },
+          "avatarObjectKey": {
+            "type": "object",
+            "description": "Object storage key for avatar (if stored internally)"
+          }
+        },
+        "required": [
+          "id",
+          "subjectId"
+        ]
+      },
+      "UpdateUserProfileDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "AlternativeEmailDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email address (lowercased canonical form)"
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Verification status"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "ISO timestamp created"
+          }
+        },
+        "required": [
+          "email",
+          "verified",
+          "createdAt"
+        ]
+      },
+      "AddAlternativeEmailDto": {
+        "type": "object",
+        "properties": {}
+      },
       "OrgDto": {
         "type": "object",
         "properties": {
@@ -9893,11 +10209,6 @@
       "CreateExtractionJobDto": {
         "type": "object",
         "properties": {
-          "organization_id": {
-            "type": "string",
-            "description": "Organization ID",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          },
           "project_id": {
             "type": "string",
             "description": "Project ID",
@@ -9946,7 +10257,6 @@
           }
         },
         "required": [
-          "organization_id",
           "project_id",
           "source_type",
           "extraction_config"
@@ -9958,10 +10268,6 @@
           "id": {
             "type": "string",
             "description": "Job ID"
-          },
-          "organization_id": {
-            "type": "string",
-            "description": "Organization ID"
           },
           "project_id": {
             "type": "string",
@@ -10076,15 +10382,10 @@
             "format": "date-time",
             "type": "string",
             "description": "Last update timestamp"
-          },
-          "org_id": {
-            "type": "string",
-            "description": "Legacy organization ID (deprecated)"
           }
         },
         "required": [
           "id",
-          "organization_id",
           "project_id",
           "source_type",
           "source_metadata",
@@ -11634,72 +11935,15 @@
         "type": "object",
         "properties": {}
       },
+      "CreateInviteWithUserDto": {
+        "type": "object",
+        "properties": {}
+      },
       "CreateInviteDto": {
         "type": "object",
         "properties": {}
       },
       "AcceptInviteDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "UserProfileDto": {
-        "type": "object",
-        "properties": {
-          "subjectId": {
-            "type": "string",
-            "description": "Canonical internal user id (subject id, from identity provider)",
-            "format": "uuid"
-          },
-          "firstName": {
-            "type": "object"
-          },
-          "lastName": {
-            "type": "object"
-          },
-          "displayName": {
-            "type": "object",
-            "description": "Display name fallback (explicit) or derived (first + last)"
-          },
-          "phoneE164": {
-            "type": "object",
-            "description": "E.164 formatted phone number, leading + and digits"
-          },
-          "avatarObjectKey": {
-            "type": "object",
-            "description": "Object storage key for avatar (if stored internally)"
-          }
-        },
-        "required": [
-          "subjectId"
-        ]
-      },
-      "UpdateUserProfileDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "AlternativeEmailDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "description": "Email address (lowercased canonical form)"
-          },
-          "verified": {
-            "type": "boolean",
-            "description": "Verification status"
-          },
-          "createdAt": {
-            "type": "string",
-            "description": "ISO timestamp created"
-          }
-        },
-        "required": [
-          "email",
-          "verified",
-          "createdAt"
-        ]
-      },
-      "AddAlternativeEmailDto": {
         "type": "object",
         "properties": {}
       },

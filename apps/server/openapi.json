@@ -179,7 +179,19 @@
             }
           },
           "401": {
-            "description": "Missing or invalid bearer token"
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
           },
           "403": {
             "description": "Forbidden",
@@ -189,7 +201,10 @@
                   "example": {
                     "error": {
                       "code": "forbidden",
-                      "message": "Insufficient permissions"
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "org:read"
+                      ]
                     }
                   }
                 }
@@ -219,6 +234,9 @@
           {
             "bearer": []
           }
+        ],
+        "x-required-scopes": [
+          "org:read"
         ]
       }
     },
@@ -4159,6 +4177,15 @@
                 "asc",
                 "desc"
               ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "branch_id",
+            "required": false,
+            "in": "query",
+            "description": "Filter objects by branch ID. Use \"null\" to search main branch (branch_id IS NULL). Omit to search all branches.",
+            "schema": {
               "type": "string"
             }
           }

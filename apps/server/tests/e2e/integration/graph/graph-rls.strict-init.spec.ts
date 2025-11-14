@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Test } from '@nestjs/testing';
-import { DatabaseService } from '../../../src/common/database/database.service';
-import { AppConfigService } from '../../../src/common/config/config.service';
-import { EnvVariables, validate } from '../../../src/common/config/config.schema';
+import { DatabaseService } from '../../../../src/common/database/database.service';
+import { AppConfigService } from '../../../../src/common/config/config.service';
+import { EnvVariables, validate } from '../../../../src/common/config/config.schema';
 import { getTestDbConfig } from '../../e2e/test-db-config';
 
 /**

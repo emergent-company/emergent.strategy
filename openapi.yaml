@@ -89,11 +89,312 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags:
+      tags: &ref_1
         - Auth
       security:
         - bearer: []
       x-required-scopes: *ref_0
+  /auth/test-passport:
+    get:
+      operationId: AuthController_testPassport
+      parameters: []
+      responses:
+        '200':
+          description: Test passport-zitadel introspection
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Missing or invalid bearer token
+          content:
+            application/json:
+              schema:
+                example: &ref_21
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+                    missing_scopes: &ref_2
+                      - org:read
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_1
+      security:
+        - bearer: []
+      x-required-scopes: *ref_2
+  /user/profile:
+    get:
+      operationId: UserProfileController_getSelf
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: &ref_3
+        - UserProfile
+    put:
+      operationId: UserProfileController_updateSelf
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserProfileDto'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileDto'
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_3
+  /user/profile/emails:
+    get:
+      operationId: UserProfileController_listEmails
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AlternativeEmailDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_3
+    post:
+      operationId: UserProfileController_addEmail
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddAlternativeEmailDto'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlternativeEmailDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_3
+  /user/profile/emails/{email}:
+    delete:
+      operationId: UserProfileController_removeEmail
+      parameters:
+        - name: email
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                example:
+                  status: deleted
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_3
   /settings:
     get:
       operationId: SettingsController_list
@@ -143,7 +444,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_1
+      tags: &ref_4
         - Settings
   /settings/{key}:
     get:
@@ -208,7 +509,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_4
     put:
       operationId: SettingsController_update
       parameters:
@@ -269,7 +570,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_1
+      tags: *ref_4
   /orgs:
     get:
       operationId: OrgsController_list
@@ -319,7 +620,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_2
+      tags: &ref_5
         - Orgs
     post:
       operationId: OrgsController_create
@@ -393,7 +694,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_5
   /orgs/{id}:
     get:
       operationId: OrgsController_getOne
@@ -455,7 +756,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_5
     delete:
       operationId: OrgsController_delete
       parameters:
@@ -512,7 +813,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_2
+      tags: *ref_5
   /projects:
     get:
       operationId: ProjectsController_list
@@ -564,7 +865,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_3
+                    missing_scopes: &ref_6
                       - project:read
         '500':
           description: Internal server error
@@ -575,11 +876,11 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_4
+      tags: &ref_7
         - Projects
       security:
         - bearer: []
-      x-required-scopes: *ref_3
+      x-required-scopes: *ref_6
     post:
       operationId: ProjectsController_create
       parameters: []
@@ -623,7 +924,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_5
+                    missing_scopes: &ref_8
                       - org:project:create
         '500':
           description: Internal server error
@@ -634,10 +935,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
+      tags: *ref_7
       security:
         - bearer: []
-      x-required-scopes: *ref_5
+      x-required-scopes: *ref_8
   /projects/{id}:
     get:
       operationId: ProjectsController_getById
@@ -681,7 +982,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_6
+                    missing_scopes: &ref_9
                       - project:read
         '500':
           description: Internal server error
@@ -692,10 +993,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
+      tags: *ref_7
       security:
         - bearer: []
-      x-required-scopes: *ref_6
+      x-required-scopes: *ref_9
     patch:
       operationId: ProjectsController_update
       parameters:
@@ -744,7 +1045,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_7
+                    missing_scopes: &ref_10
                       - project:write
         '500':
           description: Internal server error
@@ -755,10 +1056,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
+      tags: *ref_7
       security:
         - bearer: []
-      x-required-scopes: *ref_7
+      x-required-scopes: *ref_10
     delete:
       operationId: ProjectsController_delete
       parameters:
@@ -802,7 +1103,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_8
+                    missing_scopes: &ref_11
                       - org:project:delete
         '500':
           description: Internal server error
@@ -813,10 +1114,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_4
+      tags: *ref_7
       security:
         - bearer: []
-      x-required-scopes: *ref_8
+      x-required-scopes: *ref_11
   /template-packs:
     post:
       operationId: TemplatePackController_createTemplatePack
@@ -933,11 +1234,6 @@ paths:
           schema:
             type: string
         - name: org_id
-          required: true
-          in: query
-          schema:
-            type: string
-        - name: tenant_id
           required: true
           in: query
           schema:
@@ -1101,7 +1397,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_9
+                    missing_scopes: &ref_12
                       - search:read
         '500':
           description: Internal server error
@@ -1116,7 +1412,7 @@ paths:
         - Search
       security:
         - bearer: []
-      x-required-scopes: *ref_9
+      x-required-scopes: *ref_12
   /documents:
     get:
       operationId: DocumentsController_list
@@ -1175,7 +1471,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_10
+                    missing_scopes: &ref_13
                       - documents:read
         '500':
           description: Internal server error
@@ -1186,11 +1482,11 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_11
+      tags: &ref_14
         - Documents
       security:
         - bearer: []
-      x-required-scopes: *ref_10
+      x-required-scopes: *ref_13
     post:
       operationId: DocumentsController_create
       parameters: []
@@ -1241,7 +1537,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_12
+                    missing_scopes: &ref_15
                       - documents:write
         '500':
           description: Internal server error
@@ -1252,10 +1548,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_11
+      tags: *ref_14
       security:
         - bearer: []
-      x-required-scopes: *ref_12
+      x-required-scopes: *ref_15
   /documents/{id}:
     get:
       operationId: DocumentsController_get
@@ -1300,7 +1596,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_13
+                    missing_scopes: &ref_16
                       - documents:read
         '500':
           description: Internal server error
@@ -1311,10 +1607,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_11
+      tags: *ref_14
       security:
         - bearer: []
-      x-required-scopes: *ref_13
+      x-required-scopes: *ref_16
     delete:
       operationId: DocumentsController_delete
       parameters:
@@ -1326,7 +1622,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_11
+      tags: *ref_14
       security:
         - bearer: []
       x-required-scopes:
@@ -1377,7 +1673,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_14
+                    missing_scopes: &ref_17
                       - chunks:read
         '500':
           description: Internal server error
@@ -1392,7 +1688,7 @@ paths:
         - Chunks
       security:
         - bearer: []
-      x-required-scopes: *ref_14
+      x-required-scopes: *ref_17
   /ingest/upload:
     post:
       operationId: IngestionController_upload
@@ -1443,7 +1739,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_15
+                    missing_scopes: &ref_18
                       - ingest:write
         '500':
           description: Internal server error
@@ -1454,11 +1750,11 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_16
+      tags: &ref_19
         - Ingestion
       security:
         - bearer: []
-      x-required-scopes: *ref_15
+      x-required-scopes: *ref_18
   /ingest/url:
     post:
       operationId: IngestionController_ingestUrl
@@ -1509,7 +1805,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_17
+                    missing_scopes: &ref_20
                       - ingest:write
         '500':
           description: Internal server error
@@ -1520,10 +1816,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_16
+      tags: *ref_19
       security:
         - bearer: []
-      x-required-scopes: *ref_17
+      x-required-scopes: *ref_20
   /admin/extraction-jobs:
     post:
       operationId: ExtractionJobController_createJob
@@ -1550,13 +1846,10 @@ paths:
           content:
             application/json:
               schema:
-                example: &ref_18
-                  error:
-                    code: unauthorized
-                    message: Missing or invalid credentials
-      tags: &ref_19
+                example: *ref_21
+      tags: &ref_22
         - Extraction Jobs
-      security: &ref_20
+      security: &ref_23
         - bearer: []
       x-required-scopes:
         - extraction:write
@@ -1630,9 +1923,9 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
-      tags: *ref_19
-      security: *ref_20
+                example: *ref_21
+      tags: *ref_22
+      security: *ref_23
       x-required-scopes:
         - extraction:read
   /admin/extraction-jobs/{jobId}:
@@ -1659,11 +1952,11 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
+                example: *ref_21
         '404':
           description: Job not found
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_22
+      security: *ref_23
       x-required-scopes:
         - extraction:read
     patch:
@@ -1697,11 +1990,11 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
+                example: *ref_21
         '404':
           description: Job not found
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_22
+      security: *ref_23
       x-required-scopes:
         - extraction:write
     delete:
@@ -1725,11 +2018,11 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
+                example: *ref_21
         '404':
           description: Job not found
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_22
+      security: *ref_23
       x-required-scopes:
         - extraction:write
   /admin/extraction-jobs/{jobId}/retry:
@@ -1760,11 +2053,11 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
+                example: *ref_21
         '404':
           description: Job not found
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_22
+      security: *ref_23
       x-required-scopes:
         - extraction:write
   /admin/extraction-jobs/{jobId}/cancel:
@@ -1793,11 +2086,11 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
+                example: *ref_21
         '404':
           description: Job not found
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_22
+      security: *ref_23
       x-required-scopes:
         - extraction:write
   /admin/extraction-jobs/projects/{projectId}/bulk-cancel:
@@ -1831,9 +2124,9 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
-      tags: *ref_19
-      security: *ref_20
+                example: *ref_21
+      tags: *ref_22
+      security: *ref_23
       x-required-scopes:
         - extraction:write
   /admin/extraction-jobs/projects/{projectId}/bulk-delete:
@@ -1867,9 +2160,9 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
-      tags: *ref_19
-      security: *ref_20
+                example: *ref_21
+      tags: *ref_22
+      security: *ref_23
       x-required-scopes:
         - extraction:write
   /admin/extraction-jobs/projects/{projectId}/bulk-retry:
@@ -1903,9 +2196,9 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
-      tags: *ref_19
-      security: *ref_20
+                example: *ref_21
+      tags: *ref_22
+      security: *ref_23
       x-required-scopes:
         - extraction:write
   /admin/extraction-jobs/projects/{projectId}/statistics:
@@ -1960,9 +2253,9 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
-      tags: *ref_19
-      security: *ref_20
+                example: *ref_21
+      tags: *ref_22
+      security: *ref_23
       x-required-scopes:
         - extraction:read
   /admin/extraction-jobs/_debug/available-models:
@@ -2005,8 +2298,8 @@ paths:
                           type: number
         '500':
           description: Failed to fetch models from API
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_22
+      security: *ref_23
       x-required-scopes:
         - extraction:read
   /admin/extraction-jobs/{jobId}/logs:
@@ -2110,13 +2403,13 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_21
+                    missing_scopes: &ref_24
                       - extraction:read
         '404':
           description: Extraction job not found
-      tags: *ref_19
-      security: *ref_20
-      x-required-scopes: *ref_21
+      tags: *ref_22
+      security: *ref_23
+      x-required-scopes: *ref_24
   /graph/objects:
     post:
       operationId: GraphObjectsController_create
@@ -2133,7 +2426,7 @@ paths:
           description: Created
         '400':
           description: Validation error
-      tags: &ref_22
+      tags: &ref_25
         - Graph
       security:
         - bearer: []
@@ -2181,10 +2474,18 @@ paths:
               - asc
               - desc
             type: string
+        - name: branch_id
+          required: false
+          in: query
+          description: >-
+            Filter objects by branch ID. Use "null" to search main branch (branch_id IS NULL). Omit to search all
+            branches.
+          schema:
+            type: string
       responses:
         '200':
           description: ''
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2226,7 +2527,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2245,7 +2546,7 @@ paths:
                 type: array
                 items:
                   type: string
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2265,7 +2566,7 @@ paths:
           description: ''
         '404':
           description: Not found
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2292,7 +2593,7 @@ paths:
           description: No effective change
         '404':
           description: Not found
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2309,7 +2610,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2353,7 +2654,7 @@ paths:
                           type: boolean
                         error:
                           type: string
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2371,7 +2672,7 @@ paths:
       responses:
         '201':
           description: Restored (new version created)
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2405,7 +2706,7 @@ paths:
                 $ref: '#/components/schemas/ObjectHistoryResponseDto'
         '404':
           description: Not found
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2424,7 +2725,7 @@ paths:
       responses:
         '201':
           description: ''
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2442,7 +2743,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2465,7 +2766,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2482,7 +2783,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2532,7 +2833,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2550,7 +2851,7 @@ paths:
       responses:
         '201':
           description: Restored (new version created)
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2582,7 +2883,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RelationshipHistoryResponseDto'
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2610,7 +2911,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2629,7 +2930,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2648,7 +2949,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2671,7 +2972,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2757,7 +3058,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2823,7 +3124,7 @@ paths:
                       type: array
                       items:
                         type: object
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2848,7 +3149,7 @@ paths:
                 $ref: '#/components/schemas/EmbeddingPolicyResponseDto'
         '400':
           description: Validation error or duplicate policy
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2878,7 +3179,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/EmbeddingPolicyResponseDto'
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2908,7 +3209,7 @@ paths:
                 $ref: '#/components/schemas/EmbeddingPolicyResponseDto'
         '404':
           description: Policy not found
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2945,7 +3246,7 @@ paths:
           description: Validation error
         '404':
           description: Policy not found
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -2970,7 +3271,7 @@ paths:
           description: Policy deleted
         '404':
           description: Policy not found
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -3009,7 +3310,7 @@ paths:
           description: Missing sourceBranchId or validation error
         '404':
           description: Branch not found
-      tags: *ref_22
+      tags: *ref_25
       security:
         - bearer: []
       x-required-scopes:
@@ -3061,7 +3362,7 @@ paths:
                   error:
                     code: product_version_name_exists
                     message: Name already exists
-      tags: &ref_23
+      tags: &ref_26
         - Product Versions
       security:
         - bearer: []
@@ -3097,7 +3398,7 @@ paths:
                       member_count: 42
                       base_product_version_id: null
                   next_cursor: '2025-01-01T00:00:00Z'
-      tags: *ref_23
+      tags: *ref_26
       security:
         - bearer: []
       x-required-scopes:
@@ -3114,7 +3415,7 @@ paths:
       responses:
         '200':
           description: Get product version snapshot
-      tags: *ref_23
+      tags: *ref_26
       security:
         - bearer: []
       x-required-scopes:
@@ -3150,7 +3451,7 @@ paths:
                     removed: 2
                     modified: 10
                     unchanged: 100
-      tags: *ref_23
+      tags: *ref_26
       security:
         - bearer: []
       x-required-scopes:
@@ -3186,7 +3487,7 @@ paths:
                   error:
                     code: tag_name_exists
                     message: Tag name already exists
-      tags: &ref_24
+      tags: &ref_27
         - Tags
       security:
         - bearer: []
@@ -3221,7 +3522,7 @@ paths:
                       description: null
                       created_at: '2025-09-30T00:00:00Z'
                   next_cursor: '2025-09-30T00:00:00Z'
-      tags: *ref_24
+      tags: *ref_27
       security:
         - bearer: []
       x-required-scopes:
@@ -3240,7 +3541,7 @@ paths:
           description: Get tag by ID
         '404':
           description: Tag not found
-      tags: *ref_24
+      tags: *ref_27
       security:
         - bearer: []
       x-required-scopes:
@@ -3264,7 +3565,7 @@ paths:
           description: Update tag
         '404':
           description: Tag not found
-      tags: *ref_24
+      tags: *ref_27
       security:
         - bearer: []
       x-required-scopes:
@@ -3282,7 +3583,7 @@ paths:
           description: Tag deleted
         '404':
           description: Tag not found
-      tags: *ref_24
+      tags: *ref_27
       security:
         - bearer: []
       x-required-scopes:
@@ -3301,7 +3602,7 @@ paths:
           description: Get tag by name
         '404':
           description: Tag not found
-      tags: *ref_24
+      tags: *ref_27
       security:
         - bearer: []
       x-required-scopes:
@@ -3549,7 +3850,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_25
+                    missing_scopes: &ref_28
                       - notifications:read
         '500':
           description: Internal server error
@@ -3560,11 +3861,11 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_26
+      tags: &ref_29
         - Notifications
-      security: &ref_27
+      security: &ref_30
         - bearer: []
-      x-required-scopes: *ref_25
+      x-required-scopes: *ref_28
     delete:
       operationId: NotificationsController_clearAll
       summary: Clear all notifications in a tab
@@ -3608,7 +3909,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_28
+                    missing_scopes: &ref_31
                       - notifications:write
         '500':
           description: Internal server error
@@ -3619,9 +3920,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_26
-      security: *ref_27
-      x-required-scopes: *ref_28
+      tags: *ref_29
+      security: *ref_30
+      x-required-scopes: *ref_31
   /notifications/counts:
     get:
       operationId: NotificationsController_getUnreadCounts
@@ -3657,7 +3958,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_29
+                    missing_scopes: &ref_32
                       - notifications:read
         '500':
           description: Internal server error
@@ -3668,9 +3969,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_26
-      security: *ref_27
-      x-required-scopes: *ref_29
+      tags: *ref_29
+      security: *ref_30
+      x-required-scopes: *ref_32
   /notifications/stats:
     get:
       operationId: NotificationsController_getStats
@@ -3706,7 +4007,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_30
+                    missing_scopes: &ref_33
                       - notifications:read
         '500':
           description: Internal server error
@@ -3717,9 +4018,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_26
-      security: *ref_27
-      x-required-scopes: *ref_30
+      tags: *ref_29
+      security: *ref_30
+      x-required-scopes: *ref_33
   /notifications/{id}/read:
     post:
       operationId: NotificationsController_markRead
@@ -3761,7 +4062,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_31
+                    missing_scopes: &ref_34
                       - notifications:write
         '500':
           description: Internal server error
@@ -3772,9 +4073,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_26
-      security: *ref_27
-      x-required-scopes: *ref_31
+      tags: *ref_29
+      security: *ref_30
+      x-required-scopes: *ref_34
   /notifications/{id}/unread:
     post:
       operationId: NotificationsController_markUnread
@@ -3816,7 +4117,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_32
+                    missing_scopes: &ref_35
                       - notifications:write
         '500':
           description: Internal server error
@@ -3827,9 +4128,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_26
-      security: *ref_27
-      x-required-scopes: *ref_32
+      tags: *ref_29
+      security: *ref_30
+      x-required-scopes: *ref_35
   /notifications/{id}/dismiss:
     post:
       operationId: NotificationsController_dismiss
@@ -3871,7 +4172,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_33
+                    missing_scopes: &ref_36
                       - notifications:write
         '500':
           description: Internal server error
@@ -3882,9 +4183,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_26
-      security: *ref_27
-      x-required-scopes: *ref_33
+      tags: *ref_29
+      security: *ref_30
+      x-required-scopes: *ref_36
   /notifications/{id}:
     delete:
       operationId: NotificationsController_clear
@@ -3926,7 +4227,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_34
+                    missing_scopes: &ref_37
                       - notifications:write
         '500':
           description: Internal server error
@@ -3937,9 +4238,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_26
-      security: *ref_27
-      x-required-scopes: *ref_34
+      tags: *ref_29
+      security: *ref_30
+      x-required-scopes: *ref_37
   /notifications/{id}/unclear:
     post:
       operationId: NotificationsController_unclear
@@ -3981,7 +4282,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_35
+                    missing_scopes: &ref_38
                       - notifications:write
         '500':
           description: Internal server error
@@ -3992,9 +4293,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_26
-      security: *ref_27
-      x-required-scopes: *ref_35
+      tags: *ref_29
+      security: *ref_30
+      x-required-scopes: *ref_38
   /notifications/{id}/snooze:
     post:
       operationId: NotificationsController_snooze
@@ -4042,7 +4343,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_36
+                    missing_scopes: &ref_39
                       - notifications:write
         '500':
           description: Internal server error
@@ -4053,9 +4354,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_26
-      security: *ref_27
-      x-required-scopes: *ref_36
+      tags: *ref_29
+      security: *ref_30
+      x-required-scopes: *ref_39
   /notifications/{id}/unsnooze:
     post:
       operationId: NotificationsController_unsnooze
@@ -4097,7 +4398,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_37
+                    missing_scopes: &ref_40
                       - notifications:write
         '500':
           description: Internal server error
@@ -4108,9 +4409,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_26
-      security: *ref_27
-      x-required-scopes: *ref_37
+      tags: *ref_29
+      security: *ref_30
+      x-required-scopes: *ref_40
   /monitoring/extraction-jobs:
     get:
       operationId: MonitoringController_listExtractionJobs
@@ -4174,9 +4475,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourceListResponseDto'
-      tags: &ref_38
+      tags: &ref_41
         - monitoring
-      security: &ref_39
+      security: &ref_42
         - bearer: []
       x-required-scopes:
         - extraction:read
@@ -4199,8 +4500,8 @@ paths:
                 $ref: '#/components/schemas/ResourceDetailResponseDto'
         '404':
           description: Job not found
-      tags: *ref_38
-      security: *ref_39
+      tags: *ref_41
+      security: *ref_42
       x-required-scopes:
         - extraction:read
   /monitoring/extraction-jobs/{id}/logs:
@@ -4254,8 +4555,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LogEntryDto'
-      tags: *ref_38
-      security: *ref_39
+      tags: *ref_41
+      security: *ref_42
       x-required-scopes:
         - extraction:read
   /monitoring/extraction-jobs/{id}/llm-calls:
@@ -4277,8 +4578,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LLMCallDto'
-      tags: *ref_38
-      security: *ref_39
+      tags: *ref_41
+      security: *ref_42
       x-required-scopes:
         - extraction:read
   /chat/conversations:
@@ -4322,7 +4623,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_40
+                    missing_scopes: &ref_43
                       - chat:use
         '500':
           description: Internal server error
@@ -4333,11 +4634,11 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_41
+      tags: &ref_44
         - Chat
       security:
         - bearer: []
-      x-required-scopes: *ref_40
+      x-required-scopes: *ref_43
     post:
       operationId: ChatController_createConversation
       parameters: []
@@ -4360,7 +4661,7 @@ paths:
                   error:
                     code: bad-request
                     message: message required
-      tags: *ref_41
+      tags: *ref_44
       security:
         - bearer: []
       x-required-scopes:
@@ -4404,7 +4705,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_42
+                    missing_scopes: &ref_45
                       - chat:use
         '404':
           description: Conversation not found
@@ -4424,10 +4725,10 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_41
+      tags: *ref_44
       security:
         - bearer: []
-      x-required-scopes: *ref_42
+      x-required-scopes: *ref_45
     patch:
       operationId: ChatController_rename
       parameters:
@@ -4464,7 +4765,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_41
+      tags: *ref_44
       security:
         - bearer: []
       x-required-scopes:
@@ -4495,7 +4796,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_41
+      tags: *ref_44
       security:
         - bearer: []
       x-required-scopes:
@@ -4565,7 +4866,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_41
+      tags: *ref_44
       security:
         - bearer: []
       x-required-scopes:
@@ -4644,7 +4945,7 @@ paths:
                     message: Missing or invalid credentials
             application/json:
               schema:
-                example: *ref_18
+                example: *ref_21
         '403':
           description: Forbidden
           content:
@@ -4654,7 +4955,7 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_43
+                    missing_scopes: &ref_46
                       - chat:use
         '500':
           description: Internal server error
@@ -4665,10 +4966,28 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_41
+      tags: *ref_44
       security:
         - bearer: []
-      x-required-scopes: *ref_43
+      x-required-scopes: *ref_46
+  /invites/with-user:
+    post:
+      operationId: InvitesController_createWithUser
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInviteWithUserDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      x-required-scopes:
+        - org:invite:create
+        - project:invite:create
   /invites:
     post:
       operationId: InvitesController_create
@@ -4704,258 +5023,6 @@ paths:
         - bearer: []
       x-required-scopes:
         - org:read
-  /user/profile:
-    get:
-      operationId: UserProfileController_getSelf
-      parameters: []
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserProfileDto'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: bad-request
-                    message: Invalid request
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: unauthorized
-                    message: Missing or invalid credentials
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: forbidden
-                    message: Insufficient permissions
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: internal
-                    message: Unexpected error
-      tags: &ref_44
-        - UserProfile
-    put:
-      operationId: UserProfileController_updateSelf
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateUserProfileDto'
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserProfileDto'
-        '400':
-          description: Validation error
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: unauthorized
-                    message: Missing or invalid credentials
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: forbidden
-                    message: Insufficient permissions
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: internal
-                    message: Unexpected error
-      tags: *ref_44
-  /user/profile/emails:
-    get:
-      operationId: UserProfileController_listEmails
-      parameters: []
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AlternativeEmailDto'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: bad-request
-                    message: Invalid request
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: unauthorized
-                    message: Missing or invalid credentials
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: forbidden
-                    message: Insufficient permissions
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: internal
-                    message: Unexpected error
-      tags: *ref_44
-    post:
-      operationId: UserProfileController_addEmail
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AddAlternativeEmailDto'
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AlternativeEmailDto'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: bad-request
-                    message: Invalid request
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: unauthorized
-                    message: Missing or invalid credentials
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: forbidden
-                    message: Insufficient permissions
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: internal
-                    message: Unexpected error
-      tags: *ref_44
-  /user/profile/emails/{email}:
-    delete:
-      operationId: UserProfileController_removeEmail
-      parameters:
-        - name: email
-          required: true
-          in: path
-          schema:
-            type: string
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                example:
-                  status: deleted
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: bad-request
-                    message: Invalid request
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: unauthorized
-                    message: Missing or invalid credentials
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: forbidden
-                    message: Insufficient permissions
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                example:
-                  error:
-                    code: internal
-                    message: Unexpected error
-      tags: *ref_44
   /graph/search:
     post:
       operationId: GraphSearchController_search
@@ -4987,13 +5054,13 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_45
+                    missing_scopes: &ref_47
                       - graph:search:read
       tags:
         - Graph
       security:
         - bearer: []
-      x-required-scopes: *ref_45
+      x-required-scopes: *ref_47
   /discovery-jobs/projects/{projectId}/start:
     post:
       operationId: DiscoveryJobController_startDiscovery
@@ -5087,10 +5154,10 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
-      tags: &ref_46
+                example: *ref_21
+      tags: &ref_48
         - Integrations
-      security: &ref_47
+      security: &ref_49
         - bearer: []
       x-required-scopes:
         - integrations:read
@@ -5108,9 +5175,9 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
-      tags: *ref_46
-      security: *ref_47
+                example: *ref_21
+      tags: *ref_48
+      security: *ref_49
       x-required-scopes:
         - integrations:read
     post:
@@ -5134,11 +5201,11 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
+                example: *ref_21
         '409':
           description: Integration already exists for this project
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_48
+      security: *ref_49
       x-required-scopes:
         - integrations:write
   /integrations/{name}:
@@ -5161,11 +5228,11 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
+                example: *ref_21
         '404':
           description: Integration not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_48
+      security: *ref_49
       x-required-scopes:
         - integrations:read
     put:
@@ -5195,11 +5262,11 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
+                example: *ref_21
         '404':
           description: Integration not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_48
+      security: *ref_49
       x-required-scopes:
         - integrations:write
     delete:
@@ -5221,11 +5288,11 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
+                example: *ref_21
         '404':
           description: Integration not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_48
+      security: *ref_49
       x-required-scopes:
         - integrations:write
   /integrations/{name}/public:
@@ -5248,11 +5315,11 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
+                example: *ref_21
         '404':
           description: Integration not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_48
+      security: *ref_49
       x-required-scopes:
         - integrations:read
   /integrations/{name}/test:
@@ -5275,11 +5342,11 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
+                example: *ref_21
         '404':
           description: Integration not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_48
+      security: *ref_49
       x-required-scopes:
         - integrations:write
   /integrations/{name}/sync/stream:
@@ -5297,8 +5364,8 @@ paths:
       responses:
         '200':
           description: SSE stream started
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_48
+      security: *ref_49
       x-required-scopes:
         - integrations:write
   /integrations/{name}/sync:
@@ -5323,11 +5390,11 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
+                example: *ref_21
         '404':
           description: Integration not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_48
+      security: *ref_49
       x-required-scopes:
         - integrations:write
   /integrations/clickup/structure:
@@ -5344,11 +5411,11 @@ paths:
           content:
             application/json:
               schema:
-                example: *ref_18
+                example: *ref_21
         '404':
           description: ClickUp integration not found or not configured
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_48
+      security: *ref_49
       x-required-scopes:
         - integrations:read
   /integrations/clickup/spaces/{spaceId}:
@@ -5368,8 +5435,8 @@ paths:
           description: Space details retrieved successfully
         '404':
           description: ClickUp integration not found or space not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_48
+      security: *ref_49
       x-required-scopes:
         - integrations:read
   /integrations/clickup/folders/{folderId}:
@@ -5389,8 +5456,8 @@ paths:
           description: Folder details retrieved successfully
         '404':
           description: ClickUp integration not found or folder not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_48
+      security: *ref_49
       x-required-scopes:
         - integrations:read
   /mcp/schema/version:
@@ -5426,13 +5493,13 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_48
+                    missing_scopes: &ref_50
                       - schema:read
-      tags: &ref_49
+      tags: &ref_51
         - MCP
-      security: &ref_50
+      security: &ref_52
         - bearer: []
-      x-required-scopes: *ref_48
+      x-required-scopes: *ref_50
   /mcp/schema/changelog:
     get:
       operationId: McpController_getSchemaChangelog
@@ -5476,11 +5543,11 @@ paths:
                   error:
                     code: forbidden
                     message: Insufficient permissions
-                    missing_scopes: &ref_51
+                    missing_scopes: &ref_53
                       - schema:read
-      tags: *ref_49
-      security: *ref_50
-      x-required-scopes: *ref_51
+      tags: *ref_51
+      security: *ref_52
+      x-required-scopes: *ref_53
   /mcp/rpc:
     post:
       operationId: McpServerController_handleRpc
@@ -5619,6 +5686,78 @@ paths:
         - MCP Server (JSON-RPC 2.0)
       security:
         - bearer: []
+      x-required-scopes:
+        - schema:read
+  /user/delete-account:
+    post:
+      operationId: UserDeletionController_deleteAccount
+      summary: Delete user account and all data
+      parameters: []
+      responses:
+        '200':
+          description: Account deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  deleted:
+                    type: object
+                    properties:
+                      organizations:
+                        type: number
+                      projects:
+                        type: number
+                      documents:
+                        type: number
+                      chunks:
+                        type: number
+                      embeddings:
+                        type: number
+                      extractionJobs:
+                        type: number
+                      graphObjects:
+                        type: number
+                      integrations:
+                        type: number
+                  duration_ms:
+                    type: number
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example: *ref_21
+      tags: &ref_54
+        - user
+      security: &ref_55
+        - bearer: []
+      x-required-scopes:
+        - account:delete
+  /user/test-cleanup:
+    post:
+      operationId: UserDeletionController_testCleanup
+      summary: Clean up test user data (test environments only)
+      parameters: []
+      responses:
+        '200':
+          description: Test data cleaned up successfully
+        '403':
+          description: Forbidden - not a test environment or test user
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+                    missing_scopes: &ref_56
+                      - account:delete
+      tags: *ref_54
+      security: *ref_55
+      x-required-scopes: *ref_56
 info:
   title: Spec Server API
   description: >-
@@ -5646,6 +5785,7 @@ tags:
   - name: Notifications
   - name: Product Versions
   - name: Tags
+  - name: user
   - name: UserProfile
 servers: []
 components:
@@ -5655,6 +5795,58 @@ components:
       bearerFormat: JWT
       type: http
   schemas:
+    UserProfileDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Internal UUID user id (primary key)
+          format: uuid
+        subjectId:
+          type: string
+          description: 'Canonical internal user id (subject id, from identity provider) - DEPRECATED: use id'
+          format: uuid
+        zitadelUserId:
+          type: object
+          description: Zitadel user ID (external auth provider)
+        firstName:
+          type: object
+        lastName:
+          type: object
+        displayName:
+          type: object
+          description: Display name fallback (explicit) or derived (first + last)
+        phoneE164:
+          type: object
+          description: E.164 formatted phone number, leading + and digits
+        avatarObjectKey:
+          type: object
+          description: Object storage key for avatar (if stored internally)
+      required:
+        - id
+        - subjectId
+    UpdateUserProfileDto:
+      type: object
+      properties: {}
+    AlternativeEmailDto:
+      type: object
+      properties:
+        email:
+          type: string
+          description: Email address (lowercased canonical form)
+        verified:
+          type: boolean
+          description: Verification status
+        createdAt:
+          type: string
+          description: ISO timestamp created
+      required:
+        - email
+        - verified
+        - createdAt
+    AddAlternativeEmailDto:
+      type: object
+      properties: {}
     OrgDto:
       type: object
       properties:
@@ -5996,10 +6188,6 @@ components:
     CreateExtractionJobDto:
       type: object
       properties:
-        organization_id:
-          type: string
-          description: Organization ID
-          example: 550e8400-e29b-41d4-a716-446655440000
         project_id:
           type: string
           description: Project ID
@@ -6037,7 +6225,6 @@ components:
           description: User subject ID (canonical internal user ID)
           example: 550e8400-e29b-41d4-a716-446655440003
       required:
-        - organization_id
         - project_id
         - source_type
         - extraction_config
@@ -6047,9 +6234,6 @@ components:
         id:
           type: string
           description: Job ID
-        organization_id:
-          type: string
-          description: Organization ID
         project_id:
           type: string
           description: Project ID
@@ -6136,12 +6320,8 @@ components:
           format: date-time
           type: string
           description: Last update timestamp
-        org_id:
-          type: string
-          description: Legacy organization ID (deprecated)
       required:
         - id
-        - organization_id
         - project_id
         - source_type
         - source_metadata
@@ -7313,54 +7493,13 @@ components:
     GetChatStreamErrorFrame:
       type: object
       properties: {}
+    CreateInviteWithUserDto:
+      type: object
+      properties: {}
     CreateInviteDto:
       type: object
       properties: {}
     AcceptInviteDto:
-      type: object
-      properties: {}
-    UserProfileDto:
-      type: object
-      properties:
-        subjectId:
-          type: string
-          description: Canonical internal user id (subject id, from identity provider)
-          format: uuid
-        firstName:
-          type: object
-        lastName:
-          type: object
-        displayName:
-          type: object
-          description: Display name fallback (explicit) or derived (first + last)
-        phoneE164:
-          type: object
-          description: E.164 formatted phone number, leading + and digits
-        avatarObjectKey:
-          type: object
-          description: Object storage key for avatar (if stored internally)
-      required:
-        - subjectId
-    UpdateUserProfileDto:
-      type: object
-      properties: {}
-    AlternativeEmailDto:
-      type: object
-      properties:
-        email:
-          type: string
-          description: Email address (lowercased canonical form)
-        verified:
-          type: boolean
-          description: Verification status
-        createdAt:
-          type: string
-          description: ISO timestamp created
-      required:
-        - email
-        - verified
-        - createdAt
-    AddAlternativeEmailDto:
       type: object
       properties: {}
     GraphSearchFiltersDto:

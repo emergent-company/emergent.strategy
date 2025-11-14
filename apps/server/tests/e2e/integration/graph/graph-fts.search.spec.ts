@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { Test } from '@nestjs/testing';
-import { GraphModule } from '../../../src/modules/graph/../graph/graph.module';
-import { DatabaseModule } from '../../../src/common/database/database.module';
-import { AppConfigModule } from '../../../src/common/config/config.module';
-import { GraphService } from '../../../src/modules/graph/../graph/graph.service';
+import { GraphModule } from '../../../../src/modules/graph/../graph/graph.module';
+import { DatabaseModule } from '../../../../src/common/database/database.module';
+import { AppConfigModule } from '../../../../src/common/config/config.module';
+import { GraphService } from '../../../../src/modules/graph/../graph/graph.service';
 
 // Basic FTS search tests verifying ranking & filtering using inline-populated tsvector.
 // Relies on autoInit to build schema in test mode.

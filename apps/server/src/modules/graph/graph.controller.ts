@@ -120,6 +120,13 @@ export class GraphObjectsController {
     description:
       'Chronological direction (asc=oldest→newest, desc=newest→oldest). Default asc.',
   })
+  @ApiQuery({
+    name: 'branch_id',
+    required: false,
+    type: String,
+    description:
+      'Filter objects by branch ID. Use "null" to search main branch (branch_id IS NULL). Omit to search all branches.',
+  })
   searchObjects(
     @Query('type') type?: string,
     @Query('key') key?: string,
@@ -127,6 +134,7 @@ export class GraphObjectsController {
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
     @Query('order') order?: string,
+    @Query('branch_id') branch_id?: string,
     @Req() req?: any
   ) {
     const parsedLimit = limit ? parseInt(limit, 10) : 20;
@@ -137,6 +145,14 @@ export class GraphObjectsController {
     const orgId = (req?.headers['x-org-id'] as string | undefined) || undefined;
     const projectId =
       (req?.headers['x-project-id'] as string | undefined) || undefined;
+
+    // Parse branch_id: handle 'null' string as actual null
+    let parsedBranchId: string | null | undefined = undefined;
+    if (branch_id !== undefined) {
+      parsedBranchId =
+        branch_id === 'null' || branch_id === '' ? null : branch_id;
+    }
+
     return this.service.searchObjects(
       {
         type,
@@ -145,6 +161,7 @@ export class GraphObjectsController {
         limit: parsedLimit,
         cursor,
         order: ord,
+        branch_id: parsedBranchId,
         organization_id: orgId,
         project_id: projectId,
       },

@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import { describe, it, beforeAll, expect } from 'vitest';
-import { DatabaseService } from '../../../src/common/database/database.service';
-import { SchemaRegistryService } from '../../../src/modules/graph/schema-registry.service';
-import { GraphService } from '../../../src/modules/graph/graph.service';
-import { AppConfigService } from '../../../src/common/config/config.service';
+import { DatabaseService } from '../../../../src/common/database/database.service';
+import { SchemaRegistryService } from '../../../../src/modules/graph/schema-registry.service';
+import { GraphService } from '../../../../src/modules/graph/graph.service';
+import { AppConfigService } from '../../../../src/common/config/config.service';
 import { getTestDbServiceConfig } from '../../e2e/test-db-config';
 
 /** Negative schema validation test using object_type_schemas table */

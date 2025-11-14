@@ -233,6 +233,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         this.logger.log('Skipping migrations (SKIP_MIGRATIONS=1)');
       }
 
+      // Setup RLS policies after migrations
+      await this.setupRlsPolicies();
+
       // Post-schema: switch to non-bypass role (no-op if already non-bypass)
       try {
         await this.switchToRlsApplicationRole();
@@ -377,6 +380,72 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       );
 
       throw new Error(`Migration failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Setup Row-Level Security (RLS) policies for graph tables.
+   * This method:
+   * 1. Enables RLS on graph_objects and graph_relationships tables
+   * 2. Creates canonical policies for SELECT, INSERT, UPDATE, DELETE operations
+   * 3. Policies filter data based on app.current_project_id session variable
+   */
+  private async setupRlsPolicies(): Promise<void> {
+    if (!this.dataSource) {
+      this.logger.error(
+        'Cannot setup RLS policies - DataSource not initialized'
+      );
+      return;
+    }
+
+    try {
+      this.logger.log('Setting up RLS policies...');
+
+      // Enable RLS on tables
+      await this.dataSource.query(`
+        DO $$ BEGIN
+          ALTER TABLE kb.graph_objects ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE kb.graph_relationships ENABLE ROW LEVEL SECURITY;
+          BEGIN EXECUTE 'ALTER TABLE kb.graph_objects FORCE ROW LEVEL SECURITY'; EXCEPTION WHEN others THEN END;
+          BEGIN EXECUTE 'ALTER TABLE kb.graph_relationships FORCE ROW LEVEL SECURITY'; EXCEPTION WHEN others THEN END;
+        END $$;
+      `);
+
+      // Define the policy predicate for multi-tenant isolation
+      // Graph tables only have project_id (not organization_id), so we filter by project context only
+      // No context set = see all (for system operations/admin)
+      // Project set = see only that project's objects
+      const graphPolicyPredicate =
+        "(COALESCE(current_setting('app.current_project_id', true),'') = '' OR project_id::text = current_setting('app.current_project_id', true))";
+
+      // Create policies using the existing method
+      await this.ensureCanonicalGraphPolicies(
+        (sql: string) => this.dataSource!.query(sql),
+        '[RLS Setup]',
+        graphPolicyPredicate
+      );
+
+      // Verify policies were created
+      const result = await this.dataSource.query<{ policyname: string }>(
+        "SELECT policyname FROM pg_policies WHERE schemaname='kb' AND tablename IN ('graph_objects','graph_relationships')"
+      );
+      const policyCount = Array.isArray(result) ? result.length : 0;
+
+      if (policyCount === 8) {
+        this.logger.log(
+          `✓ RLS policies setup complete (${policyCount} policies created)`
+        );
+      } else {
+        this.logger.warn(
+          `⚠ RLS policies incomplete: expected 8, got ${policyCount}`
+        );
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`✗ RLS policy setup failed: ${errorMessage}`);
+      // Don't throw - allow application to start but log the error
+      // Tests will catch this via health check
     }
   }
 
