@@ -13,9 +13,9 @@ import {
 import { Project } from './project.entity';
 
 @Entity({ schema: 'kb', name: 'graph_objects' })
-@Index(['projectId', 'type', 'key'], {
+@Index(['projectId', 'branchId', 'type', 'key'], {
   unique: true,
-  where: 'deleted_at IS NULL',
+  where: 'deleted_at IS NULL AND supersedes_id IS NULL AND key IS NOT NULL',
 })
 @Index(['canonicalId'])
 @Index(['type'])

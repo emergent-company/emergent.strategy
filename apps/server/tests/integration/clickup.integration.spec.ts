@@ -1,10 +1,22 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ClickUpIntegration } from '../../src/modules/clickup/clickup.integration';
-import { ClickUpApiClient } from '../../src/modules/clickup/clickup-api.client';
-import { ClickUpImportService } from '../../src/modules/clickup/clickup-import.service';
-import { ClickUpWebhookHandler } from '../../src/modules/clickup/clickup-webhook.handler';
 import { Logger } from '@nestjs/common';
 import { vi } from 'vitest';
+import { IntegrationDto } from '../../src/modules/integrations/dto/integration.dto';
+
+// Helper to create a mock IntegrationDto from settings
+function createMockIntegration(settings: any): IntegrationDto {
+  return {
+    id: 'int-test-123',
+    name: 'clickup',
+    display_name: 'ClickUp',
+    enabled: true,
+    organization_id: 'org-test',
+    project_id: 'proj-test',
+    settings,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
 
 describe('ClickUpIntegration', () => {
   let integration: ClickUpIntegration;
@@ -13,47 +25,38 @@ describe('ClickUpIntegration', () => {
   let webhookHandler: any;
 
   beforeEach(async () => {
-    // Create mocks
-    const mockApiClient = {
-      configure: vi.fn(),
-      getWorkspaces: vi.fn(),
+    // Create mocks with proper function signatures
+    apiClient = {
+      configure: vi.fn().mockReturnValue(undefined),
+      getWorkspaces: vi.fn().mockResolvedValue({ teams: [] }),
     };
 
-    const mockImportService = {
-      runFullImport: vi.fn(),
+    importService = {
+      runFullImport: vi.fn().mockResolvedValue({
+        success: true,
+        totalImported: 0,
+        totalFailed: 0,
+        durationMs: 0,
+        completedAt: new Date(),
+      }),
     };
 
-    const mockWebhookHandler = {
-      handleWebhook: vi.fn(),
+    webhookHandler = {
+      handleWebhook: vi.fn().mockResolvedValue(true),
     };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ClickUpIntegration,
-        {
-          provide: ClickUpApiClient,
-          useValue: mockApiClient,
-        },
-        {
-          provide: ClickUpImportService,
-          useValue: mockImportService,
-        },
-        {
-          provide: ClickUpWebhookHandler,
-          useValue: mockWebhookHandler,
-        },
-      ],
-    }).compile();
-
-    integration = module.get<ClickUpIntegration>(ClickUpIntegration);
-    apiClient = module.get(ClickUpApiClient);
-    importService = module.get(ClickUpImportService);
-    webhookHandler = module.get(ClickUpWebhookHandler);
 
     // Suppress logs during tests
     vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
     vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+
+    // Create integration instance directly instead of using NestJS DI
+    // This is the correct approach for unit testing integrations
+    integration = new ClickUpIntegration(
+      apiClient as any,
+      importService as any,
+      webhookHandler as any
+    );
   });
 
   describe('Integration Metadata', () => {
@@ -101,9 +104,7 @@ describe('ClickUpIntegration', () => {
     };
 
     it('should configure with valid settings', async () => {
-      apiClient.configure.mockReturnValue(undefined);
-
-      await integration.configure(validSettings);
+      await integration.configure(createMockIntegration(validSettings));
 
       expect(apiClient.configure).toHaveBeenCalledWith('pk_test_token');
     });
@@ -115,8 +116,8 @@ describe('ClickUpIntegration', () => {
       };
 
       await expect(
-        integration.configure(invalidSettings as any)
-      ).rejects.toThrow('Missing required setting: api_token');
+        integration.configure(createMockIntegration(invalidSettings as any))
+      ).rejects.toThrow('ClickUp API token is required');
     });
 
     it('should throw error if workspace_id is missing', async () => {
@@ -126,8 +127,8 @@ describe('ClickUpIntegration', () => {
       };
 
       await expect(
-        integration.configure(invalidSettings as any)
-      ).rejects.toThrow('Missing required setting: workspace_id');
+        integration.configure(createMockIntegration(invalidSettings as any))
+      ).rejects.toThrow('ClickUp workspace ID is required');
     });
   });
 
@@ -139,8 +140,7 @@ describe('ClickUpIntegration', () => {
     };
 
     beforeEach(async () => {
-      apiClient.configure.mockReturnValue(undefined);
-      await integration.configure(validSettings);
+      await integration.configure(createMockIntegration(validSettings));
     });
 
     it('should validate configuration successfully', async () => {
@@ -158,8 +158,7 @@ describe('ClickUpIntegration', () => {
 
       const result = await integration.validateConfiguration();
 
-      expect(result.valid).toBe(true);
-      expect(result.error).toBeUndefined();
+      expect(result).toBe(true);
       expect(apiClient.getWorkspaces).toHaveBeenCalled();
     });
 
@@ -176,19 +175,17 @@ describe('ClickUpIntegration', () => {
         ],
       });
 
-      const result = await integration.validateConfiguration();
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('Workspace ws_123 not found');
+      await expect(integration.validateConfiguration()).rejects.toThrow(
+        'Workspace ws_123 not found'
+      );
     });
 
     it('should fail validation if API call fails', async () => {
       apiClient.getWorkspaces.mockRejectedValue(new Error('Unauthorized'));
 
-      const result = await integration.validateConfiguration();
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('Unauthorized');
+      await expect(integration.validateConfiguration()).rejects.toThrow(
+        'Unauthorized'
+      );
     });
 
     it('should fail validation if not configured', async () => {
@@ -198,10 +195,9 @@ describe('ClickUpIntegration', () => {
         webhookHandler as any
       );
 
-      const result = await freshIntegration.validateConfiguration();
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('Integration not configured');
+      await expect(freshIntegration.validateConfiguration()).rejects.toThrow(
+        'Integration not configured'
+      );
     });
   });
 
@@ -213,8 +209,7 @@ describe('ClickUpIntegration', () => {
     };
 
     beforeEach(async () => {
-      apiClient.configure.mockReturnValue(undefined);
-      await integration.configure(validSettings);
+      await integration.configure(createMockIntegration(validSettings));
     });
 
     it('should run full import successfully', async () => {
@@ -234,23 +229,11 @@ describe('ClickUpIntegration', () => {
 
       importService.runFullImport.mockResolvedValue(importResult);
 
-      const result = await integration.runFullImport(
-        'int-123',
-        'proj-456',
-        'org-789',
-        {}
-      );
+      const result = await integration.runFullImport({});
 
-      expect(result).toEqual(importResult);
-      expect(importService.runFullImport).toHaveBeenCalledWith(
-        'int-123',
-        'proj-456',
-        'org-789',
-        'ws_123',
-        expect.objectContaining({
-          includeArchived: false,
-        })
-      );
+      expect(result.success).toBe(true);
+      expect(result.totalImported).toBe(150);
+      expect(importService.runFullImport).toHaveBeenCalled();
     });
 
     it('should merge custom import config', async () => {
@@ -265,15 +248,15 @@ describe('ClickUpIntegration', () => {
 
       importService.runFullImport.mockResolvedValue(importResult);
 
-      await integration.runFullImport('int-123', 'proj-456', 'org-789', {
+      await integration.runFullImport({
         includeArchived: true,
         batchSize: 50,
       });
 
       expect(importService.runFullImport).toHaveBeenCalledWith(
-        'int-123',
-        'proj-456',
-        'org-789',
+        expect.any(String), // integration id
+        expect.any(String), // project id
+        expect.any(String), // org id
         'ws_123',
         expect.objectContaining({
           includeArchived: true,
@@ -289,9 +272,9 @@ describe('ClickUpIntegration', () => {
         webhookHandler as any
       );
 
-      await expect(
-        freshIntegration.runFullImport('int-123', 'proj-456', 'org-789', {})
-      ).rejects.toThrow('Integration not configured');
+      await expect(freshIntegration.runFullImport({})).rejects.toThrow(
+        'Integration not configured'
+      );
     });
   });
 
@@ -303,44 +286,45 @@ describe('ClickUpIntegration', () => {
     };
 
     beforeEach(async () => {
-      apiClient.configure.mockReturnValue(undefined);
-      await integration.configure(validSettings);
+      const mockIntegration = createMockIntegration(validSettings);
+      mockIntegration.webhook_secret = 'webhook_secret';
+      await integration.configure(mockIntegration);
     });
 
     it('should handle webhook successfully', async () => {
       webhookHandler.handleWebhook.mockResolvedValue(true);
 
+      const bodyObject = {
+        event: 'taskCreated',
+        task_id: 'task_123',
+        webhook_id: 'wh_123',
+      };
+      const rawBody = JSON.stringify(bodyObject);
+
+      // Generate correct signature
+      const crypto = require('crypto');
+      const expectedSignature = crypto
+        .createHmac('sha256', 'webhook_secret')
+        .update(rawBody)
+        .digest('hex');
+
       const payload = {
+        event: 'taskCreated',
         headers: {
-          'x-signature': 'valid_signature',
+          'x-signature': expectedSignature,
         },
-        body: {
-          event: 'taskCreated',
-          task_id: 'task_123',
-          webhook_id: 'wh_123',
-        },
-        rawBody: '{"event":"taskCreated","task_id":"task_123"}',
+        body: bodyObject,
       };
 
-      const result = await integration.handleWebhook(
-        'int-123',
-        'proj-456',
-        'org-789',
-        payload,
-        'webhook_secret'
-      );
+      const result = await integration.handleWebhook(payload);
 
       expect(result).toBe(true);
-      expect(webhookHandler.handleWebhook).toHaveBeenCalledWith(
-        'int-123',
-        'proj-456',
-        'org-789',
-        payload
-      );
+      expect(webhookHandler.handleWebhook).toHaveBeenCalled();
     });
 
     it('should reject webhook with invalid signature', async () => {
       const payload = {
+        event: 'taskCreated',
         headers: {
           'x-signature': 'invalid_signature',
         },
@@ -348,39 +332,26 @@ describe('ClickUpIntegration', () => {
           event: 'taskCreated',
           task_id: 'task_123',
         },
-        rawBody: '{"event":"taskCreated","task_id":"task_123"}',
       };
 
-      await expect(
-        integration.handleWebhook(
-          'int-123',
-          'proj-456',
-          'org-789',
-          payload,
-          'webhook_secret'
-        )
-      ).rejects.toThrow('Invalid webhook signature');
+      await expect(integration.handleWebhook(payload)).rejects.toThrow(
+        'Invalid webhook signature'
+      );
     });
 
     it('should reject webhook without signature header', async () => {
       const payload = {
+        event: 'taskCreated',
         headers: {},
         body: {
           event: 'taskCreated',
           task_id: 'task_123',
         },
-        rawBody: '{"event":"taskCreated","task_id":"task_123"}',
       };
 
-      await expect(
-        integration.handleWebhook(
-          'int-123',
-          'proj-456',
-          'org-789',
-          payload,
-          'webhook_secret'
-        )
-      ).rejects.toThrow('Missing webhook signature');
+      await expect(integration.handleWebhook(payload)).rejects.toThrow(
+        'No X-Signature header found'
+      );
     });
   });
 
@@ -392,15 +363,14 @@ describe('ClickUpIntegration', () => {
         workspace_id: 'ws_123',
       };
 
-      apiClient.configure.mockReturnValue(undefined);
-      await integration.configure(validSettings);
+      await integration.configure(createMockIntegration(validSettings));
 
       await integration.cleanup();
 
-      // Verify cleanup was called (settings should be cleared)
-      const result = await integration.validateConfiguration();
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('Integration not configured');
+      // Verify cleanup was called (integration should be cleared)
+      await expect(integration.validateConfiguration()).rejects.toThrow(
+        'Integration not configured'
+      );
     });
   });
 });

@@ -42,6 +42,7 @@ export class AuthController {
   @Get('test-passport')
   @UseGuards(PassportAuthGuard('zitadel'))
   @ApiBearerAuth()
+  @Scopes('org:read')
   @ApiOkResponse({ description: 'Test passport-zitadel introspection' })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token' })
   @ApiStandardErrors({})

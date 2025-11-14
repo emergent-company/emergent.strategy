@@ -48,4 +48,8 @@ export class CreateGraphObjectDto {
   @IsOptional()
   @IsUUID()
   project_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  branch_id?: string;
 }

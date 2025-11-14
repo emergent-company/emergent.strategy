@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import { describe, it, beforeAll, beforeEach, afterAll, expect } from 'vitest';
-import { GraphService } from '../../../src/modules/graph/graph.service';
-import { DatabaseService } from '../../../src/common/database/database.service';
-import { AppConfigService } from '../../../src/common/config/config.service';
+import { GraphService } from '../../../../src/modules/graph/graph.service';
+import { DatabaseService } from '../../../../src/common/database/database.service';
+import { AppConfigService } from '../../../../src/common/config/config.service';
 import { withMultiplicities } from '../helpers/helpers/schema-registry.stub';
 import { getTestDbServiceConfig } from '../../e2e/test-db-config';
 
