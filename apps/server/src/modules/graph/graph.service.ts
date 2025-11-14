@@ -42,7 +42,6 @@ import {
 import { evaluatePredicates } from './predicate-evaluator';
 import { buildTemporalFilterClause } from './temporal-filter.util';
 import { pruneGraphResult, FieldStrategy } from './utils/field-pruning.util';
-import { buildExpirationFilterClause } from './utils/expiration-filter.util';
 import { GraphVectorSearchService } from './graph-vector-search.service';
 
 type GraphTenantContext = {
@@ -1621,46 +1620,20 @@ export class GraphService {
           filters.push(`h.branch_id IS NOT DISTINCT FROM $${idx}`);
         }
         // Head selection restricted to FTS matches first, then filter deleted heads; rank computed on head row's fts vector.
-        const expirationClause = buildExpirationFilterClause('h');
-        const buildSql = (
-          expirationFilter: string,
-          includeExpirationColumn: boolean
-        ) => {
-          const columnList = `o.id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.status, o.properties, o.labels, o.deleted_at, o.created_at, o.fts, o.embedding, o.embedding_updated_at${
-            includeExpirationColumn ? ', o.expires_at' : ''
-          }`;
-          return `WITH heads AS (
-              SELECT DISTINCT ON (o.canonical_id) ${columnList}
+        const sql = `WITH heads AS (
+              SELECT DISTINCT ON (o.canonical_id) o.id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.status, o.properties, o.labels, o.deleted_at, o.created_at, o.fts, o.embedding, o.embedding_updated_at
               FROM kb.graph_objects o
               WHERE o.fts @@ websearch_to_tsquery('simple', $1)
               ORDER BY o.canonical_id, o.version DESC
           )
           SELECT *, ts_rank(fts, websearch_to_tsquery('simple', $1)) AS rank
           FROM heads h
-          WHERE h.deleted_at IS NULL AND ${expirationFilter} ${
+          WHERE h.deleted_at IS NULL ${
             filters.length ? 'AND ' + filters.join(' AND ') : ''
           }
           ORDER BY rank DESC, created_at DESC
           LIMIT ${limit}`;
-        };
-        let res;
-        try {
-          res = await this.db.query<any>(
-            buildSql(expirationClause, true),
-            params
-          );
-        } catch (error: any) {
-          if (
-            error?.code === '42703' &&
-            typeof error?.message === 'string' &&
-            error.message.includes('expires_at')
-          ) {
-            // Backward compatibility: older minimal schemas may lack expires_at. Retry without expiration filter.
-            res = await this.db.query<any>(buildSql('TRUE', false), params);
-          } else {
-            throw error;
-          }
-        }
+        const res = await this.db.query<any>(sql, params);
         const items = res.rows.map((r: any) => {
           const { rank, fts: _fts, ...rest } = r; // strip internal vector
           return { ...rest, rank } as GraphObjectDto & { rank: number };
@@ -2060,32 +2033,10 @@ export class GraphService {
         objectQueryParams.push(...temporalFilter.params);
       }
 
-      // Exclude expired objects (Phase 3 Task 7c)
-      // Backward compatibility: older minimal schemas may lack expires_at column
-      objectQueryParts.push('AND ' + buildExpirationFilterClause('o'));
-
-      let objRes;
-      try {
-        objRes = await this.db.query<GraphObjectRow>(
-          objectQueryParts.join(' '),
-          objectQueryParams
-        );
-      } catch (error: any) {
-        if (
-          error?.code === '42703' &&
-          typeof error?.message === 'string' &&
-          error.message.includes('expires_at')
-        ) {
-          // Retry without expiration filter for backward compatibility
-          const partsWithoutExpiration = objectQueryParts.slice(0, -1);
-          objRes = await this.db.query<GraphObjectRow>(
-            partsWithoutExpiration.join(' '),
-            objectQueryParams
-          );
-        } else {
-          throw error;
-        }
-      }
+      const objRes = await this.db.query<GraphObjectRow>(
+        objectQueryParts.join(' '),
+        objectQueryParams
+      );
       if (!objRes.rowCount) continue;
       const row = objRes.rows[0];
       if (
@@ -2258,30 +2209,10 @@ export class GraphService {
             nextNodeParams.push(...nodeTemporalFilter.params);
           }
 
-          // Exclude expired objects (Phase 3 Task 7c)
-          nextNodeQueryParts.push('AND ' + buildExpirationFilterClause('o'));
-
-          let nextObjRes: any;
-          try {
-            nextObjRes = await this.db.query<GraphObjectRow>(
-              nextNodeQueryParts.join(' '),
-              nextNodeParams
-            );
-          } catch (error: any) {
-            if (
-              error?.code === '42703' &&
-              error.message.includes('expires_at')
-            ) {
-              // Backward compatibility: retry without expiration filter
-              nextNodeQueryParts.pop(); // Remove the expiration clause
-              nextObjRes = await this.db.query<GraphObjectRow>(
-                nextNodeQueryParts.join(' '),
-                nextNodeParams
-              );
-            } else {
-              throw error;
-            }
-          }
+          const nextObjRes = await this.db.query<GraphObjectRow>(
+            nextNodeQueryParts.join(' '),
+            nextNodeParams
+          );
           if (!nextObjRes.rowCount) continue;
           const nextRow = nextObjRes.rows[0];
           if (
@@ -2567,27 +2498,10 @@ export class GraphService {
         objQueryParams.push(...temporalFilter.params);
       }
 
-      // Exclude expired objects (Phase 3 Task 7c)
-      objQueryParts.push('AND ' + buildExpirationFilterClause('o'));
-
-      let objRes: any;
-      try {
-        objRes = await this.db.query<GraphObjectRow>(
-          objQueryParts.join(' '),
-          objQueryParams
-        );
-      } catch (error: any) {
-        if (error?.code === '42703' && error.message.includes('expires_at')) {
-          // Backward compatibility: retry without expiration filter
-          objQueryParts.pop(); // Remove the expiration clause
-          objRes = await this.db.query<GraphObjectRow>(
-            objQueryParts.join(' '),
-            objQueryParams
-          );
-        } else {
-          throw error;
-        }
-      }
+      const objRes = await this.db.query<GraphObjectRow>(
+        objQueryParts.join(' '),
+        objQueryParams
+      );
       if (!objRes.rowCount) continue;
       const row = objRes.rows[0];
       if (
