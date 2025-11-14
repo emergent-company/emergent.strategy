@@ -12,7 +12,6 @@ export interface GraphObjectRow {
   properties: any;
   labels: string[];
   deleted_at?: string | null;
-  expires_at?: string | null; // Phase 3 Task 7c: TTL-based expiration
   change_summary?: any | null;
   content_hash?: string | null; // base64 encoded
   fts?: string | null; // tsvector not normally selected; optional for debug
