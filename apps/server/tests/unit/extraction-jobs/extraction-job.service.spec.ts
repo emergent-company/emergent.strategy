@@ -177,8 +177,8 @@ describe('ExtractionJobService', () => {
       );
       expect(insertCall).toBeTruthy();
       const [, params] = insertCall!;
+      // Note: organization_id is NOT included because the mock schema doesn't have orgColumn
       expect(params).toEqual([
-        mockOrganizationId, // tenant_id
         mockProjectId,
         ExtractionSourceType.DOCUMENT,
         ExtractionJobStatus.PENDING,
