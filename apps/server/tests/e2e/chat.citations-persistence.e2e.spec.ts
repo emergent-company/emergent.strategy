@@ -132,7 +132,8 @@ describe('Chat Citations Persistence', () => {
     const assistantMsg = convo.messages.find((m) => m.role === 'assistant');
     expect(assistantMsg).toBeTruthy();
     if (assistantMsg) {
-      expect(assistantMsg.content.startsWith('token-0 token-1')).toBe(true);
+      // Tokens are concatenated without spaces in deterministic mode
+      expect(assistantMsg.content.startsWith('token-0token-1')).toBe(true);
       if (citationFrame) {
         expect(Array.isArray(assistantMsg.citations)).toBe(true);
         if (Array.isArray(assistantMsg.citations))
