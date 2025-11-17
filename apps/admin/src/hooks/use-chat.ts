@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAuth } from '@/contexts/auth';
+import { useAuth } from '@/contexts/useAuth';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
 import type {

@@ -1,7 +1,6 @@
 ---
 description: Check logs looking for the recent error
 agent: build
-model: google/gemini-2.5-pro
 ---
 
 Check the all logs by executing:

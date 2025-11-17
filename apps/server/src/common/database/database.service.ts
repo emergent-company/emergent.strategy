@@ -491,8 +491,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             rowSecurity: wildcard ? 'on (wildcard)' : 'on (scoped)',
           });
         }
+        // Use true for local (transaction-scoped) rather than false (session-scoped)
+        // This prevents tenant context pollution across connection pool reuse
         await queryRunner.query(
-          'SELECT set_config($1,$2,false), set_config($3,$4,false), set_config($5,$6,false)',
+          'SELECT set_config($1,$2,true), set_config($3,$4,true), set_config($5,$6,true)',
           [
             'app.current_organization_id',
             effectiveOrg,
@@ -629,8 +631,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
           rowSecurity: wildcard ? 'on (wildcard)' : 'on (scoped)',
         });
       }
+      // Use true for local (transaction-scoped) rather than false (session-scoped)
+      // This prevents tenant context pollution across connection pool reuse
       await queryRunner.query(
-        'SELECT set_config($1,$2,false), set_config($3,$4,false), set_config($5,$6,false)',
+        'SELECT set_config($1,$2,true), set_config($3,$4,true), set_config($5,$6,true)',
         [
           'app.current_organization_id',
           orgId,
@@ -895,8 +899,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     try {
       const orgSetting = orgId ?? '';
       const projectSetting = projectId ?? '';
+      // Use true for local (transaction-scoped) rather than false (session-scoped)
+      // This prevents tenant context pollution across connection pool reuse
       await this.dataSource.query(
-        'SELECT set_config($1,$2,false), set_config($3,$4,false), set_config($5,$6,false)',
+        'SELECT set_config($1,$2,true), set_config($3,$4,true), set_config($5,$6,true)',
         [
           'app.current_organization_id',
           orgSetting,
