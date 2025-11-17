@@ -107,9 +107,23 @@ The Chrome DevTools MCP allows AI assistants to inspect a running Chrome instanc
 
    This launches Chrome with remote debugging on port 9222 (configurable via `CHROME_DEBUG_PORT` environment variable).
 
-2. **Test your application manually** in the Chrome window that opens.
+2. **Check if Chrome debug is already running** (optional):
 
-3. **When you encounter an issue**, ask your AI assistant to help:
+   ```bash
+   npm run chrome:debug:status
+   ```
+
+   Or directly:
+
+   ```bash
+   ./scripts/start-chrome-debug.sh --status
+   ```
+
+   The script tracks running instances and prevents starting multiple Chrome debug sessions on the same port.
+
+3. **Test your application manually** in the Chrome window that opens.
+
+4. **When you encounter an issue**, ask your AI assistant to help:
 
    - "Check the browser console for errors"
    - "What network requests failed?"
@@ -117,7 +131,7 @@ The Chrome DevTools MCP allows AI assistants to inspect a running Chrome instanc
    - "Show me performance metrics for the current page"
    - "What's in local storage?"
 
-4. **AI assistants automatically connect** to the Chrome instance via the MCP server and can provide insights based on real browser state.
+5. **AI assistants automatically connect** to the Chrome instance via the MCP server and can provide insights based on real browser state.
 
 **Important notes:**
 
