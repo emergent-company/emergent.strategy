@@ -7,9 +7,11 @@ Users currently cannot delete documents from the system. The existing DELETE end
 ## What Changes
 
 - Add pre-deletion impact analysis endpoint that returns counts of all related entities that will be deleted
+- **For bulk deletion, return per-document impact breakdown in addition to aggregate totals**
 - Enhance DELETE /documents/:id endpoint to support cascade deletion with query parameter options
 - Add bulk DELETE /documents endpoint for deleting multiple documents in a single request
 - Implement frontend confirmation modal showing full deletion summary before execution
+- **For bulk deletion, display per-document breakdown grouped by filename with collapsible sections**
 - Add row-level delete action in documents table action menu
 - Add bulk delete action in documents table mass actions toolbar
 - Ensure `documents:delete` scope is properly enforced on all deletion endpoints

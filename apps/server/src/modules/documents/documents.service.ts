@@ -253,6 +253,407 @@ export class DocumentsService {
     return (result.affected ?? 0) > 0;
   }
 
+  /**
+   * Get deletion impact analysis for a single document
+   */
+  async getDeletionImpact(documentId: string): Promise<{
+    document: { id: string; name: string; createdAt: string };
+    impact: {
+      chunks: number;
+      extractionJobs: number;
+      graphObjects: number;
+      graphRelationships: number;
+      notifications: number;
+    };
+  } | null> {
+    // Get document info
+    const doc = await this.documentRepository.findOne({
+      where: { id: documentId },
+      select: ['id', 'filename', 'sourceUrl', 'createdAt'],
+    });
+
+    if (!doc) {
+      return null;
+    }
+
+    // Count chunks
+    const chunksCount = await this.dataSource.query(
+      `SELECT COUNT(*)::int as count FROM kb.chunks WHERE document_id = $1`,
+      [documentId]
+    );
+
+    // Count extraction jobs
+    const jobsResult = await this.dataSource.query(
+      `SELECT COUNT(*)::int as count FROM kb.object_extraction_jobs WHERE document_id = $1`,
+      [documentId]
+    );
+
+    // Get extraction job IDs for this document
+    const jobIdsResult = await this.dataSource.query(
+      `SELECT id FROM kb.object_extraction_jobs WHERE document_id = $1`,
+      [documentId]
+    );
+    const jobIds = jobIdsResult.map((row: any) => row.id);
+
+    // Count graph objects created by these extraction jobs
+    let objectsCount = 0;
+    let objectIds: string[] = [];
+    if (jobIds.length > 0) {
+      const objectsResult = await this.dataSource.query(
+        `SELECT COUNT(*)::int as count FROM kb.graph_objects WHERE extraction_job_id = ANY($1)`,
+        [jobIds]
+      );
+      objectsCount = objectsResult[0]?.count || 0;
+
+      // Get object IDs for relationship counting
+      const objectIdsResult = await this.dataSource.query(
+        `SELECT id FROM kb.graph_objects WHERE extraction_job_id = ANY($1)`,
+        [jobIds]
+      );
+      objectIds = objectIdsResult.map((row: any) => row.id);
+    }
+
+    // Count graph relationships involving these objects
+    let relationshipsCount = 0;
+    if (objectIds.length > 0) {
+      const relationshipsResult = await this.dataSource.query(
+        `SELECT COUNT(*)::int as count FROM kb.graph_relationships 
+         WHERE src_id = ANY($1) OR dst_id = ANY($1)`,
+        [objectIds]
+      );
+      relationshipsCount = relationshipsResult[0]?.count || 0;
+    }
+
+    // Count notifications referencing this document
+    const notificationsResult = await this.dataSource.query(
+      `SELECT COUNT(*)::int as count FROM kb.notifications 
+       WHERE related_resource_type = 'document' AND related_resource_id = $1`,
+      [documentId]
+    );
+
+    return {
+      document: {
+        id: doc.id,
+        name: doc.filename || doc.sourceUrl || 'unknown',
+        createdAt: doc.createdAt.toISOString(),
+      },
+      impact: {
+        chunks: chunksCount[0]?.count || 0,
+        extractionJobs: jobsResult[0]?.count || 0,
+        graphObjects: objectsCount,
+        graphRelationships: relationshipsCount,
+        notifications: notificationsResult[0]?.count || 0,
+      },
+    };
+  }
+
+  /**
+   * Get bulk deletion impact analysis for multiple documents
+   */
+  async getBulkDeletionImpact(documentIds: string[]): Promise<{
+    totalDocuments: number;
+    impact: {
+      chunks: number;
+      extractionJobs: number;
+      graphObjects: number;
+      graphRelationships: number;
+      notifications: number;
+    };
+    documents?: Array<{
+      document: { id: string; name: string; createdAt: string };
+      impact: {
+        chunks: number;
+        extractionJobs: number;
+        graphObjects: number;
+        graphRelationships: number;
+        notifications: number;
+      };
+    }>;
+  }> {
+    if (documentIds.length === 0) {
+      return {
+        totalDocuments: 0,
+        impact: {
+          chunks: 0,
+          extractionJobs: 0,
+          graphObjects: 0,
+          graphRelationships: 0,
+          notifications: 0,
+        },
+        documents: [],
+      };
+    }
+
+    // Get per-document impact by calling getDeletionImpact for each document
+    const perDocumentImpacts = await Promise.all(
+      documentIds.map(async (docId) => {
+        const impact = await this.getDeletionImpact(docId);
+        return impact;
+      })
+    );
+
+    // Filter out null results (documents that don't exist)
+    const validImpacts = perDocumentImpacts.filter((impact) => impact !== null);
+
+    // Aggregate total impact
+    const totalImpact = validImpacts.reduce(
+      (acc, curr) => {
+        if (curr) {
+          acc.chunks += curr.impact.chunks;
+          acc.extractionJobs += curr.impact.extractionJobs;
+          acc.graphObjects += curr.impact.graphObjects;
+          acc.graphRelationships += curr.impact.graphRelationships;
+          acc.notifications += curr.impact.notifications;
+        }
+        return acc;
+      },
+      {
+        chunks: 0,
+        extractionJobs: 0,
+        graphObjects: 0,
+        graphRelationships: 0,
+        notifications: 0,
+      }
+    );
+
+    return {
+      totalDocuments: validImpacts.length,
+      impact: totalImpact,
+      documents: validImpacts as Array<{
+        document: { id: string; name: string; createdAt: string };
+        impact: {
+          chunks: number;
+          extractionJobs: number;
+          graphObjects: number;
+          graphRelationships: number;
+          notifications: number;
+        };
+      }>,
+    };
+  }
+
+  /**
+   * Delete document with full cascade (hard delete)
+   */
+  async deleteWithCascade(documentId: string): Promise<{
+    status: 'deleted';
+    summary: {
+      chunks: number;
+      extractionJobs: number;
+      graphObjects: number;
+      graphRelationships: number;
+      notifications: number;
+    };
+  }> {
+    return await this.dataSource.transaction(async (manager) => {
+      const summary = {
+        chunks: 0,
+        extractionJobs: 0,
+        graphObjects: 0,
+        graphRelationships: 0,
+        notifications: 0,
+      };
+
+      // 1. Get extraction job IDs for this document
+      const jobIdsResult = await manager.query(
+        `SELECT id FROM kb.object_extraction_jobs WHERE document_id = $1`,
+        [documentId]
+      );
+      const jobIds = jobIdsResult.map((row: any) => row.id);
+
+      // 2. Get graph object IDs created by these extraction jobs
+      let objectIds: string[] = [];
+      if (jobIds.length > 0) {
+        const objectIdsResult = await manager.query(
+          `SELECT id FROM kb.graph_objects WHERE extraction_job_id = ANY($1)`,
+          [jobIds]
+        );
+        objectIds = objectIdsResult.map((row: any) => row.id);
+      }
+
+      // 3. Delete notifications referencing this document
+      const notificationsResult = await manager.query(
+        `DELETE FROM kb.notifications 
+         WHERE related_resource_type = 'document' AND related_resource_id = $1`,
+        [documentId]
+      );
+      summary.notifications = notificationsResult[1] || 0;
+
+      // 4. Delete graph relationships involving these objects
+      if (objectIds.length > 0) {
+        const relationshipsResult = await manager.query(
+          `DELETE FROM kb.graph_relationships 
+           WHERE src_id = ANY($1) OR dst_id = ANY($1)`,
+          [objectIds]
+        );
+        summary.graphRelationships = relationshipsResult[1] || 0;
+      }
+
+      // 5. Delete graph objects created by these extraction jobs
+      if (jobIds.length > 0) {
+        const objectsResult = await manager.query(
+          `DELETE FROM kb.graph_objects WHERE extraction_job_id = ANY($1)`,
+          [jobIds]
+        );
+        summary.graphObjects = objectsResult[1] || 0;
+      }
+
+      // 6. Delete extraction jobs for this document
+      if (jobIds.length > 0) {
+        const jobsResult = await manager.query(
+          `DELETE FROM kb.object_extraction_jobs WHERE document_id = $1`,
+          [documentId]
+        );
+        summary.extractionJobs = jobsResult[1] || 0;
+      }
+
+      // 7. Count chunks before deletion (for summary)
+      const chunksCountResult = await manager.query(
+        `SELECT COUNT(*)::int as count FROM kb.chunks WHERE document_id = $1`,
+        [documentId]
+      );
+      summary.chunks = chunksCountResult[0]?.count || 0;
+
+      // 8. Delete document (chunks will be CASCADE deleted by FK constraint)
+      await manager.query(`DELETE FROM kb.documents WHERE id = $1`, [
+        documentId,
+      ]);
+
+      return { status: 'deleted' as const, summary };
+    });
+  }
+
+  /**
+   * Bulk delete documents with full cascade (hard delete)
+   */
+  async bulkDeleteWithCascade(documentIds: string[]): Promise<{
+    status: 'deleted' | 'partial';
+    deleted: number;
+    notFound: string[];
+    summary: {
+      chunks: number;
+      extractionJobs: number;
+      graphObjects: number;
+      graphRelationships: number;
+      notifications: number;
+    };
+  }> {
+    if (documentIds.length === 0) {
+      return {
+        status: 'deleted',
+        deleted: 0,
+        notFound: [],
+        summary: {
+          chunks: 0,
+          extractionJobs: 0,
+          graphObjects: 0,
+          graphRelationships: 0,
+          notifications: 0,
+        },
+      };
+    }
+
+    return await this.dataSource.transaction(async (manager) => {
+      // Check which documents exist
+      const existingDocsResult = await manager.query(
+        `SELECT id FROM kb.documents WHERE id = ANY($1)`,
+        [documentIds]
+      );
+      const existingIds = existingDocsResult.map((row: any) => row.id);
+      const notFound = documentIds.filter((id) => !existingIds.includes(id));
+
+      const summary = {
+        chunks: 0,
+        extractionJobs: 0,
+        graphObjects: 0,
+        graphRelationships: 0,
+        notifications: 0,
+      };
+
+      if (existingIds.length === 0) {
+        return {
+          status: 'partial' as const,
+          deleted: 0,
+          notFound,
+          summary,
+        };
+      }
+
+      // 1. Get extraction job IDs for these documents
+      const jobIdsResult = await manager.query(
+        `SELECT id FROM kb.object_extraction_jobs WHERE document_id = ANY($1)`,
+        [existingIds]
+      );
+      const jobIds = jobIdsResult.map((row: any) => row.id);
+
+      // 2. Get graph object IDs created by these extraction jobs
+      let objectIds: string[] = [];
+      if (jobIds.length > 0) {
+        const objectIdsResult = await manager.query(
+          `SELECT id FROM kb.graph_objects WHERE extraction_job_id = ANY($1)`,
+          [jobIds]
+        );
+        objectIds = objectIdsResult.map((row: any) => row.id);
+      }
+
+      // 3. Delete notifications referencing these documents
+      const notificationsResult = await manager.query(
+        `DELETE FROM kb.notifications 
+         WHERE related_resource_type = 'document' AND related_resource_id = ANY($1)`,
+        [existingIds]
+      );
+      summary.notifications = notificationsResult[1] || 0;
+
+      // 4. Delete graph relationships involving these objects
+      if (objectIds.length > 0) {
+        const relationshipsResult = await manager.query(
+          `DELETE FROM kb.graph_relationships 
+           WHERE src_id = ANY($1) OR dst_id = ANY($1)`,
+          [objectIds]
+        );
+        summary.graphRelationships = relationshipsResult[1] || 0;
+      }
+
+      // 5. Delete graph objects created by these extraction jobs
+      if (jobIds.length > 0) {
+        const objectsResult = await manager.query(
+          `DELETE FROM kb.graph_objects WHERE extraction_job_id = ANY($1)`,
+          [jobIds]
+        );
+        summary.graphObjects = objectsResult[1] || 0;
+      }
+
+      // 6. Delete extraction jobs for these documents
+      if (jobIds.length > 0) {
+        const jobsResult = await manager.query(
+          `DELETE FROM kb.object_extraction_jobs WHERE document_id = ANY($1)`,
+          [existingIds]
+        );
+        summary.extractionJobs = jobsResult[1] || 0;
+      }
+
+      // 7. Count chunks before deletion (for summary)
+      const chunksCountResult = await manager.query(
+        `SELECT COUNT(*)::int as count FROM kb.chunks WHERE document_id = ANY($1)`,
+        [existingIds]
+      );
+      summary.chunks = chunksCountResult[0]?.count || 0;
+
+      // 8. Delete documents (chunks will be CASCADE deleted by FK constraint)
+      await manager.query(`DELETE FROM kb.documents WHERE id = ANY($1)`, [
+        existingIds,
+      ]);
+
+      return {
+        status:
+          notFound.length > 0 ? ('partial' as const) : ('deleted' as const),
+        deleted: existingIds.length,
+        notFound,
+        summary,
+      };
+    });
+  }
+
   decodeCursor(cursor?: string): { createdAt: string; id: string } | undefined {
     if (!cursor) return undefined;
     try {
