@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   UseGuards,
   Request,
   HttpCode,
@@ -13,15 +14,19 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
+  ApiOkResponse,
 } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import { Scopes } from '../auth/scopes.decorator';
 import { UserDeletionService, DeletionResult } from './user-deletion.service';
+import { UserAccessService } from './user-access.service';
+import { OrgWithProjectsDto } from './dto/user-access.dto';
 
 /**
- * Controller for user account deletion.
+ * Controller for user-related endpoints.
  *
  * Endpoints:
+ * - GET /user/orgs-and-projects - Get user's access tree (orgs + projects with roles)
  * - POST /user/delete-account - Delete authenticated user's account and all data
  * - POST /user/test-cleanup - Delete test user data (test environments only)
  */
@@ -32,7 +37,59 @@ import { UserDeletionService, DeletionResult } from './user-deletion.service';
 export class UserDeletionController {
   private readonly logger = new Logger(UserDeletionController.name);
 
-  constructor(private readonly deletionService: UserDeletionService) {}
+  constructor(
+    private readonly deletionService: UserDeletionService,
+    private readonly accessService: UserAccessService
+  ) {}
+
+  /**
+   * Get the complete access tree for the authenticated user.
+   *
+   * Returns all organizations and projects the user has access to, including:
+   * - User's role in each organization (org_admin, org_member, etc.)
+   * - User's role in each project (project_admin, project_member, etc.)
+   * - Projects nested under their parent organizations
+   *
+   * This endpoint replaces the need for separate calls to GET /orgs and GET /projects.
+   */
+  @Get('orgs-and-projects')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get user access tree (organizations and projects with roles)',
+    description:
+      'Returns hierarchical access tree with orgs and nested projects, including user roles at each level',
+  })
+  @ApiOkResponse({
+    description: 'Access tree retrieved successfully',
+    type: [OrgWithProjectsDto],
+    schema: {
+      example: [
+        {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          name: 'Acme Corp',
+          role: 'org_admin',
+          projects: [
+            {
+              id: '550e8400-e29b-41d4-a716-446655440001',
+              name: 'Product Docs',
+              orgId: '550e8400-e29b-41d4-a716-446655440000',
+              role: 'project_admin',
+            },
+          ],
+        },
+      ],
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getOrgsAndProjects(@Request() req: any): Promise<OrgWithProjectsDto[]> {
+    const userId = req.user?.id; // Use internal UUID, not external sub
+
+    if (!userId) {
+      throw new ForbiddenException('User ID not found in request');
+    }
+
+    return this.accessService.getAccessTree(userId);
+  }
 
   /**
    * Delete the authenticated user's account and all associated data.
