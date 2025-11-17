@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useApi } from '@/hooks/use-api';
-import { useConfig } from '@/contexts/config';
+import { useToast } from '@/hooks/use-toast';
 
 interface KBPurposeEditorProps {
     projectId: string;
@@ -9,6 +9,7 @@ interface KBPurposeEditorProps {
 
 export const KBPurposeEditor: React.FC<KBPurposeEditorProps> = ({ projectId }) => {
     const { fetchJson } = useApi();
+    const { showToast } = useToast();
     const [purpose, setPurpose] = useState('');
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -48,11 +49,10 @@ export const KBPurposeEditor: React.FC<KBPurposeEditorProps> = ({ projectId }) =
             });
 
             // Show success toast
-            const toast = document.createElement('div');
-            toast.className = 'alert alert-success';
-            toast.textContent = 'KB purpose saved successfully';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
+            showToast({
+                message: 'KB purpose saved successfully',
+                variant: 'success',
+            });
         } catch (err) {
             setError('Failed to save KB purpose');
             console.error(err);

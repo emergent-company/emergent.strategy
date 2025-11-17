@@ -6,10 +6,7 @@
     // },
     "playwright": {
       "command": "npx",
-      "args": [
-        "@playwright/mcp@latest",
-        "--timeout-action=10000"
-      ]
+      "args": ["@playwright/mcp@latest", "--timeout-action=10000"]
     },
     "postgres": {
       "command": "npx",
@@ -36,6 +33,15 @@
     "react-daisyui Docs": {
       "type": "sse",
       "url": "https://gitmcp.io/daisyui/react-daisyui"
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--browserUrl",
+        "http://127.0.0.1:9222"
+      ]
     }
   }
 }
