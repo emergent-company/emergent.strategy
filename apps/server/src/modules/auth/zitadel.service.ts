@@ -166,6 +166,21 @@ export class ZitadelService implements OnModuleInit {
   }
 
   /**
+   * Get Zitadel base URL with proper protocol
+   *
+   * Uses ZITADEL_ISSUER if available (includes protocol),
+   * otherwise falls back to ZITADEL_DOMAIN with https://
+   *
+   * @returns Zitadel base URL (e.g., http://localhost:8200 or https://zitadel.example.com)
+   * @private
+   */
+  private getBaseUrl(): string {
+    return (
+      process.env.ZITADEL_ISSUER || `https://${process.env.ZITADEL_DOMAIN}`
+    );
+  }
+
+  /**
    * Get access token for Management API calls
    *
    * Uses API service account (or CLIENT account in legacy mode)
@@ -280,7 +295,7 @@ export class ZitadelService implements OnModuleInit {
     // Cache miss - call Zitadel
     this.logger.debug('Introspection cache miss, calling Zitadel');
     const serviceToken = await this.getClientAccessToken();
-    const apiUrl = `https://${process.env.ZITADEL_DOMAIN}/oauth/v2/introspect`;
+    const apiUrl = `${this.getBaseUrl()}/oauth/v2/introspect`;
 
     try {
       const response = await fetch(apiUrl, {
@@ -340,7 +355,7 @@ export class ZitadelService implements OnModuleInit {
   ): Promise<string> {
     const token = await this.getAccessToken();
     const orgId = process.env.ZITADEL_MAIN_ORG_ID;
-    const apiUrl = `https://${process.env.ZITADEL_DOMAIN}/management/v1/users/human/_import`;
+    const apiUrl = `${this.getBaseUrl()}/management/v1/users/human/_import`;
 
     const payload = {
       userName: email,
@@ -398,7 +413,7 @@ export class ZitadelService implements OnModuleInit {
   async getUserByEmail(email: string): Promise<ZitadelUser | null> {
     const token = await this.getAccessToken();
     const orgId = process.env.ZITADEL_MAIN_ORG_ID;
-    const apiUrl = `https://${process.env.ZITADEL_DOMAIN}/management/v1/users/_search`;
+    const apiUrl = `${this.getBaseUrl()}/management/v1/users/_search`;
 
     const payload = {
       queries: [
@@ -467,7 +482,7 @@ export class ZitadelService implements OnModuleInit {
   ): Promise<void> {
     const token = await this.getAccessToken();
     const orgId = process.env.ZITADEL_MAIN_ORG_ID;
-    const apiUrl = `https://${process.env.ZITADEL_DOMAIN}/management/v1/users/${userId}/metadata`;
+    const apiUrl = `${this.getBaseUrl()}/management/v1/users/${userId}/metadata`;
 
     try {
       // Metadata must be set one key at a time
@@ -523,7 +538,7 @@ export class ZitadelService implements OnModuleInit {
   ): Promise<void> {
     const token = await this.getAccessToken();
     const orgId = process.env.ZITADEL_MAIN_ORG_ID;
-    const apiUrl = `https://${process.env.ZITADEL_DOMAIN}/management/v1/users/${userId}/password/_set`;
+    const apiUrl = `${this.getBaseUrl()}/management/v1/users/${userId}/password/_set`;
 
     const payload = {
       sendMail: true,
@@ -575,7 +590,7 @@ export class ZitadelService implements OnModuleInit {
   ): Promise<void> {
     const token = await this.getAccessToken();
     const orgId = process.env.ZITADEL_MAIN_ORG_ID;
-    const apiUrl = `https://${process.env.ZITADEL_DOMAIN}/management/v1/users/${userId}/grants`;
+    const apiUrl = `${this.getBaseUrl()}/management/v1/users/${userId}/grants`;
 
     const payload = {
       projectId,
@@ -626,7 +641,7 @@ export class ZitadelService implements OnModuleInit {
   ): Promise<string[]> {
     const token = await this.getAccessToken();
     const orgId = process.env.ZITADEL_MAIN_ORG_ID;
-    const apiUrl = `https://${process.env.ZITADEL_DOMAIN}/management/v1/users/${userId}/grants/_search`;
+    const apiUrl = `${this.getBaseUrl()}/management/v1/users/${userId}/grants/_search`;
 
     const payload = {
       queries: [
@@ -927,7 +942,7 @@ export class ZitadelService implements OnModuleInit {
     // Use clientId for both issuer and subject (matches Zitadel SDK implementation)
     const issuer = serviceAccountKey.clientId!;
     const subject = serviceAccountKey.clientId!;
-    const audience = `https://${process.env.ZITADEL_DOMAIN}`;
+    const audience = this.getBaseUrl();
 
     const jwt = await new jose.SignJWT({})
       .setProtectedHeader({
@@ -956,7 +971,7 @@ export class ZitadelService implements OnModuleInit {
   private async requestAccessToken(
     assertion: string
   ): Promise<ZitadelTokenResponse> {
-    const tokenUrl = `https://${process.env.ZITADEL_DOMAIN}/oauth/v2/token`;
+    const tokenUrl = `${this.getBaseUrl()}/oauth/v2/token`;
 
     const response = await fetch(tokenUrl, {
       method: 'POST',
