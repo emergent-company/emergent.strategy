@@ -51,10 +51,86 @@ Track these steps as TODOs and complete them one by one.
 1. **Read proposal.md** - Understand what's being built
 2. **Read design.md** (if exists) - Review technical decisions
 3. **Read tasks.md** - Get implementation checklist
-4. **Implement tasks sequentially** - Complete in order
-5. **Confirm completion** - Ensure every item in `tasks.md` is finished before updating statuses
-6. **Update checklist** - After all work is done, set every task to `- [x]` so the list reflects reality
-7. **Approval gate** - Do not start implementation until the proposal is reviewed and approved
+4. **Re-verify documentation** (if external libraries) - Use Context7 MCP to check for breaking changes since proposal (mandatory if >7 days since proposal)
+5. **Run baseline tests** - Execute unit and E2E tests before implementation to verify current state (ask user approval if any fail)
+6. **Implement tasks sequentially** - Complete in order
+7. **For tests: Verify with DevTools MCP first** - Before writing E2E/integration tests, manually verify functionality and gather selectors
+8. **Run post-implementation verification** - Execute build → lint → tests (all must pass before marking complete)
+9. **Confirm completion** - Ensure every item in `tasks.md` is finished before updating statuses
+10. **Update checklist** - After all work is done, set every task to `- [x]` so the list reflects reality
+11. **Approval gate** - Do not start implementation until the proposal is reviewed and approved
+
+**Detailed Step Workflows:**
+
+#### Step 4: Re-verify Documentation (Before Implementation)
+
+When implementing changes involving external libraries:
+- Run Context7 MCP to fetch latest documentation
+- Compare against proposal to verify no breaking changes
+- If breaking changes found, notify user before proceeding
+- **Mandatory** if more than 7 days have passed since proposal creation
+
+#### Step 5: Run Baseline Tests (Before Implementation)
+
+Before starting implementation:
+- Run unit tests: `nx run server:test` and/or `nx run admin:test`
+- Run E2E tests: `nx run server:test-e2e` and/or `nx run admin:e2e`
+- Report results to user
+- **If tests fail:** Ask user whether to fix first, proceed despite failures, or investigate
+- **Do not proceed** until user provides explicit approval
+
+#### Step 7: Manual Testing with DevTools MCP (Before Writing Tests)
+
+Before writing E2E or integration tests:
+
+1. **Start Chrome debug mode:**
+   ```bash
+   npm run chrome:debug
+   ```
+
+2. **Get test credentials:**
+   ```bash
+   ./scripts/get-test-user-credentials.sh
+   ```
+
+3. **Manual verification workflow:**
+   - Instruct user to login and navigate to feature
+   - Use `chrome-devtools_take_snapshot` to get page structure
+   - Use `chrome-devtools_list_network_requests` to inspect API calls
+   - Use `chrome-devtools_list_console_messages` to check for errors
+   - Use `chrome-devtools_evaluate_script` to extract data if needed
+
+4. **Gather test inputs:**
+   - Identify stable selectors (data-testid, role, aria-label)
+   - Note element visibility and interactivity states
+   - Document API endpoints, request/response formats
+   - Record user flow and expected behavior
+
+5. **Write tests based on verified behavior**
+
+#### Step 8: Post-Implementation Verification (After Implementation)
+
+After completing implementation, run verification sequence:
+
+**Build:**
+- Server only: `nx run server:build`
+- Admin only: `nx run admin:build`
+- Full-stack: `npm run build`
+- Fix all build errors before proceeding
+
+**Lint:**
+- Server: `nx run server:lint`
+- Admin: `nx run admin:lint`
+- Fix all lint errors (errors are mandatory)
+- Fix lint warnings when feasible
+
+**Tests:**
+- Run unit tests for affected projects
+- Run E2E tests for affected projects
+- Fix all test failures caused by implementation
+- Re-run until all tests pass
+
+**All verification must pass before marking change complete.**
 
 ### Stage 3: Archiving Changes
 After deployment, create separate PR to:
@@ -71,12 +147,58 @@ After deployment, create separate PR to:
 - [ ] Read `openspec/project.md` for conventions
 - [ ] Run `openspec list` to see active changes
 - [ ] Run `openspec list --specs` to see existing capabilities
+- [ ] Verify external library documentation with Context7 MCP (if change involves external libraries)
 
 **Before Creating Specs:**
 - Always check if capability already exists
 - Prefer modifying existing specs over creating duplicates
 - Use `openspec show [spec]` to review current state
 - If request is ambiguous, ask 1–2 clarifying questions before scaffolding
+
+### Documentation Verification
+
+When creating proposals or implementing changes that involve external libraries, frameworks, or tools:
+
+- **Required for:** Changes using/modifying external library APIs (TypeORM, NestJS, React, Tailwind, etc.)
+- **Optional for:** Internal-only changes with no external dependencies
+- **Tool:** Use Context7 MCP as primary documentation source
+
+**Verification Workflow:**
+
+1. Identify external libraries involved in the change
+2. Use `context7_resolve-library-id` to find the correct library
+3. Use `context7_get-library-docs` to fetch current documentation
+4. Verify proposed patterns/APIs are current (not deprecated)
+5. Note documentation source in proposal if avoiding deprecated approaches
+
+**Example - TypeORM Documentation:**
+
+```typescript
+// Step 1: Resolve library ID
+context7_resolve-library-id("typeorm")
+// Returns: "/typeorm/typeorm" or similar
+
+// Step 2: Fetch docs for specific topic
+context7_get-library-docs(
+  context7CompatibleLibraryID: "/typeorm/typeorm",
+  topic: "QueryRunner transactions",
+  page: 1
+)
+```
+
+**Multi-Library Example (TypeORM + NestJS):**
+
+When a change involves multiple libraries:
+1. Verify documentation for each library separately
+2. Check integration/compatibility guidance between libraries
+3. Document which library versions were verified
+
+**Fallback Strategy:**
+
+If Context7 doesn't have a library:
+- Use WebFetch to access official documentation sites
+- Note the fallback source in your proposal
+- Example: "Verified against official docs at https://..."
 
 ### Search Guidance
 - Enumerate specs: `openspec spec list --long` (or `--json` for scripts)
