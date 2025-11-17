@@ -48,6 +48,7 @@
     "db:e2e:down": "docker compose -f docker/e2e/docker-compose.yml down",
     "db:e2e:restart": "npm run db:e2e:down && npm run db:e2e:up",
     "db:e2e:logs": "docker compose -f docker/e2e/docker-compose.yml logs -f",
+    "chrome:debug": "./scripts/start-chrome-debug.sh http://localhost:5176",
     "db:e2e:clean": "docker compose -f docker/e2e/docker-compose.yml down -v",
     "db:e2e:wait": "until docker compose -f docker/e2e/docker-compose.yml exec -T db pg_isready -U spec -d spec_e2e; do sleep 1; done",
     "test:e2e": "npm run db:e2e:restart && npm run db:e2e:wait && npm run db:e2e:migrate && nx run server:test-e2e && npm run db:e2e:down",

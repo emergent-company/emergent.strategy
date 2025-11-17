@@ -258,13 +258,15 @@ export default function DocumentsPage() {
       setSelectedDocumentForExtraction(null);
 
       // Show success message briefly before navigation
-      showToast({ message: 'Extraction job created successfully! Redirecting...', variant: 'success', duration: 3000 });
+      setUploadSuccess(`Extraction job created successfully! Redirecting...`);
       setTimeout(() => {
         navigate(`/admin/extraction-jobs/${job.id}`);
       }, 1000);
     } catch (err) {
       console.error('Failed to create extraction job:', err);
-      showToast({ message: err instanceof Error ? err.message : 'Failed to create extraction job', variant: 'error' });
+      setUploadError(
+        err instanceof Error ? err.message : 'Failed to create extraction job'
+      );
     } finally {
       setIsStartingExtraction(false);
     }
@@ -286,6 +288,8 @@ export default function DocumentsPage() {
     if (!confirmed) return;
 
     setIsDeleting(true);
+    setUploadError(null);
+    setUploadSuccess(null);
 
     try {
       const t = getAccessToken();
@@ -346,16 +350,26 @@ export default function DocumentsPage() {
       }
 
       if (failed.length === 0) {
-        showToast({ message: `Successfully deleted \${successful.length} document\${successful.length > 1 ? 's' : ''}.`, variant: 'success' });
+        setUploadSuccess(
+          `Successfully deleted ${successful.length} document${
+            successful.length > 1 ? 's' : ''
+          }.`
+        );
+        setTimeout(() => setUploadSuccess(null), 3000);
       } else {
         const failedNames = failed
           .map((f) => f.value.doc.filename || f.value.doc.id)
           .join(', ');
-        showToast({ message: `Deleted \${successful.length} documents, but \${failed.length} failed: \${failedNames}. (Reason: \${failed[0].value.error})`, variant: 'error', duration: 10000 });
+        setUploadError(
+          `Deleted ${successful.length} documents, but ${failed.length} failed: ${failedNames}. ` +
+            `(Reason: ${failed[0].value.error})`
+        );
       }
     } catch (err) {
       console.error('Failed to delete documents:', err);
-      showToast({ message: err instanceof Error ? err.message : 'Failed to delete documents', variant: 'error' });
+      setUploadError(
+        err instanceof Error ? err.message : 'Failed to delete documents'
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -369,13 +383,17 @@ export default function DocumentsPage() {
   }
 
   async function handleUpload(file: File): Promise<void> {
+    setUploadError(null);
+    setUploadSuccess(null);
     if (!isAccepted(file)) {
-      showToast({ message: 'Unsupported file type. Allowed: pdf, docx, pptx, xlsx, md, html, txt.', variant: 'error' });
+      setUploadError(
+        'Unsupported file type. Allowed: pdf, docx, pptx, xlsx, md, html, txt.'
+      );
       return;
     }
     const max = 10 * 1024 * 1024; // 10MB
     if (file.size > max) {
-      showToast({ message: 'File is larger than 10MB limit.', variant: 'error' });
+      setUploadError('File is larger than 10MB limit.');
       return;
     }
     setUploading(true);
@@ -389,7 +407,7 @@ export default function DocumentsPage() {
         method: 'POST',
         headers: t ? buildHeaders({ json: false }) : {},
       });
-      
+      setUploadSuccess('Upload successful. Refreshing list...');
       // Reload documents WITHOUT hiding the table (no setLoading(true))
       try {
         const t2 = getAccessToken();
@@ -403,15 +421,18 @@ export default function DocumentsPage() {
           normalize
         );
         setData(docs);
-        showToast({ message: 'Upload successful.', variant: 'success' });
+        setUploadSuccess('Upload successful.');
+        // Auto clear after 3s
+        setTimeout(() => setUploadSuccess(null), 3000);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Failed to refresh list';
         setError(msg);
-        
+        // Clear success if refresh failed to avoid stale message
+        setUploadSuccess(null);
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Upload failed';
-      showToast({ message: msg, variant: 'error' });
+      setUploadError(msg);
     } finally {
       setUploading(false);
     }
@@ -517,6 +538,18 @@ export default function DocumentsPage() {
             />
           </div>
         </div>
+        {uploadError && (
+          <div role="alert" className="mt-4 alert alert-error">
+            <Icon icon="lucide--alert-circle" className="size-5" aria-hidden />
+            <span>{uploadError}</span>
+          </div>
+        )}
+        {uploadSuccess && (
+          <div role="alert" className="mt-4 alert alert-success">
+            <Icon icon="lucide--check-circle" className="size-5" aria-hidden />
+            <span>{uploadSuccess}</span>
+          </div>
+        )}
       </div>
 
       {/* Show subtle info alert when uploading/refreshing */}

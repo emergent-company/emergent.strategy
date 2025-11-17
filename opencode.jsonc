@@ -7,11 +7,7 @@
     // },
     "playwright": {
       "type": "local",
-      "command": [
-        "npx",
-        "@playwright/mcp@latest",
-        "--timeout-action=10000"
-      ]
+      "command": ["npx", "@playwright/mcp@latest", "--timeout-action=10000"]
     },
     "postgres": {
       "type": "local",
@@ -39,6 +35,16 @@
     "react-daisyui Docs": {
       "type": "remote",
       "url": "https://gitmcp.io/daisyui/react-daisyui"
+    },
+    "chrome-devtools": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--browserUrl",
+        "http://127.0.0.1:9222"
+      ]
     }
     // ,
     // "nx-mcp": {
@@ -46,9 +52,7 @@
     //   "args": ["nx-mcp@latest"]
     // }
   },
-  "instructions": [
-    ".opencode/instructions.md"
-  ],
+  "instructions": [".opencode/instructions.md"],
   "tools": {
     "todowrite": true,
     "webfetch": true
