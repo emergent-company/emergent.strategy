@@ -63,6 +63,24 @@ This minimizes code changes and reduces risk of breaking existing functionality.
 
 **Rationale:** The current `useAccessTree()` has extensive console logging for debugging. We'll preserve this in the provider during migration to help identify any issues with the context refactor. Can be cleaned up in a follow-up task after validation.
 
+### Decision 4: Add authentication check and StrictMode guard
+
+**Rationale:** During testing, we discovered two issues:
+
+1. **React StrictMode double-render:** In development mode, React 18's StrictMode intentionally runs effects twice to help detect side effects. This caused duplicate API calls even with the context provider.
+2. **Unauthenticated fetches:** The provider was attempting to fetch access tree data even when the user wasn't authenticated, resulting in 401 errors on the landing page.
+
+**Solution:**
+
+- **Authentication check:** Use `useAuth()` to check `isAuthenticated` before fetching. Skip the fetch if the user is not authenticated, and set `loading` to `false` immediately.
+- **StrictMode guard:** Use a `useRef` flag (`hasFetchedRef`) to track if the fetch has already been initiated. On subsequent effect runs (StrictMode duplicate), skip the fetch.
+
+**Impact:**
+
+- Landing page (unauthenticated): 0 API calls (was 2 failing calls before)
+- After login (authenticated): 1 API call (was 2 duplicate calls before)
+- Clear console logging indicates why fetches are skipped
+
 ## Architecture
 
 ### New Component Hierarchy
@@ -147,10 +165,30 @@ export function AccessTreeProvider({ children }: { children: ReactNode }) {
     }
   }, [apiBase, fetchJson]);
 
-  // Fetch once on provider mount
+  // Prevent double-fetch in React StrictMode (development only)
+  const hasFetchedRef = useRef(false);
+
+  // Get auth state to only fetch when authenticated
+  const { isAuthenticated } = useAuth();
+
+  // Fetch once on provider mount, only if authenticated
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    // Skip if already fetched (StrictMode guard)
+    if (hasFetchedRef.current) {
+      console.log('[AccessTreeProvider] Skipping duplicate fetch (StrictMode)');
+      return;
+    }
+
+    // Skip if not authenticated
+    if (!isAuthenticated) {
+      console.log('[AccessTreeProvider] Skipping fetch (not authenticated)');
+      setLoading(false);
+      return;
+    }
+
+    hasFetchedRef.current = true;
+    refresh().catch(() => void 0);
+  }, [refresh, isAuthenticated]);
 
   // Memoize derived data
   const value = useMemo(() => {

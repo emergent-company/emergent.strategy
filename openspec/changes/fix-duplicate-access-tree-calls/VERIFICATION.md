@@ -126,8 +126,8 @@ Landing page loaded successfully with no authentication errors.
 
 ## Next Steps
 
-- [ ] Test authenticated flow (login and verify single API call)
-- [ ] Update design.md with authentication check documentation
+- [x] Test authenticated flow (login and verify single API call)
+- [x] Update design.md with authentication check documentation
 - [ ] Consider removing verbose console logs in production build
 - [ ] Monitor production metrics after deployment
 
@@ -136,3 +136,58 @@ Landing page loaded successfully with no authentication errors.
 ✅ **Fix Verified Successfully**
 
 The duplicate API calls issue has been resolved. The landing page no longer makes any calls to `/api/user/orgs-and-projects` when the user is not authenticated, and the StrictMode guard ensures only one call is made even in development mode when authenticated.
+
+## Authenticated Flow Verification (November 17, 2025)
+
+### Test Setup
+
+- **URL**: http://localhost:5176/ (landing page → navigated to home)
+- **Auth State**: Authenticated user with valid token
+- **Browser**: Chrome via DevTools MCP
+
+### Test Results
+
+#### Console Output (Authenticated User)
+
+```
+[LOG] [AccessTreeProvider] refresh() called
+[LOG] [AccessTreeProvider] Fetching from: /api/user/orgs-and-projects
+[LOG] [AccessTreeProvider] Skipping duplicate fetch (StrictMode)
+[LOG] [AccessTreeProvider] Response: 1 orgs
+```
+
+**Analysis:**
+
+- ✅ **First render**: Fetch was initiated (`refresh() called`, `Fetching from: /api/user/orgs-and-projects`)
+- ✅ **Second render (StrictMode)**: Duplicate was prevented (`Skipping duplicate fetch (StrictMode)`)
+- ✅ **Success response**: Access tree data loaded successfully (`Response: 1 orgs`)
+- ✅ Only 1 actual API call made
+
+#### Network Requests (Authenticated)
+
+**Total API calls to `/api/user/orgs-and-projects`**: **1** ✅
+
+The network log shows:
+
+- Single GET request to `/api/user/orgs-and-projects`
+- Response: 304 Not Modified (cached, but still only 1 request)
+- No duplicate calls despite StrictMode double-render
+
+## Summary of All Test Scenarios
+
+| Scenario                       | Auth State     | API Calls | Result                                                     |
+| ------------------------------ | -------------- | --------- | ---------------------------------------------------------- |
+| Landing page (no auth)         | Not auth'd     | 0         | ✅ No calls, console: "Skipping fetch (not authenticated)" |
+| After login (fresh load)       | Authenticated  | 1         | ✅ Single call, StrictMode duplicate prevented             |
+| StrictMode double render       | Authenticated  | 1         | ✅ Second render skipped via `hasFetchedRef` guard         |
+| **Previous behavior (before)** | **Not auth'd** | **2**     | ❌ Both failed with 401 Unauthorized                       |
+| **Previous behavior (before)** | **Auth'd**     | **2**     | ❌ Both succeeded, duplicate data fetch                    |
+
+## Verification Complete
+
+Both remaining tasks have been completed:
+
+- ✅ **Task 7.5**: Test landing page after login - verify single API call is made
+- ✅ **Task 7.6**: Update design.md to document the auth check and StrictMode guard
+
+The fix successfully reduces API calls from 2 to 1 in all scenarios and eliminates unnecessary calls when not authenticated.

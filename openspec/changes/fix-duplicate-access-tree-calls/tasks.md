@@ -52,5 +52,5 @@
 - [x] 7.2 Add StrictMode guard to prevent double-fetch in development mode
 - [x] 7.3 Add console logging for skipped fetches (not authenticated, StrictMode duplicate)
 - [x] 7.4 Test landing page without auth - verify no API calls are made (VERIFIED via Playwright)
-- [ ] 7.5 Test landing page after login - verify single API call is made
-- [ ] 7.6 Update design.md to document the auth check and StrictMode guard
+- [x] 7.5 Test landing page after login - verify single API call is made (VERIFIED via Chrome DevTools)
+- [x] 7.6 Update design.md to document the auth check and StrictMode guard
