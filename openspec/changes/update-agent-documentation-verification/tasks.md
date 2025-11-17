@@ -63,9 +63,9 @@
 
 ## 9. Create Spec for openspec-workflow Capability
 
-- [ ] 9.1 Create `openspec/specs/openspec-workflow/spec.md` (during archival, not now)
-- [ ] 9.2 Note: This will be created when archiving the change
-- [ ] 9.3 Spec will define requirements for agent workflow with all verification steps
+- [x] 9.1 Create `openspec/specs/openspec-workflow/spec.md` (during archival, not now)
+- [x] 9.2 Note: This will be created when archiving the change
+- [x] 9.3 Spec will define requirements for agent workflow with all verification steps
 
 ## 10. Validation
 
