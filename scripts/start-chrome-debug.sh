@@ -11,6 +11,9 @@ NC='\033[0m' # No Color
 # Default remote debugging port
 DEBUG_PORT="${CHROME_DEBUG_PORT:-9222}"
 
+# PID file location
+PID_FILE="/tmp/chrome-debug-${DEBUG_PORT}.pid"
+
 # Default URL - use ADMIN_PORT from environment, fallback to 5176
 DEFAULT_ADMIN_PORT="${ADMIN_PORT:-5176}"
 APP_URL="${1:-http://localhost:${DEFAULT_ADMIN_PORT}}"
@@ -19,10 +22,11 @@ APP_URL="${1:-http://localhost:${DEFAULT_ADMIN_PORT}}"
 if [ "$APP_URL" = "--help" ] || [ "$APP_URL" = "-h" ]; then
     echo -e "${BLUE}Chrome Remote Debugging Launcher${NC}"
     echo ""
-    echo "Usage: $0 [URL]"
+    echo "Usage: $0 [URL|--status]"
     echo ""
     echo "Arguments:"
     echo "  URL              - URL to open in Chrome (default: http://localhost:\${ADMIN_PORT:-5176})"
+    echo "  --status         - Check if Chrome debug is currently running"
     echo ""
     echo "Environment Variables:"
     echo "  ADMIN_PORT        - Admin app port for default URL (default: 5176)"
@@ -30,6 +34,7 @@ if [ "$APP_URL" = "--help" ] || [ "$APP_URL" = "-h" ]; then
     echo ""
     echo "Example:"
     echo "  $0 http://localhost:5176"
+    echo "  $0 --status"
     echo "  ADMIN_PORT=5175 $0"
     echo "  CHROME_DEBUG_PORT=9223 $0 http://localhost:4200"
     echo ""
@@ -43,6 +48,48 @@ if [ "$APP_URL" = "--help" ] || [ "$APP_URL" = "-h" ]; then
     echo ""
     echo "The MCP server connects to Chrome on port ${DEBUG_PORT}"
     exit 0
+fi
+
+# Check status if requested
+if [ "$APP_URL" = "--status" ]; then
+    echo -e "${BLUE}Checking Chrome debug status...${NC}"
+    echo ""
+    
+    # Check if PID file exists
+    if [ -f "$PID_FILE" ]; then
+        PID=$(cat "$PID_FILE")
+        if ps -p "$PID" > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ Chrome debug is running${NC}"
+            echo -e "  PID: ${YELLOW}${PID}${NC}"
+            echo -e "  Port: ${YELLOW}${DEBUG_PORT}${NC}"
+            echo -e "  Debug URL: ${YELLOW}http://127.0.0.1:${DEBUG_PORT}${NC}"
+            
+            # Try to get Chrome version/info
+            if lsof -Pi :"${DEBUG_PORT}" -sTCP:LISTEN >/dev/null 2>&1 ; then
+                echo -e "  Status: ${GREEN}Port ${DEBUG_PORT} is listening${NC}"
+            fi
+            exit 0
+        else
+            echo -e "${YELLOW}⚠ PID file exists but process is not running${NC}"
+            echo -e "  Removing stale PID file..."
+            rm -f "$PID_FILE"
+        fi
+    fi
+    
+    # Check if port is in use by another process
+    if lsof -Pi :"${DEBUG_PORT}" -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+        PORT_PID=$(lsof -Pi :"${DEBUG_PORT}" -sTCP:LISTEN -t | head -n 1)
+        echo -e "${YELLOW}⚠ Port ${DEBUG_PORT} is in use by another process${NC}"
+        echo -e "  PID: ${YELLOW}${PORT_PID}${NC}"
+        echo -e "  This may be Chrome debug started outside this script"
+        echo -e ""
+        echo -e "To kill it: ${YELLOW}kill ${PORT_PID}${NC}"
+        exit 1
+    else
+        echo -e "${RED}✗ Chrome debug is not running${NC}"
+        echo -e "  Port ${DEBUG_PORT} is available"
+        exit 1
+    fi
 fi
 
 echo -e "${BLUE}Starting Chrome with remote debugging enabled...${NC}"
@@ -83,13 +130,38 @@ else
     exit 1
 fi
 
-# Check if port is already in use
+# Check if Chrome debug is already running via our PID file
+if [ -f "$PID_FILE" ]; then
+    OLD_PID=$(cat "$PID_FILE")
+    if ps -p "$OLD_PID" > /dev/null 2>&1; then
+        echo -e "${GREEN}Chrome debug is already running!${NC}"
+        echo -e "  PID: ${YELLOW}${OLD_PID}${NC}"
+        echo -e "  Port: ${YELLOW}${DEBUG_PORT}${NC}"
+        echo -e "  Debug URL: ${YELLOW}http://127.0.0.1:${DEBUG_PORT}${NC}"
+        echo ""
+        echo -e "To check status: ${YELLOW}$0 --status${NC}"
+        echo -e "To stop it, kill the Chrome process or close the Chrome window"
+        exit 0
+    else
+        # PID file exists but process is dead, clean it up
+        echo -e "${YELLOW}Removing stale PID file...${NC}"
+        rm -f "$PID_FILE"
+    fi
+fi
+
+# Check if port is already in use by another process
 if lsof -Pi :"${DEBUG_PORT}" -sTCP:LISTEN -t >/dev/null 2>&1 ; then
-    echo -e "${YELLOW}Warning: Port ${DEBUG_PORT} is already in use${NC}"
-    echo -e "Chrome with remote debugging may already be running."
-    echo -e "If not, kill the process using port ${DEBUG_PORT} and try again:"
-    echo -e "  lsof -ti:${DEBUG_PORT} | xargs kill -9"
+    PORT_PID=$(lsof -Pi :"${DEBUG_PORT}" -sTCP:LISTEN -t | head -n 1)
+    echo -e "${RED}Error: Port ${DEBUG_PORT} is already in use by another process${NC}"
+    echo -e "  PID: ${YELLOW}${PORT_PID}${NC}"
     echo ""
+    echo -e "This may be Chrome debug started outside this script, or another service."
+    echo -e ""
+    echo -e "Options:"
+    echo -e "  1. Kill the process: ${YELLOW}kill ${PORT_PID}${NC}"
+    echo -e "  2. Use a different port: ${YELLOW}CHROME_DEBUG_PORT=9223 $0${NC}"
+    echo ""
+    exit 1
 fi
 
 echo -e "${GREEN}Launching Chrome...${NC}"
@@ -109,19 +181,44 @@ echo ""
 # Use a temporary user data directory to avoid conflicts with regular Chrome usage
 USER_DATA_DIR=$(mktemp -d -t chrome-debug-XXXXXX)
 
-# Cleanup function to remove temp directory on exit
+# Cleanup function to remove temp directory and PID file on exit
 cleanup() {
     echo ""
-    echo -e "${YELLOW}Cleaning up temporary Chrome profile...${NC}"
+    echo -e "${YELLOW}Cleaning up...${NC}"
+    
+    # Remove PID file
+    if [ -f "$PID_FILE" ]; then
+        rm -f "$PID_FILE"
+        echo -e "  ✓ Removed PID file"
+    fi
+    
+    # Remove temp directory
     rm -rf "$USER_DATA_DIR"
+    echo -e "  ✓ Removed temporary Chrome profile"
+    
     echo -e "${GREEN}Done.${NC}"
 }
 trap cleanup EXIT
 
+# Start Chrome in background to capture PID
 "$CHROME_PATH" \
     --remote-debugging-port="${DEBUG_PORT}" \
     --user-data-dir="$USER_DATA_DIR" \
     --no-first-run \
     --no-default-browser-check \
     "$APP_URL" \
-    2>/dev/null || true
+    2>/dev/null &
+
+CHROME_PID=$!
+
+# Save PID to file
+echo "$CHROME_PID" > "$PID_FILE"
+
+echo -e "${GREEN}✓ Chrome started with PID: ${CHROME_PID}${NC}"
+echo -e "${GREEN}✓ PID saved to: ${PID_FILE}${NC}"
+echo ""
+echo -e "Check status anytime with: ${YELLOW}$0 --status${NC}"
+echo ""
+
+# Wait for Chrome process
+wait "$CHROME_PID"
