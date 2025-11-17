@@ -5,9 +5,11 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   type ReactNode,
 } from 'react';
 import { useApi } from '@/hooks/use-api';
+import { useAuth } from '@/contexts/useAuth';
 
 /**
  * Organization with nested projects and user roles
@@ -102,10 +104,30 @@ export function AccessTreeProvider({ children }: { children: ReactNode }) {
     }
   }, [apiBase, fetchJson]);
 
-  // Fetch once on provider mount
+  // Prevent double-fetch in React StrictMode (development only)
+  const hasFetchedRef = useRef(false);
+
+  // Get auth state to only fetch when authenticated
+  const { isAuthenticated } = useAuth();
+
+  // Fetch once on provider mount, only if authenticated
   useEffect(() => {
+    // Skip if already fetched (StrictMode guard)
+    if (hasFetchedRef.current) {
+      console.log('[AccessTreeProvider] Skipping duplicate fetch (StrictMode)');
+      return;
+    }
+
+    // Skip if not authenticated
+    if (!isAuthenticated) {
+      console.log('[AccessTreeProvider] Skipping fetch (not authenticated)');
+      setLoading(false);
+      return;
+    }
+
+    hasFetchedRef.current = true;
     refresh().catch(() => void 0);
-  }, [refresh]);
+  }, [refresh, isAuthenticated]);
 
   // Memoize flattened data and lookup helpers
   const value: AccessTreeContextValue = useMemo(() => {

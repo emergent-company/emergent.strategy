@@ -5,7 +5,9 @@ import { BrowserRouter } from 'react-router';
 import { ConfigProvider } from '@/contexts/config';
 import { AuthProvider } from '@/contexts/auth';
 import { AccessTreeProvider } from '@/contexts/access-tree';
+import { ToastProvider } from '@/contexts/toast';
 import { Router } from '@/router';
+import { ToastContainer } from '@/components/organisms/ToastContainer';
 
 // Initialize error logger (runs automatically)
 import '@/lib/error-logger';
@@ -18,7 +20,10 @@ createRoot(document.getElementById('root')!).render(
       <ConfigProvider>
         <AuthProvider>
           <AccessTreeProvider>
-            <Router />
+            <ToastProvider>
+              <Router />
+              <ToastContainer />
+            </ToastProvider>
           </AccessTreeProvider>
         </AuthProvider>
       </ConfigProvider>

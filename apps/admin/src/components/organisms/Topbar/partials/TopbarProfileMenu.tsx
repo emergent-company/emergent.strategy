@@ -3,19 +3,19 @@ import { Link } from 'react-router';
 import { useOrganizations } from '@/hooks/use-organizations';
 import { useConfig } from '@/contexts/config';
 import { useAuth } from '@/contexts/useAuth';
+import { useToast } from '@/hooks/use-toast';
 import { Icon } from '@/components/atoms/Icon';
 
 export const TopbarProfileMenu: React.FC = () => {
   const { orgs, loading, error, createOrg } = useOrganizations();
   const { config, setActiveOrg } = useConfig();
   const { logout } = useAuth();
+  const { showToast } = useToast();
   const [orgName, setOrgName] = useState<string>('');
   const [creating, setCreating] = useState<boolean>(false);
   const [createError, setCreateError] = useState<string | undefined>(undefined);
-  const [toastMsg, setToastMsg] = useState<string | undefined>(undefined);
 
   const activeOrgId = config.activeOrgId;
-  const activeOrgName = config.activeOrgName;
   const orgsSorted = useMemo(
     () => (orgs ? [...orgs].sort((a, b) => a.name.localeCompare(b.name)) : []),
     [orgs]
@@ -23,8 +23,11 @@ export const TopbarProfileMenu: React.FC = () => {
 
   const onSelectOrg = (id: string, name: string) => {
     setActiveOrg(id, name);
-    setToastMsg(`Switched to ${name}`);
-    window.setTimeout(() => setToastMsg(undefined), 2500);
+    showToast({
+      message: `Switched to ${name}`,
+      variant: 'success',
+      duration: 2500,
+    });
   };
 
   const onCreateOrg = async () => {
@@ -38,8 +41,11 @@ export const TopbarProfileMenu: React.FC = () => {
       (
         document.getElementById('modal-create-org') as HTMLInputElement | null
       )?.click?.();
-      setToastMsg(`Organization “${created.name}” created`);
-      window.setTimeout(() => setToastMsg(undefined), 2500);
+      showToast({
+        message: `Organization "${created.name}" created`,
+        variant: 'success',
+        duration: 2500,
+      });
     } catch (e) {
       setCreateError((e as Error).message || 'Failed to create organization');
     } finally {
@@ -189,14 +195,6 @@ export const TopbarProfileMenu: React.FC = () => {
           Close
         </label>
       </div>
-      {toastMsg && (
-        <div className="toast-top toast toast-end">
-          <div className="alert alert-success">
-            <Icon icon="lucide--check-circle-2" className="size-4" />
-            <span>{toastMsg}</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

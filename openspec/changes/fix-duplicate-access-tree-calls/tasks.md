@@ -45,3 +45,12 @@
 - [x] 6.2 Update component JSDoc comments to reference context usage
 - [x] 6.3 Mark `useAccessTree()` as deprecated with migration guidance (if keeping for compatibility)
 - [x] 6.4 Consider removing `useAccessTree()` export if all internal usage migrated to context
+
+## 7. Additional Fixes (Added Nov 17, 2025)
+
+- [x] 7.1 Add authentication check to prevent fetching when user is not authenticated
+- [x] 7.2 Add StrictMode guard to prevent double-fetch in development mode
+- [x] 7.3 Add console logging for skipped fetches (not authenticated, StrictMode duplicate)
+- [x] 7.4 Test landing page without auth - verify no API calls are made (VERIFIED via Playwright)
+- [ ] 7.5 Test landing page after login - verify single API call is made
+- [ ] 7.6 Update design.md to document the auth check and StrictMode guard
