@@ -10,7 +10,9 @@ import {
   type ExtractionConfig,
 } from '@/components/organisms/ExtractionConfigModal';
 import { DocumentMetadataModal } from '@/components/organisms/DocumentMetadataModal';
+import { DeletionConfirmationModal } from '@/components/organisms/DeletionConfirmationModal';
 import { createExtractionJobsClient } from '@/api/extraction-jobs';
+import { createDocumentsClient } from '@/api/documents';
 import {
   DataTable,
   type ColumnDef,
@@ -142,6 +144,17 @@ export default function DocumentsPage() {
     fetchJson,
     config.activeProjectId
   );
+
+  const documentsClient = createDocumentsClient(
+    apiBase,
+    fetchJson,
+    config.activeProjectId
+  );
+
+  // Deletion modal state
+  const [isDeletionModalOpen, setIsDeletionModalOpen] = useState(false);
+  const [documentsToDelete, setDocumentsToDelete] = useState<DocumentRow[]>([]);
+  const [deletionDocumentIds, setDeletionDocumentIds] = useState<string[]>([]);
 
   const apiBaseMemo = useMemo(() => apiBase, [apiBase]);
 
@@ -280,96 +293,84 @@ export default function DocumentsPage() {
     }
   };
 
+  // Handle delete single document
+  const handleDeleteDocument = (document: DocumentRow) => {
+    if (!document || !document.id) {
+      showToast({
+        message: 'Invalid document selected for deletion',
+        variant: 'error',
+      });
+      return;
+    }
+    setDocumentsToDelete([document]);
+    setTimeout(() => setIsDeletionModalOpen(true), 0);
+  };
+
   // Handle bulk delete
   const handleBulkDelete = async (
     selectedIds: string[],
     selectedItems: DocumentRow[]
   ) => {
     if (!selectedItems.length) return;
+    setDocumentsToDelete(selectedItems);
+    setTimeout(() => setIsDeletionModalOpen(true), 0);
+  };
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${selectedItems.length} document${
-        selectedItems.length > 1 ? 's' : ''
-      }? This action cannot be undone.`
-    );
+  // Fetch deletion impact for modal
+  const fetchDeletionImpact = async (ids: string | string[]) => {
+    if (Array.isArray(ids)) {
+      return await documentsClient.getBulkDeletionImpact(ids);
+    } else {
+      return await documentsClient.getDeletionImpact(ids);
+    }
+  };
 
-    if (!confirmed) return;
-
-    setIsDeleting(true);
-
+  // Confirm deletion from modal
+  const handleConfirmDeletion = async () => {
     try {
-      const t = getAccessToken();
-      const results = await Promise.allSettled(
-        selectedItems.map(async (doc) => {
-          try {
-            await fetchJson(`${apiBase}/api/documents/${doc.id}`, {
-              method: 'DELETE',
-              headers: t ? buildHeaders({ json: false }) : {},
-            });
-            return { success: true, doc };
-          } catch (err) {
-            return {
-              success: false,
-              doc,
-              error: err instanceof Error ? err.message : 'Unknown error',
-            };
-          }
-        })
-      );
+      const documentIds = documentsToDelete.map((d) => d.id);
 
-      const successful = results.filter(
-        (r): r is PromiseFulfilledResult<{ success: true; doc: DocumentRow }> =>
-          r.status === 'fulfilled' && r.value.success
-      );
-      const failed = results.filter(
-        (
-          r
-        ): r is PromiseFulfilledResult<{
-          success: false;
-          doc: DocumentRow;
-          error: string;
-        }> => r.status === 'fulfilled' && !r.value.success
-      );
-
-      // Refresh from server to get updated list
-      try {
-        const json = await fetchJson<
-          DocumentRow[] | { documents: DocumentRow[] }
-        >(`${apiBase}/api/documents`, {
-          headers: t ? { ...buildHeaders({ json: false }) } : {},
-          json: false,
-        });
-        const docs = (Array.isArray(json) ? json : json.documents).map(
-          normalize
-        );
-        setData(docs);
-      } catch (refreshErr) {
-        console.warn(
-          'Failed to refresh document list after deletion:',
-          refreshErr
-        );
-        // Fallback: optimistically update by removing deleted documents
-        const successfulIds = new Set(successful.map((s) => s.value.doc.id));
-        setData((prevData) =>
-          (prevData || []).filter((doc) => !successfulIds.has(doc.id))
-        );
-      }
-
-      if (failed.length === 0) {
+      if (documentIds.length === 1) {
+        // Single deletion
+        await documentsClient.deleteDocument(documentIds[0]);
         showToast({
-          message: `Successfully deleted \${successful.length} document\${successful.length > 1 ? 's' : ''}.`,
+          message: 'Document deleted successfully',
           variant: 'success',
         });
       } else {
-        const failedNames = failed
-          .map((f) => f.value.doc.filename || f.value.doc.id)
-          .join(', ');
-        showToast({
-          message: `Deleted \${successful.length} documents, but \${failed.length} failed: \${failedNames}. (Reason: \${failed[0].value.error})`,
-          variant: 'error',
-          duration: 10000,
-        });
+        // Bulk deletion
+        const result = await documentsClient.bulkDeleteDocuments(documentIds);
+
+        if (result.totalFailed === 0) {
+          showToast({
+            message: `Successfully deleted ${result.totalDeleted} document${
+              result.totalDeleted !== 1 ? 's' : ''
+            }`,
+            variant: 'success',
+          });
+        } else {
+          showToast({
+            message: `Deleted ${result.totalDeleted} documents, but ${result.totalFailed} failed`,
+            variant: 'warning',
+            duration: 10000,
+          });
+        }
       }
+
+      // Refresh document list
+      const t = getAccessToken();
+      const json = await fetchJson<
+        DocumentRow[] | { documents: DocumentRow[] }
+      >(`${apiBase}/api/documents`, {
+        headers: t ? { ...buildHeaders({ json: false }) } : {},
+        json: false,
+      });
+      const docs = (Array.isArray(json) ? json : json.documents).map(normalize);
+      setData(docs);
+
+      // Close modal
+      setIsDeletionModalOpen(false);
+      setDocumentsToDelete([]);
     } catch (err) {
       console.error('Failed to delete documents:', err);
       showToast({
@@ -377,8 +378,7 @@ export default function DocumentsPage() {
           err instanceof Error ? err.message : 'Failed to delete documents',
         variant: 'error',
       });
-    } finally {
-      setIsDeleting(false);
+      throw err; // Re-throw to let modal handle loading state
     }
   };
 
@@ -783,6 +783,12 @@ export default function DocumentsPage() {
                 onAction: handleViewMetadata,
                 hidden: (doc: DocumentRow) => !doc.integrationMetadata,
               },
+              {
+                label: 'Delete',
+                icon: 'lucide--trash-2',
+                onAction: handleDeleteDocument,
+                variant: 'error',
+              },
             ] as RowAction<DocumentRow>[]
           }
           bulkActions={
@@ -839,6 +845,23 @@ export default function DocumentsPage() {
           selectedDocumentForMetadata?.name ||
           'Document'
         }
+      />
+
+      {/* Deletion Confirmation Modal */}
+      <DeletionConfirmationModal
+        open={isDeletionModalOpen}
+        onCancel={() => {
+          setIsDeletionModalOpen(false);
+          setDocumentsToDelete([]);
+        }}
+        onConfirm={handleConfirmDeletion}
+        documentIds={documentsToDelete.map((d) => d.id)}
+        documentNames={
+          documentsToDelete.length === 1
+            ? documentsToDelete[0].filename || 'Document'
+            : documentsToDelete.map((d) => d.filename || d.id)
+        }
+        fetchImpact={fetchDeletionImpact}
       />
 
       {/* Document Preview Modal */}

@@ -30,6 +30,15 @@ import { ScopesGuard } from '../auth/scopes.guard';
 import { Scopes } from '../auth/scopes.decorator';
 import { CachingInterceptor } from '../../common/interceptors/caching.interceptor';
 import { ApiBody } from '@nestjs/swagger';
+import {
+  DeletionImpactDto,
+  BulkDeletionImpactDto,
+} from './dto/deletion-impact.dto';
+import { BulkDeleteRequestDto } from './dto/bulk-delete-request.dto';
+import {
+  DeletionSummaryDto,
+  BulkDeletionSummaryDto,
+} from './dto/deletion-summary.dto';
 
 import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
@@ -191,8 +200,85 @@ export class DocumentsController {
     });
   }
 
+  @Get(':id/deletion-impact')
+  @ApiOkResponse({
+    description: 'Get deletion impact analysis for a document',
+    type: DeletionImpactDto,
+  })
+  @ApiParam({ name: 'id', description: 'Document UUID' })
+  @ApiStandardErrors()
+  @Scopes('documents:delete')
+  async getDeletionImpact(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() req: any
+  ) {
+    const requestedProject =
+      (req.headers['x-project-id'] as string | undefined) || undefined;
+    const requestedOrg =
+      (req.headers['x-org-id'] as string | undefined) || undefined;
+
+    // Get document first for scope enforcement
+    const doc = await this.documents.get(id);
+    if (!doc)
+      throw new NotFoundException({
+        error: { code: 'not-found', message: 'Document not found' },
+      });
+
+    // Verify document belongs to requested project/org
+    if (requestedProject && doc.projectId && doc.projectId !== requestedProject)
+      throw new NotFoundException({
+        error: { code: 'not-found', message: 'Document not found' },
+      });
+    if (requestedOrg && doc.orgId && doc.orgId !== requestedOrg)
+      throw new NotFoundException({
+        error: { code: 'not-found', message: 'Document not found' },
+      });
+
+    // Get impact analysis
+    const impact = await this.documents.getDeletionImpact(id);
+    if (!impact)
+      throw new NotFoundException({
+        error: { code: 'not-found', message: 'Document not found' },
+      });
+
+    return impact;
+  }
+
+  @Post('deletion-impact')
+  @ApiBody({ type: BulkDeleteRequestDto })
+  @ApiOkResponse({
+    description: 'Get bulk deletion impact analysis',
+    type: BulkDeletionImpactDto,
+  })
+  @ApiStandardErrors()
+  @Scopes('documents:delete')
+  async getBulkDeletionImpact(
+    @Body() body: BulkDeleteRequestDto,
+    @Req() req: any
+  ) {
+    const requestedProject =
+      (req.headers['x-project-id'] as string | undefined) || undefined;
+
+    // Filter to only documents accessible by this project/org
+    const accessibleIds: string[] = [];
+    for (const id of body.ids) {
+      const doc = await this.documents.get(id);
+      if (doc && (!requestedProject || doc.projectId === requestedProject)) {
+        accessibleIds.push(id);
+      }
+    }
+
+    return await this.documents.getBulkDeletionImpact(accessibleIds);
+  }
+
   @Delete(':id')
   // Deleting documents requires documents:delete (new taxonomy)
+  @ApiOkResponse({
+    description: 'Delete a document with cascade',
+    type: DeletionSummaryDto,
+  })
+  @ApiParam({ name: 'id', description: 'Document UUID' })
+  @ApiStandardErrors()
   @Scopes('documents:delete')
   async delete(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -204,11 +290,42 @@ export class DocumentsController {
       throw new NotFoundException({
         error: { code: 'not-found', message: 'Document not found' },
       });
-    const deleted = await this.documents.delete(id);
-    if (!deleted)
-      throw new NotFoundException({
-        error: { code: 'not-found', message: 'Document not found' },
+
+    // Use cascade deletion
+    const result = await this.documents.deleteWithCascade(id);
+    return result;
+  }
+
+  @Delete()
+  @ApiBody({ type: BulkDeleteRequestDto })
+  @ApiOkResponse({
+    description: 'Bulk delete documents with cascade',
+    type: BulkDeletionSummaryDto,
+  })
+  @ApiStandardErrors()
+  @Scopes('documents:delete')
+  async bulkDelete(@Body() body: BulkDeleteRequestDto, @Req() req: any) {
+    const requestedProject =
+      (req.headers['x-project-id'] as string | undefined) || undefined;
+
+    // Filter to only documents accessible by this project/org
+    const accessibleIds: string[] = [];
+    for (const id of body.ids) {
+      const doc = await this.documents.get(id);
+      if (doc && (!requestedProject || doc.projectId === requestedProject)) {
+        accessibleIds.push(id);
+      }
+    }
+
+    if (accessibleIds.length === 0) {
+      throw new BadRequestException({
+        error: {
+          code: 'bad-request',
+          message: 'No accessible documents found',
+        },
       });
-    return { status: 'deleted' }; // Framework will serialize; caller can treat 200/204 based on route config
+    }
+
+    return await this.documents.bulkDeleteWithCascade(accessibleIds);
   }
 }

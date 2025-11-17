@@ -75,7 +75,7 @@ await this.dataSource.transaction(async (manager) => {
 - Can be cached/called multiple times without side effects
 - Follows RESTful principles (GET for queries, DELETE for mutations)
 
-**Response format:**
+**Response format (single document):**
 
 ```typescript
 {
@@ -87,6 +87,30 @@ await this.dataSource.transaction(async (manager) => {
     graphRelationships: number,
     notifications: number
   }
+}
+```
+
+**Response format (bulk deletion):**
+
+```typescript
+{
+  totalImpact: {
+    chunks: number,
+    extractionJobs: number,
+    graphObjects: number,
+    graphRelationships: number,
+    notifications: number
+  },
+  perDocument: Array<{
+    document: { id, name, createdAt },
+    impact: {
+      chunks: number,
+      extractionJobs: number,
+      graphObjects: number,
+      graphRelationships: number,
+      notifications: number
+    }
+  }>
 }
 ```
 
@@ -117,15 +141,17 @@ await this.dataSource.transaction(async (manager) => {
 - Use `WHERE ... IN (subquery)` for batch deletions within transaction
 - Leverage indexes on foreign keys for query performance
 
-### 4. Bulk Deletion: Partial Success Handling
+### 4. Bulk Deletion: Partial Success Handling with Per-Document Breakdown
 
-**Decision:** For bulk deletion, continue processing all IDs and report partial success.
+**Decision:** For bulk deletion, continue processing all IDs and report partial success with per-document breakdown.
 
 **Rationale:**
 
 - Users shouldn't lose progress if one document is missing/inaccessible
 - Transparent reporting lets users know exactly what was deleted
-- Frontend can show detailed success/failure breakdown
+- **Per-document breakdown** helps users understand the impact for each file being deleted
+- Frontend can show detailed success/failure breakdown grouped by document
+- Users can see which specific documents had high cascade impact
 
 **Response format:**
 
@@ -142,10 +168,11 @@ await this.dataSource.transaction(async (manager) => {
 
 - All-or-nothing: Rejected because one bad ID would block entire operation
 - Async batch processing: Rejected as unnecessary complexity for typical batch sizes (<100)
+- Aggregate-only response: Rejected because users need per-file visibility in batch operations
 
-### 5. Frontend Confirmation Modal
+### 5. Frontend Confirmation Modal with Per-Document Breakdown
 
-**Decision:** Create reusable `DeletionConfirmationModal` component with loading states.
+**Decision:** Create reusable `DeletionConfirmationModal` component with loading states and per-document impact display for bulk operations.
 
 **Component structure:**
 
@@ -161,20 +188,86 @@ interface DeletionConfirmationModalProps {
 
 1. Modal opens → fetch impact (loading spinner)
 2. Impact loaded → show summary with warning
+   - **Single document:** Show document name and impact directly (no list)
+   - **Bulk deletion:** Show total impact + per-document breakdown list
 3. User confirms → execute deletion (loading spinner)
 4. Success → close modal, refresh table, show toast
 5. Error → show error message in modal with retry option
+
+**UI Requirements:**
+
+**Single Document Deletion:**
+
+- Display document name prominently with file emoji (📄)
+- Show impact counts inline (e.g., "1 chunk, 0 extraction jobs")
+- No separate "Documents to be deleted" section - keep it simple
+- Warning message: "This action cannot be undone"
+
+**Bulk Deletion:**
+
+- Display total aggregate impact at the top (e.g., "41 chunks, 3 extraction jobs across 5 documents")
+- Show "Documents to be deleted:" heading
+- Group detailed impact by document filename in a list
+- Show each document with its specific consequences (chunks, jobs, objects, etc.)
+- Use scrollable container if more than 3 documents
+- Highlight documents with high impact (e.g., >10 chunks or >5 extraction jobs) with badge and warning background
+
+**Example single document display:**
+
+```
+⚠️ You are about to permanently delete this document and all related resources.
+
+📄 meeting_1.md
+
+Impact:
+• 38 Chunks
+• 2 Extraction Jobs
+• 5 Graph Objects
+• 1 Graph Relationship
+
+This action cannot be undone.
+```
+
+**Example bulk display:**
+
+```
+⚠️ You are about to delete 5 documents and all related resources.
+
+Total Impact:
+• 41 Chunks
+• 3 Extraction Jobs
+• 7 Graph Objects
+• 2 Graph Relationships
+
+Documents to be deleted:
+📄 meeting_1.md
+  • 38 Chunks
+  • 2 Extraction Jobs
+  • 5 Graph Objects
+  • 1 Graph Relationship
+
+📄 test-doc.txt
+  • 3 Chunks
+  • 1 Extraction Job
+  • 2 Graph Objects
+  • 1 Graph Relationship
+
+[Show 3 more documents...]
+```
 
 **Rationale:**
 
 - Reusable for both single and bulk deletion
 - Clear loading states prevent user confusion
 - Error handling at modal level keeps state localized
+- **Per-document breakdown** helps users make informed decisions in bulk operations
+- Users can identify which specific documents have high cascade impact
 
 **Alternatives considered:**
 
 - Inline confirmation (window.confirm): Rejected because no impact visibility
 - Multi-step wizard: Rejected as overengineered for this use case
+- Aggregate-only view: Rejected because users need to see per-file impact to make informed decisions
 
 ### 6. Authorization: Reuse Existing Scope
 
@@ -274,6 +367,12 @@ No database migrations required. This change uses existing schema and foreign ke
    - Consider if users regularly delete 1000+ documents
 
 5. **How should we handle notifications referencing deleted documents?**
+
    - Option A: Hard delete notifications (consistent with document deletion)
    - Option B: Nullify resource_id field (preserve notification history)
    - **Recommendation:** Option A for simplicity, can revisit if users need notification history
+
+6. **Should the per-document breakdown be paginated for very large bulk deletions?**
+   - For deletions >20 documents, consider paginating the per-document list
+   - Alternatively, show top N impactful documents + collapsed "show all" option
+   - **Recommendation:** Start with full list up to 100 documents, add pagination if users report performance issues
