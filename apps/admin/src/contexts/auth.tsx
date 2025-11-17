@@ -107,13 +107,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     await startAuth(cfg);
   }, [cfg]);
 
+  /**
+   * Logs out the current user and clears all authentication data from localStorage.
+   *
+   * This function:
+   * - Clears the auth state in memory
+   * - Removes all auth-related localStorage keys (both legacy and current)
+   * - Clears user-scoped config (activeOrgId, activeProjectId) from spec-server key
+   * - Preserves non-auth preferences (theme, UI settings)
+   * - Redirects to the post-logout URI
+   */
   const logout = useCallback(() => {
+    // Clear in-memory auth state
     setState({});
+
     try {
+      // Remove legacy auth key
       localStorage.removeItem(STORAGE_KEY);
     } catch {
       // ignore storage errors
     }
+
+    try {
+      // Remove current auth key (if it exists)
+      localStorage.removeItem('spec-server-auth');
+    } catch {
+      // ignore storage errors
+    }
+
+    try {
+      // Clear user-scoped config from spec-server key while preserving UI preferences
+      const configRaw = localStorage.getItem('spec-server');
+      if (configRaw) {
+        const config = JSON.parse(configRaw);
+        // Remove user-scoped fields
+        delete config.activeOrgId;
+        delete config.activeOrgName;
+        delete config.activeProjectId;
+        delete config.activeProjectName;
+        // Preserve UI preferences: theme, direction, fontFamily, sidebarTheme, fullscreen
+        localStorage.setItem('spec-server', JSON.stringify(config));
+      }
+    } catch {
+      // If parsing fails or other error, remove the entire key for safety
+      try {
+        localStorage.removeItem('spec-server');
+      } catch {
+        // ignore storage errors
+      }
+    }
+
     try {
       // Optional: use end_session endpoint via redirect; keeping a local clear is fine for dev
       window.location.assign(cfg.postLogoutRedirectUri || '/');
