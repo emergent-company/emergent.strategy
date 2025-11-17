@@ -3,98 +3,103 @@
 /* == Components == */
 
 .btn {
-    @apply font-medium;
+  @apply font-medium;
 }
 
 .card {
-    .card-title {
-        @apply font-medium;
-    }
+  .card-title {
+    @apply font-medium;
+  }
 
-    .card-body {
-        @apply gap-0;
-    }
+  .card-body {
+    @apply gap-0;
+  }
 }
 
 .table {
-    th {
-        @apply font-medium;
-    }
+  th {
+    @apply font-medium;
+  }
 }
 
 .menu {
-    .menu-title {
-        @apply text-base-content/70 font-medium;
-    }
+  .menu-title {
+    @apply text-base-content/70 font-medium;
+  }
+}
+
+/* Fix DaisyUI 5 dropdown visibility on focus */
+.dropdown:focus-within .dropdown-content {
+  opacity: 1 !important;
 }
 
 .timeline:not(.timeline-vertical) > li > hr {
-    height: 2px;
+  height: 2px;
 }
 
 .timeline.timeline-vertical > li > hr {
-    width: 2px;
+  width: 2px;
 }
 
 /* == Forms == */
 .cally {
-    ::part(button) {
-        @apply font-sans;
-    }
+  ::part(button) {
+    @apply font-sans;
+  }
 }
 
 /* == Forms == */
 
 @layer utilities {
-    .no-spinner::-webkit-outer-spin-button,
-    .no-spinner::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-    }
-    .no-spinner {
-        -moz-appearance: textfield;
-        appearance: textfield;
-    }
+  .no-spinner::-webkit-outer-spin-button,
+  .no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .no-spinner {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
 }
 
 .fieldset {
-    .fieldset-legend {
-        @apply text-base-content/80 text-sm font-normal;
-    }
-    .fieldset-label,
-    .label {
-        @apply text-base-content/80 text-sm;
-    }
+  .fieldset-legend {
+    @apply text-base-content/80 text-sm font-normal;
+  }
+  .fieldset-label,
+  .label {
+    @apply text-base-content/80 text-sm;
+  }
 }
 
 .checkbox,
 .radio,
 .range,
 .toggle {
-    &:disabled {
-        @apply opacity-35;
-    }
+  &:disabled {
+    @apply opacity-35;
+  }
 }
 
 .label {
-    @apply text-base-content/80 cursor-pointer;
+  @apply text-base-content/80 cursor-pointer;
 }
 
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-    -webkit-background-clip: text;
+  -webkit-background-clip: text;
 }
 
 /* ==  Theme Specific  == */
 
-[data-theme="material"],
-[data-theme="material-dark"] {
-    .card {
-        @apply shadow-none;
-        &:not(.card-border) {
-            @apply border-0;
-        }
+[data-theme='material'],
+[data-theme='material-dark'] {
+  .card {
+    @apply shadow-none;
+    &:not(.card-border) {
+      @apply border-0;
     }
+  }
 }
