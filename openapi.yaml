@@ -5688,6 +5688,37 @@ paths:
         - bearer: []
       x-required-scopes:
         - schema:read
+  /user/orgs-and-projects:
+    get:
+      operationId: UserDeletionController_getOrgsAndProjects
+      summary: Get user access tree (organizations and projects with roles)
+      description: Returns hierarchical access tree with orgs and nested projects, including user roles at each level
+      parameters: []
+      responses:
+        '200':
+          description: Access tree retrieved successfully
+          schema:
+            example:
+              - id: 550e8400-e29b-41d4-a716-446655440000
+                name: Acme Corp
+                role: org_admin
+                projects:
+                  - id: 550e8400-e29b-41d4-a716-446655440001
+                    name: Product Docs
+                    orgId: 550e8400-e29b-41d4-a716-446655440000
+                    role: project_admin
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrgWithProjectsDto'
+        '401':
+          description: Unauthorized
+      tags: &ref_54
+        - user
+      security: &ref_55
+        - bearer: []
   /user/delete-account:
     post:
       operationId: UserDeletionController_deleteAccount
@@ -5730,10 +5761,8 @@ paths:
             application/json:
               schema:
                 example: *ref_21
-      tags: &ref_54
-        - user
-      security: &ref_55
-        - bearer: []
+      tags: *ref_54
+      security: *ref_55
       x-required-scopes:
         - account:delete
   /user/test-cleanup:
@@ -8049,6 +8078,34 @@ components:
         - version
         - schema_hash
         - created_at
+    OrgWithProjectsDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Organization UUID
+          example: 550e8400-e29b-41d4-a716-446655440000
+        name:
+          type: string
+          description: Organization name
+          example: Acme Corp
+        role:
+          type: string
+          description: User role in organization
+          example: org_admin
+          enum:
+            - org_admin
+            - org_member
+        projects:
+          description: Projects within organization that user has access to
+          items:
+            type: array
+          type: array
+      required:
+        - id
+        - name
+        - role
+        - projects
 x-tagGroups:
   - name: Health & Auth
     tags:

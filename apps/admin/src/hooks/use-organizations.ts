@@ -1,64 +1,54 @@
-import { useCallback, useEffect, useState } from "react";
-import { normalizeOrgId } from "@/utils/org-id";
-import { useApi } from "@/hooks/use-api";
+import { useCallback } from 'react';
+import { normalizeOrgId } from '@/utils/org-id';
+import { useApi } from '@/hooks/use-api';
+import { useAccessTreeContext } from '@/contexts/access-tree';
 
 export type Organization = {
-    id: string;
-    name: string;
-    slug?: string;
+  id: string;
+  name: string;
+  slug?: string;
 };
 
-// API currently returns a plain array (OrgDto[]) from GET /orgs. Accept legacy shape { orgs: [...] } as well.
-type OrgsResponseFlexible = Organization[] | { orgs: Organization[] };
-
+/**
+ * Hook to fetch organizations (now backed by access tree context).
+ * Maintained for backward compatibility with existing code.
+ *
+ * @deprecated Consider using useAccessTreeContext() directly for better performance
+ */
 export function useOrganizations() {
-    const { apiBase, fetchJson } = useApi();
-    const [orgs, setOrgs] = useState<Organization[] | undefined>(undefined);
-    const [loading, setLoading] = useState<boolean>(true); // Start as true to prevent guards from checking before first load
-    const [error, setError] = useState<string | undefined>(undefined);
+  const { apiBase, fetchJson } = useApi();
+  const {
+    orgs: accessTreeOrgs,
+    loading,
+    error,
+    refresh: refreshTree,
+  } = useAccessTreeContext();
 
-    const refresh = useCallback(async () => {
-        console.log('[useOrganizations] refresh() called');
-        setLoading(true);
-        setError(undefined);
-        try {
-            console.log('[useOrganizations] Fetching from:', `${apiBase}/api/orgs`);
-            const data = await fetchJson<OrgsResponseFlexible>(`${apiBase}/api/orgs`, { credentials: "include" });
-            console.log('[useOrganizations] Response:', data);
-            const rawList: Organization[] = Array.isArray(data)
-                ? data
-                : Array.isArray((data as any)?.orgs)
-                    ? (data as any).orgs
-                    : [];
-            const list = rawList.map(o => ({ ...o, id: normalizeOrgId(o.id) || o.id }));
-            console.log('[useOrganizations] Processed orgs:', list.length, 'orgs');
-            setOrgs(list);
-        } catch (e) {
-            console.error('[useOrganizations] Error:', e);
-            setError(e instanceof Error ? e.message : "Unknown error");
-        } finally {
-            setLoading(false);
+  // Map access tree orgs to Organization type (normalize IDs for legacy compatibility)
+  const orgs = accessTreeOrgs.map((o) => ({
+    id: normalizeOrgId(o.id) || o.id,
+    name: o.name,
+  }));
+
+  const createOrg = useCallback(
+    async (name: string): Promise<Organization> => {
+      const data = await fetchJson<Organization, { name: string }>(
+        `${apiBase}/api/orgs`,
+        {
+          method: 'POST',
+          body: { name },
+          credentials: 'include',
         }
-    }, [apiBase, fetchJson]);
+      );
+      // Refresh access tree to get updated data
+      await refreshTree();
+      return {
+        ...data,
+        id: normalizeOrgId(data.id) || data.id,
+      };
+    },
+    [apiBase, fetchJson, refreshTree]
+  );
 
-    const createOrg = useCallback(
-        async (name: string): Promise<Organization> => {
-            const data = await fetchJson<Organization, { name: string }>(`${apiBase}/api/orgs`, {
-                method: "POST",
-                body: { name },
-                credentials: "include",
-            });
-            // Optimistically add to list
-            setOrgs((prev) => (prev ? [{ ...data, id: normalizeOrgId(data.id) || data.id }, ...prev] : [{ ...data, id: normalizeOrgId(data.id) || data.id }]));
-            return data;
-        },
-        [apiBase, fetchJson],
-    );
-
-    useEffect(() => {
-        // Eager load once mounted
-        refresh().catch(() => void 0);
-    }, [refresh]);
-
-    return { orgs, loading, error, refresh, createOrg } as const;
+  return { orgs, loading, error, refresh: refreshTree, createOrg } as const;
 }
