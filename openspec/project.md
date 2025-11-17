@@ -149,6 +149,14 @@ nx run admin:test-coverage           # Coverage report
 npm run test:coverage:all            # All coverage reports
 ```
 
+**Test Development with DevTools MCP:**
+
+When writing E2E or integration tests, use Chrome DevTools MCP to verify functionality before writing tests:
+- Get test credentials: `./scripts/get-test-user-credentials.sh`
+- Start Chrome debug: `npm run chrome:debug`
+- Manually verify functionality and gather selectors
+- See `openspec/AGENTS.md` Stage 2 for detailed workflow
+
 ### Git Workflow
 
 #### Branch Strategy
