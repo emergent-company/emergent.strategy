@@ -258,13 +258,23 @@ export default function DocumentsPage() {
       setSelectedDocumentForExtraction(null);
 
       // Show success message briefly before navigation
-      showToast({ message: 'Extraction job created successfully! Redirecting...', variant: 'success', duration: 3000 });
+      showToast({
+        message: 'Extraction job created successfully! Redirecting...',
+        variant: 'success',
+        duration: 3000,
+      });
       setTimeout(() => {
         navigate(`/admin/extraction-jobs/${job.id}`);
       }, 1000);
     } catch (err) {
       console.error('Failed to create extraction job:', err);
-      showToast({ message: err instanceof Error ? err.message : 'Failed to create extraction job', variant: 'error' });
+      showToast({
+        message:
+          err instanceof Error
+            ? err.message
+            : 'Failed to create extraction job',
+        variant: 'error',
+      });
     } finally {
       setIsStartingExtraction(false);
     }
@@ -346,16 +356,27 @@ export default function DocumentsPage() {
       }
 
       if (failed.length === 0) {
-        showToast({ message: `Successfully deleted \${successful.length} document\${successful.length > 1 ? 's' : ''}.`, variant: 'success' });
+        showToast({
+          message: `Successfully deleted \${successful.length} document\${successful.length > 1 ? 's' : ''}.`,
+          variant: 'success',
+        });
       } else {
         const failedNames = failed
           .map((f) => f.value.doc.filename || f.value.doc.id)
           .join(', ');
-        showToast({ message: `Deleted \${successful.length} documents, but \${failed.length} failed: \${failedNames}. (Reason: \${failed[0].value.error})`, variant: 'error', duration: 10000 });
+        showToast({
+          message: `Deleted \${successful.length} documents, but \${failed.length} failed: \${failedNames}. (Reason: \${failed[0].value.error})`,
+          variant: 'error',
+          duration: 10000,
+        });
       }
     } catch (err) {
       console.error('Failed to delete documents:', err);
-      showToast({ message: err instanceof Error ? err.message : 'Failed to delete documents', variant: 'error' });
+      showToast({
+        message:
+          err instanceof Error ? err.message : 'Failed to delete documents',
+        variant: 'error',
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -370,12 +391,19 @@ export default function DocumentsPage() {
 
   async function handleUpload(file: File): Promise<void> {
     if (!isAccepted(file)) {
-      showToast({ message: 'Unsupported file type. Allowed: pdf, docx, pptx, xlsx, md, html, txt.', variant: 'error' });
+      showToast({
+        message:
+          'Unsupported file type. Allowed: pdf, docx, pptx, xlsx, md, html, txt.',
+        variant: 'error',
+      });
       return;
     }
     const max = 10 * 1024 * 1024; // 10MB
     if (file.size > max) {
-      showToast({ message: 'File is larger than 10MB limit.', variant: 'error' });
+      showToast({
+        message: 'File is larger than 10MB limit.',
+        variant: 'error',
+      });
       return;
     }
     setUploading(true);
@@ -389,7 +417,7 @@ export default function DocumentsPage() {
         method: 'POST',
         headers: t ? buildHeaders({ json: false }) : {},
       });
-      
+
       // Reload documents WITHOUT hiding the table (no setLoading(true))
       try {
         const t2 = getAccessToken();
@@ -407,7 +435,6 @@ export default function DocumentsPage() {
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Failed to refresh list';
         setError(msg);
-        
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Upload failed';
