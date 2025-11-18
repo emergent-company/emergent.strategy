@@ -25,7 +25,7 @@ export type ExtractionSourceType = 'document' | 'api' | 'manual' | 'bulk_import'
  */
 export interface ExtractionJob {
     id: string;
-    organization_id: string;
+    organization_id?: string;
     project_id: string;
     source_type: ExtractionSourceType;
     source_id?: string;
@@ -327,11 +327,8 @@ type ExtractionJobResponse = ExtractionJob & { org_id?: string | null };
 type ExtractionJobListResponseRaw = Omit<ExtractionJobListResponse, 'jobs'> & { jobs: ExtractionJobResponse[] };
 
 function normalizeJob(job: ExtractionJobResponse): ExtractionJob {
-    const organizationId = job.organization_id ?? job.org_id;
-
-    if (!organizationId) {
-        throw new Error('Extraction job response missing organization ID');
-    }
+    // organization_id is optional - can be derived from project_id if needed
+    const organizationId = job.organization_id ?? job.org_id ?? undefined;
 
     const { org_id, ...rest } = job;
     return {

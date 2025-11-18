@@ -66,7 +66,7 @@ const InboxPage = () => {
     };
 
     return (
-        <div data-testid="page-inbox" className="mx-auto p-6 max-w-7xl container">
+        <div data-testid="page-inbox" className="mx-auto max-w-7xl container">
             <MetaData title="Inbox" noIndex />
 
             {/* Header */}

@@ -29,10 +29,12 @@ if [ "$MODE" = "--help" ] || [ "$MODE" = "-h" ]; then
     echo "  ZITADEL_DOMAIN      - Zitadel domain (default: localhost:8200)"
     echo "  ORG_NAME            - Organization name (default: Spec Organization)"
     echo "  PROJECT_NAME        - Project name (default: Spec Server)"
-    echo "  ADMIN_USER_EMAIL    - Admin user email (default: admin@spec.local)"
-    echo "  ADMIN_USER_PASSWORD - Admin user password (default: AdminPassword123!)"
-    echo "  TEST_USER_EMAIL     - Test user email (default: test@example.com)"
-    echo "  TEST_USER_PASSWORD  - Test user password (default: TestPassword123!)"
+    echo "  ADMIN_USER_EMAIL      - Admin user email (default: admin@spec.local)"
+    echo "  ADMIN_USER_PASSWORD   - Admin user password (default: AdminPassword123!)"
+    echo "  TEST_USER_EMAIL       - Test user email (default: test@example.com)"
+    echo "  TEST_USER_PASSWORD    - Test user password (default: TestPassword123!)"
+    echo "  E2E_TEST_USER_EMAIL   - E2E test user email (default: e2e-test@example.com)"
+    echo "  E2E_TEST_USER_PASSWORD - E2E test user password (default: E2eTestPassword123!)"
     echo ""
     echo "Examples:"
     echo "  $0                              # Full provision"
@@ -86,6 +88,8 @@ OPTIONAL_WITH_DEFAULTS=(
     "ADMIN_USER_PASSWORD:AdminPassword123!"
     "TEST_USER_EMAIL:test@example.com"
     "TEST_USER_PASSWORD:TestPassword123!"
+    "E2E_TEST_USER_EMAIL:e2e-test@example.com"
+    "E2E_TEST_USER_PASSWORD:E2eTestPassword123!"
     "OAUTH_APP_NAME:Spec Server OAuth"
     "API_APP_NAME:Spec Server API"
 )
@@ -1526,7 +1530,7 @@ else
 fi
 
 # Create test user
-echo -e "\n${BLUE}[14/15] Creating test user...${NC}"
+echo -e "\n${BLUE}[14/16] Creating test user...${NC}"
 TEST_USER_RESPONSE=$(curl -s -X POST \
     -H "Authorization: Bearer ${ADMIN_PAT}" \
     -H "Content-Type: application/json" \
@@ -1556,8 +1560,39 @@ else
     echo -e "${GREEN}✓ Email verified and user is active${NC}"
 fi
 
+# Create E2E test user
+echo -e "\n${BLUE}[15/16] Creating E2E test user...${NC}"
+E2E_TEST_USER_RESPONSE=$(curl -s -X POST \
+    -H "Authorization: Bearer ${ADMIN_PAT}" \
+    -H "Content-Type: application/json" \
+    -H "x-zitadel-orgid: ${ORG_ID}" \
+    -d "{
+        \"userName\": \"${E2E_TEST_USER_EMAIL}\",
+        \"profile\": {
+            \"firstName\": \"E2E\",
+            \"lastName\": \"Test\",
+            \"displayName\": \"E2E Test User\"
+        },
+        \"email\": {
+            \"email\": \"${E2E_TEST_USER_EMAIL}\",
+            \"isEmailVerified\": true
+        },
+        \"password\": \"${E2E_TEST_USER_PASSWORD}\"
+    }" \
+    "${BASE_URL}/management/v1/users/human/_import")
+
+E2E_TEST_USER_ID=$(echo "$E2E_TEST_USER_RESPONSE" | jq -r '.userId')
+
+if [ -z "$E2E_TEST_USER_ID" ] || [ "$E2E_TEST_USER_ID" = "null" ]; then
+    echo -e "${YELLOW}⚠ E2E test user might already exist or failed to create${NC}"
+    echo -e "${YELLOW}Response: $E2E_TEST_USER_RESPONSE${NC}"
+else
+    echo -e "${GREEN}✓ E2E test user created (ID: ${E2E_TEST_USER_ID}, Email: ${E2E_TEST_USER_EMAIL})${NC}"
+    echo -e "${GREEN}✓ Email verified and user is active${NC}"
+fi
+
 # Output configuration
-echo -e "\n${BLUE}[15/15] Configuration complete!${NC}"
+echo -e "\n${BLUE}[16/16] Configuration complete!${NC}"
 echo -e "\n${GREEN}═══════════════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}   Setup Complete - Add to your .env file:${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
@@ -1596,6 +1631,13 @@ echo -e "${GREEN}Test User (Application Testing):${NC}"
 echo "  Email:    ${TEST_USER_EMAIL}"
 echo "  Password: ${TEST_USER_PASSWORD}"
 echo "  Status:   Active and email verified"
+echo "  Purpose:  Manual testing, development, demos"
+echo ""
+echo -e "${GREEN}E2E Test User (Automated Testing):${NC}"
+echo "  Email:    ${E2E_TEST_USER_EMAIL}"
+echo "  Password: ${E2E_TEST_USER_PASSWORD}"
+echo "  Status:   Active and email verified"
+echo "  Purpose:  Automated E2E tests only"
 echo ""
 echo -e "${BLUE}Bootstrap Machine User (Auto-created):${NC}"
 echo "  Username: zitadel-admin-sa"

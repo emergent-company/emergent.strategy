@@ -54,6 +54,7 @@ export class UserDeletionController {
    */
   @Get('orgs-and-projects')
   @HttpCode(HttpStatus.OK)
+  @Scopes('orgs:read', 'project:read')
   @ApiOperation({
     summary: 'Get user access tree (organizations and projects with roles)',
     description:

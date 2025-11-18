@@ -71,9 +71,56 @@ All scripts and tests should be executed using `nx`. Note that commands for the 
 
   _(e.g., `nx run workspace-cli:workspace:logs`)_
 
-- **Run Playwright tests:**
+### Testing
+
+For comprehensive testing guidance, refer to **`docs/testing/AI_AGENT_GUIDE.md`** which provides:
+
+- Test type decision trees (unit, integration, API e2e, browser e2e)
+- Test templates and quick reference
+- Directory structure and file naming conventions
+- Import patterns and best practices
+
+**Quick Test Commands:**
+
+- **Run admin unit tests:**
+
   ```bash
-  npx playwright test --project=chromium
+  nx run admin:test
+  ```
+
+- **Run admin unit tests with coverage:**
+
+  ```bash
+  nx run admin:test-coverage
+  ```
+
+- **Run admin browser e2e tests:**
+
+  ```bash
+  nx run admin:e2e
+  ```
+
+- **Run admin e2e tests in UI mode:**
+
+  ```bash
+  nx run admin:e2e-ui
+  ```
+
+- **Run server unit tests:**
+
+  ```bash
+  nx run server:test
+  ```
+
+- **Run server integration tests:**
+
+  ```bash
+  nx run server:test -- --testPathPattern=tests/integration
+  ```
+
+- **Run server API e2e tests:**
+  ```bash
+  nx run server:test-e2e
   ```
 
 ## 4. Available MCP Tools

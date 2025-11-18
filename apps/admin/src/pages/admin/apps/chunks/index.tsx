@@ -244,7 +244,7 @@ export default function ChunksPage() {
   ];
 
   return (
-    <div data-testid="page-chunks" className="mx-auto p-6 max-w-7xl container">
+    <div data-testid="page-chunks" className="mx-auto max-w-7xl container">
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-bold text-2xl">Chunks</h1>

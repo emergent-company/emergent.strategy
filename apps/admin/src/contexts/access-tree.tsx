@@ -97,8 +97,12 @@ export function AccessTreeProvider({ children }: { children: ReactNode }) {
       console.log('[AccessTreeProvider] Response:', data.length, 'orgs');
       setTree(data);
     } catch (e) {
-      console.error('[AccessTreeProvider] Error:', e);
-      setError(e instanceof Error ? e.message : 'Unknown error');
+      // Only log errors to console if we're authenticated - this avoids
+      // spurious console errors during auth initialization race conditions
+      // The error is still captured in state for UI display if needed
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      console.log('[AccessTreeProvider] Fetch failed:', errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

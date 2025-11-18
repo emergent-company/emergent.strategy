@@ -4,7 +4,7 @@ import { ChatApp } from "./ChatApp";
 
 const ChatPage = () => {
     return (
-        <div data-testid="page-chat" className="mx-auto p-6 max-w-7xl container">
+        <div data-testid="page-chat" className="mx-auto max-w-7xl container">
             <MetaData title="Chat App" noIndex />
 
             {/* Header */}

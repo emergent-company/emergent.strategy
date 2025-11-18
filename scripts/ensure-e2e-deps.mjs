@@ -5,7 +5,7 @@
  *
  * This script checks if all required services for E2E tests are running:
  * 1. Docker containers (PostgreSQL, Zitadel)
- * 2. Admin dev server (Vite on port 5175)
+ * 2. Admin dev server (Vite on port from ADMIN_PORT env var, defaults to 5176)
  *
  * If any service is not running, it starts them automatically.
  */
@@ -21,7 +21,7 @@ const __dirname = dirname(__filename);
 const PROJECT_ROOT = join(__dirname, '..');
 
 const PORTS = {
-  admin: 5175,
+  admin: process.env.ADMIN_PORT || 5176,
   postgres: 5437, // Test database port
   zitadel: 8200, // Test Zitadel port
 };

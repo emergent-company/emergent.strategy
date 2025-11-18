@@ -86,7 +86,7 @@ describe('User Access Tree (GET /user/orgs-and-projects)', () => {
     const foundOrg = body.find((o: any) => o.id === org.id);
     expect(foundOrg).toBeDefined();
     expect(foundOrg.name).toBe(org.name);
-    expect(foundOrg.role).toBe('owner'); // Creator gets owner role
+    expect(foundOrg.role).toBe('org_admin'); // Creator gets org_admin role
     expect(Array.isArray(foundOrg.projects)).toBe(true);
     expect(foundOrg.projects).toHaveLength(0);
 
@@ -123,20 +123,20 @@ describe('User Access Tree (GET /user/orgs-and-projects)', () => {
     const foundOrg = body.find((o: any) => o.id === org.id);
     expect(foundOrg).toBeDefined();
     expect(foundOrg.name).toBe(org.name);
-    expect(foundOrg.role).toBe('owner');
+    expect(foundOrg.role).toBe('org_admin');
     expect(foundOrg.projects).toHaveLength(2);
 
     const foundProj1 = foundOrg.projects.find((p: any) => p.id === proj1.id);
     expect(foundProj1).toBeDefined();
     expect(foundProj1.name).toBe('Project Alpha');
     expect(foundProj1.orgId).toBe(org.id);
-    expect(foundProj1.role).toBe('admin'); // Creator gets admin role in project
+    expect(foundProj1.role).toBe('project_admin'); // Creator gets project_admin role in project
 
     const foundProj2 = foundOrg.projects.find((p: any) => p.id === proj2.id);
     expect(foundProj2).toBeDefined();
     expect(foundProj2.name).toBe('Project Beta');
     expect(foundProj2.orgId).toBe(org.id);
-    expect(foundProj2.role).toBe('admin');
+    expect(foundProj2.role).toBe('project_admin');
 
     // Cleanup
     await ctx.cleanupExternalOrg(org.id);

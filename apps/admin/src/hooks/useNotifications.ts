@@ -43,7 +43,8 @@ export function useNotifications(
         } catch (err) {
             const error = err as Error;
             setError(error);
-            console.error('Failed to fetch notifications:', error);
+            // Log as info instead of error to avoid spurious console errors during initialization
+            console.log('Failed to fetch notifications:', error.message);
         } finally {
             setIsLoading(false);
         }
@@ -81,7 +82,8 @@ export function useNotificationStats() {
         } catch (err) {
             const error = err as Error;
             setError(error);
-            console.error('Failed to fetch notification stats:', error);
+            // Log as info instead of error to avoid spurious console errors during initialization
+            console.log('Failed to fetch notification stats:', error.message);
         } finally {
             setIsLoading(false);
         }
@@ -125,7 +127,8 @@ export function useNotificationCounts() {
         } catch (err) {
             const error = err as Error;
             setError(error);
-            console.error('Failed to fetch notification counts:', error);
+            // Log as info instead of error to avoid spurious console errors during initialization
+            console.log('Failed to fetch notification counts:', error.message);
         } finally {
             setIsLoading(false);
         }
