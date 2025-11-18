@@ -213,7 +213,7 @@ export default function ProjectAutoExtractionSettingsPage() {
 
     if (!config.activeProjectId) {
         return (
-            <div className="mx-auto p-6 container">
+            <div className="mx-auto container">
                 <div className="alert alert-warning">
                     <Icon icon="lucide--alert-triangle" className="size-5" />
                     <span>Please select a project to configure auto-extraction settings</span>
@@ -223,7 +223,7 @@ export default function ProjectAutoExtractionSettingsPage() {
     }
 
     return (
-        <div data-testid="page-settings-auto-extraction" className="mx-auto p-6 max-w-4xl container">
+        <div data-testid="page-settings-auto-extraction" className="mx-auto max-w-4xl container">
             {/* Settings Navigation */}
             <SettingsNav />
 

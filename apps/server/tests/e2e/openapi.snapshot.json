@@ -289,6 +289,103 @@
         ],
         "type": "object"
       },
+      "BulkDeleteRequestDto": {
+        "properties": {
+          "ids": {
+            "description": "Array of document IDs to delete",
+            "example": [
+              "123e4567-e89b-12d3-a456-426614174000",
+              "123e4567-e89b-12d3-a456-426614174001"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "type": "object"
+      },
+      "BulkDeletionImpactDto": {
+        "properties": {
+          "documents": {
+            "description": "Optional per-document breakdown",
+            "items": {
+              "$ref": "#/components/schemas/DeletionImpactDto"
+            },
+            "type": "array"
+          },
+          "impact": {
+            "description": "Aggregated impact summary across all documents",
+            "example": {
+              "chunks": 150,
+              "extractionJobs": 12,
+              "graphObjects": 48,
+              "graphRelationships": 25,
+              "notifications": 3
+            },
+            "type": "object"
+          },
+          "totalDocuments": {
+            "description": "Total number of documents to be deleted",
+            "example": 5,
+            "type": "number"
+          }
+        },
+        "required": [
+          "totalDocuments",
+          "impact"
+        ],
+        "type": "object"
+      },
+      "BulkDeletionSummaryDto": {
+        "properties": {
+          "deleted": {
+            "description": "Number of documents successfully deleted",
+            "example": 5,
+            "type": "number"
+          },
+          "notFound": {
+            "description": "Document IDs that could not be found or deleted",
+            "example": [
+              "123e4567-e89b-12d3-a456-426614174999"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "status": {
+            "description": "Deletion status",
+            "enum": [
+              "deleted",
+              "partial"
+            ],
+            "example": "deleted",
+            "type": "string"
+          },
+          "summary": {
+            "description": "Summary of deleted entities",
+            "example": {
+              "chunks": 42,
+              "extractionJobs": 3,
+              "graphObjects": 15,
+              "graphRelationships": 8,
+              "notifications": 1
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "status",
+          "summary",
+          "deleted"
+        ],
+        "type": "object"
+      },
       "BulkUpdateStatusDto": {
         "properties": {
           "ids": {
@@ -597,6 +694,64 @@
       },
       "CreateTemplatePackDto": {
         "properties": {},
+        "type": "object"
+      },
+      "DeletionImpactDto": {
+        "properties": {
+          "document": {
+            "description": "Document information",
+            "example": {
+              "createdAt": "2024-01-01T00:00:00Z",
+              "id": "123e4567-e89b-12d3-a456-426614174000",
+              "name": "example.pdf"
+            },
+            "type": "object"
+          },
+          "impact": {
+            "description": "Impact summary of entities that will be deleted",
+            "example": {
+              "chunks": 42,
+              "extractionJobs": 3,
+              "graphObjects": 15,
+              "graphRelationships": 8,
+              "notifications": 1
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "document",
+          "impact"
+        ],
+        "type": "object"
+      },
+      "DeletionSummaryDto": {
+        "properties": {
+          "status": {
+            "description": "Deletion status",
+            "enum": [
+              "deleted",
+              "partial"
+            ],
+            "example": "deleted",
+            "type": "string"
+          },
+          "summary": {
+            "description": "Summary of deleted entities",
+            "example": {
+              "chunks": 42,
+              "extractionJobs": 3,
+              "graphObjects": 15,
+              "graphRelationships": 8,
+              "notifications": 1
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "status",
+          "summary"
+        ],
         "type": "object"
       },
       "DocumentDto": {
@@ -2029,6 +2184,43 @@
         "required": [
           "id",
           "name"
+        ],
+        "type": "object"
+      },
+      "OrgWithProjectsDto": {
+        "properties": {
+          "id": {
+            "description": "Organization UUID",
+            "example": "550e8400-e29b-41d4-a716-446655440000",
+            "type": "string"
+          },
+          "name": {
+            "description": "Organization name",
+            "example": "Acme Corp",
+            "type": "string"
+          },
+          "projects": {
+            "description": "Projects within organization that user has access to",
+            "items": {
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "role": {
+            "description": "User role in organization",
+            "enum": [
+              "org_admin",
+              "org_member"
+            ],
+            "example": "org_admin",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role",
+          "projects"
         ],
         "type": "object"
       },
@@ -5058,6 +5250,106 @@
       }
     },
     "/documents": {
+      "delete": {
+        "operationId": "DocumentsController_bulkDelete",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkDeleteRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkDeletionSummaryDto"
+                }
+              }
+            },
+            "description": "Bulk delete documents with cascade"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "documents:delete"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Documents"
+        ],
+        "x-required-scopes": [
+          "documents:delete"
+        ]
+      },
       "get": {
         "operationId": "DocumentsController_list",
         "parameters": [
@@ -5291,11 +5583,114 @@
         ]
       }
     },
+    "/documents/deletion-impact": {
+      "post": {
+        "operationId": "DocumentsController_getBulkDeletionImpact",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkDeleteRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkDeletionImpactDto"
+                }
+              }
+            },
+            "description": "Get bulk deletion impact analysis"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "documents:delete"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Documents"
+        ],
+        "x-required-scopes": [
+          "documents:delete"
+        ]
+      }
+    },
     "/documents/{id}": {
       "delete": {
         "operationId": "DocumentsController_delete",
         "parameters": [
           {
+            "description": "Document UUID",
             "in": "path",
             "name": "id",
             "required": true,
@@ -5306,7 +5701,77 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionSummaryDto"
+                }
+              }
+            },
+            "description": "Delete a document with cascade"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "documents:delete"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -5419,6 +5884,108 @@
         ],
         "x-required-scopes": [
           "documents:read"
+        ]
+      }
+    },
+    "/documents/{id}/deletion-impact": {
+      "get": {
+        "operationId": "DocumentsController_getDeletionImpact",
+        "parameters": [
+          {
+            "description": "Document UUID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionImpactDto"
+                }
+              }
+            },
+            "description": "Get deletion impact analysis for a document"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "documents:delete"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Documents"
+        ],
+        "x-required-scopes": [
+          "documents:delete"
         ]
       }
     },
@@ -12153,6 +12720,73 @@
         ],
         "x-required-scopes": [
           "account:delete"
+        ]
+      }
+    },
+    "/user/orgs-and-projects": {
+      "get": {
+        "description": "Returns hierarchical access tree with orgs and nested projects, including user roles at each level",
+        "operationId": "UserDeletionController_getOrgsAndProjects",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrgWithProjectsDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Access tree retrieved successfully",
+            "schema": {
+              "example": [
+                {
+                  "id": "550e8400-e29b-41d4-a716-446655440000",
+                  "name": "Acme Corp",
+                  "projects": [
+                    {
+                      "id": "550e8400-e29b-41d4-a716-446655440001",
+                      "name": "Product Docs",
+                      "orgId": "550e8400-e29b-41d4-a716-446655440000",
+                      "role": "project_admin"
+                    }
+                  ],
+                  "role": "org_admin"
+                }
+              ]
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get user access tree (organizations and projects with roles)",
+        "tags": [
+          "user"
+        ],
+        "x-required-scopes": [
+          "orgs:read",
+          "project:read"
         ]
       }
     },

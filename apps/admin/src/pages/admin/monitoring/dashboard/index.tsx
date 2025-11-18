@@ -128,7 +128,7 @@ export default function MonitoringDashboardPage() {
 
     return (
         <OrgAndProjectGate>
-            <div className="mx-auto p-6 container">
+            <div className="mx-auto container">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
                     <div>

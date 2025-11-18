@@ -111,7 +111,7 @@ export function ExtractionJobDetailPage() {
     // Loading state
     if (isLoading) {
         return (
-            <div className="mx-auto p-6 max-w-6xl container">
+            <div className="mx-auto max-w-6xl container">
                 <div className="flex items-center gap-4 mb-6">
                     <div className="w-8 h-8 skeleton" />
                     <div className="w-64 h-8 skeleton" />
@@ -128,7 +128,7 @@ export function ExtractionJobDetailPage() {
     // Error state
     if (error || !job) {
         return (
-            <div className="mx-auto p-6 max-w-6xl container">
+            <div className="mx-auto max-w-6xl container">
                 <Link to="/admin/extraction-jobs" className="mb-6 btn btn-ghost btn-sm">
                     <Icon icon="lucide--arrow-left" />
                     Back to Jobs
@@ -185,7 +185,7 @@ export function ExtractionJobDetailPage() {
     const canDelete = job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled';
 
     return (
-        <div className="mx-auto p-6 max-w-6xl container">
+        <div className="mx-auto max-w-6xl container">
             {/* Header */}
             <div className="flex sm:flex-row flex-col justify-between items-start sm:items-center gap-4 mb-6">
                 <div className="flex items-center gap-4">
