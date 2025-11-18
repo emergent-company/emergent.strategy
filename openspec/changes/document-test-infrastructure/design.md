@@ -7,7 +7,7 @@ The project has grown to ~100+ test files across unit, integration, and e2e test
 - **Testing Frameworks**: Vitest for unit tests, custom e2e harness built on top of NestJS testing utilities
 - **Database**: PostgreSQL with Row-Level Security (RLS) policies for multi-tenancy
 - **Authentication**: Zitadel for OIDC, scope-based authorization
-- **Architecture**: NestJS monorepo with multiple apps (admin, server-nest)
+- **Architecture**: NestJS monorepo with multiple apps (admin, server)
 
 Key stakeholders: All developers writing or maintaining tests.
 
@@ -31,38 +31,46 @@ Key stakeholders: All developers writing or maintaining tests.
 
 ## Decisions
 
-### Decision 1: Three-Tier Test Organization
+### Decision 1: Four-Tier Test Organization
 
-**What**: Organize tests into three clear tiers: Unit, Integration, E2E
+**What**: Organize tests into four clear tiers: Unit, Integration, API E2E, Browser E2E
 
 **Why**:
 
 - Clear boundaries help developers choose the right test type
 - Different tiers have different trade-offs (speed vs realism)
-- Aligns with industry best practices and NestJS documentation
+- API e2e and browser e2e are fundamentally different: HTTP testing vs UI automation
+- Aligns with industry best practices and NestJS/Playwright documentation
 
 **Implementation**:
 
 - **Unit Tests**: Test single classes/functions in isolation, mock all dependencies
-  - Location: `/apps/server-nest/tests/unit/**/*.spec.ts`
-  - Use: `Test.createTestingModule()` with mocked providers
+  - Location (server): `/apps/server/tests/unit/**/*.spec.ts`
+  - Location (admin): `/apps/admin/src/**/*.test.tsx`
+  - Use: `Test.createTestingModule()` with mocked providers (NestJS) or Vitest (React)
   - Database: Always mocked
   - Auth: Mock ExecutionContext
 - **Integration Tests**: Test multiple components together, mock external boundaries
-  - Location: `/apps/server-nest/tests/integration/**/*.integration.spec.ts`
+  - Location (server): `/apps/server/tests/integration/**/*.integration.spec.ts`
   - Use: `Test.createTestingModule()` with real services, mocked external deps
   - Database: Can use in-memory or mocked
   - Auth: Mock tokens
-- **E2E Tests**: Test complete workflows, use real infrastructure
-  - Location: `/apps/server-nest/tests/e2e/**/*.e2e-spec.ts`
-  - Use: `createE2EContext()` helper
+- **API E2E Tests**: Test complete API workflows with HTTP requests, use real infrastructure
+  - Location (server only): `/apps/server/tests/e2e/**/*.e2e-spec.ts`
+  - Use: `createE2EContext()` helper + supertest for HTTP
   - Database: Real Postgres with RLS
   - Auth: Real tokens via `authHeader()`
+- **Browser E2E Tests**: Test complete UI workflows with browser automation
+  - Location (admin only): `/apps/admin/e2e/**/*.spec.ts`
+  - Use: Playwright with fixtures
+  - Backend: Real API server
+  - Auth: Real Zitadel login flow via Playwright
 
 **Alternatives Considered**:
 
-- Single test type: Rejected - too slow for unit tests, too brittle for e2e
-- Four tiers (add component tests): Rejected - adds complexity without clear value
+- Single "e2e" category for both API and browser: Rejected - fundamentally different tools and patterns
+- Three tiers (combine API/browser e2e): Rejected - hides important distinction
+- Five tiers (add component tests): Rejected - adds complexity without clear value
 
 ### Decision 2: Vitest Mocking Patterns
 
@@ -110,22 +118,22 @@ Key stakeholders: All developers writing or maintaining tests.
 - Mocking axios/fetch directly: Rejected - less realistic, ties tests to implementation
 - Nock: Rejected - MSW is more modern and better maintained
 
-### Decision 4: Real Database for E2E Tests
+### Decision 4: Real Database for API E2E Tests
 
-**What**: Continue using real PostgreSQL for e2e tests with RLS isolation
+**What**: Continue using real PostgreSQL for API e2e tests with RLS isolation
 
 **Why**:
 
 - Tests real database constraints and RLS policies (critical for security)
 - Catches database-specific issues (indexes, transactions, etc.)
-- Project already has robust e2e infrastructure via `createE2EContext()`
+- Project already has robust API e2e infrastructure via `createE2EContext()`
 - RLS provides natural test isolation without complex teardown
 
 **Trade-offs**:
 
 - Slower than in-memory/mocked DB
 - Requires local Postgres setup
-- Accepted because: E2E tests prioritize realism over speed
+- Accepted because: API E2E tests prioritize realism over speed
 
 **Implementation**:
 
@@ -133,18 +141,19 @@ Key stakeholders: All developers writing or maintaining tests.
 - Document setup requirements clearly
 - Provide Docker Compose for local development
 
-### Decision 5: Scope-Based Auth Testing
+### Decision 5: Authentication Testing Patterns
 
-**What**: Use `authHeader()` helper with scope arrays for auth testing
+**What**: Use different auth strategies for different test types
 
 **Why**:
 
-- Matches production auth model (Zitadel + scopes)
-- Simple, declarative API
-- Easy to test different permission scenarios
-- Already implemented and working
+- API tests need token-based auth (matches production auth model)
+- Browser tests need real login flow (tests actual UX)
+- Unit tests need mock auth (speed and isolation)
 
 **Patterns**:
+
+**API E2E (Server)**:
 
 ```typescript
 // No auth
@@ -159,6 +168,27 @@ await request(app.getHttpServer())
 await request(app.getHttpServer())
   .get('/endpoint')
   .set('Authorization', authHeader(['read:documents', 'write:tasks']));
+```
+
+**Browser E2E (Admin)**:
+
+```typescript
+// Playwright fixture with real Zitadel login
+test('user can view dashboard', async ({ authenticatedPage }) => {
+  await authenticatedPage.goto('/dashboard');
+  // ...
+});
+```
+
+**Unit Tests**:
+
+```typescript
+// Mock ExecutionContext
+const mockContext = {
+  switchToHttp: () => ({
+    getRequest: () => ({ user: { sub: 'user-123' } }),
+  }),
+} as ExecutionContext;
 ```
 
 ### Decision 6: Inline Documentation Strategy
@@ -289,16 +319,17 @@ describe('ChatService', () => {
 
 ### Decision 9: Test Folder Structure Standardization
 
-**What**: Consolidate scattered test files into a semantic, centralized folder structure with clear type-based organization
+**What**: Consolidate scattered test files into a semantic, centralized folder structure with clear type-based organization, **distinguishing between API e2e and browser e2e**
 
 **Why**:
 
-- Tests currently scattered across multiple locations create confusion:
-  - `/apps/server-nest/test/` (e2e tests)
-  - `/apps/server-nest/tests/` (unit tests)
-  - `/apps/server-nest/src/modules/*/__tests__/` (co-located unit tests)
-  - `/apps/server-nest/src/modules/*/*.spec.ts` (inline spec files)
+- Tests currently scattered across multiple locations create confusion (server app):
+  - `/apps/server/test/` (API e2e tests)
+  - `/apps/server/tests/` (unit tests)
+  - `/apps/server/src/modules/*/__tests__/` (co-located unit tests)
+  - `/apps/server/src/modules/*/*.spec.ts` (inline spec files)
 - **"test" vs "tests" is confusing and not semantic** - doesn't indicate what's inside
+- **"e2e" doesn't distinguish between API testing and browser testing** - they use completely different tools (supertest vs Playwright)
 - Inconsistent patterns make it hard to find and organize tests
 - Co-located tests in `src/` blur the line between production and test code
 - Centralized test folders are easier to configure in test runners and IDE tooling
@@ -308,7 +339,7 @@ describe('ChatService', () => {
 
 ```
 apps/
-  server-nest/
+  server/                   # Backend API (NestJS)
     tests/
       unit/                 # Unit tests (mirror src structure)
         auth/
@@ -320,7 +351,7 @@ apps/
           graph.service.spec.ts
         helpers/            # Unit-specific test utilities (if needed)
           mock-factories.ts
-      e2e/                  # E2E tests
+      e2e/                  # API E2E tests (HTTP/REST with supertest)
         auth-flow.e2e-spec.ts
         chat-flow.e2e-spec.ts
         extraction-flow.e2e-spec.ts
@@ -338,7 +369,49 @@ apps/
         auth/
         chat/
         graph/
+
+  admin/                    # Frontend UI (React + Vite)
+    tests/
+      unit/                 # React component unit tests
+        components/
+          atoms/
+            Button.test.tsx
+          molecules/
+            PageTitle.test.tsx
+        contexts/
+          auth.logout.test.tsx
+          toast.test.tsx
+        hooks/
+          use-local-storage.test.tsx
+        helpers/            # Unit-specific utilities
+      e2e/                  # Browser E2E tests (Playwright)
+        specs/
+          smoke.spec.ts
+          extraction.manual-flow.spec.ts
+          documents.aria.spec.ts
+        fixtures/           # Playwright fixtures
+          auth.ts
+          app.ts
+        helpers/
+          test-user.ts
+        playwright.config.ts
+    src/                    # Production code only (no test files)
+      components/
+      contexts/
+      hooks/
 ```
+
+**Key Distinctions**:
+
+1. **Server app**: API-focused, uses `tests/e2e/` for HTTP testing with supertest
+2. **Admin app**: UI-focused, uses `tests/e2e/` for browser testing with Playwright
+3. **Both apps use consistent `tests/` structure** for all test types
+4. **Naming convention**:
+   - Server e2e: `*.e2e-spec.ts` (supertest, HTTP requests)
+   - Admin e2e: `*.spec.ts` (Playwright, browser automation)
+   - Server unit: `*.spec.ts`
+   - Admin unit: `*.test.tsx` (React Testing Library convention)
+   - Integration: `*.integration.spec.ts`
 
 **Helper Organization Strategy**:
 
@@ -348,10 +421,12 @@ apps/
 
 **Migration Strategy**:
 
+**Server app**:
+
 1. Create new structure: `tests/unit/`, `tests/e2e/`, `tests/integration/`
 2. Move all tests from `src/modules/*/__tests__/` to `tests/unit/*/`
 3. Move all `*.spec.ts` files from `src/modules/` to `tests/unit/*/`
-4. Move tests from old `test/` to `tests/e2e/`
+4. Move tests from old `test/` to `tests/e2e/` (keep `*.e2e-spec.ts` naming)
 5. Move tests from old `tests/` to `tests/unit/`
 6. Maintain subdirectory structure matching source modules in `tests/unit/`
 7. Organize helpers by scope (shared vs type-specific)
@@ -361,15 +436,32 @@ apps/
    - E2E: `tests/e2e/**/*.e2e-spec.ts`
    - Integration: `tests/integration/**/*.integration.spec.ts`
 10. Delete empty `__tests__/` directories and old `test/` folder
-11. Apply same pattern to all apps (admin, etc.)
+
+**Admin app**:
+
+1. Create new structure: `tests/unit/`, `tests/e2e/`
+2. Move e2e tests from root `e2e/` to `tests/e2e/`
+3. Move all `*.test.tsx` files from `src/**/*.test.tsx` to `tests/unit/` (mirror src structure)
+4. Create subdirectories: `tests/unit/components/`, `tests/unit/contexts/`, `tests/unit/hooks/`
+5. Organize helpers by scope
+6. Update imports in moved test files
+7. Update vitest configuration:
+   - Unit: `tests/unit/**/*.test.tsx`
+   - E2E: `tests/e2e/**/*.spec.ts`
+8. Update Playwright config path
+9. Delete old root `e2e/` directory after migration
 
 **Benefits**:
 
-- **Self-documenting**: `tests/e2e/` is immediately clear what it contains
+- **Consistent structure**: Both apps use `tests/` directory with same organization
+- **Self-documenting**: `tests/e2e/` and `tests/unit/` are clear regardless of app
 - **No ambiguity**: No confusion between "test" and "tests"
+- **Context from app name**: Server's e2e = API tests, Admin's e2e = browser tests
+- **Tool-specific organization**: API tests use supertest, browser tests use Playwright
 - **Semantic organization**: Type → Module → Test file hierarchy
 - **Clear separation**: Production code stays in `src/`, tests in dedicated directory
 - **Easier configuration**: Can target specific test types in test runner
+- **Scalable**: Easy to add more test types (visual, performance, etc.)
 - **Better IDE support**: Dedicated test folders with semantic names
 - **Flexible helpers**: Can have shared helpers + type-specific helpers
 - **Future-proof**: Easy to add `tests/performance/`, `tests/visual/`, etc.
