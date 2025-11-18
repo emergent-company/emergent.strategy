@@ -192,7 +192,7 @@ export default function ProjectTemplatesSettingsPage() {
 
     if (!config.activeProjectId) {
         return (
-            <div className="mx-auto p-6 container">
+            <div className="mx-auto container">
                 <div className="alert alert-warning">
                     <Icon icon="lucide--alert-triangle" className="size-5" />
                     <span>Please select a project to manage template packs</span>
@@ -202,7 +202,7 @@ export default function ProjectTemplatesSettingsPage() {
     }
 
     return (
-        <div data-testid="page-settings-project-templates" className="mx-auto p-6 max-w-6xl container">
+        <div data-testid="page-settings-project-templates" className="mx-auto max-w-6xl container">
             {/* Settings Navigation */}
             <SettingsNav />
 

@@ -2,376 +2,411 @@
 
 ## Overview
 
-This guide provides comprehensive testing standards for the Spec Server project. It covers test types, mocking patterns, authentication setup, database configuration, and best practices.
+This document provides comprehensive guidelines for writing and maintaining tests in the spec-server-2 monorepo. Our testing strategy emphasizes clear boundaries between test types, consistent patterns, and maintainable test code.
 
-**Target Audience**: All developers writing or maintaining tests in this project.
+## Philosophy
 
-**Related Documentation**:
+- **Test the right thing at the right level**: Unit tests for logic, integration tests for component interaction, e2e tests for complete workflows
+- **Fast feedback loops**: Unit tests run in milliseconds, integration/e2e tests are reserved for higher-level validation
+- **Realistic e2e tests**: Use real database, real auth, real HTTP calls to catch integration issues
+- **Clear, maintainable tests**: Tests are documentation - they should be easy to read and understand
 
-- [AI Agent Testing Guide](./AI_AGENT_GUIDE.md) - Condensed guide optimized for AI coding assistants
-- [Vitest Configuration](../../apps/server/vitest.config.ts)
-- [Package Scripts](../../apps/server/package.json)
+## Test Types
 
-## Table of Contents
+### 1. Unit Tests
 
-1. [Test Types & When to Use Them](#test-types--when-to-use-them)
-2. [Test Organization](#test-organization)
-3. [Mocking Patterns](#mocking-patterns)
-4. [Authentication Setup](#authentication-setup)
-5. [Database Configuration](#database-configuration)
-6. [Running Tests](#running-tests)
-7. [Writing Good Tests](#writing-good-tests)
-8. [Troubleshooting](#troubleshooting)
+**Purpose**: Test individual functions, classes, or modules in isolation with all dependencies mocked.
 
-## Test Types & When to Use Them
-
-### Decision Tree
-
-```
-What are you testing?
-│
-├─ Single function/class in isolation
-│  └─> UNIT TEST (tests/unit/)
-│
-├─ Multiple components working together (no external services)
-│  └─> INTEGRATION TEST (tests/integration/)
-│
-└─ Complete user workflows with real database and auth
-   └─> E2E TEST (tests/e2e/)
-```
-
-### Unit Tests
-
-**Purpose**: Test single classes or functions in isolation.
-
-**Location**: `apps/{app}/tests/unit/**/*.spec.ts`
-
-**When to Use**:
-
-- Testing service business logic
+**When to use**:
+- Testing business logic in services
 - Testing utility functions
-- Testing guards, pipes, interceptors
-- Testing data transformations
-- Fast feedback on logic changes
+- Testing guards, pipes, and other middleware
+- Testing React components in isolation
 
 **Characteristics**:
+- Fast (< 100ms per test)
+- No external dependencies (DB, APIs, file system)
+- All dependencies mocked using Vitest mocks
+- Deterministic and repeatable
 
-- ✅ Fast execution (< 10ms per test)
-- ✅ No external dependencies (database, APIs, file system)
-- ✅ Mock all dependencies using `vi.fn()` or `vi.spyOn()`
-- ✅ Use `Test.createTestingModule()` for NestJS components
-- ✅ Deterministic (same input = same output)
+**Location**:
+- Server: `apps/server/tests/unit/**/*.spec.ts`
+- Admin: `apps/admin/tests/unit/**/*.test.tsx`
 
-**Example**:
-
+**Example (Server)**:
 ```typescript
-// tests/unit/auth/auth.service.spec.ts
-import { Test } from '@nestjs/testing';
+// apps/server/tests/unit/auth/auth.service.spec.ts
+import { describe, it, expect, vi } from 'vitest';
 import { AuthService } from '../../../src/modules/auth/auth.service';
-import { DatabaseService } from '../../../src/modules/database/database.service';
-import { vi } from 'vitest';
 
 describe('AuthService', () => {
-  let service: AuthService;
-  let mockDb: { query: ReturnType<typeof vi.fn> };
-
-  beforeEach(async () => {
-    // Mock database service
-    mockDb = { query: vi.fn() };
-
-    const module = await Test.createTestingModule({
-      providers: [AuthService, { provide: DatabaseService, useValue: mockDb }],
-    }).compile();
-
-    service = module.get(AuthService);
-  });
-
-  it('should validate user token', async () => {
-    mockDb.query.mockResolvedValue([
-      { id: 'user-1', email: 'test@example.com' },
-    ]);
-
-    const result = await service.validateToken('valid-token');
-
-    expect(result).toEqual({ id: 'user-1', email: 'test@example.com' });
-    expect(mockDb.query).toHaveBeenCalledWith(
-      expect.stringContaining('SELECT * FROM users'),
-      expect.any(Array)
-    );
+  it('should validate JWT token', () => {
+    // Mock dependencies
+    const mockJwtService = {
+      verify: vi.fn().mockReturnValue({ sub: 'user-123' })
+    };
+    
+    const authService = new AuthService(mockJwtService as any);
+    const result = authService.validateToken('valid-token');
+    
+    expect(result.sub).toBe('user-123');
+    expect(mockJwtService.verify).toHaveBeenCalledWith('valid-token');
   });
 });
 ```
 
-### Integration Tests
+**Example (Admin React)**:
+```typescript
+// apps/admin/tests/unit/components/Button.test.tsx
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { Button } from '../../../src/components/atoms/Button';
 
-**Purpose**: Test multiple components working together, with mocked external boundaries.
+describe('Button', () => {
+  it('should render with correct label', () => {
+    render(<Button>Click me</Button>);
+    expect(screen.getByText('Click me')).toBeInTheDocument();
+  });
+});
+```
 
-**Location**: `apps/{app}/tests/integration/**/*.integration.spec.ts`
+### 2. Integration Tests
 
-**When to Use**:
+**Purpose**: Test how multiple components work together, with some real dependencies but mocked external services.
 
-- Testing service interactions (e.g., ChatService + EmbeddingsService)
-- Testing API clients with mocked HTTP responses (MSW)
-- Testing module configuration
-- Verifying component contracts
+**When to use**:
+- Testing service layer with real repository layer (but mocked DB)
+- Testing multiple services interacting
+- Testing complex workflows that span multiple modules
 
 **Characteristics**:
+- Moderate speed (100ms - 1s per test)
+- Some real dependencies, some mocked
+- May use in-memory database or mocked DB
+- More realistic than unit tests, faster than e2e
 
-- ✅ Moderate speed (10-100ms per test)
-- ✅ Real internal services, mocked external dependencies
-- ✅ Use MSW for HTTP mocking
-- ✅ Can use in-memory database or mocked database
-- ✅ Tests integration contracts between components
+**Location**:
+- Server: `apps/server/tests/integration/**/*.integration.spec.ts`
 
 **Example**:
-
 ```typescript
-// tests/integration/clickup-api.integration.spec.ts
+// apps/server/tests/integration/clickup-sync.integration.spec.ts
+import { describe, it, expect, vi } from 'vitest';
 import { Test } from '@nestjs/testing';
-import { ClickUpService } from '../../../src/modules/clickup/clickup.service';
-import { setupServer } from 'msw/node';
-import { http, HttpResponse } from 'msw';
+import { ClickUpSyncService } from '../../../src/modules/clickup/clickup-sync.service';
+import { DatabaseService } from '../../../src/common/database/database.service';
 
-// Mock ClickUp API with MSW
-const server = setupServer(
-  http.get('https://api.clickup.com/api/v2/task/:taskId', () => {
-    return HttpResponse.json({
-      id: 'task-123',
-      name: 'Test Task',
-      status: { status: 'in progress' },
-    });
-  })
-);
-
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
-
-describe('ClickUpService Integration', () => {
-  it('should fetch task with retries on rate limit', async () => {
-    // Test real HTTP client behavior with mocked API responses
+describe('ClickUpSyncService Integration', () => {
+  it('should sync tasks from ClickUp API', async () => {
+    // Mock external API, use real service logic
+    const mockHttpClient = {
+      get: vi.fn().mockResolvedValue({
+        data: { tasks: [{ id: '123', name: 'Task 1' }] }
+      })
+    };
+    
+    const module = await Test.createTestingModule({
+      providers: [
+        ClickUpSyncService,
+        { provide: 'HTTP_CLIENT', useValue: mockHttpClient },
+        { provide: DatabaseService, useValue: mockDb }
+      ]
+    }).compile();
+    
+    const service = module.get(ClickUpSyncService);
+    const result = await service.syncTasks('workspace-123');
+    
+    expect(result.taskCount).toBe(1);
   });
 });
 ```
 
-### E2E Tests
+### 3. API E2E Tests (Server)
 
-**Purpose**: Test complete user workflows with real infrastructure.
+**Purpose**: Test complete HTTP request/response workflows through the API, using real infrastructure.
 
-**Location**: `apps/{app}/tests/e2e/**/*.e2e-spec.ts`
-
-**When to Use**:
-
-- Testing full API flows (create → read → update → delete)
+**When to use**:
+- Testing REST API endpoints end-to-end
 - Testing authentication and authorization
-- Testing database transactions and RLS policies
-- Testing error handling across layers
-- Verifying production-like behavior
+- Testing database operations with RLS policies
+- Testing complete user workflows via API
 
 **Characteristics**:
+- Slower (1-10s per test)
+- Uses real PostgreSQL with RLS
+- Uses real authentication (Zitadel test tokens)
+- Tests complete request/response cycle
+- Uses supertest for HTTP requests
 
-- ⚠️ Slower execution (100ms - several seconds per test)
-- ✅ Real Postgres database with RLS policies
-- ✅ Real authentication tokens (via `authHeader()`)
-- ✅ Use `createE2EContext()` for setup and teardown
-- ✅ Tests system as users would interact with it
+**Location**:
+- Server: `apps/server/tests/e2e/**/*.e2e-spec.ts`
 
 **Example**:
-
 ```typescript
-// tests/e2e/auth-flow.e2e-spec.ts
-import { createE2EContext, authHeader } from './helpers';
+// apps/server/tests/e2e/documents.create-and-get.e2e-spec.ts
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
+import { createE2EContext } from './e2e-context';
+import { authHeader } from './auth-helpers';
 
-describe('Authentication Flow (E2E)', () => {
-  let ctx;
-
+describe('Documents API (e2e)', () => {
+  let ctx: any;
+  let app: any;
+  
   beforeAll(async () => {
     ctx = await createE2EContext();
+    app = ctx.app;
   });
-
+  
   afterAll(async () => {
     await ctx.cleanup();
   });
-
-  it('should create project with authenticated user', async () => {
-    const response = await request(ctx.app.getHttpServer())
-      .post('/projects')
-      .set('Authorization', authHeader(['write:projects']))
+  
+  it('should create and retrieve a document', async () => {
+    // Create document with authenticated request
+    const createRes = await request(app.getHttpServer())
+      .post('/api/documents')
+      .set('Authorization', authHeader(['write:documents']))
       .send({
-        name: 'Test Project',
-        org_id: ctx.org.id,
+        title: 'Test Document',
+        content: 'Hello world'
       });
-
-    expect(response.status).toBe(201);
-    expect(response.body).toHaveProperty('id');
+    
+    expect(createRes.status).toBe(201);
+    const docId = createRes.body.id;
+    
+    // Retrieve document
+    const getRes = await request(app.getHttpServer())
+      .get(`/api/documents/${docId}`)
+      .set('Authorization', authHeader(['read:documents']));
+    
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.title).toBe('Test Document');
   });
 });
 ```
 
-## Test Organization
+### 4. Browser E2E Tests (Admin)
 
-### Folder Structure
+**Purpose**: Test complete UI workflows through real browser automation.
 
-All tests follow a semantic folder structure that clearly indicates test type:
+**When to use**:
+- Testing user interactions and workflows
+- Testing UI components in real browser context
+- Testing authentication flows
+- Testing complex multi-step processes
 
-```
-apps/
-  server/
-    tests/
-      unit/                      # Unit tests
-        auth/                    # Mirror source module structure
-          auth.guard.spec.ts
-          auth.service.spec.ts
-        graph/
-          graph.service.spec.ts
-        chat/
-          chat.service.spec.ts
-        helpers/                 # Unit-specific test utilities
-          mock-factories.ts
+**Characteristics**:
+- Slowest (5-30s per test)
+- Uses real browser (via Playwright)
+- Uses real API backend
+- Tests complete user experience
+- Can capture screenshots/videos on failure
 
-      e2e/                       # E2E tests
-        auth-flow.e2e-spec.ts
-        extraction-flow.e2e-spec.ts
-        helpers/                 # E2E-specific utilities
-          e2e-context.ts
-          auth-helpers.ts
-          fixtures.ts
-
-      integration/               # Integration tests
-        clickup-api.integration.spec.ts
-        helpers/                 # Integration-specific utilities
-
-      helpers/                   # Shared across ALL test types
-        test-logger.ts           # Only truly shared utilities here
-
-    src/                         # Production code (NO test files)
-      modules/
-        auth/
-        chat/
-        graph/
-```
-
-### Helper Organization Strategy
-
-**Key Principle**: Keep helpers close to where they're used unless truly shared across multiple test types.
-
-- **`tests/helpers/`**: ONLY for utilities genuinely shared across multiple test types (e.g., common logging, shared assertions)
-- **`tests/unit/helpers/`**: For utilities used only by unit tests (e.g., mock factories, stub builders)
-- **`tests/e2e/helpers/`**: For utilities used only by e2e tests (e.g., `createE2EContext()`, `authHeader()`, fixtures)
-- **`tests/integration/helpers/`**: For utilities used only by integration tests (e.g., MSW server setup)
-
-**Migration Note**: This project is transitioning from scattered test files (`test/`, `tests/`, `src/*/__tests__/`) to this centralized structure. See [Migration Tasks](#migration-tasks) for details.
-
-### Naming Conventions
-
-- **Unit tests**: `*.spec.ts`
-- **Integration tests**: `*.integration.spec.ts`
-- **E2E tests**: `*.e2e-spec.ts`
-- **Test helpers**: Descriptive names without `.spec` suffix (e.g., `e2e-context.ts`, `mock-factories.ts`)
-
-### File Organization
-
-- Unit test subdirectories should **mirror source module structure** for easy navigation
-- E2E tests are organized by **workflow** or **feature** (not by module)
-- Integration tests are organized by **external system** being integrated
-
-## Mocking Patterns
-
-### When to Mock vs Use Real Implementation
-
-| Scenario                     | Unit Test             | Integration Test  | E2E Test      |
-| ---------------------------- | --------------------- | ----------------- | ------------- |
-| Database                     | Always mock           | Mock or in-memory | Real Postgres |
-| HTTP APIs (ClickUp, Zitadel) | Always mock           | Mock with MSW     | Real or MSW\* |
-| File system                  | Always mock           | Mock              | Real          |
-| Environment variables        | Mock/override         | Mock/override     | Real test env |
-| Authentication               | Mock ExecutionContext | Mock tokens       | Real tokens   |
-| Internal services            | Mock dependencies     | Real services     | Real services |
-
-\*E2E tests can use MSW for external APIs to avoid test flakiness from third-party services.
-
-### Vitest Mocking Utilities
-
-#### `vi.fn()` - Simple Function Mocks
-
-**When to use**: Mocking simple dependencies that return values.
+**Location**:
+- Admin: `apps/admin/tests/e2e/**/*.spec.ts`
 
 **Example**:
+```typescript
+// apps/admin/tests/e2e/specs/smoke.spec.ts
+import { test, expect } from '@playwright/test';
+
+test('user can view dashboard after login', async ({ page }) => {
+  // Navigate to login
+  await page.goto('/login');
+  
+  // Perform login
+  await page.fill('[name="email"]', process.env.E2E_TEST_USER_EMAIL);
+  await page.fill('[name="password"]', process.env.E2E_TEST_USER_PASSWORD);
+  await page.click('button[type="submit"]');
+  
+  // Verify dashboard loads
+  await expect(page).toHaveURL(/\/dashboard/);
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+});
+```
+
+## Decision Tree: Choosing the Right Test Type
+
+```
+┌─────────────────────────────────────┐
+│ What are you testing?               │
+└────────────┬────────────────────────┘
+             │
+    ┌────────┴────────┐
+    │                 │
+    ▼                 ▼
+┌────────┐      ┌──────────┐
+│ Logic  │      │ Workflow │
+│ Units  │      │ / Flow   │
+└───┬────┘      └─────┬────┘
+    │                 │
+    ▼                 │
+┌────────────┐        │
+│ Unit Test  │        │
+└────────────┘        │
+                      │
+         ┌────────────┴─────────────┐
+         │                          │
+         ▼                          ▼
+    ┌─────────┐              ┌──────────┐
+    │ Backend │              │ Frontend │
+    │   API   │              │    UI    │
+    └────┬────┘              └─────┬────┘
+         │                         │
+         ▼                         ▼
+    ┌──────────────┐        ┌─────────────┐
+    │ API E2E Test │        │ Browser E2E │
+    └──────────────┘        └─────────────┘
+```
+
+**Quick Rules**:
+1. Testing a single function/method? → **Unit Test**
+2. Testing API endpoint behavior? → **API E2E Test**
+3. Testing UI interaction? → **Browser E2E Test**
+4. Testing multiple services together (no external deps)? → **Integration Test**
+
+## Authentication Patterns
+
+### Unit Tests: Mock Auth
+
+Mock the authentication context:
 
 ```typescript
-import { vi } from 'vitest';
+import { ExecutionContext } from '@nestjs/common';
 
-const mockEmailService = {
-  sendEmail: vi.fn().mockResolvedValue({ success: true }),
+const mockContext = {
+  switchToHttp: () => ({
+    getRequest: () => ({ 
+      user: { sub: 'user-123', scopes: ['read:documents'] }
+    })
+  })
+} as ExecutionContext;
+```
+
+### API E2E Tests: Scope-Based Tokens
+
+Use the `authHeader()` helper with scope arrays:
+
+```typescript
+import { authHeader } from './auth-helpers';
+
+// No auth
+await request(app).get('/api/documents');
+
+// Basic auth
+await request(app)
+  .get('/api/documents')
+  .set('Authorization', authHeader());
+
+// Scoped auth
+await request(app)
+  .get('/api/documents')
+  .set('Authorization', authHeader(['read:documents', 'write:tasks']));
+```
+
+### Browser E2E Tests: Playwright Fixtures
+
+Use Playwright fixtures with real Zitadel login:
+
+```typescript
+// apps/admin/tests/e2e/fixtures/auth.ts
+import { test as base } from '@playwright/test';
+
+export const test = base.extend({
+  authenticatedPage: async ({ page }, use) => {
+    // Perform real login
+    await page.goto('/login');
+    await page.fill('[name="email"]', process.env.E2E_TEST_USER_EMAIL);
+    await page.fill('[name="password"]', process.env.E2E_TEST_USER_PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/dashboard/);
+    
+    await use(page);
+  }
+});
+
+// Usage in tests
+test('user can create document', async ({ authenticatedPage }) => {
+  await authenticatedPage.goto('/documents/new');
+  // ...
+});
+```
+
+## Database Patterns
+
+### Unit Tests: Always Mock
+
+```typescript
+const mockDb = {
+  query: vi.fn().mockResolvedValue([{ id: '1', name: 'Test' }]),
+  transaction: vi.fn()
 };
-
-// Later in test
-expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
-  'user@example.com',
-  'Welcome',
-  expect.stringContaining('Thank you')
-);
 ```
 
-#### `vi.spyOn()` - Spy on Existing Methods
+### API E2E Tests: Real PostgreSQL with RLS
 
-**When to use**: Observing calls while preserving or overriding implementation.
+Use the `createE2EContext()` helper for automatic setup/teardown:
 
-**Example**:
+```typescript
+import { createE2EContext } from './e2e-context';
+
+describe('My E2E Test', () => {
+  let ctx: any;
+  
+  beforeAll(async () => {
+    ctx = await createE2EContext();
+    // ctx provides: app, db, testOrgId, testProjectId, cleanup()
+  });
+  
+  afterAll(async () => {
+    await ctx.cleanup(); // Automatic cleanup via RLS
+  });
+  
+  it('should test with real database', async () => {
+    // Database operations automatically scoped to test tenant via RLS
+    await request(ctx.app.getHttpServer())
+      .post('/api/documents')
+      .set('X-Organization-ID', ctx.testOrgId)
+      .send({ title: 'Test' });
+  });
+});
+```
+
+## Mocking Strategies
+
+### Vitest Mocks
+
+Use Vitest's built-in mocking utilities:
 
 ```typescript
 import { vi } from 'vitest';
 
-const service = new MyService(deps);
-const spy = vi.spyOn(service, 'processData').mockReturnValue('mocked result');
+// Simple function mock
+const mockFn = vi.fn().mockReturnValue('result');
 
-// Run code that calls processData
-await service.execute();
+// Spy on existing method
+const spy = vi.spyOn(service, 'method').mockResolvedValue('result');
 
-expect(spy).toHaveBeenCalledTimes(1);
-spy.mockRestore(); // Restore original implementation
-```
-
-#### `vi.mock()` - Module-Level Mocks
-
-**When to use**: Mocking entire modules (e.g., external libraries).
-
-**Example**:
-
-```typescript
-import { vi } from 'vitest';
-
-vi.mock('@langchain/google-genai', () => ({
-  GoogleGenerativeAIEmbeddings: class MockEmbeddings {
-    embedQuery = vi.fn(async (text: string) => [0.1, 0.2, 0.3]);
-  },
+// Module mock
+vi.mock('../src/external-service', () => ({
+  ExternalService: vi.fn().mockImplementation(() => ({
+    fetchData: vi.fn().mockResolvedValue({ data: 'mocked' })
+  }))
 }));
-
-// Now all imports of GoogleGenerativeAIEmbeddings use the mock
 ```
 
-#### MSW (Mock Service Worker) - HTTP Mocking
+### MSW for HTTP Mocking
 
-**When to use**: Mocking HTTP requests in integration tests.
-
-**Example**:
+For testing code that makes HTTP requests:
 
 ```typescript
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
 
 const server = setupServer(
-  http.get('https://api.clickup.com/api/v2/task/:taskId', ({ params }) => {
-    return HttpResponse.json({
-      id: params.taskId,
-      name: 'Mocked Task',
-    });
-  }),
-
-  // Simulate error
-  http.post('https://api.clickup.com/api/v2/task', () => {
-    return new HttpResponse(null, { status: 429 }); // Rate limit
+  http.get('https://api.external.com/data', () => {
+    return HttpResponse.json({ data: 'mocked response' });
   })
 );
 
@@ -380,494 +415,189 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 ```
 
-### Manual Mock Classes (Use Sparingly)
-
-**When to avoid**: Most cases - prefer `vi.fn()` for simplicity.
-
-**When acceptable**: Complex stateful dependencies requiring coordinated behavior.
-
-**Example**:
-
-```typescript
-class MockGraphService {
-  private objects = new Map();
-
-  createObject = vi.fn(async (obj) => {
-    this.objects.set(obj.id, obj);
-    return obj;
-  });
-
-  getObject = vi.fn(async (id) => {
-    return this.objects.get(id);
-  });
-}
-```
-
-### Mocking Best Practices
-
-1. **Document what you mock and why** (inline comments)
-2. **Mock at the boundary** - mock external dependencies, keep internal logic real
-3. **Use type-safe mocks** - leverage TypeScript for mock typing
-4. **Clear mocks between tests** - use `vi.clearAllMocks()` in `beforeEach`
-5. **Keep mocks simple** - if a mock is complex, the code might need refactoring
-6. **Avoid over-mocking** - only mock what's necessary for the test
-
-## Authentication Setup
-
-### Unit Tests: Mock ExecutionContext
-
-**Pattern**: Provide a mock request object with user and scopes.
-
-**Example**:
-
-```typescript
-import { ExecutionContext } from '@nestjs/common';
-import { vi } from 'vitest';
-
-function createMockExecutionContext(
-  user: any,
-  scopes: string[] = []
-): ExecutionContext {
-  return {
-    switchToHttp: () => ({
-      getRequest: () => ({
-        user,
-        scopes,
-      }),
-    }),
-  } as ExecutionContext;
-}
-
-// In test
-it('should allow access with correct scope', () => {
-  const mockCtx = createMockExecutionContext(
-    { id: 'user-1', email: 'test@example.com' },
-    ['read:projects', 'write:projects']
-  );
-
-  const guard = new ScopeGuard(['write:projects']);
-  expect(guard.canActivate(mockCtx)).toBe(true);
-});
-```
-
-### E2E Tests: Real Tokens with authHeader()
-
-**Pattern**: Use the `authHeader()` helper to generate valid JWT tokens with scopes.
-
-**Location**: `tests/e2e/helpers/auth-helpers.ts`
-
-**Usage**:
-
-```typescript
-import request from 'supertest';
-import { authHeader } from './helpers/auth-helpers';
-
-// No auth (test public endpoints)
-await request(app.getHttpServer()).get('/health').expect(200);
-
-// Basic auth (default scopes)
-await request(app.getHttpServer())
-  .get('/profile')
-  .set('Authorization', authHeader());
-
-// Scoped auth (specific permissions)
-await request(app.getHttpServer())
-  .post('/projects')
-  .set('Authorization', authHeader(['write:projects', 'read:organizations']))
-  .send({ name: 'New Project', org_id: 'org-1' });
-
-// Test authorization failures
-await request(app.getHttpServer())
-  .post('/projects')
-  .set('Authorization', authHeader(['read:projects'])) // Missing write scope
-  .send({ name: 'New Project', org_id: 'org-1' })
-  .expect(403);
-```
-
-### Available Scopes
-
-Common scopes used in tests:
-
-- `read:projects`, `write:projects`
-- `read:organizations`, `write:organizations`
-- `read:documents`, `write:documents`
-- `read:graph`, `write:graph`
-- `chat:read`, `chat:write`
-- `admin:*` (superuser access)
-
-**Finding scopes**: Check OpenAPI spec (`openapi.yaml`) or controller decorators (`@Scopes()`).
-
-## Database Configuration
-
-### Unit Tests: Always Mock
-
-**Principle**: Unit tests should never touch a real database.
-
-**Pattern**: Mock database client or repository methods.
-
-**Example**:
-
-```typescript
-const mockDb = {
-  query: vi.fn(),
-  insert: vi.fn(),
-  update: vi.fn(),
-  delete: vi.fn(),
-};
-
-// Provide deterministic test data
-mockDb.query.mockResolvedValue([
-  { id: 'proj-1', name: 'Project 1' },
-  { id: 'proj-2', name: 'Project 2' },
-]);
-
-const module = await Test.createTestingModule({
-  providers: [ProjectService, { provide: DatabaseService, useValue: mockDb }],
-}).compile();
-```
-
-### E2E Tests: Real PostgreSQL with RLS
-
-**Setup**: Use `createE2EContext()` helper for automatic database provisioning and cleanup.
-
-**Location**: `tests/e2e/helpers/e2e-context.ts`
-
-**How it works**:
-
-1. Creates a test organization with unique UUID
-2. Sets up RLS (Row-Level Security) policies for test isolation
-3. Provides authenticated app instance
-4. Automatically cleans up test data on teardown
-
-**Usage**:
-
-```typescript
-import { createE2EContext } from './helpers/e2e-context';
-
-describe('Projects API (E2E)', () => {
-  let ctx;
-
-  beforeAll(async () => {
-    ctx = await createE2EContext();
-    // ctx.app - NestJS app instance
-    // ctx.org - Test organization
-    // ctx.user - Test user
-    // ctx.db - Database connection (if needed for direct queries)
-  });
-
-  afterAll(async () => {
-    await ctx.cleanup(); // Deletes test org and cascades to all related records
-  });
-
-  it('should create project in database', async () => {
-    const response = await request(ctx.app.getHttpServer())
-      .post('/projects')
-      .set('Authorization', authHeader(['write:projects']))
-      .send({ name: 'Test Project', org_id: ctx.org.id });
-
-    expect(response.status).toBe(201);
-
-    // Verify in database
-    const project = await ctx.db.query(
-      'SELECT * FROM kb.projects WHERE id = $1',
-      [response.body.id]
-    );
-    expect(project.rows[0]).toMatchObject({
-      name: 'Test Project',
-      org_id: ctx.org.id,
-    });
-  });
-});
-```
-
-### Database Test Isolation
-
-**RLS (Row-Level Security)**: Ensures tests don't interfere with each other.
-
-- Each test organization has a unique UUID
-- All queries are scoped to the current user's organization via RLS policies
-- Deleting the test org cascades to all related records (automatic cleanup)
-
-**Best Practices**:
-
-1. Always use `createE2EContext()` for E2E tests
-2. Call `ctx.cleanup()` in `afterAll`
-3. Don't hardcode UUIDs - use `ctx.org.id`, `ctx.user.id`
-4. Verify database state when testing data integrity
-
 ## Running Tests
 
-### Test Scripts
-
-All test commands use `nx` to run tasks on projects:
+### Server App
 
 ```bash
-# Unit tests (fast, no external dependencies)
-nx test server          # Run all unit tests for server
-nx test admin                # Run all unit tests for admin
+# Unit tests only
+nx test server
 
-# E2E tests (slower, requires database and auth)
-nx test-e2e server      # Run all e2e tests for server
+# E2E tests
+nx test-e2e server
 
-# Integration tests (moderate speed)
-nx test server --testFile=tests/integration/*.integration.spec.ts
-
-# Single test file
-nx test server --testFile=tests/unit/auth/auth.service.spec.ts
-
-# Watch mode (re-run on file changes)
+# Watch mode
 nx test server --watch
 
 # Coverage
 nx test server --coverage
 ```
 
-### Test Configuration
-
-- **Unit tests**: `vitest.config.ts` - includes `tests/**/*.spec.ts` and `src/**/__tests__/**/*.spec.ts`
-- **E2E tests**: `vitest.e2e.config.ts` - includes `tests/e2e/**/*.e2e-spec.ts`
-
-### Environment Setup for E2E Tests
-
-E2E tests require:
-
-1. **PostgreSQL database** running locally or via Docker
-2. **Zitadel** for authentication (can use test instance)
-3. **Environment variables** configured in `.env.test` or `.env.test.local`
-
-**Quick setup**:
+### Admin App
 
 ```bash
-# Start services via Docker Compose
-docker compose -f docker/docker-compose.yml up -d
+# Unit tests
+nx test admin
 
-# Copy example env file
-cp .env.test.local.example .env.test.local
+# Browser E2E tests
+nx test-e2e admin
 
-# Run e2e tests
-nx test-e2e server
+# E2E in UI mode
+nx test-e2e admin --ui
+
+# E2E headed (see browser)
+nx test-e2e admin --headed
 ```
 
-## Writing Good Tests
+## Test Organization
 
-### Test Structure
+### File Structure
 
-Follow the **Arrange-Act-Assert** pattern:
-
-```typescript
-it('should calculate total price with tax', () => {
-  // Arrange: Set up test data and dependencies
-  const cart = { items: [{ price: 100 }, { price: 200 }], taxRate: 0.1 };
-  const calculator = new PriceCalculator();
-
-  // Act: Execute the code under test
-  const total = calculator.calculateTotal(cart);
-
-  // Assert: Verify expected outcome
-  expect(total).toBe(330); // 300 + 10% tax
-});
+```
+apps/
+  server/
+    tests/
+      unit/           # Unit tests (*.spec.ts)
+      e2e/            # API E2E tests (*.e2e-spec.ts)
+      integration/    # Integration tests (*.integration.spec.ts)
+      helpers/        # Shared test utilities
+  admin/
+    tests/
+      unit/           # React unit tests (*.test.tsx)
+      e2e/            # Browser E2E tests (*.spec.ts)
+      helpers/        # Shared test utilities
 ```
 
-### Inline Documentation
+### Naming Conventions
 
-**Always document**:
+- Unit tests: `*.spec.ts` (server), `*.test.tsx` (admin)
+- API E2E tests: `*.e2e-spec.ts`
+- Browser E2E tests: `*.spec.ts` (in e2e directory)
+- Integration tests: `*.integration.spec.ts`
 
-1. **What is being tested** (test file header comment)
-2. **What is mocked and why** (inline comments in setup)
-3. **Complex assertions** (inline comments explaining expected behavior)
-
-**Template**:
+### Test File Structure
 
 ```typescript
 /**
- * Tests the ChatService message handling and conversation flow.
+ * Brief description of what this test file covers.
  *
  * Mocked:
- * - EmbeddingsService: Returns deterministic vectors to avoid LLM calls
- * - LangGraph: Skipped to test business logic only
- * - DatabaseService: Uses in-memory test data
+ * - List what is mocked and why
+ * - Example: Database client (using in-memory mock for speed)
+ * - Example: External API (using MSW to avoid network calls)
  *
- * Auth: Mock user with chat:read and chat:write scopes
- * Database: Mocked (unit test)
+ * Real:
+ * - List what uses real implementations
+ * - Example: Business logic in service
+ *
+ * Auth: Description of auth setup
+ * - Example: Mock user with read:documents scope
  */
-describe('ChatService', () => {
-  let service: ChatService;
-  let mockEmbeddings: { embedQuery: ReturnType<typeof vi.fn> };
-
-  beforeEach(async () => {
-    // Mock embeddings service to avoid LLM API calls
-    mockEmbeddings = {
-      embedQuery: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]),
-    };
-
-    const module = await Test.createTestingModule({
-      providers: [
-        ChatService,
-        { provide: EmbeddingsService, useValue: mockEmbeddings },
-      ],
-    }).compile();
-
-    service = module.get(ChatService);
+describe('Feature Name', () => {
+  // Setup
+  beforeAll(async () => {
+    // One-time setup
   });
-
-  it('should create conversation with initial message', async () => {
-    // Test implementation
+  
+  beforeEach(() => {
+    // Per-test setup
+  });
+  
+  afterEach(() => {
+    // Per-test cleanup
+  });
+  
+  afterAll(async () => {
+    // One-time cleanup
+  });
+  
+  describe('Specific behavior', () => {
+    it('should do something specific', async () => {
+      // Arrange
+      const input = { /* ... */ };
+      
+      // Act
+      const result = await service.method(input);
+      
+      // Assert
+      expect(result).toMatchObject({ /* ... */ });
+    });
   });
 });
 ```
 
-### Test Quality Checklist
+## Best Practices
 
-Before committing tests, verify:
+### DO
 
-- [ ] Test has clear `describe` and `it` blocks with descriptive names
-- [ ] Header comment explains what is tested, what is mocked, and why
-- [ ] Inline comments document non-obvious mocking decisions
-- [ ] Assertions are meaningful (not just `toBeDefined()`)
-- [ ] Test is deterministic (no random data, flaky timers, race conditions)
-- [ ] Cleanup is handled (`afterEach`, `afterAll`)
-- [ ] Mocks are cleared between tests (`vi.clearAllMocks()`)
-- [ ] Test runs independently (doesn't depend on test execution order)
-- [ ] Test follows project naming conventions
+✅ Write clear, descriptive test names
+✅ Follow Arrange-Act-Assert pattern
+✅ Test one thing per test
+✅ Use meaningful variable names
+✅ Clean up resources in afterEach/afterAll
+✅ Mock external dependencies in unit tests
+✅ Use real dependencies in e2e tests
+✅ Add comments explaining complex setup
+✅ Keep tests independent (no shared state)
 
-### Common Pitfalls
+### DON'T
 
-1. **Testing implementation details** - Focus on behavior, not internal state
-2. **Over-mocking** - Only mock external boundaries
-3. **Flaky tests** - Avoid timeouts, race conditions, shared state
-4. **Missing cleanup** - Always clean up resources in `afterEach`/`afterAll`
-5. **Generic test names** - Use descriptive names that explain the scenario
-6. **Assertions without context** - Add comments explaining complex expectations
+❌ Test implementation details
+❌ Have tests that depend on execution order
+❌ Leave console.log() statements in tests
+❌ Mock everything in e2e tests
+❌ Skip cleanup in afterEach/afterAll
+❌ Write tests that are flaky or timing-dependent
+❌ Duplicate test code (use helpers)
+❌ Test framework code (focus on your logic)
 
 ## Troubleshooting
 
-### "Module not found" in tests
+### Common Issues
 
-**Symptom**: Import errors when running tests.
+**Tests fail locally but pass in CI**:
+- Check for hard-coded paths or environment variables
+- Ensure database is running locally
+- Check for timezone differences
 
-**Solutions**:
+**Tests are slow**:
+- Move expensive operations to beforeAll
+- Use unit tests instead of e2e for logic testing
+- Parallel test execution: `--parallel`
 
-1. Check TypeScript path mappings in `tsconfig.json`
-2. Verify import paths are relative or use configured aliases
-3. Ensure test file is in the correct location for test runner configuration
+**Flaky tests**:
+- Add explicit waits in browser tests
+- Check for race conditions
+- Ensure proper cleanup between tests
 
-### "Cannot find module 'vitest'"
+**Database connection errors**:
+- Verify Docker containers are running: `docker ps`
+- Check environment variables
+- Ensure RLS policies are set up
 
-**Symptom**: Vitest import errors.
+### Getting Help
 
-**Solution**: Install dependencies:
+- Check existing tests for patterns
+- Review this guide
+- Ask in team chat
+- See [CONTRIBUTING.md](../../CONTRIBUTING.md)
 
-```bash
-npm install
-```
+## Configuration Files
 
-### E2E tests fail with "database connection refused"
+### Server Vitest Config
 
-**Symptom**: E2E tests can't connect to Postgres.
+- `apps/server/vitest.config.ts` - Unit tests
+- `apps/server/vitest.e2e.config.ts` - E2E tests (if separate)
 
-**Solutions**:
+### Admin Test Configs
 
-1. Start Docker Compose services: `docker compose up -d`
-2. Check `.env.test.local` has correct database credentials
-3. Verify `DATABASE_URL` environment variable
+- `apps/admin/vitest.config.ts` - Unit tests
+- `apps/admin/tests/e2e/playwright.config.ts` - Browser E2E tests
 
-### E2E tests fail with "unauthorized"
-
-**Symptom**: E2E tests get 401/403 errors.
-
-**Solutions**:
-
-1. Verify Zitadel is running
-2. Check test service account credentials in `.env.test.local`
-3. Ensure `authHeader()` is called with correct scopes
-
-### Tests pass locally but fail in CI
-
-**Symptom**: Tests work on local machine but fail in CI pipeline.
-
-**Common causes**:
-
-1. Missing environment variables in CI
-2. Database not seeded or migrations not run
-3. Different Node.js versions
-4. Timing issues (increase timeouts for CI)
-
-**Solution**: Check CI configuration (`.github/workflows/`) and ensure setup steps match local environment.
-
-### Flaky tests (pass/fail randomly)
-
-**Symptom**: Tests fail intermittently without code changes.
-
-**Common causes**:
-
-1. Race conditions (async timing)
-2. Shared state between tests
-3. External API dependencies
-4. Insufficient test isolation
-
-**Solutions**:
-
-1. Use `vi.useFakeTimers()` for time-dependent tests
-2. Clear mocks in `beforeEach`: `vi.clearAllMocks()`
-3. Ensure proper cleanup in `afterEach`/`afterAll`
-4. Mock external APIs with MSW
-5. Increase timeouts for slow operations (but investigate root cause)
-
-### Vitest vs Jest differences
-
-**This project uses Vitest, not Jest.**
-
-Key differences:
-
-- Import from `vitest`, not `@jest/globals`
-- Use `vi.fn()` instead of `jest.fn()`
-- Use `vi.mock()` instead of `jest.mock()`
-- Some matchers differ (check Vitest docs)
-
-## Migration Tasks
-
-**Note**: This project is currently migrating to the standardized folder structure documented above.
-
-### Current State
-
-Tests are scattered across:
-
-- `/apps/server/test/` (e2e tests)
-- `/apps/server/tests/` (mixed unit tests)
-- `/apps/server/src/modules/*/__tests__/` (co-located unit tests)
-- `/apps/server/src/modules/*/*.spec.ts` (inline spec files)
-
-### Target State
-
-All tests organized by type:
-
-- `/apps/server/tests/unit/` (all unit tests, mirroring src structure)
-- `/apps/server/tests/e2e/` (all e2e tests)
-- `/apps/server/tests/integration/` (all integration tests)
-
-### Migration Progress
-
-See implementation tasks in the change proposal: `openspec/changes/document-test-infrastructure/tasks.md`
-
-## AI Tool Configuration
-
-This testing guide is referenced by AI coding tools for consistency:
-
-- **GitHub Copilot**: References guide via `.github/copilot-instructions.md`
-- **OpenCode**: Includes guide in `opencode.jsonc` instructions array
-- **Gemini CLI**: Imports guide via `.gemini/GEMINI.md` context file
-
-For detailed AI-specific guidance, see [AI Agent Testing Guide](./AI_AGENT_GUIDE.md).
-
-## Additional Resources
+## Resources
 
 - [Vitest Documentation](https://vitest.dev/)
+- [Playwright Documentation](https://playwright.dev/)
+- [Testing Library (React)](https://testing-library.com/docs/react-testing-library/intro/)
 - [NestJS Testing](https://docs.nestjs.com/fundamentals/testing)
 - [MSW Documentation](https://mswjs.io/)
-- [Testing Best Practices](https://testingjavascript.com/)
-
----
-
-**Last Updated**: 2025-01-10
-**Maintainer**: Development Team
-**Feedback**: Please open an issue or PR if you find errors or have suggestions.

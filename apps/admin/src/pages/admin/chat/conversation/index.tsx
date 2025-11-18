@@ -169,7 +169,7 @@ export default function ChatConversationPage() {
     <div data-testid="page-chat-conversation" className="drawer drawer-open">
       <input id="chat-drawer" type="checkbox" className="drawer-toggle" />
       <div className="drawer-content">
-        <div className="mx-auto p-6 max-w-7xl container">
+        <div className="mx-auto max-w-7xl container">
           {/* Header */}
           <div className="mb-6">
             <h1 className="font-bold text-2xl">AI Chat</h1>

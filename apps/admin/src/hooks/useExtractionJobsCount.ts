@@ -47,7 +47,8 @@ export function useExtractionJobsCount() {
                     total: pendingResult.total + runningResult.total,
                 });
             } catch (error) {
-                console.error('Failed to fetch extraction jobs count:', error);
+                // Log as info instead of error to avoid spurious console errors during initialization
+                console.log('Failed to fetch extraction jobs count:', error instanceof Error ? error.message : error);
                 setCounts({ pending: 0, running: 0, total: 0 });
             } finally {
                 setLoading(false);

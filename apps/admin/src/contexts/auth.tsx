@@ -11,6 +11,7 @@ import {
   type OidcConfig,
   type TokenResponse,
 } from '@/auth/oidc';
+import { AUTH_STORAGE_KEY } from '@/constants/storage';
 
 type AuthState = {
   accessToken?: string;
@@ -32,7 +33,6 @@ export type AuthContextType = {
 export const AuthContext = createContext<AuthContextType | undefined>(
   undefined
 );
-const STORAGE_KEY = '__nexus_auth_v1__';
 
 function getConfigFromEnv(): OidcConfig {
   const env: any = (import.meta as any).env || {};
@@ -65,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [state, setState] = useState<AuthState>(() => {
     // Hydrate from localStorage on first mount
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
       if (!raw) return {};
       const parsed = JSON.parse(raw) as AuthState;
       // Drop expired tokens eagerly
@@ -94,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
     setState(next);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(next));
     } catch {
       /* ignore */
     }
@@ -123,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       // Remove legacy auth key
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
     } catch {
       // ignore storage errors
     }
@@ -197,9 +197,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         state.accessToken &&
         (!state.expiresAt || Date.now() < state.expiresAt)
       ) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state));
       } else {
-        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(AUTH_STORAGE_KEY);
       }
     } catch {
       // ignore storage errors

@@ -143,7 +143,7 @@ export default function IntegrationsPage() {
 
     return (
         <OrgAndProjectGate>
-            <div data-testid="page-integrations" className="mx-auto p-6 max-w-7xl container">
+            <div data-testid="page-integrations" className="mx-auto max-w-7xl container">
                 {/* Header */}
                 <div className="mb-6">
                     <h1 className="font-bold text-2xl">Integrations</h1>

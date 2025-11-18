@@ -262,7 +262,7 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
     // Show error state
     if (error && !isLoading) {
         return (
-            <div className="mx-auto p-6 max-w-7xl container">
+            <div className="mx-auto max-w-7xl container">
                 <div className="mb-6">
                     <h1 className="font-bold text-2xl">Extraction Jobs</h1>
                     <p className="mt-1 text-base-content/70">
@@ -278,7 +278,7 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
     }
 
     return (
-        <div data-testid="page-extraction-jobs" className="mx-auto p-6 max-w-7xl container">
+        <div data-testid="page-extraction-jobs" className="mx-auto max-w-7xl container">
             {/* Header */}
             <div className="flex sm:flex-row flex-col justify-between items-start sm:items-center gap-4 mb-6">
                 <div>

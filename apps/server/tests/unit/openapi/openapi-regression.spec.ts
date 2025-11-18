@@ -7,10 +7,10 @@ import { describe, it, expect } from 'vitest';
 // Update EXPECTED_HASH only when deliberately changing the public API surface.
 
 function hashSpecPaths(spec: any): string {
-    const paths = Object.keys(spec.paths || {}).sort();
-    const tags = (spec.tags || []).map((t: any) => t.name).sort();
-    const payload = JSON.stringify({ paths, tags });
-    return crypto.createHash('sha256').update(payload).digest('hex');
+  const paths = Object.keys(spec.paths || {}).sort();
+  const tags = (spec.tags || []).map((t: any) => t.name).sort();
+  const payload = JSON.stringify({ paths, tags });
+  return crypto.createHash('sha256').update(payload).digest('hex');
 }
 
 // Placeholder value: will be filled after first stable run.
@@ -33,19 +33,25 @@ function hashSpecPaths(spec: any): string {
 // Updated after regenerating with ClickUp SDK as ES modules (October 2025)
 // Updated after adding MCP RPC endpoint and user deletion endpoints (October 2025)
 // Updated after adding PATCH /projects/:id endpoint for kb_purpose updates (November 2025)
-const EXPECTED_HASH = process.env.OPENAPI_EXPECTED_HASH || 'c2970c0fa90b9c3fb3b0f106e8487f0d6c90059a51c3146956674f4155f209cf';
+// Updated after adding /user/orgs-and-projects, /documents/deletion-impact endpoints and DELETE /documents (November 2025)
+const EXPECTED_HASH =
+  process.env.OPENAPI_EXPECTED_HASH ||
+  '7f57a7ed3e546973f70f5b6928cc22b52342fb48d194bf1ad01a2a216a2c9097';
 
 describe('OpenAPI regression', () => {
-    it('paths+tags hash matches expected (update EXPECTED_HASH intentionally if spec changed)', () => {
-        const specPath = join(process.cwd(), 'openapi.json');
-        const raw = readFileSync(specPath, 'utf-8');
-        const spec = JSON.parse(raw);
-        const hash = hashSpecPaths(spec);
-        if (EXPECTED_HASH === 'TO_SET') {
-            // eslint-disable-next-line no-console
-            console.log('Computed hash (copy into EXPECTED_HASH when locking spec):', hash);
-        } else {
-            expect(hash).toBe(EXPECTED_HASH);
-        }
-    });
+  it('paths+tags hash matches expected (update EXPECTED_HASH intentionally if spec changed)', () => {
+    const specPath = join(process.cwd(), 'openapi.json');
+    const raw = readFileSync(specPath, 'utf-8');
+    const spec = JSON.parse(raw);
+    const hash = hashSpecPaths(spec);
+    if (EXPECTED_HASH === 'TO_SET') {
+      // eslint-disable-next-line no-console
+      console.log(
+        'Computed hash (copy into EXPECTED_HASH when locking spec):',
+        hash
+      );
+    } else {
+      expect(hash).toBe(EXPECTED_HASH);
+    }
+  });
 });
