@@ -174,11 +174,22 @@ export class TemplatePackController {
     @Query('user_id') queryUserId?: string
   ) {
     // In test mode, context may come from query params instead of headers
-    const orgId = (req.headers['x-org-id'] as string | undefined) || queryOrgId;
+    const orgIdFromHeader =
+      (req.headers['x-org-id'] as string | undefined) || queryOrgId;
     const userId = this.resolveUserId(req, queryUserId);
 
+    // If no org ID provided in header, derive it from the project
+    let orgId = orgIdFromHeader;
     if (!orgId) {
-      throw new BadRequestException('Organization context required');
+      orgId = await this.templatePackService.getOrganizationIdFromProject(
+        projectId
+      );
+    }
+
+    if (!orgId) {
+      throw new BadRequestException(
+        'Organization context required - could not derive from project'
+      );
     }
 
     return this.templatePackService.assignTemplatePackToProject(
@@ -200,9 +211,20 @@ export class TemplatePackController {
     @Body() dto: UpdateTemplatePackAssignmentDto,
     @Req() req: any
   ) {
-    const orgId = (req.headers['x-org-id'] as string | undefined) || undefined;
+    const orgIdFromHeader = req.headers['x-org-id'] as string | undefined;
+
+    // If no org ID provided in header, derive it from the project
+    let orgId = orgIdFromHeader;
     if (!orgId) {
-      throw new BadRequestException('Organization context required');
+      orgId = await this.templatePackService.getOrganizationIdFromProject(
+        projectId
+      );
+    }
+
+    if (!orgId) {
+      throw new BadRequestException(
+        'Organization context required - could not derive from project'
+      );
     }
 
     return this.templatePackService.updateTemplatePackAssignment(
@@ -224,9 +246,20 @@ export class TemplatePackController {
     @Param('assignmentId') assignmentId: string,
     @Req() req: any
   ) {
-    const orgId = (req.headers['x-org-id'] as string | undefined) || undefined;
+    const orgIdFromHeader = req.headers['x-org-id'] as string | undefined;
+
+    // If no org ID provided in header, derive it from the project
+    let orgId = orgIdFromHeader;
     if (!orgId) {
-      throw new BadRequestException('Organization context required');
+      orgId = await this.templatePackService.getOrganizationIdFromProject(
+        projectId
+      );
+    }
+
+    if (!orgId) {
+      throw new BadRequestException(
+        'Organization context required - could not derive from project'
+      );
     }
 
     await this.templatePackService.uninstallTemplatePackFromProject(
