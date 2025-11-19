@@ -11,7 +11,7 @@ import {
   type OidcConfig,
   type TokenResponse,
 } from '@/auth/oidc';
-import { AUTH_STORAGE_KEY } from '@/constants/storage';
+import { AUTH_STORAGE_KEY, OLD_AUTH_STORAGE_KEY } from '@/constants/storage';
 
 type AuthState = {
   accessToken?: string;
@@ -122,15 +122,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setState({});
 
     try {
-      // Remove legacy auth key
+      // Remove current auth key
       localStorage.removeItem(AUTH_STORAGE_KEY);
     } catch {
       // ignore storage errors
     }
 
     try {
-      // Remove current auth key (if it exists)
-      localStorage.removeItem('spec-server-auth');
+      // Remove legacy auth key for backwards compatibility
+      localStorage.removeItem(OLD_AUTH_STORAGE_KEY);
     } catch {
       // ignore storage errors
     }
