@@ -350,16 +350,15 @@ Your markdown formatted answer:`;
     if (!this.enabled) throw new Error('chat model disabled');
 
     // Deterministic synthetic mode for tests: bypass external model and emit fixed token sequence
+    // Match production tokenization behavior: include spaces as separate tokens
     if (process.env.CHAT_TEST_DETERMINISTIC === '1') {
-      const synthetic: string[] = [
-        'token-0',
-        'token-1',
-        'token-2',
-        'token-3',
-        'token-4',
-      ];
-      synthetic.forEach((t) => onToken(t));
-      return synthetic.join(' ');
+      const tokens: string[] = [];
+      for (let i = 0; i < 5; i++) {
+        tokens.push(`token-${i}`);
+        if (i < 4) tokens.push(' '); // Space between tokens (not after last one)
+      }
+      tokens.forEach((t) => onToken(t));
+      return tokens.join(''); // Join without separator (spaces already included)
     }
 
     try {

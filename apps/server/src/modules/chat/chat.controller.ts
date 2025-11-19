@@ -814,9 +814,24 @@ export class ChatController {
         // Join tokens without separator to preserve newlines and formatting from LLM
         const content = tokens.join('');
         await this.chat.persistAssistantMessage(id, content, citations);
+        if (process.env.E2E_DEBUG_CHAT === '1') {
+          this.logger.log(
+            `[stream] persisted assistant message (${tokens.length} tokens, ${citations.length} citations) for conversation ${id}`
+          );
+        }
+      } else if (process.env.E2E_DEBUG_CHAT === '1') {
+        this.logger.log(
+          `[stream] conversation ${id} does not exist, skipping persistence`
+        );
       }
     } catch (e) {
-      // Swallow persistence errors to avoid breaking the stream
+      // Log persistence errors in debug mode but don't break the stream
+      if (process.env.E2E_DEBUG_CHAT === '1') {
+        this.logger.error(
+          `[stream] Failed to persist assistant message for conversation ${id}: ${(e as Error).message}`,
+          (e as Error).stack
+        );
+      }
     }
     // Emit summary frame BEFORE final done marker to allow clients to surface stats progressively
     const summary = {
