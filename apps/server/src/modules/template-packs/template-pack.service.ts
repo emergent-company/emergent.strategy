@@ -40,9 +40,7 @@ export class TemplatePackService {
    * Derive organization ID from project ID
    * Used for tenant context - organization_id is no longer required as a parameter
    */
-  private async getOrganizationIdFromProject(
-    projectId: string
-  ): Promise<string> {
+  async getOrganizationIdFromProject(projectId: string): Promise<string> {
     const orgResult = await this.db.query<{ organization_id: string }>(
       'SELECT organization_id FROM kb.projects WHERE id = $1',
       [projectId]
