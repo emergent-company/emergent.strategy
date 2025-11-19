@@ -159,10 +159,9 @@ describe('DatabaseService - Tenant Context Isolation', () => {
     it('should use transaction-scoped set_config in runWithTenantContext', async () => {
       const { db } = buildServices();
 
-      const orgId = 'org-789';
       const projectId = 'proj-abc';
 
-      await db.runWithTenantContext(orgId, projectId, async () => {
+      await db.runWithTenantContext(projectId, async () => {
         // Do nothing, just test the context setup
       });
 
@@ -185,14 +184,12 @@ describe('DatabaseService - Tenant Context Isolation', () => {
     it('should isolate tenant context between nested calls', async () => {
       const { db } = buildServices();
 
-      const orgId1 = 'org-outer';
       const projectId1 = 'proj-outer';
-      const orgId2 = 'org-inner';
       const projectId2 = 'proj-inner';
 
-      await db.runWithTenantContext(orgId1, projectId1, async () => {
+      await db.runWithTenantContext(projectId1, async () => {
         // Nested context
-        await db.runWithTenantContext(orgId2, projectId2, async () => {
+        await db.runWithTenantContext(projectId2, async () => {
           // Inner context
         });
         // Back to outer context
@@ -240,7 +237,7 @@ describe('DatabaseService - Tenant Context Isolation', () => {
 
       // Test various operations
       await db.setTenantContext('org-1', 'proj-1');
-      await db.runWithTenantContext('org-2', 'proj-2', async () => {
+      await db.runWithTenantContext('proj-2', async () => {
         /* noop */
       });
       await db.setTenantContext(null, null);

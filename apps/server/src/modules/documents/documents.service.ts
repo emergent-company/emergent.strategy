@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { HashService } from '../../common/utils/hash.service';
+import { DatabaseService } from '../../common/database/database.service';
 import { DocumentDto } from './dto/document.dto';
 import { Document } from '../../entities/document.entity';
 import { Chunk } from '../../entities/chunk.entity';
@@ -34,7 +35,8 @@ export class DocumentsService {
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
     private readonly dataSource: DataSource,
-    private readonly hash: HashService
+    private readonly hash: HashService,
+    private readonly db: DatabaseService
   ) {}
 
   async list(
@@ -47,15 +49,8 @@ export class DocumentsService {
     const conds: string[] = [];
     let paramIdx = 2; // because $1 reserved for limit
 
-    if (filter?.orgId) {
-      // Filter by organization via project relationship
-      params.push(filter.orgId);
-      conds.push(`p.organization_id = $${paramIdx++}`);
-    }
-    if (filter?.projectId) {
-      params.push(filter.projectId);
-      conds.push(`d.project_id = $${paramIdx++}`);
-    }
+    // NOTE: Project-level filtering is now handled by RLS policies on kb.documents
+    // We only need to handle cursor-based pagination here
     if (cursor) {
       params.push(cursor.createdAt, cursor.id);
       conds.push(
@@ -68,29 +63,36 @@ export class DocumentsService {
 
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
-    // Use TypeORM DataSource query (LATERAL join not supported by QueryBuilder)
-    const rows = await this.dataSource.query(
-      `SELECT d.id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
-                    d.integration_metadata,
-                    LENGTH(d.content) AS content_length,
-                    COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
-                    ej.status AS extraction_status,
-                    ej.completed_at AS extraction_completed_at,
-                    ej.objects_created AS extraction_objects_count
-             FROM kb.documents d
-             LEFT JOIN kb.projects p ON d.project_id = p.id
-             LEFT JOIN LATERAL (
-                 SELECT status, completed_at, objects_created
-                 FROM kb.object_extraction_jobs
-                 WHERE source_type = 'document' AND source_id::uuid = d.id
-                 ORDER BY created_at DESC
-                 LIMIT 1
-             ) ej ON true
-             ${where}
-             ORDER BY d.created_at DESC, d.id DESC
-             LIMIT $1`,
-      params
-    );
+    // Use DatabaseService to ensure RLS context is set
+    const queryFn = async () => {
+      const result = await this.db.query(
+        `SELECT d.id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
+                      d.integration_metadata,
+                      LENGTH(d.content) AS content_length,
+                      COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
+                      ej.status AS extraction_status,
+                      ej.completed_at AS extraction_completed_at,
+                      ej.objects_created AS extraction_objects_count
+               FROM kb.documents d
+               LEFT JOIN LATERAL (
+                   SELECT status, completed_at, objects_created
+                   FROM kb.object_extraction_jobs
+                   WHERE source_type = 'document' AND source_id::uuid = d.id
+                   ORDER BY created_at DESC
+                   LIMIT 1
+               ) ej ON true
+               ${where}
+               ORDER BY d.created_at DESC, d.id DESC
+               LIMIT $1`,
+        params
+      );
+      return result.rows;
+    };
+
+    // Always use tenant context when available - RLS policies enforce isolation
+    const rows = filter?.projectId
+      ? await this.db.runWithTenantContext(filter.projectId, queryFn)
+      : await queryFn();
 
     const hasMore = rows.length > limit;
     const slice = hasMore ? rows.slice(0, limit) : rows;
@@ -107,26 +109,40 @@ export class DocumentsService {
     return { items, nextCursor: null };
   }
 
-  async get(id: string): Promise<DocumentDto | null> {
-    // Use TypeORM DataSource query (LATERAL join not supported by QueryBuilder)
-    const rows = await this.dataSource.query(
-      `SELECT d.id, d.project_id, d.filename, d.source_url, d.mime_type, d.content, d.created_at, d.updated_at,
-                    d.integration_metadata,
-                    COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
-                    ej.status AS extraction_status,
-                    ej.completed_at AS extraction_completed_at,
-                    ej.objects_created AS extraction_objects_count
-             FROM kb.documents d
-             LEFT JOIN LATERAL (
-                 SELECT status, completed_at, objects_created
-                 FROM kb.object_extraction_jobs
-                 WHERE source_type = 'document' AND source_id::uuid = d.id
-                 ORDER BY created_at DESC
-                 LIMIT 1
-             ) ej ON true
-             WHERE d.id = $1`,
-      [id]
-    );
+  async get(
+    id: string,
+    filter?: { orgId?: string; projectId?: string }
+  ): Promise<DocumentDto | null> {
+    // Use DatabaseService to ensure RLS context is set
+    const queryFn = async () => {
+      // NOTE: Project-level filtering is now handled by RLS policies on kb.documents
+      // We only filter by document ID - RLS ensures it's from the correct project
+      const result = await this.db.query(
+        `SELECT d.id, d.project_id, d.filename, d.source_url, d.mime_type, d.content, d.created_at, d.updated_at,
+                      d.integration_metadata,
+                      COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
+                      ej.status AS extraction_status,
+                      ej.completed_at AS extraction_completed_at,
+                      ej.objects_created AS extraction_objects_count
+               FROM kb.documents d
+               LEFT JOIN LATERAL (
+                   SELECT status, completed_at, objects_created
+                   FROM kb.object_extraction_jobs
+                   WHERE source_type = 'document' AND source_id::uuid = d.id
+                   ORDER BY created_at DESC
+                   LIMIT 1
+               ) ej ON true
+               WHERE d.id = $1`,
+        [id]
+      );
+
+      return result.rows as DocumentRow[];
+    };
+
+    // Always use tenant context when available - RLS policies enforce isolation
+    const rows = filter?.projectId
+      ? await this.db.runWithTenantContext(filter.projectId, queryFn)
+      : await queryFn();
 
     if (!rows || rows.length === 0) return null;
     return this.mapRow(rows[0]);

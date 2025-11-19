@@ -660,7 +660,6 @@ Model Context Protocol (MCP) server endpoint.
 
     // Query type registry for available types
     const types = await this.db.runWithTenantContext(
-      orgId,
       projectId,
       async () => {
         const result = await this.db.query(`
@@ -749,7 +748,6 @@ Model Context Protocol (MCP) server endpoint.
 
     // Query entities
     const entities = await this.db.runWithTenantContext(
-      orgId,
       projectId,
       async () => {
         const result = await this.db.query(
@@ -779,7 +777,6 @@ Model Context Protocol (MCP) server endpoint.
 
     // Get total count
     const countResult = await this.db.runWithTenantContext(
-      orgId,
       projectId,
       async () => {
         const result = await this.db.query(

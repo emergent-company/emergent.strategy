@@ -33,6 +33,17 @@ export class TemplatePackController {
 
   constructor(private readonly templatePackService: TemplatePackService) {}
 
+  /**
+   * Helper to extract project ID from headers
+   */
+  private getProjectId(req: any): string {
+    const projectId = req.headers['x-project-id'] as string | undefined;
+    if (!projectId) {
+      throw new BadRequestException('x-project-id header required');
+    }
+    return projectId;
+  }
+
   private normalizeUserId(value?: string | null): string | undefined {
     if (!value) {
       return undefined;
@@ -126,18 +137,8 @@ export class TemplatePackController {
    */
   @Get('projects/:projectId/available')
   @Scopes('graph:read')
-  async getAvailableTemplates(
-    @Param('projectId') projectId: string,
-    @Req() req: any
-  ) {
-    const orgId = (req.headers['x-org-id'] as string | undefined) || undefined;
-    if (!orgId) {
-      throw new BadRequestException('Organization context required');
-    }
-    return this.templatePackService.getAvailableTemplatesForProject(
-      projectId,
-      orgId
-    );
+  async getAvailableTemplates(@Param('projectId') projectId: string) {
+    return this.templatePackService.getAvailableTemplatesForProject(projectId);
   }
 
   /**
@@ -146,18 +147,8 @@ export class TemplatePackController {
    */
   @Get('projects/:projectId/compiled-types')
   @Scopes('graph:read')
-  async getCompiledObjectTypes(
-    @Param('projectId') projectId: string,
-    @Req() req: any
-  ) {
-    const orgId = (req.headers['x-org-id'] as string | undefined) || undefined;
-    if (!orgId) {
-      throw new BadRequestException('Organization context required');
-    }
-    return this.templatePackService.getCompiledObjectTypesForProject(
-      projectId,
-      orgId
-    );
+  async getCompiledObjectTypes(@Param('projectId') projectId: string) {
+    return this.templatePackService.getCompiledObjectTypesForProject(projectId);
   }
 
   /**
@@ -165,15 +156,8 @@ export class TemplatePackController {
    */
   @Get('projects/:projectId/installed')
   @Scopes('graph:read')
-  async getInstalledTemplatePacks(
-    @Param('projectId') projectId: string,
-    @Req() req: any
-  ) {
-    const orgId = (req.headers['x-org-id'] as string | undefined) || undefined;
-    if (!orgId) {
-      throw new BadRequestException('Organization context required');
-    }
-    return this.templatePackService.getProjectTemplatePacks(projectId, orgId);
+  async getInstalledTemplatePacks(@Param('projectId') projectId: string) {
+    return this.templatePackService.getProjectTemplatePacks(projectId);
   }
 
   /**

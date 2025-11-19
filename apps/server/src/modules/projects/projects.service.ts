@@ -43,19 +43,20 @@ export class ProjectsService {
         return [];
       }
       // Set tenant context for RLS/query isolation (even if no RLS policy, ensures consistent context)
-      return this.db.runWithTenantContext(orgId, null, async () => {
-        const projects = await this.projectRepo.find({
-          where: { organizationId: orgId },
-          order: { createdAt: 'DESC' },
-          take: limit,
-        });
-        return projects.map((p) => ({
-          id: p.id,
-          name: p.name,
-          orgId: p.organizationId,
-          kb_purpose: p.kbPurpose ?? undefined,
-        }));
+      // Note: runWithTenantContext now derives orgId from projectId, but we don't have a specific project here.
+      // For listing projects by org, we'll bypass runWithTenantContext since we're listing multiple projects.
+      // The organizationId filter in the query ensures we only see projects for this org.
+      const projects = await this.projectRepo.find({
+        where: { organizationId: orgId },
+        order: { createdAt: 'DESC' },
+        take: limit,
       });
+      return projects.map((p) => ({
+        id: p.id,
+        name: p.name,
+        orgId: p.organizationId,
+        kb_purpose: p.kbPurpose ?? undefined,
+      }));
     }
     const projects = await this.projectRepo.find({
       order: { createdAt: 'DESC' },

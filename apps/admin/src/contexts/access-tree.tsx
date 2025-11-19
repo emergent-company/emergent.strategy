@@ -60,6 +60,9 @@ const AccessTreeContext = createContext<AccessTreeContextValue | undefined>(
   undefined
 );
 
+// Export the context for testing/mocking purposes
+export { AccessTreeContext };
+
 /**
  * Provider that maintains a single shared state for user access tree data.
  * Should be placed at app root, above routing but below AuthProvider.
@@ -177,6 +180,80 @@ export function AccessTreeProvider({ children }: { children: ReactNode }) {
       refresh,
     };
   }, [tree, loading, error, refresh]);
+
+  // Show global error state if API fetch failed
+  // This prevents any page from rendering when we can't load user access data
+  if (error && !loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-base-200">
+        <div className="mx-4 w-full max-w-md">
+          <div className="bg-base-100 shadow-xl border border-base-300 card">
+            <div className="space-y-4 card-body">
+              <div className="text-center">
+                <div className="inline-flex bg-error/10 mb-4 p-3 rounded-full">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="size-8 text-error"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <h1 className="justify-center font-bold text-2xl card-title">
+                  Server Error
+                </h1>
+                <p className="mt-2 text-base-content/70">
+                  Unable to load your organizations and projects
+                </p>
+              </div>
+
+              <div
+                role="alert"
+                className="alert alert-error"
+                data-testid="access-tree-error"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="size-5 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span className="text-sm">{error}</span>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full btn btn-primary"
+                  data-testid="access-tree-retry"
+                >
+                  Retry
+                </button>
+                <p className="text-sm text-base-content/60 text-center">
+                  If the problem persists, please contact support
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AccessTreeContext.Provider value={value}>

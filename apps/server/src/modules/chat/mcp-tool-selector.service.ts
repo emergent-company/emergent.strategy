@@ -135,7 +135,6 @@ export class McpToolSelectorService {
   ): Promise<EntityTypeInfo[]> {
     try {
       const types = await this.db.runWithTenantContext(
-        orgId,
         projectId,
         async () => {
           const result = await this.dataSource.query(`

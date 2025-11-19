@@ -69,17 +69,24 @@ test.describe('Extraction Full Flow', () => {
   test('completes full extraction workflow from upload to entities', async ({
     page,
   }) => {
+    // Set longer timeout for this test (extraction can take several minutes)
+    test.setTimeout(600_000); // 10 minutes
+
     // Set up console logging to capture all browser console messages
     page.on('console', (msg) => {
       const type = msg.type();
       const text = msg.text();
-      
+
       // Log with prefix to distinguish from test logs
       if (type === 'error') {
         console.log(`[BROWSER ERROR] ${text}`);
       } else if (type === 'warning') {
         console.log(`[BROWSER WARN] ${text}`);
-      } else if (text.includes('toast') || text.includes('Toast') || text.includes('notification')) {
+      } else if (
+        text.includes('toast') ||
+        text.includes('Toast') ||
+        text.includes('notification')
+      ) {
         console.log(`[BROWSER TOAST] ${text}`);
       } else if (type === 'log' || type === 'info') {
         console.log(`[BROWSER LOG] ${text}`);
@@ -105,7 +112,7 @@ test.describe('Extraction Full Flow', () => {
       if (url.includes('/api/')) {
         const status = response.status();
         console.log(`[API RESPONSE] ${status} ${url}`);
-        
+
         // Log error responses with body
         if (status >= 400) {
           try {
@@ -149,7 +156,10 @@ test.describe('Extraction Full Flow', () => {
                 node.classList.contains('notification') ||
                 node.getAttribute('role') === 'alert'
               ) {
-                console.log('[TOAST-MUTATION] Toast element added:', node.textContent);
+                console.log(
+                  '[TOAST-MUTATION] Toast element added:',
+                  node.textContent
+                );
               }
             }
           });
@@ -173,7 +183,7 @@ test.describe('Extraction Full Flow', () => {
       // Find the file input and upload the file directly
       // (There are multiple "upload document" buttons, so we target the file input directly)
       const fileInput = page.locator('input[type="file"]');
-      
+
       // Wait for response after upload (goes to /api/ingest/upload, not /api/documents)
       const uploadPromise = page.waitForResponse(
         (response) =>
@@ -181,19 +191,19 @@ test.describe('Extraction Full Flow', () => {
           response.request().method() === 'POST',
         { timeout: 30_000 }
       );
-      
+
       await fileInput.setInputFiles(TEST_DOCUMENT_PATH);
-      
+
       // Wait for upload to complete
       const uploadResponse = await uploadPromise;
       expect(uploadResponse.ok()).toBeTruthy();
-      
+
       console.log('Document uploaded, waiting for it to appear in table...');
-      
+
       // Wait for document to appear in list (may take a moment for chunking to complete)
-      await expect(
-        page.getByText('extraction-test.md')
-      ).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByText('extraction-test.md')).toBeVisible({
+        timeout: 30_000,
+      });
 
       // Extract document ID from the page
       // The document should be visible in the table with a link to chunks
@@ -244,7 +254,9 @@ test.describe('Extraction Full Flow', () => {
 
       // Click the Actions dropdown trigger (wrapped in label + button structure)
       // The button text is "Actions" with a chevron icon
-      const actionsButton = documentRow.locator('button', { hasText: 'Actions' });
+      const actionsButton = documentRow.locator('button', {
+        hasText: 'Actions',
+      });
       await actionsButton.waitFor({ state: 'visible', timeout: 5000 });
       await actionsButton.click();
 
@@ -268,13 +280,19 @@ test.describe('Extraction Full Flow', () => {
       await expect(modal.getByText('extraction-test.md')).toBeVisible();
 
       // Verify modal header
-      await expect(modal.getByRole('heading', { name: /extract objects/i })).toBeVisible();
+      await expect(
+        modal.getByRole('heading', { name: /extract objects/i })
+      ).toBeVisible();
 
       // Verify Start Extraction button is present
-      const startButton = modal.getByRole('button', { name: /start extraction/i });
+      const startButton = modal.getByRole('button', {
+        name: /start extraction/i,
+      });
       await expect(startButton).toBeVisible();
 
-      console.log('Default extraction settings verified - modal is open with start button');
+      console.log(
+        'Default extraction settings verified - modal is open with start button'
+      );
     });
 
     await test.step('Start extraction', async () => {
@@ -295,10 +313,12 @@ test.describe('Extraction Full Flow', () => {
 
       // Wait for success toast (appears before navigation)
       try {
-        await page.locator('text=/Extraction job created successfully/i').waitFor({
-          state: 'visible',
-          timeout: 5_000,
-        });
+        await page
+          .locator('text=/Extraction job created successfully/i')
+          .waitFor({
+            state: 'visible',
+            timeout: 5_000,
+          });
         console.log('Success toast appeared');
       } catch (e) {
         console.warn('Success toast did not appear (might have been too fast)');
@@ -333,7 +353,8 @@ test.describe('Extraction Full Flow', () => {
       // Find our extraction job (most recent one for our document)
       // Poll for job completion (extraction may take a while with real LLM)
       let jobCompleted = false;
-      const maxAttempts = 60; // 5 minutes max wait (5 second intervals)
+      let jobStatus = '';
+      const maxAttempts = 120; // 10 minutes max wait (5 second intervals)
       let attempt = 0;
 
       while (!jobCompleted && attempt < maxAttempts) {
@@ -341,19 +362,60 @@ test.describe('Extraction Full Flow', () => {
 
         // Refresh the page to get latest job status
         await page.reload();
+        await page.waitForLoadState('networkidle');
 
         // Look for completed status - jobs are displayed as buttons
+        // Status can be "Completed" or "Needs Review" (both indicate extraction finished)
         const completedJob = page
           .locator('button', {
             has: page.getByText('extraction-test.md'),
           })
-          .filter({ hasText: /completed/i })
+          .filter({ hasText: /completed|needs review/i })
           .first();
 
-        if (await completedJob.isVisible({ timeout: 1_000 }).catch(() => false)) {
+        const isVisible = await completedJob
+          .isVisible({ timeout: 2_000 })
+          .catch(() => false);
+
+        if (isVisible) {
           jobCompleted = true;
-          console.log(`Extraction job completed after ${attempt * 5} seconds`);
+
+          // Extract the status from the button text
+          const buttonText = await completedJob.textContent();
+          const statusMatch = buttonText?.match(/(Completed|Needs Review)/i);
+          jobStatus = statusMatch ? statusMatch[1] : 'Unknown';
+
+          console.log(
+            `Extraction job completed with status "${jobStatus}" after ${
+              attempt * 5
+            } seconds`
+          );
           break;
+        }
+
+        // Check if job is still running or pending
+        const runningJob = page
+          .locator('button', {
+            has: page.getByText('extraction-test.md'),
+          })
+          .filter({ hasText: /running|pending/i })
+          .first();
+
+        const isRunning = await runningJob
+          .isVisible({ timeout: 2_000 })
+          .catch(() => false);
+
+        if (isRunning) {
+          const buttonText = await runningJob.textContent();
+          const statusMatch = buttonText?.match(/(Running|Pending)/i);
+          const currentStatus = statusMatch ? statusMatch[1] : 'In Progress';
+          console.log(
+            `Attempt ${attempt}/${maxAttempts}: Job status is "${currentStatus}"`
+          );
+        } else {
+          console.log(
+            `Attempt ${attempt}/${maxAttempts}: Job not found yet, waiting...`
+          );
         }
 
         // Wait 5 seconds before next check
@@ -362,9 +424,13 @@ test.describe('Extraction Full Flow', () => {
 
       if (!jobCompleted) {
         throw new Error(
-          'Extraction job did not complete within 5 minutes. This may indicate a backend issue or the LLM API is slow.'
+          'Extraction job did not complete within 10 minutes. This may indicate a backend issue or the LLM API is slow.'
         );
       }
+
+      console.log(
+        `✓ Extraction job finished successfully with status: ${jobStatus}`
+      );
     });
 
     await test.step('Verify extracted entities', async () => {
@@ -379,7 +445,9 @@ test.describe('Extraction Full Flow', () => {
       // We'll check for at least one person, one org, and one location
       const verifyEntity = async (name: string, type: string) => {
         // Search or filter for the entity
-        const searchBox = page.locator('input[type="search"], input[placeholder*="search" i]');
+        const searchBox = page.locator(
+          'input[type="search"], input[placeholder*="search" i]'
+        );
         if (await searchBox.isVisible().catch(() => false)) {
           await searchBox.fill(name);
           await page.waitForTimeout(1_000); // Wait for search to filter

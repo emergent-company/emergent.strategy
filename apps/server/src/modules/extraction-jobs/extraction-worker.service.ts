@@ -220,7 +220,6 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
         try {
           const updateResult = await this.db.runWithTenantContext(
-            orgId,
             projectId,
             async () =>
               this.db.query<{ id: string }>(
@@ -1063,7 +1062,6 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                   try {
                     // Find the existing object by key
                     const existingResult = await this.db.runWithTenantContext(
-                      organizationId,
                       job.project_id,
                       async () => {
                         return this.db.query<{
@@ -1572,12 +1570,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         `[loadExtractionConfig] Fetching template packs for project: ${job.project_id}`
       );
       templatePacks = await this.templatePacks.getProjectTemplatePacks(
-        job.project_id,
-        organizationId
-      );
-      templatePacks = await this.templatePacks.getProjectTemplatePacks(
-        job.project_id,
-        organizationId
+        job.project_id
       );
 
       // Filter to only active template packs
@@ -1647,8 +1640,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
       // Re-fetch after installation
       templatePacks = await this.templatePacks.getProjectTemplatePacks(
-        job.project_id,
-        organizationId
+        job.project_id
       );
       templatePacks = templatePacks.filter((pack) => pack.active);
 

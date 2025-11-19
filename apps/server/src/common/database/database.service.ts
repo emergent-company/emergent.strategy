@@ -136,6 +136,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   // shared currentOrgId/currentProjectId pair.
   private readonly tenantContextStorage = new AsyncLocalStorage<TenantStore>();
 
+  // In-memory cache for project_id -> organization_id lookups
+  // Shared globally across all users/requests (keyed by project_id only)
+  // Invalidated on project updates/deletes (future enhancement)
+  private readonly orgIdCache = new Map<string, string>();
+
   constructor(
     @Inject(AppConfigService) private readonly config: AppConfigService
   ) {
@@ -479,6 +484,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     if (hasContext) {
       const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
+
+      // Start explicit transaction to ensure set_config and query execute in same transaction context
+      // This is critical for RLS enforcement - transaction-local config only applies within the transaction
+      await queryRunner.startTransaction();
+
       try {
         const effectiveOrg = effectiveOrgRaw ?? '';
         const effectiveProject = effectiveProjectRaw ?? '';
@@ -493,6 +503,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         }
         // Use true for local (transaction-scoped) rather than false (session-scoped)
         // This prevents tenant context pollution across connection pool reuse
+        // The explicit transaction above ensures this config applies to the subsequent query
         await queryRunner.query(
           'SELECT set_config($1,$2,true), set_config($3,$4,true), set_config($5,$6,true)',
           [
@@ -514,6 +525,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
           });
         }
         const result = await queryRunner.query(text, params);
+
+        // Commit transaction - config is automatically discarded after commit (transaction-local)
+        await queryRunner.commitTransaction();
 
         // Convert TypeORM result format to pg QueryResult format
         // TypeORM's behavior for different query types:
@@ -1170,13 +1184,81 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Derive organization ID from project ID using database lookup with in-memory caching.
+   * Returns null if project not found.
+   *
+   * @param projectId - The project UUID to lookup
+   * @returns The organization UUID or null if not found
+   */
+  async getOrgIdFromProjectId(projectId: string): Promise<string | null> {
+    // Check cache first
+    const cached = this.orgIdCache.get(projectId);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    // Database lookup (bypass tenant context for lookup query)
+    if (!this.dataSource || !this.online) {
+      return null;
+    }
+
+    try {
+      const result = await this.dataSource.query(
+        'SELECT organization_id::text FROM kb.projects WHERE id = $1',
+        [projectId]
+      );
+
+      if (result && result.length > 0 && result[0].organization_id) {
+        const orgId = result[0].organization_id;
+        // Cache the result
+        this.orgIdCache.set(projectId, orgId);
+        return orgId;
+      }
+
+      return null;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to lookup organization ID for project ${projectId}: ${
+          (error as Error).message
+        }`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Clear cached organization ID for a project.
+   * Should be called when projects are updated or deleted.
+   *
+   * @param projectId - The project UUID to invalidate
+   */
+  clearOrgIdCache(projectId?: string): void {
+    if (projectId) {
+      this.orgIdCache.delete(projectId);
+    } else {
+      // Clear entire cache if no specific project provided
+      this.orgIdCache.clear();
+    }
+  }
+
   async runWithTenantContext<T>(
-    orgId: string | null | undefined,
     projectId: string | null | undefined,
     fn: () => Promise<T>
   ): Promise<T> {
-    const normalizedOrg = orgId ?? null;
     const normalizedProject = projectId ?? null;
+
+    // Derive organization ID from project ID
+    let normalizedOrg: string | null = null;
+    if (normalizedProject) {
+      normalizedOrg = await this.getOrgIdFromProjectId(normalizedProject);
+      if (!normalizedOrg) {
+        this.logger.warn(
+          `Project ${normalizedProject} not found - proceeding with null org context`
+        );
+      }
+    }
+
     const parentStore = this.tenantContextStorage.getStore();
     const parentFrames = parentStore?.frames ?? [];
     const originalOrg = this.currentOrgId;

@@ -256,11 +256,16 @@ export class AuthService implements OnModuleInit {
   private async ensureUserProfile(
     zitadelUserId: string,
     email?: string,
-    scopes?: string[]
+    scopes?: string[],
+    profileData?: {
+      firstName?: string;
+      lastName?: string;
+      displayName?: string;
+    }
   ): Promise<AuthUser | null> {
     try {
       // Ensure profile exists (creates if missing)
-      await this.userProfileService.upsertBase(zitadelUserId);
+      await this.userProfileService.upsertBase(zitadelUserId, profileData);
 
       // Look up the internal UUID
       const profile = await this.userProfileService.get(zitadelUserId);
@@ -312,7 +317,18 @@ export class AuthService implements OnModuleInit {
     const email = typeof payload.email === 'string' ? payload.email : undefined;
 
     // Ensure user profile exists and get internal UUID
-    const user = await this.ensureUserProfile(normalizedSub, email, scopes);
+    const firstName =
+      typeof payload.given_name === 'string' ? payload.given_name : undefined;
+    const lastName =
+      typeof payload.family_name === 'string' ? payload.family_name : undefined;
+    const displayName =
+      typeof payload.name === 'string' ? payload.name : undefined;
+
+    const user = await this.ensureUserProfile(normalizedSub, email, scopes, {
+      firstName,
+      lastName,
+      displayName,
+    });
     if (!user) return null;
 
     if (process.env.DEBUG_AUTH_CLAIMS === '1') {
@@ -357,7 +373,22 @@ export class AuthService implements OnModuleInit {
       typeof introspection.email === 'string' ? introspection.email : undefined;
 
     // Ensure user profile exists and get internal UUID
-    const user = await this.ensureUserProfile(normalizedSub, email, scopes);
+    const firstName =
+      typeof introspection.given_name === 'string'
+        ? introspection.given_name
+        : undefined;
+    const lastName =
+      typeof introspection.family_name === 'string'
+        ? introspection.family_name
+        : undefined;
+    const displayName =
+      typeof introspection.name === 'string' ? introspection.name : undefined;
+
+    const user = await this.ensureUserProfile(normalizedSub, email, scopes, {
+      firstName,
+      lastName,
+      displayName,
+    });
     if (!user) return null;
 
     if (process.env.DEBUG_AUTH_CLAIMS === '1') {

@@ -29,14 +29,35 @@ export class TypeRegistryService {
   ) {}
 
   /**
+   * Derive organization ID from project ID
+   * Used for tenant context - organization_id is no longer required as a parameter
+   */
+  private async getOrganizationIdFromProject(
+    projectId: string
+  ): Promise<string> {
+    const orgResult = await this.dataSource.query(
+      'SELECT organization_id FROM kb.projects WHERE id = $1',
+      [projectId]
+    );
+
+    if (!orgResult || orgResult.length === 0) {
+      throw new BadRequestException(`Project ${projectId} not found`);
+    }
+
+    return orgResult[0].organization_id;
+  }
+
+  /**
    * Get all types for a project
    * Keep as DataSource.query - complex GROUP BY with aggregations
    */
   async getProjectTypes(
     projectId: string,
-    orgId: string,
     query: ListObjectTypesQueryDto
   ): Promise<TypeRegistryEntryDto[]> {
+    // Derive org ID for tenant context (not used in query but available if needed)
+    await this.getOrganizationIdFromProject(projectId);
+
     let whereConditions = ['ptr.project_id = $1'];
     const params: any[] = [projectId];
     let paramIndex = 2;
@@ -99,9 +120,11 @@ export class TypeRegistryService {
    */
   async getTypeByName(
     projectId: string,
-    orgId: string,
     typeName: string
   ): Promise<TypeRegistryEntryDto> {
+    // Derive org ID for tenant context (not used in query but available if needed)
+    await this.getOrganizationIdFromProject(projectId);
+
     const result = (await this.dataSource.query(
       `SELECT 
                 ptr.id,
@@ -219,12 +242,11 @@ export class TypeRegistryService {
    */
   async updateType(
     projectId: string,
-    orgId: string,
     typeName: string,
     dto: UpdateObjectTypeDto
   ): Promise<ProjectTypeRegistryRow> {
     // Get existing type
-    const existing = await this.getTypeByName(projectId, orgId, typeName);
+    const existing = await this.getTypeByName(projectId, typeName);
 
     // Validate new schema if provided
     if (dto.json_schema) {
@@ -298,7 +320,6 @@ export class TypeRegistryService {
     // Fetch and return updated type
     return (await this.getTypeByName(
       projectId,
-      orgId,
       typeName
     )) as unknown as ProjectTypeRegistryRow;
   }
@@ -306,13 +327,9 @@ export class TypeRegistryService {
   /**
    * Delete a custom type - Migrated to TypeORM
    */
-  async deleteType(
-    projectId: string,
-    orgId: string,
-    typeName: string
-  ): Promise<void> {
+  async deleteType(projectId: string, typeName: string): Promise<void> {
     // Get type
-    const type = await this.getTypeByName(projectId, orgId, typeName);
+    const type = await this.getTypeByName(projectId, typeName);
 
     // Prevent deleting template types
     if (type.source === 'template') {
@@ -342,11 +359,10 @@ export class TypeRegistryService {
    */
   async validateObjectData(
     projectId: string,
-    orgId: string,
     dto: ValidateObjectDataDto
   ): Promise<ValidationResult> {
     // Get type schema
-    const type = await this.getTypeByName(projectId, orgId, dto.type);
+    const type = await this.getTypeByName(projectId, dto.type);
 
     if (!type.enabled) {
       throw new BadRequestException(`Type is disabled: ${dto.type}`);
@@ -386,11 +402,10 @@ export class TypeRegistryService {
   }
 
   /**
-   * Get schema for a specific type
+   * Get type schema including UI schema and validation rules
    */
   async getTypeSchema(
     projectId: string,
-    orgId: string,
     typeName: string
   ): Promise<{
     type: string;
@@ -398,7 +413,7 @@ export class TypeRegistryService {
     ui_schema: any;
     validation_rules: any;
   }> {
-    const type = await this.getTypeByName(projectId, orgId, typeName);
+    const type = await this.getTypeByName(projectId, typeName);
 
     return {
       type: type.type,
@@ -416,21 +431,16 @@ export class TypeRegistryService {
    */
   async toggleType(
     projectId: string,
-    orgId: string,
     typeName: string,
     enabled: boolean
   ): Promise<ProjectTypeRegistryRow> {
-    return this.updateType(projectId, orgId, typeName, { enabled });
+    return this.updateType(projectId, typeName, { enabled });
   }
 
   /**
    * Get type statistics for a project
-   * Keep as DataSource.query - complex aggregations with FILTER
    */
-  async getTypeStatistics(
-    projectId: string,
-    orgId: string
-  ): Promise<{
+  async getTypeStatistics(projectId: string): Promise<{
     total_types: number;
     enabled_types: number;
     template_types: number;
@@ -439,6 +449,9 @@ export class TypeRegistryService {
     total_objects: number;
     types_with_objects: number;
   }> {
+    // Derive org ID for tenant context (not used in query but available if needed)
+    await this.getOrganizationIdFromProject(projectId);
+
     const result = (await this.dataSource.query(
       `SELECT 
                 COUNT(DISTINCT ptr.id) as total_types,

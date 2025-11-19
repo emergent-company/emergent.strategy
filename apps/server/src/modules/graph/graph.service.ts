@@ -150,10 +150,11 @@ export class GraphService {
     fn: () => Promise<T>
   ): Promise<T> {
     const candidate = (this.db as any)?.runWithTenantContext;
-    const normalizedOrg = orgId ?? null;
     const normalizedProject = projectId ?? null;
     if (typeof candidate === 'function') {
-      return candidate.call(this.db, normalizedOrg, normalizedProject, fn);
+      // Updated signature: runWithTenantContext(projectId, fn)
+      // orgId is now derived automatically from projectId in DatabaseService
+      return candidate.call(this.db, normalizedProject, fn);
     }
 
     const setContext = (this.db as any)?.setTenantContext;
@@ -172,6 +173,8 @@ export class GraphService {
           /* ignore */
         }
       }
+      // setTenantContext still uses orgId + projectId for legacy compatibility
+      const normalizedOrg = orgId ?? null;
       await setContext.call(this.db, normalizedOrg, normalizedProject);
       reset = async () => {
         await setContext.call(
@@ -359,10 +362,10 @@ export class GraphService {
           }
 
           // Type Registry validation (Phase 1 dynamic type system)
-          if (this.typeRegistry && project_id && org_id) {
+          if (this.typeRegistry && project_id) {
             try {
               const validationResult =
-                await this.typeRegistry.validateObjectData(project_id, org_id, {
+                await this.typeRegistry.validateObjectData(project_id, {
                   type,
                   properties: properties || {},
                 });
@@ -693,15 +696,10 @@ export class GraphService {
         }
 
         // Type Registry validation (Phase 1 dynamic type system)
-        if (
-          this.typeRegistry &&
-          (current as any).project_id &&
-          (current as any).organization_id
-        ) {
+        if (this.typeRegistry && (current as any).project_id) {
           try {
             const validationResult = await this.typeRegistry.validateObjectData(
               (current as any).project_id,
-              (current as any).organization_id,
               { type: current.type, properties: nextProps }
             );
             if (!validationResult.valid && validationResult.errors) {

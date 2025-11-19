@@ -27,14 +27,14 @@ export class FakeGraphDb {
         this.lastRequestedProject = projectId ?? null;
     }
 
-    async runWithTenantContext<T>(orgId: string | null, projectId: string | null, callback: () => Promise<T>): Promise<T> {
-        const previousOrg = this.lastRequestedOrg;
+    async runWithTenantContext<T>(projectId: string | null, callback: () => Promise<T>): Promise<T> {
         const previousProject = this.lastRequestedProject;
+        // No orgId needed - real implementation derives it from projectId automatically
         try {
-            await this.setTenantContext(orgId, projectId);
+            this.lastRequestedProject = projectId ?? null;
             return await callback();
         } finally {
-            await this.setTenantContext(previousOrg, previousProject);
+            this.lastRequestedProject = previousProject;
         }
     }
 
