@@ -22,11 +22,6 @@ export function ExtractionJobDetailPage() {
   const navigate = useNavigate();
   const { apiBase, fetchJson } = useApi();
   const { config } = useConfig();
-  const client = createExtractionJobsClient(
-    apiBase,
-    fetchJson,
-    config.activeProjectId
-  );
 
   const [job, setJob] = useState<ExtractionJob | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,6 +37,18 @@ export function ExtractionJobDetailPage() {
       setIsLoading(false);
       return;
     }
+
+    if (!config.activeProjectId) {
+      setError('No active project selected');
+      setIsLoading(false);
+      return;
+    }
+
+    const client = createExtractionJobsClient(
+      apiBase,
+      fetchJson,
+      config.activeProjectId
+    );
 
     const fetchJob = async () => {
       setIsLoading(true);
@@ -75,11 +82,17 @@ export function ExtractionJobDetailPage() {
         clearInterval(pollInterval);
       }
     };
-  }, [jobId, client, config.activeProjectId]);
+  }, [jobId, config.activeProjectId, apiBase, fetchJson, job?.status]);
 
   // Cancel job
   const handleCancel = async () => {
-    if (!job || !jobId) return;
+    if (!job || !jobId || !config.activeProjectId) return;
+
+    const client = createExtractionJobsClient(
+      apiBase,
+      fetchJson,
+      config.activeProjectId
+    );
 
     setIsCancelling(true);
     try {
@@ -99,7 +112,7 @@ export function ExtractionJobDetailPage() {
 
   // Delete job
   const handleDelete = async () => {
-    if (!job || !jobId) return;
+    if (!job || !jobId || !config.activeProjectId) return;
 
     if (
       !confirm(
@@ -108,6 +121,12 @@ export function ExtractionJobDetailPage() {
     ) {
       return;
     }
+
+    const client = createExtractionJobsClient(
+      apiBase,
+      fetchJson,
+      config.activeProjectId
+    );
 
     setIsDeleting(true);
     try {
