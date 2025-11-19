@@ -183,7 +183,7 @@ The workspace has several MCP (Model Context Protocol) servers configured for en
 
 ### Using Chrome DevTools MCP
 
-The Chrome DevTools MCP allows AI assistants to inspect a running Chrome instance in real-time. This is useful for debugging issues during manual testing.
+The Chrome DevTools MCP allows AI assistants to inspect a running Chrome/Chromium instance in real-time. This is useful for debugging issues during manual testing and observing user interactions.
 
 **Workflow:**
 
@@ -199,7 +199,7 @@ The Chrome DevTools MCP allows AI assistants to inspect a running Chrome instanc
    ./scripts/start-chrome-debug.sh http://localhost:3000
    ```
 
-   This launches Chrome with remote debugging on port 9222 (configurable via `CHROME_DEBUG_PORT` environment variable).
+   This launches Chrome/Chromium with remote debugging on port 9222 (configurable via `CHROME_DEBUG_PORT` environment variable).
 
 2. **Check if Chrome debug is already running** (optional):
 
@@ -215,24 +215,105 @@ The Chrome DevTools MCP allows AI assistants to inspect a running Chrome instanc
 
    The script tracks running instances and prevents starting multiple Chrome debug sessions on the same port.
 
-3. **Test your application manually** in the Chrome window that opens.
+3. **Test your application manually** in the Chrome window that opens, or let the user demonstrate an issue.
 
-4. **When you encounter an issue**, ask your AI assistant to help:
+4. **When you encounter an issue or need to observe**, ask your AI assistant to help:
 
    - "Check the browser console for errors"
    - "What network requests failed?"
    - "Inspect the DOM state of element X"
    - "Show me performance metrics for the current page"
    - "What's in local storage?"
+   - "What tab is currently active? I want to show you something"
+   - "List all open tabs in the browser"
 
 5. **AI assistants automatically connect** to the Chrome instance via the MCP server and can provide insights based on real browser state.
 
-**Important notes:**
+**CRITICAL Safety Guidelines for AI Assistants:**
+
+- ⚠️ **NEVER close the browser or quit Chrome/Chromium** - multiple users or processes may be sharing this instance
+- ⚠️ **NEVER navigate the active tab** unless explicitly instructed - the user may be demonstrating something
+- ⚠️ **DO create new tabs for your own interactions** - use `chrome-devtools_new_page` to open your own tab
+- ⚠️ **DO check the active tab first** when user says "look at this" - use `chrome-devtools_list_pages` to see which tab is active
+- ⚠️ **DO switch to your own tab** before performing actions - use `chrome-devtools_select_page` to switch tabs
+- ⚠️ **DO take snapshots instead of screenshots** for better accessibility - use `chrome-devtools_take_snapshot` to get page structure
+- ⚠️ **DO ask before making changes** - closing tabs, navigating, or interacting with forms should be confirmed first
+
+**Tab Management Best Practices:**
+
+1. **Checking Current State:**
+
+   ```
+   User: "Look at this modal, something's wrong"
+   AI: Uses chrome-devtools_list_pages to see:
+       - Page 0: "Documents | Admin" (active: true) ← User is here
+       - Page 1: "Network Analysis" (active: false)
+   AI: Uses chrome-devtools_take_snapshot to inspect the active tab
+   ```
+
+2. **Creating Your Own Tab:**
+
+   ```
+   User: "Can you test the login flow?"
+   AI: Uses chrome-devtools_new_page with URL http://localhost:5176/login
+       Creates new tab, automatically switches to it
+       Now safe to interact without disrupting user
+   ```
+
+3. **Switching Between Tabs:**
+
+   ```
+   AI has tab 0 (user's work), tab 1 (AI's testing)
+   - To observe user: chrome-devtools_select_page(0) then take snapshot
+   - To continue testing: chrome-devtools_select_page(1) then interact
+   ```
+
+4. **Closing Tabs (Only Your Own):**
+   ```
+   AI: Uses chrome-devtools_close_page(1) to close own testing tab
+   AI: NEVER closes page 0 or tabs created by user
+   ```
+
+**Observing User Demonstrations:**
+
+When user says "let me show you" or "look at this":
+
+1. **List pages** to identify which tab is active
+2. **Take snapshot** of active tab (don't navigate away!)
+3. **Ask clarifying questions** based on what you observe
+4. **Wait for user** to perform actions, then re-snapshot to see changes
+5. **Compare before/after** states to understand the issue
+
+**Example Interactions:**
+
+```
+User: "I uploaded a document but it's not showing up"
+AI:
+  1. Lists pages → sees "Documents | Admin" is active
+  2. Takes snapshot → sees documents table with 5 items
+  3. Checks console → finds cache-related errors
+  4. Checks network → sees 304 Not Modified response
+  5. Reports findings with specific line numbers and timestamps
+
+User: "Can you verify the extraction config saves correctly?"
+AI:
+  1. Creates new tab with chrome-devtools_new_page
+  2. Navigates to Documents page in new tab
+  3. Tests upload flow in isolation
+  4. Verifies config in new tab
+  5. Closes own tab when done (chrome-devtools_close_page)
+  6. Never touches user's original tab
+```
+
+**Important Notes:**
 
 - Chrome must be started with the debug script BEFORE asking AI to inspect
 - Uses a temporary Chrome profile (separate from your regular browsing)
-- Close Chrome when done to stop exposing the remote debugging port
+- Script prioritizes Chromium to avoid conflicts with regular Chrome usage
+- Multiple tabs can coexist - user's work + AI's testing
+- Closing the browser window closes ALL tabs for ALL users - never do this
 - Only use in development - never with production credentials or sensitive data
+- The browser stays open until manually closed or script is interrupted (Ctrl+C)
 
 ## 6. Bug Reports and Improvement Suggestions
 

@@ -179,7 +179,7 @@ export const Modal: React.FC<ModalProps> = ({
           </div>
         )}
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-6">
+        <div className="flex-1 overflow-y-auto px-6 pb-6">
           {description && (
             <p id={descId} className="mb-4 text-sm text-base-content/70">
               {description}

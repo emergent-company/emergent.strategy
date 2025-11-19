@@ -178,7 +178,7 @@ export function ExtractionConfigModal({
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-6">
+        <div className="flex-1 overflow-y-auto px-6 pb-6">
           {/* Entity Types Selection */}
           <div className="mb-6">
             <label className="mb-3 label">

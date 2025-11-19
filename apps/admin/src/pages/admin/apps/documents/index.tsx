@@ -73,6 +73,12 @@ export default function DocumentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<{
+    stage: 'uploading' | 'processing' | 'complete';
+    fileName: string;
+    fileSize: number;
+    estimatedSeconds: number;
+  } | null>(null);
   const [dragOver, setDragOver] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -389,6 +395,18 @@ export default function DocumentsPage() {
     return byMime || byExt;
   }
 
+  // Estimate processing time based on file size
+  function estimateProcessingTime(fileSize: number): number {
+    // Rough estimates based on typical processing:
+    // - Small files (<100KB): 1-2 seconds
+    // - Medium files (100KB-1MB): 2-5 seconds
+    // - Large files (1MB-10MB): 5-15 seconds
+    const sizeInKB = fileSize / 1024;
+    if (sizeInKB < 100) return 2;
+    if (sizeInKB < 1024) return 5;
+    return Math.min(15, Math.ceil(sizeInKB / 1024) * 3);
+  }
+
   async function handleUpload(file: File): Promise<void> {
     if (!isAccepted(file)) {
       showToast({
@@ -406,24 +424,59 @@ export default function DocumentsPage() {
       });
       return;
     }
+
     setUploading(true);
+    const estimatedSeconds = estimateProcessingTime(file.size);
+
+    // Show uploading stage
+    setUploadProgress({
+      stage: 'uploading',
+      fileName: file.name,
+      fileSize: file.size,
+      estimatedSeconds,
+    });
+
     try {
       const fd = new FormData();
       fd.append('file', file);
       if (config.activeProjectId)
         fd.append('projectId', config.activeProjectId);
       const t = getAccessToken();
-      await fetchForm<void>(`${apiBase}/api/ingest/upload`, fd, {
+
+      // Update to processing stage before actual upload
+      setUploadProgress({
+        stage: 'processing',
+        fileName: file.name,
+        fileSize: file.size,
+        estimatedSeconds,
+      });
+
+      const result = await fetchForm<{
+        documentId: string;
+        chunks: number;
+        alreadyExists: boolean;
+      }>(`${apiBase}/api/ingest/upload`, fd, {
         method: 'POST',
         headers: t ? buildHeaders({ json: false }) : {},
       });
 
+      // Mark as complete (skip banner for duplicates - they're instant)
+      if (!result.alreadyExists) {
+        setUploadProgress({
+          stage: 'complete',
+          fileName: file.name,
+          fileSize: file.size,
+          estimatedSeconds,
+        });
+      }
+
       // Reload documents WITHOUT hiding the table (no setLoading(true))
+      // Add cache-busting parameter to ensure fresh data after upload
       try {
         const t2 = getAccessToken();
         const json = await fetchJson<
           DocumentRow[] | { documents: DocumentRow[] }
-        >(`${apiBase}/api/documents`, {
+        >(`${apiBase}/api/documents?_t=${Date.now()}`, {
           headers: t2 ? { ...buildHeaders({ json: false }) } : {},
           json: false,
         });
@@ -431,7 +484,21 @@ export default function DocumentsPage() {
           normalize
         );
         setData(docs);
-        showToast({ message: 'Upload successful.', variant: 'success' });
+
+        // Show appropriate message based on whether document was duplicate
+        if (result.alreadyExists) {
+          showToast({
+            message: `Document already exists (duplicate detected). Showing existing document with ${result.chunks} chunks.`,
+            variant: 'warning',
+            duration: 6000,
+          });
+        } else {
+          showToast({
+            message: `Document processed successfully! Created ${result.chunks} chunks.`,
+            variant: 'success',
+            duration: 4000,
+          });
+        }
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Failed to refresh list';
         setError(msg);
@@ -441,6 +508,13 @@ export default function DocumentsPage() {
       showToast({ message: msg, variant: 'error' });
     } finally {
       setUploading(false);
+      // Clear progress banner after showing completion state
+      if (uploadProgress && uploadProgress.stage === 'complete') {
+        setTimeout(() => setUploadProgress(null), 5000);
+      } else {
+        // For duplicates or errors, clear immediately since we skip the banner
+        setUploadProgress(null);
+      }
     }
   }
 
@@ -543,11 +617,59 @@ export default function DocumentsPage() {
         </div>
       </div>
 
-      {/* Show subtle info alert when uploading/refreshing */}
-      {uploading && (
-        <div role="alert" className="mt-4 alert alert-info">
-          <span className="loading loading-spinner loading-sm" />
-          <span>Uploading document and refreshing list...</span>
+      {/* Show detailed progress indicator when uploading/processing (skip for instant duplicates) */}
+      {uploadProgress && (
+        <div
+          role="alert"
+          className={`mt-4 alert ${
+            uploadProgress.stage === 'complete' ? 'alert-success' : 'alert-info'
+          }`}
+        >
+          <Icon icon="lucide--file-text" className="size-5" />
+          <div className="flex-1">
+            <div className="flex justify-between items-center gap-4">
+              <div className="flex-1">
+                <div className="font-medium">
+                  {uploadProgress.stage === 'uploading' &&
+                    'Uploading document...'}
+                  {uploadProgress.stage === 'processing' &&
+                    'Processing and creating chunks...'}
+                  {uploadProgress.stage === 'complete' &&
+                    'Processing complete!'}
+                </div>
+                <div className="text-sm opacity-80">
+                  {uploadProgress.fileName} (
+                  {(uploadProgress.fileSize / 1024).toFixed(1)} KB)
+                  {uploadProgress.stage === 'processing' && (
+                    <span>
+                      {' '}
+                      • Estimated time: ~{uploadProgress.estimatedSeconds}{' '}
+                      seconds
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {uploadProgress.stage !== 'complete' && (
+                  <span className="loading loading-spinner loading-sm" />
+                )}
+                {uploadProgress.stage === 'complete' && (
+                  <Icon
+                    icon="lucide--check-circle"
+                    className="size-5 text-success"
+                  />
+                )}
+              </div>
+            </div>
+            {/* Show progress bar only during processing */}
+            {uploadProgress.stage === 'processing' && (
+              <progress
+                className="progress progress-primary w-full mt-2"
+                value="50"
+                max="100"
+              />
+            )}
+          </div>
         </div>
       )}
 
