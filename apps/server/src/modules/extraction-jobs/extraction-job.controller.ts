@@ -560,7 +560,7 @@ export class ExtractionJobController {
   async getExtractionLogs(
     @Param('jobId') jobId: string,
     @Req() req: Request
-  ): Promise<{ logs: any[]; summary: any }> {
+  ): Promise<{ logs: any[]; summary: any; timeline?: any[] }> {
     if (!isUUID(jobId)) {
       throw new BadRequestException('Invalid job ID format');
     }
@@ -573,6 +573,9 @@ export class ExtractionJobController {
       this.loggerService.getJobSummary(jobId),
     ]);
 
-    return { logs, summary };
+    // Include timeline events from debug_info if available
+    const timeline = job.debug_info?.timeline || [];
+
+    return { logs, summary, timeline };
   }
 }

@@ -313,32 +313,35 @@ export class ExtractionLoggerService {
    * Get summary statistics for a job
    */
   async getJobSummary(extractionJobId: string): Promise<{
-    total_steps: number;
-    completed_steps: number;
-    failed_steps: number;
-    pending_steps: number;
-    total_tokens_used: number;
-    total_duration_ms: number;
-    total_entities_created: number;
-    total_relationships_created: number;
+    totalSteps: number;
+    successSteps: number;
+    errorSteps: number;
+    warningSteps: number;
+    totalDurationMs: number;
+    totalTokensUsed: number;
+    operationCounts: Record<string, number>;
   }> {
     const logs = await this.getJobLogs(extractionJobId);
 
+    // Count operations by type
+    const operationCounts: Record<string, number> = {};
+    logs.forEach((log) => {
+      const type = log.operation_type;
+      operationCounts[type] = (operationCounts[type] || 0) + 1;
+    });
+
     return {
-      total_steps: logs.length,
-      completed_steps: logs.filter((l) => l.status === 'completed').length,
-      failed_steps: logs.filter((l) => l.status === 'failed').length,
-      pending_steps: logs.filter((l) => l.status === 'pending').length,
-      total_tokens_used: logs.reduce((sum, l) => sum + (l.tokens_used || 0), 0),
-      total_duration_ms: logs.reduce((sum, l) => sum + (l.duration_ms || 0), 0),
-      total_entities_created: logs.reduce(
-        (sum, l) => sum + (l.entity_count || 0),
-        0
-      ),
-      total_relationships_created: logs.reduce(
-        (sum, l) => sum + (l.relationship_count || 0),
-        0
-      ),
+      totalSteps: logs.length,
+      successSteps: logs.filter(
+        (l) => l.status === 'completed' || l.status === 'success'
+      ).length,
+      errorSteps: logs.filter(
+        (l) => l.status === 'failed' || l.status === 'error'
+      ).length,
+      warningSteps: logs.filter((l) => l.status === 'warning').length,
+      totalTokensUsed: logs.reduce((sum, l) => sum + (l.tokens_used || 0), 0),
+      totalDurationMs: logs.reduce((sum, l) => sum + (l.duration_ms || 0), 0),
+      operationCounts,
     };
   }
 }

@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/contexts/useAuth';
+import { ApiError } from '@/lib/api-error';
 
 /**
  * Organization with nested projects and user roles
@@ -78,6 +79,7 @@ export { AccessTreeContext };
  */
 export function AccessTreeProvider({ children }: { children: ReactNode }) {
   const { apiBase, fetchJson } = useApi();
+  const { isAuthenticated, logout } = useAuth();
   const [tree, setTree] = useState<OrgWithProjects[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>(undefined);
@@ -100,22 +102,28 @@ export function AccessTreeProvider({ children }: { children: ReactNode }) {
       console.log('[AccessTreeProvider] Response:', data.length, 'orgs');
       setTree(data);
     } catch (e) {
-      // Only log errors to console if we're authenticated - this avoids
-      // spurious console errors during auth initialization race conditions
-      // The error is still captured in state for UI display if needed
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
       console.log('[AccessTreeProvider] Fetch failed:', errorMessage);
+
+      // For 401/403 errors, clear auth and don't set error state
+      // The auth system will handle the redirect to login
+      if (e instanceof ApiError && e.isAuthError()) {
+        console.log('[AccessTreeProvider] Auth error detected, logging out');
+        logout();
+        // Don't set error state - let the app redirect to login
+        // This prevents showing the error UI for auth issues
+        return;
+      }
+
+      // For other errors (especially 5xx), set error state to show error UI
       setError(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [apiBase, fetchJson]);
+  }, [apiBase, fetchJson, logout]);
 
   // Prevent double-fetch in React StrictMode (development only)
   const hasFetchedRef = useRef(false);
-
-  // Get auth state to only fetch when authenticated
-  const { isAuthenticated } = useAuth();
 
   // Fetch once on provider mount, only if authenticated
   useEffect(() => {

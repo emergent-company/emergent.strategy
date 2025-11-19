@@ -30,7 +30,7 @@ export function ExtractionJobDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
 
-  // Fetch job details
+  // Fetch job details (initial load only)
   useEffect(() => {
     if (!jobId) {
       setError('No job ID provided');
@@ -68,21 +68,42 @@ export function ExtractionJobDetailPage() {
     };
 
     fetchJob();
+  }, [jobId, config.activeProjectId, apiBase, fetchJson]);
 
-    // Poll for updates if job is running
-    let pollInterval: NodeJS.Timeout | undefined;
-    if (job?.status === 'running' || job?.status === 'pending') {
-      pollInterval = setInterval(() => {
-        fetchJob();
-      }, 5000);
+  // Polling effect (separate from initial load)
+  useEffect(() => {
+    // Only poll if we have a job and it's in a state that needs polling
+    if (!job || !jobId || !config.activeProjectId) {
+      return;
     }
 
-    return () => {
-      if (pollInterval) {
-        clearInterval(pollInterval);
+    if (job.status !== 'running' && job.status !== 'pending') {
+      return;
+    }
+
+    const client = createExtractionJobsClient(
+      apiBase,
+      fetchJson,
+      config.activeProjectId
+    );
+
+    const pollJob = async () => {
+      try {
+        const jobData = await client.getJob(jobId);
+        setJob(jobData);
+      } catch (err) {
+        console.error('Failed to poll job details:', err);
+        // Don't set error state on poll failures to avoid disrupting UI
       }
     };
-  }, [jobId, config.activeProjectId, apiBase, fetchJson, job?.status]);
+
+    // Start polling
+    const pollInterval = setInterval(pollJob, 5000);
+
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [job?.status, jobId, config.activeProjectId, apiBase, fetchJson]);
 
   // Cancel job
   const handleCancel = async () => {
@@ -183,8 +204,19 @@ export function ExtractionJobDetailPage() {
     job.processed_items > 0
       ? (job.successful_items / job.processed_items) * 100
       : null;
-  const startedAt = job.started_at ? new Date(job.started_at) : null;
-  const lastUpdatedAt = job.updated_at ? new Date(job.updated_at) : null;
+
+  // Parse dates with validation
+  const parseDate = (dateValue?: string | null): Date | null => {
+    if (!dateValue) return null;
+    const date = new Date(dateValue);
+    return isNaN(date.getTime()) ? null : date;
+  };
+
+  const startedAt = parseDate(job.started_at);
+  const lastUpdatedAt = parseDate(job.updated_at);
+  const completedAt = parseDate(job.completed_at);
+  const createdAt = parseDate(job.created_at);
+
   const elapsedSeconds =
     startedAt && lastUpdatedAt
       ? (lastUpdatedAt.getTime() - startedAt.getTime()) / 1000
@@ -306,7 +338,7 @@ export function ExtractionJobDetailPage() {
           <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
             <ExtractionJobStatusBadge status={job.status} size="lg" />
             <div className="text-sm text-base-content/60">
-              Created {new Date(job.created_at).toLocaleString()}
+              Created {createdAt ? createdAt.toLocaleString() : 'Unknown date'}
             </div>
           </div>
 
@@ -391,14 +423,14 @@ export function ExtractionJobDetailPage() {
           )}
 
           {/* Completion info */}
-          {job.completed_at && (
+          {completedAt && (
             <div className="text-sm text-base-content/60">
               {job.status === 'completed'
                 ? 'Completed'
                 : job.status === 'failed'
                 ? 'Failed'
                 : 'Finished'}{' '}
-              at {new Date(job.completed_at).toLocaleString()}
+              at {completedAt.toLocaleString()}
             </div>
           )}
         </div>
