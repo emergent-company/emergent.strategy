@@ -23,6 +23,7 @@ export * from './molecules/ThemeToggle';
 export * from './molecules/NewChatCtas';
 export * from './molecules/FileUploader';
 export * from './molecules/Dropdown';
+export * from './molecules/FormField';
 
 // Organisms
 export * from './organisms/Sidebar';

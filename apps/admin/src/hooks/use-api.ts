@@ -27,11 +27,11 @@ export function useApi() {
       if (opts.json !== false) h['Content-Type'] = 'application/json';
       const t = getAccessToken?.();
       if (t) h['Authorization'] = `Bearer ${t}`;
-      if (activeOrgId) h['X-Org-ID'] = activeOrgId;
+      // Note: X-Org-ID removed - backend now derives org ID from project ID automatically
       if (activeProjectId) h['X-Project-ID'] = activeProjectId;
       return h;
     },
-    [getAccessToken, activeOrgId, activeProjectId]
+    [getAccessToken, activeProjectId]
   );
 
   type JsonMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -71,6 +71,13 @@ export function useApi() {
           // Robust error extraction supporting nested { error: { code, message, details } }
           let message = `Request failed (${res.status})`;
           let responseData: unknown;
+
+          // Special handling for 500 errors
+          if (res.status === 500) {
+            message =
+              'Server error. Please try again later or contact support if the issue persists.';
+          }
+
           try {
             const j = await res.json();
             responseData = j;
@@ -104,6 +111,16 @@ export function useApi() {
             } else if ((j as any).message) {
               message = (j as any).message;
             }
+
+            // For 500 errors, preserve user-friendly message if server didn't provide one
+            if (
+              res.status === 500 &&
+              (!message || message === `Request failed (${res.status})`)
+            ) {
+              message =
+                'Server error. Please try again later or contact support if the issue persists.';
+            }
+
             if (message && typeof message !== 'string') {
               message = JSON.stringify(message);
             }
@@ -111,8 +128,15 @@ export function useApi() {
             try {
               const txt = await res.text();
               if (txt) {
-                message = txt;
-                responseData = txt;
+                // For 500 errors, don't expose raw error text to users
+                if (res.status === 500) {
+                  message =
+                    'Server error. Please try again later or contact support if the issue persists.';
+                  responseData = txt;
+                } else {
+                  message = txt;
+                  responseData = txt;
+                }
               }
             } catch {
               // ignore

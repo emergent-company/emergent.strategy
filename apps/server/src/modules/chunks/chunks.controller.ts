@@ -5,6 +5,8 @@ import {
   Query,
   ParseUUIDPipe,
   UseGuards,
+  Req,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiOkResponse,
@@ -44,8 +46,16 @@ export class ChunksController {
   @Scopes('chunks:read')
   list(
     @Query('documentId', new ParseUUIDPipe({ version: '4', optional: true }))
-    documentId?: string
+    documentId?: string,
+    @Req() req?: any
   ) {
-    return this.chunks.list(documentId);
+    const projectId =
+      (req?.headers['x-project-id'] as string | undefined) || undefined;
+    if (!projectId) {
+      throw new BadRequestException({
+        error: { code: 'bad-request', message: 'x-project-id header required' },
+      });
+    }
+    return this.chunks.list(documentId, projectId);
   }
 }

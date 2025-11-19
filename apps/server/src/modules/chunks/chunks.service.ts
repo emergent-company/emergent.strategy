@@ -3,64 +3,54 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChunkDto } from './dto/chunk.dto';
 import { Chunk } from '../../entities/chunk.entity';
+import { DatabaseService } from '../../common/database/database.service';
+
+interface ChunkRow {
+  id: string;
+  document_id: string;
+  chunk_index: number;
+  text: string;
+  embedding: number[] | null;
+  filename: string | null;
+  source_url: string | null;
+}
 
 @Injectable()
 export class ChunksService {
   constructor(
     @InjectRepository(Chunk)
-    private readonly chunkRepository: Repository<Chunk>
+    private readonly chunkRepository: Repository<Chunk>,
+    private readonly db: DatabaseService
   ) {}
 
-  async list(documentId?: string): Promise<ChunkDto[]> {
-    try {
-      const queryBuilder = this.chunkRepository
-        .createQueryBuilder('c')
-        .leftJoinAndSelect('c.document', 'd')
-        .orderBy('c.created_at', 'ASC')
-        .addOrderBy('c.chunk_index', 'ASC');
+  async list(documentId?: string, projectId?: string): Promise<ChunkDto[]> {
+    // Use raw SQL with DatabaseService.query() to leverage RLS enforcement
+    const queryFn = async () => {
+      const result = await this.db.query<ChunkRow>(
+        `SELECT c.id, c.document_id, c.chunk_index, c.text, c.embedding,
+                d.filename, d.source_url
+         FROM kb.chunks c
+         INNER JOIN kb.documents d ON c.document_id = d.id
+         WHERE ($1::uuid IS NULL OR c.document_id = $1)
+         ORDER BY c.created_at ASC, c.chunk_index ASC`,
+        [documentId || null]
+      );
+      return result.rows;
+    };
 
-      if (documentId) {
-        queryBuilder.where('c.document_id = :documentId', { documentId });
-      }
+    // Use tenant context for RLS enforcement when projectId is provided
+    const rows = projectId
+      ? await this.db.runWithTenantContext(projectId, queryFn)
+      : await queryFn();
 
-      const chunks = await queryBuilder.getMany();
-
-      return chunks.map((c) => ({
-        id: c.id,
-        documentId: c.documentId,
-        documentTitle:
-          c.document?.filename || c.document?.sourceUrl || c.documentId,
-        index: c.chunkIndex,
-        size: c.text.length,
-        hasEmbedding: !!c.embedding,
-        text: c.text,
-      }));
-    } catch (e: any) {
-      // Fallback for missing columns (backward compatibility)
-      if (e?.code === '42703') {
-        const queryBuilder = this.chunkRepository
-          .createQueryBuilder('c')
-          .leftJoinAndSelect('c.document', 'd')
-          .orderBy('c.chunk_index', 'ASC');
-
-        if (documentId) {
-          queryBuilder.where('c.document_id = :documentId', { documentId });
-        }
-
-        const chunks = await queryBuilder.getMany();
-
-        return chunks.map((c) => ({
-          id: c.id,
-          documentId: c.documentId,
-          documentTitle:
-            c.document?.filename || c.document?.sourceUrl || c.documentId,
-          index: c.chunkIndex,
-          size: c.text.length,
-          hasEmbedding: false,
-          text: c.text,
-        }));
-      }
-      throw e;
-    }
+    return rows.map((row) => ({
+      id: row.id,
+      documentId: row.document_id,
+      documentTitle: row.filename || row.source_url || row.document_id,
+      index: row.chunk_index,
+      size: row.text?.length || 0,
+      hasEmbedding: !!row.embedding,
+      text: row.text,
+    }));
   }
 }

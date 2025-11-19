@@ -50,11 +50,25 @@ export class UserProfileService {
     return this.mapEntity(profile);
   }
 
-  async upsertBase(subjectId: string): Promise<void> {
-    // Minimal upsert for auth service: just create row if not exists
-    await this.userProfileRepository.upsert({ zitadelUserId: subjectId }, [
-      'zitadelUserId',
-    ]);
+  async upsertBase(
+    subjectId: string,
+    profile?: { firstName?: string; lastName?: string; displayName?: string }
+  ): Promise<void> {
+    // Check if user exists first to avoid overwriting local changes (Requirement: User Profile Persistence)
+    const exists = await this.userProfileRepository.findOne({
+      where: { zitadelUserId: subjectId },
+      select: ['id'],
+    });
+
+    if (!exists) {
+      // Create new user with profile data from Zitadel (Requirement: User Profile Data Sync)
+      await this.userProfileRepository.save({
+        zitadelUserId: subjectId,
+        firstName: profile?.firstName,
+        lastName: profile?.lastName,
+        displayName: profile?.displayName,
+      });
+    }
   }
 
   private mapEntity(profile: UserProfile): UserProfileDto {

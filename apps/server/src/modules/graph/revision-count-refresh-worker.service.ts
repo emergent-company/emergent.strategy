@@ -96,7 +96,8 @@ export class RevisionCountRefreshWorkerService
 
   /**
    * Refreshes the materialized view containing revision counts.
-   * Uses CONCURRENTLY to avoid blocking other queries.
+   * Uses CONCURRENTLY to avoid blocking other queries, but falls back
+   * to non-concurrent refresh if the view is not yet populated.
    * Keep as DataSource.query - calls PostgreSQL function
    *
    * @returns Promise<number> Number of objects tracked after refresh
@@ -122,6 +123,47 @@ export class RevisionCountRefreshWorkerService
       return objectCount;
     } catch (error) {
       const durationMs = Date.now() - startTime;
+
+      // Handle the case where CONCURRENTLY fails because view is not populated
+      if (
+        error instanceof Error &&
+        error.message.includes(
+          'CONCURRENTLY cannot be used when the materialized view is not populated'
+        )
+      ) {
+        this.logger.warn(
+          'Materialized view not populated, performing initial non-concurrent refresh...'
+        );
+
+        try {
+          // Perform initial non-concurrent refresh to populate the view
+          await this.dataSource.query(
+            'REFRESH MATERIALIZED VIEW kb.graph_object_revision_counts'
+          );
+
+          const result = (await this.dataSource.query(
+            'SELECT COUNT(*) as count FROM kb.graph_object_revision_counts'
+          )) as Array<{ count: string }>;
+
+          const objectCount = parseInt(result[0]?.count || '0', 10);
+          const totalDurationMs = Date.now() - startTime;
+
+          this.logger.log(
+            `Initial revision count refresh complete: ${objectCount} objects tracked (took ${totalDurationMs}ms)`
+          );
+
+          return objectCount;
+        } catch (initError) {
+          this.logger.error(
+            `Initial revision count refresh also failed after ${
+              Date.now() - startTime
+            }ms:`,
+            initError instanceof Error ? initError.message : String(initError)
+          );
+          throw initError;
+        }
+      }
+
       this.logger.error(
         `Revision count refresh failed after ${durationMs}ms:`,
         error instanceof Error ? error.message : String(error)

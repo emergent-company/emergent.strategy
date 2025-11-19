@@ -72,7 +72,8 @@ async function isPortInUse(port) {
 async function isE2EDbHealthy() {
   try {
     const { stdout } = await execAsync(
-      'docker compose -f docker/e2e/docker-compose.yml ps --format json'
+      'docker compose -f docker/e2e/docker-compose.yml ps --format json',
+      { cwd: PROJECT_ROOT }
     );
     const containers = JSON.parse(`[${stdout.trim().split('\n').join(',')}]`);
     const db = containers.find(c => c.Service === 'db');
@@ -124,14 +125,14 @@ async function startE2EDatabase() {
       return true;
     } else {
       logWarning('Database is running but not healthy, restarting...');
-      await execAsync('docker compose -f docker/e2e/docker-compose.yml restart');
+      await execAsync('docker compose -f docker/e2e/docker-compose.yml restart', { cwd: PROJECT_ROOT });
       return await waitForDbHealthy();
     }
   }
   
   // Start database
   log('Starting database container...');
-  await execAsync('docker compose -f docker/e2e/docker-compose.yml up -d');
+  await execAsync('docker compose -f docker/e2e/docker-compose.yml up -d', { cwd: PROJECT_ROOT });
   
   // Wait for healthy
   const healthy = await waitForDbHealthy();

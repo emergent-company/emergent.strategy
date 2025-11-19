@@ -55,6 +55,9 @@ vi.mock('typeorm', async () => {
     async destroy() {
       this.isInitialized = false;
     }
+    async runMigrations() {
+      return [];
+    }
     createQueryRunner() {
       return new MockQueryRunner();
     }
@@ -151,8 +154,187 @@ describe('DatabaseService extended behaviour', () => {
     await expect(db.getClient()).rejects.toThrow(/Database offline/);
   });
 
+  it('getOrgIdFromProjectId returns cached org ID on subsequent calls', async () => {
+    const { db } = buildServices();
+    const { DataSource }: any = await import('typeorm');
+    
+    // Mock query to return org ID
+    const mockQuery = vi.fn().mockResolvedValue([
+      { organization_id: 'test-org-123' }
+    ]);
+    vi.spyOn(DataSource.prototype as any, 'query').mockImplementation(mockQuery);
+    vi.spyOn(DataSource.prototype as any, 'runMigrations').mockResolvedValue([]);
+
+    await db.onModuleInit();
+    
+    // Clear mock call count after initialization (which makes many internal queries)
+    mockQuery.mockClear();
+
+    // First call should query database
+    const result1 = await db.getOrgIdFromProjectId('test-project-456');
+    expect(result1).toBe('test-org-123');
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+
+    // Second call should use cache
+    const result2 = await db.getOrgIdFromProjectId('test-project-456');
+    expect(result2).toBe('test-org-123');
+    expect(mockQuery).toHaveBeenCalledTimes(1); // No additional call
+  });
+
+  it('getOrgIdFromProjectId returns null for nonexistent project', async () => {
+    const { db } = buildServices();
+    const { DataSource }: any = await import('typeorm');
+    
+    // Mock query to return empty result
+    vi.spyOn(DataSource.prototype as any, 'query').mockResolvedValue([]);
+    vi.spyOn(DataSource.prototype as any, 'runMigrations').mockResolvedValue([]);
+
+    await db.onModuleInit();
+
+    const result = await db.getOrgIdFromProjectId('nonexistent-project');
+    expect(result).toBeNull();
+  });
+
+  it('clearOrgIdCache invalidates specific project cache entry', async () => {
+    const { db } = buildServices();
+    const { DataSource }: any = await import('typeorm');
+    
+    const mockQuery = vi.fn()
+      .mockResolvedValueOnce([{ organization_id: 'org-1' }])
+      .mockResolvedValueOnce([{ organization_id: 'org-2' }]);
+    vi.spyOn(DataSource.prototype as any, 'query').mockImplementation(mockQuery);
+    vi.spyOn(DataSource.prototype as any, 'runMigrations').mockResolvedValue([]);
+
+    await db.onModuleInit();
+    
+    // Clear mock call count after initialization
+    mockQuery.mockClear();
+    mockQuery
+      .mockResolvedValueOnce([{ organization_id: 'org-1' }])
+      .mockResolvedValueOnce([{ organization_id: 'org-2' }]);
+
+    // Cache first project
+    await db.getOrgIdFromProjectId('project-1');
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+
+    // Clear cache for this project
+    db.clearOrgIdCache('project-1');
+
+    // Next call should query again
+    await db.getOrgIdFromProjectId('project-1');
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it('clearOrgIdCache without params clears entire cache', async () => {
+    const { db } = buildServices();
+    const { DataSource }: any = await import('typeorm');
+    
+    const mockQuery = vi.fn()
+      .mockResolvedValueOnce([{ organization_id: 'org-1' }])
+      .mockResolvedValueOnce([{ organization_id: 'org-2' }])
+      .mockResolvedValueOnce([{ organization_id: 'org-1' }])
+      .mockResolvedValueOnce([{ organization_id: 'org-2' }]);
+    vi.spyOn(DataSource.prototype as any, 'query').mockImplementation(mockQuery);
+    vi.spyOn(DataSource.prototype as any, 'runMigrations').mockResolvedValue([]);
+
+    await db.onModuleInit();
+    
+    // Clear mock call count after initialization
+    mockQuery.mockClear();
+    mockQuery
+      .mockResolvedValueOnce([{ organization_id: 'org-1' }])
+      .mockResolvedValueOnce([{ organization_id: 'org-2' }])
+      .mockResolvedValueOnce([{ organization_id: 'org-1' }])
+      .mockResolvedValueOnce([{ organization_id: 'org-2' }]);
+
+    // Cache two projects
+    await db.getOrgIdFromProjectId('project-1');
+    await db.getOrgIdFromProjectId('project-2');
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+
+    // Clear entire cache
+    db.clearOrgIdCache();
+
+    // Both should query again
+    await db.getOrgIdFromProjectId('project-1');
+    await db.getOrgIdFromProjectId('project-2');
+    expect(mockQuery).toHaveBeenCalledTimes(4);
+  });
+
+  it('runWithTenantContext derives org ID from project ID', async () => {
+    const { db } = buildServices();
+    const { DataSource }: any = await import('typeorm');
+    
+    // Mock getOrgIdFromProjectId
+    const mockGetOrgId = vi.fn().mockResolvedValue('derived-org-123');
+    vi.spyOn(db, 'getOrgIdFromProjectId').mockImplementation(mockGetOrgId);
+
+    const originalApply = (db as any).applyTenantContext.bind(db);
+    const applied: Array<{ org: string | null; project: string | null }> = [];
+    vi.spyOn(db as any, 'applyTenantContext').mockImplementation(
+      async (org: unknown, project: unknown) => {
+        const normalizedOrg = (org ?? null) as string | null;
+        const normalizedProject = (project ?? null) as string | null;
+        applied.push({ org: normalizedOrg, project: normalizedProject });
+        return await originalApply(normalizedOrg, normalizedProject);
+      }
+    );
+
+    await db.runWithTenantContext('test-project-456', async () => {
+      // Test body
+    });
+
+    // Should have called getOrgIdFromProjectId with the project ID
+    expect(mockGetOrgId).toHaveBeenCalledWith('test-project-456');
+    
+    // Should have applied context with derived org ID and provided project ID
+    expect(applied).toContainEqual({ 
+      org: 'derived-org-123', 
+      project: 'test-project-456' 
+    });
+  });
+
+  it('runWithTenantContext handles null project ID', async () => {
+    const { db } = buildServices();
+    
+    // Mock getOrgIdFromProjectId (should not be called)
+    const mockGetOrgId = vi.fn();
+    vi.spyOn(db, 'getOrgIdFromProjectId').mockImplementation(mockGetOrgId);
+
+    const originalApply = (db as any).applyTenantContext.bind(db);
+    const applied: Array<{ org: string | null; project: string | null }> = [];
+    vi.spyOn(db as any, 'applyTenantContext').mockImplementation(
+      async (org: unknown, project: unknown) => {
+        const normalizedOrg = (org ?? null) as string | null;
+        const normalizedProject = (project ?? null) as string | null;
+        applied.push({ org: normalizedOrg, project: normalizedProject });
+        return await originalApply(normalizedOrg, normalizedProject);
+      }
+    );
+
+    await db.runWithTenantContext(null, async () => {
+      // Test body
+    });
+
+    // Should NOT have called getOrgIdFromProjectId
+    expect(mockGetOrgId).not.toHaveBeenCalled();
+    
+    // Should have applied context with null org and project
+    expect(applied).toContainEqual({ 
+      org: null, 
+      project: null 
+    });
+  });
+
   it('restores base tenant context after overlapping runWithTenantContext calls', async () => {
     const { db } = buildServices();
+    
+    // Mock getOrgIdFromProjectId for both projects
+    const mockGetOrgId = vi.fn()
+      .mockResolvedValueOnce('org-1')
+      .mockResolvedValueOnce('org-2');
+    vi.spyOn(db, 'getOrgIdFromProjectId').mockImplementation(mockGetOrgId);
+
     const originalApply = (db as any).applyTenantContext.bind(db);
     const applied: Array<{ org: string | null; project: string | null }> = [];
     vi.spyOn(db as any, 'applyTenantContext').mockImplementation(
@@ -166,11 +348,11 @@ describe('DatabaseService extended behaviour', () => {
 
     await db.setTenantContext('base-org', 'base-project');
 
-    const first = db.runWithTenantContext('org-1', 'proj-1', async () => {
+    const first = db.runWithTenantContext('proj-1', async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    const second = db.runWithTenantContext('org-2', 'proj-2', async () => {
+    const second = db.runWithTenantContext('proj-2', async () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
     });
 

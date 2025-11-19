@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/useAuth';
 import { useApi } from '@/hooks/use-api';
+import { useConfig } from '@/contexts/config';
 import { useSearchParams } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
 import { DataTable } from '@/components/organisms/DataTable';
@@ -29,6 +30,7 @@ interface ChunksResponse {
 export default function ChunksPage() {
   const { getAccessToken } = useAuth();
   const { buildHeaders, apiBase, fetchJson } = useApi();
+  const { config } = useConfig();
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState<ChunksResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -151,6 +153,8 @@ export default function ChunksPage() {
     getAccessToken,
     buildHeaders,
     fetchJson,
+    config.activeProjectId,
+    config.activeOrgId,
   ]);
 
   const totalPages = data

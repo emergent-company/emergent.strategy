@@ -185,14 +185,16 @@ Both inserts should be inside the same transaction as the parent entity creation
 
 ## 7. Enforcement Architecture
 
+> **Note**: As of 2025-11-18, the `X-Org-ID` header has been removed. Organization ID is now automatically derived from Project ID on the backend. See [Migration Guide](../migrations/remove-org-id-header-migration.md).
+
 Layered approach:
 1. **AuthN Guard** – Verifies JWT (Zitadel). Extracts `sub` (user id / external mapping), email.
-2. **Context Resolver** – Derives `orgId` & `projectId` from headers (`X-Org-ID`, `X-Project-ID`) or request params; validates project → org relation.
+2. **Context Resolver** – Derives `projectId` from header (`X-Project-ID`) or request params. Organization ID is automatically derived from Project ID server-side via database lookup.
 3. **Membership Loader** – Loads (and caches) memberships for (`user_id`, `orgId`, `projectId?`). Provides structure:
    ```ts
    interface RequestAuthContext {
      userId: string;
-     orgId?: string;
+     orgId?: string;  // Derived from projectId server-side
      projectId?: string;
      orgRole?: 'org_admin';
      projectRole?: 'project_admin' | 'project_user';
@@ -239,8 +241,9 @@ Log structured JSON lines on denial including: `userId`, `orgId`, `projectId`, `
 | Header | Purpose |
 |--------|---------|
 | `Authorization` | Bearer token (Zitadel JWT). |
-| `X-Org-ID` | Active organization context (UUID). Optional if endpoint infers from project. |
-| `X-Project-ID` | Active project context (UUID) for project-scoped endpoints. |
+| `X-Project-ID` | Active project context (UUID) for project-scoped endpoints. Organization ID is automatically derived from project. |
+
+> **Deprecated**: `X-Org-ID` header is no longer used or required (removed 2025-11-18).
 
 ### 9.2 OpenAPI Metadata
 Each protected operation includes (examples):
@@ -319,14 +322,16 @@ Generate table of (endpoint, required scopes) vs roles. For each role context (o
 | Endpoint | Method | Context Headers | Expected org_admin | Expected project_admin | Expected project_user |
 |----------|--------|-----------------|--------------------|------------------------|-----------------------|
 | /orgs (create) | POST | (none) | 201 | 403 | 403 |
-| /projects (create) | POST | X-Org-ID | 201 | 403 | 403 |
-| /projects/:id (update) | PATCH | X-Org-ID,X-Project-ID | 200 | 200 | 403 |
-| /projects/:id/invite | POST | X-Org-ID,X-Project-ID | 201 | 201 | 403 |
-| /documents | GET | X-Org-ID,X-Project-ID | 200 | 200 | 200 |
-| /documents | POST | X-Org-ID,X-Project-ID | 201 | 201 | 403 (v0.1 rule) |
-| /documents/:id | DELETE | X-Org-ID,X-Project-ID | 204 | 204 | 403 |
-| /chat/conversations | POST | X-Org-ID,X-Project-ID | 201 | 201 | 201 |
-| /chat/conversations/:id/moderate | POST | X-Org-ID,X-Project-ID | 200 | 200 | 403 |
+| /projects (create) | POST | X-Project-ID | 201 | 403 | 403 |
+| /projects/:id (update) | PATCH | X-Project-ID | 200 | 200 | 403 |
+| /projects/:id/invite | POST | X-Project-ID | 201 | 201 | 403 |
+| /documents | GET | X-Project-ID | 200 | 200 | 200 |
+| /documents | POST | X-Project-ID | 201 | 201 | 403 (v0.1 rule) |
+| /documents/:id | DELETE | X-Project-ID | 204 | 204 | 403 |
+| /chat/conversations | POST | X-Project-ID | 201 | 201 | 201 |
+| /chat/conversations/:id/moderate | POST | X-Project-ID | 200 | 200 | 403 |
+
+> **Note**: `X-Org-ID` header removed 2025-11-18. Organization ID is derived from Project ID automatically.
 
 Implementation notes:
 1. Seed one org + two projects; grant roles to three test users (one per role set). 
@@ -399,8 +404,9 @@ Structured logs enable correlating denial spikes with deployments.
 
 | Risk | Mitigation |
 |------|------------|
-| Horizontal privilege escalation via crafted headers | Validate `(project.organization_id == orgId)` before evaluating scopes. |
+| Horizontal privilege escalation via crafted project IDs | Server derives organization ID from project ID via database lookup. Client cannot manipulate org context. |
 | Stale cached membership after revocation | Explicit cache invalidation on mutation; short TTL. |
+| Stale cached org→project mapping | Cache is invalidated when projects are moved/deleted. Call `clearOrgIdCache()` explicitly. |
 | Invite token leakage | Short expiry (e.g. 7 days) + single-use mark accepted. |
 | Scope oversubscription in future dynamic roles | Maintain allowlist for known scopes; reject unknown. |
 | Orphan project user after org deletion | ON DELETE CASCADE ensures membership rows removed. |

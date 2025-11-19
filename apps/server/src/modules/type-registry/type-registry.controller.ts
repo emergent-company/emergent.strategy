@@ -39,30 +39,18 @@ export class TypeRegistryController {
   @Scopes('graph:read')
   async getProjectTypes(
     @Param('projectId') projectId: string,
-    @Query() query: ListObjectTypesQueryDto,
-    @Query('org_id') orgIdParam: string | undefined,
-    @Req() req: any
+    @Query() query: ListObjectTypesQueryDto
   ): Promise<TypeRegistryEntryDto[]> {
-    const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
-    if (!orgId) {
-      throw new BadRequestException('Organization ID required');
-    }
-    return this.typeRegistryService.getProjectTypes(projectId, orgId, query);
+    return this.typeRegistryService.getProjectTypes(projectId, query);
   }
 
   @Get('projects/:projectId/types/:typeName')
   @Scopes('graph:read')
   async getType(
     @Param('projectId') projectId: string,
-    @Param('typeName') typeName: string,
-    @Query('org_id') orgIdParam: string | undefined,
-    @Req() req: any
+    @Param('typeName') typeName: string
   ): Promise<TypeRegistryEntryDto> {
-    const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
-    if (!orgId) {
-      throw new BadRequestException('Organization ID required');
-    }
-    return this.typeRegistryService.getTypeByName(projectId, orgId, typeName);
+    return this.typeRegistryService.getTypeByName(projectId, typeName);
   }
 
   @Post('projects/:projectId/types')
@@ -95,15 +83,9 @@ export class TypeRegistryController {
   async updateType(
     @Param('projectId') projectId: string,
     @Param('typeName') typeName: string,
-    @Body() dto: UpdateObjectTypeDto,
-    @Query('org_id') orgIdParam: string | undefined,
-    @Req() req: any
+    @Body() dto: UpdateObjectTypeDto
   ): Promise<ProjectTypeRegistryRow> {
-    const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
-    if (!orgId) {
-      throw new BadRequestException('Organization ID required');
-    }
-    return this.typeRegistryService.updateType(projectId, orgId, typeName, dto);
+    return this.typeRegistryService.updateType(projectId, typeName, dto);
   }
 
   @Delete('projects/:projectId/types/:typeName')
@@ -111,45 +93,27 @@ export class TypeRegistryController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteType(
     @Param('projectId') projectId: string,
-    @Param('typeName') typeName: string,
-    @Query('org_id') orgIdParam: string | undefined,
-    @Req() req: any
+    @Param('typeName') typeName: string
   ): Promise<void> {
-    const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
-    if (!orgId) {
-      throw new BadRequestException('Organization ID required');
-    }
-    await this.typeRegistryService.deleteType(projectId, orgId, typeName);
+    await this.typeRegistryService.deleteType(projectId, typeName);
   }
 
   @Post('projects/:projectId/validate')
   @Scopes('graph:read')
   async validateData(
     @Param('projectId') projectId: string,
-    @Body() dto: ValidateObjectDataDto,
-    @Query('org_id') orgIdParam: string | undefined,
-    @Req() req: any
+    @Body() dto: ValidateObjectDataDto
   ): Promise<ValidationResult> {
-    const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
-    if (!orgId) {
-      throw new BadRequestException('Organization ID required');
-    }
-    return this.typeRegistryService.validateObjectData(projectId, orgId, dto);
+    return this.typeRegistryService.validateObjectData(projectId, dto);
   }
 
   @Get('projects/:projectId/types/:typeName/schema')
   @Scopes('graph:read')
   async getTypeSchema(
     @Param('projectId') projectId: string,
-    @Param('typeName') typeName: string,
-    @Query('org_id') orgIdParam: string | undefined,
-    @Req() req: any
+    @Param('typeName') typeName: string
   ): Promise<object> {
-    const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
-    if (!orgId) {
-      throw new BadRequestException('Organization ID required');
-    }
-    return this.typeRegistryService.getTypeSchema(projectId, orgId, typeName);
+    return this.typeRegistryService.getTypeSchema(projectId, typeName);
   }
 
   @Patch('projects/:projectId/types/:typeName/toggle')
@@ -157,29 +121,14 @@ export class TypeRegistryController {
   async toggleType(
     @Param('projectId') projectId: string,
     @Param('typeName') typeName: string,
-    @Body('enabled') enabled: boolean,
-    @Query('org_id') orgIdParam: string | undefined,
-    @Req() req: any
+    @Body('enabled') enabled: boolean
   ): Promise<ProjectTypeRegistryRow> {
-    const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
-    if (!orgId) {
-      throw new BadRequestException('Organization ID required');
-    }
-    return this.typeRegistryService.toggleType(
-      projectId,
-      orgId,
-      typeName,
-      enabled
-    );
+    return this.typeRegistryService.toggleType(projectId, typeName, enabled);
   }
 
   @Get('projects/:projectId/stats')
   @Scopes('graph:read')
-  async getProjectStats(
-    @Param('projectId') projectId: string,
-    @Query('org_id') orgIdParam: string | undefined,
-    @Req() req: any
-  ): Promise<{
+  async getProjectStats(@Param('projectId') projectId: string): Promise<{
     total_types: number;
     enabled_types: number;
     template_types: number;
@@ -188,10 +137,6 @@ export class TypeRegistryController {
     total_objects: number;
     types_with_objects: number;
   }> {
-    const orgId = orgIdParam || (req.headers['x-org-id'] as string | undefined);
-    if (!orgId) {
-      throw new BadRequestException('Organization ID required');
-    }
-    return this.typeRegistryService.getTypeStatistics(projectId, orgId);
+    return this.typeRegistryService.getTypeStatistics(projectId);
   }
 }

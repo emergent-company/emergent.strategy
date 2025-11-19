@@ -25,7 +25,7 @@ export function SetupGuard({ children }: SetupGuardProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { config, setActiveOrg, setActiveProject } = useConfig();
-  const { orgs, projects, loading } = useAccessTreeContext();
+  const { orgs, projects, loading, error } = useAccessTreeContext();
   const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
@@ -33,6 +33,7 @@ export function SetupGuard({ children }: SetupGuardProps) {
       pathname: location.pathname,
       hasRedirected: hasRedirectedRef.current,
       loading,
+      error,
       orgsCount: orgs.length,
       projectsCount: projects.length,
       storedOrgId: config.activeOrgId,
@@ -49,7 +50,16 @@ export function SetupGuard({ children }: SetupGuardProps) {
       return;
     }
 
-    // Redirect to setup if missing org
+    // If there's an API error, don't redirect - show error state instead
+    if (error) {
+      console.error(
+        '[SetupGuard] API error detected, showing error state:',
+        error
+      );
+      return;
+    }
+
+    // Redirect to setup if missing org (only when no error)
     if (orgs.length === 0) {
       console.log('[SetupGuard] No orgs found, redirecting to org setup');
       hasRedirectedRef.current = true;
@@ -108,6 +118,7 @@ export function SetupGuard({ children }: SetupGuardProps) {
     orgs,
     projects,
     loading,
+    error,
     navigate,
     location.pathname,
     config.activeOrgId,
@@ -121,6 +132,79 @@ export function SetupGuard({ children }: SetupGuardProps) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <span className="loading loading-spinner loading-lg" />
+      </div>
+    );
+  }
+
+  // Show error state if API failed
+  if (error) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-base-200">
+        <div className="mx-4 w-full max-w-md">
+          <div className="bg-base-100 shadow-xl border border-base-300 card">
+            <div className="space-y-4 card-body">
+              <div className="text-center">
+                <div className="inline-flex bg-error/10 mb-4 p-3 rounded-full">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="size-8 text-error"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <h1 className="justify-center font-bold text-2xl card-title">
+                  Server Error
+                </h1>
+                <p className="mt-2 text-base-content/70">
+                  Unable to load your organizations and projects
+                </p>
+              </div>
+
+              <div
+                role="alert"
+                className="alert alert-error"
+                data-testid="setup-guard-error"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="size-5 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span className="text-sm">{error}</span>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full btn btn-primary"
+                  data-testid="setup-guard-retry"
+                >
+                  Retry
+                </button>
+                <p className="text-sm text-base-content/60 text-center">
+                  If the problem persists, please contact support
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

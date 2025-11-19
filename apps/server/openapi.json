@@ -66,14 +66,11 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Return current authenticated user (mock)",
+            "description": "Return current authenticated user",
             "content": {
               "application/json": {
                 "schema": {
-                  "example": {
-                    "sub": "mock-user-id",
-                    "email": "demo@example.com"
-                  }
+                  "$ref": "#/components/schemas/UserProfileDto"
                 }
               }
             }
@@ -9519,10 +9516,6 @@
             "type": "string",
             "description": "Job ID"
           },
-          "organization_id": {
-            "type": "string",
-            "description": "Organization ID"
-          },
           "project_id": {
             "type": "string",
             "description": "Project ID"
@@ -9640,7 +9633,6 @@
         },
         "required": [
           "id",
-          "organization_id",
           "project_id",
           "source_type",
           "source_metadata",

@@ -15,8 +15,9 @@ export class InMemoryDatabaseService {
         return;
     }
 
-    async runWithTenantContext<T>(orgId: string | null, projectId: string | null, fn: () => Promise<T>): Promise<T> {
-        await this.setTenantContext(orgId, projectId);
+    async runWithTenantContext<T>(projectId: string | null, fn: () => Promise<T>): Promise<T> {
+        // In-memory stub: projectId parameter accepted but not used for actual tenant isolation
+        // Real implementation derives orgId from projectId automatically
         try {
             return await fn();
         } finally {

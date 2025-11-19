@@ -1,5 +1,7 @@
 ## Instructions to Test Chat Graph Search with Debug Logging
 
+> **Note**: As of 2025-11-18, the `X-Org-ID` header is no longer required. API requests only need `X-Project-ID`. See [Migration Guide](../../migrations/remove-org-id-header-migration.md).
+
 **Debug logging is now enabled!** (`E2E_DEBUG_CHAT=1`)
 
 ### Steps to Test:
@@ -59,11 +61,10 @@ Or if disabled:
 You can also test the graph search API directly:
 
 ```bash
-# Replace PROJECT_ID and ORG_ID with your current ones from the browser URL
+# Replace PROJECT_ID with your current one from the browser URL
 curl -X POST "http://localhost:3001/graph/search-with-neighbors" \
   -H "Content-Type: application/json" \
   -H "X-Project-ID: YOUR_PROJECT_ID" \
-  -H "X-Org-ID: YOUR_ORG_ID" \
   -d '{"query":"Agata","limit":5,"includeNeighbors":true,"maxNeighbors":3,"maxDistance":0.5}' | jq
 ```
 

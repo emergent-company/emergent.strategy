@@ -71,14 +71,15 @@ class MockDb {
     this.projectId = projectId ?? null;
   }
 
-  async runWithTenantContext<T>(orgId: string | null, projectId: string | null, fn: () => Promise<T>): Promise<T> {
-    const prevOrg = this.orgId;
+  async runWithTenantContext<T>(projectId: string | null, fn: () => Promise<T>): Promise<T> {
     const prevProject = this.projectId;
-    await this.setTenantContext(orgId, projectId);
+    // Mock: projectId parameter accepted but not used for actual tenant isolation
+    // Real implementation derives orgId from projectId automatically
+    this.projectId = projectId ?? null;
     try {
       return await fn();
     } finally {
-      await this.setTenantContext(prevOrg, prevProject);
+      this.projectId = prevProject;
     }
   }
 }

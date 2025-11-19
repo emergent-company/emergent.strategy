@@ -132,6 +132,12 @@ describe('Chat Citations Persistence', () => {
     const assistantMsg = convo.messages.find((m) => m.role === 'assistant');
     expect(assistantMsg).toBeTruthy();
     if (assistantMsg) {
+      // Debug: log actual content if test fails
+      if (!assistantMsg.content.startsWith('token-0 token-1')) {
+        console.error('[TEST DEBUG] Assistant message content:', JSON.stringify(assistantMsg.content));
+        console.error('[TEST DEBUG] Content length:', assistantMsg.content.length);
+        console.error('[TEST DEBUG] First 50 chars:', assistantMsg.content.substring(0, 50));
+      }
       // Tokens are concatenated with spaces in deterministic mode
       expect(assistantMsg.content.startsWith('token-0 token-1')).toBe(true);
       if (citationFrame) {

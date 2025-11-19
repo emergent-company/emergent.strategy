@@ -37,6 +37,25 @@ export class TemplatePackService {
   ) {}
 
   /**
+   * Derive organization ID from project ID
+   * Used for tenant context - organization_id is no longer required as a parameter
+   */
+  private async getOrganizationIdFromProject(
+    projectId: string
+  ): Promise<string> {
+    const orgResult = await this.db.query<{ organization_id: string }>(
+      'SELECT organization_id FROM kb.projects WHERE id = $1',
+      [projectId]
+    );
+
+    if (!orgResult.rows[0]) {
+      throw new BadRequestException(`Project ${projectId} not found`);
+    }
+
+    return orgResult.rows[0].organization_id;
+  }
+
+  /**
    * Create a new template pack in the global registry
    *
    * MIGRATED TO TYPEORM (Session 19)
@@ -466,11 +485,13 @@ export class TemplatePackService {
    * ═══════════════════════════════════════════════════════════════
    */
   async getProjectTemplatePacks(
-    projectId: string,
-    orgId: string
+    projectId: string
   ): Promise<
     Array<ProjectTemplatePackRow & { template_pack: TemplatePackRow }>
   > {
+    // Derive org ID for tenant context (not used in query but available if needed)
+    await this.getOrganizationIdFromProject(projectId);
+
     const result = await this.db.query<
       ProjectTemplatePackRow & { template_pack: TemplatePackRow }
     >(
@@ -544,9 +565,11 @@ export class TemplatePackService {
    * ═══════════════════════════════════════════════════════════════
    */
   async getAvailableTemplatesForProject(
-    projectId: string,
-    orgId: string
+    projectId: string
   ): Promise<AvailableTemplateDto[]> {
+    // Derive org ID for tenant context (not used in query but available if needed)
+    await this.getOrganizationIdFromProject(projectId);
+
     // Get all template packs
     const packsResult = await this.db.query<TemplatePackRow>(
       `SELECT * FROM kb.graph_template_packs 
@@ -1007,9 +1030,11 @@ export class TemplatePackService {
    * ═══════════════════════════════════════════════════════════════
    */
   async getCompiledObjectTypesForProject(
-    projectId: string,
-    orgId: string
+    projectId: string
   ): Promise<Record<string, any>> {
+    // Derive org ID for tenant context (not used in query but available if needed)
+    await this.getOrganizationIdFromProject(projectId);
+
     // Get all active template pack assignments for this project
     const assignmentsResult = await this.db.query<ProjectTemplatePackRow>(
       `SELECT * FROM kb.project_template_packs 

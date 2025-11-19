@@ -144,13 +144,12 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
         .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: orphanJob.id }] });
 
       databaseService.runWithTenantContext.mockImplementation(
-        async (_org, _project, fn) => fn()
+        async (_project, fn) => fn()
       );
 
       await (service as any).recoverOrphanedJobs();
 
       expect(databaseService.runWithTenantContext).toHaveBeenCalledWith(
-        orgId,
         orphanJob.project_id,
         expect.any(Function)
       );

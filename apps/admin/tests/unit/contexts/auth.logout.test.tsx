@@ -197,7 +197,7 @@ describe('AuthContext logout', () => {
       expiresAt: Date.now() + 3600000,
       user: { sub: 'user-123', email: 'test@example.com' },
     };
-    localStorage.setItem('__nexus_auth_v1__', JSON.stringify(authData));
+    localStorage.setItem('spec-server-auth', JSON.stringify(authData));
 
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <AuthProvider>{children}</AuthProvider>

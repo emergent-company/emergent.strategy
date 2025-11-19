@@ -101,31 +101,43 @@ export class ChatService {
     this.logger.log(
       `[listConversations] userId=${userId} orgId=${orgId} projectId=${projectId}`
     );
-    // Build dynamic filtering: org is optional, project is optional (but controller may enforce project). When a header is omitted
-    // we do NOT filter by that dimension to match documents behavior (org optional; project required at controller level).
-    const sharedParams: any[] = [];
-    let sharedSQL = `SELECT id, title, created_at, updated_at, owner_user_id, is_private FROM kb.chat_conversations WHERE is_private = false`;
-    if (projectId) {
-      sharedParams.push(projectId);
-      sharedSQL += ` AND project_id IS NOT DISTINCT FROM $${sharedParams.length}`;
-    }
-    sharedSQL += ' ORDER BY updated_at DESC';
-    const shared = await this.db.query<ConversationRow>(
-      sharedSQL,
-      sharedParams
-    );
-
-    let priv: any = { rows: [] as ConversationRow[], rowCount: 0 };
-    if (userId) {
-      const privParams: any[] = [userId];
-      let privSQL = `SELECT id, title, created_at, updated_at, owner_user_id, is_private FROM kb.chat_conversations WHERE is_private = true AND owner_user_id = $1`;
+    // Use tenant context for RLS enforcement
+    const queryFn = async () => {
+      // Build dynamic filtering: org is optional, project is optional (but controller may enforce project). When a header is omitted
+      // we do NOT filter by that dimension to match documents behavior (org optional; project required at controller level).
+      const sharedParams: any[] = [];
+      let sharedSQL = `SELECT id, title, created_at, updated_at, owner_user_id, is_private FROM kb.chat_conversations WHERE is_private = false`;
       if (projectId) {
-        privParams.push(projectId);
-        privSQL += ` AND project_id IS NOT DISTINCT FROM $${privParams.length}`;
+        sharedParams.push(projectId);
+        sharedSQL += ` AND project_id IS NOT DISTINCT FROM $${sharedParams.length}`;
       }
-      privSQL += ' ORDER BY updated_at DESC';
-      priv = await this.db.query<ConversationRow>(privSQL, privParams);
-    }
+      sharedSQL += ' ORDER BY updated_at DESC';
+      const shared = await this.db.query<ConversationRow>(
+        sharedSQL,
+        sharedParams
+      );
+
+      let priv: any = { rows: [] as ConversationRow[], rowCount: 0 };
+      if (userId) {
+        const privParams: any[] = [userId];
+        let privSQL = `SELECT id, title, created_at, updated_at, owner_user_id, is_private FROM kb.chat_conversations WHERE is_private = true AND owner_user_id = $1`;
+        if (projectId) {
+          privParams.push(projectId);
+          privSQL += ` AND project_id IS NOT DISTINCT FROM $${privParams.length}`;
+        }
+        privSQL += ' ORDER BY updated_at DESC';
+        priv = await this.db.query<ConversationRow>(privSQL, privParams);
+      }
+
+      return { shared, priv };
+    };
+
+    // Execute within tenant context for RLS
+    const result = projectId
+      ? await this.db.runWithTenantContext(projectId, queryFn)
+      : await queryFn();
+
+    const { shared, priv } = result;
     const privCount = (priv as any).rowCount ?? priv.rows.length;
     this.logger.log(
       `[listConversations] results shared=${shared.rowCount} private=${privCount}`
