@@ -49,11 +49,16 @@ describe('ChatGenerationService', () => {
       'Tell me something about planets',
       (t) => tokens.push(t)
     );
+    // Tokens should include spaces as separate elements to match production behavior
     expect(tokens).toEqual([
       'token-0',
+      ' ',
       'token-1',
+      ' ',
       'token-2',
+      ' ',
       'token-3',
+      ' ',
       'token-4',
     ]);
     expect(full).toBe('token-0 token-1 token-2 token-3 token-4');
