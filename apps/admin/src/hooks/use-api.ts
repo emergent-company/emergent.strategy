@@ -2,6 +2,7 @@ import { useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/useAuth';
 import { useConfig } from '@/contexts/config';
 import { errorLogger } from '@/lib/error-logger';
+import { ApiError } from '@/lib/api-error';
 
 export type ApiHeadersOptions = {
   json?: boolean; // include Content-Type: application/json
@@ -146,7 +147,11 @@ export function useApi() {
           // Log API errors
           errorLogger.logApiError(url, method, res.status, responseData);
 
-          throw new Error(message || `Request failed (${res.status})`);
+          throw new ApiError(
+            message || `Request failed (${res.status})`,
+            res.status,
+            responseData
+          );
         }
         // If no content
         if (res.status === 204) return undefined as unknown as T;
@@ -185,8 +190,10 @@ export function useApi() {
       });
       if (!res.ok) {
         let message = `Request failed (${res.status})`;
+        let responseData: unknown;
         try {
           const j = await res.json();
+          responseData = j;
           // Handle nested error structures like { error: { message, code } }
           const nested = (j as any).error;
           if (typeof nested === 'string') {
@@ -204,12 +211,14 @@ export function useApi() {
           }
         } catch {
           try {
-            message = (await res.text()) || message;
+            const txt = await res.text();
+            responseData = txt;
+            message = txt || message;
           } catch {
             // ignore
           }
         }
-        throw new Error(message);
+        throw new ApiError(message, res.status, responseData);
       }
       // Some form endpoints may return JSON or nothing; attempt JSON, fallback to undefined
       try {
