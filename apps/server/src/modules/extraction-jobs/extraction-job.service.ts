@@ -55,6 +55,25 @@ export class ExtractionJobService {
     private readonly config: AppConfigService
   ) {}
 
+  /**
+   * Derive organization ID from project ID
+   * Used for tenant context - organization_id is no longer required as a parameter
+   */
+  private async getOrganizationIdFromProject(
+    projectId: string
+  ): Promise<string | null> {
+    const orgResult = await this.db.query<{ organization_id: string }>(
+      'SELECT organization_id FROM kb.projects WHERE id = $1',
+      [projectId]
+    );
+
+    if (!orgResult.rows[0]) {
+      throw new BadRequestException(`Project ${projectId} not found`);
+    }
+
+    return orgResult.rows[0].organization_id ?? null;
+  }
+
   private async getSchemaInfo(): Promise<ExtractionJobSchemaInfo> {
     if (this.schemaInfo) {
       return this.schemaInfo;
@@ -185,16 +204,7 @@ export class ExtractionJobService {
 
     // Derive organization_id from project for tenant context
     // In Phase 6, extraction jobs are project-scoped, so organization_id is only needed for setTenantContext
-    const orgResult = await this.db.query<{ organization_id: string }>(
-      'SELECT organization_id FROM kb.projects WHERE id = $1',
-      [projectId]
-    );
-
-    if (!orgResult.rows[0]) {
-      throw new BadRequestException(`Project ${projectId} not found`);
-    }
-
-    const organizationId = orgResult.rows[0].organization_id ?? null;
+    const organizationId = await this.getOrganizationIdFromProject(projectId);
     await this.db.setTenantContext(organizationId, projectId);
     this.logger.log(
       `Creating extraction job for project ${projectId}, source: ${dto.source_type}`
@@ -254,10 +264,10 @@ export class ExtractionJobService {
    */
   async getJobById(
     jobId: string,
-    projectId: string,
-    orgId: string
+    projectId: string
   ): Promise<ExtractionJobDto> {
     const schema = await this.getSchemaInfo();
+    const orgId = await this.getOrganizationIdFromProject(projectId);
     await this.db.setTenantContext(orgId, projectId);
 
     const result = await this.db.query<ExtractionJobDto>(
@@ -278,10 +288,10 @@ export class ExtractionJobService {
    */
   async listJobs(
     projectId: string,
-    orgId: string,
     query: ListExtractionJobsDto
   ): Promise<ExtractionJobListDto> {
     const schema = await this.getSchemaInfo();
+    const orgId = await this.getOrganizationIdFromProject(projectId);
     await this.db.setTenantContext(orgId, projectId);
 
     const { status, source_type, source_id, page = 1, limit = 20 } = query;
@@ -344,10 +354,10 @@ export class ExtractionJobService {
   async updateJob(
     jobId: string,
     projectId: string,
-    orgId: string,
     dto: UpdateExtractionJobDto
   ): Promise<ExtractionJobDto> {
     const schema = await this.getSchemaInfo();
+    const orgId = await this.getOrganizationIdFromProject(projectId);
     await this.db.setTenantContext(orgId, projectId);
 
     const updates: string[] = [];
@@ -547,7 +557,6 @@ export class ExtractionJobService {
       try {
         // Update job status within its tenant context (RLS enforced)
         const updateResult = await this.db.runWithTenantContext(
-          orgId,
           projectId,
           async () =>
             this.db.query<ExtractionJobDto>(
@@ -816,12 +825,8 @@ export class ExtractionJobService {
    * Resets a stuck 'running' job back to 'pending' so it can be retried.
    * Useful for manual recovery when server restarts leave jobs orphaned.
    */
-  async retryJob(
-    jobId: string,
-    projectId: string,
-    orgId: string
-  ): Promise<ExtractionJobDto> {
-    const job = await this.getJobById(jobId, projectId, orgId);
+  async retryJob(jobId: string, projectId: string): Promise<ExtractionJobDto> {
+    const job = await this.getJobById(jobId, projectId);
 
     // Can only retry running or failed jobs
     if (
@@ -835,7 +840,7 @@ export class ExtractionJobService {
 
     this.logger.log(`Retrying extraction job ${jobId} (was ${job.status})`);
 
-    return this.updateJob(jobId, projectId, orgId, {
+    return this.updateJob(jobId, projectId, {
       status: ExtractionJobStatus.PENDING,
       error_message: job.error_message
         ? `${job.error_message}\n\nJob was manually retried.`
@@ -849,12 +854,8 @@ export class ExtractionJobService {
    * Phase 1: Updates status to 'cancelled'
    * Phase 2: Will also remove job from Bull queue if still pending
    */
-  async cancelJob(
-    jobId: string,
-    projectId: string,
-    orgId: string
-  ): Promise<ExtractionJobDto> {
-    const job = await this.getJobById(jobId, projectId, orgId);
+  async cancelJob(jobId: string, projectId: string): Promise<ExtractionJobDto> {
+    const job = await this.getJobById(jobId, projectId);
 
     // Can only cancel pending or running jobs
     if (
@@ -872,7 +873,7 @@ export class ExtractionJobService {
     // Phase 2: Remove from Bull queue here
     // await this.queueService.removeJob(jobId);
 
-    return this.updateJob(jobId, projectId, orgId, {
+    return this.updateJob(jobId, projectId, {
       status: ExtractionJobStatus.CANCELLED,
     });
   }
@@ -882,12 +883,8 @@ export class ExtractionJobService {
    *
    * Note: Should only delete completed/failed/cancelled jobs
    */
-  async deleteJob(
-    jobId: string,
-    projectId: string,
-    orgId: string
-  ): Promise<void> {
-    const job = await this.getJobById(jobId, projectId, orgId);
+  async deleteJob(jobId: string, projectId: string): Promise<void> {
+    const job = await this.getJobById(jobId, projectId);
 
     // Prevent deletion of running jobs
     if (
@@ -900,6 +897,7 @@ export class ExtractionJobService {
     }
 
     const schema = await this.getSchemaInfo();
+    const orgId = await this.getOrganizationIdFromProject(projectId);
     await this.db.setTenantContext(orgId, projectId);
 
     const result = await this.db.query(
@@ -918,8 +916,9 @@ export class ExtractionJobService {
   /**
    * Bulk cancel all pending/running jobs for a project
    */
-  async bulkCancelJobs(projectId: string, orgId: string): Promise<number> {
+  async bulkCancelJobs(projectId: string): Promise<number> {
     const schema = await this.getSchemaInfo();
+    const orgId = await this.getOrganizationIdFromProject(projectId);
     await this.db.setTenantContext(orgId, projectId);
 
     const result = await this.db.query(
@@ -945,8 +944,9 @@ export class ExtractionJobService {
   /**
    * Bulk delete all completed/failed/cancelled jobs for a project
    */
-  async bulkDeleteJobs(projectId: string, orgId: string): Promise<number> {
+  async bulkDeleteJobs(projectId: string): Promise<number> {
     const schema = await this.getSchemaInfo();
+    const orgId = await this.getOrganizationIdFromProject(projectId);
     await this.db.setTenantContext(orgId, projectId);
 
     const result = await this.db.query(
@@ -969,8 +969,9 @@ export class ExtractionJobService {
   /**
    * Bulk retry all failed jobs for a project
    */
-  async bulkRetryJobs(projectId: string, orgId: string): Promise<number> {
+  async bulkRetryJobs(projectId: string): Promise<number> {
     const schema = await this.getSchemaInfo();
+    const orgId = await this.getOrganizationIdFromProject(projectId);
     await this.db.setTenantContext(orgId, projectId);
 
     const result = await this.db.query(
@@ -994,10 +995,7 @@ export class ExtractionJobService {
   /**
    * Get job statistics for a project
    */
-  async getJobStatistics(
-    projectId: string,
-    orgId: string
-  ): Promise<{
+  async getJobStatistics(projectId: string): Promise<{
     total: number;
     by_status: Record<ExtractionJobStatus, number>;
     by_source_type: Record<string, number>;
@@ -1006,6 +1004,7 @@ export class ExtractionJobService {
     total_types_discovered: number;
   }> {
     const schema = await this.getSchemaInfo();
+    const orgId = await this.getOrganizationIdFromProject(projectId);
     await this.db.setTenantContext(orgId, projectId);
 
     const totalObjectsExpression = schema.createdObjectsColumn

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { GraphService } from '../../../src/modules/graph/graph.service';
-import { DatabaseService } from '../../../src/modules/graph/src/common/database/database.service';
+import { DatabaseService } from '../../../src/common/database/database.service';
 import { SchemaRegistryService } from '../../../src/modules/graph/schema-registry.service';
 
 // Lightweight helpers to fabricate rows
@@ -57,12 +57,12 @@ describe('GraphService extended coverage', () => {
     );
     const runWithTenantContext = vi.fn(
       async (
-        orgId: string | null,
         projectId: string | null,
         fn: () => Promise<any>
       ) => {
         const prev = { ...currentContext };
-        await setTenantContext(orgId, projectId);
+        // Mock: derive orgId from projectId (simplified - just use project for context)
+        await setTenantContext(null, projectId);
         try {
           return await fn();
         } finally {
@@ -324,7 +324,7 @@ describe('GraphService extended coverage', () => {
         dst_id: initial.dst_id,
         properties: { a: 1 },
       },
-      initial.org_id,
+      initial.organization_id,
       initial.project_id
     );
     expect(res.id).toBe(initial.id);

@@ -98,22 +98,31 @@ echo -e "Opening URL: ${YELLOW}${APP_URL}${NC}"
 echo ""
 
 # Determine Chrome executable path based on OS
+# Prioritize Chromium to avoid conflicts with regular Chrome usage
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS
-    CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    if [ ! -f "$CHROME_PATH" ]; then
-        echo -e "${RED}Error: Chrome not found at $CHROME_PATH${NC}"
-        echo -e "Please install Google Chrome or set CHROME_PATH environment variable"
+    # macOS - check for Chromium first, then Chrome
+    if [ -f "/Applications/Chromium.app/Contents/MacOS/Chromium" ]; then
+        CHROME_PATH="/Applications/Chromium.app/Contents/MacOS/Chromium"
+        BROWSER_NAME="Chromium"
+    elif [ -f "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ]; then
+        CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        BROWSER_NAME="Chrome"
+    else
+        echo -e "${RED}Error: Neither Chromium nor Chrome found${NC}"
+        echo -e "Please install Chromium (recommended) or Google Chrome"
+        echo -e ""
+        echo -e "Install Chromium with Homebrew: ${YELLOW}brew install --cask chromium${NC}"
         exit 1
     fi
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    # Linux
-    CHROME_PATH=$(which google-chrome || which google-chrome-stable || which chromium || which chromium-browser || echo "")
+    # Linux - prioritize Chromium
+    CHROME_PATH=$(which chromium || which chromium-browser || which google-chrome || which google-chrome-stable || echo "")
     if [ -z "$CHROME_PATH" ]; then
-        echo -e "${RED}Error: Chrome not found${NC}"
-        echo -e "Please install Google Chrome or Chromium"
+        echo -e "${RED}Error: No browser found${NC}"
+        echo -e "Please install Chromium (recommended) or Google Chrome"
         exit 1
     fi
+    BROWSER_NAME=$(basename "$CHROME_PATH")
 elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
     # Windows (Git Bash/Cygwin)
     CHROME_PATH="/c/Program Files/Google/Chrome/Application/chrome.exe"
@@ -121,10 +130,11 @@ elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
         CHROME_PATH="/c/Program Files (x86)/Google/Chrome/Application/chrome.exe"
         if [ ! -f "$CHROME_PATH" ]; then
             echo -e "${RED}Error: Chrome not found${NC}"
-            echo -e "Please install Google Chrome"
+            echo -e "Please install Google Chrome or Chromium"
             exit 1
         fi
     fi
+    BROWSER_NAME="Chrome"
 else
     echo -e "${RED}Error: Unsupported OS: $OSTYPE${NC}"
     exit 1
@@ -134,14 +144,16 @@ fi
 if [ -f "$PID_FILE" ]; then
     OLD_PID=$(cat "$PID_FILE")
     if ps -p "$OLD_PID" > /dev/null 2>&1; then
-        echo -e "${GREEN}Chrome debug is already running!${NC}"
+        echo -e "${YELLOW}Chrome debug is already running!${NC}"
         echo -e "  PID: ${YELLOW}${OLD_PID}${NC}"
         echo -e "  Port: ${YELLOW}${DEBUG_PORT}${NC}"
         echo -e "  Debug URL: ${YELLOW}http://127.0.0.1:${DEBUG_PORT}${NC}"
         echo ""
+        echo -e "${RED}Please close the existing Chrome debug window to start a new session.${NC}"
+        echo ""
         echo -e "To check status: ${YELLOW}$0 --status${NC}"
         echo -e "To stop it, kill the Chrome process or close the Chrome window"
-        exit 0
+        exit 1
     else
         # PID file exists but process is dead, clean it up
         echo -e "${YELLOW}Removing stale PID file...${NC}"
@@ -164,21 +176,21 @@ if lsof -Pi :"${DEBUG_PORT}" -sTCP:LISTEN -t >/dev/null 2>&1 ; then
     exit 1
 fi
 
-echo -e "${GREEN}Launching Chrome...${NC}"
+echo -e "${GREEN}Launching ${BROWSER_NAME}...${NC}"
 echo ""
 echo -e "${BLUE}Remote debugging enabled on: http://127.0.0.1:${DEBUG_PORT}${NC}"
-echo -e "${BLUE}AI assistants can now inspect this Chrome instance via MCP${NC}"
+echo -e "${BLUE}AI assistants can now inspect this browser instance via MCP${NC}"
 echo ""
 echo -e "${YELLOW}Usage:${NC}"
-echo -e "  1. Test your app manually in this Chrome window"
+echo -e "  1. Test your app manually in this ${BROWSER_NAME} window"
 echo -e "  2. When you encounter issues, ask your AI assistant to inspect browser state"
 echo -e "  3. AI can access console logs, network requests, DOM, and performance data"
 echo ""
-echo -e "${YELLOW}Press Ctrl+C to close Chrome and stop remote debugging${NC}"
+echo -e "${YELLOW}Press Ctrl+C to close ${BROWSER_NAME} and stop remote debugging${NC}"
 echo ""
 
-# Launch Chrome with remote debugging enabled
-# Use a temporary user data directory to avoid conflicts with regular Chrome usage
+# Launch Chrome/Chromium with remote debugging enabled
+# Use a temporary user data directory to avoid conflicts with regular browser usage
 USER_DATA_DIR=$(mktemp -d -t chrome-debug-XXXXXX)
 
 # Cleanup function to remove temp directory and PID file on exit
@@ -194,18 +206,34 @@ cleanup() {
     
     # Remove temp directory
     rm -rf "$USER_DATA_DIR"
-    echo -e "  ✓ Removed temporary Chrome profile"
+    echo -e "  ✓ Removed temporary browser profile"
     
     echo -e "${GREEN}Done.${NC}"
 }
 trap cleanup EXIT
 
-# Start Chrome in background to capture PID
+# Start browser in background to capture PID
+# Comprehensive flags to disable ALL caching for testing
 "$CHROME_PATH" \
     --remote-debugging-port="${DEBUG_PORT}" \
     --user-data-dir="$USER_DATA_DIR" \
     --no-first-run \
     --no-default-browser-check \
+    --disable-application-cache \
+    --disable-cache \
+    --disable-offline-load-stale-cache \
+    --disk-cache-size=0 \
+    --media-cache-size=0 \
+    --disable-gpu-shader-disk-cache \
+    --disable-background-networking \
+    --disable-sync \
+    --disable-extensions \
+    --disable-plugins-discovery \
+    --aggressive-cache-discard \
+    --incognito \
+    --disable-features=InfiniteSessionRestore \
+    --disable-infobars \
+    --test-type \
     "$APP_URL" \
     2>/dev/null &
 
@@ -214,11 +242,11 @@ CHROME_PID=$!
 # Save PID to file
 echo "$CHROME_PID" > "$PID_FILE"
 
-echo -e "${GREEN}✓ Chrome started with PID: ${CHROME_PID}${NC}"
+echo -e "${GREEN}✓ ${BROWSER_NAME} started with PID: ${CHROME_PID}${NC}"
 echo -e "${GREEN}✓ PID saved to: ${PID_FILE}${NC}"
 echo ""
 echo -e "Check status anytime with: ${YELLOW}$0 --status${NC}"
 echo ""
 
-# Wait for Chrome process
+# Wait for browser process
 wait "$CHROME_PID"

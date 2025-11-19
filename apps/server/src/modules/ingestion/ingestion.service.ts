@@ -47,7 +47,9 @@ export class IngestionService {
   ): Promise<T> {
     const candidate = (this.db as any)?.runWithTenantContext;
     if (typeof candidate === 'function') {
-      return candidate.call(this.db, orgId ?? null, projectId ?? null, fn);
+      // Updated to use new 2-parameter signature (projectId, fn)
+      // orgId is now derived automatically from projectId in DatabaseService
+      return candidate.call(this.db, projectId ?? null, fn);
     }
 
     const setContext = (this.db as any)?.setTenantContext;

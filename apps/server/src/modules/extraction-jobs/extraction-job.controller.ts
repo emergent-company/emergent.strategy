@@ -52,19 +52,6 @@ export class ExtractionJobController {
     private readonly loggerService: ExtractionLoggerService
   ) {}
 
-  private getOrganizationId(req: Request): string {
-    const header = req.headers['x-org-id'];
-    const organizationId = Array.isArray(header) ? header[0] : header;
-
-    if (!organizationId) {
-      throw new BadRequestException(
-        'x-org-id header required for extraction job operations'
-      );
-    }
-
-    return organizationId;
-  }
-
   private getProjectId(req: Request, routeProjectId?: string): string {
     const header = req.headers['x-project-id'];
     const headerProjectId = Array.isArray(header) ? header[0] : header;
@@ -114,7 +101,6 @@ export class ExtractionJobController {
     @Body() dto: CreateExtractionJobDto,
     @Req() req: Request
   ): Promise<ExtractionJobDto> {
-    const organizationId = this.getOrganizationId(req);
     const projectId = this.getProjectId(req, dto.project_id);
 
     if (dto.project_id && dto.project_id !== projectId) {
@@ -152,9 +138,8 @@ export class ExtractionJobController {
     @Req() req: Request
   ): Promise<ExtractionJobListDto> {
     const resolvedProjectId = this.getProjectId(req, projectId);
-    const organizationId = this.getOrganizationId(req);
 
-    return this.jobService.listJobs(resolvedProjectId, organizationId, query);
+    return this.jobService.listJobs(resolvedProjectId, query);
   }
 
   /**
@@ -179,9 +164,8 @@ export class ExtractionJobController {
     @Req() req: Request
   ): Promise<ExtractionJobDto> {
     const projectId = this.getProjectId(req);
-    const organizationId = this.getOrganizationId(req);
 
-    return this.jobService.getJobById(jobId, projectId, organizationId);
+    return this.jobService.getJobById(jobId, projectId);
   }
 
   /**
@@ -208,9 +192,8 @@ export class ExtractionJobController {
     @Req() req: Request
   ): Promise<ExtractionJobDto> {
     const projectId = this.getProjectId(req);
-    const organizationId = this.getOrganizationId(req);
 
-    return this.jobService.updateJob(jobId, projectId, organizationId, dto);
+    return this.jobService.updateJob(jobId, projectId, dto);
   }
 
   /**
@@ -243,9 +226,8 @@ export class ExtractionJobController {
     @Req() req: Request
   ): Promise<ExtractionJobDto> {
     const projectId = this.getProjectId(req);
-    const organizationId = this.getOrganizationId(req);
 
-    return this.jobService.retryJob(jobId, projectId, organizationId);
+    return this.jobService.retryJob(jobId, projectId);
   }
 
   /**
@@ -275,9 +257,8 @@ export class ExtractionJobController {
     @Req() req: Request
   ): Promise<ExtractionJobDto> {
     const projectId = this.getProjectId(req);
-    const organizationId = this.getOrganizationId(req);
 
-    return this.jobService.cancelJob(jobId, projectId, organizationId);
+    return this.jobService.cancelJob(jobId, projectId);
   }
 
   /**
@@ -303,9 +284,8 @@ export class ExtractionJobController {
     @Req() req: Request
   ): Promise<void> {
     const projectId = this.getProjectId(req);
-    const organizationId = this.getOrganizationId(req);
 
-    return this.jobService.deleteJob(jobId, projectId, organizationId);
+    return this.jobService.deleteJob(jobId, projectId);
   }
 
   /**
@@ -337,12 +317,8 @@ export class ExtractionJobController {
     @Req() req: Request
   ): Promise<{ cancelled: number; message: string }> {
     const resolvedProjectId = this.getProjectId(req, projectId);
-    const organizationId = this.getOrganizationId(req);
 
-    const cancelled = await this.jobService.bulkCancelJobs(
-      resolvedProjectId,
-      organizationId
-    );
+    const cancelled = await this.jobService.bulkCancelJobs(resolvedProjectId);
     return {
       cancelled,
       message: `Cancelled ${cancelled} job${cancelled !== 1 ? 's' : ''}`,
@@ -378,12 +354,8 @@ export class ExtractionJobController {
     @Req() req: Request
   ): Promise<{ deleted: number; message: string }> {
     const resolvedProjectId = this.getProjectId(req, projectId);
-    const organizationId = this.getOrganizationId(req);
 
-    const deleted = await this.jobService.bulkDeleteJobs(
-      resolvedProjectId,
-      organizationId
-    );
+    const deleted = await this.jobService.bulkDeleteJobs(resolvedProjectId);
     return {
       deleted,
       message: `Deleted ${deleted} job${deleted !== 1 ? 's' : ''}`,
@@ -418,12 +390,8 @@ export class ExtractionJobController {
     @Req() req: Request
   ): Promise<{ retried: number; message: string }> {
     const resolvedProjectId = this.getProjectId(req, projectId);
-    const organizationId = this.getOrganizationId(req);
 
-    const retried = await this.jobService.bulkRetryJobs(
-      resolvedProjectId,
-      organizationId
-    );
+    const retried = await this.jobService.bulkRetryJobs(resolvedProjectId);
     return {
       retried,
       message: `Retrying ${retried} job${retried !== 1 ? 's' : ''}`,
@@ -473,9 +441,8 @@ export class ExtractionJobController {
     @Req() req: Request
   ): Promise<any> {
     const resolvedProjectId = this.getProjectId(req, projectId);
-    const organizationId = this.getOrganizationId(req);
 
-    return this.jobService.getJobStatistics(resolvedProjectId, organizationId);
+    return this.jobService.getJobStatistics(resolvedProjectId);
   }
 
   /**
@@ -598,14 +565,8 @@ export class ExtractionJobController {
       throw new BadRequestException('Invalid job ID format');
     }
 
-    const organizationId = this.getOrganizationId(req);
-
     const projectId = this.getProjectId(req);
-    const job = await this.jobService.getJobById(
-      jobId,
-      projectId,
-      organizationId
-    );
+    const job = await this.jobService.getJobById(jobId, projectId);
 
     const [logs, summary] = await Promise.all([
       this.loggerService.getJobLogs(jobId),

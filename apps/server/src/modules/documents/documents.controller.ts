@@ -98,7 +98,6 @@ export class DocumentsController {
       ? Math.min(Math.max(parseInt(limit, 10) || 100, 1), 500)
       : 100;
     const decoded = this.documents.decodeCursor(cursor);
-    const orgId = (req?.headers['x-org-id'] as string | undefined) || undefined;
     const projectId =
       (req?.headers['x-project-id'] as string | undefined) || undefined;
     if (!projectId) {
@@ -107,7 +106,6 @@ export class DocumentsController {
       });
     }
     const { items, nextCursor } = await this.documents.list(n, decoded, {
-      orgId,
       projectId,
     });
     if (nextCursor) res?.setHeader('x-next-cursor', nextCursor);
@@ -131,22 +129,14 @@ export class DocumentsController {
   ) {
     const requestedProject =
       (req.headers['x-project-id'] as string | undefined) || undefined;
-    const requestedOrg =
-      (req.headers['x-org-id'] as string | undefined) || undefined;
-    const doc = await this.documents.get(id);
+    const doc = await this.documents.get(id, {
+      projectId: requestedProject,
+    });
     if (!doc)
       throw new NotFoundException({
         error: { code: 'not-found', message: 'Document not found' },
       });
-    // Enforce scoping only if headers provided
-    if (requestedProject && doc.projectId && doc.projectId !== requestedProject)
-      throw new NotFoundException({
-        error: { code: 'not-found', message: 'Document not found' },
-      });
-    if (requestedOrg && doc.orgId && doc.orgId !== requestedOrg)
-      throw new NotFoundException({
-        error: { code: 'not-found', message: 'Document not found' },
-      });
+    // Authorization is now enforced by RLS policies via derived org ID
     return doc;
   }
 
@@ -164,7 +154,6 @@ export class DocumentsController {
   @ApiStandardErrors()
   @Scopes('documents:write')
   async create(@Body() body: CreateDocumentBody, @Req() req: any) {
-    const orgId = (req.headers['x-org-id'] as string | undefined) || undefined;
     const headerProjectId =
       (req.headers['x-project-id'] as string | undefined) || undefined;
     // New strict rule: require header project id; ignore body.projectId fallback
@@ -185,18 +174,11 @@ export class DocumentsController {
       throw new BadRequestException({
         error: { code: 'bad-request', message: 'Unknown projectId' },
       });
-    if (orgId && projectOrg !== orgId)
-      throw new BadRequestException({
-        error: {
-          code: 'bad-request',
-          message: 'projectId does not belong to org',
-        },
-      });
+    // No longer need to validate orgId match - derived automatically
     return this.documents.create({
       filename: body.filename,
       projectId,
       content: body.content,
-      orgId,
     });
   }
 
@@ -214,22 +196,19 @@ export class DocumentsController {
   ) {
     const requestedProject =
       (req.headers['x-project-id'] as string | undefined) || undefined;
-    const requestedOrg =
-      (req.headers['x-org-id'] as string | undefined) || undefined;
 
     // Get document first for scope enforcement
-    const doc = await this.documents.get(id);
+    const doc = await this.documents.get(id, {
+      projectId: requestedProject,
+    });
     if (!doc)
       throw new NotFoundException({
         error: { code: 'not-found', message: 'Document not found' },
       });
 
-    // Verify document belongs to requested project/org
+    // Verify document belongs to requested project
+    // Org verification is now handled by RLS via derived org ID
     if (requestedProject && doc.projectId && doc.projectId !== requestedProject)
-      throw new NotFoundException({
-        error: { code: 'not-found', message: 'Document not found' },
-      });
-    if (requestedOrg && doc.orgId && doc.orgId !== requestedOrg)
       throw new NotFoundException({
         error: { code: 'not-found', message: 'Document not found' },
       });
@@ -259,10 +238,13 @@ export class DocumentsController {
     const requestedProject =
       (req.headers['x-project-id'] as string | undefined) || undefined;
 
-    // Filter to only documents accessible by this project/org
+    // Filter to only documents accessible by this project
+    // Org access is enforced by RLS via derived org ID
     const accessibleIds: string[] = [];
     for (const id of body.ids) {
-      const doc = await this.documents.get(id);
+      const doc = await this.documents.get(id, {
+        projectId: requestedProject,
+      });
       if (doc && (!requestedProject || doc.projectId === requestedProject)) {
         accessibleIds.push(id);
       }
@@ -308,10 +290,13 @@ export class DocumentsController {
     const requestedProject =
       (req.headers['x-project-id'] as string | undefined) || undefined;
 
-    // Filter to only documents accessible by this project/org
+    // Filter to only documents accessible by this project
+    // Org access is enforced by RLS via derived org ID
     const accessibleIds: string[] = [];
     for (const id of body.ids) {
-      const doc = await this.documents.get(id);
+      const doc = await this.documents.get(id, {
+        projectId: requestedProject,
+      });
       if (doc && (!requestedProject || doc.projectId === requestedProject)) {
         accessibleIds.push(id);
       }

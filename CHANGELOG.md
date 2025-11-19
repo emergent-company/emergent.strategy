@@ -4,6 +4,36 @@
 
 ### BREAKING CHANGES
 
+**API Headers Simplified - X-Org-ID Header Removed** (2025-11-18)
+
+The `X-Org-ID` header has been removed from all API endpoints. API requests now only require the `X-Project-ID` header for tenant scoping. The organization ID is automatically derived from the project ID on the backend.
+
+**Migration Required:**
+
+- **Frontend**: Remove `X-Org-ID` from all API request headers
+- **Backend Services**: Remove `X-Org-ID` from API calls to this server
+- **Custom Controllers**: Update to no longer read `x-org-id` header
+
+**Benefits:**
+- Simpler API with single source of truth for tenant context
+- Eliminates possibility of mismatched org/project pairs
+- Better security through server-side derivation
+- Cleaner code with less validation logic
+
+**Before:**
+```bash
+curl -H "X-Org-ID: abc123" -H "X-Project-ID: xyz789" /api/documents
+```
+
+**After:**
+```bash
+curl -H "X-Project-ID: xyz789" /api/documents
+```
+
+See [Migration Guide](./docs/migrations/remove-org-id-header-migration.md) for complete migration instructions.
+
+---
+
 **Database Environment Variables Renamed** (v2.0.0)
 
 All database environment variables have been standardized from `PG*` to `POSTGRES_*` format for consistency with Docker conventions and better clarity.
