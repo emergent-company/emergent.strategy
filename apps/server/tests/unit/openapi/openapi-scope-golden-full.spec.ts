@@ -157,6 +157,7 @@ const EXPECTED: Record<string, string[]> = {
   'post /mcp/rpc': ['schema:read'],
   'post /product-versions': ['graph:write'],
   'post /projects': ['org:project:create'],
+  'post /search/unified': ['search:read'],
   'post /tags': ['graph:write'],
   'post /template-packs': ['admin:write'],
   'post /template-packs/projects/{projectId}/assign': ['graph:write'],
