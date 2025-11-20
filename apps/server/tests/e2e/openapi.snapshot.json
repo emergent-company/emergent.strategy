@@ -414,7 +414,35 @@
         "type": "object"
       },
       "ChatRequestDto": {
-        "properties": {},
+        "properties": {
+          "conversationId": {
+            "description": "Conversation ID for maintaining state",
+            "type": "string"
+          },
+          "messages": {
+            "description": "Array of chat messages",
+            "items": {
+              "properties": {
+                "content": {
+                  "type": "string"
+                },
+                "role": {
+                  "enum": [
+                    "user",
+                    "assistant",
+                    "system"
+                  ],
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "messages"
+        ],
         "type": "object"
       },
       "ChatStreamDoneEvent": {
@@ -2726,6 +2754,240 @@
         },
         "type": "object"
       },
+      "UnifiedSearchDebugDto": {
+        "properties": {
+          "graphSearch": {
+            "description": "Raw graph search response",
+            "type": "object"
+          },
+          "textSearch": {
+            "description": "Raw text search results",
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "UnifiedSearchMetadataDto": {
+        "properties": {
+          "executionTime": {
+            "description": "Query execution time breakdown (ms)",
+            "example": {
+              "fusionMs": 5.7,
+              "graphSearchMs": 45.2,
+              "relationshipExpansionMs": 12.1,
+              "textSearchMs": 67.3,
+              "totalMs": 130.3
+            },
+            "type": "object"
+          },
+          "fusionStrategy": {
+            "description": "Fusion strategy used",
+            "example": "weighted",
+            "type": "string"
+          },
+          "graphResultCount": {
+            "description": "Number of graph results",
+            "example": 12,
+            "type": "number"
+          },
+          "textResultCount": {
+            "description": "Number of text results",
+            "example": 15,
+            "type": "number"
+          },
+          "totalResults": {
+            "description": "Total number of results across both types",
+            "example": 27,
+            "type": "number"
+          }
+        },
+        "required": [
+          "totalResults",
+          "graphResultCount",
+          "textResultCount",
+          "fusionStrategy",
+          "executionTime"
+        ],
+        "type": "object"
+      },
+      "UnifiedSearchRelationshipOptionsDto": {
+        "properties": {
+          "direction": {
+            "default": "both",
+            "description": "Direction for relationship expansion",
+            "enum": [
+              "in",
+              "out",
+              "both"
+            ],
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "description": "Whether to include relationships for graph results",
+            "type": "boolean"
+          },
+          "maxDepth": {
+            "default": 1,
+            "description": "Maximum depth for relationship traversal",
+            "maximum": 3,
+            "minimum": 0,
+            "type": "number"
+          },
+          "maxNeighbors": {
+            "default": 5,
+            "description": "Maximum number of neighbors per graph result",
+            "maximum": 20,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "UnifiedSearchRequestDto": {
+        "properties": {
+          "fusionStrategy": {
+            "default": "weighted",
+            "description": "Strategy for combining/fusing graph and text results",
+            "enum": [
+              "weighted",
+              "rrf",
+              "interleave",
+              "graph_first",
+              "text_first"
+            ],
+            "type": "string"
+          },
+          "includeDebug": {
+            "default": false,
+            "description": "Whether to include debug metadata in response",
+            "type": "boolean"
+          },
+          "limit": {
+            "default": 20,
+            "description": "Maximum total number of results to return",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "number"
+          },
+          "maxTokenBudget": {
+            "default": 3500,
+            "description": "Maximum token budget for field truncation (applies to graph results)",
+            "maximum": 6000,
+            "minimum": 800,
+            "type": "number"
+          },
+          "query": {
+            "description": "Natural language search query",
+            "example": "hybrid search architecture decisions",
+            "maxLength": 800,
+            "type": "string"
+          },
+          "relationshipOptions": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnifiedSearchRelationshipOptionsDto"
+              }
+            ],
+            "description": "Options for expanding relationships in graph results"
+          },
+          "resultTypes": {
+            "default": "both",
+            "description": "Types of results to include",
+            "enum": [
+              "graph",
+              "text",
+              "both"
+            ],
+            "type": "string"
+          },
+          "weights": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnifiedSearchWeightsDto"
+              }
+            ],
+            "description": "Weights for combining graph and text scores"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "UnifiedSearchResponseDto": {
+        "properties": {
+          "debug": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnifiedSearchDebugDto"
+              }
+            ],
+            "description": "Debug information (only included with search:debug scope)"
+          },
+          "metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnifiedSearchMetadataDto"
+              }
+            ],
+            "description": "Query metadata and performance metrics"
+          },
+          "results": {
+            "description": "Fused and ranked search results",
+            "example": [
+              {
+                "canonical_id": "af6b1db2-e7f9-4d2f-b3f4-5d8c0c61c9cd",
+                "fields": {
+                  "title": "Adopt Hybrid Search"
+                },
+                "key": "dec-search-architecture",
+                "object_id": "af6b1db2-e7f9-4d2f-b3f4-5d8c0c61c9cd",
+                "object_type": "Decision",
+                "rank": 1,
+                "score": 0.92,
+                "type": "graph"
+              },
+              {
+                "id": "chunk-123",
+                "score": 0.87,
+                "snippet": "Hybrid search combines...",
+                "type": "text"
+              }
+            ],
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "results",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "UnifiedSearchWeightsDto": {
+        "properties": {
+          "graphWeight": {
+            "default": 0.5,
+            "description": "Weight for graph search results (0-1)",
+            "example": 0.6,
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "textWeight": {
+            "default": 0.5,
+            "description": "Weight for text search results (0-1)",
+            "example": 0.4,
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
       "UpdateEmbeddingPolicyDto": {
         "properties": {
           "enabled": {
@@ -4199,14 +4461,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "example": {
-                    "email": "demo@example.com",
-                    "sub": "mock-user-id"
-                  }
+                  "$ref": "#/components/schemas/UserProfileDto"
                 }
               }
             },
-            "description": "Return current authenticated user (mock)"
+            "description": "Return current authenticated user"
           },
           "400": {
             "content": {
@@ -4367,6 +4626,117 @@
         ],
         "x-required-scopes": [
           "org:read"
+        ]
+      }
+    },
+    "/chat-ui": {
+      "post": {
+        "operationId": "ChatUiController_chat",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "description": "Server-sent events stream",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Streaming chat response"
+          }
+        },
+        "tags": [
+          "Chat UI"
+        ]
+      }
+    },
+    "/chat-ui/conversations": {
+      "get": {
+        "operationId": "ChatUiController_getConversations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List user conversations"
+          }
+        },
+        "tags": [
+          "Chat UI"
+        ]
+      }
+    },
+    "/chat-ui/conversations/{id}": {
+      "delete": {
+        "operationId": "ChatUiController_deleteConversation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delete conversation"
+          }
+        },
+        "tags": [
+          "Chat UI"
+        ]
+      },
+      "get": {
+        "operationId": "ChatUiController_getConversation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get conversation details"
+          }
+        },
+        "tags": [
+          "Chat UI"
+        ]
+      },
+      "patch": {
+        "operationId": "ChatUiController_updateConversation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update conversation title"
+          }
+        },
+        "tags": [
+          "Chat UI"
         ]
       }
     },
@@ -11459,6 +11829,83 @@
         ]
       }
     },
+    "/search/unified": {
+      "post": {
+        "operationId": "UnifiedSearchController_search",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnifiedSearchRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnifiedSearchResponseDto"
+                }
+              }
+            },
+            "description": "Unified search results combining graph objects and document chunks"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "validation-failed",
+                      "details": {
+                        "query": [
+                          "query must be shorter than or equal to 800 characters"
+                        ]
+                      },
+                      "message": "Validation failed"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions",
+                      "missing_scopes": [
+                        "search:read"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Missing required scope (e.g., debug scope)"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Search"
+        ],
+        "x-required-scopes": [
+          "search:read"
+        ]
+      }
+    },
     "/settings": {
       "get": {
         "operationId": "SettingsController_list",
@@ -13289,6 +13736,9 @@
     },
     {
       "name": "Graph"
+    },
+    {
+      "name": "Chat UI"
     },
     {
       "name": "Extraction Jobs"
