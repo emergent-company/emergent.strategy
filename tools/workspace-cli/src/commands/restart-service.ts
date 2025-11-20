@@ -3,227 +3,307 @@ import path from 'node:path';
 import process from 'node:process';
 
 import {
-    getApplicationProcess,
-    listDefaultApplicationProcesses
+  getApplicationProcess,
+  listDefaultApplicationProcesses,
 } from '../config/application-processes.js';
 import {
-    getDependencyNamespace,
-    getDependencyProcess,
-    listDefaultDependencyProcesses
+  getDependencyNamespace,
+  getDependencyProcess,
+  listDefaultDependencyProcesses,
 } from '../config/dependency-processes.js';
-import type { DependencyProcessProfile, EnvironmentProfileId } from '../config/types.js';
+import type {
+  DependencyProcessProfile,
+  EnvironmentProfileId,
+} from '../config/types.js';
 import { WorkspaceCliError } from '../errors.js';
 import { restartProcess } from '../pm2/client.js';
 import { parseCliArgs } from '../utils/parse-args.js';
-import { ensureProcessDescription, waitForProcessStability } from './lifecycle-utils.js';
+import {
+  ensureProcessDescription,
+  waitForProcessStability,
+} from './lifecycle-utils.js';
 import { runStatusCommand } from '../status/render.js';
+import {
+  getValidatedApplicationNamespace,
+  getValidatedDependencyNamespace,
+  validateEcosystemNamespace,
+} from '../config/namespace-validator.js';
 
 const require = createRequire(import.meta.url);
 
 interface EcosystemProcessConfig {
-    readonly name: string;
-    readonly namespace?: string;
+  readonly name: string;
+  readonly namespace?: string;
 }
 
 interface EcosystemModule {
-    readonly apps: readonly EcosystemProcessConfig[];
+  readonly apps: readonly EcosystemProcessConfig[];
 }
 
-const ecosystemModule = require('../../pm2/ecosystem.apps.cjs') as EcosystemModule;
+const ecosystemModule =
+  require('../../pm2/ecosystem.apps.cjs') as EcosystemModule;
 
-interface DependencyEcosystemProcessConfig extends EcosystemProcessConfig { }
+interface DependencyEcosystemProcessConfig extends EcosystemProcessConfig {}
 
 interface DependencyEcosystemModule {
-    readonly apps: readonly DependencyEcosystemProcessConfig[];
+  readonly apps: readonly DependencyEcosystemProcessConfig[];
 }
 
-const dependencyEcosystemModule = require('../../pm2/ecosystem.dependencies.cjs') as DependencyEcosystemModule;
+const dependencyEcosystemModule =
+  require('../../pm2/ecosystem.dependencies.cjs') as DependencyEcosystemModule;
 
 function resolveProcessName(serviceId: string): EcosystemProcessConfig {
-    const namespace = process.env.NAMESPACE || 'workspace-cli';
-    const expectedName = `${namespace}-${serviceId}`;
-    const entry = ecosystemModule.apps.find((app) => app.name === expectedName);
+  const namespace = getValidatedApplicationNamespace('restart service');
+  const expectedName = `${namespace}-${serviceId}`;
+  const entry = ecosystemModule.apps.find((app) => app.name === expectedName);
 
-    if (!entry) {
-        throw new WorkspaceCliError(
-            'ECOSYSTEM_ENTRY_MISSING',
-            `No PM2 ecosystem configuration registered for ${serviceId} (expected name: ${expectedName}).`,
-            {
-                serviceId,
-                recommendation: 'Add an entry to tools/workspace-cli/pm2/ecosystem.apps.cjs'
-            }
-        );
-    }
+  if (!entry) {
+    throw new WorkspaceCliError(
+      'ECOSYSTEM_ENTRY_MISSING',
+      `No PM2 ecosystem configuration registered for ${serviceId} (expected name: ${expectedName}).`,
+      {
+        serviceId,
+        recommendation:
+          'Add an entry to tools/workspace-cli/pm2/ecosystem.apps.cjs',
+      }
+    );
+  }
 
-    return entry;
+  // Validate that the ecosystem entry has the correct namespace
+  validateEcosystemNamespace(
+    entry.namespace,
+    namespace,
+    entry.name,
+    'restart service'
+  );
+
+  return entry;
 }
 
-function resolveDependencyProcessName(dependencyId: string): DependencyEcosystemProcessConfig {
-    const namespace = process.env.NAMESPACE || 'workspace-cli';
-    const expectedName = `${namespace}-${dependencyId}-dependency`;
-    const entry = dependencyEcosystemModule.apps.find(
-        (app) => app.name === expectedName
+function resolveDependencyProcessName(
+  dependencyId: string
+): DependencyEcosystemProcessConfig {
+  const appNamespace = getValidatedApplicationNamespace('restart dependency');
+  const namespace = getValidatedDependencyNamespace('restart dependency');
+  const expectedName = `${appNamespace}-${dependencyId}-dependency`;
+  const entry = dependencyEcosystemModule.apps.find(
+    (app) => app.name === expectedName
+  );
+
+  if (!entry) {
+    throw new WorkspaceCliError(
+      'ECOSYSTEM_ENTRY_MISSING',
+      `No PM2 ecosystem configuration registered for dependency ${dependencyId} (expected name: ${expectedName}).`,
+      {
+        serviceId: dependencyId,
+        recommendation:
+          'Add an entry to tools/workspace-cli/pm2/ecosystem.dependencies.cjs',
+      }
     );
+  }
 
-    if (!entry) {
-        throw new WorkspaceCliError(
-            'ECOSYSTEM_ENTRY_MISSING',
-            `No PM2 ecosystem configuration registered for dependency ${dependencyId} (expected name: ${expectedName}).`,
-            {
-                serviceId: dependencyId,
-                recommendation: 'Add an entry to tools/workspace-cli/pm2/ecosystem.dependencies.cjs'
-            }
-        );
-    }
+  // Validate that the ecosystem entry has the correct namespace
+  validateEcosystemNamespace(
+    entry.namespace,
+    namespace,
+    entry.name,
+    'restart dependency'
+  );
 
-    return entry;
+  return entry;
 }
 
 function resolveTargetServices(
-    requested: readonly string[],
-    workspace: boolean,
-    all: boolean,
-    includeServices: boolean
+  requested: readonly string[],
+  workspace: boolean,
+  all: boolean,
+  includeServices: boolean
 ): readonly string[] {
-    if (requested.length > 0) {
-        return requested;
-    }
+  if (requested.length > 0) {
+    return requested;
+  }
 
-    if (!includeServices) {
-        return [];
-    }
+  if (!includeServices) {
+    return [];
+  }
 
-    if (workspace || all) {
-        return listDefaultApplicationProcesses().map((profile) => profile.processId);
-    }
+  if (workspace || all) {
+    return listDefaultApplicationProcesses().map(
+      (profile) => profile.processId
+    );
+  }
 
-    return listDefaultApplicationProcesses().map((profile) => profile.processId);
+  return listDefaultApplicationProcesses().map((profile) => profile.processId);
 }
 
 function resolveTargetDependencies(
-    requested: readonly string[],
-    includeDependencies: boolean
+  requested: readonly string[],
+  includeDependencies: boolean
 ): readonly string[] {
-    if (requested.length > 0) {
-        return requested;
-    }
+  if (requested.length > 0) {
+    return requested;
+  }
 
-    if (!includeDependencies) {
-        return [];
-    }
+  if (!includeDependencies) {
+    return [];
+  }
 
-    return listDefaultDependencyProcesses().map((profile) => profile.dependencyId);
+  return listDefaultDependencyProcesses().map(
+    (profile) => profile.dependencyId
+  );
 }
 
-export async function runRestartCommand(argv: readonly string[]): Promise<void> {
-    const args = parseCliArgs(argv);
-    const includeDependencies =
-        args.includeDependencies || args.dependenciesOnly || args.all || args.workspace;
-    const includeServices = !args.dependenciesOnly;
-    const services = resolveTargetServices(args.services, args.workspace, args.all, includeServices);
-    const dependencies = resolveTargetDependencies(args.dependencies, includeDependencies);
+export async function runRestartCommand(
+  argv: readonly string[]
+): Promise<void> {
+  const args = parseCliArgs(argv);
+  const includeDependencies =
+    args.includeDependencies ||
+    args.dependenciesOnly ||
+    args.all ||
+    args.workspace;
+  const includeServices = !args.dependenciesOnly;
+  const services = resolveTargetServices(
+    args.services,
+    args.workspace,
+    args.all,
+    includeServices
+  );
+  const dependencies = resolveTargetDependencies(
+    args.dependencies,
+    includeDependencies
+  );
 
-    if (services.length === 0 && dependencies.length === 0) {
-        process.stdout.write('⚠️  No services or dependencies requested for restart command. Nothing to do.\n');
-        return;
+  if (services.length === 0 && dependencies.length === 0) {
+    process.stdout.write(
+      '⚠️  No services or dependencies requested for restart command. Nothing to do.\n'
+    );
+    return;
+  }
+
+  const profileId: EnvironmentProfileId = args.profile;
+
+  if (dependencies.length > 0) {
+    process.stdout.write(
+      `🔄 Restarting dependencies [${dependencies.join(
+        ', '
+      )}] with profile ${profileId}\n`
+    );
+
+    for (const dependencyId of dependencies) {
+      const dependencyProfile: DependencyProcessProfile =
+        getDependencyProcess(dependencyId);
+      const ecosystemEntry = resolveDependencyProcessName(dependencyId);
+      const processName = ecosystemEntry.name ?? `${dependencyId}-dependency`;
+      const namespace = getValidatedDependencyNamespace('restart dependency');
+
+      if (args.dryRun) {
+        process.stdout.write(
+          `∙ [dry-run] pm2 restart ${processName} (namespace: ${
+            namespace ?? '(default)'
+          })\n`
+        );
+        continue;
+      }
+
+      const description = await ensureProcessDescription(
+        processName,
+        dependencyId
+      );
+      const existingNamespace = description.pm2_env?.namespace ?? namespace;
+
+      if (existingNamespace !== namespace) {
+        throw new WorkspaceCliError(
+          'PROCESS_NAMESPACE_MISMATCH',
+          `Process ${processName} is registered under namespace ${existingNamespace}, expected ${namespace}.`,
+          {
+            serviceId: dependencyId,
+            profile: profileId,
+            action: 'restart',
+            namespace: existingNamespace ?? '(none)',
+            recommendation: `Run nx run workspace:status --profile ${profileId}`,
+          }
+        );
+      }
+
+      const status = description.pm2_env?.status ?? 'unknown';
+      process.stdout.write(
+        `∙ Restarting ${processName} (current status: ${status})\n`
+      );
+      await restartProcess(processName, true);
+
+      await waitForProcessStability({
+        serviceId: dependencyId,
+        processName,
+        profileId,
+        namespace,
+        policy: dependencyProfile.restartPolicy,
+        action: 'restart',
+      });
     }
+  }
 
-    const profileId: EnvironmentProfileId = args.profile;
+  if (services.length > 0) {
+    process.stdout.write(
+      `🔁 Restarting services [${services.join(
+        ', '
+      )}] with profile ${profileId}\n`
+    );
 
-    if (dependencies.length > 0) {
-        process.stdout.write(`🔄 Restarting dependencies [${dependencies.join(', ')}] with profile ${profileId}\n`);
+    for (const serviceId of services) {
+      const processProfile = getApplicationProcess(serviceId);
+      const ecosystemEntry = resolveProcessName(serviceId);
+      const processName = ecosystemEntry.name ?? processProfile.processId;
+      const namespace = ecosystemEntry.namespace ?? processProfile.namespace;
 
-        for (const dependencyId of dependencies) {
-            const dependencyProfile: DependencyProcessProfile = getDependencyProcess(dependencyId);
-            const ecosystemEntry = resolveDependencyProcessName(dependencyId);
-            const processName = ecosystemEntry.name ?? `${dependencyId}-dependency`;
-            const namespace = ecosystemEntry.namespace ?? getDependencyNamespace();
+      if (args.dryRun) {
+        process.stdout.write(
+          `∙ [dry-run] pm2 restart ${processName} (namespace: ${
+            namespace ?? '(default)'
+          })\n`
+        );
+        continue;
+      }
 
-            if (args.dryRun) {
-                process.stdout.write(`∙ [dry-run] pm2 restart ${processName} (namespace: ${namespace ?? '(default)'})\n`);
-                continue;
-            }
+      const description = await ensureProcessDescription(
+        processName,
+        serviceId
+      );
+      const existingNamespace = description.pm2_env?.namespace ?? namespace;
 
-            const description = await ensureProcessDescription(processName, dependencyId);
-            const existingNamespace = description.pm2_env?.namespace ?? namespace;
+      if (existingNamespace !== namespace) {
+        throw new WorkspaceCliError(
+          'PROCESS_NAMESPACE_MISMATCH',
+          `Process ${processName} is registered under namespace ${existingNamespace}, expected ${namespace}.`,
+          {
+            serviceId,
+            profile: profileId,
+            action: 'restart',
+            namespace: existingNamespace ?? '(none)',
+            recommendation: `Run nx run workspace:status --profile ${profileId}`,
+          }
+        );
+      }
 
-            if (existingNamespace !== namespace) {
-                throw new WorkspaceCliError(
-                    'PROCESS_NAMESPACE_MISMATCH',
-                    `Process ${processName} is registered under namespace ${existingNamespace}, expected ${namespace}.`,
-                    {
-                        serviceId: dependencyId,
-                        profile: profileId,
-                        action: 'restart',
-                        namespace: existingNamespace ?? '(none)',
-                        recommendation: `Run nx run workspace:status --profile ${profileId}`
-                    }
-                );
-            }
+      const status = description.pm2_env?.status ?? 'unknown';
+      process.stdout.write(
+        `∙ Restarting ${processName} (current status: ${status})\n`
+      );
+      await restartProcess(processName, true);
 
-            const status = description.pm2_env?.status ?? 'unknown';
-            process.stdout.write(`∙ Restarting ${processName} (current status: ${status})\n`);
-            await restartProcess(processName, true);
-
-            await waitForProcessStability({
-                serviceId: dependencyId,
-                processName,
-                profileId,
-                namespace,
-                policy: dependencyProfile.restartPolicy,
-                action: 'restart'
-            });
-        }
+      await waitForProcessStability({
+        serviceId,
+        processName,
+        profileId,
+        namespace,
+        policy: processProfile.restartPolicy,
+        action: 'restart',
+      });
     }
+  }
 
-    if (services.length > 0) {
-        process.stdout.write(`🔁 Restarting services [${services.join(', ')}] with profile ${profileId}\n`);
+  process.stdout.write('✅ Restart command complete\n\n');
 
-        for (const serviceId of services) {
-            const processProfile = getApplicationProcess(serviceId);
-            const ecosystemEntry = resolveProcessName(serviceId);
-            const processName = ecosystemEntry.name ?? processProfile.processId;
-            const namespace = ecosystemEntry.namespace ?? processProfile.namespace;
-
-            if (args.dryRun) {
-                process.stdout.write(`∙ [dry-run] pm2 restart ${processName} (namespace: ${namespace ?? '(default)'})\n`);
-                continue;
-            }
-
-            const description = await ensureProcessDescription(processName, serviceId);
-            const existingNamespace = description.pm2_env?.namespace ?? namespace;
-
-            if (existingNamespace !== namespace) {
-                throw new WorkspaceCliError(
-                    'PROCESS_NAMESPACE_MISMATCH',
-                    `Process ${processName} is registered under namespace ${existingNamespace}, expected ${namespace}.`,
-                    {
-                        serviceId,
-                        profile: profileId,
-                        action: 'restart',
-                        namespace: existingNamespace ?? '(none)',
-                        recommendation: `Run nx run workspace:status --profile ${profileId}`
-                    }
-                );
-            }
-
-            const status = description.pm2_env?.status ?? 'unknown';
-            process.stdout.write(`∙ Restarting ${processName} (current status: ${status})\n`);
-            await restartProcess(processName, true);
-
-            await waitForProcessStability({
-                serviceId,
-                processName,
-                profileId,
-                namespace,
-                policy: processProfile.restartPolicy,
-                action: 'restart'
-            });
-        }
-    }
-
-    process.stdout.write('✅ Restart command complete\n\n');
-    
-    // Display status after restarting
-    await runStatusCommand(argv);
+  // Display status after restarting
+  await runStatusCommand(argv);
 }
