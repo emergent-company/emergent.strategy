@@ -71,9 +71,9 @@ Both implementations will coexist, allowing A/B testing and gradual migration if
 ### Dependencies
 
 - `@ai-sdk/react` (already installed) - React hooks for chat UI
-- `@ai-sdk/google-vertex` (need to install) - Vertex AI provider for Vercel AI SDK
-- `@langchain/langgraph` (already installed) - LangGraph orchestration
-- `ai` (need to install) - Core Vercel AI SDK package
+- `@ai-sdk/langchain` (already installed) - LangChainAdapter to bridge LangGraph streams
+- `@langchain/langgraph` (already installed) - LangGraph orchestration (unchanged)
+- **NO new AI provider needed** - Reuses existing Vertex AI connection in LangGraphService
 
 ### Breaking Changes
 
@@ -113,10 +113,11 @@ Both implementations will coexist, allowing A/B testing and gradual migration if
 
 ### Phase 1: Backend Integration (2-3 days)
 
-- Install Vercel AI SDK dependencies (`ai`, `@ai-sdk/google-vertex`)
+- Verify `@ai-sdk/langchain` is installed (already in package.json)
 - Create `ChatSdkModule` and `ChatSdkController`
-- Implement `POST /api/chat-sdk` endpoint with `streamText()` + `LangChainAdapter`
-- Reuse `LangGraphService` and `ConversationService`
+- Implement `POST /api/chat-sdk` endpoint with `LangChainAdapter.toDataStreamResponse()`
+- Reuse existing `LangGraphService` (no changes to Vertex AI connection)
+- Reuse `ConversationService` for persistence
 - Test streaming response format with curl/Postman
 
 ### Phase 2: Frontend Implementation (2-3 days)

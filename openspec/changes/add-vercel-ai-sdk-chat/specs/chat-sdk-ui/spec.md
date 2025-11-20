@@ -34,13 +34,13 @@ The system SHALL provide a chat interface using Vercel AI SDK's `useChat()` hook
 
 The system SHALL provide a `/api/chat-sdk` endpoint that implements Vercel AI SDK's UI Message Stream Protocol.
 
-#### Scenario: Backend uses streamText with LangChain adapter
+#### Scenario: Backend uses LangChainAdapter to convert stream
 
 - **WHEN** the chat-sdk endpoint receives a request
-- **THEN** the system SHALL use `streamText()` from `ai` package
-- **AND** the system SHALL configure `experimental_adapter` with `LangChainAdapter`
-- **AND** the adapter SHALL convert LangGraph stream to SDK protocol
-- **AND** the system SHALL return response via `toDataStreamResponse()`
+- **THEN** the system SHALL call `LangGraphService.streamConversation()` to get LangGraph stream
+- **AND** the system SHALL use `LangChainAdapter.toDataStreamResponse()` to convert the stream
+- **AND** the adapter SHALL convert LangGraph messages to Vercel AI SDK protocol format
+- **AND** the system SHALL return the converted streaming response
 
 #### Scenario: SDK protocol chunk format
 
@@ -136,13 +136,13 @@ The system SHALL implement feature parity with the custom chat implementation us
 
 The system SHALL support configuration specific to Vercel AI SDK integration.
 
-#### Scenario: Configure Vertex AI provider
+#### Scenario: Reuse existing Vertex AI configuration
 
-- **WHEN** the ChatSdkController initializes
-- **THEN** the system SHALL import `vertex` from `@ai-sdk/google-vertex`
-- **AND** the system SHALL configure with existing Vertex AI credentials
-- **AND** the system SHALL use the same model as custom implementation
-- **AND** the system SHALL reuse `GCP_PROJECT_ID` and `VERTEX_AI_LOCATION` env vars
+- **WHEN** the ChatSdkController processes a request
+- **THEN** the system SHALL reuse `LangGraphService` which already connects to Vertex AI
+- **AND** the system SHALL NOT create a separate Vertex AI connection
+- **AND** the system SHALL use the same model via LangGraph (configured in `LangGraphService`)
+- **AND** no new Vertex AI configuration SHALL be needed
 
 #### Scenario: Feature flag for SDK endpoint
 
