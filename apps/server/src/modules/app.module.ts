@@ -19,6 +19,7 @@ import { InvitesModule } from './invites/invites.module';
 import { UserProfileModule } from './user-profile/user-profile.module';
 import { GraphModule } from './graph/graph.module';
 import { GraphSearchModule } from './graph-search/graph-search.module';
+import { UnifiedSearchModule } from './unified-search/unified-search.module';
 import { TemplatePackModule } from './template-packs/template-pack.module';
 import { TypeRegistryModule } from './type-registry/type-registry.module';
 import { ExtractionJobModule } from './extraction-jobs/extraction-job.module';
@@ -29,6 +30,7 @@ import { ClickUpModule } from './clickup/clickup.module';
 import { McpModule } from './mcp/mcp.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { UserModule } from './user/user.module';
+import { ChatUiModule } from './chat-ui/chat-ui.module';
 import { AppConfigService } from '../common/config/config.service';
 import { entities } from '../entities';
 
@@ -75,6 +77,7 @@ import { entities } from '../entities';
     UserProfileModule,
     GraphModule,
     GraphSearchModule,
+    UnifiedSearchModule,
     TemplatePackModule,
     TypeRegistryModule,
     ExtractionJobModule,
@@ -85,6 +88,7 @@ import { entities } from '../entities';
     McpModule,
     MonitoringModule,
     UserModule,
+    ChatUiModule,
     DatabaseModule,
   ],
 })
