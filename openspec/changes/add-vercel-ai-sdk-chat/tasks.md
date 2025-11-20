@@ -2,10 +2,10 @@
 
 ## Phase 1: Backend Integration (2-3 days)
 
-- [ ] Install Vercel AI SDK dependencies
-  - [ ] Install `ai` package in root package.json
-  - [ ] Install `@ai-sdk/google-vertex` in apps/server
-  - [ ] Run `npm install` and verify builds
+- [ ] Verify dependencies already installed
+  - [ ] Confirm `@ai-sdk/react` in apps/admin/package.json
+  - [ ] Confirm `@ai-sdk/langchain` in package.json
+  - [ ] No new packages needed (reusing LangGraph's Vertex AI connection)
 - [ ] Create ChatSdkModule structure
   - [ ] Create `apps/server/src/modules/chat-sdk/` directory
   - [ ] Create `chat-sdk.module.ts` with module definition
@@ -16,9 +16,9 @@
   - [ ] Inject LangGraphService and ConversationService
   - [ ] Parse request body (messages, conversationId)
   - [ ] Call LangGraphService.streamConversation()
-  - [ ] Use `streamText()` from Vercel AI SDK
-  - [ ] Wrap LangGraph stream with `LangChainAdapter.toDataStreamResponse()`
-  - [ ] Return properly formatted response
+  - [ ] Convert stream with `LangChainAdapter.toDataStreamResponse()`
+  - [ ] Return streaming response in Vercel AI SDK protocol format
+  - [ ] Save assistant response to database after streaming
 - [ ] Test backend endpoint
   - [ ] Test with curl sending chat request
   - [ ] Verify streaming response format (newline-delimited JSON)

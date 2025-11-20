@@ -93,9 +93,7 @@ d:{"finishReason":"stop","usage":{"promptTokens":10,"completionTokens":3}}
 ### Implementation
 
 ```typescript
-import { streamText } from 'ai';
 import { LangChainAdapter } from '@ai-sdk/langchain';
-import { vertex } from '@ai-sdk/google-vertex';
 
 @Post()
 async chat(@Body() body: ChatRequestDto, @Res() res: Response) {
@@ -110,22 +108,22 @@ async chat(@Body() body: ChatRequestDto, @Res() res: Response) {
   // Save to database
   await this.conversationService.addMessage(dbConversationId, 'user', latestMessage.content);
   
-  // Stream from LangGraph
+  // Stream from LangGraph (already connected to Vertex AI)
   const langGraphStream = await this.langGraphService.streamConversation({
     message: latestMessage.content,
     threadId: dbConversationId,
   });
   
   // Convert LangGraph stream to Vercel AI SDK protocol
-  const result = await streamText({
-    model: vertex('gemini-2.0-flash-exp'),
-    experimental_adapter: LangChainAdapter.fromLangChain(langGraphStream),
-  });
+  // LangChainAdapter handles the conversion automatically
+  const dataStream = LangChainAdapter.toDataStreamResponse(langGraphStream);
   
-  // Return streaming response
-  return result.toDataStreamResponse();
+  // Return streaming response in Vercel AI SDK format
+  return dataStream;
 }
 ```
+
+**Key Point:** We don't need to call `streamText()` or import Vertex AI provider. The `LangChainAdapter.toDataStreamResponse()` method converts the LangGraph stream (which already talks to Vertex AI) into the Vercel AI SDK protocol format.
 
 ## Frontend: Chat SDK Page
 
@@ -257,11 +255,15 @@ No schema changes needed - both implementations read/write the same tables.
 
 ## Deployment Considerations
 
-- **Environment Variables:** No new vars needed, reuse existing config
+- **Environment Variables:** No new vars needed, reuse existing Vertex AI config
+  - `GCP_PROJECT_ID` (already set)
+  - `VERTEX_AI_LOCATION` (already set)
+  - `VERTEX_AI_MODEL` (already set)
+- **Dependencies:** `@ai-sdk/langchain` and `@ai-sdk/react` already installed
 - **Feature Flag:** Optional `ENABLE_CHAT_SDK=true` to enable/disable
 - **Rollout:** Can deploy both at once (no breaking changes)
 - **Monitoring:** Track usage metrics for both endpoints
-- **Costs:** No additional costs (same LLM calls, same database)
+- **Costs:** No additional costs (same LLM calls via LangGraph, same database)
 
 ## Open Questions
 
