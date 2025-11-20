@@ -8997,7 +8997,7 @@
               "text/event-stream": {
                 "schema": {
                   "type": "string",
-                  "description": "Vercel AI SDK protocol stream"
+                  "description": "Vercel AI SDK UI Message protocol stream"
                 }
               }
             }
