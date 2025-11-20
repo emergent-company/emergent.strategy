@@ -90,13 +90,16 @@ Stream format (newline-delimited JSON):
 d:{"finishReason":"stop","usage":{"promptTokens":10,"completionTokens":3}}
 ```
 
-### Implementation
+### Implementation Approach 1: Using toUIMessageStream (Recommended)
+
+Based on the official Vercel AI SDK docs, the cleanest approach:
 
 ```typescript
-import { LangChainAdapter } from '@ai-sdk/langchain';
+import { toUIMessageStream } from '@ai-sdk/langchain';
+import { createUIMessageStreamResponse } from 'ai';
 
 @Post()
-async chat(@Body() body: ChatRequestDto, @Res() res: Response) {
+async chat(@Body() body: ChatRequestDto) {
   const { messages, conversationId } = body;
   
   // Get or create conversation
@@ -114,16 +117,38 @@ async chat(@Body() body: ChatRequestDto, @Res() res: Response) {
     threadId: dbConversationId,
   });
   
-  // Convert LangGraph stream to Vercel AI SDK protocol
-  // LangChainAdapter handles the conversion automatically
+  // Convert LangGraph stream to Vercel AI SDK format
+  // This is the official way per Vercel docs
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream(langGraphStream),
+  });
+}
+```
+
+### Implementation Approach 2: Direct Adapter (Alternative)
+
+If you prefer more control over the response format:
+
+```typescript
+import { LangChainAdapter } from '@ai-sdk/langchain';
+
+@Post()
+async chat(@Body() body: ChatRequestDto, @Res() res: Response) {
+  // ... same conversation setup ...
+  
+  const langGraphStream = await this.langGraphService.streamConversation({
+    message: latestMessage.content,
+    threadId: dbConversationId,
+  });
+  
+  // Direct conversion with adapter
   const dataStream = LangChainAdapter.toDataStreamResponse(langGraphStream);
   
-  // Return streaming response in Vercel AI SDK format
   return dataStream;
 }
 ```
 
-**Key Point:** We don't need to call `streamText()` or import Vertex AI provider. The `LangChainAdapter.toDataStreamResponse()` method converts the LangGraph stream (which already talks to Vertex AI) into the Vercel AI SDK protocol format.
+**Key Point:** Both approaches work. Approach 1 (`toUIMessageStream` + `createUIMessageStreamResponse`) is the officially documented pattern and provides better type safety. We don't need `streamText()` or a separate Vertex AI provider - LangGraph already handles that.
 
 ## Frontend: Chat SDK Page
 
