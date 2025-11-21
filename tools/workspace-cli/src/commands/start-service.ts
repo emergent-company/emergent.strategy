@@ -21,6 +21,8 @@ import {
 import {
   validateRequiredEnvVars,
   printValidationErrors,
+  validateEnvOrganization,
+  printEnvOrganizationIssues,
 } from '../config/env-validation.js';
 import {
   startDockerComposeService,
@@ -34,6 +36,22 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
     printValidationErrors(validation.missing);
     process.exit(1);
   }
+
+  // Validate environment file organization
+  const orgValidation = validateEnvOrganization();
+  printEnvOrganizationIssues(orgValidation);
+
+  // Exit if there are critical errors (secrets in .env files)
+  if (!orgValidation.valid) {
+    process.stderr.write(
+      '\n❌ Critical environment configuration errors detected.\n'
+    );
+    process.stderr.write(
+      '   Please fix the errors above before starting services.\n\n'
+    );
+    process.exit(1);
+  }
+
   const args = parseCliArgs(argv);
   const profileId: EnvironmentProfileId = args.profile;
   const envProfile = getEnvironmentProfile(profileId);

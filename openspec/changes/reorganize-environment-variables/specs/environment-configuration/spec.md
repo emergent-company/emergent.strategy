@@ -17,6 +17,11 @@ Variables SHALL be located in the appropriate configuration file based on their 
 - `TEST_USER_EMAIL` - Manual test user email
 - `TEST_USER_PASSWORD` - Manual test user password
 
+**Root `.env.local`** - User-specific workspace overrides (gitignored):
+
+- Any workspace variable override for local development
+- User-specific secrets that should not be committed
+
 **`apps/server/.env`** - Server application variables:
 
 - `PORT` - Server listen port (defaults to SERVER_PORT if not set)
@@ -76,6 +81,11 @@ Variables SHALL be located in the appropriate configuration file based on their 
 - `BIBLE_SEED_ACCESS_TOKEN` - Bible test data access token
 - `BIBLE_SEED_RATE_LIMIT_MS` - Bible test data rate limit
 
+**`apps/server/.env.local`** - User-specific server overrides (gitignored):
+
+- Any server variable override for local development
+- User-specific API keys, credentials, or test configurations
+
 **`apps/admin/.env`** - Admin frontend variables:
 
 - `ADMIN_PORT` - Frontend dev server port (may duplicate root for Vite)
@@ -88,6 +98,11 @@ Variables SHALL be located in the appropriate configuration file based on their 
 - `VITE_API_BASE` - Backend API base URL
 - `VITE_ENV` - Environment name
 - `VITE_CLIENT_LOGGING` - Enable client-side logging
+
+**`apps/admin/.env.local`** - User-specific admin overrides (gitignored):
+
+- Any admin variable override for local development
+- User-specific VITE\_\* configurations for testing
 
 #### Scenario: Developer sets up local development environment
 
@@ -102,27 +117,37 @@ Variables SHALL be located in the appropriate configuration file based on their 
 
 **Given** the server application is starting  
 **When** configuration is loaded via `config.module.ts`  
-**Then** server SHALL first load `apps/server/.env`  
-**And** server SHALL load root `.env` as fallback for missing variables  
-**And** `apps/server/.env` values SHALL take precedence over root `.env`  
-**And** all required server variables SHALL be validated before startup
+**Then** server SHALL load files in this order:
+
+1. `apps/server/.env.local` (user overrides, highest priority)
+2. `apps/server/.env` (app-specific config)
+3. Root `.env.local` (workspace user overrides)
+4. Root `.env` (workspace defaults, lowest priority)
+   **And** later files SHALL NOT override values from earlier files  
+   **And** all required server variables SHALL be validated before startup
 
 #### Scenario: Admin application loads configuration
 
 **Given** the admin application is starting with Vite  
 **When** Vite loads environment variables  
-**Then** admin SHALL load `apps/admin/.env`  
-**And** admin SHALL load `.env.local` for user-specific overrides  
-**And** all `VITE_*` prefixed variables SHALL be exposed to the frontend  
-**And** non-`VITE_*` variables SHALL NOT be exposed to the frontend
+**Then** admin SHALL load files in this order:
+
+1. `apps/admin/.env.local` (user overrides, highest priority)
+2. `apps/admin/.env` (app defaults, lowest priority)
+   **And** all `VITE_*` prefixed variables SHALL be exposed to the frontend  
+   **And** non-`VITE_*` variables SHALL NOT be exposed to the frontend
 
 #### Scenario: Workspace CLI starts services
 
 **Given** workspace-cli is starting services  
 **When** PM2 processes are configured  
-**Then** workspace-cli SHALL load root `.env` for `NAMESPACE`, `ADMIN_PORT`, `SERVER_PORT`  
-**And** workspace-cli SHALL NOT load application-specific variables  
-**And** services SHALL inherit environment variables from their respective `.env` files
+**Then** workspace-cli SHALL load root environment files in this order:
+
+1. Root `.env.local` (user overrides, highest priority)
+2. Root `.env` (workspace defaults, lowest priority)
+   **And** workspace-cli SHALL read `NAMESPACE`, `ADMIN_PORT`, `SERVER_PORT` from loaded environment  
+   **And** workspace-cli SHALL NOT load application-specific variables  
+   **And** services SHALL inherit environment variables from their respective `.env` files
 
 ### Requirement: The system SHALL provide clear documentation for environment variable organization
 
@@ -132,6 +157,23 @@ Each `.env.example` file SHALL include:
 - Indication of which variables are required vs optional
 - Cross-references to related configuration in other files
 - Migration notes for existing deployments
+
+### Requirement: The system SHALL separate committed defaults from user-specific overrides
+
+**Committed files** (`.env`, tracked in git):
+
+- SHALL contain safe default values suitable for development
+- SHALL NOT contain secrets, API keys, or sensitive credentials
+- SHALL be documented in corresponding `.env.example` files
+- SHALL provide working defaults that can be overridden locally
+
+**Gitignored files** (`.env.local`, not tracked):
+
+- SHALL be listed in `.gitignore` to prevent accidental commits
+- SHALL be used for user-specific overrides of default values
+- SHALL be the only place for secrets, API keys, and sensitive credentials
+- SHALL take precedence over `.env` files when both exist
+- MAY be created by developers as needed (not required if defaults work)
 
 #### Scenario: Developer needs to add a new environment variable
 
