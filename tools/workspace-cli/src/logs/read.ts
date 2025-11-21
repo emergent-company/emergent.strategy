@@ -9,13 +9,17 @@ import { parseCliArgs } from '../utils/parse-args.js';
 import {
   getApplicationProcess,
   listApplicationProcesses,
-  listDefaultApplicationProcesses
+  listDefaultApplicationProcesses,
 } from '../config/application-processes.js';
 import {
   getDependencyProcess,
-  listDefaultDependencyProcesses
+  listDefaultDependencyProcesses,
 } from '../config/dependency-processes.js';
-import type { ApplicationProcessProfile, DependencyProcessProfile, ManagedServiceType } from '../config/types.js';
+import type {
+  ApplicationProcessProfile,
+  DependencyProcessProfile,
+  ManagedServiceType,
+} from '../config/types.js';
 import { WorkspaceCliError } from '../errors.js';
 
 const require = createRequire(import.meta.url);
@@ -24,7 +28,7 @@ const DEFAULT_CHUNK_SIZE = 64 * 1024; // 64 KiB
 const LOG_FILE_PATTERN = /\.log(\..*)?$/i;
 const LOG_SEARCH_ROOTS = [
   path.resolve(process.cwd(), 'apps/logs'),
-  path.resolve(process.cwd(), 'logs')
+  path.resolve(process.cwd(), 'logs'),
 ];
 
 interface LogStreamSnapshot {
@@ -83,8 +87,14 @@ interface Pm2Bus {
   close(): void;
 }
 
-const applicationEcosystem = require('../../pm2/ecosystem.apps.cjs') as EcosystemModule;
-const dependencyEcosystem = require('../../pm2/ecosystem.dependencies.cjs') as EcosystemModule;
+// Lazy-load ecosystem modules to ensure environment variables are loaded first
+function getApplicationEcosystem(): EcosystemModule {
+  return require('../../pm2/ecosystem.apps.cjs') as EcosystemModule;
+}
+
+function getDependencyEcosystem(): EcosystemModule {
+  return require('../../pm2/ecosystem.dependencies.cjs') as EcosystemModule;
+}
 
 const COLOR_RESET = '\u001B[0m';
 const COLOR_DIM = '\u001B[2m';
@@ -98,11 +108,19 @@ function unique<T>(values: readonly T[]): T[] {
   return Array.from(new Set(values));
 }
 
-function formatServiceLabel(serviceId: string, type: ManagedServiceType): string {
-  return type === 'application' ? `${serviceId} (application)` : `${serviceId} (dependency)`;
+function formatServiceLabel(
+  serviceId: string,
+  type: ManagedServiceType
+): string {
+  return type === 'application'
+    ? `${serviceId} (application)`
+    : `${serviceId} (dependency)`;
 }
 
-async function tailFile(filePath: string, maxLines: number): Promise<readonly string[] | null> {
+async function tailFile(
+  filePath: string,
+  maxLines: number
+): Promise<readonly string[] | null> {
   let handle: Awaited<ReturnType<typeof open>> | undefined;
 
   try {
@@ -130,7 +148,8 @@ async function tailFile(filePath: string, maxLines: number): Promise<readonly st
 
     const data = chunks.join('');
     const rawLines = data.split(/\r?\n/);
-    const filtered = rawLines[rawLines.length - 1] === '' ? rawLines.slice(0, -1) : rawLines;
+    const filtered =
+      rawLines[rawLines.length - 1] === '' ? rawLines.slice(0, -1) : rawLines;
 
     if (filtered.length <= maxLines) {
       return filtered;
@@ -166,7 +185,7 @@ async function collectStreamsForApplication(
 
   const [stdoutLines, stderrLines] = await Promise.all([
     tailFile(stdoutAbsolute, maxLines),
-    tailFile(stderrAbsolute, maxLines)
+    tailFile(stderrAbsolute, maxLines),
   ]);
 
   const stdoutSnapshot: LogStreamSnapshot = {
@@ -174,7 +193,7 @@ async function collectStreamsForApplication(
     absolutePath: stdoutAbsolute,
     relativePath: path.relative(process.cwd(), stdoutAbsolute),
     exists: stdoutLines !== null,
-    lines: (stdoutLines ?? []) as readonly string[]
+    lines: (stdoutLines ?? []) as readonly string[],
   };
 
   const stderrSnapshot: LogStreamSnapshot = {
@@ -182,14 +201,14 @@ async function collectStreamsForApplication(
     absolutePath: stderrAbsolute,
     relativePath: path.relative(process.cwd(), stderrAbsolute),
     exists: stderrLines !== null,
-    lines: (stderrLines ?? []) as readonly string[]
+    lines: (stderrLines ?? []) as readonly string[],
   };
 
   return {
     serviceId: profile.processId,
     type: 'application',
     label: formatServiceLabel(profile.processId, 'application'),
-    streams: [stdoutSnapshot, stderrSnapshot]
+    streams: [stdoutSnapshot, stderrSnapshot],
   };
 }
 
@@ -206,7 +225,7 @@ async function collectStreamsForDependency(
 
   const [stdoutLines, stderrLines] = await Promise.all([
     tailFile(stdoutAbsolute, maxLines),
-    tailFile(stderrAbsolute, maxLines)
+    tailFile(stderrAbsolute, maxLines),
   ]);
 
   const stdoutSnapshot: LogStreamSnapshot = {
@@ -214,7 +233,7 @@ async function collectStreamsForDependency(
     absolutePath: stdoutAbsolute,
     relativePath: path.relative(process.cwd(), stdoutAbsolute),
     exists: stdoutLines !== null,
-    lines: (stdoutLines ?? []) as readonly string[]
+    lines: (stdoutLines ?? []) as readonly string[],
   };
 
   const stderrSnapshot: LogStreamSnapshot = {
@@ -222,25 +241,30 @@ async function collectStreamsForDependency(
     absolutePath: stderrAbsolute,
     relativePath: path.relative(process.cwd(), stderrAbsolute),
     exists: stderrLines !== null,
-    lines: (stderrLines ?? []) as readonly string[]
+    lines: (stderrLines ?? []) as readonly string[],
   };
 
   return {
     serviceId: profile.dependencyId,
     type: 'dependency',
     label: formatServiceLabel(profile.dependencyId, 'dependency'),
-    streams: [stdoutSnapshot, stderrSnapshot]
+    streams: [stdoutSnapshot, stderrSnapshot],
   };
 }
 
-async function collectExtras(knownPaths: Set<string>, maxLines: number): Promise<ExtraLogSnapshot[]> {
+async function collectExtras(
+  knownPaths: Set<string>,
+  maxLines: number
+): Promise<ExtraLogSnapshot[]> {
   const discovered = new Set<string>();
 
   for (const root of LOG_SEARCH_ROOTS) {
     await discoverLogsRecursively(root, knownPaths, discovered);
   }
 
-  const sortedExtras = Array.from(discovered).sort((a, b) => a.localeCompare(b));
+  const sortedExtras = Array.from(discovered).sort((a, b) =>
+    a.localeCompare(b)
+  );
   const results: ExtraLogSnapshot[] = [];
 
   for (const absolutePath of sortedExtras) {
@@ -252,7 +276,7 @@ async function collectExtras(knownPaths: Set<string>, maxLines: number): Promise
       absolutePath,
       relativePath: path.relative(process.cwd(), absolutePath),
       exists,
-      lines: (lines ?? []) as readonly string[]
+      lines: (lines ?? []) as readonly string[],
     });
   }
 
@@ -309,12 +333,14 @@ function buildSnapshotPayload(
     capturedAt: new Date().toISOString(),
     lineCount,
     services,
-    extras
+    extras,
   };
 }
 
 function renderTextSnapshot(payload: LogSnapshotPayload): void {
-  const header = `🗂️ Workspace log snapshot — ${payload.capturedAt} (last ${payload.lineCount} line${payload.lineCount === 1 ? '' : 's'})`;
+  const header = `🗂️ Workspace log snapshot — ${payload.capturedAt} (last ${
+    payload.lineCount
+  } line${payload.lineCount === 1 ? '' : 's'})`;
   process.stdout.write(`${header}\n`);
   process.stdout.write(`${'='.repeat(header.length)}\n`);
 
@@ -329,7 +355,9 @@ function renderTextSnapshot(payload: LogSnapshotPayload): void {
       process.stdout.write(`-- ${stream.name} — ${stream.relativePath}\n`);
 
       if (!stream.exists) {
-        process.stdout.write('⚠️  Log file not found. Start the service to generate logs.\n');
+        process.stdout.write(
+          '⚠️  Log file not found. Start the service to generate logs.\n'
+        );
         continue;
       }
 
@@ -376,16 +404,16 @@ function serializeSnapshot(payload: LogSnapshotPayload): void {
         path: stream.relativePath,
         exists: stream.exists,
         lineCount: stream.lines.length,
-        content: stream.lines
-      }))
+        content: stream.lines,
+      })),
     })),
     extras: payload.extras.map((extra) => ({
       key: extra.key,
       path: extra.relativePath,
       exists: extra.exists,
       lineCount: extra.lines.length,
-      content: extra.lines
-    }))
+      content: extra.lines,
+    })),
   };
 
   process.stdout.write(`${JSON.stringify(serialized, null, 2)}\n`);
@@ -404,7 +432,9 @@ function resolveApplicationTargets(
     return [];
   }
 
-  const profiles = all ? listApplicationProcesses() : listDefaultApplicationProcesses();
+  const profiles = all
+    ? listApplicationProcesses()
+    : listDefaultApplicationProcesses();
   return profiles.map((profile) => profile.processId);
 }
 
@@ -420,28 +450,44 @@ function resolveDependencyTargets(
     return [];
   }
 
-  return listDefaultDependencyProcesses().map((profile) => profile.dependencyId);
+  return listDefaultDependencyProcesses().map(
+    (profile) => profile.dependencyId
+  );
 }
 
-function resolveApplicationProfile(serviceId: string): ApplicationProcessProfile {
+function resolveApplicationProfile(
+  serviceId: string
+): ApplicationProcessProfile {
   try {
     return getApplicationProcess(serviceId);
   } catch (error) {
-    throw new WorkspaceCliError('UNKNOWN_SERVICE', `Unknown application service: ${serviceId}`, {
-      serviceId,
-      recommendation: 'List available services with nx graph or inspect application-processes.ts.'
-    });
+    throw new WorkspaceCliError(
+      'UNKNOWN_SERVICE',
+      `Unknown application service: ${serviceId}`,
+      {
+        serviceId,
+        recommendation:
+          'List available services with nx graph or inspect application-processes.ts.',
+      }
+    );
   }
 }
 
-function resolveDependencyProfile(dependencyId: string): DependencyProcessProfile {
+function resolveDependencyProfile(
+  dependencyId: string
+): DependencyProcessProfile {
   try {
     return getDependencyProcess(dependencyId);
   } catch (error) {
-    throw new WorkspaceCliError('UNKNOWN_DEPENDENCY', `Unknown dependency: ${dependencyId}`, {
-      serviceId: dependencyId,
-      recommendation: 'Check tools/workspace-cli/src/config/dependency-processes.ts for valid IDs.'
-    });
+    throw new WorkspaceCliError(
+      'UNKNOWN_DEPENDENCY',
+      `Unknown dependency: ${dependencyId}`,
+      {
+        serviceId: dependencyId,
+        recommendation:
+          'Check tools/workspace-cli/src/config/dependency-processes.ts for valid IDs.',
+      }
+    );
   }
 }
 
@@ -449,7 +495,9 @@ export async function runLogsCommand(argv: readonly string[]): Promise<void> {
   const args = parseCliArgs(argv);
 
   if (args.unknown.length > 0) {
-    process.stderr.write(`Ignoring unknown arguments: ${args.unknown.join(', ')}\n`);
+    process.stderr.write(
+      `Ignoring unknown arguments: ${args.unknown.join(', ')}\n`
+    );
   }
 
   if (args.follow && args.json) {
@@ -457,7 +505,8 @@ export async function runLogsCommand(argv: readonly string[]): Promise<void> {
       'INVALID_ARGUMENT',
       'Streaming logs is incompatible with --json output.',
       {
-        recommendation: 'Remove the --json flag or omit --follow to generate a static snapshot.'
+        recommendation:
+          'Remove the --json flag or omit --follow to generate a static snapshot.',
       }
     );
   }
@@ -471,24 +520,42 @@ export async function runLogsCommand(argv: readonly string[]): Promise<void> {
     args.dependenciesOnly ||
     args.all ||
     args.workspace ||
-    (!explicitServiceSelection && !explicitDependencySelection && !args.dependenciesOnly && args.follow);
+    (!explicitServiceSelection &&
+      !explicitDependencySelection &&
+      !args.dependenciesOnly &&
+      args.follow);
   const lineCount = Math.max(1, args.logLines);
 
-  const serviceIds = resolveApplicationTargets(args.services, includeServices, args.all);
-  const dependencyIds = resolveDependencyTargets(args.dependencies, includeDependencies);
+  const serviceIds = resolveApplicationTargets(
+    args.services,
+    includeServices,
+    args.all
+  );
+  const dependencyIds = resolveDependencyTargets(
+    args.dependencies,
+    includeDependencies
+  );
 
   const knownPaths = new Set<string>();
   const serviceSnapshots: ServiceLogSnapshot[] = [];
 
   for (const serviceId of serviceIds) {
     const profile = resolveApplicationProfile(serviceId);
-    const snapshot = await collectStreamsForApplication(profile, lineCount, knownPaths);
+    const snapshot = await collectStreamsForApplication(
+      profile,
+      lineCount,
+      knownPaths
+    );
     serviceSnapshots.push(snapshot);
   }
 
   for (const dependencyId of dependencyIds) {
     const profile = resolveDependencyProfile(dependencyId);
-    const snapshot = await collectStreamsForDependency(profile, lineCount, knownPaths);
+    const snapshot = await collectStreamsForDependency(
+      profile,
+      lineCount,
+      knownPaths
+    );
     serviceSnapshots.push(snapshot);
   }
 
@@ -509,7 +576,10 @@ export async function runLogsCommand(argv: readonly string[]): Promise<void> {
   }
 }
 
-function getEnvString(entry: EcosystemProcessConfig, key: string): string | undefined {
+function getEnvString(
+  entry: EcosystemProcessConfig,
+  key: string
+): string | undefined {
   if (!entry.env) {
     return undefined;
   }
@@ -518,33 +588,59 @@ function getEnvString(entry: EcosystemProcessConfig, key: string): string | unde
   return typeof value === 'string' ? value : undefined;
 }
 
-function resolveApplicationEcosystemEntry(serviceId: string): EcosystemProcessConfig {
-  const entry = applicationEcosystem.apps.find((candidate) => {
-    const envServiceId = getEnvString(candidate, 'WORKSPACE_SERVICE_ID');
-    return envServiceId === serviceId || candidate.name === serviceId;
-  });
+function resolveApplicationEcosystemEntry(
+  serviceId: string
+): EcosystemProcessConfig {
+  const applicationEcosystem = getApplicationEcosystem();
+  const entry = applicationEcosystem.apps.find(
+    (candidate: EcosystemProcessConfig) => {
+      const envServiceId = getEnvString(candidate, 'WORKSPACE_SERVICE_ID');
+      return envServiceId === serviceId || candidate.name === serviceId;
+    }
+  );
 
   if (!entry) {
-    throw new WorkspaceCliError('UNKNOWN_SERVICE', `Unknown application service: ${serviceId}`, {
-      serviceId,
-      recommendation: 'Register the service in pm2/ecosystem.apps.cjs to enable log streaming.'
-    });
+    throw new WorkspaceCliError(
+      'UNKNOWN_SERVICE',
+      `Unknown application service: ${serviceId}`,
+      {
+        serviceId,
+        recommendation:
+          'Register the service in pm2/ecosystem.apps.cjs to enable log streaming.',
+      }
+    );
   }
 
   return entry;
 }
 
-function resolveDependencyEcosystemEntry(dependencyId: string): EcosystemProcessConfig {
-  const entry = dependencyEcosystem.apps.find((candidate) => {
-    const envDependencyId = getEnvString(candidate, 'WORKSPACE_DEPENDENCY_ID');
-    return envDependencyId === dependencyId || candidate.name === `${dependencyId}-dependency`;
-  });
+function resolveDependencyEcosystemEntry(
+  dependencyId: string
+): EcosystemProcessConfig {
+  const dependencyEcosystem = getDependencyEcosystem();
+  const entry = dependencyEcosystem.apps.find(
+    (candidate: EcosystemProcessConfig) => {
+      const envDependencyId = getEnvString(
+        candidate,
+        'WORKSPACE_DEPENDENCY_ID'
+      );
+      return (
+        envDependencyId === dependencyId ||
+        candidate.name === `${dependencyId}-dependency`
+      );
+    }
+  );
 
   if (!entry) {
-    throw new WorkspaceCliError('UNKNOWN_DEPENDENCY', `Unknown dependency: ${dependencyId}`, {
-      serviceId: dependencyId,
-      recommendation: 'Register the dependency in pm2/ecosystem.dependencies.cjs to enable log streaming.'
-    });
+    throw new WorkspaceCliError(
+      'UNKNOWN_DEPENDENCY',
+      `Unknown dependency: ${dependencyId}`,
+      {
+        serviceId: dependencyId,
+        recommendation:
+          'Register the dependency in pm2/ecosystem.dependencies.cjs to enable log streaming.',
+      }
+    );
   }
 
   return entry;
@@ -586,7 +682,9 @@ async function connectPm2(): Promise<void> {
 async function launchPm2Bus(): Promise<Pm2Bus> {
   return await new Promise((resolve, reject) => {
     const pm2WithBus = pm2 as unknown as {
-      launchBus: (callback: (error: Error | null, bus?: unknown) => void) => void;
+      launchBus: (
+        callback: (error: Error | null, bus?: unknown) => void
+      ) => void;
     };
 
     pm2WithBus.launchBus((error: Error | null, bus?: unknown) => {
@@ -622,7 +720,9 @@ async function streamManagedLogs(
   }
 
   if (targetProcesses.size === 0) {
-    process.stdout.write('⚠️  No managed services selected. Nothing to stream.\n');
+    process.stdout.write(
+      '⚠️  No managed services selected. Nothing to stream.\n'
+    );
     return;
   }
 
@@ -630,7 +730,10 @@ async function streamManagedLogs(
   const allowedNamespaces = new Set(
     Array.from(targetProcesses.values())
       .map((item) => item.namespace)
-      .filter((namespace): namespace is string => typeof namespace === 'string' && namespace.length > 0)
+      .filter(
+        (namespace): namespace is string =>
+          typeof namespace === 'string' && namespace.length > 0
+      )
   );
 
   await connectPm2();
@@ -663,7 +766,10 @@ async function streamManagedLogs(
         }
       }
 
-      const label = applyColor(resolveColorCode(processName), `[${processName}]`);
+      const label = applyColor(
+        resolveColorCode(processName),
+        `[${processName}]`
+      );
       const channelLabel = formatChannelLabel(channel);
       const prefix = `${timestampLabel(packet.at)} ${label} ${channelLabel}`;
       const raw = packet.data ?? '';

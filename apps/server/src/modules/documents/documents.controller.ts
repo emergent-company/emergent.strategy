@@ -105,11 +105,11 @@ export class DocumentsController {
         error: { code: 'bad-request', message: 'x-project-id required' },
       });
     }
-    const { items, nextCursor } = await this.documents.list(n, decoded, {
+    const { items, nextCursor, total } = await this.documents.list(n, decoded, {
       projectId,
     });
     if (nextCursor) res?.setHeader('x-next-cursor', nextCursor);
-    return items;
+    return { documents: items, total, next_cursor: nextCursor };
   }
 
   @Get(':id')

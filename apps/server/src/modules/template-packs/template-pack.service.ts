@@ -498,7 +498,7 @@ export class TemplatePackService {
                 row_to_json(tp.*) as template_pack
             FROM kb.project_template_packs ptp
             JOIN kb.graph_template_packs tp ON ptp.template_pack_id = tp.id
-            WHERE ptp.project_id = $1
+            WHERE ptp.project_id = $1 AND ptp.active = true
             ORDER BY ptp.installed_at DESC`,
       [projectId]
     );
@@ -575,14 +575,25 @@ export class TemplatePackService {
              ORDER BY published_at DESC`
     );
 
-    // Get installed packs for this project
-    const installedResult = await this.db.query<{ template_pack_id: string }>(
-      `SELECT template_pack_id FROM kb.project_template_packs 
-             WHERE project_id = $1 AND active = true`,
+    // Get installed packs for this project (both active and inactive)
+    // Need to track both installed status and active status
+    const installedResult = await this.db.query<{
+      id: string;
+      template_pack_id: string;
+      active: boolean;
+    }>(
+      `SELECT id, template_pack_id, active FROM kb.project_template_packs 
+             WHERE project_id = $1`,
       [projectId]
     );
     const installedIds = new Set(
       installedResult.rows.map((r: any) => r.template_pack_id)
+    );
+    const activeStatusMap = new Map(
+      installedResult.rows.map((r: any) => [r.template_pack_id, r.active])
+    );
+    const assignmentIdMap = new Map(
+      installedResult.rows.map((r: any) => [r.template_pack_id, r.id])
     );
 
     // Get object counts per type for this project
@@ -602,7 +613,8 @@ export class TemplatePackService {
       const relationshipTypes = Object.keys(
         pack.relationship_type_schemas || {}
       );
-      return {
+      const isInstalled = installedIds.has(pack.id);
+      const response: any = {
         id: pack.id,
         name: pack.name,
         version: pack.version,
@@ -618,11 +630,19 @@ export class TemplatePackService {
         ),
         relationship_types: relationshipTypes,
         relationship_count: relationshipTypes.length,
-        installed: installedIds.has(pack.id),
+        installed: isInstalled,
         compatible: true, // TODO: Add compatibility check
         published_at: pack.published_at,
         deprecated_at: pack.deprecated_at,
       };
+
+      // Add active status and assignment_id only if installed
+      if (isInstalled) {
+        response.active = activeStatusMap.get(pack.id) || false;
+        response.assignment_id = assignmentIdMap.get(pack.id);
+      }
+
+      return response;
     });
   }
 

@@ -72,7 +72,9 @@
     "test:coverage:all": "nx run repo-scripts:test-coverage-all",
     "log:pretty": "node scripts/pretty-print-log.js",
     "log:clickup": "node scripts/pretty-print-log.js logs/clickup-import/*.jsonl",
-    "sync:instructions": "node scripts/sync-agent-instructions.mjs"
+    "sync:instructions": "node scripts/sync-agent-instructions.mjs",
+    "seed:bible-template": "tsx scripts/seed-bible-template-pack.ts",
+    "seed:bible": "tsx scripts/seed-bible-documents.ts"
   },
   "dependencies": {
     "@ai-sdk/langchain": "^1.0.97",

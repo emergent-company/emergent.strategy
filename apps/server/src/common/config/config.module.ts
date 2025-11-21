@@ -39,7 +39,15 @@ import { EnvVariables, validate } from './config.schema';
   const loaded: string[] = [];
   for (const p of candidatePaths) {
     if (fs.existsSync(p)) {
-      dotenv.config({ path: p });
+      console.log(`[DEBUG] Loading env from: ${p}`);
+      console.log(
+        `[DEBUG] GCP_PROJECT_ID before loading: ${process.env.GCP_PROJECT_ID}`
+      );
+      // Use override: true to ensure .env files take precedence
+      dotenv.config({ path: p, override: true });
+      console.log(
+        `[DEBUG] GCP_PROJECT_ID after loading: ${process.env.GCP_PROJECT_ID}`
+      );
       loaded.push(p);
     }
   }
@@ -54,6 +62,14 @@ const envProvider = {
   provide: EnvVariables,
   useFactory: (): EnvVariables => {
     // Load process.env directly (dotenv already loaded at root if needed)
+    console.log(
+      '[DEBUG] process.env.GCP_PROJECT_ID at validate:',
+      process.env.GCP_PROJECT_ID
+    );
+    console.log(
+      '[DEBUG] process.env.VERTEX_AI_PROJECT_ID at validate:',
+      process.env.VERTEX_AI_PROJECT_ID
+    );
     return validate(process.env as Record<string, unknown>);
   },
 };

@@ -15,17 +15,14 @@ Instructions for AI coding assistants using OpenSpec for spec-driven development
 ## Three-Stage Workflow
 
 ### Stage 1: Creating Changes
-
 Create proposal when you need to:
-
 - Add features or functionality
 - Make breaking changes (API, schema)
-- Change architecture or patterns
+- Change architecture or patterns  
 - Optimize performance (changes behavior)
 - Update security patterns
 
 Triggers (examples):
-
 - "Help me create a change proposal"
 - "Help me plan a change"
 - "Help me create a proposal"
@@ -33,12 +30,10 @@ Triggers (examples):
 - "I want to create a spec"
 
 Loose matching guidance:
-
 - Contains one of: `proposal`, `change`, `spec`
 - With one of: `create`, `plan`, `make`, `start`, `help`
 
 Skip proposal for:
-
 - Bug fixes (restore intended behavior)
 - Typos, formatting, comments
 - Dependency updates (non-breaking)
@@ -46,182 +41,23 @@ Skip proposal for:
 - Tests for existing behavior
 
 **Workflow**
-
 1. Review `openspec/project.md`, `openspec list`, and `openspec list --specs` to understand current context.
 2. Choose a unique verb-led `change-id` and scaffold `proposal.md`, `tasks.md`, optional `design.md`, and spec deltas under `openspec/changes/<id>/`.
 3. Draft spec deltas using `## ADDED|MODIFIED|REMOVED Requirements` with at least one `#### Scenario:` per requirement.
 4. Run `openspec validate <id> --strict` and resolve any issues before sharing the proposal.
 
 ### Stage 2: Implementing Changes
-
 Track these steps as TODOs and complete them one by one.
-
 1. **Read proposal.md** - Understand what's being built
 2. **Read design.md** (if exists) - Review technical decisions
 3. **Read tasks.md** - Get implementation checklist
-4. **Re-verify documentation** (if external libraries) - Use Context7 MCP to check for breaking changes since proposal (mandatory if >7 days since proposal)
-5. **Run baseline tests** - Execute unit and E2E tests before implementation to verify current state (ask user approval if any fail)
-6. **Implement tasks sequentially** - Complete in order
-7. **Update OpenAPI documentation** (if API changes) - Regenerate spec and update golden contracts after adding/modifying endpoints
-8. **For tests: Verify with DevTools MCP first** - Before writing E2E/integration tests, manually verify functionality and gather selectors
-9. **Run post-implementation verification** - Execute build → lint → tests (all must pass before marking complete)
-10. **Confirm completion** - Ensure every item in `tasks.md` is finished before updating statuses
-11. **Update checklist** - After all work is done, set every task to `- [x]` so the list reflects reality
-12. **Approval gate** - Do not start implementation until the proposal is reviewed and approved
-
-**Detailed Step Workflows:**
-
-#### Step 4: Re-verify Documentation (Before Implementation)
-
-When implementing changes involving external libraries:
-
-- Run Context7 MCP to fetch latest documentation
-- Compare against proposal to verify no breaking changes
-- If breaking changes found, notify user before proceeding
-- **Mandatory** if more than 7 days have passed since proposal creation
-
-#### Step 5: Run Baseline Tests (Before Implementation)
-
-Before starting implementation:
-
-- Run unit tests: `nx run server:test` and/or `nx run admin:test`
-- Run E2E tests: `nx run server:test-e2e` and/or `nx run admin:e2e`
-- Report results to user
-- **If tests fail:** Ask user whether to fix first, proceed despite failures, or investigate
-- **Do not proceed** until user provides explicit approval
-
-#### Step 7: Update OpenAPI Documentation (After API Changes)
-
-When implementing changes that add, modify, or remove API endpoints:
-
-**1. Add @Scopes() decorator to new/modified endpoints:**
-
-```typescript
-@Get('example')
-@Scopes('resource:read', 'resource:write')
-async exampleEndpoint() {
-  // implementation
-}
-```
-
-**2. Regenerate OpenAPI specification:**
-
-```bash
-cd apps/server
-npm run gen:openapi
-```
-
-- Requires database to be running (start with `cd docker && docker compose up -d db`)
-- Generates updated `openapi.json` with new endpoints and scopes
-
-**3. Update golden scope contract tests:**
-
-- File: `apps/server/tests/unit/openapi/openapi-scope-golden-full.spec.ts`
-- Add entries for new endpoints in the `EXPECTED` object
-- Format: `'<method> <path>': ['scope1', 'scope2']`
-- Keep entries in alphabetical order by method then path
-- Example:
-  ```typescript
-  'get /example': ['resource:read'],
-  'post /example': ['resource:write'],
-  ```
-
-**4. Update OpenAPI regression hash:**
-
-- File: `apps/server/tests/unit/openapi/openapi-regression.spec.ts`
-- Run tests once to get new hash value (will fail with computed hash in error message)
-- Update `EXPECTED_HASH` constant with the new hash
-- Add changelog comment documenting what changed
-- Example:
-  ```typescript
-  // Updated after adding /example endpoint (November 2025)
-  const EXPECTED_HASH = 'new-hash-value-here';
-  ```
-
-**5. Update OpenAPI snapshot (for E2E tests):**
-
-```bash
-cd apps/server
-UPDATE_OPENAPI_SNAPSHOT=1 npx vitest run -c vitest.e2e.config.ts tests/e2e/openapi.snapshot-diff.e2e.spec.ts
-```
-
-**When to skip this step:**
-
-- No API endpoints added, modified, or removed
-- Only internal implementation changes
-- Only frontend/UI changes
-
-**Why this matters:**
-
-- Prevents OpenAPI contract drift
-- Ensures security scopes are documented
-- Catches unintended API surface changes
-- Maintains test reliability
-
-#### Step 8: Manual Testing with DevTools MCP (Before Writing Tests)
-
-Before writing E2E or integration tests:
-
-1. **Start Chrome debug mode:**
-
-   ```bash
-   npm run chrome:debug
-   ```
-
-2. **Get test credentials:**
-
-   ```bash
-   ./scripts/get-test-user-credentials.sh
-   ```
-
-3. **Manual verification workflow:**
-
-   - Instruct user to login and navigate to feature
-   - Use `chrome-devtools_take_snapshot` to get page structure
-   - Use `chrome-devtools_list_network_requests` to inspect API calls
-   - Use `chrome-devtools_list_console_messages` to check for errors
-   - Use `chrome-devtools_evaluate_script` to extract data if needed
-
-4. **Gather test inputs:**
-
-   - Identify stable selectors (data-testid, role, aria-label)
-   - Note element visibility and interactivity states
-   - Document API endpoints, request/response formats
-   - Record user flow and expected behavior
-
-5. **Write tests based on verified behavior**
-
-#### Step 9: Post-Implementation Verification (After Implementation)
-
-After completing implementation, run verification sequence:
-
-**Build:**
-
-- Server only: `nx run server:build`
-- Admin only: `nx run admin:build`
-- Full-stack: `npm run build`
-- Fix all build errors before proceeding
-
-**Lint:**
-
-- Server: `nx run server:lint`
-- Admin: `nx run admin:lint`
-- Fix all lint errors (errors are mandatory)
-- Fix lint warnings when feasible
-
-**Tests:**
-
-- Run unit tests for affected projects
-- Run E2E tests for affected projects
-- Fix all test failures caused by implementation
-- Re-run until all tests pass
-
-**All verification must pass before marking change complete.**
+4. **Implement tasks sequentially** - Complete in order
+5. **Confirm completion** - Ensure every item in `tasks.md` is finished before updating statuses
+6. **Update checklist** - After all work is done, set every task to `- [x]` so the list reflects reality
+7. **Approval gate** - Do not start implementation until the proposal is reviewed and approved
 
 ### Stage 3: Archiving Changes
-
 After deployment, create separate PR to:
-
 - Move `changes/[name]/` → `changes/archive/YYYY-MM-DD-[name]/`
 - Update `specs/` if capabilities changed
 - Use `openspec archive <change-id> --skip-specs --yes` for tooling-only changes (always pass the change ID explicitly)
@@ -230,70 +66,19 @@ After deployment, create separate PR to:
 ## Before Any Task
 
 **Context Checklist:**
-
 - [ ] Read relevant specs in `specs/[capability]/spec.md`
 - [ ] Check pending changes in `changes/` for conflicts
 - [ ] Read `openspec/project.md` for conventions
 - [ ] Run `openspec list` to see active changes
 - [ ] Run `openspec list --specs` to see existing capabilities
-- [ ] Verify external library documentation with Context7 MCP (if change involves external libraries)
 
 **Before Creating Specs:**
-
 - Always check if capability already exists
 - Prefer modifying existing specs over creating duplicates
 - Use `openspec show [spec]` to review current state
 - If request is ambiguous, ask 1–2 clarifying questions before scaffolding
 
-### Documentation Verification
-
-When creating proposals or implementing changes that involve external libraries, frameworks, or tools:
-
-- **Required for:** Changes using/modifying external library APIs (TypeORM, NestJS, React, Tailwind, etc.)
-- **Optional for:** Internal-only changes with no external dependencies
-- **Tool:** Use Context7 MCP as primary documentation source
-
-**Verification Workflow:**
-
-1. Identify external libraries involved in the change
-2. Use `context7_resolve-library-id` to find the correct library
-3. Use `context7_get-library-docs` to fetch current documentation
-4. Verify proposed patterns/APIs are current (not deprecated)
-5. Note documentation source in proposal if avoiding deprecated approaches
-
-**Example - TypeORM Documentation:**
-
-```typescript
-// Step 1: Resolve library ID
-context7_resolve-library-id("typeorm")
-// Returns: "/typeorm/typeorm" or similar
-
-// Step 2: Fetch docs for specific topic
-context7_get-library-docs(
-  context7CompatibleLibraryID: "/typeorm/typeorm",
-  topic: "QueryRunner transactions",
-  page: 1
-)
-```
-
-**Multi-Library Example (TypeORM + NestJS):**
-
-When a change involves multiple libraries:
-
-1. Verify documentation for each library separately
-2. Check integration/compatibility guidance between libraries
-3. Document which library versions were verified
-
-**Fallback Strategy:**
-
-If Context7 doesn't have a library:
-
-- Use WebFetch to access official documentation sites
-- Note the fallback source in your proposal
-- Example: "Verified against official docs at https://..."
-
 ### Search Guidance
-
 - Enumerate specs: `openspec spec list --long` (or `--json` for scripts)
 - Enumerate changes: `openspec list` (or `openspec change list --json` - deprecated but available)
 - Show details:
@@ -362,7 +147,7 @@ openspec/
 ```
 New request?
 ├─ Bug fix restoring spec behavior? → Fix directly
-├─ Typo/format/comment? → Fix directly
+├─ Typo/format/comment? → Fix directly  
 ├─ New feature/capability? → Create proposal
 ├─ Breaking change? → Create proposal
 ├─ Architecture change? → Create proposal
@@ -374,60 +159,45 @@ New request?
 1. **Create directory:** `changes/[change-id]/` (kebab-case, verb-led, unique)
 
 2. **Write proposal.md:**
-
 ```markdown
 # Change: [Brief description of change]
 
 ## Why
-
 [1-2 sentences on problem/opportunity]
 
 ## What Changes
-
 - [Bullet list of changes]
 - [Mark breaking changes with **BREAKING**]
 
 ## Impact
-
 - Affected specs: [list capabilities]
 - Affected code: [key files/systems]
 ```
 
 3. **Create spec deltas:** `specs/[capability]/spec.md`
-
 ```markdown
 ## ADDED Requirements
-
 ### Requirement: New Feature
-
 The system SHALL provide...
 
 #### Scenario: Success case
-
 - **WHEN** user performs action
 - **THEN** expected result
 
 ## MODIFIED Requirements
-
 ### Requirement: Existing Feature
-
 [Complete modified requirement]
 
 ## REMOVED Requirements
-
 ### Requirement: Old Feature
-
 **Reason**: [Why removing]
 **Migration**: [How to handle]
 ```
-
 If multiple capabilities are affected, create multiple delta files under `changes/[change-id]/specs/<capability>/spec.md`—one per capability.
 
 4. **Create tasks.md:**
-
 ```markdown
 ## 1. Implementation
-
 - [ ] 1.1 Create database schema
 - [ ] 1.2 Implement API endpoint
 - [ ] 1.3 Add frontend component
@@ -435,40 +205,32 @@ If multiple capabilities are affected, create multiple delta files under `change
 ```
 
 5. **Create design.md when needed:**
-   Create `design.md` if any of the following apply; otherwise omit it:
-
+Create `design.md` if any of the following apply; otherwise omit it:
 - Cross-cutting change (multiple services/modules) or a new architectural pattern
 - New external dependency or significant data model changes
 - Security, performance, or migration complexity
 - Ambiguity that benefits from technical decisions before coding
 
 Minimal `design.md` skeleton:
-
 ```markdown
 ## Context
-
 [Background, constraints, stakeholders]
 
 ## Goals / Non-Goals
-
 - Goals: [...]
 - Non-Goals: [...]
 
 ## Decisions
-
 - Decision: [What and why]
 - Alternatives considered: [Options + rationale]
 
 ## Risks / Trade-offs
-
 - [Risk] → Mitigation
 
 ## Migration Plan
-
 [Steps, rollback]
 
 ## Open Questions
-
 - [...]
 ```
 
@@ -477,27 +239,22 @@ Minimal `design.md` skeleton:
 ### Critical: Scenario Formatting
 
 **CORRECT** (use #### headers):
-
 ```markdown
 #### Scenario: User login success
-
 - **WHEN** valid credentials provided
 - **THEN** return JWT token
 ```
 
 **WRONG** (don't use bullets or bold):
-
 ```markdown
-- **Scenario: User login** ❌
-  **Scenario**: User login ❌
-
-### Scenario: User login ❌
+- **Scenario: User login**  ❌
+**Scenario**: User login     ❌
+### Scenario: User login      ❌
 ```
 
 Every requirement MUST have at least one scenario.
 
 ### Requirement Wording
-
 - Use SHALL/MUST for normative requirements (avoid should/may unless intentionally non-normative)
 
 ### Delta Operations
@@ -510,7 +267,6 @@ Every requirement MUST have at least one scenario.
 Headers matched with `trim(header)` - whitespace ignored.
 
 #### When to use ADDED vs MODIFIED
-
 - ADDED: Introduces a new capability or sub-capability that can stand alone as a requirement. Prefer ADDED when the change is orthogonal (e.g., adding "Slash Command Configuration") rather than altering the semantics of an existing requirement.
 - MODIFIED: Changes the behavior, scope, or acceptance criteria of an existing requirement. Always paste the full, updated requirement content (header + all scenarios). The archiver will replace the entire requirement with what you provide here; partial deltas will drop previous details.
 - RENAMED: Use when only the name changes. If you also change behavior, use RENAMED (name) plus MODIFIED (content) referencing the new name.
@@ -518,17 +274,14 @@ Headers matched with `trim(header)` - whitespace ignored.
 Common pitfall: Using MODIFIED to add a new concern without including the previous text. This causes loss of detail at archive time. If you aren’t explicitly changing the existing requirement, add a new requirement under ADDED instead.
 
 Authoring a MODIFIED requirement correctly:
-
-1. Locate the existing requirement in `openspec/specs/<capability>/spec.md`.
-2. Copy the entire requirement block (from `### Requirement: ...` through its scenarios).
-3. Paste it under `## MODIFIED Requirements` and edit to reflect the new behavior.
-4. Ensure the header text matches exactly (whitespace-insensitive) and keep at least one `#### Scenario:`.
+1) Locate the existing requirement in `openspec/specs/<capability>/spec.md`.
+2) Copy the entire requirement block (from `### Requirement: ...` through its scenarios).
+3) Paste it under `## MODIFIED Requirements` and edit to reflect the new behavior.
+4) Ensure the header text matches exactly (whitespace-insensitive) and keep at least one `#### Scenario:`.
 
 Example for RENAMED:
-
 ```markdown
 ## RENAMED Requirements
-
 - FROM: `### Requirement: Login`
 - TO: `### Requirement: User Authentication`
 ```
@@ -538,17 +291,14 @@ Example for RENAMED:
 ### Common Errors
 
 **"Change must have at least one delta"**
-
 - Check `changes/[name]/specs/` exists with .md files
 - Verify files have operation prefixes (## ADDED Requirements)
 
 **"Requirement must have at least one scenario"**
-
 - Check scenarios use `#### Scenario:` format (4 hashtags)
 - Don't use bullet points or bold for scenario headers
 
 **Silent scenario parsing failures**
-
 - Exact format required: `#### Scenario: Name`
 - Debug with: `openspec show [change] --json --deltas-only`
 
@@ -610,88 +360,73 @@ openspec/changes/add-2fa-notify/
 ```
 
 auth/spec.md
-
 ```markdown
 ## ADDED Requirements
-
 ### Requirement: Two-Factor Authentication
-
 ...
 ```
 
 notifications/spec.md
-
 ```markdown
 ## ADDED Requirements
-
 ### Requirement: OTP Email Notification
-
 ...
 ```
 
 ## Best Practices
 
 ### Simplicity First
-
 - Default to <100 lines of new code
 - Single-file implementations until proven insufficient
 - Avoid frameworks without clear justification
 - Choose boring, proven patterns
 
 ### Complexity Triggers
-
 Only add complexity with:
-
 - Performance data showing current solution too slow
 - Concrete scale requirements (>1000 users, >100MB data)
 - Multiple proven use cases requiring abstraction
 
 ### Clear References
-
 - Use `file.ts:42` format for code locations
 - Reference specs as `specs/auth/spec.md`
 - Link related changes and PRs
 
 ### Capability Naming
-
 - Use verb-noun: `user-auth`, `payment-capture`
 - Single purpose per capability
 - 10-minute understandability rule
 - Split if description needs "AND"
 
 ### Change ID Naming
-
 - Use kebab-case, short and descriptive: `add-two-factor-auth`
 - Prefer verb-led prefixes: `add-`, `update-`, `remove-`, `refactor-`
 - Ensure uniqueness; if taken, append `-2`, `-3`, etc.
 
 ## Tool Selection Guide
 
-| Task                  | Tool | Why                      |
-| --------------------- | ---- | ------------------------ |
-| Find files by pattern | Glob | Fast pattern matching    |
-| Search code content   | Grep | Optimized regex search   |
-| Read specific files   | Read | Direct file access       |
+| Task | Tool | Why |
+|------|------|-----|
+| Find files by pattern | Glob | Fast pattern matching |
+| Search code content | Grep | Optimized regex search |
+| Read specific files | Read | Direct file access |
 | Explore unknown scope | Task | Multi-step investigation |
 
 ## Error Recovery
 
 ### Change Conflicts
-
 1. Run `openspec list` to see active changes
 2. Check for overlapping specs
 3. Coordinate with change owners
 4. Consider combining proposals
 
 ### Validation Failures
-
 1. Run with `--strict` flag
 2. Check JSON output for details
 3. Verify spec file format
 4. Ensure scenarios properly formatted
 
 ### Missing Context
-
 1. Read project.md first
 2. Check related specs
 3. Review recent archives
@@ -700,20 +435,17 @@ Only add complexity with:
 ## Quick Reference
 
 ### Stage Indicators
-
 - `changes/` - Proposed, not yet built
 - `specs/` - Built and deployed
 - `archive/` - Completed changes
 
 ### File Purposes
-
 - `proposal.md` - Why and what
 - `tasks.md` - Implementation steps
 - `design.md` - Technical decisions
 - `spec.md` - Requirements and behavior
 
 ### CLI Essentials
-
 ```bash
 openspec list              # What's in progress?
 openspec show [item]       # View details

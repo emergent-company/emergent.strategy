@@ -178,19 +178,22 @@ export default function ChunksPage() {
     {
       key: 'document_title',
       label: 'Document',
-      width: 'max-w-80',
+      width: 'max-w-[250px] sm:max-w-[350px] md:max-w-[450px]',
+      cellClassName: 'max-w-[250px] sm:max-w-[350px] md:max-w-[450px]',
       render: (chunk) => (
         <div className="truncate">
           {chunk.source_url ? (
             chunk.source_url.includes('clickup.com') ||
             chunk.source_url.includes('app.clickup.com') ? (
               <div className="flex items-center gap-2">
-                <span className="font-medium">{chunk.document_title}</span>
+                <span className="font-medium truncate">
+                  {chunk.document_title}
+                </span>
                 <a
                   href={chunk.source_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-sm transition-colors link hover:link-primary"
+                  className="inline-flex items-center gap-1 text-sm transition-colors link hover:link-primary shrink-0"
                   title={chunk.source_url}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -205,7 +208,7 @@ export default function ChunksPage() {
               <a
                 href={chunk.source_url}
                 target="_blank"
-                className="link"
+                className="link truncate block"
                 rel="noreferrer"
                 title={chunk.source_url}
                 onClick={(e) => e.stopPropagation()}
@@ -214,7 +217,9 @@ export default function ChunksPage() {
               </a>
             )
           ) : (
-            <span className="font-medium">{chunk.document_title}</span>
+            <span className="font-medium truncate block">
+              {chunk.document_title}
+            </span>
           )}
         </div>
       ),
@@ -248,7 +253,7 @@ export default function ChunksPage() {
   ];
 
   return (
-    <div data-testid="page-chunks" className="mx-auto max-w-7xl container">
+    <div data-testid="page-chunks" className="w-full px-4">
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-bold text-2xl">Chunks</h1>

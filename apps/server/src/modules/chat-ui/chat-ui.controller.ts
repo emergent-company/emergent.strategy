@@ -65,6 +65,15 @@ export class ChatUiController {
     return this.conversationService.updateConversationTitle(id, title);
   }
 
+  @Patch('conversations/:id/draft')
+  @ApiOkResponse({ description: 'Update conversation draft text' })
+  async updateConversationDraft(
+    @Param('id') id: string,
+    @Body('draftText') draftText: string
+  ) {
+    return this.conversationService.updateConversationDraft(id, draftText);
+  }
+
   @Delete('conversations/:id')
   @ApiOkResponse({ description: 'Delete conversation' })
   async deleteConversation(@Param('id') id: string) {
