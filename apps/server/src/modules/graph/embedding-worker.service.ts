@@ -156,11 +156,13 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
           this.provider || new DummySha256EmbeddingProvider();
         const embedding = await embeddingProvider.generate(text);
 
-        // Use TypeORM to update embedding
+        // Use TypeORM to update embedding_v2 (768 dimensions)
+        // Fixed: Previously wrote to 'embedding' (bytea) but search reads from vector column
+        // See: docs/bugs/004-embedding-column-mismatch.md
         await this.graphObjectRepo.update(
           { id: obj.id },
           {
-            embedding: embedding as any,
+            embeddingV2: embedding,
             embeddingUpdatedAt: new Date(),
           }
         );

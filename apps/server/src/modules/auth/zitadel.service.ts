@@ -390,7 +390,7 @@ export class ZitadelService implements OnModuleInit {
 
     // Check circuit breaker
     if (Date.now() - this.lastFailureTime < this.CIRCUIT_BREAKER_COOLDOWN) {
-      this.logger.debug(
+      this.logger.verbose(
         'Circuit breaker open (recent 500 error), skipping introspection'
       );
       return null;

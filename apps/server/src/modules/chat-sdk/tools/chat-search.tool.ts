@@ -146,11 +146,11 @@ Examples of when to use this tool:
           // Instructions for the LLM
           _instructions: {
             citation:
-              'When referencing graph objects, use the format: @[key] or [[key|name]]',
+              'When referencing graph objects in your text, ALWAYS use the "key" or "name" with this format: @[key] or [[key|name]]. NEVER use the UUID in the text.',
             relationships:
               'Relationships show how concepts connect - mention these when relevant',
             identifiers:
-              'Use the "id" field (UUID) when calling query tools that require unique IDs (like related_to_id). Use "key" for user-facing references.',
+              'The "id" field (UUID) is ONLY for passing to tools like query_graph_objects(related_to_id=UUID). Do NOT display UUIDs to the user.',
             scores:
               'Higher scores (closer to 1.0) indicate more relevant results',
           },

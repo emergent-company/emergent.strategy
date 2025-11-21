@@ -24,12 +24,18 @@ export interface VectorSearchOptions {
 
 /**
  * GraphVectorSearchService
- * Lightweight service exposing similarity search over kb.graph_objects.embedding_vec.
+ * Lightweight service exposing similarity search over kb.graph_objects.embedding_v2.
+ *
+ * Updated: Now uses embedding_v2 (vector(768)) which matches Gemini text-embedding-004 output.
+ * Previous: embedding_vec (vector(32)) was wrong dimension and always NULL.
+ *
  * Assumptions:
- *  - embedding_vec is a pgvector column (vector(32)) populated asynchronously by worker (future backfill).
- *  - We use cosine distance (<-> operator) by default. (ivfflat index created during schema ensure.)
+ *  - embedding_v2 is a pgvector column (vector(768)) populated asynchronously by worker.
+ *  - We use cosine distance (<-> operator) by default. (ivfflat index created during migration.)
  *  - If pgvector / column not present, methods degrade to empty results instead of throwing to keep
  *    higher-layer logic resilient in partial test environments.
+ *
+ * Related: docs/bugs/004-embedding-column-mismatch.md
  */
 @Injectable()
 export class GraphVectorSearchService {
@@ -42,7 +48,7 @@ export class GraphVectorSearchService {
     startParamIndex: number,
     excludeId?: { placeholder: string }
   ): { clause: string; params: any[]; nextIndex: number } {
-    const filters: string[] = ['embedding_vec IS NOT NULL'];
+    const filters: string[] = ['embedding_v2 IS NOT NULL'];
     const params: any[] = [];
     let paramIndex = startParamIndex;
     if (excludeId) {
@@ -101,10 +107,10 @@ export class GraphVectorSearchService {
       nextIndex,
     } = this.buildDynamicFilters(opts, 2);
     // organization_id removed from graph_objects schema in Phase 5
-    const sql = `SELECT id, project_id, branch_id, (embedding_vec <=> $1::vector) AS distance
+    const sql = `SELECT id, project_id, branch_id, (embedding_v2 <=> $1::vector) AS distance
                      FROM kb.graph_objects
                      ${clause}
-                     ORDER BY embedding_vec <=> $1::vector
+                     ORDER BY embedding_v2 <=> $1::vector
                      LIMIT $${nextIndex}`;
     try {
       const res = await this.db.query<{
@@ -127,7 +133,7 @@ export class GraphVectorSearchService {
       }));
     } catch (e) {
       const msg = (e as Error).message || '';
-      if (/column "embedding_vec"/.test(msg) || /does not exist/.test(msg)) {
+      if (/column "embedding_v2"/.test(msg) || /does not exist/.test(msg)) {
         this.logger.warn(
           'Vector search skipped (column or extension missing): ' + msg
         );
@@ -144,16 +150,16 @@ export class GraphVectorSearchService {
     opts: VectorSearchOptions = {}
   ): Promise<VectorSearchResultRow[]> {
     if (!this.db.isOnline()) return [];
-    const vecRes = await this.db.query<{ embedding_vec: any }>(
-      'SELECT embedding_vec FROM kb.graph_objects WHERE id=$1',
+    const vecRes = await this.db.query<{ embedding_v2: any }>(
+      'SELECT embedding_v2 FROM kb.graph_objects WHERE id=$1',
       [objectId]
     );
-    if (!vecRes.rowCount || !vecRes.rows[0].embedding_vec) return [];
+    if (!vecRes.rowCount || !vecRes.rows[0].embedding_v2) return [];
     // pgvector returns as string like '[1,2,...]' or an array depending on driver; re-emit literal for operator usage.
     const literal =
-      typeof vecRes.rows[0].embedding_vec === 'string'
-        ? vecRes.rows[0].embedding_vec
-        : `[${(vecRes.rows[0].embedding_vec as number[]).join(',')}]`;
+      typeof vecRes.rows[0].embedding_v2 === 'string'
+        ? vecRes.rows[0].embedding_v2
+        : `[${(vecRes.rows[0].embedding_v2 as number[]).join(',')}]`;
     const limit = Math.max(1, Math.min(100, opts.limit ?? 10));
     const {
       clause,
@@ -161,10 +167,10 @@ export class GraphVectorSearchService {
       nextIndex,
     } = this.buildDynamicFilters(opts, 3, { placeholder: '$1' });
     // organization_id removed from graph_objects schema in Phase 5
-    const sql = `SELECT id, project_id, branch_id, (embedding_vec <=> $2::vector) AS distance
+    const sql = `SELECT id, project_id, branch_id, (embedding_v2 <=> $2::vector) AS distance
                      FROM kb.graph_objects
                      ${clause}
-                     ORDER BY embedding_vec <=> $2::vector
+                     ORDER BY embedding_v2 <=> $2::vector
                      LIMIT $${nextIndex}`;
     try {
       const res = await this.db.query<{
@@ -187,7 +193,7 @@ export class GraphVectorSearchService {
       }));
     } catch (e) {
       const msg = (e as Error).message || '';
-      if (/column "embedding_vec"/.test(msg) || /does not exist/.test(msg)) {
+      if (/column "embedding_v2"/.test(msg) || /does not exist/.test(msg)) {
         this.logger.warn(
           'Vector similarity skipped (column or extension missing): ' + msg
         );

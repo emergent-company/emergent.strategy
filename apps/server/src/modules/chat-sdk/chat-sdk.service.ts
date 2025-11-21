@@ -161,7 +161,17 @@ export class ChatSdkService {
 
           if (types.length > 0) {
             const schemaSummary = types
-              .map((t) => `- ${t.type}: ${t.description || 'No description'}`)
+              .map((t) => {
+                const props =
+                  t.json_schema &&
+                  typeof t.json_schema === 'object' &&
+                  'properties' in t.json_schema
+                    ? Object.keys((t.json_schema as any).properties).join(', ')
+                    : 'No specific attributes';
+                return `- ${t.type}: ${
+                  t.description || 'No description'
+                }. Attributes: ${props}.`;
+              })
               .join('\n');
 
             systemMessage = `You are a helpful AI assistant with access to a knowledge graph database.
@@ -173,7 +183,24 @@ You have tools to:
 2. Query specific objects with filters (query_graph_objects)
 3. Inspect detailed schema definitions (get_database_schema)
 
-When asked to find objects, prefer 'query_graph_objects' for specific criteria (status, type, etc.) and 'search_knowledge_base' for general information.`;
+When asked to find objects, prefer 'query_graph_objects' for specific criteria (status, type, etc.) and 'search_knowledge_base' for general information.
+
+# Instructions: Finding Related Objects (No SQL)
+
+**Core Directive:** Do NOT use SQL. Use your graph tools.
+
+1. **Find Object & Connections:** Use \`search_knowledge_base(query="Entity Name")\`. This tool returns objects AND their immediate relationships (e.g., "parent of", "depends on") in the \`relationships\` field.
+2. **Traverse Deeper:** If you need more specific connections:
+   - Get the \`id\` (UUID) from the search result.
+   - Use \`query_graph_objects(related_to_id="UUID", ...)\` to find connected items (e.g., "Find all Tasks related to Project X").
+
+CRITICAL: When referencing ANY graph object in your response (whether from search, query, or schema tools), you MUST use one of these exact formats to render a UI card:
+- [[key|name]] (for named references like [[TASK-123|Fix Login Bug]])
+- @[key] (for ID-only references like @[TASK-123])
+
+Do NOT use @[key|name].
+Do NOT use standard markdown links [name](url) for graph objects.
+NEVER use the UUID (e.g., @400c0654...) in your text response. UUIDs are INTERNAL ONLY for tool arguments.`;
           }
         } catch (error) {
           this.logger.warn(

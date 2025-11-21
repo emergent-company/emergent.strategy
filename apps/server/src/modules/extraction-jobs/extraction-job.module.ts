@@ -7,7 +7,6 @@ import { ExtractionLoggerService } from './extraction-logger.service';
 import { RateLimiterService } from './rate-limiter.service';
 import { ConfidenceScorerService } from './confidence-scorer.service';
 import { EntityLinkingService } from './entity-linking.service';
-import { VertexAIProvider } from './llm/vertex-ai.provider';
 import { LangChainGeminiProvider } from './llm/langchain-gemini.provider';
 import { LLMProviderFactory } from './llm/llm-provider.factory';
 import { DatabaseModule } from '../../common/database/database.module';
@@ -40,7 +39,6 @@ import { ObjectExtractionLog } from '../../entities/object-extraction-log.entity
  * - ConfidenceScorerService: Multi-factor confidence calculation for extracted entities
  * - EntityLinkingService: Intelligent entity linking to avoid duplicates and merge information
  * - LangChainGeminiProvider: LangChain + Google Gemini (primary, consistent with chat service)
- * - VertexAIProvider: Google Vertex AI Gemini (legacy fallback)
  * - LLMProviderFactory: Multi-provider abstraction for future extensibility
  */
 @Module({
@@ -69,7 +67,6 @@ import { ObjectExtractionLog } from '../../entities/object-extraction-log.entity
     ConfidenceScorerService,
     EntityLinkingService,
     LangChainGeminiProvider,
-    VertexAIProvider,
     LLMProviderFactory,
   ],
   controllers: [ExtractionJobController],

@@ -38,6 +38,7 @@ export function DataTable<T extends TableDataItem>({
   renderCard,
   onRowClick,
   onSelectionChange,
+  onSearch,
   emptyMessage = 'No data available.',
   emptyIcon = 'lucide--inbox',
   noResultsMessage = 'No items match current filters.',
@@ -76,6 +77,16 @@ export function DataTable<T extends TableDataItem>({
         document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [openDropdown]);
+
+  // Debounce search
+  useEffect(() => {
+    if (onSearch) {
+      const timeoutId = setTimeout(() => {
+        onSearch(searchQuery);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchQuery, onSearch]);
 
   // Filter and search data
   const filteredData = useMemo(() => {

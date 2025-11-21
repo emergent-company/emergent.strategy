@@ -17,9 +17,13 @@ export function createObjectQueryTool(
   return new DynamicStructuredTool({
     name: 'query_graph_objects',
     description: `Query graph objects with advanced filtering.
-Supports filtering by type, properties (equality, comparison), and relationships.
-Use this when the user asks to find specific objects based on criteria.
-Properties can be exact values or use operators: $gt, $lt, $gte, $lte, $ne, $in.`,
+Supports filtering by type, properties (equality, comparison, pattern matching), and relationships.
+Use this when the user asks to find specific objects based on criteria (e.g. "tasks with status Done", "people named John").
+Properties can be exact values or use operators: $gt, $lt, $gte, $lte, $ne, $in, $ilike.
+IMPORTANT: Operator '$eq' is NOT supported. For equality, simply use the value directly.
+Example - Correct: { "status": "Done" }
+Example - Incorrect: { "status": { "$eq": "Done" } }
+For "starts with", use $ilike with %. Example: { "name": { "$ilike": "M%" } }`,
     schema: z.object({
       type: z.string().optional().describe('Filter by object type'),
       query: z.string().optional().describe('Full-text search query'),
@@ -27,7 +31,7 @@ Properties can be exact values or use operators: $gt, $lt, $gte, $lte, $ne, $in.
         .record(z.any())
         .optional()
         .describe(
-          'Property filters with operators ($gt, $lt, $in, etc) or direct values'
+          'Property filters with operators ($gt, $lt, $in, $ilike, etc) or direct values. DO NOT use $eq. Use $ilike for partial text matches (e.g. "M%").'
         ),
       related_to_id: z
         .string()
@@ -38,6 +42,21 @@ Properties can be exact values or use operators: $gt, $lt, $gte, $lte, $ne, $in.
     func: async (input: any): Promise<string> => {
       try {
         const { type, query, properties, related_to_id, limit = 20 } = input;
+
+        // Validate properties for unsupported operators
+        if (properties) {
+          for (const key in properties) {
+            const value = properties[key];
+            if (typeof value === 'object' && value !== null) {
+              const operators = Object.keys(value);
+              if (operators.includes('$eq')) {
+                throw new Error(
+                  "Error: Operator '$eq' is not supported. For equality, use the value directly (e.g. { 'name': 'Value' }). Supported operators are: $gt, $lt, $gte, $lte, $ne, $in, $ilike."
+                );
+              }
+            }
+          }
+        }
 
         let results;
         if (query) {

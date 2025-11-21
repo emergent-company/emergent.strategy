@@ -84,7 +84,7 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
     }
   }
 
-  async generate(text: string): Promise<Buffer> {
+  async generate(text: string): Promise<number[]> {
     if (!this.config.embeddingsEnabled) {
       throw new Error('embeddings_disabled');
     }
@@ -154,9 +154,8 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
         throw new Error('No embedding values returned from Vertex AI');
       }
 
-      // Convert to Float32Array buffer (standard format for vector storage)
-      const floatArray = new Float32Array(values);
-      return Buffer.from(floatArray.buffer);
+      // Return as number array for pgvector compatibility
+      return values as number[];
     } catch (err) {
       // Fallback path: log once per process to reduce noise
       if (!this.loggedFallback) {
@@ -174,15 +173,18 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
   private async deterministicStub(
     text: string,
     prefix: string
-  ): Promise<Buffer> {
+  ): Promise<number[]> {
     const crypto = await import('crypto');
     const hash = crypto
       .createHash('sha256')
       .update(prefix + text)
       .digest();
-    const target = 128;
-    const out = Buffer.alloc(target);
-    for (let i = 0; i < target; i++) out[i] = hash[i % hash.length];
+    const target = 768; // Match embedding_v2 dimension
+    const out: number[] = [];
+    for (let i = 0; i < target; i++) {
+      // Normalize to [-1, 1] range like real embeddings
+      out.push((hash[i % hash.length] / 255) * 2 - 1);
+    }
     return out;
   }
 }

@@ -108,6 +108,14 @@ export class GraphObject {
   })
   embeddingV1!: number[] | null;
 
+  @Column({
+    name: 'embedding_v2',
+    type: 'vector',
+    length: 768,
+    nullable: true,
+  })
+  embeddingV2!: number[] | null;
+
   // Relations
   @ManyToOne(() => Project, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'project_id' })

@@ -138,7 +138,10 @@ const otherRoutes: IRoutesProps[] = [
   { path: '/', element: cw(lazy(() => import('@/pages/landing'))) },
   { path: '/landing', element: cw(lazy(() => import('@/pages/landing'))) },
   { path: '/chat', element: cw(lazy(() => import('@/pages/chat'))) },
-  { path: '/chat-sdk', element: cw(lazy(() => import('@/pages/chat-sdk'))) },
+  {
+    path: '/chat-sdk/:id?',
+    element: cw(lazy(() => import('@/pages/chat-sdk'))),
+  },
   { path: '*', element: cw(lazy(() => import('@/pages/not-found'))) },
 ];
 

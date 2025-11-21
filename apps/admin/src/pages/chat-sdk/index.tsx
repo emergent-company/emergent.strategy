@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useChat } from '@ai-sdk/react';
+import { useParams, useNavigate } from 'react-router';
 import { DefaultChatTransport } from 'ai';
 import type { UIMessage } from '@ai-sdk/react';
 import { useApi } from '@/hooks/use-api';
@@ -15,6 +16,8 @@ import {
 import { SidebarProjectDropdown } from '@/components/organisms/SidebarProjectDropdown';
 
 export default function ChatSdkPage() {
+  const { id: urlConversationId } = useParams();
+  const navigate = useNavigate();
   const [input, setInput] = useState('');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<
@@ -97,7 +100,67 @@ export default function ChatSdkPage() {
     }
   }, [apiBase, buildHeaders]);
 
-  // Initialize: Load conversations and navigate to the most recent one
+  const loadConversationMessages = useCallback(
+    async (conversationId: string) => {
+      // If we're already on this conversation and not loading, skip (optional optimization, but be careful with initial load)
+      // For now, we trust the caller to only call this when needed.
+
+      setActiveConversationId(conversationId);
+      setIsLoadingConversation(true);
+
+      try {
+        // Fetch conversation messages from backend
+        const response = await fetch(
+          `${apiBase}/api/chat-ui/conversations/${conversationId}`,
+          {
+            headers: buildHeaders({ json: false }),
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+
+          // Transform backend messages to AI SDK UIMessage format
+          const formattedMessages: UIMessage[] = data.messages.map(
+            (msg: any) => ({
+              id: msg.id,
+              role: msg.role as 'user' | 'assistant',
+              parts: [
+                {
+                  type: 'text' as const,
+                  text: msg.content,
+                },
+              ],
+            })
+          );
+
+          // Load messages into the chat
+          setMessages(formattedMessages);
+
+          // Load draft text if conversation has no messages
+          if (data.messages.length === 0 && data.draftText) {
+            console.log('[ChatSDK] Loading draft text:', data.draftText);
+            setInput(data.draftText);
+          } else {
+            setInput('');
+          }
+        } else {
+          console.error('Failed to load conversation:', response.statusText);
+        }
+      } catch (err) {
+        console.error('Failed to load conversation:', err);
+      } finally {
+        setIsLoadingConversation(false);
+      }
+    },
+    [apiBase, buildHeaders, setMessages]
+  );
+
+  const handleSelectConversation = (conv: Conversation) => {
+    navigate(`/chat-sdk/${conv.id}`);
+  };
+
+  // Initialize: Load conversations. If no ID in URL, find most recent and navigate.
   useEffect(() => {
     // Prevent double initialization
     if (hasInitialized.current) {
@@ -108,56 +171,79 @@ export default function ChatSdkPage() {
     const initializeChat = async () => {
       await fetchConversations();
 
-      // After fetching conversations, load the most recent one
-      const response = await fetch(`${apiBase}/api/chat-ui/conversations`, {
-        headers: buildHeaders({ json: false }),
-      });
+      // If we already have an ID in the URL, the sync effect will handle loading.
+      // We only need to handle the default case (no ID).
+      if (!urlConversationId) {
+        const response = await fetch(`${apiBase}/api/chat-ui/conversations`, {
+          headers: buildHeaders({ json: false }),
+        });
 
-      if (response.ok) {
-        const convos = await response.json();
+        if (response.ok) {
+          const convos = await response.json();
 
-        if (convos.length > 0) {
-          // Load the most recent conversation (already sorted by updatedAt DESC from backend)
-          const mostRecentConvo = convos[0];
-          console.log(
-            '[ChatSDK] Loading most recent conversation:',
-            mostRecentConvo.id
-          );
+          if (convos.length > 0) {
+            // Load the most recent conversation
+            const mostRecentConvo = convos[0];
+            console.log(
+              '[ChatSDK] No ID in URL, redirecting to most recent:',
+              mostRecentConvo.id
+            );
+            navigate(`/chat-sdk/${mostRecentConvo.id}`, { replace: true });
+          } else {
+            // No conversations exist - create one
+            console.log(
+              '[ChatSDK] No conversations found. Creating initial conversation.'
+            );
 
-          // Load the conversation (this will fetch messages and draft text)
-          await handleSelectConversation(mostRecentConvo);
-        } else {
-          // No conversations exist - create one so user can start typing
-          console.log(
-            '[ChatSDK] No conversations found. Creating initial conversation.'
-          );
+            const createResponse = await fetch(
+              `${apiBase}/api/chat-sdk/conversations`,
+              {
+                method: 'POST',
+                headers: buildHeaders({ json: true }),
+                body: JSON.stringify({
+                  title: 'New conversation',
+                  projectId: config.activeProjectId,
+                }),
+              }
+            );
 
-          const createResponse = await fetch(
-            `${apiBase}/api/chat-sdk/conversations`,
-            {
-              method: 'POST',
-              headers: buildHeaders({ json: true }),
-              body: JSON.stringify({
-                title: 'New conversation',
-                projectId: config.activeProjectId,
-              }),
+            if (createResponse.ok) {
+              const newConvo = await createResponse.json();
+              console.log(
+                '[ChatSDK] Created initial conversation:',
+                newConvo.id
+              );
+              // Update URL to the new conversation
+              navigate(`/chat-sdk/${newConvo.id}`, { replace: true });
+              await fetchConversations();
             }
-          );
-
-          if (createResponse.ok) {
-            const newConvo = await createResponse.json();
-            console.log('[ChatSDK] Created initial conversation:', newConvo.id);
-            setActiveConversationId(newConvo.id);
-            setMessages([]);
-            setInput('');
-            await fetchConversations();
           }
         }
       }
     };
 
     initializeChat();
-  }, []); // Empty deps - run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount
+
+  // Sync URL ID with active conversation state
+  useEffect(() => {
+    if (urlConversationId && urlConversationId !== activeConversationId) {
+      console.log('[ChatSDK] URL ID changed, loading:', urlConversationId);
+      loadConversationMessages(urlConversationId);
+    } else if (!urlConversationId && activeConversationId) {
+      // URL cleared, clear state
+      console.log('[ChatSDK] URL ID cleared, clearing state');
+      setActiveConversationId(undefined);
+      setMessages([]);
+      setInput('');
+    }
+  }, [
+    urlConversationId,
+    activeConversationId,
+    loadConversationMessages,
+    setMessages,
+  ]);
 
   // Refresh conversations after sending a message
   useEffect(() => {
@@ -225,23 +311,26 @@ export default function ChatSdkPage() {
   };
 
   // Action handlers for message interactions
-  const handleCopy = (content: string) => {
-    showToast({
-      message: 'Message copied to clipboard',
-      variant: 'success',
-      duration: 2000,
-    });
-  };
+  const handleCopy = useCallback(
+    (content: string) => {
+      showToast({
+        message: 'Message copied to clipboard',
+        variant: 'success',
+        duration: 2000,
+      });
+    },
+    [showToast]
+  );
 
-  const handleThumbsUp = () => {
+  const handleThumbsUp = useCallback(() => {
     console.log('Thumbs up feedback');
     // TODO: Send feedback to analytics
-  };
+  }, []);
 
-  const handleThumbsDown = () => {
+  const handleThumbsDown = useCallback(() => {
     console.log('Thumbs down feedback');
     // TODO: Send feedback to analytics
-  };
+  }, []);
 
   const handleNewChat = async () => {
     console.log('[ChatSDK] Creating new conversation');
@@ -266,15 +355,14 @@ export default function ChatSdkPage() {
       const data = await response.json();
       console.log('[ChatSDK] Backend created conversation:', data.id);
 
-      // Set the backend-generated UUID as the active conversation
-      setActiveConversationId(data.id);
-      setMessages([]);
-      setInput('');
-
       // Refresh conversation list to show the new conversation
       await fetchConversations();
 
-      console.log('[ChatSDK] New conversation created and list refreshed');
+      console.log(
+        '[ChatSDK] New conversation created, navigating to:',
+        data.id
+      );
+      navigate(`/chat-sdk/${data.id}`);
     } catch (err) {
       console.error('[ChatSDK] Failed to create conversation:', err);
       showToast({
@@ -282,56 +370,6 @@ export default function ChatSdkPage() {
         variant: 'error',
         duration: 3000,
       });
-    }
-  };
-
-  const handleSelectConversation = async (conv: Conversation) => {
-    setActiveConversationId(conv.id);
-    setIsLoadingConversation(true);
-
-    try {
-      // Fetch conversation messages from backend
-      const response = await fetch(
-        `${apiBase}/api/chat-ui/conversations/${conv.id}`,
-        {
-          headers: buildHeaders({ json: false }),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-
-        // Transform backend messages to AI SDK UIMessage format
-        const formattedMessages: UIMessage[] = data.messages.map(
-          (msg: any) => ({
-            id: msg.id,
-            role: msg.role as 'user' | 'assistant',
-            parts: [
-              {
-                type: 'text' as const,
-                text: msg.content,
-              },
-            ],
-          })
-        );
-
-        // Load messages into the chat
-        setMessages(formattedMessages);
-
-        // Load draft text if conversation has no messages
-        if (data.messages.length === 0 && data.draftText) {
-          console.log('[ChatSDK] Loading draft text:', data.draftText);
-          setInput(data.draftText);
-        } else {
-          setInput('');
-        }
-      } else {
-        console.error('Failed to load conversation:', response.statusText);
-      }
-    } catch (err) {
-      console.error('Failed to load conversation:', err);
-    } finally {
-      setIsLoadingConversation(false);
     }
   };
 
@@ -349,8 +387,7 @@ export default function ChatSdkPage() {
       if (response.ok) {
         fetchConversations();
         if (activeConversationId === convId) {
-          setActiveConversationId(undefined);
-          setMessages([]);
+          navigate('/chat-sdk');
         }
       }
     } catch (err) {

@@ -74,7 +74,12 @@
     "log:clickup": "node scripts/pretty-print-log.js logs/clickup-import/*.jsonl",
     "sync:instructions": "node scripts/sync-agent-instructions.mjs",
     "seed:bible-template": "tsx scripts/seed-bible-template-pack.ts",
-    "seed:bible": "tsx scripts/seed-bible-documents.ts"
+    "seed:bible": "tsx scripts/seed-bible-documents.ts",
+    "migrate:bible-v1-to-v2": "tsx scripts/migrate-bible-v1-to-v2.ts",
+    "reset-embedding-jobs": "tsx scripts/reset-embedding-jobs.ts",
+    "reset-embedding-jobs:execute": "tsx scripts/reset-embedding-jobs.ts --execute",
+    "backfill-chunk-embeddings": "tsx scripts/backfill-chunk-embeddings.ts",
+    "backfill-chunk-embeddings:execute": "tsx scripts/backfill-chunk-embeddings.ts --execute"
   },
   "dependencies": {
     "@ai-sdk/langchain": "^1.0.97",
@@ -84,6 +89,7 @@
     "@langchain/google-genai": "^1.0.3",
     "@langchain/google-vertexai": "^1.0.3",
     "@langchain/langgraph": "^1.0.2",
+    "@langchain/langgraph-checkpoint-postgres": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.1.7",
     "@nestjs/common": "^10.3.0",
     "@nestjs/core": "^10.3.0",
