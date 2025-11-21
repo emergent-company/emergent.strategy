@@ -60,7 +60,13 @@ export class PostgresCacheService {
       });
 
       if (!cached) {
-        this.logger.debug('Cache miss');
+        const totalCount = await this.cacheRepository.count();
+        this.logger.debug(
+          `Cache miss for token hash ${tokenHash} (first chars: ${token.substring(
+            0,
+            10
+          )}...). Total cache entries: ${totalCount}`
+        );
         return null;
       }
 

@@ -170,7 +170,21 @@ The workspace provides custom OpenCode tools for common development tasks:
     ```
     Chromium is preferred to avoid conflicts with your regular Chrome instance.
 
-## 5. Available MCP Tools
+## 5. AI SDK Documentation
+
+When working with Vercel AI SDK features, refer to the official documentation:
+
+- **AI SDK Documentation:** https://ai-sdk.dev/llms.txt
+- **Key Topics:**
+  - `useChat` hook for chat interfaces
+  - `streamText` for streaming responses
+  - `DefaultChatTransport` for custom transports
+  - AI SDK Core patterns and best practices
+  - Tool calling and multi-modal support
+
+**Important:** Always check the official AI SDK documentation for the latest API patterns and best practices.
+
+## 6. Available MCP Tools
 
 The workspace has several MCP (Model Context Protocol) servers configured for enhanced AI assistance:
 
@@ -315,7 +329,7 @@ AI:
 - Only use in development - never with production credentials or sensitive data
 - The browser stays open until manually closed or script is interrupted (Ctrl+C)
 
-## 6. Bug Reports and Improvement Suggestions
+## 7. Bug Reports and Improvement Suggestions
 
 The workspace provides structured documentation for bugs and improvements to help track issues and enhancement ideas systematically.
 

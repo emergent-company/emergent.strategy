@@ -13,8 +13,5 @@
     "start": "tsx src/cli.ts start --workspace",
     "start:all": "tsx src/cli.ts start --all"
   },
-  "dependencies": {
-    "pm2": "^5.4.2",
-    "pm2-logrotate": "^2.7.0"
-  }
+  "dependencies": {}
 }

@@ -9,12 +9,8 @@
       "args": ["@playwright/mcp@latest", "--timeout-action=10000"]
     },
     "postgres": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-postgres",
-        "postgresql://spec:spec@localhost:5436/spec"
-      ]
+      "command": "./scripts/mcp-postgres-wrapper.sh",
+      "args": []
     },
     "context7": {
       "type": "stdio",

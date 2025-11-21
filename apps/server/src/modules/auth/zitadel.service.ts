@@ -108,6 +108,18 @@ export class ZitadelService implements OnModuleInit {
   private apiServiceAccountKey?: ZitadelServiceAccountKey;
   private cachedApiToken?: CachedToken;
 
+  // Promise coalescing to prevent thundering herd
+  private clientTokenPromise: Promise<string> | null = null;
+  private apiTokenPromise: Promise<string> | null = null;
+  private introspectionPromises = new Map<
+    string,
+    Promise<IntrospectionResult | null>
+  >();
+
+  // Circuit breaker for Zitadel 500 errors
+  private lastFailureTime = 0;
+  private readonly CIRCUIT_BREAKER_COOLDOWN = 30000; // 30 seconds
+
   constructor(private readonly cacheService: PostgresCacheService) {}
 
   onModuleInit(): void {
@@ -207,20 +219,44 @@ export class ZitadelService implements OnModuleInit {
       return this.cachedApiToken.token;
     }
 
+    // Return existing promise if request in progress
+    if (this.apiTokenPromise) {
+      return this.apiTokenPromise;
+    }
+
     this.logger.debug('Requesting new API service account token');
-    const assertion = await this.createJwtAssertion(accountToUse);
-    const token = await this.requestAccessToken(assertion);
 
-    // Cache token with 1 minute safety margin
-    this.cachedApiToken = {
-      token: token.access_token,
-      expiresAt: Date.now() + (token.expires_in - 60) * 1000,
-    };
+    // Create promise for the request
+    this.apiTokenPromise = (async () => {
+      try {
+        const assertion = await this.createJwtAssertion(accountToUse);
+        const token = await this.requestAccessToken(assertion);
 
-    this.logger.log(
-      `API service account token acquired (expires in ${token.expires_in}s)`
-    );
-    return token.access_token;
+        const expiresIn = Number(token.expires_in);
+
+        // Cache token with 1 minute safety margin
+        this.cachedApiToken = {
+          token: token.access_token,
+          expiresAt: Date.now() + (expiresIn - 60) * 1000,
+        };
+
+        this.logger.log(
+          `API service account token acquired (expires in ${expiresIn}s)`
+        );
+        return token.access_token;
+      } catch (err) {
+        this.logger.error(
+          `Failed to acquire API token: ${(err as Error).message}`,
+          (err as Error).stack
+        );
+        throw err;
+      } finally {
+        // Clear promise when done
+        this.apiTokenPromise = null;
+      }
+    })();
+
+    return this.apiTokenPromise;
   }
 
   /**
@@ -237,6 +273,11 @@ export class ZitadelService implements OnModuleInit {
       throw new Error('CLIENT service account not configured');
     }
 
+    // Check circuit breaker
+    if (Date.now() - this.lastFailureTime < this.CIRCUIT_BREAKER_COOLDOWN) {
+      throw new Error('Zitadel circuit breaker open');
+    }
+
     // Return cached token if still valid
     if (
       this.cachedClientToken &&
@@ -246,22 +287,84 @@ export class ZitadelService implements OnModuleInit {
       return this.cachedClientToken.token;
     }
 
+    if (this.cachedClientToken) {
+      this.logger.debug(
+        `Cached CLIENT token expired (expiresAt: ${
+          this.cachedClientToken.expiresAt
+        }, now: ${Date.now()})`
+      );
+    } else {
+      this.logger.debug('No cached CLIENT token available');
+    }
+
+    // Return existing promise if request in progress
+    if (this.clientTokenPromise) {
+      const token = await this.clientTokenPromise;
+      if (token) return token;
+      // If null (failed previously), continue to retry
+    }
+
     this.logger.debug('Requesting new CLIENT service account token');
-    const assertion = await this.createJwtAssertion(
-      this.clientServiceAccountKey
-    );
-    const token = await this.requestAccessToken(assertion);
 
-    // Cache token with 1 minute safety margin
-    this.cachedClientToken = {
-      token: token.access_token,
-      expiresAt: Date.now() + (token.expires_in - 60) * 1000,
-    };
+    // Create promise for the request
+    this.clientTokenPromise = (async () => {
+      try {
+        this.logger.debug('Starting CLIENT token acquisition...');
+        const assertion = await this.createJwtAssertion(
+          this.clientServiceAccountKey!
+        );
+        this.logger.debug('JWT assertion created, requesting token...');
+        const token = await this.requestAccessToken(assertion);
 
-    this.logger.log(
-      `CLIENT service account token acquired (expires in ${token.expires_in}s)`
-    );
-    return token.access_token;
+        // Robust expiration parsing
+        let expiresIn = 3600; // Default to 1 hour
+        if (token.expires_in !== undefined && token.expires_in !== null) {
+          const parsed = Number(token.expires_in);
+          if (!isNaN(parsed) && parsed > 0) {
+            expiresIn = parsed;
+          }
+        }
+
+        // Redact access_token for logging
+        const loggableToken = { ...token, access_token: 'REDACTED' };
+        this.logger.debug(
+          `Zitadel Token Response: ${JSON.stringify(
+            loggableToken
+          )} (expires_in used: ${expiresIn})`
+        );
+
+        this.logger.debug(
+          `Zitadel Token Response: expires_in=${token.expires_in} (used: ${expiresIn})`
+        );
+
+        // Cache token with 1 minute safety margin
+        this.cachedClientToken = {
+          token: token.access_token,
+          expiresAt: Date.now() + (expiresIn - 60) * 1000,
+        };
+
+        this.logger.log(
+          `CLIENT service account token acquired (expires in ${expiresIn}s)`
+        );
+        return token.access_token;
+      } catch (err) {
+        this.logger.error(
+          `Failed to acquire CLIENT token: ${(err as Error).message}`,
+          (err as Error).stack
+        );
+        throw err; // MUST THROW so that result below catches it and doesn't see null
+      } finally {
+        // Clear promise when done
+        this.logger.debug('Clearing clientTokenPromise');
+        this.clientTokenPromise = null;
+      }
+    })();
+
+    const result = await this.clientTokenPromise;
+    if (!result) {
+      throw new Error('Failed to acquire CLIENT token (promise returned null)');
+    }
+    return result;
   }
 
   /**
@@ -285,6 +388,14 @@ export class ZitadelService implements OnModuleInit {
       return null;
     }
 
+    // Check circuit breaker
+    if (Date.now() - this.lastFailureTime < this.CIRCUIT_BREAKER_COOLDOWN) {
+      this.logger.debug(
+        'Circuit breaker open (recent 500 error), skipping introspection'
+      );
+      return null;
+    }
+
     // Check cache first
     const cached = await this.cacheService.get(token);
     if (cached) {
@@ -292,46 +403,93 @@ export class ZitadelService implements OnModuleInit {
       return cached.data as IntrospectionResult;
     }
 
+    // Check if request for this token is already in progress
+    const existingPromise = this.introspectionPromises.get(token);
+    if (existingPromise) {
+      return existingPromise;
+    }
+
     // Cache miss - call Zitadel
     this.logger.debug('Introspection cache miss, calling Zitadel');
-    const serviceToken = await this.getClientAccessToken();
-    const apiUrl = `${this.getBaseUrl()}/oauth/v2/introspect`;
 
-    try {
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Authorization: `Bearer ${serviceToken}`,
-        },
-        body: new URLSearchParams({
-          token,
-          token_type_hint: 'access_token',
-        }),
-      });
+    const promise = (async () => {
+      try {
+        const serviceToken = await this.getClientAccessToken();
+        const apiUrl = `${this.getBaseUrl()}/oauth/v2/introspect`;
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        this.logger.error(
-          `Introspection failed (${response.status}): ${errorText}`
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: `Bearer ${serviceToken}`,
+          },
+          body: new URLSearchParams({
+            token,
+            token_type_hint: 'access_token',
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          this.logger.error(
+            `Introspection failed (${response.status}): ${errorText}`
+          );
+          return null;
+        }
+
+        const result = (await response.json()) as IntrospectionResult;
+
+        this.logger.log(
+          `Introspection result: active=${result.active}, exp=${
+            result.exp
+          } (type: ${typeof result.exp})`
         );
-        return null;
-      }
 
-      const result = (await response.json()) as IntrospectionResult;
+        let expiresAt: Date;
 
-      // Cache successful introspection
-      if (result.active && result.exp) {
-        const expiresAt = new Date(result.exp * 1000);
+        if (result.active) {
+          if (result.exp) {
+            expiresAt = new Date(result.exp * 1000);
+          } else {
+            // Default to 5 minutes if exp missing
+            // This prevents "cache miss storm" when Zitadel doesn't return exp
+            this.logger.warn(
+              'Introspection active but missing "exp", defaulting cache to 5m'
+            );
+            expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+          }
+
+          // Verify date is valid and in future
+          if (isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+            this.logger.warn(
+              `Introspection 'exp' resulted in invalid or past date: ${expiresAt.toISOString()} (exp claim: ${
+                result.exp
+              }). Defaulting to 5m.`
+            );
+            expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+          }
+        } else {
+          // Cache inactive tokens for 5 minutes to prevent repeated calls for the same invalid token
+          expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+        }
+
         await this.cacheService.set(token, result, expiresAt);
-        this.logger.debug('Introspection result cached');
-      }
+        this.logger.debug(
+          `Introspection result cached (active: ${result.active})`
+        );
 
-      return result;
-    } catch (error) {
-      this.logger.error(`Introspection error: ${(error as Error).message}`);
-      return null;
-    }
+        return result;
+      } catch (error) {
+        this.logger.error(`Introspection error: ${(error as Error).message}`);
+        return null;
+      } finally {
+        // Remove promise from map when done
+        this.introspectionPromises.delete(token);
+      }
+    })();
+
+    this.introspectionPromises.set(token, promise);
+    return promise;
   }
 
   /**
@@ -784,6 +942,9 @@ export class ZitadelService implements OnModuleInit {
       );
       try {
         keyJson = readFileSync(jwtPath, 'utf-8');
+        this.logger.debug(
+          `Raw file content keyId: ${JSON.parse(keyJson).keyId}`
+        );
       } catch (error) {
         throw new Error(
           `Failed to read ${accountType} service account key from ${jwtPath}: ${
@@ -915,7 +1076,13 @@ export class ZitadelService implements OnModuleInit {
           type: 'pkcs8',
           format: 'pem',
         }) as string;
-        this.logger.debug('Successfully converted PKCS#1 to PKCS#8');
+
+        // Update the key in the source object to prevent re-conversion on next call
+        serviceAccountKey.key = keyToImport;
+
+        this.logger.debug(
+          'Successfully converted PKCS#1 to PKCS#8 and updated cached key'
+        );
       } catch (conversionError) {
         this.logger.error(
           'Failed to convert PKCS#1 to PKCS#8:',
@@ -940,9 +1107,14 @@ export class ZitadelService implements OnModuleInit {
 
     const now = Math.floor(Date.now() / 1000);
     // Use clientId for both issuer and subject (matches Zitadel SDK implementation)
-    const issuer = serviceAccountKey.clientId!;
-    const subject = serviceAccountKey.clientId!;
+    // Fall back to userId for service accounts (which don't have clientId)
+    const issuer = serviceAccountKey.clientId || serviceAccountKey.userId!;
+    const subject = serviceAccountKey.clientId || serviceAccountKey.userId!;
     const audience = this.getBaseUrl();
+
+    this.logger.debug(
+      `Creating JWT assertion with: issuer=${issuer}, subject=${subject}, audience=${audience}, kid=${serviceAccountKey.keyId}`
+    );
 
     const jwt = await new jose.SignJWT({})
       .setProtectedHeader({
@@ -987,6 +1159,17 @@ export class ZitadelService implements OnModuleInit {
 
     if (!response.ok) {
       const errorText = await response.text();
+
+      // If 500 error, trip circuit breaker
+      if (response.status >= 500) {
+        this.lastFailureTime = Date.now();
+        this.logger.warn(
+          `Zitadel returned ${response.status}, tripping circuit breaker for ${
+            this.CIRCUIT_BREAKER_COOLDOWN / 1000
+          }s`
+        );
+      }
+
       throw new Error(
         `Token request failed (${response.status}): ${errorText}`
       );

@@ -4,6 +4,7 @@ import type {
   ApplicationProcessProfile,
   EnvironmentProfileId,
 } from './types.js';
+import { getRequiredEnvVar } from './env-validation.js';
 
 const WORKSPACE_NAMESPACE = 'workspace-cli';
 
@@ -15,18 +16,23 @@ const DEFAULT_RESTART_POLICY = {
   expBackoffMaxMs: 120000,
 } as const;
 
-const DEFAULT_LOG_ROOT = 'apps/logs';
+const DEFAULT_LOG_ROOT = 'logs';
 
 function buildLogConfig(serviceId: string) {
-  const serviceLogDir = path.join(DEFAULT_LOG_ROOT, serviceId);
   return {
-    outFile: path.join(serviceLogDir, 'out.log'),
-    errorFile: path.join(serviceLogDir, 'error.log'),
+    outFile: path.join(DEFAULT_LOG_ROOT, `${serviceId}.out.log`),
+    errorFile: path.join(DEFAULT_LOG_ROOT, `${serviceId}.error.log`),
   } as const;
 }
 
-const ADMIN_PORT = process.env.ADMIN_PORT || '5175';
-const SERVER_PORT = process.env.SERVER_PORT || '3001';
+// Required environment variables - will throw if not set
+function getAdminPort(): string {
+  return getRequiredEnvVar('ADMIN_PORT');
+}
+
+function getServerPort(): string {
+  return getRequiredEnvVar('SERVER_PORT');
+}
 
 const APPLICATION_PROFILES: readonly ApplicationProcessProfile[] = [
   {
@@ -38,14 +44,14 @@ const APPLICATION_PROFILES: readonly ApplicationProcessProfile[] = [
     restartPolicy: DEFAULT_RESTART_POLICY,
     logs: buildLogConfig('admin'),
     healthCheck: {
-      url: `http://localhost:${ADMIN_PORT}/__workspace_health`,
+      url: `http://localhost:${getAdminPort()}/__workspace_health`,
       timeoutMs: 15000,
     },
     dependencies: [],
     namespace: WORKSPACE_NAMESPACE,
     defaultEnabled: true,
     setupCommands: ['npm install'],
-    exposedPorts: [ADMIN_PORT],
+    exposedPorts: [getAdminPort()],
     environmentOverrides: {
       staging: {
         VITE_APP_ENV: 'staging',
@@ -64,14 +70,14 @@ const APPLICATION_PROFILES: readonly ApplicationProcessProfile[] = [
     restartPolicy: DEFAULT_RESTART_POLICY,
     logs: buildLogConfig('server'),
     healthCheck: {
-      url: `http://localhost:${SERVER_PORT}/healthz`,
+      url: `http://localhost:${getServerPort()}/healthz`,
       timeoutMs: 15000,
     },
     dependencies: [],
     namespace: WORKSPACE_NAMESPACE,
     defaultEnabled: true,
     setupCommands: ['npm install'],
-    exposedPorts: [SERVER_PORT],
+    exposedPorts: [getServerPort()],
     environmentOverrides: {
       staging: {
         NODE_ENV: 'staging',

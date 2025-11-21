@@ -1449,9 +1449,11 @@ export class GraphService {
       order?: 'asc' | 'desc';
       organization_id?: string;
       project_id?: string;
+      properties?: Record<string, any>;
+      related_to_id?: string;
     },
     ctx?: GraphTenantContext
-  ): Promise<{ items: GraphObjectDto[]; next_cursor?: string }> {
+  ): Promise<{ items: GraphObjectDto[]; next_cursor?: string; total: number }> {
     const orgFilterProvided = Object.prototype.hasOwnProperty.call(
       opts,
       'organization_id'
@@ -1481,6 +1483,8 @@ export class GraphService {
           order = 'asc',
           organization_id,
           project_id,
+          properties,
+          related_to_id,
         } = opts;
         // Head selection (may include deleted heads) followed by outer filter to exclude tombstones to avoid
         // resurfacing stale pre-delete versions.
@@ -1520,6 +1524,87 @@ export class GraphService {
           outerParams.push(label);
           outerFilters.push(`$${outerParams.length} = ANY(t.labels)`);
         }
+
+        // Property filtering (MQL-subset)
+        if (properties) {
+          for (const [propKey, propVal] of Object.entries(properties)) {
+            if (
+              typeof propVal === 'object' &&
+              propVal !== null &&
+              !Array.isArray(propVal)
+            ) {
+              // Handle operators
+              for (const [op, opVal] of Object.entries(propVal)) {
+                outerParams.push(opVal);
+                const paramIdx = outerParams.length;
+                // Safe property access for JSON path
+                // Note: We use properties->>key for text extraction
+                const propAccess = `t.properties->>'${propKey}'`;
+
+                switch (op) {
+                  case '$gt':
+                    outerFilters.push(
+                      `(${propAccess})::numeric > $${paramIdx}`
+                    );
+                    break;
+                  case '$lt':
+                    outerFilters.push(
+                      `(${propAccess})::numeric < $${paramIdx}`
+                    );
+                    break;
+                  case '$gte':
+                    outerFilters.push(
+                      `(${propAccess})::numeric >= $${paramIdx}`
+                    );
+                    break;
+                  case '$lte':
+                    outerFilters.push(
+                      `(${propAccess})::numeric <= $${paramIdx}`
+                    );
+                    break;
+                  case '$ne':
+                    // Use JSONB equality for strictness or text? Spec implies loose
+                    outerFilters.push(`${propAccess} != $${paramIdx}::text`);
+                    break;
+                  case '$in':
+                    // $in expects an array
+                    if (Array.isArray(opVal)) {
+                      // Postgres ANY needs an array
+                      outerFilters.push(
+                        `${propAccess} = ANY($${paramIdx}::text[])`
+                      );
+                    }
+                    break;
+                }
+              }
+            } else {
+              // Direct equality
+              outerParams.push(propVal);
+              outerFilters.push(
+                `t.properties->>'${propKey}' = $${outerParams.length}::text`
+              );
+            }
+          }
+        }
+
+        // Relationship filtering
+        if (related_to_id) {
+          outerParams.push(related_to_id);
+          // Check for existence of an edge to/from related_to_id
+          // We verify the edge is active (deleted_at IS NULL) and belongs to same project (implicitly)
+          // Note: We join against kb.graph_relationships r
+          // We need to ensure we pick the head version of the relationship or at least a non-deleted one.
+          // Simplified check: EXISTS a relationship where (src=t.id OR dst=t.id) AND other=related_to_id AND deleted_at IS NULL
+          outerFilters.push(`EXISTS (
+            SELECT 1 FROM kb.graph_relationships r 
+            WHERE (
+              (r.src_id = t.id AND r.dst_id = $${outerParams.length}) OR 
+              (r.dst_id = t.id AND r.src_id = $${outerParams.length})
+            )
+            AND r.deleted_at IS NULL
+          )`);
+        }
+
         if (cursor) {
           outerParams.push(new Date(cursor));
           if (order === 'desc') {
@@ -1548,7 +1633,100 @@ export class GraphService {
             rows[rows.length - 1].created_at as any
           ).toISOString();
         }
-        return { items: rows, next_cursor };
+
+        // Count query: same filters as outerFilters but excluding cursor
+        const countFilters: string[] = ['t.deleted_at IS NULL'];
+        const countParams: any[] = [...headParams];
+        if (project_id) {
+          countParams.push(project_id);
+          countFilters.push(`t.project_id = $${countParams.length}`);
+        }
+        if (type) {
+          countParams.push(type);
+          countFilters.push(`t.type = $${countParams.length}`);
+        }
+        if (key) {
+          countParams.push(key);
+          countFilters.push(`t.key = $${countParams.length}`);
+        }
+        if (label) {
+          countParams.push(label);
+          countFilters.push(`$${countParams.length} = ANY(t.labels)`);
+        }
+        // Re-apply property/relationship filters for count
+        if (properties) {
+          for (const [propKey, propVal] of Object.entries(properties)) {
+            if (
+              typeof propVal === 'object' &&
+              propVal !== null &&
+              !Array.isArray(propVal)
+            ) {
+              for (const [op, opVal] of Object.entries(propVal)) {
+                countParams.push(opVal);
+                const paramIdx = countParams.length;
+                const propAccess = `t.properties->>'${propKey}'`;
+                switch (op) {
+                  case '$gt':
+                    countFilters.push(
+                      `(${propAccess})::numeric > $${paramIdx}`
+                    );
+                    break;
+                  case '$lt':
+                    countFilters.push(
+                      `(${propAccess})::numeric < $${paramIdx}`
+                    );
+                    break;
+                  case '$gte':
+                    countFilters.push(
+                      `(${propAccess})::numeric >= $${paramIdx}`
+                    );
+                    break;
+                  case '$lte':
+                    countFilters.push(
+                      `(${propAccess})::numeric <= $${paramIdx}`
+                    );
+                    break;
+                  case '$ne':
+                    countFilters.push(`${propAccess} != $${paramIdx}::text`);
+                    break;
+                  case '$in':
+                    if (Array.isArray(opVal)) {
+                      countFilters.push(
+                        `${propAccess} = ANY($${paramIdx}::text[])`
+                      );
+                    }
+                    break;
+                }
+              }
+            } else {
+              countParams.push(propVal);
+              countFilters.push(
+                `t.properties->>'${propKey}' = $${countParams.length}::text`
+              );
+            }
+          }
+        }
+        if (related_to_id) {
+          countParams.push(related_to_id);
+          countFilters.push(`EXISTS (
+            SELECT 1 FROM kb.graph_relationships r 
+            WHERE (
+              (r.src_id = t.id AND r.dst_id = $${countParams.length}) OR 
+              (r.dst_id = t.id AND r.src_id = $${countParams.length})
+            )
+            AND r.deleted_at IS NULL
+          )`);
+        }
+
+        const countSql = `SELECT COUNT(*)::int as total FROM (${baseHeadCte}) t
+                 WHERE ${countFilters.join(' AND ')}`;
+        const countRes = await this.db.query<{ total: number }>(
+          countSql,
+          countParams
+        );
+        const total = countRes.rows[0]?.total || 0;
+
+        return { items: rows, next_cursor, total };
       }
     );
   }

@@ -1,6 +1,6 @@
 /**
  * Unified DataTable Component
- * 
+ *
  * A flexible, reusable table component with:
  * - Row selection and bulk actions
  * - Search and filtering
@@ -14,610 +14,729 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Icon } from '@/components/atoms/Icon';
 import { Dropdown } from '@/components/molecules/Dropdown';
 import type {
-    TableDataItem,
-    DataTableProps,
-    FilterConfig,
-    SortConfig,
+  TableDataItem,
+  DataTableProps,
+  FilterConfig,
+  SortConfig,
 } from './types';
 
 export function DataTable<T extends TableDataItem>({
-    data,
-    columns,
-    loading = false,
-    error = null,
-    enableSelection = false,
-    enableSearch = true,
-    searchPlaceholder = 'Search...',
-    getSearchText,
-    filters = [],
-    bulkActions = [],
-    rowActions = [],
-    useDropdownActions = false,
-    enableViewToggle = false,
-    defaultView = 'table',
-    renderCard,
-    onRowClick,
-    onSelectionChange,
-    emptyMessage = 'No data available.',
-    emptyIcon = 'lucide--inbox',
-    noResultsMessage = 'No items match current filters.',
-    formatDate,
-    enableExport = false,
-    onExport,
-    toolbarActions,
-    className = '',
+  data,
+  columns,
+  loading = false,
+  error = null,
+  enableSelection = false,
+  enableSearch = true,
+  searchPlaceholder = 'Search...',
+  getSearchText,
+  filters = [],
+  bulkActions = [],
+  rowActions = [],
+  useDropdownActions = false,
+  enableViewToggle = false,
+  defaultView = 'table',
+  renderCard,
+  onRowClick,
+  onSelectionChange,
+  emptyMessage = 'No data available.',
+  emptyIcon = 'lucide--inbox',
+  noResultsMessage = 'No items match current filters.',
+  formatDate,
+  enableExport = false,
+  onExport,
+  toolbarActions,
+  className = '',
 }: DataTableProps<T>) {
-    // State
-    const [searchQuery, setSearchQuery] = useState('');
-    const [activeFilters, setActiveFilters] = useState<Map<string, string[]>>(new Map());
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-    const [view, setView] = useState<'table' | 'cards'>(defaultView);
-    const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
-    const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  // State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilters, setActiveFilters] = useState<Map<string, string[]>>(
+    new Map()
+  );
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [view, setView] = useState<'table' | 'cards'>(defaultView);
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
-    const dropdownRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const dropdownRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-    // Handle click outside dropdowns
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (openDropdown) {
-                const ref = dropdownRefs.current.get(openDropdown);
-                if (ref && !ref.contains(event.target as Node)) {
-                    setOpenDropdown(null);
-                }
-            }
-        };
-
-        if (openDropdown) {
-            document.addEventListener('mousedown', handleClickOutside);
-            return () => document.removeEventListener('mousedown', handleClickOutside);
+  // Handle click outside dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openDropdown) {
+        const ref = dropdownRefs.current.get(openDropdown);
+        if (ref && !ref.contains(event.target as Node)) {
+          setOpenDropdown(null);
         }
-    }, [openDropdown]);
-
-    // Filter and search data
-    const filteredData = useMemo(() => {
-        let result = [...data];
-
-        // Apply filters
-        activeFilters.forEach((values, filterKey) => {
-            if (values.length > 0) {
-                const filter = filters.find(f => f.key === filterKey);
-                if (filter) {
-                    result = result.filter(item => {
-                        const itemValue = filter.getValue(item);
-                        if (Array.isArray(itemValue)) {
-                            return values.some(v => itemValue.includes(v));
-                        }
-                        return values.includes(itemValue);
-                    });
-                }
-            }
-        });
-
-        // Apply search
-        if (searchQuery && getSearchText) {
-            const query = searchQuery.toLowerCase();
-            result = result.filter(item =>
-                getSearchText(item).toLowerCase().includes(query)
-            );
-        }
-
-        // Apply sorting
-        if (sortConfig) {
-            result.sort((a, b) => {
-                const aValue = a[sortConfig.key];
-                const bValue = b[sortConfig.key];
-
-                if (aValue === bValue) return 0;
-
-                const comparison = aValue < bValue ? -1 : 1;
-                return sortConfig.direction === 'asc' ? comparison : -comparison;
-            });
-        }
-
-        return result;
-    }, [data, activeFilters, searchQuery, getSearchText, sortConfig, filters]);
-
-    // Calculate filter counts
-    const filtersWithCounts = useMemo(() => {
-        return filters.map(filter => ({
-            ...filter,
-            options: filter.options.map(option => ({
-                ...option,
-                count: data.filter(item => {
-                    const value = filter.getValue(item);
-                    if (Array.isArray(value)) {
-                        return value.includes(option.value);
-                    }
-                    return value === option.value;
-                }).length,
-            })),
-        }));
-    }, [data, filters]);
-
-    // Selection handlers
-    const handleSelectAll = (checked: boolean) => {
-        if (checked) {
-            const allIds = new Set(filteredData.map(item => item.id));
-            setSelectedIds(allIds);
-            onSelectionChange?.(Array.from(allIds), filteredData);
-        } else {
-            setSelectedIds(new Set());
-            onSelectionChange?.([], []);
-        }
+      }
     };
 
-    const handleSelectOne = (id: string, checked: boolean) => {
-        const newSelected = new Set(selectedIds);
-        if (checked) {
-            newSelected.add(id);
-        } else {
-            newSelected.delete(id);
-        }
-        setSelectedIds(newSelected);
+    if (openDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () =>
+        document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [openDropdown]);
 
-        const selectedItems = filteredData.filter(item => newSelected.has(item.id));
-        onSelectionChange?.(Array.from(newSelected), selectedItems);
-    };
+  // Filter and search data
+  const filteredData = useMemo(() => {
+    let result = [...data];
 
-    // Filter handlers
-    const handleToggleFilter = (filterKey: string, value: string) => {
-        const newFilters = new Map(activeFilters);
-        const currentValues = newFilters.get(filterKey) || [];
-
-        if (currentValues.includes(value)) {
-            const updated = currentValues.filter(v => v !== value);
-            if (updated.length > 0) {
-                newFilters.set(filterKey, updated);
-            } else {
-                newFilters.delete(filterKey);
+    // Apply filters
+    activeFilters.forEach((values, filterKey) => {
+      if (values.length > 0) {
+        const filter = filters.find((f) => f.key === filterKey);
+        if (filter) {
+          result = result.filter((item) => {
+            const itemValue = filter.getValue(item);
+            if (Array.isArray(itemValue)) {
+              return values.some((v) => itemValue.includes(v));
             }
-        } else {
-            newFilters.set(filterKey, [...currentValues, value]);
+            return values.includes(itemValue);
+          });
         }
+      }
+    });
 
-        setActiveFilters(newFilters);
-    };
+    // Apply search
+    if (searchQuery && getSearchText) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter((item) =>
+        getSearchText(item).toLowerCase().includes(query)
+      );
+    }
 
-    const handleClearFilter = (filterKey: string) => {
-        const newFilters = new Map(activeFilters);
+    // Apply sorting
+    if (sortConfig) {
+      result.sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+
+        if (aValue === bValue) return 0;
+
+        const comparison = aValue < bValue ? -1 : 1;
+        return sortConfig.direction === 'asc' ? comparison : -comparison;
+      });
+    }
+
+    return result;
+  }, [data, activeFilters, searchQuery, getSearchText, sortConfig, filters]);
+
+  // Calculate filter counts
+  const filtersWithCounts = useMemo(() => {
+    return filters.map((filter) => ({
+      ...filter,
+      options: filter.options.map((option) => ({
+        ...option,
+        count: data.filter((item) => {
+          const value = filter.getValue(item);
+          if (Array.isArray(value)) {
+            return value.includes(option.value);
+          }
+          return value === option.value;
+        }).length,
+      })),
+    }));
+  }, [data, filters]);
+
+  // Selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(filteredData.map((item) => item.id));
+      setSelectedIds(allIds);
+      onSelectionChange?.(Array.from(allIds), filteredData);
+    } else {
+      setSelectedIds(new Set());
+      onSelectionChange?.([], []);
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedIds);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedIds(newSelected);
+
+    const selectedItems = filteredData.filter((item) =>
+      newSelected.has(item.id)
+    );
+    onSelectionChange?.(Array.from(newSelected), selectedItems);
+  };
+
+  // Filter handlers
+  const handleToggleFilter = (filterKey: string, value: string) => {
+    const newFilters = new Map(activeFilters);
+    const currentValues = newFilters.get(filterKey) || [];
+
+    if (currentValues.includes(value)) {
+      const updated = currentValues.filter((v) => v !== value);
+      if (updated.length > 0) {
+        newFilters.set(filterKey, updated);
+      } else {
         newFilters.delete(filterKey);
-        setActiveFilters(newFilters);
-    };
+      }
+    } else {
+      newFilters.set(filterKey, [...currentValues, value]);
+    }
 
-    const handleClearAllFilters = () => {
-        setActiveFilters(new Map());
-    };
+    setActiveFilters(newFilters);
+  };
 
-    // Sort handler
-    const handleSort = (key: string) => {
-        setSortConfig(current => {
-            if (current?.key === key) {
-                if (current.direction === 'asc') {
-                    return { key, direction: 'desc' };
-                }
-                return null; // Clear sort
-            }
-            return { key, direction: 'asc' };
-        });
-    };
+  const handleClearFilter = (filterKey: string) => {
+    const newFilters = new Map(activeFilters);
+    newFilters.delete(filterKey);
+    setActiveFilters(newFilters);
+  };
 
-    // Selection state
-    const allSelected = filteredData.length > 0 && filteredData.every(item => selectedIds.has(item.id));
-    const someSelected = filteredData.some(item => selectedIds.has(item.id));
-    const selectedItems = filteredData.filter(item => selectedIds.has(item.id));
+  const handleClearAllFilters = () => {
+    setActiveFilters(new Map());
+  };
 
-    // Render toolbar
-    const renderToolbar = () => (
-        <div className="flex flex-wrap items-center gap-3 bg-base-200/50 p-3 border border-base-300 rounded">
-            {/* Search */}
-            {enableSearch && (
-                <label className="flex items-center gap-2 min-w-64 input input-sm input-ghost">
-                    <Icon icon="lucide--search" className="opacity-70 size-4" />
-                    <input
-                        type="text"
-                        placeholder={searchPlaceholder}
-                        className="grow"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </label>
-            )}
+  // Sort handler
+  const handleSort = (key: string) => {
+    setSortConfig((current) => {
+      if (current?.key === key) {
+        if (current.direction === 'asc') {
+          return { key, direction: 'desc' };
+        }
+        return null; // Clear sort
+      }
+      return { key, direction: 'asc' };
+    });
+  };
 
-            {/* Filter Dropdowns */}
-            {filtersWithCounts.map(filter => {
-                const activeValues = activeFilters.get(filter.key) || [];
-                const isActive = activeValues.length > 0;
+  // Selection state
+  const allSelected =
+    filteredData.length > 0 &&
+    filteredData.every((item) => selectedIds.has(item.id));
+  const someSelected = filteredData.some((item) => selectedIds.has(item.id));
+  const selectedItems = filteredData.filter((item) => selectedIds.has(item.id));
 
-                return (
-                    <div
-                        key={filter.key}
-                        className={`dropdown ${openDropdown === filter.key ? 'dropdown-open' : ''}`}
-                        ref={el => {
-                            if (el) dropdownRefs.current.set(filter.key, el);
-                        }}
-                    >
-                        <label
-                            tabIndex={0}
-                            className={`gap-2 btn btn-sm ${isActive ? `btn-${filter.badgeColor || 'primary'}` : 'btn-ghost'}`}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                setOpenDropdown(openDropdown === filter.key ? null : filter.key);
-                            }}
-                        >
-                            {filter.icon && <Icon icon={filter.icon} className="size-4" />}
-                            {isActive ? (
-                                <span>{filter.label} ({activeValues.length})</span>
-                            ) : (
-                                <span>{filter.label}</span>
-                            )}
-                        </label>
-                        <ul
-                            tabIndex={0}
-                            className="z-[1] bg-base-100 shadow-lg p-2 border border-base-300 rounded-box w-64 max-h-80 overflow-y-auto dropdown-content menu"
-                        >
-                            {isActive && (
-                                <li className="mb-2">
-                                    <button
-                                        className="btn-block justify-between btn btn-xs btn-ghost"
-                                        onClick={() => handleClearFilter(filter.key)}
-                                    >
-                                        <span className="opacity-70 text-xs">Clear filter</span>
-                                        <Icon icon="lucide--x" className="size-3" />
-                                    </button>
-                                </li>
-                            )}
+  // Render toolbar
+  const renderToolbar = () => (
+    <div className="flex flex-wrap items-center gap-3 bg-base-200/50 p-3 border border-base-300 rounded">
+      {/* Search */}
+      {enableSearch && (
+        <label className="flex items-center gap-2 min-w-64 input input-sm input-ghost">
+          <Icon icon="lucide--search" className="opacity-70 size-4" />
+          <input
+            type="text"
+            placeholder={searchPlaceholder}
+            className="grow"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </label>
+      )}
 
-                            {filter.options.map(option => (
-                                <li key={option.value}>
-                                    <label className="flex justify-between items-center gap-2 cursor-pointer">
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="checkbox"
-                                                className={`checkbox checkbox-sm checkbox-${filter.badgeColor || 'primary'}`}
-                                                checked={activeValues.includes(option.value)}
-                                                onChange={() => handleToggleFilter(filter.key, option.value)}
-                                            />
-                                            <span className="font-medium">{option.label}</span>
-                                        </div>
-                                        <span className="badge badge-sm badge-ghost">{option.count || 0}</span>
-                                    </label>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                );
-            })}
+      <div className="flex flex-wrap items-center gap-3 ml-auto">
+        {/* Filter Dropdowns */}
+        {filtersWithCounts.map((filter) => {
+          const activeValues = activeFilters.get(filter.key) || [];
+          const isActive = activeValues.length > 0;
 
-            {/* Toolbar Actions */}
-            {toolbarActions}
-
-            {/* View Toggle */}
-            {enableViewToggle && renderCard && (
-                <div className="flex gap-1 ml-auto join">
+          return (
+            <div
+              key={filter.key}
+              className={`dropdown ${
+                openDropdown === filter.key ? 'dropdown-open' : ''
+              }`}
+              ref={(el) => {
+                if (el) dropdownRefs.current.set(filter.key, el);
+              }}
+            >
+              <label
+                tabIndex={0}
+                className={`gap-2 btn btn-sm ${
+                  isActive
+                    ? `btn-${filter.badgeColor || 'primary'}`
+                    : 'btn-ghost'
+                }`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setOpenDropdown(
+                    openDropdown === filter.key ? null : filter.key
+                  );
+                }}
+              >
+                {filter.icon && <Icon icon={filter.icon} className="size-4" />}
+                {isActive ? (
+                  <span>
+                    {filter.label} ({activeValues.length})
+                  </span>
+                ) : (
+                  <span>{filter.label}</span>
+                )}
+              </label>
+              <ul
+                tabIndex={0}
+                className="z-[1] bg-base-100 shadow-lg p-2 border border-base-300 rounded-box w-64 max-h-80 overflow-y-auto dropdown-content menu"
+              >
+                {isActive && (
+                  <li className="mb-2">
                     <button
-                        className={`btn btn-sm join-item ${view === 'table' ? 'btn-active' : 'btn-ghost'}`}
-                        onClick={() => setView('table')}
-                        title="Table view"
+                      className="btn-block justify-between btn btn-xs btn-ghost"
+                      onClick={() => handleClearFilter(filter.key)}
                     >
-                        <Icon icon="lucide--table" className="size-4" />
+                      <span className="opacity-70 text-xs">Clear filter</span>
+                      <Icon icon="lucide--x" className="size-3" />
                     </button>
-                    <button
-                        className={`btn btn-sm join-item ${view === 'cards' ? 'btn-active' : 'btn-ghost'}`}
-                        onClick={() => setView('cards')}
-                        title="Card view"
-                    >
-                        <Icon icon="lucide--layout-grid" className="size-4" />
-                    </button>
-                </div>
-            )}
-
-            {/* Export Button */}
-            {enableExport && (
-                <button
-                    className="btn btn-sm btn-ghost"
-                    title="Export"
-                    aria-label="Export data"
-                    onClick={() => onExport?.(filteredData)}
-                >
-                    <Icon icon="lucide--download" className="size-4" />
-                </button>
-            )}
-        </div>
-    );
-
-    // Render active filter badges
-    const renderActiveFilters = () => {
-        if (activeFilters.size === 0) return null;
-
-        return (
-            <div className="flex flex-wrap items-center gap-2 bg-base-200/30 px-3 py-2 border border-base-300 rounded">
-                <span className="font-medium text-xs text-base-content/60">Active filters:</span>
-
-                {Array.from(activeFilters.entries()).map(([filterKey, values]) => {
-                    const filter = filters.find(f => f.key === filterKey);
-                    if (!filter) return null;
-
-                    return values.map(value => {
-                        const option = filter.options.find(o => o.value === value);
-                        return (
-                            <button
-                                key={`${filterKey}-${value}`}
-                                className={`gap-1 badge badge-${filter.badgeColor || 'primary'} badge-sm`}
-                                onClick={() => handleToggleFilter(filterKey, value)}
-                                title={`Remove ${option?.label || value} filter`}
-                            >
-                                <span>{option?.label || value}</span>
-                                <Icon icon="lucide--x" className="size-3" />
-                            </button>
-                        );
-                    });
-                })}
-
-                <button
-                    className="ml-auto text-xs text-base-content/60 hover:text-base-content underline"
-                    onClick={handleClearAllFilters}
-                >
-                    Clear all
-                </button>
-            </div>
-        );
-    };
-
-    // Render bulk actions bar
-    const renderBulkActions = () => {
-        if (selectedIds.size === 0 || bulkActions.length === 0) return null;
-
-        return (
-            <div className="flex items-center gap-4 bg-primary/10 p-3 border border-primary/30 rounded">
-                <span className="font-medium text-sm">
-                    {selectedIds.size} selected
-                </span>
-                {bulkActions.map(action => {
-                    const variant = action.variant || 'primary';
-                    const style = action.style || 'filled';
-                    const btnClass = style === 'outline' ? `btn-outline btn-${variant}` : `btn-${variant}`;
-
-                    return (
-                        <button
-                            key={action.key}
-                            className={`gap-2 btn btn-sm ${btnClass}`}
-                            onClick={() => {
-                                action.onAction(Array.from(selectedIds), selectedItems);
-                                setSelectedIds(new Set());
-                            }}
-                        >
-                            {action.icon && <Icon icon={action.icon} className="size-4" />}
-                            {action.label}
-                        </button>
-                    );
-                })}
-            </div>
-        );
-    };
-
-    // Render table view
-    const renderTableView = () => (
-        <div className="border border-base-300 rounded" style={{ overflow: 'visible' }}>
-            <div className="overflow-x-auto">
-                <table className="table table-sm">
-                    <thead>
-                        <tr className="text-xs text-base-content/60 uppercase">
-                            {enableSelection && (
-                                <th className="w-8">
-                                    <input
-                                        type="checkbox"
-                                        className="checkbox checkbox-sm"
-                                        checked={allSelected}
-                                        ref={input => {
-                                            if (input) input.indeterminate = someSelected && !allSelected;
-                                        }}
-                                        onChange={(e) => handleSelectAll(e.target.checked)}
-                                    />
-                                </th>
-                            )}
-                            {columns.map(col => (
-                                <th
-                                    key={col.key}
-                                    className={`${col.width || ''} ${col.headerClassName || ''} ${col.sortable ? 'cursor-pointer hover:bg-base-200' : ''}`}
-                                    onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        {col.label}
-                                        {col.sortable && sortConfig?.key === col.key && (
-                                            <Icon
-                                                icon={sortConfig.direction === 'asc' ? 'lucide--arrow-up' : 'lucide--arrow-down'}
-                                                className="size-3"
-                                            />
-                                        )}
-                                    </div>
-                                </th>
-                            ))}
-                            {rowActions.length > 0 && <th className="w-32">Actions</th>}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {loading && (
-                            Array.from({ length: 5 }).map((_, i) => (
-                                <tr key={`skeleton-${i}`} className="opacity-70 animate-pulse">
-                                    {enableSelection && <td className="py-2"><div className="bg-base-300 rounded w-4 h-4" /></td>}
-                                    {columns.map((col, j) => (
-                                        <td key={`skeleton-${i}-${j}`}>
-                                            <div className="bg-base-300 rounded w-full h-4" />
-                                        </td>
-                                    ))}
-                                    {rowActions.length > 0 && <td><div className="bg-base-300 rounded w-20 h-4" /></td>}
-                                </tr>
-                            ))
-                        )}
-                        {!loading && error && (
-                            <tr>
-                                <td colSpan={columns.length + (enableSelection ? 1 : 0) + (rowActions.length > 0 ? 1 : 0)} className="py-10 text-error text-sm text-center">
-                                    <Icon icon="lucide--alert-circle" className="mx-auto mb-2 size-5" />
-                                    <div>{error}</div>
-                                </td>
-                            </tr>
-                        )}
-                        {!loading && !error && filteredData.length === 0 && (
-                            <tr>
-                                <td colSpan={columns.length + (enableSelection ? 1 : 0) + (rowActions.length > 0 ? 1 : 0)} className="py-10 text-sm text-base-content/70 text-center">
-                                    <Icon icon={emptyIcon} className="opacity-50 mx-auto mb-2 size-8" />
-                                    <div>{activeFilters.size > 0 || searchQuery ? noResultsMessage : emptyMessage}</div>
-                                </td>
-                            </tr>
-                        )}
-                        {!loading && !error && filteredData.map((item) => (
-                            <tr
-                                key={item.id}
-                                className={`hover:bg-base-200/50 ${onRowClick ? 'cursor-pointer' : ''} ${selectedIds.has(item.id) ? 'bg-base-200' : ''}`}
-                                onClick={() => onRowClick?.(item)}
-                            >
-                                {enableSelection && (
-                                    <td onClick={(e) => e.stopPropagation()}>
-                                        <input
-                                            type="checkbox"
-                                            className="checkbox checkbox-sm"
-                                            checked={selectedIds.has(item.id)}
-                                            onChange={(e) => handleSelectOne(item.id, e.target.checked)}
-                                        />
-                                    </td>
-                                )}
-                                {columns.map(col => (
-                                    <td key={col.key} className={col.cellClassName || ''}>
-                                        {col.render ? col.render(item) : (item[col.key] ?? '—')}
-                                    </td>
-                                ))}
-                                {rowActions.length > 0 && (
-                                    <td onClick={(e) => e.stopPropagation()} className="relative overflow-visible">
-                                        {useDropdownActions ? (
-                                            <Dropdown end>
-                                                <Dropdown.Trigger
-                                                    asButton
-                                                    variant="ghost"
-                                                    size="xs"
-                                                    className="gap-1"
-                                                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                                                >
-                                                    Actions
-                                                    <Icon icon="lucide--chevron-down" className="size-3" />
-                                                </Dropdown.Trigger>
-                                                <Dropdown.Menu width="w-52">
-                                                    {rowActions.map((action, idx) => {
-                                                        if (action.asLink && action.href) {
-                                                            return (
-                                                                <Dropdown.Item
-                                                                    key={idx}
-                                                                    asLink
-                                                                    href={action.href(item)}
-                                                                >
-                                                                    {action.icon && <Icon icon={action.icon} className="size-4" />}
-                                                                    {action.label}
-                                                                </Dropdown.Item>
-                                                            );
-                                                        }
-
-                                                        return (
-                                                            <Dropdown.Item
-                                                                key={idx}
-                                                                onClick={() => {
-                                                                    action.onAction(item);
-                                                                }}
-                                                            >
-                                                                {action.icon && <Icon icon={action.icon} className="size-4" />}
-                                                                {action.label}
-                                                            </Dropdown.Item>
-                                                        );
-                                                    })}
-                                                </Dropdown.Menu>
-                                            </Dropdown>
-                                        ) : (
-                                            <div className="flex items-center gap-2">
-                                                {rowActions.map((action, idx) => {
-                                                    const variant = action.variant || 'ghost';
-                                                    const size = action.size || 'xs';
-
-                                                    if (action.asLink && action.href) {
-                                                        return (
-                                                            <a
-                                                                key={idx}
-                                                                href={action.href(item)}
-                                                                className={`gap-1 btn btn-${size} btn-${variant}`}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            >
-                                                                {action.icon && <Icon icon={action.icon} className="size-4" />}
-                                                                {action.label}
-                                                            </a>
-                                                        );
-                                                    }
-
-                                                    return (
-                                                        <button
-                                                            key={idx}
-                                                            className={`gap-1 btn btn-${size} btn-${variant}`}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                action.onAction(item);
-                                                            }}
-                                                        >
-                                                            {action.icon && <Icon icon={action.icon} className="size-4" />}
-                                                            {action.label}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </td>
-                                )}
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
-
-    // Render card view
-    const renderCardView = () => {
-        if (!renderCard) return null;
-
-        return (
-            <div className="gap-4 grid md:grid-cols-2 lg:grid-cols-3">
-                {loading && (
-                    Array.from({ length: 6 }).map((_, i) => (
-                        <div key={`skeleton-${i}`} className="bg-base-100 p-4 border border-base-300 rounded animate-pulse">
-                            <div className="bg-base-300 mb-2 rounded w-3/4 h-5" />
-                            <div className="bg-base-300 mb-3 rounded w-1/2 h-4" />
-                            <div className="bg-base-300 rounded w-full h-3" />
-                        </div>
-                    ))
+                  </li>
                 )}
-                {!loading && error && (
-                    <div className="col-span-full py-10 text-error text-sm text-center">
-                        <Icon icon="lucide--alert-circle" className="mx-auto mb-2 size-8" />
-                        <div>{error}</div>
-                    </div>
-                )}
-                {!loading && !error && filteredData.length === 0 && (
-                    <div className="col-span-full py-10 text-sm text-base-content/70 text-center">
-                        <Icon icon={emptyIcon} className="opacity-50 mx-auto mb-3 size-12" />
-                        <div>{activeFilters.size > 0 || searchQuery ? noResultsMessage : emptyMessage}</div>
-                    </div>
-                )}
-                {!loading && !error && filteredData.map((item) =>
-                    renderCard(item, selectedIds.has(item.id), (checked) => handleSelectOne(item.id, checked))
-                )}
+
+                {filter.options.map((option) => (
+                  <li key={option.value}>
+                    <label className="flex justify-between items-center gap-2 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          className={`checkbox checkbox-sm checkbox-${
+                            filter.badgeColor || 'primary'
+                          }`}
+                          checked={activeValues.includes(option.value)}
+                          onChange={() =>
+                            handleToggleFilter(filter.key, option.value)
+                          }
+                        />
+                        <span className="font-medium">{option.label}</span>
+                      </div>
+                      <span className="badge badge-sm badge-ghost">
+                        {option.count || 0}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
             </div>
-        );
-    };
+          );
+        })}
+
+        {/* Toolbar Actions */}
+        {toolbarActions}
+
+        {/* View Toggle */}
+        {enableViewToggle && renderCard && (
+          <div className="flex gap-1 join">
+            <button
+              className={`btn btn-sm join-item ${
+                view === 'table' ? 'btn-active' : 'btn-ghost'
+              }`}
+              onClick={() => setView('table')}
+              title="Table view"
+            >
+              <Icon icon="lucide--table" className="size-4" />
+            </button>
+            <button
+              className={`btn btn-sm join-item ${
+                view === 'cards' ? 'btn-active' : 'btn-ghost'
+              }`}
+              onClick={() => setView('cards')}
+              title="Card view"
+            >
+              <Icon icon="lucide--layout-grid" className="size-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Export Button */}
+        {enableExport && (
+          <button
+            className="btn btn-sm btn-ghost"
+            title="Export"
+            aria-label="Export data"
+            onClick={() => onExport?.(filteredData)}
+          >
+            <Icon icon="lucide--download" className="size-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  // Render active filter badges
+  const renderActiveFilters = () => {
+    if (activeFilters.size === 0) return null;
 
     return (
-        <div className={`space-y-3 ${className}`}>
-            {renderToolbar()}
-            {renderActiveFilters()}
-            {renderBulkActions()}
-            {view === 'table' ? renderTableView() : renderCardView()}
-        </div>
+      <div className="flex flex-wrap items-center gap-2 bg-base-200/30 px-3 py-2 border border-base-300 rounded">
+        <span className="font-medium text-xs text-base-content/60">
+          Active filters:
+        </span>
+
+        {Array.from(activeFilters.entries()).map(([filterKey, values]) => {
+          const filter = filters.find((f) => f.key === filterKey);
+          if (!filter) return null;
+
+          return values.map((value) => {
+            const option = filter.options.find((o) => o.value === value);
+            return (
+              <button
+                key={`${filterKey}-${value}`}
+                className={`gap-1 badge badge-${
+                  filter.badgeColor || 'primary'
+                } badge-sm`}
+                onClick={() => handleToggleFilter(filterKey, value)}
+                title={`Remove ${option?.label || value} filter`}
+              >
+                <span>{option?.label || value}</span>
+                <Icon icon="lucide--x" className="size-3" />
+              </button>
+            );
+          });
+        })}
+
+        <button
+          className="ml-auto text-xs text-base-content/60 hover:text-base-content underline"
+          onClick={handleClearAllFilters}
+        >
+          Clear all
+        </button>
+      </div>
     );
+  };
+
+  // Render bulk actions bar
+  const renderBulkActions = () => {
+    if (selectedIds.size === 0 || bulkActions.length === 0) return null;
+
+    return (
+      <div className="flex items-center gap-4 bg-primary/10 p-3 border border-primary/30 rounded">
+        <span className="font-medium text-sm">{selectedIds.size} selected</span>
+        {bulkActions.map((action) => {
+          const variant = action.variant || 'primary';
+          const style = action.style || 'filled';
+          const btnClass =
+            style === 'outline'
+              ? `btn-outline btn-${variant}`
+              : `btn-${variant}`;
+
+          return (
+            <button
+              key={action.key}
+              className={`gap-2 btn btn-sm ${btnClass}`}
+              onClick={() => {
+                action.onAction(Array.from(selectedIds), selectedItems);
+                setSelectedIds(new Set());
+              }}
+            >
+              {action.icon && <Icon icon={action.icon} className="size-4" />}
+              {action.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Render table view
+  const renderTableView = () => (
+    <div
+      className="border border-base-300 rounded"
+      style={{ overflow: 'visible' }}
+    >
+      <div className="overflow-x-auto">
+        <table className="table table-sm">
+          <thead>
+            <tr className="text-xs text-base-content/60 uppercase">
+              {enableSelection && (
+                <th className="w-8">
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-sm"
+                    checked={allSelected}
+                    ref={(input) => {
+                      if (input)
+                        input.indeterminate = someSelected && !allSelected;
+                    }}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                  />
+                </th>
+              )}
+              {columns.map((col) => (
+                <th
+                  key={col.key}
+                  className={`${col.width || ''} ${col.headerClassName || ''} ${
+                    col.sortable ? 'cursor-pointer hover:bg-base-200' : ''
+                  }`}
+                  onClick={col.sortable ? () => handleSort(col.key) : undefined}
+                >
+                  <div className="flex items-center gap-2">
+                    {col.label}
+                    {col.sortable && sortConfig?.key === col.key && (
+                      <Icon
+                        icon={
+                          sortConfig.direction === 'asc'
+                            ? 'lucide--arrow-up'
+                            : 'lucide--arrow-down'
+                        }
+                        className="size-3"
+                      />
+                    )}
+                  </div>
+                </th>
+              ))}
+              {rowActions.length > 0 && <th className="w-32">Actions</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {loading &&
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={`skeleton-${i}`} className="opacity-70 animate-pulse">
+                  {enableSelection && (
+                    <td className="py-2">
+                      <div className="bg-base-300 rounded w-4 h-4" />
+                    </td>
+                  )}
+                  {columns.map((col, j) => (
+                    <td key={`skeleton-${i}-${j}`}>
+                      <div className="bg-base-300 rounded w-full h-4" />
+                    </td>
+                  ))}
+                  {rowActions.length > 0 && (
+                    <td>
+                      <div className="bg-base-300 rounded w-20 h-4" />
+                    </td>
+                  )}
+                </tr>
+              ))}
+            {!loading && error && (
+              <tr>
+                <td
+                  colSpan={
+                    columns.length +
+                    (enableSelection ? 1 : 0) +
+                    (rowActions.length > 0 ? 1 : 0)
+                  }
+                  className="py-10 text-error text-sm text-center"
+                >
+                  <Icon
+                    icon="lucide--alert-circle"
+                    className="mx-auto mb-2 size-5"
+                  />
+                  <div>{error}</div>
+                </td>
+              </tr>
+            )}
+            {!loading && !error && filteredData.length === 0 && (
+              <tr>
+                <td
+                  colSpan={
+                    columns.length +
+                    (enableSelection ? 1 : 0) +
+                    (rowActions.length > 0 ? 1 : 0)
+                  }
+                  className="py-10 text-sm text-base-content/70 text-center"
+                >
+                  <Icon
+                    icon={emptyIcon}
+                    className="opacity-50 mx-auto mb-2 size-8"
+                  />
+                  <div>
+                    {activeFilters.size > 0 || searchQuery
+                      ? noResultsMessage
+                      : emptyMessage}
+                  </div>
+                </td>
+              </tr>
+            )}
+            {!loading &&
+              !error &&
+              filteredData.map((item) => (
+                <tr
+                  key={item.id}
+                  className={`hover:bg-base-200/50 ${
+                    onRowClick ? 'cursor-pointer' : ''
+                  } ${selectedIds.has(item.id) ? 'bg-base-200' : ''}`}
+                  onClick={() => onRowClick?.(item)}
+                >
+                  {enableSelection && (
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-sm"
+                        checked={selectedIds.has(item.id)}
+                        onChange={(e) =>
+                          handleSelectOne(item.id, e.target.checked)
+                        }
+                      />
+                    </td>
+                  )}
+                  {columns.map((col) => (
+                    <td key={col.key} className={col.cellClassName || ''}>
+                      {col.render ? col.render(item) : item[col.key] ?? '—'}
+                    </td>
+                  ))}
+                  {rowActions.length > 0 && (
+                    <td
+                      onClick={(e) => e.stopPropagation()}
+                      className="relative overflow-visible"
+                    >
+                      {useDropdownActions ? (
+                        <Dropdown end>
+                          <Dropdown.Trigger
+                            asButton
+                            variant="ghost"
+                            size="xs"
+                            className="gap-1"
+                            onClick={(e: React.MouseEvent) =>
+                              e.stopPropagation()
+                            }
+                          >
+                            Actions
+                            <Icon
+                              icon="lucide--chevron-down"
+                              className="size-3"
+                            />
+                          </Dropdown.Trigger>
+                          <Dropdown.Menu width="w-52">
+                            {rowActions.map((action, idx) => {
+                              if (action.asLink && action.href) {
+                                return (
+                                  <Dropdown.Item
+                                    key={idx}
+                                    asLink
+                                    href={action.href(item)}
+                                  >
+                                    {action.icon && (
+                                      <Icon
+                                        icon={action.icon}
+                                        className="size-4"
+                                      />
+                                    )}
+                                    {action.label}
+                                  </Dropdown.Item>
+                                );
+                              }
+
+                              return (
+                                <Dropdown.Item
+                                  key={idx}
+                                  onClick={() => {
+                                    action.onAction(item);
+                                  }}
+                                >
+                                  {action.icon && (
+                                    <Icon
+                                      icon={action.icon}
+                                      className="size-4"
+                                    />
+                                  )}
+                                  {action.label}
+                                </Dropdown.Item>
+                              );
+                            })}
+                          </Dropdown.Menu>
+                        </Dropdown>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {rowActions.map((action, idx) => {
+                            const variant = action.variant || 'ghost';
+                            const size = action.size || 'xs';
+
+                            if (action.asLink && action.href) {
+                              return (
+                                <a
+                                  key={idx}
+                                  href={action.href(item)}
+                                  className={`gap-1 btn btn-${size} btn-${variant}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {action.icon && (
+                                    <Icon
+                                      icon={action.icon}
+                                      className="size-4"
+                                    />
+                                  )}
+                                  {action.label}
+                                </a>
+                              );
+                            }
+
+                            return (
+                              <button
+                                key={idx}
+                                className={`gap-1 btn btn-${size} btn-${variant}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  action.onAction(item);
+                                }}
+                              >
+                                {action.icon && (
+                                  <Icon icon={action.icon} className="size-4" />
+                                )}
+                                {action.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  // Render card view
+  const renderCardView = () => {
+    if (!renderCard) return null;
+
+    return (
+      <div className="gap-4 grid md:grid-cols-2 lg:grid-cols-3">
+        {loading &&
+          Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={`skeleton-${i}`}
+              className="bg-base-100 p-4 border border-base-300 rounded animate-pulse"
+            >
+              <div className="bg-base-300 mb-2 rounded w-3/4 h-5" />
+              <div className="bg-base-300 mb-3 rounded w-1/2 h-4" />
+              <div className="bg-base-300 rounded w-full h-3" />
+            </div>
+          ))}
+        {!loading && error && (
+          <div className="col-span-full py-10 text-error text-sm text-center">
+            <Icon icon="lucide--alert-circle" className="mx-auto mb-2 size-8" />
+            <div>{error}</div>
+          </div>
+        )}
+        {!loading && !error && filteredData.length === 0 && (
+          <div className="col-span-full py-10 text-sm text-base-content/70 text-center">
+            <Icon
+              icon={emptyIcon}
+              className="opacity-50 mx-auto mb-3 size-12"
+            />
+            <div>
+              {activeFilters.size > 0 || searchQuery
+                ? noResultsMessage
+                : emptyMessage}
+            </div>
+          </div>
+        )}
+        {!loading &&
+          !error &&
+          filteredData.map((item) =>
+            renderCard(item, selectedIds.has(item.id), (checked) =>
+              handleSelectOne(item.id, checked)
+            )
+          )}
+      </div>
+    );
+  };
+
+  return (
+    <div className={`space-y-3 ${className}`}>
+      {renderToolbar()}
+      {renderActiveFilters()}
+      {renderBulkActions()}
+      {view === 'table' ? renderTableView() : renderCardView()}
+    </div>
+  );
 }
 
 export default DataTable;

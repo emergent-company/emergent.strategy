@@ -215,6 +215,25 @@ export class GraphSearchService {
         return b.score - a.score;
       });
 
+    // Hydrate objects with actual data from database
+    const objectIds = fusedPool.map((item) => item.object_id);
+    const objectDataMap = await this.repo.hydrateObjects(objectIds);
+
+    // Update fusedPool with hydrated data
+    for (const item of fusedPool) {
+      const objectData = objectDataMap.get(item.object_id);
+      if (objectData) {
+        item.canonical_id = objectData.canonical_id;
+        // Build fields object from properties + core fields
+        item.fields = {
+          type: objectData.type,
+          key: objectData.key,
+          ...objectData.properties, // Spread all properties (name, description, title, etc.)
+        };
+      }
+      // If not found in database, keep the placeholder data (shouldn't happen)
+    }
+
     // Cursor helpers (extracted to utility for reuse across endpoints in future)
     const encodeCursor = encodeGraphCursor;
     const decodeCursor = decodeGraphCursor;

@@ -29,6 +29,9 @@ export class ChatConversation {
   @Column({ name: 'project_id', type: 'uuid', nullable: true })
   projectId: string | null;
 
+  @Column({ name: 'draft_text', type: 'text', nullable: true })
+  draftText: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

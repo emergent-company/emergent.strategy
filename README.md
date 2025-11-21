@@ -98,6 +98,30 @@ MCP_SERVER_URL=http://localhost:3001
 MCP_TIMEOUT=30000
 ```
 
+## Observability (LangSmith)
+
+The chat system supports optional integration with [LangSmith](https://smith.langchain.com/) for tracing LLM interactions, tool usage, and conversation flows.
+
+**Configuration:**
+
+Add the following to your `.env` file:
+
+```bash
+# Enable tracing
+LANGSMITH_TRACING=true
+
+# LangSmith API Endpoint (EU or US)
+LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com
+
+# Your API Key
+LANGSMITH_API_KEY=lsv2_pt_...
+
+# Project Name
+LANGSMITH_PROJECT=spec-server-chat
+```
+
+When enabled, traces are automatically sent to your LangSmith project dashboard. This is purely optional and disabled by default.
+
 **Documentation:**
 
 - [Architecture Overview](docs/technical/MCP_CHAT_ARCHITECTURE.md) - System design and data flow

@@ -1,33 +1,42 @@
 #!/usr/bin/env node
 import process from 'node:process';
 
+import { loadEnvironmentVariables } from './utils/load-env.js';
 import { runSetupCommand } from './commands/setup-service.js';
 import { runStartCommand } from './commands/start-service.js';
 import { runRestartCommand } from './commands/restart-service.js';
 import { runStopCommand } from './commands/stop-service.js';
-import { runStatusCommand } from './status/render.js';
+import { runStatusCommand } from './commands/status.js';
 import { runLogsCommand } from './logs/read.js';
 import { isWorkspaceCliError } from './errors.js';
-import { ensureLogrotateModule } from './pm2/logrotate.js';
 import { runPreflightChecks } from './preflight/checks.js';
+
+// Load environment variables BEFORE anything else
+// This ensures NAMESPACE and other vars are available when ecosystem files are loaded
+loadEnvironmentVariables();
 
 async function main(): Promise<void> {
   const [, , rawCommand, ...rest] = process.argv;
 
-  if (rawCommand === undefined || rawCommand === '--help' || rawCommand === '-h') {
+  if (
+    rawCommand === undefined ||
+    rawCommand === '--help' ||
+    rawCommand === '-h'
+  ) {
     printHelp();
     return;
   }
 
-  const preflightCommands = new Set(['setup', 'start', 'restart', 'stop', 'status', 'logs']);
+  const preflightCommands = new Set([
+    'setup',
+    'start',
+    'restart',
+    'stop',
+    'status',
+    'logs',
+  ]);
   if (preflightCommands.has(rawCommand)) {
     await runPreflightChecks(rawCommand, rest);
-  }
-
-  const logrotateEnabledCommands = new Set(['start', 'restart', 'stop', 'status', 'logs']);
-
-  if (logrotateEnabledCommands.has(rawCommand)) {
-    await ensureLogrotateModule();
   }
 
   switch (rawCommand) {
@@ -70,10 +79,10 @@ Usage:
 
 Commands:
   setup    Install dependencies and prepare services (use --service or --workspace)
-  start    Launch services and/or dependencies under PM2 supervision
-  restart  Restart services or dependencies with restart policies enforced
-  stop     Gracefully stop services or dependencies managed by PM2
-  status   Report consolidated health for managed services and dependencies
+  start    Launch services and/or dependencies with PID-based process management
+  restart  Restart services or dependencies (stop + start)
+  stop     Gracefully stop services or dependencies
+  status   Report status including PID and port information
   logs     Tail recent log output for managed services and dependencies
 
 Options:
@@ -100,7 +109,7 @@ main().catch((error: unknown) => {
       const payload = {
         code: error.code,
         message: error.message,
-        ...error.details
+        ...error.details,
       } satisfies Record<string, unknown>;
 
       process.stderr.write(`${JSON.stringify(payload, null, 2)}\n`);

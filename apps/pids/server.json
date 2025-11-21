@@ -1,0 +1,19 @@
+{
+  "pid": 81182,
+  "name": "server",
+  "command": "npm",
+  "args": [
+    "run",
+    "start:dev"
+  ],
+  "cwd": "/Users/mcj/code/spec-server-2/apps/server",
+  "env": {
+    "NODE_ENV": "development",
+    "LOG_LEVEL": "debug"
+  },
+  "startedAt": "2025-11-21T03:27:38.258Z",
+  "logFiles": {
+    "out": "/Users/mcj/code/spec-server-2/logs/server.out.log",
+    "error": "/Users/mcj/code/spec-server-2/logs/server.error.log"
+  }
+}

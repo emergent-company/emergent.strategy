@@ -1,318 +1,143 @@
-import { createRequire } from 'node:module';
-import path from 'node:path';
 import process from 'node:process';
-
 import {
   getApplicationProcess,
   listDefaultApplicationProcesses,
 } from '../config/application-processes.js';
+import type { EnvironmentProfileId } from '../config/types.js';
+import { parseCliArgs } from '../utils/parse-args.js';
+import { stopProcess, getProcessStatus } from '../process/manager.js';
 import {
-  getDependencyNamespace,
   getDependencyProcess,
   listDefaultDependencyProcesses,
 } from '../config/dependency-processes.js';
-import type { EnvironmentProfileId } from '../config/types.js';
-import { WorkspaceCliError } from '../errors.js';
-import { describeProcess, stopProcess } from '../pm2/client.js';
-import { parseCliArgs } from '../utils/parse-args.js';
-import { waitForProcessStop } from './lifecycle-utils.js';
-import { runStatusCommand } from '../status/render.js';
 import {
-  getValidatedApplicationNamespace,
-  getValidatedDependencyNamespace,
-  validateEcosystemNamespace,
-} from '../config/namespace-validator.js';
-
-const require = createRequire(import.meta.url);
-
-interface EcosystemProcessConfig {
-  readonly name: string;
-  readonly namespace?: string;
-}
-
-interface EcosystemModule {
-  readonly apps: readonly EcosystemProcessConfig[];
-}
-
-const ecosystemModule =
-  require('../../pm2/ecosystem.apps.cjs') as EcosystemModule;
-
-interface DependencyEcosystemProcessConfig extends EcosystemProcessConfig {}
-
-interface DependencyEcosystemModule {
-  readonly apps: readonly DependencyEcosystemProcessConfig[];
-}
-
-const dependencyEcosystemModule =
-  require('../../pm2/ecosystem.dependencies.cjs') as DependencyEcosystemModule;
-
-function resolveProcessName(serviceId: string): EcosystemProcessConfig {
-  const namespace = getValidatedApplicationNamespace('stop service');
-  const expectedName = `${namespace}-${serviceId}`;
-  const entry = ecosystemModule.apps.find((app) => app.name === expectedName);
-
-  if (!entry) {
-    throw new WorkspaceCliError(
-      'ECOSYSTEM_ENTRY_MISSING',
-      `No PM2 ecosystem configuration registered for ${serviceId} (expected name: ${expectedName}).`,
-      {
-        serviceId,
-        recommendation:
-          'Add an entry to tools/workspace-cli/pm2/ecosystem.apps.cjs',
-      }
-    );
-  }
-
-  // Validate that the ecosystem entry has the correct namespace
-  validateEcosystemNamespace(
-    entry.namespace,
-    namespace,
-    entry.name,
-    'stop service'
-  );
-
-  return entry;
-}
-
-function resolveDependencyProcessName(
-  dependencyId: string
-): DependencyEcosystemProcessConfig {
-  const appNamespace = getValidatedApplicationNamespace('stop dependency');
-  const namespace = getValidatedDependencyNamespace('stop dependency');
-  const expectedName = `${appNamespace}-${dependencyId}-dependency`;
-  const entry = dependencyEcosystemModule.apps.find(
-    (app) => app.name === expectedName
-  );
-
-  if (!entry) {
-    throw new WorkspaceCliError(
-      'ECOSYSTEM_ENTRY_MISSING',
-      `No PM2 ecosystem configuration registered for dependency ${dependencyId} (expected name: ${expectedName}).`,
-      {
-        serviceId: dependencyId,
-        recommendation:
-          'Add an entry to tools/workspace-cli/pm2/ecosystem.dependencies.cjs',
-      }
-    );
-  }
-
-  // Validate that the ecosystem entry has the correct namespace
-  validateEcosystemNamespace(
-    entry.namespace,
-    namespace,
-    entry.name,
-    'stop dependency'
-  );
-
-  return entry;
-}
-
-function resolveTargetServices(
-  requested: readonly string[],
-  workspace: boolean,
-  all: boolean,
-  includeServices: boolean
-): readonly string[] {
-  if (requested.length > 0) {
-    return requested;
-  }
-
-  if (!includeServices) {
-    return [];
-  }
-
-  if (workspace || all) {
-    return listDefaultApplicationProcesses().map(
-      (profile) => profile.processId
-    );
-  }
-
-  return listDefaultApplicationProcesses().map((profile) => profile.processId);
-}
-
-function resolveTargetDependencies(
-  requested: readonly string[],
-  includeDependencies: boolean
-): readonly string[] {
-  if (requested.length > 0) {
-    return requested;
-  }
-
-  if (!includeDependencies) {
-    return [];
-  }
-
-  return listDefaultDependencyProcesses().map(
-    (profile) => profile.dependencyId
-  );
-}
+  stopDockerComposeService,
+  getDockerComposeServiceStatus,
+} from '../process/docker.js';
 
 export async function runStopCommand(argv: readonly string[]): Promise<void> {
   const args = parseCliArgs(argv);
+  const profileId: EnvironmentProfileId = args.profile;
+
   const includeDependencies =
     args.includeDependencies ||
     args.dependenciesOnly ||
     args.all ||
     args.workspace;
   const includeServices = !args.dependenciesOnly;
-  const services = resolveTargetServices(
-    args.services,
-    args.workspace,
-    args.all,
-    includeServices
-  );
-  const dependencies = resolveTargetDependencies(
-    args.dependencies,
-    includeDependencies
-  );
 
-  if (services.length === 0 && dependencies.length === 0) {
+  // Determine which services to stop
+  let serviceIds: string[] = [];
+  if (includeServices) {
+    if (args.services.length > 0) {
+      serviceIds = [...args.services];
+    } else {
+      serviceIds = listDefaultApplicationProcesses().map((p) => p.processId);
+    }
+  }
+
+  // Determine which dependencies to stop
+  let dependencyIds: string[] = [];
+  if (includeDependencies) {
+    if (args.dependencies.length > 0) {
+      dependencyIds = [...args.dependencies];
+    } else {
+      dependencyIds = listDefaultDependencyProcesses().map(
+        (p) => p.dependencyId
+      );
+    }
+  }
+
+  if (serviceIds.length === 0 && dependencyIds.length === 0) {
     process.stdout.write(
-      '⚠️  No services or dependencies requested for stop command. Nothing to do.\n'
+      '⚠️  No services or dependencies requested for stop command.\n'
     );
     return;
   }
 
-  const profileId: EnvironmentProfileId = args.profile;
-
-  if (dependencies.length > 0) {
+  // Stop services first (before dependencies)
+  if (serviceIds.length > 0) {
     process.stdout.write(
-      `🛑 Stopping dependencies [${dependencies.join(
+      `⏹️  Stopping services [${serviceIds.join(
         ', '
       )}] with profile ${profileId}\n`
     );
 
-    for (const dependencyId of dependencies) {
-      getDependencyProcess(dependencyId);
-      const ecosystemEntry = resolveDependencyProcessName(dependencyId);
-      const processName = ecosystemEntry.name ?? `${dependencyId}-dependency`;
-      const namespace = getValidatedDependencyNamespace('stop dependency');
+    for (const serviceId of serviceIds) {
+      try {
+        const status = await getProcessStatus(serviceId);
 
-      if (args.dryRun) {
+        if (!status.running) {
+          process.stdout.write(`∙ ${serviceId} is not running\n`);
+          continue;
+        }
+
         process.stdout.write(
-          `∙ [dry-run] pm2 stop ${processName} (namespace: ${
-            namespace ?? '(default)'
-          })\n`
+          `∙ Stopping ${serviceId} (PID ${status.pid})...\n`
         );
-        continue;
-      }
-
-      const description = await describeProcess(processName);
-
-      if (!description) {
-        process.stdout.write(
-          `∙ ${processName} is not registered with PM2. Skipping stop.\n`
-        );
-        continue;
-      }
-
-      const existingNamespace = description.pm2_env?.namespace ?? namespace;
-
-      if (existingNamespace !== namespace) {
-        throw new WorkspaceCliError(
-          'PROCESS_NAMESPACE_MISMATCH',
-          `Process ${processName} is registered under namespace ${existingNamespace}, expected ${namespace}.`,
-          {
-            serviceId: dependencyId,
-            profile: profileId,
-            action: 'stop',
-            namespace: existingNamespace ?? '(none)',
-            recommendation: `Run nx run workspace:status --profile ${profileId}`,
-          }
+        await stopProcess(serviceId, { timeout: 10000 });
+        process.stdout.write(`  ✓ Stopped ${serviceId}\n`);
+      } catch (error) {
+        process.stderr.write(
+          `  ✗ Failed to stop ${serviceId}: ${
+            error instanceof Error ? error.message : String(error)
+          }\n`
         );
       }
-
-      const status = description.pm2_env?.status ?? 'unknown';
-
-      if (status === 'stopped' || status === 'offline') {
-        process.stdout.write(`∙ ${processName} is already stopped.\n`);
-        continue;
-      }
-
-      process.stdout.write(
-        `∙ Stopping ${processName} (current status: ${status})\n`
-      );
-      await stopProcess(processName);
-
-      await waitForProcessStop({
-        serviceId: dependencyId,
-        processName,
-        profileId,
-        namespace,
-      });
     }
+
+    process.stdout.write('\n');
   }
 
-  if (services.length > 0) {
+  // Stop dependencies
+  if (dependencyIds.length > 0) {
     process.stdout.write(
-      `⏹️  Stopping services [${services.join(
-        ', '
-      )}] with profile ${profileId}\n`
+      `🛑 Stopping dependencies [${dependencyIds.join(', ')}]\n`
     );
 
-    for (const serviceId of services) {
-      const processProfile = getApplicationProcess(serviceId);
-      const ecosystemEntry = resolveProcessName(serviceId);
-      const processName = ecosystemEntry.name ?? processProfile.processId;
-      const namespace = ecosystemEntry.namespace ?? processProfile.namespace;
+    for (const depId of dependencyIds) {
+      try {
+        const depProfile = getDependencyProcess(depId);
 
-      if (args.dryRun) {
-        process.stdout.write(
-          `∙ [dry-run] pm2 stop ${processName} (namespace: ${
-            namespace ?? '(default)'
-          })\n`
-        );
-        continue;
-      }
+        // Check if this is a Docker dependency
+        if (depProfile.composeService) {
+          // Docker-based dependency
+          const dockerStatus = await getDockerComposeServiceStatus(
+            depProfile.composeService
+          );
 
-      const description = await describeProcess(processName);
-
-      if (!description) {
-        process.stdout.write(
-          `∙ ${processName} is not registered with PM2. Skipping stop.\n`
-        );
-        continue;
-      }
-
-      const existingNamespace = description.pm2_env?.namespace ?? namespace;
-
-      if (existingNamespace !== namespace) {
-        throw new WorkspaceCliError(
-          'PROCESS_NAMESPACE_MISMATCH',
-          `Process ${processName} is registered under namespace ${existingNamespace}, expected ${namespace}.`,
-          {
-            serviceId,
-            profile: profileId,
-            action: 'stop',
-            namespace: existingNamespace ?? '(none)',
-            recommendation: `Run nx run workspace:status --profile ${profileId}`,
+          if (!dockerStatus.running) {
+            process.stdout.write(`∙ ${depId} is not running\n`);
+            continue;
           }
+
+          process.stdout.write(`∙ Stopping ${depId} (Docker)...\n`);
+          await stopDockerComposeService(depProfile.composeService);
+          process.stdout.write(`  ✓ Stopped ${depId}\n`);
+        } else {
+          // Regular process-based dependency
+          const status = await getProcessStatus(depId);
+
+          if (!status.running) {
+            process.stdout.write(`∙ ${depId} is not running\n`);
+            continue;
+          }
+
+          process.stdout.write(`∙ Stopping ${depId} (PID ${status.pid})...\n`);
+          await stopProcess(depId, { timeout: 10000 });
+          process.stdout.write(`  ✓ Stopped ${depId}\n`);
+        }
+      } catch (error) {
+        process.stderr.write(
+          `  ✗ Failed to stop ${depId}: ${
+            error instanceof Error ? error.message : String(error)
+          }\n`
         );
       }
-
-      const status = description.pm2_env?.status ?? 'unknown';
-
-      if (status === 'stopped' || status === 'offline') {
-        process.stdout.write(`∙ ${processName} is already stopped.\n`);
-        continue;
-      }
-
-      process.stdout.write(
-        `∙ Stopping ${processName} (current status: ${status})\n`
-      );
-      await stopProcess(processName);
-
-      await waitForProcessStop({
-        serviceId,
-        processName,
-        profileId,
-        namespace,
-      });
     }
+
+    process.stdout.write('\n');
   }
 
-  process.stdout.write('✅ Stop command complete\n\n');
-
-  // Display status after stopping
-  await runStatusCommand(argv);
+  process.stdout.write('✅ Stop command complete\n');
 }

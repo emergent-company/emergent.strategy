@@ -70,6 +70,7 @@ export default function DocumentsPage() {
   const { config } = useConfig();
   const { showToast } = useToast();
   const [data, setData] = useState<DocumentRow[] | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<boolean>(false);
@@ -86,6 +87,10 @@ export default function DocumentsPage() {
   const [isExtractionModalOpen, setIsExtractionModalOpen] = useState(false);
   const [selectedDocumentForExtraction, setSelectedDocumentForExtraction] =
     useState<DocumentRow | null>(null);
+  const [
+    selectedDocumentsForBatchExtraction,
+    setSelectedDocumentsForBatchExtraction,
+  ] = useState<DocumentRow[]>([]);
   const [isStartingExtraction, setIsStartingExtraction] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -179,15 +184,24 @@ export default function DocumentsPage() {
       try {
         const t = getAccessToken();
         const json = await fetchJson<
-          DocumentRow[] | { documents: DocumentRow[] }
+          | DocumentRow[]
+          | { documents: DocumentRow[]; total?: number }
+          | { documents: DocumentRow[] }
         >(`${apiBase}/api/documents`, {
           headers: t ? { ...buildHeaders({ json: false }) } : {},
           json: false,
         });
-        const docs = (Array.isArray(json) ? json : json.documents).map(
-          normalize
-        );
-        if (!cancelled) setData(docs);
+        const docsList = Array.isArray(json) ? json : json.documents;
+        const total =
+          !Array.isArray(json) && 'total' in json
+            ? json.total
+            : docsList.length;
+
+        const docs = docsList.map(normalize);
+        if (!cancelled) {
+          setData(docs);
+          setTotalCount(total || docs.length);
+        }
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Failed to load';
         if (!cancelled) setError(msg);
@@ -320,6 +334,125 @@ export default function DocumentsPage() {
     if (!selectedItems.length) return;
     setDocumentsToDelete(selectedItems);
     setTimeout(() => setIsDeletionModalOpen(true), 0);
+  };
+
+  // Handle bulk extraction
+  const handleBulkExtract = async (
+    selectedIds: string[],
+    selectedItems: DocumentRow[]
+  ) => {
+    if (!selectedItems.length) return;
+    setSelectedDocumentsForBatchExtraction(selectedItems);
+    setSelectedDocumentForExtraction(null);
+    setTimeout(() => setIsExtractionModalOpen(true), 0);
+  };
+
+  // Handle batch extraction confirmation
+  const handleBatchExtractionConfirm = async (
+    extractionConfig: ExtractionConfig
+  ) => {
+    if (
+      selectedDocumentsForBatchExtraction.length === 0 ||
+      !config.activeProjectId ||
+      !config.activeOrgId
+    )
+      return;
+
+    setIsStartingExtraction(true);
+    const totalDocs = selectedDocumentsForBatchExtraction.length;
+    let successCount = 0;
+    let failCount = 0;
+    const failedDocs: string[] = [];
+
+    try {
+      // Only include subject_id if user.sub is a valid UUID
+      const isValidUuid =
+        user?.sub &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          user.sub
+        );
+
+      // Create extraction jobs for each document
+      showToast({
+        message: `Creating extraction jobs for ${totalDocs} document${
+          totalDocs !== 1 ? 's' : ''
+        }...`,
+        variant: 'info',
+        duration: 3000,
+      });
+
+      for (const doc of selectedDocumentsForBatchExtraction) {
+        try {
+          await extractionClient.createJob({
+            source_type: 'document',
+            source_id: doc.id,
+            source_metadata: {
+              filename: doc.filename || 'unknown',
+              mime_type: doc.mime_type || 'application/octet-stream',
+            },
+            extraction_config: extractionConfig,
+            ...(isValidUuid && { subject_id: user.sub }),
+          });
+          successCount++;
+        } catch (err) {
+          console.error(
+            `Failed to create extraction job for ${doc.filename}:`,
+            err
+          );
+          failCount++;
+          failedDocs.push(doc.filename || doc.id);
+        }
+      }
+
+      // Close modal
+      setIsExtractionModalOpen(false);
+      setSelectedDocumentsForBatchExtraction([]);
+
+      // Show summary
+      if (failCount === 0) {
+        showToast({
+          message: `Successfully created ${successCount} extraction job${
+            successCount !== 1 ? 's' : ''
+          }. View them in the Extraction Jobs page.`,
+          variant: 'success',
+          duration: 5000,
+        });
+      } else if (successCount === 0) {
+        showToast({
+          message: `Failed to create extraction jobs for all ${failCount} document${
+            failCount !== 1 ? 's' : ''
+          }`,
+          variant: 'error',
+          duration: 8000,
+        });
+      } else {
+        showToast({
+          message: `Created ${successCount} extraction job${
+            successCount !== 1 ? 's' : ''
+          }, but ${failCount} failed. Failed: ${failedDocs.join(', ')}`,
+          variant: 'warning',
+          duration: 10000,
+        });
+      }
+
+      // Navigate to extraction jobs page after a delay
+      if (successCount > 0) {
+        setTimeout(() => {
+          navigate('/admin/extraction-jobs');
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Batch extraction failed:', err);
+      showToast({
+        message:
+          err instanceof Error
+            ? err.message
+            : 'Failed to create batch extraction jobs',
+        variant: 'error',
+      });
+    } finally {
+      setIsStartingExtraction(false);
+    }
   };
 
   // Fetch deletion impact for modal
@@ -550,10 +683,17 @@ export default function DocumentsPage() {
   }
 
   return (
-    <div data-testid="page-documents" className="mx-auto max-w-7xl container">
+    <div data-testid="page-documents" className="w-full px-4">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="font-bold text-2xl">Documents</h1>
+        <h1 className="font-bold text-2xl inline-flex items-center gap-2">
+          Documents
+          {!loading && (
+            <span className="badge badge-ghost badge-lg font-normal">
+              {totalCount}
+            </span>
+          )}
+        </h1>
         <p className="mt-1 text-base-content/70">
           Upload and manage documents for knowledge extraction
         </p>
@@ -687,8 +827,14 @@ export default function DocumentsPage() {
                 key: 'filename',
                 label: 'Filename',
                 sortable: true,
+                width: 'max-w-[250px] sm:max-w-[350px] md:max-w-[450px]',
+                cellClassName:
+                  'max-w-[250px] sm:max-w-[350px] md:max-w-[450px]',
                 render: (doc) => (
-                  <span className="font-medium">
+                  <span
+                    className="font-medium truncate block"
+                    title={doc.filename || ''}
+                  >
                     {doc.filename || '(no name)'}
                   </span>
                 ),
@@ -726,12 +872,16 @@ export default function DocumentsPage() {
               {
                 key: 'source_url',
                 label: 'Source',
-                width: 'max-w-96',
+                width: 'max-w-[200px]',
+                cellClassName: 'max-w-[200px]',
                 render: (doc) => {
                   if (!doc.source_url) {
                     return (
-                      <span className="inline-flex items-center gap-1.5 text-sm text-base-content/70">
-                        <Icon icon="lucide--upload" className="w-4 h-4" />
+                      <span className="inline-flex items-center gap-1.5 text-sm text-base-content/70 truncate max-w-full">
+                        <Icon
+                          icon="lucide--upload"
+                          className="w-4 h-4 shrink-0"
+                        />
                         Upload
                       </span>
                     );
@@ -747,14 +897,14 @@ export default function DocumentsPage() {
                         href={doc.source_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 transition-colors link hover:link-primary"
+                        className="inline-flex items-center gap-1.5 transition-colors link hover:link-primary truncate max-w-full"
                         title={doc.source_url}
                       >
                         <Icon
                           icon="simple-icons--clickup"
-                          className="w-4 h-4 text-purple-500"
+                          className="w-4 h-4 text-purple-500 shrink-0"
                         />
-                        <span>ClickUp</span>
+                        <span className="truncate">ClickUp</span>
                       </a>
                     );
                   }
@@ -763,12 +913,12 @@ export default function DocumentsPage() {
                     <a
                       href={doc.source_url}
                       target="_blank"
-                      className="inline-flex items-center gap-1.5 transition-colors link hover:link-primary"
+                      className="inline-flex items-center gap-1.5 transition-colors link hover:link-primary truncate max-w-full"
                       rel="noreferrer"
                       title={doc.source_url}
                     >
-                      <Icon icon="lucide--link" className="w-4 h-4" />
-                      <span className="max-w-xs truncate">Link</span>
+                      <Icon icon="lucide--link" className="w-4 h-4 shrink-0" />
+                      <span className="truncate">Link</span>
                     </a>
                   );
                 },
@@ -878,6 +1028,49 @@ export default function DocumentsPage() {
               },
             ] as ColumnDef<DocumentRow>[]
           }
+          filters={[
+            {
+              key: 'status',
+              label: 'Filter by Status',
+              icon: 'lucide--activity',
+              options: [
+                { value: 'completed', label: 'Completed' },
+                { value: 'running', label: 'Running' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'failed', label: 'Failed' },
+              ],
+              getValue: (doc) => doc.extractionStatus || 'pending',
+              badgeColor: 'info',
+            },
+            {
+              key: 'type',
+              label: 'Filter by Type',
+              icon: 'lucide--file-type',
+              options: [
+                { value: 'application/pdf', label: 'PDF' },
+                {
+                  value:
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                  label: 'Word',
+                },
+                {
+                  value:
+                    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                  label: 'PowerPoint',
+                },
+                {
+                  value:
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                  label: 'Excel',
+                },
+                { value: 'text/plain', label: 'Text' },
+                { value: 'text/markdown', label: 'Markdown' },
+                { value: 'text/html', label: 'HTML' },
+              ],
+              getValue: (doc) => doc.mime_type || 'unknown',
+              badgeColor: 'secondary',
+            },
+          ]}
           rowActions={
             [
               {
@@ -913,6 +1106,14 @@ export default function DocumentsPage() {
           bulkActions={
             [
               {
+                key: 'extract',
+                label: 'Extract',
+                icon: 'lucide--sparkles',
+                variant: 'primary',
+                style: 'solid',
+                onAction: handleBulkExtract,
+              },
+              {
                 key: 'delete',
                 label: 'Delete',
                 icon: 'lucide--trash-2',
@@ -945,10 +1146,19 @@ export default function DocumentsPage() {
         onClose={() => {
           setIsExtractionModalOpen(false);
           setSelectedDocumentForExtraction(null);
+          setSelectedDocumentsForBatchExtraction([]);
         }}
-        onConfirm={handleExtractionConfirm}
+        onConfirm={
+          selectedDocumentsForBatchExtraction.length > 0
+            ? handleBatchExtractionConfirm
+            : handleExtractionConfirm
+        }
         isLoading={isStartingExtraction}
-        documentName={selectedDocumentForExtraction?.filename || undefined}
+        documentName={
+          selectedDocumentsForBatchExtraction.length > 0
+            ? `${selectedDocumentsForBatchExtraction.length} documents`
+            : selectedDocumentForExtraction?.filename || undefined
+        }
       />
 
       {/* Document Metadata Modal */}
