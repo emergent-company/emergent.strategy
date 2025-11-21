@@ -26,18 +26,29 @@ apps/admin/.env           # Admin variables (mostly VITE_* prefixed)
 
 ### Principles
 
-1. **Single source of truth**: Each variable exists in exactly one canonical location
+1. **Committed defaults, local overrides**: `.env` files contain safe defaults (committed), `.env.local` files contain user overrides and secrets (gitignored)
 2. **Scope-based organization**: Variables grouped by which application uses them
-3. **Clear precedence**: Application-specific files override shared files
-4. **Documented ownership**: Comments clearly indicate variable purpose and scope
+3. **Clear precedence**: `.env.local` overrides `.env`, application-specific overrides workspace
+4. **No secrets in version control**: All secrets go in `.env.local` files only
+5. **Documented ownership**: Comments clearly indicate variable purpose and scope
 
 ### File Structure (Proposed)
 
 ```
-.env                      # Workspace/shared: NAMESPACE, ports, test users, bootstrap config
-apps/server/.env          # Server-only: database, LLM, auth backend, extraction
-apps/admin/.env           # Admin-only: VITE_* variables for frontend
+.env                      # Workspace defaults (COMMITTED - safe defaults, no secrets)
+.env.local                # User overrides & secrets (GITIGNORED - never committed)
+.env.example              # Documentation template (COMMITTED)
+
+apps/server/.env          # Server defaults (COMMITTED - safe defaults, no secrets)
+apps/server/.env.local    # User overrides & secrets (GITIGNORED - never committed)
+apps/server/.env.example  # Documentation template (COMMITTED)
+
+apps/admin/.env           # Admin defaults (COMMITTED - safe defaults, no secrets)
+apps/admin/.env.local     # User overrides & secrets (GITIGNORED - never committed)
+apps/admin/.env.example   # Documentation template (COMMITTED)
 ```
+
+**Key Principle**: `.env` files contain safe defaults and are committed. `.env.local` files contain user-specific overrides and secrets, and are never committed.
 
 ## Variable Categories
 
@@ -47,6 +58,45 @@ apps/admin/.env           # Admin-only: VITE_* variables for frontend
 **Examples**: `NAMESPACE`, `ADMIN_PORT`, `SERVER_PORT`, `ZITADEL_DOMAIN`, test user credentials
 
 **Rationale**: These variables coordinate across multiple processes and need to be visible workspace-wide.
+
+## What Goes Where
+
+### `.env` Files (Committed to Repository)
+
+**Purpose**: Provide safe, working defaults for development that can be shared with the team.
+
+**Should contain**:
+
+- Default ports (e.g., `SERVER_PORT=3002`)
+- Default hostnames (e.g., `POSTGRES_HOST=localhost`)
+- Feature flags with safe defaults (e.g., `EXTRACTION_WORKER_ENABLED=false`)
+- Public client IDs (e.g., `VITE_ZITADEL_CLIENT_ID=...`)
+- Placeholder values indicating secrets are needed (e.g., `GOOGLE_API_KEY=your-key-here`)
+
+**Should NOT contain**:
+
+- Real API keys or secrets
+- Production credentials
+- User-specific customizations
+- Sensitive tokens or passwords
+
+### `.env.local` Files (Gitignored, Never Committed)
+
+**Purpose**: Override defaults with user-specific values and store secrets locally.
+
+**Should contain**:
+
+- Real API keys (e.g., `GOOGLE_API_KEY=AIza...`)
+- Database passwords (e.g., `POSTGRES_PASSWORD=my-secure-password`)
+- Custom ports for local development (e.g., `SERVER_PORT=3003`)
+- Auth tokens and credentials
+- Any value that differs from the team default
+
+**Created when**:
+
+- User needs to add secrets
+- User wants different defaults than team
+- User has environment-specific configuration
 
 ### Category 2: Server Application (`apps/server/.env`)
 
@@ -68,14 +118,16 @@ apps/admin/.env           # Admin-only: VITE_* variables for frontend
 
 ```typescript
 // Current behavior (already implemented):
-1. Load apps/server/.env (via dotenv.config())
-2. Load root .env as fallback (dotenv doesn't override existing values)
-3. Validate all required variables via config.schema.ts
+1. Load apps/server/.env.local (user-specific overrides, highest priority)
+2. Load apps/server/.env (via dotenv.config())
+3. Load root .env.local (workspace user overrides)
+4. Load root .env as fallback (dotenv doesn't override existing values)
+5. Validate all required variables via config.schema.ts
 
-// Precedence: apps/server/.env > root .env > process.env
+// Precedence: apps/server/.env.local > apps/server/.env > root .env.local > root .env > process.env
 ```
 
-**No code changes needed** - Current loading already supports this pattern.
+**Verification needed** - Confirm loading order includes `.env.local` files.
 
 ### Admin (Vite)
 
@@ -94,13 +146,15 @@ apps/admin/.env           # Admin-only: VITE_* variables for frontend
 
 ```typescript
 // tools/workspace-cli loads:
-1. Root .env only (via dotenv)
-2. Reads NAMESPACE, ADMIN_PORT, SERVER_PORT for PM2 config
+1. Root .env.local (user-specific workspace overrides)
+2. Root .env (via dotenv)
+3. Reads NAMESPACE, ADMIN_PORT, SERVER_PORT for PM2 config
 
+// Precedence: .env.local > .env > process.env
 // No need to load app-specific variables
 ```
 
-**No code changes needed** - Already loads root `.env` only.
+**Verification needed** - Confirm workspace-cli loads `.env.local` files.
 
 ## Migration Strategy
 
@@ -194,7 +248,7 @@ The server's current loading behavior provides natural backward compatibility:
    - **Decision**: Not in this change. Add later as Phase 2 improvement.
 
 3. **How to handle user-specific overrides (`.env.local`)?**
-   - **Decision**: Keep `.env.local` in root for workspace overrides. Each app can also have its own `.env.local`.
+   - **Decision**: Support `.env.local` in root for workspace overrides AND in each app folder (`apps/server/.env.local`, `apps/admin/.env.local`) for app-specific user overrides. All `.env.local` files should be gitignored to prevent committing user-specific secrets or configurations.
 
 ## Future Enhancements
 
