@@ -9,9 +9,17 @@ apps/server-nest/dist-openapi/
 # Generic patterns (keep after explicit so intent is clear)
 **/dist-openapi/
 
-.env
+# Environment files with secrets (never commit)
+.env.local
+**/.env.local
+
+# Environment files for specific deployments (never commit)
 .env.staging
 .env.production
+
+# Note: .env files WITH SAFE DEFAULTS are committed
+# All secrets should be in .env.local files only
+
 .DS_Store
 
 # Secrets directory (service account JSON keys)

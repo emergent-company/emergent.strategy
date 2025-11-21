@@ -18,26 +18,43 @@ This causes:
 
 ## Solution
 
-Organize environment variables by moving them to appropriate locations based on actual usage:
+Organize environment variables by moving them to appropriate locations based on actual usage, with clear separation between committed defaults and user overrides:
 
-**Root `.env`** - Workspace/shared variables used by:
+**Root `.env`** (COMMITTED) - Workspace/shared default values:
 
-- `tools/workspace-cli` (PM2 process management)
-- Bootstrap/provisioning scripts
-- Multiple applications
+- Used by: `tools/workspace-cli`, bootstrap scripts, multiple applications
+- Contains: Safe defaults for NAMESPACE, ports, test configuration
+- No secrets: All values safe to commit
 
-**`apps/server/.env`** - Server-only variables used by:
+**Root `.env.local`** (GITIGNORED) - User workspace overrides:
 
-- NestJS backend application
-- Database connections
-- LLM/AI services
-- Authentication backend configuration
+- Overrides any root `.env` variable
+- Contains: User secrets, custom port numbers, local environment tweaks
+- Never committed to repository
 
-**`apps/admin/.env`** - Admin frontend variables used by:
+**`apps/server/.env`** (COMMITTED) - Server default values:
 
-- React/Vite frontend application
-- Frontend authentication (OIDC PKCE)
-- API connection settings
+- Used by: NestJS backend application
+- Contains: Safe defaults for database, LLM, auth, extraction
+- No secrets: Uses placeholder values or references to required secrets
+
+**`apps/server/.env.local`** (GITIGNORED) - User server overrides:
+
+- Overrides any server `.env` variable
+- Contains: Real API keys, credentials, connection strings
+- Never committed to repository
+
+**`apps/admin/.env`** (COMMITTED) - Admin default values:
+
+- Used by: React/Vite frontend application
+- Contains: Safe defaults for VITE\_\* variables, API URLs
+- No secrets: Public client IDs only (PKCE flow)
+
+**`apps/admin/.env.local`** (GITIGNORED) - User admin overrides:
+
+- Overrides any admin `.env` variable
+- Contains: Custom API endpoints, testing configurations
+- Never committed to repository
 
 ## Affected Capabilities
 
