@@ -5,35 +5,37 @@ const PROFILES: Record<EnvironmentProfileId, EnvironmentProfile> = {
     profileId: 'development',
     variables: {
       NODE_ENV: 'development',
-      LOG_LEVEL: 'debug'
+      LOG_LEVEL: 'debug',
     },
     secretsRefs: [],
-    hostRequirements: ['node', 'pm2', 'docker'],
-    logRetentionDays: 14
+    hostRequirements: ['node', 'docker'],
+    logRetentionDays: 14,
   },
   staging: {
     profileId: 'staging',
     variables: {
       NODE_ENV: 'staging',
-      LOG_LEVEL: 'info'
+      LOG_LEVEL: 'info',
     },
     secretsRefs: ['doppler:staging'],
-    hostRequirements: ['node', 'pm2', 'docker'],
-    logRetentionDays: 14
+    hostRequirements: ['node', 'docker'],
+    logRetentionDays: 14,
   },
   production: {
     profileId: 'production',
     variables: {
       NODE_ENV: 'production',
-      LOG_LEVEL: 'warn'
+      LOG_LEVEL: 'warn',
     },
     secretsRefs: ['doppler:production'],
-    hostRequirements: ['node', 'pm2', 'docker'],
-    logRetentionDays: 30
-  }
+    hostRequirements: ['node', 'docker'],
+    logRetentionDays: 30,
+  },
 };
 
-export function getEnvironmentProfile(profileId: EnvironmentProfileId): EnvironmentProfile {
+export function getEnvironmentProfile(
+  profileId: EnvironmentProfileId
+): EnvironmentProfile {
   return PROFILES[profileId];
 }
 

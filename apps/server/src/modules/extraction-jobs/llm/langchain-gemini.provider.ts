@@ -1,19 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ChatVertexAI } from '@langchain/google-vertexai';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
-import { z } from 'zod';
 import { AppConfigService } from '../../../common/config/config.service';
 import {
   ILLMProvider,
   ExtractionResult,
   ExtractedEntity,
 } from './llm-provider.interface';
-import { getSchemaForType } from '../schemas';
 
 /**
  * LangChain Gemini LLM Provider for entity extraction.
  * Uses ChatVertexAI with .withStructuredOutput() for type-safe extraction.
- * Supports dynamic type schemas via getSchemaForType helper.
+ * Supports dynamic type schemas.
  */
 @Injectable()
 export class LangChainGeminiProvider implements ILLMProvider {
@@ -270,6 +268,31 @@ export class LangChainGeminiProvider implements ILLMProvider {
     return Array.from(entityMap.values());
   }
 
+  private sanitizeSchema(schema: any): any {
+    if (typeof schema !== 'object' || schema === null) return schema;
+    if (Array.isArray(schema)) return schema.map((i) => this.sanitizeSchema(i));
+
+    const newSchema: any = {};
+    const allowedKeys = [
+      'type',
+      'description',
+      'enum',
+      'items',
+      'properties',
+      'required',
+    ];
+
+    for (const key in schema) {
+      if (key.startsWith('_')) continue;
+      if (['title', 'default', 'format'].includes(key)) continue;
+
+      if (allowedKeys.includes(key)) {
+        newSchema[key] = this.sanitizeSchema(schema[key]);
+      }
+    }
+    return newSchema;
+  }
+
   /**
    * Extract entities for a specific type using its Zod schema
    */
@@ -283,18 +306,25 @@ export class LangChainGeminiProvider implements ILLMProvider {
     prompt: string;
     rawResponse: any;
   }> {
-    // Use built-in Zod schemas (for now, TODO: convert JSON Schema to Zod)
-    const schema = getSchemaForType(typeName);
-
-    if (!schema) {
-      this.logger.warn(`No schema found for type: ${typeName}, skipping`);
-      return { entities: [], prompt: basePrompt, rawResponse: null };
+    if (!objectSchema) {
+      this.logger.error(`No schema provided for type: ${typeName}`);
+      throw new Error(`No schema provided for type: ${typeName}`);
     }
 
-    // Create array schema to extract multiple entities
-    const arraySchema = z.object({
-      entities: z.array(schema as any), // Use any to avoid deep type instantiation
-    });
+    // Sanitize schema to remove internal fields and unsupported keys
+    const sanitizedSchema = this.sanitizeSchema(objectSchema);
+
+    // Create array schema to extract multiple entities using JSON Schema
+    const jsonSchema = {
+      type: 'object',
+      properties: {
+        entities: {
+          type: 'array',
+          items: sanitizedSchema,
+        },
+      },
+      required: ['entities'],
+    };
 
     // Build type-specific prompt with schema information
     const typePrompt = this.buildTypeSpecificPrompt(
@@ -304,17 +334,20 @@ export class LangChainGeminiProvider implements ILLMProvider {
       objectSchema
     );
 
-    // Use structured output with Zod schema
-    const structuredModel = this.model!.withStructuredOutput(
-      arraySchema as any,
-      {
-        name: `extract_${typeName.toLowerCase()}`,
-      }
-    );
+    // Use structured output with JSON schema
+    const structuredModel = this.model!.withStructuredOutput(jsonSchema, {
+      name: `extract_${typeName.toLowerCase()}`,
+    });
 
     try {
       // Invoke the model with structured output
-      const result: any = await structuredModel.invoke(typePrompt);
+      const result: any = await structuredModel.invoke(typePrompt, {
+        tags: ['extraction-job', typeName],
+        metadata: {
+          type: typeName,
+          provider: 'LangChain-Gemini',
+        },
+      });
 
       // Transform to ExtractedEntity format
       const entities: ExtractedEntity[] = (result.entities || []).map(

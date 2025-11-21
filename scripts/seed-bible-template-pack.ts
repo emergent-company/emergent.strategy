@@ -1,4 +1,36 @@
 #!/usr/bin/env tsx
+/**
+ * Bible Knowledge Graph Template Pack v2.0
+ *
+ * MAJOR CHANGES FROM v1.0:
+ *
+ * 1. Entity References Use Names (Not canonical_id directly in schema)
+ *    - Properties like `father`, `birth_location`, `region` now store entity NAMES
+ *    - The entity linking service resolves names → canonical_id during extraction
+ *    - This keeps LLM prompts intuitive while ensuring robust relationships
+ *
+ * 2. Schema Version Tracking
+ *    - All entities now have `_schema_version: "2.0.0"` field
+ *    - Enables migration tracking and dual-schema support
+ *
+ * 3. Enhanced Properties
+ *    - Added `aliases`, `significance`, `source_references` to core entities
+ *    - Better enum constraints for categorical fields
+ *    - More comprehensive extraction examples
+ *
+ * 4. Improved Extraction Prompts
+ *    - Explicit instructions to use entity NAMES for references
+ *    - Clear examples showing proper format
+ *    - Guidance on how system resolves names to canonical IDs
+ *
+ * MIGRATION FROM v1.0:
+ * - This is an IN-PLACE update (same template pack ID)
+ * - Existing v1.0 objects remain valid
+ * - Run migration script to convert v1.0 → v2.0: npm run migrate:bible-objects
+ * - New extractions automatically use v2.0 schema
+ *
+ * See: docs/spec/schema-versioning-and-migration-strategy.md
+ */
 import path from 'node:path';
 import fs from 'node:fs';
 import * as dotenv from 'dotenv';
@@ -28,7 +60,7 @@ const pool = new Pool(getDbConfig());
 
 const templatePackName =
   process.env.BIBLE_TEMPLATE_PACK_NAME || 'Bible Knowledge Graph';
-const templatePackVersion = process.env.BIBLE_TEMPLATE_PACK_VERSION || '1.0.0';
+const templatePackVersion = process.env.BIBLE_TEMPLATE_PACK_VERSION || '2.0.0';
 
 const entityTypes = [
   {
@@ -39,34 +71,93 @@ const entityTypes = [
       required: ['name'],
       properties: {
         name: { type: 'string', description: 'Full name of the person' },
+        aliases: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Alternative names (e.g., Saul/Paul, Simon/Peter)',
+        },
         role: {
           type: 'string',
           description:
             'Position, title, or role (e.g., prophet, king, apostle)',
-        },
-        tribe: {
-          type: 'string',
-          description: 'Israelite tribe affiliation',
-        },
-        birth_location: {
-          type: 'string',
-          description: 'Place of birth',
-        },
-        death_location: {
-          type: 'string',
-          description: 'Place of death',
         },
         occupation: {
           type: 'string',
           description:
             'Profession or occupation (e.g., shepherd, fisherman, tax collector)',
         },
+        // References to other entities (using names - system will resolve to canonical_id)
+        tribe: {
+          type: 'string',
+          description:
+            'Israelite tribe name (e.g., "Tribe of Judah") - will be linked to Group entity',
+        },
+        birth_location: {
+          type: 'string',
+          description:
+            'Place of birth name (e.g., "Bethlehem") - will be linked to Place entity',
+        },
+        death_location: {
+          type: 'string',
+          description:
+            'Place of death name (e.g., "Jerusalem") - will be linked to Place entity',
+        },
+        father: {
+          type: 'string',
+          description:
+            'Father\'s name (e.g., "Abraham") - will be linked to Person entity',
+        },
+        mother: {
+          type: 'string',
+          description:
+            'Mother\'s name (e.g., "Sarah") - will be linked to Person entity',
+        },
+        significance: {
+          type: 'string',
+          description:
+            'Why this person is important biblically (1-2 sentences)',
+        },
+        source_references: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Biblical references where mentioned (e.g., ["Genesis 12", "Genesis 22"])',
+        },
+        _schema_version: {
+          type: 'string',
+          description: 'Schema version for migration tracking',
+          default: '2.0.0',
+        },
       },
     },
     extraction: {
       system:
-        'Extract all people mentioned in the biblical text with their roles, occupations, tribal affiliations, and associated locations.',
-      user: 'Identify each person in the text. Return their name, role (e.g., prophet, king, apostle), occupation if mentioned, tribe if mentioned, and birth/death locations if provided.',
+        'Extract all people mentioned in the biblical text with their roles, occupations, tribal affiliations, and associated locations. For references to other entities (places, tribes, family), use the ENTITY NAME which will be resolved to canonical_id by the system.',
+      user: `Identify each person in the text. Return:
+- name: Person's primary name
+- aliases: Array of alternative names if mentioned
+- role: Their role or title (e.g., prophet, king, apostle)
+- occupation: Their profession if mentioned
+- tribe: Name of their tribe (e.g., "Tribe of Judah")
+- birth_location: Name of birthplace (e.g., "Bethlehem")
+- death_location: Name of place where they died
+- father: Father's name (e.g., "Abraham")
+- mother: Mother's name (e.g., "Sarah")
+- significance: Brief description of why they're important
+- source_references: Array of chapter references where they appear
+
+Example:
+{
+  "name": "Isaac",
+  "father": "Abraham",
+  "mother": "Sarah",
+  "birth_location": "Canaan",
+  "role": "patriarch",
+  "significance": "Son of Abraham, father of Jacob and Esau, central figure in covenant",
+  "source_references": ["Genesis 21", "Genesis 22", "Genesis 26"]
+}
+
+IMPORTANT: Use entity NAMES (not IDs) for references. The system will automatically resolve names to canonical entity IDs.`,
     },
   },
   {
@@ -76,26 +167,89 @@ const entityTypes = [
       type: 'object',
       required: ['name'],
       properties: {
-        name: { type: 'string', description: 'Location name' },
-        region: {
+        name: {
           type: 'string',
-          description: 'Geographic region (e.g., Judea, Galilee, Asia Minor)',
-        },
-        country: {
-          type: 'string',
-          description: 'Modern or ancient country/kingdom',
+          description: 'Primary location name (e.g., "Jerusalem", "Bethlehem")',
         },
         alternate_names: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Other names for this location',
+          description:
+            'Other names for this location (e.g., ["Zion", "City of David"] for Jerusalem)',
+        },
+        type: {
+          type: 'string',
+          enum: [
+            'city',
+            'region',
+            'country',
+            'mountain',
+            'river',
+            'sea',
+            'desert',
+            'garden',
+            'building',
+            'landmark',
+          ],
+          description: 'Type of location',
+        },
+        region: {
+          type: 'string',
+          description:
+            'Parent region name (e.g., "Judea", "Galilee") - will be linked to Place entity',
+        },
+        country: {
+          type: 'string',
+          description:
+            'Country or kingdom name (e.g., "Israel", "Roman Empire") - will be linked to Place entity',
+        },
+        modern_location: {
+          type: 'string',
+          description: 'Modern day location or country',
+        },
+        significance: {
+          type: 'string',
+          description:
+            'Why this location is important biblically (1-2 sentences)',
+        },
+        source_references: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Biblical references where mentioned (e.g., ["Ruth 1", "Matthew 2"])',
+        },
+        _schema_version: {
+          type: 'string',
+          description: 'Schema version for migration tracking',
+          default: '2.0.0',
         },
       },
     },
     extraction: {
       system:
-        'Extract all geographic locations mentioned in the text with their regional context.',
-      user: 'Identify every location referenced. Return its name, region, country/kingdom, and any alternate names mentioned.',
+        'Extract all geographic locations mentioned in the text with their regional context. For hierarchical references (region, country), use entity NAMES which will be resolved to canonical_id.',
+      user: `Identify every location referenced. Return:
+- name: Primary location name
+- alternate_names: Array of other names if mentioned
+- type: Type of location (city, region, mountain, etc.)
+- region: Parent region name if mentioned
+- country: Country or kingdom name if mentioned
+- modern_location: Modern location if known
+- significance: Brief description of biblical importance
+- source_references: Array of chapter references
+
+Example:
+{
+  "name": "Bethlehem",
+  "alternate_names": ["Ephrathah", "City of David"],
+  "type": "city",
+  "region": "Judea",
+  "modern_location": "West Bank, Palestine",
+  "significance": "Birthplace of King David and Jesus Christ",
+  "source_references": ["Ruth 1", "Matthew 2", "Luke 2"]
+}
+
+IMPORTANT: Use entity NAMES for region/country references. The system will resolve them to canonical IDs.`,
     },
   },
   {
@@ -105,36 +259,104 @@ const entityTypes = [
       type: 'object',
       required: ['name'],
       properties: {
-        name: { type: 'string', description: 'Event name or description' },
+        name: {
+          type: 'string',
+          description:
+            'Event name or description (e.g., "Crossing of the Red Sea", "Crucifixion")',
+        },
+        type: {
+          type: 'string',
+          enum: [
+            'miracle',
+            'battle',
+            'covenant',
+            'judgment',
+            'prophecy',
+            'teaching',
+            'journey',
+            'birth',
+            'death',
+            'resurrection',
+            'other',
+          ],
+          description: 'Category of event',
+        },
         date_description: {
           type: 'string',
-          description: 'Textual description of when it occurred',
+          description:
+            'Textual description of when it occurred (e.g., "during the Exodus", "after three days")',
         },
         location: {
           type: 'string',
-          description: 'Where the event happened',
+          description:
+            'Where the event happened - place name (e.g., "Red Sea") - will be linked to Place entity',
         },
         participants: {
           type: 'array',
           items: { type: 'string' },
-          description: 'People involved in the event',
+          description:
+            'People involved - person names (e.g., ["Moses", "Aaron"]) - will be linked to Person entities',
+        },
+        description: {
+          type: 'string',
+          description: 'Brief description of what happened',
+        },
+        theological_significance: {
+          type: 'string',
+          description: 'Why this event matters theologically',
+        },
+        source_reference: {
+          type: 'string',
+          description:
+            'Primary biblical reference (e.g., "Exodus 14", "Matthew 27")',
+        },
+        _schema_version: {
+          type: 'string',
+          description: 'Schema version for migration tracking',
+          default: '2.0.0',
         },
       },
     },
     extraction: {
       system:
-        'Extract significant events from the narrative including when, where, and who was involved.',
-      user: 'Identify major events in the text. Return the event name, time description, location, and key participants.',
+        'Extract significant events from the narrative including when, where, and who was involved. For references to places and people, use entity NAMES which will be resolved to canonical_id.',
+      user: `Identify major events in the text. Return:
+- name: Event name or description
+- type: Category (miracle, battle, covenant, etc.)
+- date_description: When it occurred (textual description)
+- location: Place name where it happened
+- participants: Array of person names involved
+- description: Brief description of what happened
+- theological_significance: Why it matters theologically
+- source_reference: Primary chapter reference
+
+Example:
+{
+  "name": "Crossing of the Red Sea",
+  "type": "miracle",
+  "date_description": "during the Exodus from Egypt",
+  "location": "Red Sea",
+  "participants": ["Moses", "Aaron", "Pharaoh"],
+  "description": "God parted the Red Sea allowing Israelites to cross, then closed it over the Egyptian army",
+  "theological_significance": "Demonstrates God's power to deliver His people",
+  "source_reference": "Exodus 14"
+}
+
+IMPORTANT: Use entity NAMES for location and participants. The system will resolve them to canonical IDs.`,
     },
   },
   {
     type: 'Book',
-    description: 'Biblical book or writing referenced in the text',
+    description: 'Biblical book or writing (one of the 66 books of the Bible)',
     schema: {
       type: 'object',
-      required: ['name'],
+      required: ['name', 'testament'],
       properties: {
-        name: { type: 'string', description: 'Book name' },
+        name: {
+          type: 'string',
+          description:
+            'Full book name (e.g., "Genesis", "Matthew", "1 Corinthians")',
+        },
         testament: {
           type: 'string',
           enum: ['Old Testament', 'New Testament'],
@@ -142,80 +364,208 @@ const entityTypes = [
         },
         category: {
           type: 'string',
-          description:
-            'Literary category (Law, History, Wisdom, Prophets, Gospels, Letters, Apocalyptic)',
+          enum: [
+            'Law',
+            'History',
+            'Wisdom',
+            'Major Prophets',
+            'Minor Prophets',
+            'Gospels',
+            'Acts',
+            'Pauline Epistles',
+            'General Epistles',
+            'Apocalyptic',
+          ],
+          description: 'Literary category',
         },
         author: {
           type: 'string',
-          description: 'Traditional or attributed author',
+          description:
+            'Traditional or attributed author name (e.g., "Moses", "Paul") - will be linked to Person entity',
+        },
+        chapter_count: {
+          type: 'integer',
+          description: 'Total number of chapters in this book',
+        },
+        _schema_version: {
+          type: 'string',
+          description: 'Schema version for migration tracking',
+          default: '2.0.0',
         },
       },
     },
     extraction: {
       system:
-        'Extract references to biblical books or writings mentioned in the text.',
-      user: 'Identify any books referenced. Return the book name, testament, category, and author if mentioned.',
+        'Extract the Book entity for this document. A Book is one of the 66 books of the Bible.',
+      user: `Extract the Book entity. Return:
+- name: Exact book name from the document title
+- testament: "Old Testament" or "New Testament"
+- category: Literary category
+- author: Author's name (will be linked to Person entity)
+- chapter_count: Total chapters if determinable
+
+Example:
+{
+  "name": "Genesis",
+  "testament": "Old Testament",
+  "category": "Law",
+  "author": "Moses",
+  "chapter_count": 50
+}
+
+Extract ONE Book entity per document based on the document title/heading.`,
     },
   },
   {
     type: 'Quote',
-    description: 'Notable quotation, prophecy, or saying from the text',
+    description: 'Notable quotation, saying, or spoken words from the text',
     schema: {
       type: 'object',
       required: ['text'],
       properties: {
-        text: { type: 'string', description: 'The quoted text' },
+        text: { type: 'string', description: 'The quoted text or saying' },
         speaker: {
           type: 'string',
-          description: 'Who spoke or wrote this',
+          description:
+            'Who spoke these words - person name (e.g., "Jesus", "God") - will be linked to Person entity',
+        },
+        audience: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Who the quote was addressed to - names (e.g., ["Nicodemus"]) - will be linked to Person/Group entities',
         },
         context: {
           type: 'string',
-          description: 'Situational context of the quote',
+          description: 'Situational context (when, where, why it was said)',
         },
-        book_reference: {
+        source_reference: {
           type: 'string',
-          description: 'Book and chapter reference (e.g., Genesis 1:1)',
+          description: 'Biblical reference (e.g., "John 3:16", "Genesis 1:3")',
+        },
+        type: {
+          type: 'string',
+          enum: [
+            'teaching',
+            'commandment',
+            'prophecy',
+            'prayer',
+            'dialogue',
+            'proclamation',
+          ],
+          description: 'Type of quote',
+        },
+        _schema_version: {
+          type: 'string',
+          description: 'Schema version for migration tracking',
+          default: '2.0.0',
         },
       },
     },
     extraction: {
       system:
-        'Extract notable quotations, prophecies, commandments, or significant sayings from the text.',
-      user: 'Identify important quotes or sayings. Return the text, speaker, context, and reference.',
+        'Extract notable quotations, prophecies, commandments, or significant sayings from the text. For speaker and audience, use entity NAMES.',
+      user: `Identify important quotes or sayings. Return:
+- text: The exact quoted words
+- speaker: Person name who spoke (e.g., "Jesus", "God")
+- audience: Array of names who heard it
+- context: Situational context
+- source_reference: Verse or chapter reference
+- type: Type of quote (teaching, commandment, etc.)
+
+Example:
+{
+  "text": "For God so loved the world, that he gave his only Son...",
+  "speaker": "Jesus",
+  "audience": ["Nicodemus"],
+  "context": "Jesus teaching Nicodemus about salvation",
+  "source_reference": "John 3:16",
+  "type": "teaching"
+}
+
+IMPORTANT: Use entity NAMES for speaker and audience. System will resolve to canonical IDs.`,
     },
   },
   {
     type: 'Group',
-    description: 'Organization, tribe, nation, or group of people',
+    description: 'Tribe, nation, religious sect, or organized group of people',
     schema: {
       type: 'object',
       required: ['name'],
       properties: {
-        name: { type: 'string', description: 'Name of the group' },
-        type: {
+        name: {
           type: 'string',
           description:
-            'Type of group (e.g., religious sect, tribe, nation, military)',
+            'Name of the group (e.g., "Israelites", "Pharisees", "Tribe of Judah")',
+        },
+        type: {
+          type: 'string',
+          enum: [
+            'tribe',
+            'nation',
+            'religious sect',
+            'military',
+            'family clan',
+            'political party',
+            'other',
+          ],
+          description: 'Type of group',
         },
         region: {
           type: 'string',
-          description: 'Geographic region associated with the group',
+          description:
+            'Geographic region - place name (e.g., "Judea") - will be linked to Place entity',
         },
         leader: {
           type: 'string',
-          description: 'Leader or head of the group',
+          description:
+            'Leader or head - person name (e.g., "David") - will be linked to Person entity',
         },
-        members_count: {
+        founded_by: {
           type: 'string',
-          description: 'Number of members if mentioned',
+          description:
+            'Founder - person name (e.g., "Judah") - will be linked to Person entity',
+        },
+        description: {
+          type: 'string',
+          description:
+            'Brief description of the group and its purpose or beliefs',
+        },
+        source_references: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Biblical references where mentioned',
+        },
+        _schema_version: {
+          type: 'string',
+          description: 'Schema version for migration tracking',
+          default: '2.0.0',
         },
       },
     },
     extraction: {
       system:
-        'Extract groups, organizations, tribes, nations, or collectives mentioned in the text.',
-      user: 'Identify groups of people. Return the group name, type (e.g., religious sect, tribe), region, leader if mentioned, and member count if provided.',
+        'Extract groups, organizations, tribes, nations, or collectives mentioned in the text. For leader, region, and founder, use entity NAMES.',
+      user: `Identify groups of people. Return:
+- name: Group name
+- type: Type of group (tribe, nation, religious sect, etc.)
+- region: Place name where located
+- leader: Leader's name
+- founded_by: Founder's name
+- description: Brief description
+- source_references: Chapter references
+
+Example:
+{
+  "name": "Tribe of Judah",
+  "type": "tribe",
+  "region": "Judea",
+  "founded_by": "Judah",
+  "description": "One of the twelve tribes of Israel, from which King David and Jesus descended",
+  "source_references": ["Genesis 49", "Revelation 5"]
+}
+
+IMPORTANT: Use entity NAMES for region, leader, founded_by. System will resolve to canonical IDs.`,
     },
   },
   {
@@ -235,20 +585,27 @@ const entityTypes = [
           type: 'string',
           description: 'Physical description or purpose',
         },
-        location: {
-          type: 'string',
-          description: 'Where the object is located',
-        },
         owner: {
           type: 'string',
-          description: 'Who owns or possesses the object',
+          description:
+            'Who owns or possesses the object - person/group name - will be linked to Person/Group entity',
+        },
+        location: {
+          type: 'string',
+          description:
+            'Where the object is located - place name - will be linked to Place entity',
+        },
+        _schema_version: {
+          type: 'string',
+          description: 'Schema version for migration tracking',
+          default: '2.0.0',
         },
       },
     },
     extraction: {
       system:
-        'Extract significant objects, artifacts, structures, or physical items mentioned in the text.',
-      user: 'Identify important objects or artifacts. Return the name, type (e.g., artifact, building), description, location, and owner if mentioned.',
+        'Extract significant objects, artifacts, structures, or physical items mentioned in the text. For owner and location, use entity NAMES.',
+      user: 'Identify important objects or artifacts. Return the name, type (e.g., artifact, building), description, location (place name), and owner (person/group name) if mentioned. Use entity NAMES which will be resolved to canonical IDs.',
     },
   },
   {
@@ -272,12 +629,17 @@ const entityTypes = [
           type: 'string',
           description: 'Physical sign or symbol of the covenant',
         },
+        _schema_version: {
+          type: 'string',
+          description: 'Schema version for migration tracking',
+          default: '2.0.0',
+        },
       },
     },
     extraction: {
       system:
-        'Extract covenants, agreements, or treaties mentioned in the text.',
-      user: 'Identify covenants or agreements. Return the name, parties involved, terms, and any sign or symbol associated with it.',
+        'Extract covenants, agreements, or treaties mentioned in the text. For parties, use entity NAMES.',
+      user: 'Identify covenants or agreements. Return the name, parties involved (person/group names), terms, and any sign or symbol associated with it. Use entity NAMES which will be resolved to canonical IDs.',
     },
   },
   {
@@ -300,12 +662,17 @@ const entityTypes = [
           type: 'string',
           description: 'Reference to where/how the prophecy was fulfilled',
         },
+        _schema_version: {
+          type: 'string',
+          description: 'Schema version for migration tracking',
+          default: '2.0.0',
+        },
       },
     },
     extraction: {
       system:
-        'Extract prophecies, predictions, or divinely inspired messages from the text.',
-      user: 'Identify prophecies. Return the prophetic text, who delivered it, the subject, and any fulfillment reference.',
+        'Extract prophecies, predictions, or divinely inspired messages from the text. For prophet, use entity NAME.',
+      user: 'Identify prophecies. Return the prophetic text, who delivered it (prophet name), the subject, and any fulfillment reference. Use entity NAMES which will be resolved to canonical IDs.',
     },
   },
   {
@@ -334,13 +701,20 @@ const entityTypes = [
         },
         location: {
           type: 'string',
-          description: 'Where the miracle occurred',
+          description:
+            'Where the miracle occurred - place name - will be linked to Place entity',
+        },
+        _schema_version: {
+          type: 'string',
+          description: 'Schema version for migration tracking',
+          default: '2.0.0',
         },
       },
     },
     extraction: {
-      system: 'Extract miracles and supernatural events from the text.',
-      user: 'Identify miracles or supernatural events. Return the name, type (e.g., healing, nature), performer, witnesses, and location.',
+      system:
+        'Extract miracles and supernatural events from the text. For performer, witnesses, and location, use entity NAMES.',
+      user: 'Identify miracles or supernatural events. Return the name, type (e.g., healing, nature), performer (person name), witnesses (person names), and location (place name). Use entity NAMES which will be resolved to canonical IDs.',
     },
   },
   {
@@ -368,11 +742,16 @@ const entityTypes = [
           items: { type: 'string' },
           description: 'When/where the angel appeared',
         },
+        _schema_version: {
+          type: 'string',
+          description: 'Schema version for migration tracking',
+          default: '2.0.0',
+        },
       },
     },
     extraction: {
       system: 'Extract angels and spiritual beings mentioned in the text.',
-      user: 'Identify angels or spiritual beings. Return the name or type, rank (e.g., archangel, cherubim), mission, and appearance details.',
+      user: 'Identify angels or spiritual beings. Return the name or type, rank (e.g., archangel, cherubim), mission, and appearance details. Appearances should include locations (place names will be resolved to canonical IDs).',
     },
   },
 ];
@@ -567,7 +946,7 @@ async function upsertBibleTemplatePack(client: PoolClient): Promise<void> {
       [
         templatePackName,
         templatePackVersion,
-        'Bible-specific template pack with Person, Place, Event, Book, Quote, Group, Object, Covenant, Prophecy, Miracle, and Angel entities for comprehensive biblical text extraction.',
+        'Bible Knowledge Graph v2.0 - Enhanced template pack with canonical_id-based entity references for reliable linking. Includes Person, Place, Event, Book, Quote, Group, Object, Covenant, Prophecy, Miracle, and Angel entities. Schema version tracking enabled.',
         'Spec Server Seed Script',
         JSON.stringify(objectTypeSchemas),
         JSON.stringify(relationshipTypeSchemas),
@@ -588,7 +967,7 @@ async function upsertBibleTemplatePack(client: PoolClient): Promise<void> {
         BIBLE_TEMPLATE_PACK_ID,
         templatePackName,
         templatePackVersion,
-        'Bible-specific template pack with Person, Place, Event, Book, Quote, Group, Object, Covenant, Prophecy, Miracle, and Angel entities for comprehensive biblical text extraction.',
+        'Bible Knowledge Graph v2.0 - Enhanced template pack with canonical_id-based entity references for reliable linking. Includes Person, Place, Event, Book, Quote, Group, Object, Covenant, Prophecy, Miracle, and Angel entities. Schema version tracking enabled.',
         'Spec Server Seed Script',
         JSON.stringify(objectTypeSchemas),
         JSON.stringify(relationshipTypeSchemas),

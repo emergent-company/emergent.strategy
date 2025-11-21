@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ChatVertexAI } from '@langchain/google-vertexai';
-import { MemorySaver } from '@langchain/langgraph';
+import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { Pool } from 'pg';
 import { AppConfigService } from '../../../common/config/config.service';
 import { HumanMessage } from '@langchain/core/messages';
 // import { getWeatherTool } from '../tools/weather.tool'; // Temporarily commented due to TypeScript compilation issue
@@ -18,14 +19,34 @@ export interface StreamConversationOptions {
  * Implements a simple chat flow with Google Vertex AI (Gemini).
  */
 @Injectable()
-export class LangGraphService {
+export class LangGraphService implements OnModuleInit {
   private readonly logger = new Logger(LangGraphService.name);
   private model: ChatVertexAI | null = null;
   private defaultAgent: any = null;
-  private checkpointer: MemorySaver;
+  private checkpointer: PostgresSaver;
 
-  constructor(private readonly config: AppConfigService) {
-    this.checkpointer = new MemorySaver();
+  constructor(private readonly config: AppConfigService) {}
+
+  async onModuleInit() {
+    const pool = new Pool({
+      host: this.config.dbHost,
+      port: this.config.dbPort,
+      user: this.config.dbUser,
+      password: this.config.dbPassword,
+      database: this.config.dbName,
+    });
+
+    this.checkpointer = new PostgresSaver(pool);
+    try {
+      await this.checkpointer.setup();
+      this.logger.log('PostgresSaver checkpointer initialized');
+    } catch (error) {
+      this.logger.error(
+        'Failed to initialize PostgresSaver checkpointer',
+        error
+      );
+    }
+
     this.initialize();
   }
 
@@ -88,7 +109,7 @@ export class LangGraphService {
           projectId: projectId,
         },
         location: location,
-        temperature: 0.7,
+        temperature: 0.3,
         maxOutputTokens: 1000,
       });
 

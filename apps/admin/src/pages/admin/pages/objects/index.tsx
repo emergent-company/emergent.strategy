@@ -2,8 +2,10 @@
 // Route: /admin/objects
 
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
+import { useToast } from '@/hooks/use-toast';
 import { ObjectDetailModal } from '@/components/organisms/ObjectDetailModal';
 import {
   DataTable,
@@ -27,6 +29,7 @@ interface GraphObjectResponse {
   created_at: string;
   embedding?: any | null;
   embedding_updated_at?: string | null;
+  relationship_count?: number;
   // Note: No updated_at in graph_objects table
 }
 
@@ -43,15 +46,40 @@ interface GraphObject extends TableDataItem {
   embedding_updated_at?: string | null;
 }
 
+const transformObject = (obj: GraphObjectResponse): GraphObject => ({
+  id: obj.id,
+  name:
+    (obj.properties?.name as string) ||
+    (obj.properties?.title as string) ||
+    obj.key ||
+    `${obj.type}-${obj.id.substring(0, 8)}`,
+  type: obj.type,
+  status: obj.status || undefined,
+  source:
+    obj.external_type ||
+    (obj.properties?._extraction_source as string) ||
+    undefined,
+  source_id: (obj.properties?._extraction_source_id as string) || undefined,
+  updated_at: obj.created_at, // Use created_at as updated_at
+  relationship_count: obj.relationship_count || 0,
+  properties: obj.properties || {},
+  embedding: obj.embedding,
+  embedding_updated_at: obj.embedding_updated_at,
+});
+
 export default function ObjectsPage() {
   const { config } = useConfig();
   const { apiBase, fetchJson } = useApi();
+  const { showToast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const objectIdParam = searchParams.get('id');
 
   const [objects, setObjects] = useState<GraphObject[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [availableTypes, setAvailableTypes] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -63,12 +91,15 @@ export default function ObjectsPage() {
   const [documentNamesCache, setDocumentNamesCache] = useState<
     Record<string, string>
   >({});
+  const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
+  const [hasMore, setHasMore] = useState(false);
 
   const loadObjects = useCallback(async () => {
     if (!config.activeProjectId) return;
 
     setLoading(true);
     setError(null);
+    setNextCursor(undefined);
 
     try {
       // Build query parameters
@@ -86,30 +117,12 @@ export default function ObjectsPage() {
         }>(`${apiBase}/api/graph/objects/fts?${params}`);
 
         // Transform API response to component format
-        const transformedObjects: GraphObject[] = response.items.map((obj) => ({
-          id: obj.id,
-          name:
-            (obj.properties?.name as string) ||
-            (obj.properties?.title as string) ||
-            obj.key ||
-            `${obj.type}-${obj.id.substring(0, 8)}`,
-          type: obj.type,
-          status: obj.status || undefined,
-          source:
-            obj.external_type ||
-            (obj.properties?._extraction_source as string) ||
-            undefined,
-          source_id:
-            (obj.properties?._extraction_source_id as string) || undefined,
-          updated_at: obj.created_at, // Use created_at as updated_at
-          relationship_count: undefined, // Not included in API response
-          properties: obj.properties,
-          embedding: obj.embedding,
-          embedding_updated_at: obj.embedding_updated_at,
-        }));
+        const transformedObjects: GraphObject[] =
+          response.items.map(transformObject);
 
         setObjects(transformedObjects);
         setTotalCount(response.total);
+        setHasMore(false); // FTS doesn't support pagination yet
       } else {
         // Use regular search without text query
         if (selectedTypes.length > 0) {
@@ -126,30 +139,13 @@ export default function ObjectsPage() {
         }>(`${apiBase}/api/graph/objects/search?${params}`);
 
         // Transform API response to component format
-        const transformedObjects: GraphObject[] = response.items.map((obj) => ({
-          id: obj.id,
-          name:
-            (obj.properties?.name as string) ||
-            (obj.properties?.title as string) ||
-            obj.key ||
-            `${obj.type}-${obj.id.substring(0, 8)}`,
-          type: obj.type,
-          status: obj.status || undefined,
-          source:
-            obj.external_type ||
-            (obj.properties?._extraction_source as string) ||
-            undefined,
-          source_id:
-            (obj.properties?._extraction_source_id as string) || undefined,
-          updated_at: obj.created_at, // Use created_at as updated_at
-          relationship_count: undefined, // Not included in API response
-          properties: obj.properties,
-          embedding: obj.embedding,
-          embedding_updated_at: obj.embedding_updated_at,
-        }));
+        const transformedObjects: GraphObject[] =
+          response.items.map(transformObject);
 
         setObjects(transformedObjects);
         setTotalCount(response.total || transformedObjects.length);
+        setNextCursor(response.next_cursor);
+        setHasMore(!!response.next_cursor);
       }
     } catch (err) {
       console.error('Failed to load objects:', err);
@@ -158,6 +154,94 @@ export default function ObjectsPage() {
       setLoading(false);
     }
   }, [config.activeProjectId, searchQuery, selectedTypes, apiBase, fetchJson]);
+
+  const loadMore = useCallback(async () => {
+    if (!config.activeProjectId || !nextCursor || loadingMore) return;
+
+    setLoadingMore(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams();
+      if (selectedTypes.length > 0) {
+        params.append('type', selectedTypes[0]);
+      }
+      params.append('limit', '100');
+      params.append('order', 'desc');
+      params.append('cursor', nextCursor);
+
+      const response = await fetchJson<{
+        items: GraphObjectResponse[];
+        next_cursor?: string;
+        total?: number;
+      }>(`${apiBase}/api/graph/objects/search?${params}`);
+
+      // Transform and append to existing objects
+      const transformedObjects: GraphObject[] =
+        response.items.map(transformObject);
+
+      setObjects((prev) => [...prev, ...transformedObjects]);
+      setNextCursor(response.next_cursor);
+      setHasMore(!!response.next_cursor);
+    } catch (err) {
+      console.error('Failed to load more objects:', err);
+      setError(
+        err instanceof Error ? err.message : 'Failed to load more objects'
+      );
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [
+    config.activeProjectId,
+    nextCursor,
+    selectedTypes,
+    apiBase,
+    fetchJson,
+    loadingMore,
+  ]);
+
+  // Handle URL object ID param
+  useEffect(() => {
+    if (!objectIdParam || !config.activeProjectId) return;
+
+    const handleLoad = async () => {
+      // Check if object is already in the loaded list
+      const existing = objects.find((o) => o.id === objectIdParam);
+      if (existing) {
+        setSelectedObject(existing);
+        setIsModalOpen(true);
+        return;
+      }
+
+      // Otherwise fetch it specifically
+      try {
+        const response = await fetchJson<GraphObjectResponse>(
+          `${apiBase}/api/graph/objects/${objectIdParam}`
+        );
+        const obj = transformObject(response);
+        setSelectedObject(obj);
+        setIsModalOpen(true);
+      } catch (err) {
+        console.error('Failed to fetch object from URL:', err);
+        showToast({
+          message:
+            err instanceof Error
+              ? err.message
+              : 'Failed to load object details from URL',
+          variant: 'error',
+        });
+      }
+    };
+
+    handleLoad();
+  }, [
+    objectIdParam,
+    config.activeProjectId,
+    apiBase,
+    fetchJson,
+    showToast,
+    objects,
+  ]);
 
   const loadAvailableTypes = useCallback(async () => {
     if (!config.activeProjectId) return;
@@ -230,6 +314,10 @@ export default function ObjectsPage() {
 
   const handleModalClose = () => {
     setIsModalOpen(false);
+    // Clear URL param if it exists
+    if (objectIdParam) {
+      setSearchParams({});
+    }
     // Small delay before clearing to avoid flicker
     setTimeout(() => setSelectedObject(null), 300);
   };
@@ -503,21 +591,26 @@ export default function ObjectsPage() {
       },
     },
     {
+      key: 'relationship_count',
+      label: 'Rels',
+      sortable: true,
+      render: (obj) => {
+        const count = obj.relationship_count || 0;
+        if (count === 0) {
+          return <span className="text-sm text-base-content/50">—</span>;
+        }
+        return (
+          <span className="text-sm font-medium text-base-content">{count}</span>
+        );
+      },
+    },
+    {
       key: 'updated_at',
       label: 'Updated',
       sortable: true,
       render: (obj) => (
         <span className="text-sm text-base-content/70">
           {new Date(obj.updated_at).toLocaleDateString()}
-        </span>
-      ),
-    },
-    {
-      key: 'relationship_count',
-      label: 'Rel',
-      render: (obj) => (
-        <span className="text-sm text-base-content/70">
-          {obj.relationship_count ?? '—'}
         </span>
       ),
     },
@@ -614,9 +707,30 @@ export default function ObjectsPage() {
         enableSelection={true}
         enableSearch={true}
         searchPlaceholder="Search objects..."
-        getSearchText={(obj) => `${obj.name} ${obj.type} ${obj.source || ''}`}
+        onSearch={handleSearchChange}
         filters={filters}
         bulkActions={bulkActions}
+        rowActions={[
+          {
+            label: 'View Details',
+            icon: 'lucide--eye',
+            onAction: handleObjectClick,
+          },
+          {
+            label: 'Accept',
+            icon: 'lucide--check-circle',
+            onAction: (obj) => handleAcceptObject(obj.id),
+            hidden: (obj: GraphObject) => obj.status === 'accepted',
+            variant: 'success',
+          },
+          {
+            label: 'Delete',
+            icon: 'lucide--trash-2',
+            onAction: (obj) => handleDelete(obj.id),
+            variant: 'error',
+          },
+        ]}
+        useDropdownActions={true}
         onRowClick={handleObjectClick}
         onSelectionChange={handleBulkSelect}
         emptyMessage="No objects found. Objects will appear here after extraction jobs complete."
@@ -624,6 +738,31 @@ export default function ObjectsPage() {
         noResultsMessage="No objects match current filters."
         formatDate={(date) => new Date(date).toLocaleDateString()}
       />
+
+      {/* Load More Button */}
+      {hasMore && !loading && (
+        <div className="flex justify-center mt-6">
+          <button
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="btn btn-primary btn-wide"
+          >
+            {loadingMore ? (
+              <>
+                <span className="loading loading-spinner loading-sm"></span>
+                Loading...
+              </>
+            ) : (
+              <>
+                Load More
+                <span className="text-xs opacity-70">
+                  ({objects.length} of {totalCount})
+                </span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Object Detail Modal */}
       <ObjectDetailModal

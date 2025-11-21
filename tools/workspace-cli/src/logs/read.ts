@@ -1,9 +1,6 @@
 import process from 'node:process';
 import path from 'node:path';
 import { open, readdir } from 'node:fs/promises';
-import { createRequire } from 'node:module';
-
-import pm2 from 'pm2';
 
 import { parseCliArgs } from '../utils/parse-args.js';
 import {
@@ -21,8 +18,6 @@ import type {
   ManagedServiceType,
 } from '../config/types.js';
 import { WorkspaceCliError } from '../errors.js';
-
-const require = createRequire(import.meta.url);
 
 const DEFAULT_CHUNK_SIZE = 64 * 1024; // 64 KiB
 const LOG_FILE_PATTERN = /\.log(\..*)?$/i;
@@ -60,49 +55,6 @@ interface LogSnapshotPayload {
   readonly services: readonly ServiceLogSnapshot[];
   readonly extras: readonly ExtraLogSnapshot[];
 }
-
-interface EcosystemProcessConfig {
-  readonly name: string;
-  readonly namespace?: string;
-  readonly env?: Record<string, unknown>;
-}
-
-interface EcosystemModule {
-  readonly apps: readonly EcosystemProcessConfig[];
-}
-
-interface Pm2LogPacket {
-  readonly data: string;
-  readonly at?: number;
-  readonly process: {
-    readonly name: string;
-    readonly namespace?: string;
-    readonly pm_id?: number;
-  };
-}
-
-interface Pm2Bus {
-  on(event: string, handler: (packet: Pm2LogPacket) => void): void;
-  removeListener(event: string, handler: (packet: Pm2LogPacket) => void): void;
-  close(): void;
-}
-
-// Lazy-load ecosystem modules to ensure environment variables are loaded first
-function getApplicationEcosystem(): EcosystemModule {
-  return require('../../pm2/ecosystem.apps.cjs') as EcosystemModule;
-}
-
-function getDependencyEcosystem(): EcosystemModule {
-  return require('../../pm2/ecosystem.dependencies.cjs') as EcosystemModule;
-}
-
-const COLOR_RESET = '\u001B[0m';
-const COLOR_DIM = '\u001B[2m';
-const COLOR_PALETTE = [36, 32, 33, 35, 34, 96, 92, 93, 95, 94, 91, 90] as const;
-const STDOUT_COLOR = 90;
-const STDERR_COLOR = 91;
-const STDOUT_SYMBOL = '▸';
-const STDERR_SYMBOL = '✖';
 
 function unique<T>(values: readonly T[]): T[] {
   return Array.from(new Set(values));
@@ -570,269 +522,13 @@ export async function runLogsCommand(argv: readonly string[]): Promise<void> {
   renderTextSnapshot(payload);
 
   if (args.follow) {
-    process.stdout.write('\n');
-    await streamManagedLogs(serviceIds, dependencyIds);
-    return;
-  }
-}
-
-function getEnvString(
-  entry: EcosystemProcessConfig,
-  key: string
-): string | undefined {
-  if (!entry.env) {
-    return undefined;
-  }
-
-  const value = entry.env[key];
-  return typeof value === 'string' ? value : undefined;
-}
-
-function resolveApplicationEcosystemEntry(
-  serviceId: string
-): EcosystemProcessConfig {
-  const applicationEcosystem = getApplicationEcosystem();
-  const entry = applicationEcosystem.apps.find(
-    (candidate: EcosystemProcessConfig) => {
-      const envServiceId = getEnvString(candidate, 'WORKSPACE_SERVICE_ID');
-      return envServiceId === serviceId || candidate.name === serviceId;
-    }
-  );
-
-  if (!entry) {
     throw new WorkspaceCliError(
-      'UNKNOWN_SERVICE',
-      `Unknown application service: ${serviceId}`,
+      'FEATURE_NOT_SUPPORTED',
+      'Log streaming (--follow) is not currently supported.',
       {
-        serviceId,
         recommendation:
-          'Register the service in pm2/ecosystem.apps.cjs to enable log streaming.',
+          'Remove the --follow flag to generate a static log snapshot.',
       }
     );
-  }
-
-  return entry;
-}
-
-function resolveDependencyEcosystemEntry(
-  dependencyId: string
-): EcosystemProcessConfig {
-  const dependencyEcosystem = getDependencyEcosystem();
-  const entry = dependencyEcosystem.apps.find(
-    (candidate: EcosystemProcessConfig) => {
-      const envDependencyId = getEnvString(
-        candidate,
-        'WORKSPACE_DEPENDENCY_ID'
-      );
-      return (
-        envDependencyId === dependencyId ||
-        candidate.name === `${dependencyId}-dependency`
-      );
-    }
-  );
-
-  if (!entry) {
-    throw new WorkspaceCliError(
-      'UNKNOWN_DEPENDENCY',
-      `Unknown dependency: ${dependencyId}`,
-      {
-        serviceId: dependencyId,
-        recommendation:
-          'Register the dependency in pm2/ecosystem.dependencies.cjs to enable log streaming.',
-      }
-    );
-  }
-
-  return entry;
-}
-
-function applyColor(code: number, text: string): string {
-  return `\u001B[${code}m${text}${COLOR_RESET}`;
-}
-
-function dimText(text: string): string {
-  return `${COLOR_DIM}${text}${COLOR_RESET}`;
-}
-
-function formatChannelLabel(channel: 'stdout' | 'stderr'): string {
-  const code = channel === 'stderr' ? STDERR_COLOR : STDOUT_COLOR;
-  const symbol = channel === 'stderr' ? STDERR_SYMBOL : STDOUT_SYMBOL;
-  return applyColor(code, `${symbol} ${channel}`);
-}
-
-function timestampLabel(at?: number): string {
-  const time = at ?? Date.now();
-  const iso = new Date(time).toISOString();
-  return dimText(`[${iso}]`);
-}
-
-async function connectPm2(): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    pm2.connect((error: Error | null) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve();
-    });
-  });
-}
-
-async function launchPm2Bus(): Promise<Pm2Bus> {
-  return await new Promise((resolve, reject) => {
-    const pm2WithBus = pm2 as unknown as {
-      launchBus: (
-        callback: (error: Error | null, bus?: unknown) => void
-      ) => void;
-    };
-
-    pm2WithBus.launchBus((error: Error | null, bus?: unknown) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      if (!bus) {
-        reject(new Error('PM2 log bus unavailable.'));
-        return;
-      }
-
-      resolve(bus as Pm2Bus);
-    });
-  });
-}
-
-async function streamManagedLogs(
-  serviceIds: readonly string[],
-  dependencyIds: readonly string[]
-): Promise<void> {
-  const targetProcesses = new Map<string, { namespace?: string }>();
-
-  for (const serviceId of serviceIds) {
-    const entry = resolveApplicationEcosystemEntry(serviceId);
-    targetProcesses.set(entry.name, { namespace: entry.namespace });
-  }
-
-  for (const dependencyId of dependencyIds) {
-    const entry = resolveDependencyEcosystemEntry(dependencyId);
-    targetProcesses.set(entry.name, { namespace: entry.namespace });
-  }
-
-  if (targetProcesses.size === 0) {
-    process.stdout.write(
-      '⚠️  No managed services selected. Nothing to stream.\n'
-    );
-    return;
-  }
-
-  const allowedNames = new Set(targetProcesses.keys());
-  const allowedNamespaces = new Set(
-    Array.from(targetProcesses.values())
-      .map((item) => item.namespace)
-      .filter(
-        (namespace): namespace is string =>
-          typeof namespace === 'string' && namespace.length > 0
-      )
-  );
-
-  await connectPm2();
-  let bus: Pm2Bus | undefined;
-
-  try {
-    bus = await launchPm2Bus();
-
-    process.stdout.write('📡 Streaming realtime logs (press Ctrl+C to stop)\n');
-
-    const colorAssignments = new Map<string, number>();
-    let paletteIndex = 0;
-
-    const resolveColorCode = (name: string): number => {
-      if (!colorAssignments.has(name)) {
-        const code = COLOR_PALETTE[paletteIndex % COLOR_PALETTE.length];
-        colorAssignments.set(name, code);
-        paletteIndex += 1;
-      }
-
-      return colorAssignments.get(name)!;
-    };
-
-    const emitLine = (channel: 'stdout' | 'stderr', packet: Pm2LogPacket) => {
-      const processName = packet.process.name;
-      if (!allowedNames.has(processName)) {
-        const namespace = packet.process.namespace;
-        if (!namespace || !allowedNamespaces.has(namespace)) {
-          return;
-        }
-      }
-
-      const label = applyColor(
-        resolveColorCode(processName),
-        `[${processName}]`
-      );
-      const channelLabel = formatChannelLabel(channel);
-      const prefix = `${timestampLabel(packet.at)} ${label} ${channelLabel}`;
-      const raw = packet.data ?? '';
-      const segments = raw.split(/\r?\n/);
-
-      for (const segment of segments) {
-        if (segment.length === 0) {
-          continue;
-        }
-
-        process.stdout.write(`${prefix} ${segment}\n`);
-      }
-    };
-
-    const handleStdout = (packet: Pm2LogPacket) => emitLine('stdout', packet);
-    const handleStderr = (packet: Pm2LogPacket) => emitLine('stderr', packet);
-
-    bus.on('log:out', handleStdout);
-    bus.on('log:err', handleStderr);
-
-    await new Promise<void>((resolve) => {
-      let closed = false;
-      const signals: ReadonlyArray<NodeJS.Signals> = ['SIGINT', 'SIGTERM'];
-
-      const finalize = () => {
-        if (closed) {
-          return;
-        }
-
-        closed = true;
-
-        for (const signal of signals) {
-          process.removeListener(signal, finalize);
-        }
-
-        if (bus) {
-          try {
-            if (typeof bus.removeListener === 'function') {
-              bus.removeListener('log:out', handleStdout);
-              bus.removeListener('log:err', handleStderr);
-            }
-
-            if (typeof bus.close === 'function') {
-              bus.close();
-            }
-          } catch {
-            // ignore cleanup errors
-          }
-        }
-
-        process.stdout.write('\n🛑 Log streaming stopped.\n');
-        resolve();
-      };
-
-      signals.forEach((signal) => {
-        process.once(signal, finalize);
-      });
-    });
-  } finally {
-    try {
-      pm2.disconnect();
-    } catch {
-      // ignore disconnect errors
-    }
   }
 }

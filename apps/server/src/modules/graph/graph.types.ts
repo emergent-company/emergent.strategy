@@ -27,6 +27,7 @@ export interface GraphObjectRow {
   created_at: string;
   // Computed fields (not stored in database)
   revision_count?: number; // Total number of versions for this object
+  relationship_count?: number; // Number of relationships connected to this object
 }
 
 export interface GraphObjectDto extends GraphObjectRow {

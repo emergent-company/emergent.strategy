@@ -1,17 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AppConfigService } from '../../../common/config/config.service';
 import { ILLMProvider } from './llm-provider.interface';
-import { VertexAIProvider } from './vertex-ai.provider';
 import { LangChainGeminiProvider } from './langchain-gemini.provider';
 
 /**
  * Factory for creating LLM providers
  *
- * Priority order:
- * 1. Google Vertex AI (production-grade GCP service, requires GCP_PROJECT_ID)
- * 2. LangChain + Google Gemini (fallback, uses public API with GOOGLE_API_KEY)
- *
- * Future providers can be added here (OpenAI, Anthropic, etc.)
+ * Uses LangChain + Google Gemini for entity extraction.
+ * This provides consistent behavior with the chat service, robust tracing via LangSmith,
+ * and structured output support.
  */
 @Injectable()
 export class LLMProviderFactory {
@@ -20,27 +17,19 @@ export class LLMProviderFactory {
 
   constructor(
     private readonly config: AppConfigService,
-    private readonly langChainProvider: LangChainGeminiProvider,
-    private readonly vertexAIProvider: VertexAIProvider
+    private readonly langChainProvider: LangChainGeminiProvider
   ) {
     this.initializeProvider();
   }
 
   private initializeProvider() {
-    // Prefer Vertex AI provider when configured (production-grade GCP service)
-    if (this.vertexAIProvider.isConfigured()) {
-      this.provider = this.vertexAIProvider;
-      this.logger.log(`Using LLM provider: ${this.provider.getName()}`);
-    }
-    // Fallback to LangChain provider (uses public Generative AI API)
-    else if (this.langChainProvider.isConfigured()) {
+    // Use LangChain provider (supports both Google Generative AI and Vertex AI via config)
+    if (this.langChainProvider.isConfigured()) {
       this.provider = this.langChainProvider;
-      this.logger.log(
-        `Using LLM provider: ${this.provider.getName()} (fallback)`
-      );
+      this.logger.log(`Using LLM provider: ${this.provider.getName()}`);
     } else {
       this.logger.warn(
-        'No LLM provider configured. Set GCP_PROJECT_ID or GOOGLE_API_KEY'
+        'No LLM provider configured. Set GOOGLE_API_KEY or GCP_PROJECT_ID/GCP_REGION'
       );
     }
   }

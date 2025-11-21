@@ -127,6 +127,18 @@ export class GraphObjectsController {
     description:
       'Filter objects by branch ID. Use "null" to search main branch (branch_id IS NULL). Omit to search all branches.',
   })
+  @ApiQuery({
+    name: 'related_to_id',
+    required: false,
+    type: String,
+    description: 'Filter objects connected to this ID via any relationship.',
+  })
+  @ApiQuery({
+    name: 'ids',
+    required: false,
+    type: String,
+    description: 'Comma-separated list of object IDs to fetch.',
+  })
   searchObjects(
     @Query('type') type?: string,
     @Query('key') key?: string,
@@ -135,6 +147,12 @@ export class GraphObjectsController {
     @Query('cursor') cursor?: string,
     @Query('order') order?: string,
     @Query('branch_id') branch_id?: string,
+    @Query('related_to_id') related_to_id?: string,
+    @Query(
+      'ids',
+      new ParseArrayPipe({ items: String, separator: ',', optional: true })
+    )
+    ids?: string[],
     @Req() req?: any
   ) {
     const parsedLimit = limit ? parseInt(limit, 10) : 20;
@@ -164,6 +182,8 @@ export class GraphObjectsController {
         branch_id: parsedBranchId,
         organization_id: orgId,
         project_id: projectId,
+        related_to_id,
+        ids,
       },
       { orgId, projectId }
     );
