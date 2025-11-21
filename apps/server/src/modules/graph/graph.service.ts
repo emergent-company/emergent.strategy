@@ -1451,6 +1451,7 @@ export class GraphService {
       project_id?: string;
       properties?: Record<string, any>;
       related_to_id?: string;
+      ids?: string[];
     },
     ctx?: GraphTenantContext
   ): Promise<{ items: GraphObjectDto[]; next_cursor?: string; total: number }> {
@@ -1485,6 +1486,7 @@ export class GraphService {
           project_id,
           properties,
           related_to_id,
+          ids,
         } = opts;
         // Head selection (may include deleted heads) followed by outer filter to exclude tombstones to avoid
         // resurfacing stale pre-delete versions.
@@ -1500,10 +1502,17 @@ export class GraphService {
         const headWhere = headFilters.length
           ? 'WHERE ' + headFilters.join(' AND ')
           : '';
-        const baseHeadCte = `SELECT DISTINCT ON (canonical_id) id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, created_at, embedding, embedding_updated_at
-                                 FROM kb.graph_objects
+        const baseHeadCte = `SELECT DISTINCT ON (o.canonical_id) 
+                                 o.id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, 
+                                 o.version, o.type, o.key, o.status, o.properties, o.labels, 
+                                 o.deleted_at, o.created_at, o.embedding, o.embedding_updated_at,
+                                 (SELECT COUNT(DISTINCT r.canonical_id)::int 
+                                  FROM kb.graph_relationships r 
+                                  WHERE (r.src_id = o.id OR r.dst_id = o.id) 
+                                  AND r.deleted_at IS NULL) as relationship_count
+                                 FROM kb.graph_objects o
                                  ${headWhere}
-                                 ORDER BY canonical_id, version DESC`;
+                                 ORDER BY o.canonical_id, o.version DESC`;
         const outerFilters: string[] = ['t.deleted_at IS NULL'];
         const outerParams: any[] = [...headParams];
         // organization_id removed from graph_objects schema in Phase 5
@@ -1523,6 +1532,10 @@ export class GraphService {
         if (label) {
           outerParams.push(label);
           outerFilters.push(`$${outerParams.length} = ANY(t.labels)`);
+        }
+        if (ids && ids.length > 0) {
+          outerParams.push(ids);
+          outerFilters.push(`t.id = ANY($${outerParams.length}::uuid[])`);
         }
 
         // Property filtering (MQL-subset)
@@ -1565,6 +1578,9 @@ export class GraphService {
                   case '$ne':
                     // Use JSONB equality for strictness or text? Spec implies loose
                     outerFilters.push(`${propAccess} != $${paramIdx}::text`);
+                    break;
+                  case '$ilike':
+                    outerFilters.push(`${propAccess} ILIKE $${paramIdx}`);
                     break;
                   case '$in':
                     // $in expects an array
@@ -1653,6 +1669,10 @@ export class GraphService {
           countParams.push(label);
           countFilters.push(`$${countParams.length} = ANY(t.labels)`);
         }
+        if (ids && ids.length > 0) {
+          countParams.push(ids);
+          countFilters.push(`t.id = ANY($${countParams.length}::uuid[])`);
+        }
         // Re-apply property/relationship filters for count
         if (properties) {
           for (const [propKey, propVal] of Object.entries(properties)) {
@@ -1688,6 +1708,9 @@ export class GraphService {
                     break;
                   case '$ne':
                     countFilters.push(`${propAccess} != $${paramIdx}::text`);
+                    break;
+                  case '$ilike':
+                    countFilters.push(`${propAccess} ILIKE $${paramIdx}`);
                     break;
                   case '$in':
                     if (Array.isArray(opVal)) {
@@ -1799,10 +1822,10 @@ export class GraphService {
         const sql = `WITH heads AS (
               SELECT DISTINCT ON (o.canonical_id) o.id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.status, o.properties, o.labels, o.deleted_at, o.created_at, o.fts, o.embedding, o.embedding_updated_at
               FROM kb.graph_objects o
-              WHERE o.fts @@ websearch_to_tsquery('simple', $1)
+              WHERE (o.fts @@ websearch_to_tsquery('simple', $1) OR o.id::text ILIKE '%' || $1 || '%')
               ORDER BY o.canonical_id, o.version DESC
           )
-          SELECT *, ts_rank(fts, websearch_to_tsquery('simple', $1)) AS rank
+          SELECT *, (ts_rank(fts, websearch_to_tsquery('simple', $1)) + (CASE WHEN id::text ILIKE '%' || $1 || '%' THEN 1.0 ELSE 0.0 END)) AS rank
           FROM heads h
           WHERE h.deleted_at IS NULL ${
             filters.length ? 'AND ' + filters.join(' AND ') : ''

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 import SimpleBar from 'simplebar-react';
 import 'simplebar-react/dist/simplebar.min.css';
 import type { UIMessage } from '@ai-sdk/react';
@@ -24,7 +24,7 @@ interface MessageListProps {
  * - Loading indicator during streaming
  * - Renders MessageBubble components for each message
  */
-export function MessageList({
+export const MessageList = memo(function MessageList({
   messages,
   onCopy,
   onRegenerate,
@@ -107,4 +107,4 @@ export function MessageList({
       </div>
     </SimpleBar>
   );
-}
+});

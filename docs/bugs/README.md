@@ -78,13 +78,30 @@ docs/bugs/
 - **Use the logs tool:** When documenting bugs, use the `logs` tool to retrieve recent log excerpts
 - **Search first:** Before creating a new bug report, check if a similar issue already exists
 
+## Active Critical Bugs
+
+### Blocking Smart Extraction (2024-11-21)
+
+- **[004-embedding-column-mismatch.md](./004-embedding-column-mismatch.md)** - Embedding worker writes to wrong column
+
+  - Severity: Critical
+  - Impact: 100% of graph objects have NULL embeddings for vector search
+  - Status: Identified, solution designed
+  - Blocks: Vector search, smart extraction, semantic chat
+
+- **[003-chunk-embeddings-missing.md](./003-chunk-embeddings-missing.md)** - No embedding system for chunks
+  - Severity: Critical
+  - Impact: Architecture gap - no way to generate chunk embeddings
+  - Status: Analysis complete, implementation needed
+  - Blocks: Context-aware extraction, chunk-based search
+
 ## Examples of Good Bug Reports
 
 See the existing bug reports in this directory:
 
 - `001-zitadel-introspection-failures.md` - Authentication issue with external service
 - `002-materialized-view-not-populated.md` - Database schema issue
-- `003-missing-google-api-key.md` - Configuration issue
+- `004-embedding-column-mismatch.md` - Schema confusion causing data to be written to wrong column
 
 These demonstrate the level of detail and structure expected.
 
