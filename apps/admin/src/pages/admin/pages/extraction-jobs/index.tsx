@@ -293,7 +293,7 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
   // Show error state
   if (error && !isLoading) {
     return (
-      <div className="mx-auto max-w-7xl container">
+      <div className="w-full px-4">
         <div className="mb-6">
           <h1 className="font-bold text-2xl">Extraction Jobs</h1>
           <p className="mt-1 text-base-content/70">
@@ -309,14 +309,18 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
   }
 
   return (
-    <div
-      data-testid="page-extraction-jobs"
-      className="mx-auto max-w-7xl container"
-    >
+    <div data-testid="page-extraction-jobs" className="w-full px-4">
       {/* Header */}
       <div className="flex sm:flex-row flex-col justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="font-bold text-2xl">Extraction Jobs</h1>
+          <h1 className="font-bold text-2xl inline-flex items-center gap-2">
+            Extraction Jobs
+            {!isLoading && (
+              <span className="badge badge-ghost badge-lg font-normal">
+                {totalCount}
+              </span>
+            )}
+          </h1>
           <p className="mt-1 text-base-content/70">
             View and manage AI-powered entity extraction jobs
           </p>

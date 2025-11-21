@@ -22,6 +22,8 @@ interface TemplatePack {
   relationship_types: string[];
   relationship_count: number;
   installed: boolean;
+  active?: boolean; // Only present if installed
+  assignment_id?: string; // Only present if installed
   compatible: boolean;
   published_at: string;
 }
@@ -405,7 +407,9 @@ export default function ProjectTemplatesSettingsPage() {
 
             {/* Built-in Packs */}
             {availablePacks.filter(
-              (pack) => !pack.installed && pack.source === 'system'
+              (pack) =>
+                pack.source === 'system' &&
+                (!pack.installed || pack.active === false)
             ).length > 0 && (
               <div className="mb-6">
                 <h3 className="flex items-center gap-2 mb-3 font-medium text-base">
@@ -418,7 +422,9 @@ export default function ProjectTemplatesSettingsPage() {
                 <div className="space-y-3">
                   {availablePacks
                     .filter(
-                      (pack) => !pack.installed && pack.source === 'system'
+                      (pack) =>
+                        pack.source === 'system' &&
+                        (!pack.installed || pack.active === false)
                     )
                     .map((pack) => (
                       <div
@@ -471,26 +477,40 @@ export default function ProjectTemplatesSettingsPage() {
                               <Icon icon="lucide--eye" className="size-4" />
                               Preview
                             </button>
-                            <button
-                              className="btn btn-sm btn-primary"
-                              onClick={() => handleInstall(pack.id)}
-                              disabled={installing === pack.id}
-                            >
-                              {installing === pack.id ? (
-                                <>
-                                  <span className="loading loading-spinner loading-xs"></span>
-                                  Installing...
-                                </>
-                              ) : (
-                                <>
-                                  <Icon
-                                    icon="lucide--download"
-                                    className="size-4"
-                                  />
-                                  Install
-                                </>
-                              )}
-                            </button>
+                            {pack.installed && pack.active === false ? (
+                              // Show Enable button for disabled packs
+                              <button
+                                className="btn btn-sm btn-success"
+                                onClick={() =>
+                                  handleToggleActive(pack.assignment_id!, false)
+                                }
+                              >
+                                <Icon icon="lucide--play" className="size-4" />
+                                Enable
+                              </button>
+                            ) : (
+                              // Show Install button for non-installed packs
+                              <button
+                                className="btn btn-sm btn-primary"
+                                onClick={() => handleInstall(pack.id)}
+                                disabled={installing === pack.id}
+                              >
+                                {installing === pack.id ? (
+                                  <>
+                                    <span className="loading loading-spinner loading-xs"></span>
+                                    Installing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Icon
+                                      icon="lucide--download"
+                                      className="size-4"
+                                    />
+                                    Install
+                                  </>
+                                )}
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -501,7 +521,9 @@ export default function ProjectTemplatesSettingsPage() {
 
             {/* User Created & Discovered Packs */}
             {availablePacks.filter(
-              (pack) => !pack.installed && pack.source !== 'system'
+              (pack) =>
+                pack.source !== 'system' &&
+                (!pack.installed || pack.active === false)
             ).length > 0 && (
               <div>
                 <h3 className="flex items-center gap-2 mb-3 font-medium text-base">
@@ -511,7 +533,9 @@ export default function ProjectTemplatesSettingsPage() {
                 <div className="space-y-3">
                   {availablePacks
                     .filter(
-                      (pack) => !pack.installed && pack.source !== 'system'
+                      (pack) =>
+                        pack.source !== 'system' &&
+                        (!pack.installed || pack.active === false)
                     )
                     .map((pack) => (
                       <div
@@ -566,34 +590,53 @@ export default function ProjectTemplatesSettingsPage() {
                               <Icon icon="lucide--eye" className="size-4" />
                               Preview
                             </button>
-                            <button
-                              className="btn-outline btn btn-sm btn-error"
-                              onClick={() => handleDelete(pack.id, pack.name)}
-                              title="Permanently delete this template pack"
-                            >
-                              <Icon icon="lucide--trash-2" className="size-4" />
-                              Delete
-                            </button>
-                            <button
-                              className="btn btn-sm btn-primary"
-                              onClick={() => handleInstall(pack.id)}
-                              disabled={installing === pack.id}
-                            >
-                              {installing === pack.id ? (
-                                <>
-                                  <span className="loading loading-spinner loading-xs"></span>
-                                  Installing...
-                                </>
-                              ) : (
-                                <>
-                                  <Icon
-                                    icon="lucide--download"
-                                    className="size-4"
-                                  />
-                                  Install
-                                </>
-                              )}
-                            </button>
+                            {!pack.installed && (
+                              <button
+                                className="btn-outline btn btn-sm btn-error"
+                                onClick={() => handleDelete(pack.id, pack.name)}
+                                title="Permanently delete this template pack"
+                              >
+                                <Icon
+                                  icon="lucide--trash-2"
+                                  className="size-4"
+                                />
+                                Delete
+                              </button>
+                            )}
+                            {pack.installed && pack.active === false ? (
+                              // Show Enable button for disabled packs
+                              <button
+                                className="btn btn-sm btn-success"
+                                onClick={() =>
+                                  handleToggleActive(pack.assignment_id!, false)
+                                }
+                              >
+                                <Icon icon="lucide--play" className="size-4" />
+                                Enable
+                              </button>
+                            ) : (
+                              // Show Install button for non-installed packs
+                              <button
+                                className="btn btn-sm btn-primary"
+                                onClick={() => handleInstall(pack.id)}
+                                disabled={installing === pack.id}
+                              >
+                                {installing === pack.id ? (
+                                  <>
+                                    <span className="loading loading-spinner loading-xs"></span>
+                                    Installing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Icon
+                                      icon="lucide--download"
+                                      className="size-4"
+                                    />
+                                    Install
+                                  </>
+                                )}
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -602,7 +645,8 @@ export default function ProjectTemplatesSettingsPage() {
               </div>
             )}
 
-            {availablePacks.filter((p) => !p.installed).length === 0 &&
+            {availablePacks.filter((p) => !p.installed || p.active === false)
+              .length === 0 &&
               installedPacks.length > 0 && (
                 <div className="bg-base-200 card">
                   <div className="py-8 text-center card-body">

@@ -136,6 +136,18 @@ export class ConversationService {
   }
 
   /**
+   * Update conversation draft text
+   */
+  async updateConversationDraft(
+    conversationId: string,
+    draftText: string
+  ): Promise<ChatConversation> {
+    const conversation = await this.getConversation(conversationId);
+    conversation.draftText = draftText;
+    return this.conversationRepository.save(conversation);
+  }
+
+  /**
    * Delete conversation
    */
   async deleteConversation(conversationId: string): Promise<void> {

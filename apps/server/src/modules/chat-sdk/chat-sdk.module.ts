@@ -6,12 +6,18 @@ import { AppConfigModule } from '../../common/config/config.module';
 import { ChatConversation } from '../../entities/chat-conversation.entity';
 import { ChatMessage } from '../../entities/chat-message.entity';
 import { ChatUiModule } from '../chat-ui/chat-ui.module';
+import { UnifiedSearchModule } from '../unified-search/unified-search.module';
+import { TypeRegistryModule } from '../type-registry/type-registry.module';
+import { GraphModule } from '../graph/graph.module';
 
 @Module({
   imports: [
     AppConfigModule,
     TypeOrmModule.forFeature([ChatConversation, ChatMessage]),
     ChatUiModule, // Import to access LangGraphService and ConversationService
+    UnifiedSearchModule, // Import to access UnifiedSearchService for RAG
+    TypeRegistryModule,
+    GraphModule,
   ],
   controllers: [ChatSdkController],
   providers: [ChatSdkService],

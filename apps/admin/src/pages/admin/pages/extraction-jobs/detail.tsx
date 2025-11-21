@@ -28,6 +28,7 @@ export function ExtractionJobDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
 
   // Fetch job details (initial load only)
@@ -164,6 +165,32 @@ export function ExtractionJobDetailPage() {
     }
   };
 
+  // Retry job
+  const handleRetry = async () => {
+    if (!job || !jobId || !config.activeProjectId) return;
+
+    const client = createExtractionJobsClient(
+      apiBase,
+      fetchJson,
+      config.activeProjectId
+    );
+
+    setIsRetrying(true);
+    try {
+      const updatedJob = await client.retryJob(jobId);
+      setJob(updatedJob);
+    } catch (err) {
+      console.error('Failed to retry job:', err);
+      alert(
+        `Failed to retry job: ${
+          err instanceof Error ? err.message : 'Unknown error'
+        }`
+      );
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -267,6 +294,7 @@ export function ExtractionJobDetailPage() {
     job.status === 'completed' ||
     job.status === 'failed' ||
     job.status === 'cancelled';
+  const canRetry = job.status === 'failed' || job.status === 'running';
 
   return (
     <div className="mx-auto max-w-6xl container">
@@ -306,6 +334,25 @@ export function ExtractionJobDetailPage() {
                 <>
                   <Icon icon="lucide--x-circle" />
                   Cancel Job
+                </>
+              )}
+            </button>
+          )}
+          {canRetry && (
+            <button
+              className="btn btn-info btn-sm"
+              onClick={handleRetry}
+              disabled={isRetrying}
+            >
+              {isRetrying ? (
+                <>
+                  <span className="loading loading-spinner loading-xs" />
+                  Retrying...
+                </>
+              ) : (
+                <>
+                  <Icon icon="lucide--refresh-cw" />
+                  Retry Job
                 </>
               )}
             </button>

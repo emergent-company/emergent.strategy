@@ -4,6 +4,25 @@
 
 ### Added
 
+**Optimized Entity Extraction (Map-Reduce + Semantic Chunking)** (2025-11-21)
+
+Refactored the entity extraction pipeline to use a highly parallelized LangGraph Map-Reduce architecture with Semantic Chunking.
+
+**Improvements:**
+
+- **Semantic Chunking**: Uses `text-embedding-004` to split documents based on topic shifts rather than arbitrary token counts, ensuring better context preservation.
+- **Single-Pass Extraction**: Consolidates all entity types (Requirements, Risks, etc.) into a unified schema, reducing LLM calls by ~80% (1 call per chunk instead of N types per chunk).
+- **Parallel Execution**: Processes all chunks in parallel using LangGraph `Send` API.
+- **Cost Efficiency**: Optimized for `gemini-2.5-flash`.
+
+**Technical Changes:**
+
+- Replaced `RecursiveCharacterTextSplitter` with `SemanticChunkerService`.
+- Replaced sequential loop in `LangChainGeminiProvider` with `LangGraph` workflow.
+- Introduced `UnifiedSchemaFactory` to merge Zod schemas dynamically.
+
+---
+
 **Unified Search Endpoint** (2025-11-19)
 
 New `POST /search/unified` endpoint combines graph object search and document chunk search into a single unified interface with multiple fusion strategies.

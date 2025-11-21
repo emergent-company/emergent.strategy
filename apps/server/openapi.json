@@ -8944,6 +8944,29 @@
         ]
       }
     },
+    "/chat-ui/conversations/{id}/draft": {
+      "patch": {
+        "operationId": "updateConversationDraft",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update conversation draft text"
+          }
+        },
+        "tags": [
+          "Chat UI"
+        ]
+      }
+    },
     "/chat-ui": {
       "post": {
         "operationId": "chat",
@@ -8973,6 +8996,37 @@
         },
         "tags": [
           "Chat UI"
+        ]
+      }
+    },
+    "/chat-sdk/conversations": {
+      "post": {
+        "operationId": "createConversation",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConversationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Create a new conversation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateConversationResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Chat SDK"
         ]
       }
     },
@@ -12450,9 +12504,72 @@
           "projects"
         ]
       },
+      "CreateConversationDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Optional initial title for the conversation",
+            "example": "New conversation"
+          },
+          "projectId": {
+            "type": "string",
+            "description": "Optional project ID to associate with the conversation"
+          }
+        }
+      },
+      "CreateConversationResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The newly created conversation ID (UUID format)",
+            "example": "321618f2-bf5a-44b9-bd02-e885ceed7f43"
+          },
+          "title": {
+            "type": "string",
+            "description": "The conversation title",
+            "example": "New conversation"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Creation timestamp",
+            "example": "2025-11-20T10:30:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "createdAt"
+        ]
+      },
+      "TextPartDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Part type",
+            "enum": [
+              "text"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "description": "Text content"
+          }
+        },
+        "required": [
+          "type",
+          "text"
+        ]
+      },
       "MessageDto": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "Message ID (optional)"
+          },
           "role": {
             "type": "string",
             "description": "Message role",
@@ -12463,12 +12580,18 @@
           },
           "content": {
             "type": "string",
-            "description": "Message content"
+            "description": "Message content (simple format)"
+          },
+          "parts": {
+            "description": "Message parts (AI SDK format)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TextPartDto"
+            }
           }
         },
         "required": [
-          "role",
-          "content"
+          "role"
         ]
       },
       "ChatSdkRequestDto": {
@@ -12484,6 +12607,10 @@
           "conversationId": {
             "type": "string",
             "description": "Optional conversation ID to continue existing conversation"
+          },
+          "projectId": {
+            "type": "string",
+            "description": "Optional project ID for scoped knowledge base search"
           }
         },
         "required": [

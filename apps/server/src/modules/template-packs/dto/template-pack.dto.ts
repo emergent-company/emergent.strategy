@@ -150,6 +150,8 @@ export interface AvailableTemplateDto {
   relationship_types: string[];
   relationship_count: number;
   installed: boolean;
+  active?: boolean; // Only present if installed
+  assignment_id?: string; // Only present if installed
   compatible: boolean;
   published_at: string;
   deprecated_at?: string;

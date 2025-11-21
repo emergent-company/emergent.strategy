@@ -16,7 +16,10 @@
     "skipLibCheck": true,
     "types": ["node", "vitest"],
     "paths": {
-      "@langchain/core/*": ["../../node_modules/@langchain/core/dist/*"]
+      "@langchain/core/*": ["../../node_modules/@langchain/core/dist/*"],
+      "@langchain/langgraph/*": [
+        "../../node_modules/@langchain/langgraph/dist/*"
+      ]
     }
   },
   "include": ["src", "src/tests/**/*.ts"],

@@ -1,0 +1,209 @@
+import process from 'node:process';
+import {
+  getApplicationProcess,
+  listDefaultApplicationProcesses,
+} from '../config/application-processes.js';
+import type { EnvironmentProfileId } from '../config/types.js';
+import { parseCliArgs } from '../utils/parse-args.js';
+import { listProcesses, type ProcessStatus } from '../process/manager.js';
+import {
+  getDependencyProcess,
+  listDefaultDependencyProcesses,
+} from '../config/dependency-processes.js';
+import {
+  validateRequiredEnvVars,
+  printValidationErrors,
+} from '../config/env-validation.js';
+import { getDockerComposeServiceStatus } from '../process/docker.js';
+
+function formatUptime(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) {
+    return `${days}d ${hours % 24}h`;
+  }
+  if (hours > 0) {
+    return `${hours}h ${minutes % 60}m`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds % 60}s`;
+  }
+  return `${seconds}s`;
+}
+
+function formatStatus(status: ProcessStatus): string {
+  if (status.running) {
+    return '🟢 online';
+  }
+  return '⚪ stopped';
+}
+
+export async function runStatusCommand(argv: readonly string[]): Promise<void> {
+  // Validate required environment variables first
+  const validation = validateRequiredEnvVars();
+  if (!validation.valid) {
+    printValidationErrors(validation.missing);
+    process.exit(1);
+  }
+
+  const args = parseCliArgs(argv);
+  const profileId: EnvironmentProfileId = args.profile;
+
+  const allProcesses = await listProcesses();
+
+  // Separate services and dependencies
+  const serviceStatuses: ProcessStatus[] = [];
+  const dependencyStatuses: ProcessStatus[] = [];
+
+  const serviceIds = listDefaultApplicationProcesses().map((p) => p.processId);
+  const dependencyIds = listDefaultDependencyProcesses().map(
+    (p) => p.dependencyId
+  );
+
+  for (const status of allProcesses) {
+    if (serviceIds.includes(status.name)) {
+      serviceStatuses.push(status);
+    } else if (dependencyIds.includes(status.name)) {
+      dependencyStatuses.push(status);
+    }
+  }
+
+  // Add missing services/dependencies that aren't in PID files
+  for (const serviceId of serviceIds) {
+    if (!serviceStatuses.find((s) => s.name === serviceId)) {
+      serviceStatuses.push({
+        name: serviceId,
+        running: false,
+        pid: null,
+        metadata: null,
+      });
+    }
+  }
+
+  for (const depId of dependencyIds) {
+    if (!dependencyStatuses.find((s) => s.name === depId)) {
+      // Check if this is a Docker dependency
+      try {
+        const depProfile = getDependencyProcess(depId);
+        if (depProfile.composeService) {
+          // Use Docker status check
+          const dockerStatus = await getDockerComposeServiceStatus(
+            depProfile.composeService
+          );
+          dependencyStatuses.push({
+            name: depId,
+            running: dockerStatus.running,
+            pid: null, // Docker containers don't have PIDs in our system
+            metadata: null,
+          });
+        } else {
+          // Regular process (check PID file)
+          dependencyStatuses.push({
+            name: depId,
+            running: false,
+            pid: null,
+            metadata: null,
+          });
+        }
+      } catch (error) {
+        // Dependency not found in config
+        dependencyStatuses.push({
+          name: depId,
+          running: false,
+          pid: null,
+          metadata: null,
+        });
+      }
+    }
+  }
+
+  process.stdout.write(`\n📊 Workspace Status (profile: ${profileId})\n\n`);
+
+  // Display services
+  if (serviceStatuses.length > 0) {
+    process.stdout.write('🚀 Services:\n');
+    process.stdout.write('─'.repeat(80) + '\n');
+    process.stdout.write(
+      `${'Name'.padEnd(15)} ${'Status'.padEnd(12)} ${'PID'.padEnd(
+        8
+      )} ${'Ports'.padEnd(15)} ${'Uptime'.padEnd(12)}\n`
+    );
+    process.stdout.write('─'.repeat(80) + '\n');
+
+    for (const status of serviceStatuses) {
+      try {
+        const profile = getApplicationProcess(status.name);
+        const ports = profile.exposedPorts?.join(', ') || '-';
+        const uptime = status.uptime ? formatUptime(status.uptime) : '-';
+        const pid = status.pid?.toString() || '-';
+
+        process.stdout.write(
+          `${status.name.padEnd(15)} ${formatStatus(status).padEnd(
+            12
+          )} ${pid.padEnd(8)} ${ports.padEnd(15)} ${uptime.padEnd(12)}\n`
+        );
+      } catch (error) {
+        // Process not found in configuration
+        process.stdout.write(
+          `${status.name.padEnd(15)} ${formatStatus(status).padEnd(12)} ${
+            status.pid?.toString().padEnd(8) || '-'.padEnd(8)
+          } -               -\n`
+        );
+      }
+    }
+
+    process.stdout.write('\n');
+  }
+
+  // Display dependencies
+  if (dependencyStatuses.length > 0) {
+    process.stdout.write('🛢️  Dependencies:\n');
+    process.stdout.write('─'.repeat(80) + '\n');
+    process.stdout.write(
+      `${'Name'.padEnd(15)} ${'Status'.padEnd(12)} ${'Type'.padEnd(
+        8
+      )} ${'Ports'.padEnd(15)} ${'Uptime'.padEnd(12)}\n`
+    );
+    process.stdout.write('─'.repeat(80) + '\n');
+
+    for (const status of dependencyStatuses) {
+      try {
+        const profile = getDependencyProcess(status.name);
+        const ports = profile.exposedPorts?.join(', ') || '-';
+        const uptime = status.uptime ? formatUptime(status.uptime) : '-';
+        // For Docker services, show "Docker" instead of PID
+        const pid = profile.composeService
+          ? 'Docker'
+          : status.pid?.toString() || '-';
+
+        process.stdout.write(
+          `${status.name.padEnd(15)} ${formatStatus(status).padEnd(
+            12
+          )} ${pid.padEnd(8)} ${ports.padEnd(15)} ${uptime.padEnd(12)}\n`
+        );
+      } catch (error) {
+        // Process not found in configuration
+        process.stdout.write(
+          `${status.name.padEnd(15)} ${formatStatus(status).padEnd(12)} ${
+            status.pid?.toString().padEnd(8) || '-'.padEnd(8)
+          } -               -\n`
+        );
+      }
+    }
+
+    process.stdout.write('\n');
+  }
+
+  // Summary
+  const runningServices = serviceStatuses.filter((s) => s.running).length;
+  const runningDependencies = dependencyStatuses.filter(
+    (s) => s.running
+  ).length;
+
+  process.stdout.write(
+    `📈 Summary: ${runningServices}/${serviceStatuses.length} services, ${runningDependencies}/${dependencyStatuses.length} dependencies running\n\n`
+  );
+}

@@ -78,6 +78,9 @@ export class ObjectExtractionJob {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 
+  @Column({ name: 'scheduled_at', type: 'timestamptz', nullable: true })
+  scheduledAt!: Date | null;
+
   @Column({ name: 'source_type', type: 'text', nullable: true })
   sourceType!: string | null;
 

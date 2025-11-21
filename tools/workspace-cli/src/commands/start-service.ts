@@ -1,531 +1,207 @@
-import { mkdir } from 'node:fs/promises';
-import { createRequire } from 'node:module';
-import path from 'node:path';
 import process from 'node:process';
-
+import path from 'node:path';
 import {
   getApplicationProcess,
   listDefaultApplicationProcesses,
   resolveEnvironmentOverrides,
 } from '../config/application-processes.js';
 import { getEnvironmentProfile } from '../config/env-profiles.js';
+import type { EnvironmentProfileId } from '../config/types.js';
+import { parseCliArgs } from '../utils/parse-args.js';
 import {
-  getDependencyNamespace,
+  startProcess,
+  getProcessStatus,
+  type StartProcessOptions,
+} from '../process/manager.js';
+import { waitForHealthy } from '../process/health-check.js';
+import {
   getDependencyProcess,
   listDefaultDependencyProcesses,
 } from '../config/dependency-processes.js';
-import type {
-  ApplicationProcessProfile,
-  DependencyProcessProfile,
-  EnvironmentProfileId,
-} from '../config/types.js';
 import {
-  describeProcess,
-  reloadProcess,
-  startProcess,
-  type StartProcessOptions,
-} from '../pm2/client.js';
-import { parseCliArgs } from '../utils/parse-args.js';
-import { waitForProcessStability } from './lifecycle-utils.js';
-import { runStatusCommand } from '../status/render.js';
-import { runPostDependencyValidations } from '../preflight/checks.js';
+  validateRequiredEnvVars,
+  printValidationErrors,
+} from '../config/env-validation.js';
 import {
-  getValidatedApplicationNamespace,
-  getValidatedDependencyNamespace,
-  validateEcosystemNamespace,
-} from '../config/namespace-validator.js';
-
-const require = createRequire(import.meta.url);
-
-interface EcosystemProcessConfig {
-  readonly name: string;
-  readonly namespace?: string;
-  readonly script: string;
-  readonly args?: string | readonly string[];
-  readonly cwd?: string;
-  readonly max_restarts?: number;
-  readonly min_uptime?: number;
-  readonly restart_delay?: number;
-  readonly exp_backoff_restart_delay?: number;
-  readonly out_file?: string;
-  readonly error_file?: string;
-  readonly merge_logs?: boolean;
-  readonly log_date_format?: string;
-  readonly autorestart?: boolean;
-  readonly env?: Record<string, string>;
-  readonly env_development?: Record<string, string>;
-  readonly env_staging?: Record<string, string>;
-  readonly env_production?: Record<string, string>;
-}
-
-interface EcosystemModule {
-  readonly apps: readonly EcosystemProcessConfig[];
-}
-
-const ecosystemModule =
-  require('../../pm2/ecosystem.apps.cjs') as EcosystemModule;
-
-interface DependencyEcosystemProcessConfig extends EcosystemProcessConfig {}
-
-interface DependencyEcosystemModule {
-  readonly apps: readonly DependencyEcosystemProcessConfig[];
-}
-
-const dependencyEcosystemModule =
-  require('../../pm2/ecosystem.dependencies.cjs') as DependencyEcosystemModule;
-
-function getEcosystemEntry(serviceId: string): EcosystemProcessConfig {
-  const namespace = getValidatedApplicationNamespace('start service');
-  const expectedName = `${namespace}-${serviceId}`;
-  const entry = ecosystemModule.apps.find((app) => app.name === expectedName);
-
-  if (!entry) {
-    throw new Error(`Missing PM2 ecosystem entry for service: ${serviceId}`);
-  }
-
-  // Validate that the ecosystem entry has the correct namespace
-  validateEcosystemNamespace(
-    entry.namespace,
-    namespace,
-    entry.name,
-    'start service'
-  );
-
-  return entry;
-}
-
-function getDependencyEcosystemEntry(
-  dependencyId: string
-): DependencyEcosystemProcessConfig {
-  const appNamespace = getValidatedApplicationNamespace('start dependency');
-  const namespace = getValidatedDependencyNamespace('start dependency');
-  const expectedName = `${appNamespace}-${dependencyId}-dependency`;
-  const entry = dependencyEcosystemModule.apps.find(
-    (app) => app.name === expectedName
-  );
-
-  if (!entry) {
-    throw new Error(
-      `Missing PM2 ecosystem entry for dependency: ${dependencyId}`
-    );
-  }
-
-  // Validate that the ecosystem entry has the correct namespace
-  validateEcosystemNamespace(
-    entry.namespace,
-    namespace,
-    entry.name,
-    'start dependency'
-  );
-
-  return entry;
-}
-
-function toArrayArgs(
-  args: EcosystemProcessConfig['args'],
-  fallback?: readonly string[]
-): readonly string[] | undefined {
-  if (!args && !fallback) {
-    return undefined;
-  }
-
-  if (Array.isArray(args)) {
-    return args;
-  }
-
-  if (typeof args === 'string') {
-    return args.split(' ').filter(Boolean);
-  }
-
-  return fallback;
-}
-
-interface ServiceStartContext {
-  readonly options: StartProcessOptions;
-  readonly profile: ApplicationProcessProfile;
-}
-
-function resolveStartContext(
-  serviceId: string,
-  profileId: EnvironmentProfileId
-): ServiceStartContext {
-  const processProfile = getApplicationProcess(serviceId);
-  const ecosystemEntry = getEcosystemEntry(serviceId);
-  const envProfile = getEnvironmentProfile(profileId);
-  const envOverrides = resolveEnvironmentOverrides(serviceId, profileId);
-  const restartPolicy = processProfile.restartPolicy;
-
-  const pm2Env = {
-    WORKSPACE_PROFILE: profileId,
-    WORKSPACE_SERVICE_ID: serviceId,
-    WORKSPACE_RESTART_MAX: String(restartPolicy.maxRestarts),
-    WORKSPACE_RESTART_WINDOW_SEC: '600',
-    ...envProfile.variables,
-    ...ecosystemEntry.env,
-    ...envOverrides,
-    ...resolveEnvironmentNamespaceEnv(ecosystemEntry, profileId),
-  };
-
-  const cwd =
-    ecosystemEntry.cwd ?? path.resolve(process.cwd(), processProfile.cwd);
-  const outFile =
-    ecosystemEntry.out_file ??
-    path.resolve(process.cwd(), processProfile.logs.outFile);
-  const errorFile =
-    ecosystemEntry.error_file ??
-    path.resolve(process.cwd(), processProfile.logs.errorFile);
-  const minUptimeMs =
-    ecosystemEntry.min_uptime !== undefined
-      ? ecosystemEntry.min_uptime
-      : processProfile.restartPolicy.minUptimeSec * 1000;
-  const restartDelayMs =
-    ecosystemEntry.restart_delay !== undefined
-      ? ecosystemEntry.restart_delay
-      : processProfile.restartPolicy.sleepBetweenMs;
-  const expBackoffMs =
-    ecosystemEntry.exp_backoff_restart_delay !== undefined
-      ? ecosystemEntry.exp_backoff_restart_delay
-      : processProfile.restartPolicy.expBackoffInitialMs;
-
-  const options: StartProcessOptions = {
-    script: ecosystemEntry.script ?? processProfile.entryPoint,
-    name: ecosystemEntry.name ?? processProfile.processId,
-    cwd,
-    env: pm2Env,
-    maxRestarts:
-      ecosystemEntry.max_restarts ?? processProfile.restartPolicy.maxRestarts,
-    minUptime: minUptimeMs,
-    restartDelay: restartDelayMs,
-    expBackoffRestartDelay: expBackoffMs,
-    interpreter: processProfile.interpreter,
-    args: toArrayArgs(ecosystemEntry.args, processProfile.args),
-    namespace: getValidatedApplicationNamespace('start service'),
-    outFile,
-    errorFile,
-    mergeLogs: ecosystemEntry.merge_logs ?? true,
-    logDateFormat: ecosystemEntry.log_date_format,
-    autorestart: ecosystemEntry.autorestart ?? true,
-    force: true,
-  } satisfies StartProcessOptions;
-
-  return {
-    options,
-    profile: processProfile,
-  };
-}
-
-interface DependencyStartContext {
-  readonly options: StartProcessOptions;
-  readonly profile: DependencyProcessProfile;
-}
-
-function resolveDependencyStartContext(
-  dependencyId: string,
-  profileId: EnvironmentProfileId
-): DependencyStartContext {
-  const dependencyProfile = getDependencyProcess(dependencyId);
-  const ecosystemEntry = getDependencyEcosystemEntry(dependencyId);
-  const envProfile = getEnvironmentProfile(profileId);
-  const namespace = getValidatedDependencyNamespace('start dependency');
-  const fallbackCommand = dependencyProfile.startScript
-    .split(' ')
-    .filter(Boolean);
-  const [fallbackScript, ...fallbackArgs] = fallbackCommand;
-
-  const script = ecosystemEntry.script ?? fallbackScript ?? 'docker';
-
-  const pm2Env = {
-    WORKSPACE_PROFILE: profileId,
-    WORKSPACE_DEPENDENCY_ID: dependencyId,
-    WORKSPACE_RESTART_MAX: String(dependencyProfile.restartPolicy.maxRestarts),
-    WORKSPACE_PROCESS_NAMESPACE: namespace,
-    ...envProfile.variables,
-    ...ecosystemEntry.env,
-    ...resolveEnvironmentNamespaceEnv(ecosystemEntry, profileId),
-  } as Record<string, string>;
-
-  const cwd = ecosystemEntry.cwd ?? path.resolve(process.cwd(), 'docker');
-  const outFile =
-    ecosystemEntry.out_file ??
-    path.resolve(process.cwd(), dependencyProfile.logs.outFile);
-  const errorFile =
-    ecosystemEntry.error_file ??
-    path.resolve(process.cwd(), dependencyProfile.logs.errorFile);
-  const minUptimeMs =
-    ecosystemEntry.min_uptime !== undefined
-      ? ecosystemEntry.min_uptime
-      : dependencyProfile.restartPolicy.minUptimeSec * 1000;
-  const restartDelayMs =
-    ecosystemEntry.restart_delay !== undefined
-      ? ecosystemEntry.restart_delay
-      : dependencyProfile.restartPolicy.sleepBetweenMs;
-  const expBackoffMs =
-    ecosystemEntry.exp_backoff_restart_delay !== undefined
-      ? ecosystemEntry.exp_backoff_restart_delay
-      : dependencyProfile.restartPolicy.expBackoffInitialMs;
-
-  const options: StartProcessOptions = {
-    script,
-    name: ecosystemEntry.name,
-    cwd,
-    env: pm2Env,
-    maxRestarts:
-      ecosystemEntry.max_restarts ??
-      dependencyProfile.restartPolicy.maxRestarts,
-    minUptime: minUptimeMs,
-    restartDelay: restartDelayMs,
-    expBackoffRestartDelay: expBackoffMs,
-    args: toArrayArgs(ecosystemEntry.args, fallbackArgs),
-    namespace,
-    outFile,
-    errorFile,
-    mergeLogs: ecosystemEntry.merge_logs ?? true,
-    logDateFormat: ecosystemEntry.log_date_format,
-    autorestart: ecosystemEntry.autorestart ?? true,
-    force: true,
-  } satisfies StartProcessOptions;
-
-  return {
-    options,
-    profile: dependencyProfile,
-  };
-}
-
-function resolveEnvironmentNamespaceEnv(
-  entry: EcosystemProcessConfig,
-  profileId: EnvironmentProfileId
-): Record<string, string> {
-  switch (profileId) {
-    case 'development':
-      return entry.env_development ?? {};
-    case 'staging':
-      return entry.env_staging ?? {};
-    case 'production':
-      return entry.env_production ?? {};
-    default:
-      return {};
-  }
-}
-
-async function ensureLogDirectories(
-  options: StartProcessOptions
-): Promise<void> {
-  const directories = [options.outFile, options.errorFile]
-    .filter(Boolean)
-    .map((filePath) => path.dirname(filePath as string));
-
-  await Promise.all(
-    directories.map((directory) => mkdir(directory, { recursive: true }))
-  );
-}
-
-function resolveTargetServices(
-  requested: readonly string[],
-  workspace: boolean,
-  all: boolean,
-  includeServices: boolean
-): readonly string[] {
-  if (requested.length > 0) {
-    return requested;
-  }
-
-  if (!includeServices) {
-    return [];
-  }
-
-  if (workspace || all) {
-    return listDefaultApplicationProcesses().map(
-      (profile) => profile.processId
-    );
-  }
-
-  return listDefaultApplicationProcesses().map((profile) => profile.processId);
-}
-
-function resolveTargetDependencies(
-  requested: readonly string[],
-  includeDependencies: boolean
-): readonly string[] {
-  if (requested.length > 0) {
-    return requested;
-  }
-
-  if (!includeDependencies) {
-    return [];
-  }
-
-  return listDefaultDependencyProcesses().map(
-    (profile) => profile.dependencyId
-  );
-}
+  startDockerComposeService,
+  getDockerComposeServiceStatus,
+} from '../process/docker.js';
 
 export async function runStartCommand(argv: readonly string[]): Promise<void> {
+  // Validate required environment variables first
+  const validation = validateRequiredEnvVars();
+  if (!validation.valid) {
+    printValidationErrors(validation.missing);
+    process.exit(1);
+  }
   const args = parseCliArgs(argv);
+  const profileId: EnvironmentProfileId = args.profile;
+  const envProfile = getEnvironmentProfile(profileId);
+
   const includeDependencies =
     args.includeDependencies ||
     args.dependenciesOnly ||
     args.all ||
     args.workspace;
   const includeServices = !args.dependenciesOnly;
-  const services = resolveTargetServices(
-    args.services,
-    args.workspace,
-    args.all,
-    includeServices
-  );
-  const dependencies = resolveTargetDependencies(
-    args.dependencies,
-    includeDependencies
-  );
 
-  if (services.length === 0 && dependencies.length === 0) {
+  // Determine which services to start
+  let serviceIds: string[] = [];
+  if (includeServices) {
+    if (args.services.length > 0) {
+      serviceIds = [...args.services];
+    } else {
+      serviceIds = listDefaultApplicationProcesses().map((p) => p.processId);
+    }
+  }
+
+  // Determine which dependencies to start
+  let dependencyIds: string[] = [];
+  if (includeDependencies) {
+    if (args.dependencies.length > 0) {
+      dependencyIds = [...args.dependencies];
+    } else {
+      dependencyIds = listDefaultDependencyProcesses().map(
+        (p) => p.dependencyId
+      );
+    }
+  }
+
+  if (serviceIds.length === 0 && dependencyIds.length === 0) {
     process.stdout.write(
       '⚠️  No services or dependencies requested for start command.\n'
     );
     return;
   }
 
-  const profileId = args.profile;
-
-  if (dependencies.length > 0) {
+  // Start dependencies first
+  if (dependencyIds.length > 0) {
     process.stdout.write(
-      `🛢️  Starting dependencies [${dependencies.join(
+      `🛢️  Starting dependencies [${dependencyIds.join(', ')}]\n`
+    );
+
+    for (const depId of dependencyIds) {
+      try {
+        const depProfile = getDependencyProcess(depId);
+
+        // Check if this is a Docker dependency
+        if (depProfile.composeService) {
+          // Docker-based dependency
+          const dockerStatus = await getDockerComposeServiceStatus(
+            depProfile.composeService
+          );
+
+          if (dockerStatus.running) {
+            process.stdout.write(`∙ ${depId} is already running (Docker)\n`);
+            continue;
+          }
+
+          process.stdout.write(`∙ Starting ${depId} (Docker)...\n`);
+          await startDockerComposeService(depProfile.composeService);
+          process.stdout.write(`  ✓ Started ${depId} (Docker)\n`);
+        } else {
+          // Regular process-based dependency
+          const status = await getProcessStatus(depId);
+          if (status.running) {
+            process.stdout.write(
+              `∙ ${depId} is already running (PID ${status.pid})\n`
+            );
+            continue;
+          }
+
+          const [command, ...cmdArgs] = depProfile.startScript.split(' ');
+
+          const startOptions: StartProcessOptions = {
+            name: depId,
+            command,
+            args: cmdArgs,
+            cwd: process.cwd(),
+            env: {
+              ...envProfile.variables,
+            },
+          };
+
+          process.stdout.write(`∙ Starting ${depId}...\n`);
+          const pid = await startProcess(startOptions);
+          process.stdout.write(`  ✓ Started ${depId} (PID ${pid})\n`);
+        }
+      } catch (error) {
+        process.stderr.write(
+          `  ✗ Failed to start ${depId}: ${
+            error instanceof Error ? error.message : String(error)
+          }\n`
+        );
+      }
+    }
+
+    process.stdout.write('\n');
+  }
+
+  // Start services
+  if (serviceIds.length > 0) {
+    process.stdout.write(
+      `🚀 Starting services [${serviceIds.join(
         ', '
       )}] with profile ${profileId}\n`
     );
 
-    for (const dependencyId of dependencies) {
-      const { options, profile: dependencyProfile } =
-        resolveDependencyStartContext(dependencyId, profileId);
+    for (const serviceId of serviceIds) {
+      try {
+        const profile = getApplicationProcess(serviceId);
 
-      if (args.dryRun) {
-        process.stdout.write(`∙ [dry-run] pm2 start ${options.name}
-  script: ${options.script}
-  cwd: ${options.cwd}
-  args: ${options.args?.join(' ') ?? '(none)'}
-  namespace: ${options.namespace ?? '(default)'}
-`);
-        continue;
-      }
+        // Check if already running
+        const status = await getProcessStatus(serviceId);
+        if (status.running) {
+          process.stdout.write(
+            `∙ ${serviceId} is already running (PID ${status.pid})\n`
+          );
+          continue;
+        }
 
-      await ensureLogDirectories(options);
+        const envOverrides = resolveEnvironmentOverrides(serviceId, profileId);
 
-      const existing = await describeProcess(options.name);
-      const existingNamespace = existing?.pm2_env?.namespace;
+        const startOptions: StartProcessOptions = {
+          name: serviceId,
+          command: profile.entryPoint,
+          args: profile.args,
+          cwd: path.resolve(process.cwd(), profile.cwd),
+          env: {
+            ...envProfile.variables,
+            ...envOverrides,
+          },
+        };
 
-      if (existing && existingNamespace !== options.namespace) {
-        throw new Error(
-          `Conflicting PM2 process detected for ${
-            options.name
-          }. Expected namespace ${options.namespace}, found ${
-            existingNamespace ?? 'unknown'
-          }.`
+        process.stdout.write(`∙ Starting ${serviceId}...\n`);
+        const pid = await startProcess(startOptions);
+        process.stdout.write(`  ✓ Started ${serviceId} (PID ${pid})\n`);
+
+        // Run health check if configured
+        if (profile.healthCheck?.url) {
+          process.stdout.write(`  ⏳ Checking health...`);
+          const healthResult = await waitForHealthy({
+            url: profile.healthCheck.url,
+            timeoutMs: 5000,
+            maxWaitMs: profile.healthCheck.timeoutMs,
+          });
+
+          if (healthResult.healthy) {
+            process.stdout.write(` ✓ Healthy (${healthResult.latencyMs}ms)\n`);
+          } else {
+            const errorMsg = healthResult.error ?? 'Unknown error';
+            process.stdout.write(` ⚠️  Health check failed: ${errorMsg}\n`);
+          }
+        }
+      } catch (error) {
+        process.stderr.write(
+          `  ✗ Failed to start ${serviceId}: ${
+            error instanceof Error ? error.message : String(error)
+          }\n`
         );
       }
-
-      if (existing && existing.pm2_env?.status === 'online') {
-        process.stdout.write(
-          `∙ Reloading ${options.name} with updated configuration\n`
-        );
-        await reloadProcess(options.name);
-        await waitForProcessStability({
-          serviceId: dependencyId,
-          processName: options.name,
-          profileId,
-          namespace: options.namespace,
-          policy: dependencyProfile.restartPolicy,
-          action: 'restart',
-        });
-        continue;
-      }
-
-      process.stdout.write(`∙ Starting ${options.name}\n`);
-      await startProcess(options);
-      await waitForProcessStability({
-        serviceId: dependencyId,
-        processName: options.name,
-        profileId,
-        namespace: options.namespace,
-        policy: dependencyProfile.restartPolicy,
-        action: 'start',
-      });
     }
+
+    process.stdout.write('\n');
   }
 
-  // Run validation checks after dependencies are started
-  if (dependencies.length > 0 && services.length > 0 && !args.dryRun) {
-    await runPostDependencyValidations();
-  }
-
-  if (services.length > 0) {
-    process.stdout.write(
-      `🚀 Starting services [${services.join(
-        ', '
-      )}] with profile ${profileId}\n`
-    );
-
-    for (const serviceId of services) {
-      const { options, profile: processProfile } = resolveStartContext(
-        serviceId,
-        profileId
-      );
-
-      if (args.dryRun) {
-        process.stdout.write(`∙ [dry-run] pm2 start ${options.name}
-  script: ${options.script}
-  cwd: ${options.cwd}
-  args: ${options.args?.join(' ') ?? '(none)'}
-  namespace: ${options.namespace ?? '(default)'}
-`);
-        continue;
-      }
-
-      await ensureLogDirectories(options);
-
-      const existing = await describeProcess(options.name);
-      const existingNamespace = existing?.pm2_env?.namespace;
-
-      if (existing && existingNamespace !== options.namespace) {
-        throw new Error(
-          `Conflicting PM2 process detected for ${
-            options.name
-          }. Expected namespace ${options.namespace}, found ${
-            existingNamespace ?? 'unknown'
-          }.`
-        );
-      }
-
-      if (existing && existing.pm2_env?.status === 'online') {
-        process.stdout.write(
-          `∙ Reloading ${options.name} with updated configuration\n`
-        );
-        await reloadProcess(options.name);
-        await waitForProcessStability({
-          serviceId,
-          processName: options.name,
-          profileId,
-          namespace: options.namespace,
-          policy: processProfile.restartPolicy,
-          action: 'restart',
-        });
-        continue;
-      }
-
-      process.stdout.write(`∙ Starting ${options.name}\n`);
-      await startProcess(options);
-      await waitForProcessStability({
-        serviceId,
-        processName: options.name,
-        profileId,
-        namespace: options.namespace,
-        policy: processProfile.restartPolicy,
-        action: 'start',
-      });
-    }
-  }
-
-  process.stdout.write('✅ Start command complete\n\n');
-
-  // Display status after starting
-  await runStatusCommand(argv);
+  process.stdout.write('✅ Start command complete\n');
 }

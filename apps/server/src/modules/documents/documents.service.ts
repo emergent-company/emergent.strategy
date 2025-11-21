@@ -43,7 +43,11 @@ export class DocumentsService {
     limit = 100,
     cursor?: { createdAt: string; id: string },
     filter?: { orgId?: string; projectId?: string }
-  ): Promise<{ items: DocumentDto[]; nextCursor: string | null }> {
+  ): Promise<{
+    items: DocumentDto[];
+    nextCursor: string | null;
+    total: number;
+  }> {
     // Fetch one extra row (limit + 1) to determine if another page exists
     const params: any[] = [limit + 1];
     const conds: string[] = [];
@@ -65,6 +69,12 @@ export class DocumentsService {
 
     // Use DatabaseService to ensure RLS context is set
     const queryFn = async () => {
+      // Get total count first (respecting RLS)
+      const countResult = await this.db.query(
+        `SELECT COUNT(*)::int as total FROM kb.documents`
+      );
+      const total = countResult.rows[0]?.total || 0;
+
       const result = await this.db.query(
         `SELECT d.id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
                       d.integration_metadata,
@@ -86,11 +96,11 @@ export class DocumentsService {
                LIMIT $1`,
         params
       );
-      return result.rows;
+      return { rows: result.rows, total };
     };
 
     // Always use tenant context when available - RLS policies enforce isolation
-    const rows = filter?.projectId
+    const { rows, total } = filter?.projectId
       ? await this.db.runWithTenantContext(filter.projectId, queryFn)
       : await queryFn();
 
@@ -104,9 +114,9 @@ export class DocumentsService {
         JSON.stringify({ createdAt: last.createdAt, id: last.id }),
         'utf8'
       ).toString('base64url');
-      return { items, nextCursor };
+      return { items, nextCursor, total };
     }
-    return { items, nextCursor: null };
+    return { items, nextCursor: null, total };
   }
 
   async get(
