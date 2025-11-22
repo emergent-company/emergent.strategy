@@ -1,0 +1,54 @@
+@theme {
+    --animate-wave-path-dash: wave-path-dash 30s linear infinite;
+    --animate-wave: wave 2s ease-in-out infinite;
+    --animate-vibrate: vibrate 0.3s ease-in-out infinite;
+
+    @keyframes wave-path-dash {
+        0% {
+            stroke-dashoffset: 1040;
+            opacity: 1;
+        }
+        25% {
+            stroke-dashoffset: 40;
+        }
+        100% {
+            stroke-dashoffset: 40;
+        }
+    }
+
+    @keyframes wave {
+        0%,
+        100% {
+            transform: rotate(0deg);
+        }
+        25% {
+            transform: rotate(5deg);
+        }
+        50% {
+            transform: rotate(-5deg);
+        }
+        75% {
+            transform: rotate(5deg);
+        }
+    }
+
+    @keyframes vibrate {
+        0%,
+        100% {
+            transform: rotate(0deg);
+            translate: 0;
+        }
+        25% {
+            transform: rotate(4deg);
+            translate: 1px;
+        }
+        50% {
+            transform: rotate(-4deg);
+            translate: -1px;
+        }
+        75% {
+            transform: rotate(4deg);
+            translate: 1px;
+        }
+    }
+}
