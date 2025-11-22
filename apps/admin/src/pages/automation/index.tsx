@@ -1,6 +1,7 @@
 import { MetaData } from '@/components/atoms/MetaData';
 
 import { Benefits } from './components/Benefits';
+import { CTA } from './components/CTA';
 import { Features } from './components/Features';
 import { Footer } from './components/Footer';
 import { Hero } from './components/Hero';
@@ -20,6 +21,7 @@ const AutomationLandingPage = () => {
       <Features />
       <Process />
       <Benefits />
+      <CTA />
       <Integrations />
       <Testimonials />
       <Pricing />
