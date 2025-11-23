@@ -780,3 +780,82 @@ Each component uses the approach **officially recommended by Infisical** for tha
 
 The system is **production-ready** pending Docker testing and documentation updates.
 
+
+---
+
+## 🔄 UPDATE 3: Simplified Environment Variable Pattern
+
+**Date:** 2025-11-23
+**Status:** ✅ Improved
+
+### Change: Removed Environment-Specific Token Variables
+
+**Before (Redundant):**
+```bash
+INFISICAL_ENVIRONMENT=dev
+INFISICAL_TOKEN_DEV=st.token-here
+INFISICAL_TOKEN_STAGING=st.token-here
+INFISICAL_TOKEN_PRODUCTION=st.token-here
+```
+
+**After (Clean):**
+```bash
+INFISICAL_ENVIRONMENT=dev  # or staging, or production
+INFISICAL_TOKEN=st.token-here
+```
+
+### Why This is Better
+
+1. **Less Redundancy** - Don't repeat environment name in variable name
+2. **Fewer Variables** - Only need to set token for active environment
+3. **Standard Pattern** - Matches how most configuration tools work
+4. **Easier Deployment** - Same variable names across all environments
+5. **Clear Intent** - `INFISICAL_ENVIRONMENT` explicitly sets the context
+
+### Updated Configuration
+
+**For Coolify (any environment):**
+```bash
+# Application auth (server & admin)
+INFISICAL_ENABLED=true
+INFISICAL_SITE_URL=https://infiscal.kucharz.net
+INFISICAL_PROJECT_ID=2c273128-5d01-4156-a134-be9511d99c61
+INFISICAL_CLIENT_ID=9ba839b9-095c-4f33-9917-b07a988353d8
+INFISICAL_CLIENT_SECRET=d8f4fe2cf200ef5a592fa3450326f7d9d2826bebb6d0600d65e4e3e21e362dca
+
+# Environment selector
+INFISICAL_ENVIRONMENT=dev  # Change to: staging, production
+
+# Docker services auth
+INFISICAL_TOKEN=st.your-token-for-selected-environment
+```
+
+### Migration Path
+
+**Dev Environment:**
+```bash
+INFISICAL_ENVIRONMENT=dev
+INFISICAL_TOKEN=st.dev-token-here
+```
+
+**Staging Environment:**
+```bash
+INFISICAL_ENVIRONMENT=staging
+INFISICAL_TOKEN=st.staging-token-here
+```
+
+**Production Environment:**
+```bash
+INFISICAL_ENVIRONMENT=production
+INFISICAL_TOKEN=st.production-token-here
+```
+
+### Files Updated
+
+- `docker/docker-compose.yml` - Changed `${INFISICAL_TOKEN_DEV}` → `${INFISICAL_TOKEN}`
+- `docker/.env.example` - Simplified to single `INFISICAL_TOKEN` variable
+- `docker/README-INFISICAL.md` - Updated all references
+
+### Backwards Compatibility
+
+If you have existing deployments with the old pattern, they will continue to work until you update the environment variables. No code changes required - just update the environment variable names in Coolify/Docker.
