@@ -40,8 +40,12 @@ services:
           echo "Debug: Token format check: $$(echo $$INFISICAL_TOKEN | grep -o '^st\.' || echo 'INVALID FORMAT')"
           echo "Debug: All env vars:"
           env | grep INFISICAL || echo "No INFISICAL vars found"
+          echo "---"
+          echo "⚠️  WARNING: Creating empty secrets file to prevent container crash"
+          echo "⚠️  Services will fail without secrets - this is for debugging only!"
+          touch /secrets/.env.infisical
           rm -f $$ERROR_OUTPUT
-          exit 1
+          # Don't exit - keep container running for debugging
         fi
         rm -f $$ERROR_OUTPUT
         
