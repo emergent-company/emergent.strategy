@@ -73,9 +73,9 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
   const includeDependencies =
     !skipDockerDeps &&
     (args.includeDependencies ||
-    args.dependenciesOnly ||
-    args.all ||
-    args.workspace);
+      args.dependenciesOnly ||
+      args.all ||
+      args.workspace);
   const includeServices = !args.dependenciesOnly;
 
   // Determine which services to start
@@ -160,8 +160,7 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
         }
       } catch (error) {
         process.stderr.write(
-          `  ✗ Failed to start ${depId}: ${
-            error instanceof Error ? error.message : String(error)
+          `  ✗ Failed to start ${depId}: ${error instanceof Error ? error.message : String(error)
           }\n`
         );
       }
@@ -226,8 +225,7 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
         }
       } catch (error) {
         process.stderr.write(
-          `  ✗ Failed to start ${serviceId}: ${
-            error instanceof Error ? error.message : String(error)
+          `  ✗ Failed to start ${serviceId}: ${error instanceof Error ? error.message : String(error)
           }\n`
         );
       }

@@ -13,15 +13,18 @@ import * as fs from 'fs';
 import * as dotenv from 'dotenv';
 import { InfisicalSDK } from '@infisical/sdk';
 
+// Load environment variables from .env.local
+dotenv.config({ path: '.env.local' });
+
 // Configuration
 const INFISICAL_API_URL = process.env.INFISICAL_SITE_URL || 'https://infiscal.kucharz.net';
 
-// Service tokens for each environment
-const SERVICE_TOKENS = {
-  dev: process.env.INFISICAL_TOKEN_DEV || '',
-  staging: process.env.INFISICAL_TOKEN_STAGING || '',
-  production: process.env.INFISICAL_TOKEN_PRODUCTION || '',
-};
+// Universal Auth credentials (machine identity)
+const INFISICAL_CLIENT_ID = process.env.INFISICAL_CLIENT_ID || '';
+const INFISICAL_CLIENT_SECRET = process.env.INFISICAL_CLIENT_SECRET || '';
+
+// Project ID (get from Infisical dashboard URL or API)
+const PROJECT_ID = process.env.INFISICAL_PROJECT_ID || '';
 
 // Infisical folder structure
 const FOLDERS = {
@@ -48,7 +51,6 @@ interface Secret {
 
 interface MigrationPlan {
   environment: string;
-  serviceToken: string;
   secrets: Secret[];
 }
 
@@ -116,45 +118,40 @@ function createMigrationPlan(): MigrationPlan[] {
   const plans: MigrationPlan[] = [];
 
   // Development environment (.env)
-  if (SERVICE_TOKENS.dev) {
-    console.log('\n📋 Planning migration for DEVELOPMENT environment');
-    const secrets = parseEnvFile('.env');
-    
-    // Add docker secrets
-    const dockerSecrets = parseEnvFile('docker/.env');
-    const dockerOnlySecrets = dockerSecrets.map(s => ({ ...s, folder: 'docker' }));
-    secrets.push(...dockerOnlySecrets);
-    
-    plans.push({
-      environment: 'dev',
-      serviceToken: SERVICE_TOKENS.dev,
-      secrets,
-    });
-    console.log(`   Found ${secrets.length} secrets across ${new Set(secrets.map(s => s.folder)).size} folders`);
-  }
+  console.log('\n📋 Planning migration for DEVELOPMENT environment');
+  const devSecrets = parseEnvFile('.env');
+  
+  // Add docker secrets
+  const dockerSecrets = parseEnvFile('docker/.env');
+  const dockerOnlySecrets = dockerSecrets.map(s => ({ ...s, folder: 'docker' }));
+  devSecrets.push(...dockerOnlySecrets);
+  
+  plans.push({
+    environment: 'dev',
+    secrets: devSecrets,
+  });
+  console.log(`   Found ${devSecrets.length} secrets across ${new Set(devSecrets.map(s => s.folder)).size} folders`);
 
   // Staging environment (.env.staging)
-  if (SERVICE_TOKENS.staging) {
+  if (fs.existsSync('.env.staging')) {
     console.log('\n📋 Planning migration for STAGING environment');
-    const secrets = parseEnvFile('.env.staging');
+    const stagingSecrets = parseEnvFile('.env.staging');
     plans.push({
       environment: 'staging',
-      serviceToken: SERVICE_TOKENS.staging,
-      secrets,
+      secrets: stagingSecrets,
     });
-    console.log(`   Found ${secrets.length} secrets across ${new Set(secrets.map(s => s.folder)).size} folders`);
+    console.log(`   Found ${stagingSecrets.length} secrets across ${new Set(stagingSecrets.map(s => s.folder)).size} folders`);
   }
 
   // Production environment (.env.production)
-  if (SERVICE_TOKENS.production) {
+  if (fs.existsSync('.env.production')) {
     console.log('\n📋 Planning migration for PRODUCTION environment');
-    const secrets = parseEnvFile('.env.production');
+    const productionSecrets = parseEnvFile('.env.production');
     plans.push({
       environment: 'production',
-      serviceToken: SERVICE_TOKENS.production,
-      secrets,
+      secrets: productionSecrets,
     });
-    console.log(`   Found ${secrets.length} secrets across ${new Set(secrets.map(s => s.folder)).size} folders`);
+    console.log(`   Found ${productionSecrets.length} secrets across ${new Set(productionSecrets.map(s => s.folder)).size} folders`);
   }
 
   return plans;
@@ -170,7 +167,6 @@ function displaySummary(plans: MigrationPlan[]): void {
 
   for (const plan of plans) {
     console.log(`\n${plan.environment.toUpperCase()} Environment:`);
-    console.log(`  Service Token: ${plan.serviceToken ? '✓ Configured' : '✗ Missing'}`);
     console.log(`  Total Secrets: ${plan.secrets.length}`);
     
     const byFolder = plan.secrets.reduce((acc, s) => {
@@ -188,19 +184,45 @@ function displaySummary(plans: MigrationPlan[]): void {
 }
 
 /**
- * Execute migration using Infisical SDK
+ * Execute migration using Infisical SDK with Universal Auth
  */
 async function executeMigration(plans: MigrationPlan[], dryRun: boolean): Promise<void> {
   console.log(`\n${dryRun ? '🔍 DRY RUN MODE' : '🚀 EXECUTING MIGRATION'}`);
   console.log(`API URL: ${INFISICAL_API_URL}`);
-  console.log(`Project: emergent\n`);
+  console.log(`Project ID: ${PROJECT_ID}\n`);
+
+  // Validate credentials
+  if (!dryRun && (!INFISICAL_CLIENT_ID || !INFISICAL_CLIENT_SECRET || !PROJECT_ID)) {
+    console.error('❌ Missing required environment variables:');
+    if (!INFISICAL_CLIENT_ID) console.error('   - INFISICAL_CLIENT_ID');
+    if (!INFISICAL_CLIENT_SECRET) console.error('   - INFISICAL_CLIENT_SECRET');
+    if (!PROJECT_ID) console.error('   - INFISICAL_PROJECT_ID');
+    return;
+  }
+
+  // Initialize SDK client with Universal Auth
+  let client: InfisicalSDK;
+  
+  if (!dryRun) {
+    try {
+      client = new InfisicalSDK({
+        siteUrl: INFISICAL_API_URL,
+      });
+      
+      // Authenticate using Universal Auth
+      await client.auth().universalAuth.login({
+        clientId: INFISICAL_CLIENT_ID,
+        clientSecret: INFISICAL_CLIENT_SECRET,
+      });
+      
+      console.log('✓ Authenticated with Infisical using Universal Auth\n');
+    } catch (error) {
+      console.error(`❌ Failed to authenticate with Infisical:`, error);
+      return;
+    }
+  }
 
   for (const plan of plans) {
-    if (!plan.serviceToken) {
-      console.error(`❌ No service token configured for ${plan.environment} environment`);
-      continue;
-    }
-
     console.log(`\n📦 Migrating ${plan.environment.toUpperCase()} environment (${plan.secrets.length} secrets)`);
 
     if (dryRun) {
@@ -221,20 +243,6 @@ async function executeMigration(plans: MigrationPlan[], dryRun: boolean): Promis
       continue;
     }
 
-    // Initialize SDK client for this environment
-    let client: InfisicalSDK;
-    try {
-      client = new InfisicalSDK({
-        siteUrl: INFISICAL_API_URL,
-        auth: {
-          serviceToken: plan.serviceToken,
-        },
-      });
-    } catch (error) {
-      console.error(`❌ Failed to initialize Infisical SDK:`, error);
-      continue;
-    }
-
     // Group secrets by folder
     const secretsByFolder = plan.secrets.reduce((acc, secret) => {
       if (!acc[secret.folder]) acc[secret.folder] = [];
@@ -245,15 +253,38 @@ async function executeMigration(plans: MigrationPlan[], dryRun: boolean): Promis
     let totalSuccess = 0;
     let totalFailed = 0;
 
+    // Create folders first
+    console.log(`\n   📂 Creating folders...`);
+    for (const [folderName] of Object.entries(secretsByFolder)) {
+      const folderPath = FOLDERS[folderName as keyof typeof FOLDERS];
+      try {
+        await client!.folders().create({
+          name: folderName,
+          path: '/',
+          projectId: PROJECT_ID,
+          environment: plan.environment,
+        });
+        console.log(`   ✓ Created folder: ${folderPath}`);
+      } catch (error: any) {
+        if (error?.message?.includes('already exists')) {
+          console.log(`   ℹ Folder already exists: ${folderPath}`);
+        } else {
+          console.error(`   ✗ Failed to create folder ${folderPath}: ${error?.message || String(error)}`);
+        }
+      }
+    }
+
     // Push secrets by folder
     for (const [folderName, secrets] of Object.entries(secretsByFolder)) {
       const folderPath = FOLDERS[folderName as keyof typeof FOLDERS];
-      console.log(`\n   📁 Folder: ${folderPath}`);
+      console.log(`\n   📁 Pushing secrets to: ${folderPath}`);
 
       for (const secret of secrets) {
         try {
-          await client.createSecret({
-            secretName: secret.key,
+          // Use the secrets().createSecret() method with correct parameters
+          await client!.secrets().createSecret(secret.key, {
+            projectId: PROJECT_ID,
+            environment: plan.environment,
             secretValue: secret.value,
             secretPath: folderPath,
             type: 'shared',
@@ -284,19 +315,17 @@ async function main() {
   console.log('='.repeat(80));
 
   // Validate configuration
-  const hasAnyToken = SERVICE_TOKENS.dev || SERVICE_TOKENS.staging || SERVICE_TOKENS.production;
-  if (!hasAnyToken) {
-    console.error('❌ No Infisical service tokens configured');
+  if (!INFISICAL_CLIENT_ID || !INFISICAL_CLIENT_SECRET) {
+    console.error('❌ Universal Auth credentials not configured');
     console.log('\nPlease set environment variables:');
-    console.log('  INFISICAL_TOKEN_DEV       (for dev environment)');
-    console.log('  INFISICAL_TOKEN_STAGING   (for staging environment)');
-    console.log('  INFISICAL_TOKEN_PRODUCTION (for production environment)');
-    console.log('\nTo get service tokens:');
+    console.log('  INFISICAL_CLIENT_ID       (from machine identity)');
+    console.log('  INFISICAL_CLIENT_SECRET   (from machine identity)');
+    console.log('\nTo get credentials:');
     console.log('1. Go to https://infiscal.kucharz.net');
-    console.log('2. Open project "emergent"');
-    console.log('3. Go to Settings > Service Tokens');
-    console.log('4. Create a token for each environment (dev/staging/production)');
-    console.log('5. Copy the tokens and export them as environment variables');
+    console.log('2. Organization Settings > Access Control > Machine Identities');
+    console.log('3. Create or select an identity');
+    console.log('4. Configure Universal Auth and copy Client ID/Secret');
+    console.log('5. Grant the identity access to "emergent" project (all environments)');
     process.exit(1);
   }
 

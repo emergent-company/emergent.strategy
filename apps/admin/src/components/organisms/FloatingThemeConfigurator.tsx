@@ -396,50 +396,101 @@ export function FloatingThemeConfigurator() {
 
   // Hover mode: detect CSS variables used by hovered elements
   useEffect(() => {
-    if (!hoverMode || !isOpen) return;
+    if (!hoverMode || !isOpen) {
+      setHoveredElement(null);
+      return;
+    }
 
     const handleHover = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       
       // Skip if hovering over configurator itself
-      if (target.closest('.theme-configurator-panel')) return;
+      if (target.closest('.theme-configurator-panel')) {
+        setHoveredElement(null);
+        return;
+      }
       
-      const computedStyle = window.getComputedStyle(target);
-      const usedVars: string[] = [];
+      const usedVars: Set<string> = new Set();
       
-      // Check all theme variables
-      THEME_VARIABLES.forEach((v) => {
-        const varValue = computedStyle.getPropertyValue(v.name);
-        if (varValue) {
-          usedVars.push(v.name);
-        }
-      });
+      // Strategy: Check all CSS custom properties defined on the element and ancestors
+      // These are the variables that could be affecting the element's appearance
+      let currentElement: HTMLElement | null = target;
       
-      // Also check for CSS variables in computed styles
-      const props = [
-        'backgroundColor',
-        'color',
-        'borderColor',
-        'borderRadius',
-      ];
-      
-      props.forEach((prop) => {
-        const value = computedStyle.getPropertyValue(prop);
-        if (value && value.includes('var(')) {
-          const matches = value.match(/var\((--[^)]+)\)/g);
-          if (matches) {
-            matches.forEach((match) => {
-              const varName = match.replace('var(', '').replace(')', '');
-              if (!usedVars.includes(varName)) {
-                usedVars.push(varName);
-              }
-            });
+      // Walk up the DOM tree to collect all custom properties
+      while (currentElement) {
+        const computedStyle = window.getComputedStyle(currentElement);
+        
+        // Get all custom properties (CSS variables) from computed style
+        // This includes properties from :root and inherited values
+        for (let i = 0; i < computedStyle.length; i++) {
+          const propName = computedStyle[i];
+          if (propName.startsWith('--')) {
+            // Only include variables that are in our THEME_VARIABLES list
+            if (THEME_VARIABLES.some((v) => v.name === propName)) {
+              usedVars.add(propName);
+            }
           }
         }
-      });
+        
+        // Only check up to documentElement (html), not beyond
+        if (currentElement === document.documentElement) break;
+        currentElement = currentElement.parentElement;
+      }
       
-      if (usedVars.length > 0) {
-        setHoveredElement({ element: target, variables: usedVars });
+      // Also check the actual CSS rules that apply to this element
+      // by inspecting matching stylesheets
+      try {
+        const sheets = Array.from(document.styleSheets);
+        sheets.forEach((sheet) => {
+          try {
+            const rules = Array.from(sheet.cssRules || []);
+            rules.forEach((rule) => {
+              if (rule instanceof CSSStyleRule) {
+                // Check if this rule applies to the target element
+                if (target.matches(rule.selectorText)) {
+                  const style = rule.style;
+                  // Check all properties in this rule for var() usage
+                  for (let i = 0; i < style.length; i++) {
+                    const value = style.getPropertyValue(style[i]);
+                    if (value) {
+                      const varMatches = value.match(/var\((--[\w-]+)/g);
+                      if (varMatches) {
+                        varMatches.forEach((match) => {
+                          const varName = match.replace('var(', '');
+                          if (THEME_VARIABLES.some((v) => v.name === varName)) {
+                            usedVars.add(varName);
+                          }
+                        });
+                      }
+                    }
+                  }
+                }
+              }
+            });
+          } catch (e) {
+            // Cross-origin stylesheet - skip
+          }
+        });
+      } catch (e) {
+        console.warn('Error inspecting stylesheets:', e);
+      }
+      
+      // Update state only if variables changed or element changed
+      const varsArray = Array.from(usedVars).sort();
+      
+      if (varsArray.length > 0) {
+        setHoveredElement((prev) => {
+          // Only update if different element or different variables
+          if (!prev || prev.element !== target || 
+              prev.variables.length !== varsArray.length ||
+              !prev.variables.every((v, i) => varsArray[i] === v)) {
+            console.log('Detected variables for', target.tagName, target.className, ':', varsArray);
+            return { element: target, variables: varsArray };
+          }
+          return prev;
+        });
+      } else {
+        setHoveredElement(null);
       }
     };
 

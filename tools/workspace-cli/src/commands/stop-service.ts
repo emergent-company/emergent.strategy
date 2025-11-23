@@ -27,9 +27,9 @@ export async function runStopCommand(argv: readonly string[]): Promise<void> {
 
   const includeDependencies =
     !skipDockerDeps && (args.includeDependencies ||
-    args.dependenciesOnly ||
-    args.all ||
-    args.workspace);
+      args.dependenciesOnly ||
+      args.all ||
+      args.workspace);
   const includeServices = !args.dependenciesOnly;
 
   // Determine which services to stop
@@ -85,8 +85,7 @@ export async function runStopCommand(argv: readonly string[]): Promise<void> {
         process.stdout.write(`  ✓ Stopped ${serviceId}\n`);
       } catch (error) {
         process.stderr.write(
-          `  ✗ Failed to stop ${serviceId}: ${
-            error instanceof Error ? error.message : String(error)
+          `  ✗ Failed to stop ${serviceId}: ${error instanceof Error ? error.message : String(error)
           }\n`
         );
       }
@@ -135,8 +134,7 @@ export async function runStopCommand(argv: readonly string[]): Promise<void> {
         }
       } catch (error) {
         process.stderr.write(
-          `  ✗ Failed to stop ${depId}: ${
-            error instanceof Error ? error.message : String(error)
+          `  ✗ Failed to stop ${depId}: ${error instanceof Error ? error.message : String(error)
           }\n`
         );
       }

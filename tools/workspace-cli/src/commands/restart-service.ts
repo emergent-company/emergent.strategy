@@ -56,9 +56,9 @@ export async function runRestartCommand(
 
   const includeDependencies =
     !skipDockerDeps && (args.includeDependencies ||
-    args.dependenciesOnly ||
-    args.all ||
-    args.workspace);
+      args.dependenciesOnly ||
+      args.all ||
+      args.workspace);
   const includeServices = !args.dependenciesOnly;
 
   // Determine which services to restart
@@ -143,8 +143,7 @@ export async function runRestartCommand(
         }
       } catch (error) {
         process.stderr.write(
-          `  ✗ Failed to restart ${depId}: ${
-            error instanceof Error ? error.message : String(error)
+          `  ✗ Failed to restart ${depId}: ${error instanceof Error ? error.message : String(error)
           }\n`
         );
       }
@@ -209,8 +208,7 @@ export async function runRestartCommand(
         }
       } catch (error) {
         process.stderr.write(
-          `  ✗ Failed to restart ${serviceId}: ${
-            error instanceof Error ? error.message : String(error)
+          `  ✗ Failed to restart ${serviceId}: ${error instanceof Error ? error.message : String(error)
           }\n`
         );
       }
