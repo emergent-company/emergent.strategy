@@ -6,22 +6,38 @@ services:
     command:
       - |
         echo "🔐 Fetching secrets from Infisical..."
-        infisical export --token="${INFISICAL_TOKEN}" \
+        echo "Environment: ${INFISICAL_ENVIRONMENT:-dev}"
+        echo "Project ID: ${INFISICAL_PROJECT_ID}"
+        echo "Path: /workspace"
+        
+        # Export secrets using service token
+        infisical export \
           --env="${INFISICAL_ENVIRONMENT:-dev}" \
           --projectId="${INFISICAL_PROJECT_ID}" \
           --path="/workspace" \
-          --format=dotenv > /secrets/.env.infisical
-        echo "✅ Secrets written to /secrets/.env.infisical"
+          --format=dotenv > /secrets/.env.infisical 2>&1
+        
+        EXIT_CODE=$?
+        if [ $EXIT_CODE -eq 0 ]; then
+          echo "✅ Secrets written to /secrets/.env.infisical"
+          echo "📊 Total secrets fetched: $(wc -l < /secrets/.env.infisical)"
+        else
+          echo "❌ Failed to fetch secrets (exit code: $EXIT_CODE)"
+          echo "Debug: Token length = ${#INFISICAL_TOKEN}"
+          exit 1
+        fi
+        
         # Keep container running so volume persists
         tail -f /dev/null
     volumes:
       - infisical_secrets:/secrets
     environment:
+      # Token must be set as env var for Infisical CLI
       - INFISICAL_TOKEN=${INFISICAL_TOKEN}
       - INFISICAL_ENVIRONMENT=${INFISICAL_ENVIRONMENT:-dev}
       - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID}
     healthcheck:
-      test: ["CMD", "test", "-f", "/secrets/.env.infisical"]
+      test: ["CMD", "sh", "-c", "test -f /secrets/.env.infisical && test -s /secrets/.env.infisical"]
       interval: 5s
       timeout: 5s
       retries: 10

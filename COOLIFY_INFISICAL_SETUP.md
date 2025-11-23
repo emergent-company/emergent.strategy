@@ -19,11 +19,24 @@ INFISICAL_PROJECT_ID=2c273128-5d01-4156-a134-be9511d99c61
 
 ### 1. INFISICAL_TOKEN
 
+**IMPORTANT:** The token must be a **Service Token** (not a personal access token).
+
 1. Go to: https://infiscal.kucharz.net
 2. Navigate to your project
-3. Click **Settings** → **Service Tokens**
-4. Create a new token for the `dev` environment
-5. Copy the token (starts with `st.`)
+3. Click **Settings** → **Service Tokens** (NOT "Access Tokens")
+4. Create a new **Service Token** for the `dev` environment with:
+   - **Name:** `coolify-dev` (or any descriptive name)
+   - **Environment:** `dev`
+   - **Path:** `/` (root access to all folders)
+   - **Permissions:** Read-only is sufficient
+5. Copy the token (starts with `st.` followed by many characters)
+
+**Token format:** `st.dev.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...`
+
+**Common mistakes:**
+- ❌ Using personal access token (starts with different prefix)
+- ❌ Token for wrong environment
+- ❌ Token without access to `/workspace` folder
 
 ### 2. INFISICAL_ENVIRONMENT
 
