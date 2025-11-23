@@ -1,7 +1,8 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, UserConfig } from 'vite';
+import { infisicalPlugin } from './vite-plugin-infisical';
 
 // In dev mode, the root .env is loaded by the npm script (via dotenv-cli or similar)
 // In production Docker builds, all env vars come from --build-arg, so dotenv is not needed
@@ -14,12 +15,14 @@ const API_TARGET = process.env.API_ORIGIN || `http://localhost:${process.env.SER
 console.log(`[vite] dev server on :${DEV_PORT} proxy /api -> ${API_TARGET}`);
 
 // https://vite.dev/config/
-export default defineConfig({
-    plugins: [
-        // @ts-expect-error Vite version mismatch between root and apps/admin node_modules (doesn't affect runtime)
-        tailwindcss(),
-        // @ts-expect-error Vite version mismatch between root and apps/admin node_modules (doesn't affect runtime)
-        react({
+export default defineConfig(async (): Promise<UserConfig> => {
+    // Load secrets from Infisical at build time
+    const infisicalSecrets = await infisicalPlugin();
+    
+    return {
+        plugins: [
+            tailwindcss() as any,
+            react({
             babel: {
                 plugins: [
                     // Remove data-testid attributes in production builds
@@ -31,6 +34,8 @@ export default defineConfig({
             }
         })
     ],
+    // Inject Infisical secrets into import.meta.env
+    define: infisicalSecrets,
     resolve: {
         alias: {
             "@": path.resolve(path.resolve(), "src"),
@@ -38,7 +43,7 @@ export default defineConfig({
     },
     server: {
         port: DEV_PORT,
-        strictPort: true, // fail fast if chosen port is taken to avoid silent auto-increment hiding proxy logs
+        strictPort: true, // fail fast if chosen port is taken to avoid silent proxy logs
         host: true,
         proxy: {
             '/api': {
@@ -49,8 +54,9 @@ export default defineConfig({
             },
         },
     },
-    preview: {
-        port: DEV_PORT,
-        host: true,
-    },
+        preview: {
+            port: DEV_PORT,
+            host: true,
+        },
+    };
 });
