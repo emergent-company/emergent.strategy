@@ -7,7 +7,7 @@ services:
     env_file:
       - .env
     environment:
-      - INFISICAL_TOKEN=${INFISICAL_TOKEN_DEV}
+      - INFISICAL_TOKEN=${INFISICAL_TOKEN}
     command: export --format=dotenv-export --log-level=error
     profiles:
       - infisical
