@@ -17,12 +17,14 @@ services:
         echo "---"
         
         # Export secrets using service token
+        # Capture both stdout and stderr to see actual error messages
+        ERROR_OUTPUT=$$(mktemp)
         infisical export \
           --token="$${INFISICAL_TOKEN}" \
           --env="$${INFISICAL_ENVIRONMENT:-dev}" \
           --projectId="$${INFISICAL_PROJECT_ID}" \
           --path="/workspace" \
-          --format=dotenv > /secrets/.env.infisical 2>&1
+          --format=dotenv > /secrets/.env.infisical 2> $$ERROR_OUTPUT
         
         EXIT_CODE=$$?
         if [ $$EXIT_CODE -eq 0 ]; then
@@ -30,11 +32,18 @@ services:
           echo "📊 Total secrets fetched: $$(wc -l < /secrets/.env.infisical)"
         else
           echo "❌ Failed to fetch secrets (exit code: $$EXIT_CODE)"
+          echo "---"
+          echo "Error output from Infisical CLI:"
+          cat $$ERROR_OUTPUT
+          echo "---"
           echo "Debug: Token length = $${#INFISICAL_TOKEN}"
+          echo "Debug: Token format check: $$(echo $$INFISICAL_TOKEN | grep -o '^st\.' || echo 'INVALID FORMAT')"
           echo "Debug: All env vars:"
           env | grep INFISICAL || echo "No INFISICAL vars found"
+          rm -f $$ERROR_OUTPUT
           exit 1
         fi
+        rm -f $$ERROR_OUTPUT
         
         # Keep container running so volume persists
         tail -f /dev/null
