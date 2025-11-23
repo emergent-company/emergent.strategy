@@ -248,6 +248,13 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
             >
               AI Prompts
             </Sidebar.MenuItem>
+            <Sidebar.MenuItem
+              id="admin-theme-test"
+              url="/admin/theme-test"
+              icon="lucide--palette"
+            >
+              Theme Editor
+            </Sidebar.MenuItem>
           </Sidebar.Section>
           <Sidebar.Section
             id="admin-monitoring"

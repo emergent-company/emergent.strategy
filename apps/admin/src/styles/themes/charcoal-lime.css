@@ -1,0 +1,37 @@
+/* Charcoal & Lime Theme
+   A high-contrast dark theme with a vibrant lime green accent.
+   Inspired by modern terminal and code editor themes. */
+
+@plugin "daisyui/theme" {
+  name: "charcoal-lime";
+  prefersdark: true;
+  color-scheme: dark;
+
+  /* Base surfaces - Deep charcoal grays */
+  --color-base-100: oklch(18% 0.01 250); /* #1c1c1c */
+  --color-base-200: oklch(22% 0.01 250); /* #262626 */
+  --color-base-300: oklch(28% 0.01 250); /* #3a3a3a */
+  --color-base-content: oklch(92% 0.01 250); /* #e0e0e0 */
+
+  /* Primary - Vibrant Lime Green */
+  --color-primary: oklch(80% 0.25 145); /* #32cd32 */
+  --color-primary-content: oklch(18% 0.01 250);
+
+  /* Secondary - A softer, muted green */
+  --color-secondary: oklch(60% 0.15 150);
+  --color-secondary-content: oklch(18% 0.01 250);
+
+  /* Accent - A bright, clean white for highlights */
+  --color-accent: oklch(95% 0.01 250);
+  --color-accent-content: oklch(18% 0.01 250);
+
+  /* Neutral - For borders and separators */
+  --color-neutral: oklch(28% 0.01 250);
+  --color-neutral-content: oklch(92% 0.01 250);
+
+  /* Semantic colors */
+  --color-info: oklch(70% 0.18 240);
+  --color-success: oklch(80% 0.25 145);
+  --color-warning: oklch(80% 0.2 90);
+  --color-error: oklch(70% 0.22 30);
+}

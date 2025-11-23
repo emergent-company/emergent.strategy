@@ -1,0 +1,44 @@
+/* Veeam Green Theme
+   Veeam's official brand colors
+   Primary: Bright Green
+   Accents: Dark Blue, Gray
+   Professional and brand-aligned. */
+
+@plugin "daisyui/theme" {
+  name: "veeam-green";
+  prefersdark: true;
+  color-scheme: dark;
+
+  /* Base surfaces - Dark blue/gray */
+  --color-base-100: oklch(20% 0.02 250); /* #1a212e - dark blue */
+  --color-base-200: oklch(25% 0.02 250); /* #2c3440 */
+  --color-base-300: oklch(35% 0.02 250); /* #4a5463 */
+  --color-base-content: oklch(95% 0.01 250); /* #ffffff - white text */
+
+  /* Primary - Veeam Green */
+  --color-primary: oklch(70% 0.25 145); /* #00b336 - veeam green */
+  --color-primary-content: oklch(95% 0.01 250);
+
+  /* Secondary - Light Blue */
+  --color-secondary: oklch(65% 0.15 240); /* #57a8d9 - light blue */
+  --color-secondary-content: oklch(20% 0.02 250);
+
+  /* Accent - Yellow */
+  --color-accent: oklch(80% 0.2 90); /* #f2c94c - yellow */
+  --color-accent-content: oklch(20% 0.02 250);
+
+  /* Neutral - Gray for borders */
+  --color-neutral: oklch(35% 0.02 250); /* #4a5463 */
+  --color-neutral-content: oklch(95% 0.01 250);
+
+  /* Semantic colors */
+  --color-info: oklch(65% 0.15 240); /* #57a8d9 - light blue */
+  --color-success: oklch(70% 0.25 145); /* #00b336 - veeam green */
+  --color-warning: oklch(80% 0.2 90); /* #f2c94c - yellow */
+  --color-error: oklch(65% 0.22 30); /* #eb5757 - red */
+
+  /* Radii */
+  --radius-selector: 0.5rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+}

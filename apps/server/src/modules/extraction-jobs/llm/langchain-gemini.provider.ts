@@ -442,6 +442,9 @@ export class LangChainGeminiProvider implements ILLMProvider {
         for (const [propName, propDef] of Object.entries(
           objectSchema.properties as Record<string, any>
         )) {
+          // Skip internal fields (like _schema_version) from prompt text
+          if (propName.startsWith('_')) continue;
+
           const required = objectSchema.required?.includes(propName)
             ? ' (required)'
             : '';

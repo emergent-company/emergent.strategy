@@ -1,0 +1,29 @@
+/* Teal Fire Theme
+   From Color Hunt Palette: #309898, #FF9F00, #F4631E, #CB0404
+   A unique theme with a teal base and fiery accents. */
+
+@plugin "daisyui/theme" {
+  name: "colorhunt-teal-fire";
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(55% 0.1 180); /* #309898 */
+  --color-base-200: oklch(50% 0.1 180);
+  --color-base-300: oklch(45% 0.1 180);
+  --color-base-content: oklch(95% 0.02 80); /* Light text */
+
+  /* Primary - Bright Orange */
+  --color-primary: oklch(75% 0.2 80); /* #FF9F00 */
+  --color-primary-content: oklch(55% 0.1 180);
+
+  /* Secondary - Red-Orange */
+  --color-secondary: oklch(65% 0.22 45); /* #F4631E */
+  --color-secondary-content: oklch(95% 0.02 80);
+
+  /* Accent - Bold Red */
+  --color-accent: oklch(55% 0.25 25); /* #CB0404 */
+  --color-accent-content: oklch(95% 0.02 80);
+
+  --color-neutral: oklch(45% 0.1 180);
+  --color-neutral-content: oklch(95% 0.02 80);
+}

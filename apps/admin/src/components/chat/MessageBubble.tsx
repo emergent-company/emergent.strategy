@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { format, isToday, isYesterday, differenceInHours } from 'date-fns';
 import { UrlBadge } from './UrlBadge';
 import { ObjectCard } from './ObjectCard';
 
@@ -14,6 +15,7 @@ interface MessageBubbleProps {
   onThumbsUp?: () => void;
   onThumbsDown?: () => void;
   showActions?: boolean;
+  createdAt?: Date | string;
 }
 
 /**
@@ -37,6 +39,7 @@ export const MessageBubble = memo(
     onThumbsUp,
     onThumbsDown,
     showActions = true,
+    createdAt,
   }: MessageBubbleProps) {
     const isAssistant = message.role === 'assistant';
 
@@ -64,12 +67,47 @@ export const MessageBubble = memo(
 
     const textContent = processContent(getTextContent());
 
-    // Format timestamp as relative time
-    // Note: AI SDK UIMessage doesn't include createdAt by default
-    // For now, we'll skip timestamps or use current time
-    const getRelativeTime = (): string => {
-      return 'just now';
+    // Format timestamp with new algorithm:
+    // - Less than 5 hours ago: "X hours ago"
+    // - More than 5 hours but today: time only (e.g., "3:45 PM")
+    // - Yesterday: time only (e.g., "3:45 PM")
+    // - Before yesterday: full date and time (e.g., "Nov 20, 2025 3:45 PM")
+    const getFormattedTime = (): string => {
+      if (!createdAt) {
+        return 'just now';
+      }
+
+      try {
+        const date =
+          typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
+        const now = new Date();
+        const hoursAgo = differenceInHours(now, date);
+
+        // Less than 5 hours ago: show relative time
+        if (hoursAgo < 5) {
+          if (hoursAgo === 0) {
+            return 'just now';
+          } else if (hoursAgo === 1) {
+            return '1 hour ago';
+          } else {
+            return `${hoursAgo} hours ago`;
+          }
+        }
+
+        // Yesterday or today (but more than 5 hours ago): show time only
+        if (isToday(date) || isYesterday(date)) {
+          return format(date, 'h:mm a'); // "3:45 PM"
+        }
+
+        // Before yesterday: show full date and time
+        return format(date, 'MMM d, yyyy h:mm a'); // "Nov 20, 2025 3:45 PM"
+      } catch (error) {
+        console.error('Error formatting timestamp:', error);
+        return 'just now';
+      }
     };
+
+    const formattedTime = getFormattedTime();
 
     const handleCopy = () => {
       navigator.clipboard.writeText(textContent);
@@ -84,7 +122,7 @@ export const MessageBubble = memo(
         </div>
 
         {/* Message Bubble */}
-        <div className="chat-bubble bg-base-200 relative">
+        <div className="chat-bubble bg-base-200 relative p-4">
           {/* Render markdown with syntax highlighting for assistant */}
           <div className="prose prose-sm max-w-none prose-neutral dark:prose-invert">
             <ReactMarkdown
@@ -185,15 +223,15 @@ export const MessageBubble = memo(
         </div>
 
         {/* Timestamp Footer */}
-        <div className="chat-footer opacity-50">{getRelativeTime()}</div>
+        <div className="chat-footer opacity-50 mt-2">{formattedTime}</div>
       </div>
     ) : (
       // User Message (simpler, right-aligned, plain text)
       <div className="chat chat-end">
-        <div className="chat-bubble bg-base-200">
+        <div className="chat-bubble bg-base-200 p-4">
           <div className="whitespace-pre-wrap">{textContent}</div>
         </div>
-        <div className="chat-footer opacity-50">{getRelativeTime()}</div>
+        <div className="chat-footer opacity-50 mt-2">{formattedTime}</div>
       </div>
     );
   },
@@ -205,6 +243,7 @@ export const MessageBubble = memo(
     if (prevProps.message === nextProps.message) {
       return (
         prevProps.showActions === nextProps.showActions &&
+        prevProps.createdAt === nextProps.createdAt &&
         prevProps.onCopy === nextProps.onCopy &&
         prevProps.onRegenerate === nextProps.onRegenerate &&
         prevProps.onThumbsUp === nextProps.onThumbsUp &&
@@ -219,6 +258,7 @@ export const MessageBubble = memo(
       prevProps.message.role === nextProps.message.role &&
       // Check parts if they exist (shallow comparison of array reference)
       prevProps.message.parts === nextProps.message.parts &&
+      prevProps.createdAt === nextProps.createdAt &&
       prevProps.showActions === nextProps.showActions
     );
   }

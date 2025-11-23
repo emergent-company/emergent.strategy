@@ -1,8 +1,7 @@
 import { defineConfig } from 'vitest/config';
-import { config } from 'dotenv';
 
-// Load E2E-specific environment variables
-config({ path: '../../.env.e2e' });
+// Note: E2E database configuration is set in tests/e2e/setup-e2e-env.ts
+// DO NOT load .env.e2e here as it may contain dev database values
 
 /**
  * E2E & Integration Test Configuration
@@ -38,7 +37,10 @@ export default defineConfig({
       'tests/e2e/integration/graph/**/*.spec.ts',
     ],
     watch: false,
-    setupFiles: ['tests/e2e/global-org-cleanup.ts'],
+    setupFiles: [
+      'tests/e2e/setup-e2e-env.ts', // MUST BE FIRST - sets E2E database env vars
+      'tests/e2e/global-org-cleanup.ts',
+    ],
     env: {
       NODE_ENV: 'test',
       // E2E Database configuration (ephemeral Docker container)

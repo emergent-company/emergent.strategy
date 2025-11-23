@@ -192,6 +192,24 @@ export class LangGraphService implements OnModuleInit {
   }
 
   /**
+   * Generate a simple response from the LLM without conversation context.
+   * Useful for one-off tasks like title generation.
+   */
+  async generateSimpleResponse(prompt: string): Promise<string> {
+    if (!this.model) {
+      throw new Error(
+        'LangGraph not initialized. Check GCP_PROJECT_ID, VERTEX_AI_LOCATION, and VERTEX_AI_MODEL.'
+      );
+    }
+
+    this.logger.log('Generating simple response');
+
+    const response = await this.model.invoke([new HumanMessage(prompt)]);
+
+    return response.content as string;
+  }
+
+  /**
    * Check if the service is ready (model initialized)
    */
   isReady(): boolean {

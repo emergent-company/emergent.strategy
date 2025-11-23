@@ -6,6 +6,7 @@ import {
   type ReactElement,
 } from 'react';
 import { Icon } from '@/components/atoms/Icon';
+import { ObjectRefLink } from '@/components/molecules/ObjectRefLink';
 import { GraphObject } from '../ObjectBrowser/ObjectBrowser';
 import { useApi } from '@/hooks/use-api';
 import type {
@@ -61,9 +62,28 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
     { type: string; direction: 'in' | 'out'; objects: GraphObject[] }[]
   >([]);
   const [loadingRelations, setLoadingRelations] = useState(false);
+  const [inverseRelationships, setInverseRelationships] = useState<
+    {
+      label: string;
+      sourceObjects: Array<{ id: string; name: string; type: string }>;
+    }[]
+  >([]);
+  const [loadingInverseRelations, setLoadingInverseRelations] = useState(false);
   const [documentNames, setDocumentNames] = useState<Record<string, string>>(
     {}
   );
+  const [loadingObjectName, setLoadingObjectName] = useState<string | null>(
+    null
+  );
+  const [nestedObject, setNestedObject] = useState<GraphObject | null>(null);
+  const [showNestedModal, setShowNestedModal] = useState(false);
+  const [generatingEmbedding, setGeneratingEmbedding] = useState(false);
+  const [embeddingMessage, setEmbeddingMessage] = useState<string | null>(null);
+  const [embeddingJobStatus, setEmbeddingJobStatus] = useState<{
+    status: 'pending' | 'processing';
+    id: string;
+  } | null>(null);
+  const embeddingPollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sync dialog open state
   useEffect(() => {
@@ -216,6 +236,184 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
     }
   }, [object, fetchJson]);
 
+  // Handler to search for an object by name and open its detail modal
+  const handleObjectNameClick = useCallback(
+    async (objectName: string) => {
+      setLoadingObjectName(objectName);
+      try {
+        // Search for object by name
+        const response = await fetchJson<{ items: GraphObjectResponse[] }>(
+          `${apiBase}/api/graph/objects/search?key=${encodeURIComponent(
+            objectName
+          )}&limit=1`
+        );
+
+        if (response.items && response.items.length > 0) {
+          const obj = response.items[0];
+          setNestedObject({
+            id: obj.id,
+            name:
+              (obj.properties?.name as string) ||
+              obj.key ||
+              `${obj.type}-${obj.id.substring(0, 8)}`,
+            type: obj.type,
+            status: obj.status || undefined,
+            source: obj.external_type || undefined,
+            updated_at: obj.created_at,
+            relationship_count: undefined,
+            properties: obj.properties,
+            embedding: obj.embedding,
+            embedding_updated_at: obj.embedding_updated_at,
+          });
+          setShowNestedModal(true);
+        } else {
+          console.warn(`Object with name "${objectName}" not found`);
+        }
+      } catch (error) {
+        console.error('Failed to load object by name:', error);
+      } finally {
+        setLoadingObjectName(null);
+      }
+    },
+    [fetchJson, apiBase]
+  );
+
+  // Load inverse relationships (relationships pointing TO this object)
+  // Now uses the kb.graph_relationships table for fast UUID-based lookups
+  const loadInverseRelationships = useCallback(async () => {
+    if (!object) return;
+
+    setLoadingInverseRelations(true);
+    try {
+      console.log(
+        '[loadInverseRelationships] Looking for relationships pointing to:',
+        object.id
+      );
+
+      // Query kb.graph_relationships for relationships where this object is the destination
+      // Note: This data comes from loadRelationships() which already fetched all edges
+      // We just need to filter for incoming relationships
+      const incomingGroups = relatedObjectGroups.filter(
+        (group) => group.direction === 'in'
+      );
+
+      console.log(
+        '[loadInverseRelationships] Found incoming relationship groups:',
+        incomingGroups.length
+      );
+
+      // Convert to the format expected by the UI
+      const inverseRels = incomingGroups.map((group) => ({
+        label: group.type, // e.g., "HAS_PARTICIPANT"
+        sourceObjects: group.objects.map((obj) => ({
+          id: obj.id,
+          name: obj.name,
+          type: obj.type,
+        })),
+      }));
+
+      setInverseRelationships(inverseRels);
+    } catch (error) {
+      console.error('Failed to load inverse relationships:', error);
+      setInverseRelationships([]);
+    } finally {
+      setLoadingInverseRelations(false);
+    }
+  }, [object, relatedObjectGroups]);
+
+  // Function to trigger embedding generation
+  const handleGenerateEmbedding = useCallback(async () => {
+    if (!object) return;
+
+    setGeneratingEmbedding(true);
+    setEmbeddingMessage(null);
+
+    try {
+      const response = await fetchJson<{
+        enqueued: number;
+        skipped: number;
+        jobIds: string[];
+      }>(`${apiBase}/api/graph/embeddings/object/${object.id}`, {
+        method: 'POST',
+      });
+
+      if (response.enqueued > 0) {
+        setEmbeddingMessage(
+          'Embedding generation job queued successfully! The embedding will be generated in the background.'
+        );
+      } else if (response.skipped > 0) {
+        setEmbeddingMessage(
+          'Embedding generation is already in progress for this object.'
+        );
+      }
+
+      // Clear message after 5 seconds
+      setTimeout(() => setEmbeddingMessage(null), 5000);
+    } catch (error) {
+      console.error('Failed to trigger embedding generation:', error);
+      setEmbeddingMessage(
+        'Failed to queue embedding generation. Please try again.'
+      );
+      setTimeout(() => setEmbeddingMessage(null), 5000);
+    } finally {
+      setGeneratingEmbedding(false);
+    }
+  }, [object, fetchJson, apiBase]);
+
+  // Function to check embedding job status
+  const checkEmbeddingJobStatus = useCallback(async () => {
+    if (!object) return;
+
+    try {
+      const response = await fetchJson<{
+        id: string;
+        status: 'pending' | 'processing';
+        object_id: string;
+      }>(`${apiBase}/api/graph/embeddings/object/${object.id}/status`, {
+        method: 'GET',
+      });
+
+      setEmbeddingJobStatus({
+        status: response.status,
+        id: response.id,
+      });
+    } catch (error: any) {
+      // 404 means no active job - clear status
+      if (error.status === 404) {
+        setEmbeddingJobStatus(null);
+      }
+    }
+  }, [object, fetchJson, apiBase]);
+
+  // Poll for embedding job status when modal is open and no embedding exists
+  useEffect(() => {
+    if (!isOpen || !object || object.embedding) {
+      // Clear polling if modal closed, no object, or embedding exists
+      if (embeddingPollIntervalRef.current) {
+        clearInterval(embeddingPollIntervalRef.current);
+        embeddingPollIntervalRef.current = null;
+      }
+      setEmbeddingJobStatus(null);
+      return;
+    }
+
+    // Check immediately on mount
+    checkEmbeddingJobStatus();
+
+    // Then poll every 3 seconds
+    embeddingPollIntervalRef.current = setInterval(
+      checkEmbeddingJobStatus,
+      3000
+    );
+
+    return () => {
+      if (embeddingPollIntervalRef.current) {
+        clearInterval(embeddingPollIntervalRef.current);
+        embeddingPollIntervalRef.current = null;
+      }
+    };
+  }, [isOpen, object, checkEmbeddingJobStatus]);
+
   // Load data when modal opens
   useEffect(() => {
     if (isOpen && object) {
@@ -226,8 +424,16 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
       setVersions([]);
       setVersionsError(null);
       setRelatedObjectGroups([]);
+      setInverseRelationships([]);
     }
   }, [isOpen, object, loadVersionHistory, loadRelatedObjects]);
+
+  // Load inverse relationships after related objects are loaded
+  useEffect(() => {
+    if (isOpen && object && relatedObjectGroups.length > 0) {
+      loadInverseRelationships();
+    }
+  }, [isOpen, object, relatedObjectGroups, loadInverseRelationships]);
 
   if (!object) return null;
 
@@ -235,11 +441,21 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
   const extractionMetadata: Record<string, unknown> = {};
   const regularProperties: Record<string, unknown> = {};
 
+  // Relationship property keys to exclude from regular properties display
+  const relationshipKeys = [
+    'witnesses',
+    'performer',
+    'participants',
+    'parties',
+    'participants_canonical_ids',
+  ];
+
   if (object.properties) {
     Object.entries(object.properties).forEach(([key, value]) => {
       if (key.startsWith('_extraction_')) {
         extractionMetadata[key] = value;
-      } else {
+      } else if (!relationshipKeys.includes(key)) {
+        // Exclude relationship properties from regular properties
         regularProperties[key] = value;
       }
     });
@@ -481,12 +697,47 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
             </div>
           )}
 
+          {/* Inverse Relationships Section */}
+          {(inverseRelationships.length > 0 || loadingInverseRelations) && (
+            <div className="mb-6">
+              <h4 className="flex items-center gap-2 mb-3 font-semibold text-lg">
+                <Icon icon="lucide--arrow-left-right" className="size-5" />
+                Incoming Relationships
+                {loadingInverseRelations && (
+                  <span className="loading loading-spinner loading-xs"></span>
+                )}
+              </h4>
+              <div className="space-y-3">
+                {inverseRelationships.map((rel) => (
+                  <div
+                    key={rel.label}
+                    className="bg-base-200/30 p-3 border border-base-300 rounded"
+                  >
+                    <div className="font-medium text-sm text-base-content/80 mb-2">
+                      {rel.label}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {rel.sourceObjects.map((sourceObj) => (
+                        <ObjectRefLink
+                          key={sourceObj.id}
+                          text={sourceObj.name}
+                          onClick={() => handleObjectNameClick(sourceObj.name)}
+                          loading={loadingObjectName === sourceObj.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Related Objects Section */}
           {(relatedObjectGroups.length > 0 || loadingRelations) && (
             <div className="mb-6">
               <h4 className="flex items-center gap-2 mb-3 font-semibold text-lg">
                 <Icon icon="lucide--network" className="size-5" />
-                Related Objects
+                Related Objects (from Graph)
                 {loadingRelations && (
                   <span className="loading loading-spinner loading-xs"></span>
                 )}
@@ -580,6 +831,13 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                     <Icon icon="lucide--check-circle" className="size-3" />
                     Embedded
                   </span>
+                ) : embeddingJobStatus ? (
+                  <span className="gap-2 badge badge-warning">
+                    <span className="loading loading-spinner loading-xs"></span>
+                    {embeddingJobStatus.status === 'pending'
+                      ? 'Queued'
+                      : 'Generating...'}
+                  </span>
                 ) : (
                   <span className="gap-2 badge badge-ghost">
                     <Icon icon="lucide--circle" className="size-3" />
@@ -595,11 +853,55 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                   </span>
                 </div>
               )}
-              {!object.embedding && (
+              {!object.embedding && !embeddingJobStatus && (
                 <div className="text-sm text-base-content/60 italic">
                   This object has not been embedded yet. Embeddings are
                   generated automatically for semantic search.
                 </div>
+              )}
+              {!object.embedding && embeddingJobStatus && (
+                <div className="text-sm text-base-content/60 italic">
+                  Embedding generation is in progress. This usually takes a few
+                  seconds. The status will update automatically when complete.
+                </div>
+              )}
+              {embeddingMessage && (
+                <div
+                  className={`alert ${
+                    embeddingMessage.includes('Failed')
+                      ? 'alert-error'
+                      : 'alert-success'
+                  } text-sm py-2`}
+                >
+                  <Icon
+                    icon={
+                      embeddingMessage.includes('Failed')
+                        ? 'lucide--alert-circle'
+                        : 'lucide--check-circle'
+                    }
+                    className="size-4"
+                  />
+                  <span>{embeddingMessage}</span>
+                </div>
+              )}
+              {!object.embedding && !embeddingJobStatus && (
+                <button
+                  className="btn btn-sm btn-primary gap-2 w-full"
+                  onClick={handleGenerateEmbedding}
+                  disabled={generatingEmbedding}
+                >
+                  {generatingEmbedding ? (
+                    <>
+                      <span className="loading loading-spinner loading-xs"></span>
+                      Queueing...
+                    </>
+                  ) : (
+                    <>
+                      <Icon icon="lucide--sparkles" className="size-4" />
+                      Generate Embedding
+                    </>
+                  )}
+                </button>
               )}
             </div>
           </div>
@@ -838,6 +1140,18 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
       <form method="dialog" className="modal-backdrop" onClick={onClose}>
         <button type="button">close</button>
       </form>
+
+      {/* Nested modal for viewing related objects */}
+      {nestedObject && (
+        <ObjectDetailModal
+          object={nestedObject}
+          isOpen={showNestedModal}
+          onClose={() => {
+            setShowNestedModal(false);
+            setNestedObject(null);
+          }}
+        />
+      )}
     </dialog>
   );
 };

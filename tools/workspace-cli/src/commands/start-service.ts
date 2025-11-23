@@ -56,11 +56,26 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
   const profileId: EnvironmentProfileId = args.profile;
   const envProfile = getEnvironmentProfile(profileId);
 
+  // Check if we should skip Docker dependencies (remote mode)
+  const skipDockerDeps = process.env.SKIP_DOCKER_DEPS === 'true';
+  if (skipDockerDeps) {
+    process.stdout.write('🌐 Remote mode: Skipping local Docker dependencies\n');
+    process.stdout.write(`   Using remote services:\n`);
+    if (process.env.POSTGRES_HOST) {
+      process.stdout.write(`   • Database: ${process.env.POSTGRES_HOST}:${process.env.POSTGRES_PORT || 5432}\n`);
+    }
+    if (process.env.ZITADEL_DOMAIN) {
+      process.stdout.write(`   • Zitadel: ${process.env.ZITADEL_DOMAIN}\n`);
+    }
+    process.stdout.write('\n');
+  }
+
   const includeDependencies =
-    args.includeDependencies ||
+    !skipDockerDeps &&
+    (args.includeDependencies ||
     args.dependenciesOnly ||
     args.all ||
-    args.workspace;
+    args.workspace);
   const includeServices = !args.dependenciesOnly;
 
   // Determine which services to start

@@ -1,0 +1,44 @@
+/* Solarized Dark Theme
+   Precision colors for machines and people
+   Primary: Blue
+   Accents: Yellow, Orange, Red
+   Designed for readability and selective contrast. */
+
+@plugin "daisyui/theme" {
+  name: "solarized-dark";
+  prefersdark: true;
+  color-scheme: dark;
+
+  /* Base surfaces - Cool, dark blues/grays */
+  --color-base-100: oklch(20% 0.02 250); /* #002b36 - base03 */
+  --color-base-200: oklch(25% 0.02 250); /* #073642 - base02 */
+  --color-base-300: oklch(45% 0.01 250); /* #586e75 - base01 */
+  --color-base-content: oklch(60% 0.01 250); /* #839496 - base0 */
+
+  /* Primary - Blue */
+  --color-primary: oklch(60% 0.15 240); /* #268bd2 - blue */
+  --color-primary-content: oklch(95% 0.01 240);
+
+  /* Secondary - Cyan */
+  --color-secondary: oklch(65% 0.12 190); /* #2aa198 - cyan */
+  --color-secondary-content: oklch(95% 0.01 190);
+
+  /* Accent - Yellow */
+  --color-accent: oklch(70% 0.15 90); /* #b58900 - yellow */
+  --color-accent-content: oklch(20% 0.01 90);
+
+  /* Neutral - Gray for borders */
+  --color-neutral: oklch(50% 0.01 250); /* #657b83 */
+  --color-neutral-content: oklch(90% 0.01 250);
+
+  /* Semantic colors */
+  --color-info: oklch(60% 0.15 240); /* #268bd2 - blue */
+  --color-success: oklch(65% 0.15 140); /* #859900 - green */
+  --color-warning: oklch(65% 0.2 60); /* #cb4b16 - orange */
+  --color-error: oklch(60% 0.22 30); /* #dc322f - red */
+
+  /* Radii */
+  --radius-selector: 0.5rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+}

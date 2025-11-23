@@ -127,24 +127,31 @@ export class ChatUiController {
 
     let dbConversationId: string | undefined = conversationId;
     let fullAssistantResponse = '';
+    let isFirstExchange = false; // Track if this is the first exchange for title generation
 
     try {
       // Create or get conversation
       if (!dbConversationId) {
-        // Generate a title from the first message (truncate to 100 chars)
-        const title =
-          latestMessage.content.substring(0, 100) +
-          (latestMessage.content.length > 100 ? '...' : '');
+        // Use placeholder title - will be updated after first exchange
+        const title = 'New Conversation';
 
         const conversation = await this.conversationService.createConversation(
           title,
           user?.id // Save owner user ID
         );
         dbConversationId = conversation.id;
+        isFirstExchange = true; // Mark as first exchange
 
         this.logger.log(
           `Created new conversation: ${dbConversationId} for user ${user?.id}`
         );
+      } else {
+        // Check if this conversation has any messages yet
+        // If not, this is the first exchange
+        const conversation = await this.conversationService.getConversation(
+          dbConversationId
+        );
+        isFirstExchange = conversation.messages.length === 0;
       }
 
       // Save user message to database
@@ -209,6 +216,24 @@ export class ChatUiController {
       });
       res.write(`${finishChunk}\n`);
       res.end();
+
+      // Generate title asynchronously after first exchange (don't await - run in background)
+      if (isFirstExchange && fullAssistantResponse) {
+        this.logger.log(
+          `Triggering background title generation for conversation ${dbConversationId}`
+        );
+        // Don't await - let this run in background
+        this.generateConversationTitle(
+          dbConversationId,
+          latestMessage.content,
+          fullAssistantResponse
+        ).catch((error: Error) => {
+          this.logger.error(
+            `Background title generation failed for conversation ${dbConversationId}`,
+            error
+          );
+        });
+      }
     } catch (error) {
       this.logger.error('Error streaming chat response', error);
 
@@ -222,5 +247,46 @@ export class ChatUiController {
       // Otherwise just end the stream
       res.end();
     }
+  }
+
+  /**
+   * Generate a title for a conversation based on first user and assistant messages.
+   * This runs asynchronously in the background after the first exchange.
+   */
+  private async generateConversationTitle(
+    conversationId: string,
+    userMessage: string,
+    assistantMessage: string
+  ): Promise<void> {
+    this.logger.log(`Generating title for conversation ${conversationId}`);
+
+    await this.conversationService.generateAndUpdateTitle(
+      conversationId,
+      async (userMsg: string, assistantMsg: string) => {
+        // Build prompt for title generation
+        const prompt = `Generate a concise, descriptive title (max 50 characters) for a chat conversation based on these messages:
+
+User: ${userMsg.substring(0, 300)}
+Assistant: ${assistantMsg.substring(0, 300)}
+
+Requirements:
+- Maximum 50 characters
+- Descriptive and specific
+- No quotes or special formatting
+- Capture the main topic or question
+
+Title:`;
+
+        // Use LangGraph service to generate title
+        const generatedTitle =
+          await this.langGraphService.generateSimpleResponse(prompt);
+
+        // Clean up the response (remove quotes, trim, limit length)
+        return generatedTitle
+          .trim()
+          .replace(/^["']|["']$/g, '') // Remove leading/trailing quotes
+          .substring(0, 50);
+      }
+    );
   }
 }

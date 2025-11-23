@@ -1,0 +1,22 @@
+/* Root Styling */
+@import './typography.css';
+@import './tailwind.css';
+@import './daisyui.css';
+
+/* Custom Declarations */
+@import './core/animation.css';
+@import './core/components.css';
+
+/* Page wise */
+@import './pages/landing.css';
+@import './pages/layout.css';
+@import './pages/components.css';
+
+/* Plugin Overriding */
+@import './plugins/apexcharts.css';
+@import './plugins/carousel.css';
+@import './plugins/filepond.css';
+@import './plugins/flatpickr.css';
+@import './plugins/scrollbar.css';
+@import './plugins/select.css';
+@import './plugins/text-editor.css';

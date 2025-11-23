@@ -55,20 +55,13 @@ function validateEnvironment() {
 
   // Required if using Vertex AI embeddings
   if (process.env.EMBEDDING_PROVIDER === 'vertex') {
-    if (!process.env.VERTEX_EMBEDDING_LOCATION) {
+    if (!process.env.VERTEX_AI_LOCATION) {
       errors.push(
-        '❌ VERTEX_EMBEDDING_LOCATION is required when EMBEDDING_PROVIDER=vertex'
+        '❌ VERTEX_AI_LOCATION is required when EMBEDDING_PROVIDER=vertex'
       );
     }
-    if (!process.env.VERTEX_EMBEDDING_MODEL) {
-      errors.push(
-        '❌ VERTEX_EMBEDDING_MODEL is required when EMBEDDING_PROVIDER=vertex'
-      );
-    }
-    if (!process.env.GCP_PROJECT_ID && !process.env.VERTEX_EMBEDDING_PROJECT) {
-      errors.push(
-        '❌ GCP_PROJECT_ID or VERTEX_EMBEDDING_PROJECT is required for Vertex AI'
-      );
+    if (!process.env.GCP_PROJECT_ID) {
+      errors.push('❌ GCP_PROJECT_ID is required for Vertex AI');
     }
   }
 

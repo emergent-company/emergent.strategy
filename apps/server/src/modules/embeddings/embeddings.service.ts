@@ -30,8 +30,7 @@ export class EmbeddingsService {
     if (!this.client) {
       // Try Vertex AI first (production), fallback to Generative AI (development)
       const useVertexAI =
-        process.env.VERTEX_EMBEDDING_PROJECT &&
-        process.env.VERTEX_EMBEDDING_LOCATION;
+        process.env.GCP_PROJECT_ID && process.env.VERTEX_AI_LOCATION;
 
       if (useVertexAI) {
         this.client = await this.createVertexAIClient();
@@ -45,13 +44,13 @@ export class EmbeddingsService {
   }
 
   private async createVertexAIClient(): Promise<EmbeddingClient> {
-    const projectId = process.env.VERTEX_EMBEDDING_PROJECT;
-    const location = process.env.VERTEX_EMBEDDING_LOCATION;
-    const model = process.env.VERTEX_EMBEDDING_MODEL || 'text-embedding-004';
+    const projectId = process.env.GCP_PROJECT_ID;
+    const location = process.env.VERTEX_AI_LOCATION;
+    const model = 'text-embedding-004';
 
     if (!projectId || !location) {
       throw new Error(
-        'Vertex AI configuration missing: VERTEX_EMBEDDING_PROJECT and VERTEX_EMBEDDING_LOCATION required'
+        'Vertex AI configuration missing: GCP_PROJECT_ID and VERTEX_AI_LOCATION required'
       );
     }
 
@@ -156,7 +155,7 @@ export class EmbeddingsService {
     if (!apiKey) {
       throw new Error(
         'GOOGLE_API_KEY not set - required for Generative AI embeddings. ' +
-          'For production, configure Vertex AI with VERTEX_EMBEDDING_PROJECT and VERTEX_EMBEDDING_LOCATION instead.'
+          'For production, configure Vertex AI with GCP_PROJECT_ID and VERTEX_AI_LOCATION instead.'
       );
     }
 

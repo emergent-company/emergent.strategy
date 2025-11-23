@@ -50,6 +50,8 @@
     "db:e2e:logs": "docker compose -f docker/e2e/docker-compose.yml logs -f",
     "chrome:debug": "./scripts/start-chrome-debug.sh http://localhost:5176",
     "chrome:debug:status": "./scripts/start-chrome-debug.sh --status",
+    "migrate-secrets": "tsx scripts/migrate-secrets-to-infisical.ts",
+    "migrate-secrets:dry-run": "tsx scripts/migrate-secrets-to-infisical.ts -- --dry-run",
     "db:e2e:clean": "docker compose -f docker/e2e/docker-compose.yml down -v",
     "db:e2e:wait": "until docker compose -f docker/e2e/docker-compose.yml exec -T db pg_isready -U spec -d spec_e2e; do sleep 1; done",
     "test:e2e": "npm run db:e2e:restart && npm run db:e2e:wait && npm run db:e2e:migrate && nx run server:test-e2e && npm run db:e2e:down",
@@ -76,10 +78,13 @@
     "seed:bible-template": "tsx scripts/seed-bible-template-pack.ts",
     "seed:bible": "tsx scripts/seed-bible-documents.ts",
     "migrate:bible-v1-to-v2": "tsx scripts/migrate-bible-v1-to-v2.ts",
+    "migrate:embedded-relationships": "tsx scripts/migrate-embedded-relationships.ts",
+    "migrate:embedded-relationships:dry-run": "tsx scripts/migrate-embedded-relationships.ts -- --dry-run",
     "reset-embedding-jobs": "tsx scripts/reset-embedding-jobs.ts",
     "reset-embedding-jobs:execute": "tsx scripts/reset-embedding-jobs.ts --execute",
     "backfill-chunk-embeddings": "tsx scripts/backfill-chunk-embeddings.ts",
-    "backfill-chunk-embeddings:execute": "tsx scripts/backfill-chunk-embeddings.ts --execute"
+    "backfill-chunk-embeddings:execute": "tsx scripts/backfill-chunk-embeddings.ts --execute",
+    "verify-env": "node scripts/verify-env.mjs"
   },
   "dependencies": {
     "@ai-sdk/langchain": "^1.0.97",
@@ -102,6 +107,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
+    "framer-motion": "^12.23.24",
     "html-to-text": "^9.0.5",
     "jose": "^5.9.6",
     "langchain": "^1.0.0",
@@ -116,6 +122,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@infisical/sdk": "^4.0.6",
     "@nx/devkit": "^21.6.5",
     "@nx/js": "21.6.5",
     "@nx/storybook": "^21.6.5",

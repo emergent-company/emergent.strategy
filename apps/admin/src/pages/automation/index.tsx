@@ -1,4 +1,8 @@
 import { MetaData } from '@/components/atoms/MetaData';
+import { ColorSwitcher } from '@/components/organisms/ColorSwitcher';
+import { FloatingThemeConfigurator } from '@/components/organisms/FloatingThemeConfigurator';
+import { LogoGradientSwitcher } from '@/components/organisms/LogoGradientSwitcher';
+import { LogoFontSwitcher } from '@/components/organisms/LogoFontSwitcher';
 
 import { Benefits } from './components/Benefits';
 import { CTA } from './components/CTA';
@@ -26,6 +30,10 @@ const AutomationLandingPage = () => {
       <Testimonials />
       <Pricing />
       <Footer />
+      <ColorSwitcher />
+      <LogoGradientSwitcher />
+      <LogoFontSwitcher />
+      <FloatingThemeConfigurator />
     </>
   );
 };

@@ -5209,6 +5209,186 @@
         ]
       }
     },
+    "/graph/embeddings/object/{id}/status": {
+      "get": {
+        "operationId": "getEmbeddingJobStatus",
+        "summary": "Get embedding job status for an object",
+        "description": "Returns the active embedding job status (pending or processing) for the specified object. Returns 404 if no active job exists.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active embedding job found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "object_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "processing"
+                      ]
+                    },
+                    "attempt_count": {
+                      "type": "number"
+                    },
+                    "priority": {
+                      "type": "number"
+                    },
+                    "scheduled_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active job found for this object"
+          }
+        },
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
+    "/graph/embeddings/object/{id}": {
+      "post": {
+        "operationId": "triggerEmbeddingForObject",
+        "summary": "Trigger embedding generation for a single object",
+        "description": "Enqueues an embedding job for the specified graph object. The job will be processed asynchronously by the embedding worker. Idempotent: if a job is already pending/processing for this object, returns the existing job.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "priority",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Embedding job created or found"
+          },
+          "404": {
+            "description": "Object not found"
+          }
+        },
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
+    "/graph/embeddings/batch": {
+      "post": {
+        "operationId": "triggerEmbeddingsBatch",
+        "summary": "Trigger embedding generation for multiple objects",
+        "description": "Enqueues embedding jobs for the specified graph objects. Jobs will be processed asynchronously by the embedding worker. Idempotent: if a job is already pending/processing for an object, that job is skipped.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriggerEmbeddingsBatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Embedding jobs created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbeddingJobResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
+    "/graph/embeddings/regenerate-project": {
+      "post": {
+        "operationId": "triggerEmbeddingsProject",
+        "summary": "Trigger embedding regeneration for all objects in a project",
+        "description": "Enqueues embedding jobs for all graph objects in the specified project. Optionally filter by object type. Use force=true to regenerate embeddings even if they already exist. Jobs will be processed asynchronously by the embedding worker.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriggerEmbeddingsProjectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Embedding jobs created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbeddingJobResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project ID"
+          }
+        },
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
     "/graph/branches": {
       "post": {
         "operationId": "create",
@@ -11088,6 +11268,92 @@
           "fast_forward_count",
           "conflict_count",
           "objects"
+        ]
+      },
+      "TriggerEmbeddingsBatchDto": {
+        "type": "object",
+        "properties": {
+          "objectIds": {
+            "description": "Array of object IDs to generate embeddings for",
+            "example": [
+              "123e4567-e89b-12d3-a456-426614174000",
+              "123e4567-e89b-12d3-a456-426614174001"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "priority": {
+            "type": "number",
+            "description": "Priority for embedding jobs (higher = processed first)",
+            "example": 10,
+            "default": 0
+          }
+        },
+        "required": [
+          "objectIds"
+        ]
+      },
+      "EmbeddingJobResponseDto": {
+        "type": "object",
+        "properties": {
+          "enqueued": {
+            "type": "number",
+            "description": "Number of jobs enqueued",
+            "example": 10
+          },
+          "skipped": {
+            "type": "number",
+            "description": "Number of jobs that were already pending/processing",
+            "example": 2
+          },
+          "jobIds": {
+            "description": "Array of job IDs that were created or found",
+            "example": [
+              "job-1",
+              "job-2"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "enqueued",
+          "skipped",
+          "jobIds"
+        ]
+      },
+      "TriggerEmbeddingsProjectDto": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "description": "Project ID to regenerate embeddings for",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "objectType": {
+            "type": "string",
+            "description": "Object type filter (if specified, only regenerate embeddings for this type)",
+            "example": "Person"
+          },
+          "priority": {
+            "type": "number",
+            "description": "Priority for embedding jobs (higher = processed first)",
+            "example": 10,
+            "default": 0
+          },
+          "force": {
+            "type": "boolean",
+            "description": "Force regeneration even if embedding already exists",
+            "example": false,
+            "default": false
+          }
+        },
+        "required": [
+          "projectId"
         ]
       },
       "CreateProductVersionDto": {

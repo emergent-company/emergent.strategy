@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GraphObjectsController } from './graph.controller';
+import { GraphEmbeddingsController } from './graph-embeddings.controller';
 import { GraphService } from './graph.service';
 import { DatabaseModule } from '../../common/database/database.module';
 import { AppConfigModule } from '../../common/config/config.module';
@@ -50,6 +51,7 @@ import { GraphObject } from '../../entities/graph-object.entity';
   ],
   controllers: [
     GraphObjectsController,
+    GraphEmbeddingsController,
     BranchController,
     ProductVersionController,
     TagController,

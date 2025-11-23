@@ -1,0 +1,37 @@
+/* Mocha & Orange Theme
+   A warm, coffee-toned dark theme with a burnt orange accent.
+   Cozy, inviting, and unique. */
+
+@plugin "daisyui/theme" {
+  name: "mocha-orange";
+  prefersdark: true;
+  color-scheme: dark;
+
+  /* Base surfaces - Rich, warm browns */
+  --color-base-100: oklch(25% 0.02 80); /* #3e2723 */
+  --color-base-200: oklch(30% 0.02 80); /* #4e342e */
+  --color-base-300: oklch(35% 0.02 80); /* #5d4037 */
+  --color-base-content: oklch(90% 0.01 80); /* #d7ccc8 */
+
+  /* Primary - Burnt Orange */
+  --color-primary: oklch(70% 0.2 60); /* #ff6e40 */
+  --color-primary-content: oklch(25% 0.02 80);
+
+  /* Secondary - A softer, creamy beige */
+  --color-secondary: oklch(80% 0.05 90);
+  --color-secondary-content: oklch(25% 0.02 80);
+
+  /* Accent - A muted gold/yellow */
+  --color-accent: oklch(75% 0.15 90);
+  --color-accent-content: oklch(25% 0.02 80);
+
+  /* Neutral - For borders */
+  --color-neutral: oklch(35% 0.02 80);
+  --color-neutral-content: oklch(90% 0.01 80);
+
+  /* Semantic colors */
+  --color-info: oklch(70% 0.15 240);
+  --color-success: oklch(70% 0.18 150);
+  --color-warning: oklch(70% 0.2 60);
+  --color-error: oklch(65% 0.22 30);
+}

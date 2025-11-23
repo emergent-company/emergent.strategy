@@ -602,13 +602,33 @@ export function DataTable<T extends TableDataItem>({
                             />
                           </Dropdown.Trigger>
                           <Dropdown.Menu width="w-52">
-                            {rowActions.map((action, idx) => {
-                              if (action.asLink && action.href) {
+                            {rowActions
+                              .filter((action) => !action.hidden?.(item))
+                              .map((action, idx) => {
+                                if (action.asLink && action.href) {
+                                  return (
+                                    <Dropdown.Item
+                                      key={idx}
+                                      asLink
+                                      href={action.href(item)}
+                                    >
+                                      {action.icon && (
+                                        <Icon
+                                          icon={action.icon}
+                                          className="size-4"
+                                        />
+                                      )}
+                                      {action.label}
+                                    </Dropdown.Item>
+                                  );
+                                }
+
                                 return (
                                   <Dropdown.Item
                                     key={idx}
-                                    asLink
-                                    href={action.href(item)}
+                                    onClick={() => {
+                                      action.onAction(item);
+                                    }}
                                   >
                                     {action.icon && (
                                       <Icon
@@ -619,12 +639,42 @@ export function DataTable<T extends TableDataItem>({
                                     {action.label}
                                   </Dropdown.Item>
                                 );
+                              })}
+                          </Dropdown.Menu>
+                        </Dropdown>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {rowActions
+                            .filter((action) => !action.hidden?.(item))
+                            .map((action, idx) => {
+                              const variant = action.variant || 'ghost';
+                              const size = action.size || 'xs';
+
+                              if (action.asLink && action.href) {
+                                return (
+                                  <a
+                                    key={idx}
+                                    href={action.href(item)}
+                                    className={`gap-1 btn btn-${size} btn-${variant}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {action.icon && (
+                                      <Icon
+                                        icon={action.icon}
+                                        className="size-4"
+                                      />
+                                    )}
+                                    {action.label}
+                                  </a>
+                                );
                               }
 
                               return (
-                                <Dropdown.Item
+                                <button
                                   key={idx}
-                                  onClick={() => {
+                                  className={`gap-1 btn btn-${size} btn-${variant}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     action.onAction(item);
                                   }}
                                 >
@@ -635,52 +685,9 @@ export function DataTable<T extends TableDataItem>({
                                     />
                                   )}
                                   {action.label}
-                                </Dropdown.Item>
+                                </button>
                               );
                             })}
-                          </Dropdown.Menu>
-                        </Dropdown>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          {rowActions.map((action, idx) => {
-                            const variant = action.variant || 'ghost';
-                            const size = action.size || 'xs';
-
-                            if (action.asLink && action.href) {
-                              return (
-                                <a
-                                  key={idx}
-                                  href={action.href(item)}
-                                  className={`gap-1 btn btn-${size} btn-${variant}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {action.icon && (
-                                    <Icon
-                                      icon={action.icon}
-                                      className="size-4"
-                                    />
-                                  )}
-                                  {action.label}
-                                </a>
-                              );
-                            }
-
-                            return (
-                              <button
-                                key={idx}
-                                className={`gap-1 btn btn-${size} btn-${variant}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  action.onAction(item);
-                                }}
-                              >
-                                {action.icon && (
-                                  <Icon icon={action.icon} className="size-4" />
-                                )}
-                                {action.label}
-                              </button>
-                            );
-                          })}
                         </div>
                       )}
                     </td>

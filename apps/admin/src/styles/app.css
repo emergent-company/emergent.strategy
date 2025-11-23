@@ -3,6 +3,43 @@
 @import './tailwind.css';
 @import './daisyui.css';
 
+/* Theme Definitions */
+@import './themes/apple-light.css';
+@import './themes/blue-cyan-modern.css';
+@import './themes/catppuccin-mocha.css';
+@import './themes/charcoal-lime.css';
+@import './themes/colorhunt-crimson.css';
+@import './themes/colorhunt-dusk-fire.css';
+@import './themes/colorhunt-dusty-rose.css';
+@import './themes/colorhunt-earthy.css';
+@import './themes/colorhunt-galaxy-flame.css';
+@import './themes/colorhunt-indigo-flame.css';
+@import './themes/colorhunt-midnight.css';
+@import './themes/colorhunt-ocean-flare.css';
+@import './themes/colorhunt-teal-fire.css';
+@import './themes/dracula.css';
+@import './themes/emergent-balanced.css';
+@import './themes/eyedea.css';
+@import './themes/gruvbox-dark.css';
+@import './themes/gunmetal-red.css';
+@import './themes/mocha-orange.css';
+@import './themes/monokai-pro.css';
+@import './themes/nord.css';
+@import './themes/one-dark-pro.css';
+@import './themes/retro-pop.css';
+@import './themes/solarized-dark.css';
+@import './themes/space-asteroid-belt.css';
+@import './themes/space-cosmic-dust.css';
+@import './themes/space-cosmic.css';
+@import './themes/space-deep-space.css';
+@import './themes/space-galactic.css';
+@import './themes/space-nebula.css';
+@import './themes/space-red-giant.css';
+@import './themes/space-supernova.css';
+@import './themes/sunset-dream.css';
+@import './themes/tokyo-night-storm.css';
+@import './themes/veeam-green.css';
+
 /* Custom Declarations */
 @import './core/animation.css';
 @import './core/components.css';

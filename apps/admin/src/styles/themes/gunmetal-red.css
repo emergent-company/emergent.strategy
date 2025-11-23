@@ -1,0 +1,37 @@
+/* Gunmetal & Red Theme
+   A strong, high-contrast theme with a bold red accent.
+   Dramatic and confident. */
+
+@plugin "daisyui/theme" {
+  name: "gunmetal-red";
+  prefersdark: true;
+  color-scheme: dark;
+
+  /* Base surfaces - Cool, dark gunmetal grays */
+  --color-base-100: oklch(20% 0.01 260); /* #2d3436 */
+  --color-base-200: oklch(25% 0.01 260); /* #353b48 */
+  --color-base-300: oklch(30% 0.01 260); /* #4f5b66 */
+  --color-base-content: oklch(93% 0.01 260); /* #dfe6e9 */
+
+  /* Primary - Bold Red */
+  --color-primary: oklch(65% 0.25 25); /* #d63031 */
+  --color-primary-content: oklch(93% 0.01 260);
+
+  /* Secondary - A slightly muted, darker red */
+  --color-secondary: oklch(55% 0.22 25);
+  --color-secondary-content: oklch(93% 0.01 260);
+
+  /* Accent - A warm, contrasting yellow */
+  --color-accent: oklch(80% 0.2 90); /* #fdcb6e */
+  --color-accent-content: oklch(20% 0.01 260);
+
+  /* Neutral - For borders */
+  --color-neutral: oklch(30% 0.01 260);
+  --color-neutral-content: oklch(93% 0.01 260);
+
+  /* Semantic colors */
+  --color-info: oklch(70% 0.18 240);
+  --color-success: oklch(70% 0.2 150);
+  --color-warning: oklch(80% 0.2 90);
+  --color-error: oklch(65% 0.25 25);
+}

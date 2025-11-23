@@ -93,6 +93,10 @@ const dashboardRoutes: IRoutesProps[] = [
     path: '/admin/monitoring/analytics',
     element: cw(lazy(() => import('@/pages/admin/monitoring/analytics'))),
   },
+  {
+    path: '/admin/theme-test',
+    element: cw(lazy(() => import('@/pages/admin/pages/theme-test'))),
+  },
 ];
 
 const appRoutes: IRoutesProps[] = [];

@@ -70,19 +70,7 @@ export class EnvVariables {
   @IsOptional()
   VERTEX_AI_MODEL?: string;
 
-  // --- Vertex AI Embedding Configuration ---
-  @IsString()
-  @IsOptional()
-  VERTEX_EMBEDDING_LOCATION?: string;
-
-  @IsString()
-  @IsOptional()
-  VERTEX_EMBEDDING_MODEL?: string;
-
-  @IsString()
-  @IsOptional()
-  VERTEX_EMBEDDING_PROJECT?: string; // Alternative to GCP_PROJECT_ID
-
+  // --- Embeddings Configuration ---
   @IsString()
   @IsOptional()
   EMBEDDING_PROVIDER?: string;
@@ -91,6 +79,19 @@ export class EnvVariables {
   @IsString()
   @IsOptional()
   CHAT_SYSTEM_PROMPT?: string;
+
+  // --- Chat Title Generation ---
+  @IsBoolean()
+  @IsOptional()
+  CHAT_TITLE_GENERATION_ENABLED?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  CHAT_TITLE_MAX_LENGTH?: number;
+
+  @IsNumber()
+  @IsOptional()
+  CHAT_TITLE_MIN_MESSAGES?: number;
 
   // --- Extraction Worker Behavior ---
   @IsBoolean()
@@ -181,13 +182,13 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     GCP_PROJECT_ID: process.env.GCP_PROJECT_ID,
     VERTEX_AI_LOCATION: process.env.VERTEX_AI_LOCATION,
     VERTEX_AI_MODEL: process.env.VERTEX_AI_MODEL,
-    // Vertex AI Embedding config - NO FALLBACKS (must be explicitly set)
-    VERTEX_EMBEDDING_LOCATION: process.env.VERTEX_EMBEDDING_LOCATION,
-    VERTEX_EMBEDDING_MODEL: process.env.VERTEX_EMBEDDING_MODEL,
-    VERTEX_EMBEDDING_PROJECT:
-      process.env.VERTEX_EMBEDDING_PROJECT || process.env.GCP_PROJECT_ID,
+    // Embeddings config
     EMBEDDING_PROVIDER: process.env.EMBEDDING_PROVIDER,
     CHAT_SYSTEM_PROMPT: process.env.CHAT_SYSTEM_PROMPT,
+    // Chat title generation config
+    CHAT_TITLE_GENERATION_ENABLED: process.env.CHAT_TITLE_GENERATION_ENABLED,
+    CHAT_TITLE_MAX_LENGTH: process.env.CHAT_TITLE_MAX_LENGTH || '60',
+    CHAT_TITLE_MIN_MESSAGES: process.env.CHAT_TITLE_MIN_MESSAGES || '2',
     EXTRACTION_WORKER_ENABLED: process.env.EXTRACTION_WORKER_ENABLED,
     EXTRACTION_WORKER_POLL_INTERVAL_MS:
       process.env.EXTRACTION_WORKER_POLL_INTERVAL_MS || '5000',
@@ -237,6 +238,12 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     RLS_POLICY_STRICT:
       withDefaults.RLS_POLICY_STRICT === 'true' ||
       withDefaults.RLS_POLICY_STRICT === true,
+    // Chat title generation conversions
+    CHAT_TITLE_GENERATION_ENABLED:
+      withDefaults.CHAT_TITLE_GENERATION_ENABLED === 'true' ||
+      withDefaults.CHAT_TITLE_GENERATION_ENABLED === true,
+    CHAT_TITLE_MAX_LENGTH: Number(withDefaults.CHAT_TITLE_MAX_LENGTH),
+    CHAT_TITLE_MIN_MESSAGES: Number(withDefaults.CHAT_TITLE_MIN_MESSAGES),
     // Extraction Worker conversions
     EXTRACTION_WORKER_ENABLED:
       withDefaults.EXTRACTION_WORKER_ENABLED === 'true' ||
