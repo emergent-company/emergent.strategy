@@ -783,9 +783,9 @@ The platform doesn't just store knowledge—it **learns from interaction** and *
 
 ---
 
-## 11. Next Steps (Post-Approval)
+## 12. Next Steps (Post-Approval)
 
-### 11.1 Product Definition Phase
+### 12.1 Product Definition Phase
 
 1. **Create Emergent Core landing page** (`/core`)
    - Position as "platform for AI product builders"
@@ -801,7 +801,7 @@ The platform doesn't just store knowledge—it **learns from interaction** and *
    - MCP server development guide
    - Agent customization guide
 
-### 11.2 Technical Roadmap Prioritization
+### 12.2 Technical Roadmap Prioritization
 
 1. **Validate template pack system with 3rd product**
    - Build "Legal Research" template pack as proof-of-concept
@@ -814,7 +814,7 @@ The platform doesn't just store knowledge—it **learns from interaction** and *
    - Hybrid mode switcher (UI toggle for local vs. cloud)
    - Bandwidth optimization (reduce embedding API calls)
 
-### 11.3 Go-to-Market Strategy
+### 12.3 Go-to-Market Strategy
 
 1. **Launch Emergent Personal Assistant first** (Q2 2025)
    - Validate Core platform with real users
@@ -830,7 +830,7 @@ The platform doesn't just store knowledge—it **learns from interaction** and *
 
 ---
 
-## 12. Conclusion
+## 13. Conclusion
 
 Emergent Core is the **knowledge infrastructure layer** that enables rapid development of domain-specific AI products. By combining knowledge graph architecture, semantic search, RAG, configurable agents, and local-first privacy, Core provides a differentiated platform that solves real builder pain points:
 

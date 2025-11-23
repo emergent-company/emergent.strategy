@@ -93,9 +93,146 @@ Emergent Product Framework transforms the Emergent Product Framework (EPF) v1.8.
 - AI agent validation before committing changes
 - Integrity guarantees for the knowledge graph
 
-## 2. Feature → Value Mapping
+## 2. From Vision to Execution: How emergent.product Embodies Adaptive Systems
 
-### 2.1 Core Value Translations
+emergent.product is the first solution built on the Emergent philosophy, applying the three principles of adaptive systems to the complex challenge of product strategy and execution.
+
+### 2.1 Interconnected Context → The Living Product Bible
+
+**The Problem:**
+
+Traditional product docs are siloed: OKRs in one tool, roadmaps in another, PRDs scattered across Notion, user research buried in slide decks, engineering specs in Jira. When someone asks "Why are we building feature X?", the answer requires manually tracing across fragmented sources.
+
+Strategic drift compounds over time: OKRs disconnected from execution, engineers don't understand the "why," product leaders can't trace outcomes back to assumptions.
+
+**The Solution:**
+
+The **Living Product Bible** connects intent (OKRs) to assumptions (RATs) to execution (Work Packages) to outcomes (evidence) in a single knowledge graph. Context flows from strategy to implementation.
+
+**How It Works:**
+
+- **Hierarchical Value Models:** Four tracks (Product, Strategy, Org & Ops, Commercial) with L1 Layers → L2 Components → L3 Sub-components
+- **Traceability Chain:** OKR 2.3 ("Increase retention") → RAT 2.3.1 ("Users who engage with onboarding complete feature X within 7 days") → Work Package 2.3.1.a ("Build onboarding flow for feature X") → Component ("Onboarding System") → Evidence ("75% completion rate in beta test")
+- **Cross-Reference Detection:** When you update a Work Package, the graph automatically flags dependent RATs, linked OKRs, and impacted Components
+- **Version History:** Every change tracked (Git-like history) → "Why did we pivot from Strategy A to Strategy B in Q3?" → Query graph, see calibration memo, understand reasoning
+
+**Why It Matters:**
+
+Engineers can trace their work → OKR → company goal in one query. Product leaders can ask "What evidence supports our Q4 strategy?" and get a synthesized report from the graph. New PMs onboard in 3 days (vs. 2-3 weeks) because the product bible is queryable, not buried in 50 Google Docs.
+
+### 2.2 Intelligent Agency → Strategic Agents
+
+**The Problem:**
+
+Product leaders spend 10-15 hours manually assembling board decks from scattered sources: dig through analytics dashboards, compile user feedback from Slack threads, copy-paste status updates from Jira, format slides, verify numbers. By the time the deck is done, some data is already outdated.
+
+Strategic planning is similarly manual: review market research, brainstorm OKRs, identify assumptions, map work packages, create dependency diagrams. A solo founder can spend 3 weeks on initial strategy before writing a single line of code.
+
+**The Solution:**
+
+**Strategic Agents** reason over the Living Product Bible, synthesize understanding, anticipate actions, and generate artifacts autonomously.
+
+**The Three Agents (Aligned to READY-FIRE-AIM):**
+
+1. **Pathfinder Agent (READY - Sense & Frame):**
+   - **Input:** Market research, user interviews, competitive analysis, existing product knowledge
+   - **Actions:**
+     - Synthesize opportunity maps (where are the biggest opportunities?)
+     - Propose OKRs aligned to business goals
+     - Identify RATs (critical unknowns blocking each OKR)
+     - Scaffold value models (suggest L1/L2/L3 structure)
+     - Generate dependent Work Packages (what needs to be built to validate each RAT?)
+   - **Output:** Strategic framework ready for validation
+
+2. **Product Architect Agent (FIRE - Build & Deliver):**
+   - **Input:** Approved OKRs, RATs, component models
+   - **Actions:**
+     - Guide detailed component modeling (UVP, metrics, dependencies)
+     - Maintain traceability mappings (ensure Work Packages link to RATs)
+     - Validate against EPF schemas (flag inconsistencies)
+     - Suggest optimizations (e.g., "Work Package A blocks Work Package B—consider reordering")
+   - **Output:** Validated, executable product plan
+
+3. **Synthesizer Agent (AIM - Measure & Recalibrate):**
+   - **Input:** Analytics dashboards, user feedback, support tickets, status updates, A/B test results
+   - **Actions:**
+     - Autonomously ingest data from multiple sources
+     - Compare Actual vs. Planned KRs (are we hitting targets?)
+     - Update RAT status (which assumptions validated? refuted? inconclusive?)
+     - Generate assessment reports (narrative summary of quarter)
+     - Propose calibration memos (what should we adjust for next cycle?)
+   - **Output:** Board deck-ready strategic review in 15 minutes (vs. 10-15 hours manual)
+
+**Why It Matters:**
+
+Agents transform the graph from a static database into **living intelligence**:
+- **Save Time:** Board deck prep: 15 minutes vs. 10-15 hours
+- **Strategic Planning:** 3 days vs. 3 weeks for solo founder
+- **Discover Hidden Blockers:** Agent flags "RAT 3.2 is unvalidated, but Work Package 3.2.b depends on it—prioritize testing"
+- **Amplify Judgment:** Agents synthesize, humans decide—augmentation, not automation
+
+### 2.3 Adaptive Loops → READY-FIRE-AIM Operating Loop
+
+**The Problem:**
+
+Linear roadmaps become obsolete the moment reality shifts. Traditional planning assumes: write the plan, execute the plan, deliver the features, measure outcomes. But in complex domains, assumptions change, markets shift, user needs evolve.
+
+Product teams face two failure modes:
+1. **Rigid Adherence:** Execute the plan even when evidence suggests it's wrong (sunk cost fallacy)
+2. **Chaotic Pivoting:** React to every new data point without systematic learning (thrash)
+
+**The Solution:**
+
+The **READY-FIRE-AIM Operating Loop** enforces continuous sensing, responsive execution, and evidence-based calibration. The system doesn't just track progress—it learns from outcomes and adapts strategy.
+
+**How It Works:**
+
+**READY (Sense & Frame):**
+- **Activities:** Define OKRs, identify RATs, scaffold value models, generate Work Packages
+- **Gate:** Strategic framework validated by stakeholders
+- **Transition:** When OKRs approved and RATs prioritized → move to FIRE
+
+**FIRE (Build & Deliver):**
+- **Activities:** Execute Work Packages, run experiments to validate RATs, gather evidence
+- **Continuous Learning:** As Work Packages complete, evidence accumulates → RAT status updates (supported, refuted, inconclusive)
+- **Traceability:** Every commit, every feature flag, every A/B test links back to a RAT and KR
+- **Gate:** Quarter ends OR high-confidence evidence triggers early pivot
+- **Transition:** When quarter ends or critical evidence gathered → move to AIM
+
+**AIM (Measure & Recalibrate):**
+- **Activities:** Assess KR progress (Actual vs. Planned), synthesize learnings, generate calibration memos
+- **Agent-Assisted:** Synthesizer Agent ingests data, proposes adjustments
+- **Decision:** Stakeholders review evidence, decide calibrations
+- **Outcomes:** Update OKRs, reprioritize RATs, adjust Work Packages for next cycle
+- **Transition:** Calibration approved → loop back to READY for next cycle
+
+**Continuous Adaptation Within FIRE:**
+
+The loop isn't strictly sequential—within FIRE phase, evidence can trigger micro-calibrations:
+- **Example:** "A/B test for Feature X shows 2% conversion (expected 10%) → RAT 2.3.1 refuted → Pathfinder Agent proposes revised hypothesis → Validate with stakeholders → Update Work Package scope → Continue execution"
+
+**Why It Matters:**
+
+- **Evidence-Based Evolution:** Don't wait for quarter-end to learn—adapt continuously based on data
+- **Avoid Sunk Cost Trap:** Early evidence of RAT refutation triggers pivot before wasting 3 months of engineering
+- **Systematic Learning:** Every cycle captures "what we learned, what we'll do differently" in calibration memos → organizational knowledge compounds
+- **Accountability:** Can't mark OKR as "complete" without evidence trail → forces rigorous thinking
+
+**Contrast to Traditional Roadmaps:**
+
+| Traditional Roadmap | READY-FIRE-AIM Loop |
+|---------------------|---------------------|
+| "Q1: Build Feature X, Y, Z" | "Q1: Validate RAT 1.1 (users need X), RAT 1.2 (they'll pay for Y)" |
+| Success = shipped features | Success = validated assumptions |
+| Pivot = failure | Pivot = learning |
+| Quarterly planning cycle | Continuous calibration within cycle |
+| Execution-focused | Learning-focused |
+
+---
+
+## 3. Feature → Value Mapping
+
+### 3.1 Core Value Translations
 
 | Feature                            | Problem Solved                                                                                 | User Benefit                                                                                                    |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -112,7 +249,7 @@ Emergent Product Framework transforms the Emergent Product Framework (EPF) v1.8.
 | **Strategic Steering Hierarchy**   | OKRs disconnected from daily work; unclear why tasks matter; lack of strategic alignment       | "Trace every task back to OKR; every experiment to RAT; clear 'why' for all work"                               |
 | **Calibration Memos**              | Learnings lost; same mistakes repeated; no institutional memory                                | "Documented insights and adjustments after each cycle; learning compounds over time"                            |
 
-### 2.2 Value Dimensions Breakdown
+### 3.2 Value Dimensions Breakdown
 
 **Up-to-Date**
 
