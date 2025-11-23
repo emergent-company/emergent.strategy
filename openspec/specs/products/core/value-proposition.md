@@ -139,9 +139,94 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 - Managed OpenAI API for embeddings and chat
 - Horizontal scaling ready (stateless API design)
 
-## 2. Feature → Value Mapping
+## 2. Mapping to Emergent Principles
 
-### 2.1 Core Value Translations
+Emergent Core realizes the three foundational principles of adaptive systems, providing the technical infrastructure for organizations to evolve from static, siloed tools to living, interconnected intelligence.
+
+### 2.1 Interconnected Context
+
+**The Principle:** Moving beyond siloed data to living knowledge graphs that understand relationships, not just records. Context is the foundation for intelligence.
+
+**How emergent.core Realizes It:**
+
+The **Knowledge Graph Architecture** combines entity-relationship modeling (TypeORM) with semantic vectors (LanceDB), enabling context-aware retrieval that understands meaning and relationships, not just keywords.
+
+- **Entity-Relationship Modeling:** Documents, sections, and chunks become graph nodes with typed relationships (parent-child, references, related-to)
+- **Cross-Reference Detection:** Automatically links related content across documents, creating a web of interconnected knowledge
+- **Semantic Vector Search:** Embeddings capture conceptual meaning, enabling queries like "What strategies address user retention?" (not just keyword "retention")
+- **Hybrid Search:** Combines graph traversal (follow relationships) + vector similarity (find semantically similar) + keyword matching for comprehensive retrieval
+- **Metadata Enrichment:** Timestamps, authors, tags, version history—every entity carries context that informs retrieval
+
+**Why It Matters:**
+
+Traditional document systems store information in isolation. A product strategy doc exists separately from the roadmap, which exists separately from the user research. When someone asks "Why are we building feature X?", the answer requires manually tracing across multiple siloed sources.
+
+With interconnected context, the graph maintains these relationships automatically. Query "Why are we building feature X?" and the system traverses:
+- Feature X (Work Package)
+- → Validates Assumption Y (RAT)
+- → Supports OKR Z (strategic intent)
+- → Based on User Research Report A (evidence)
+
+Context flows from strategy to execution to outcomes, all queryable in natural language.
+
+### 2.2 Intelligent Agency
+
+**The Principle:** Moving beyond reactive tools to proactive systems. AI agents that synthesize understanding, anticipate needs, and execute actions. Augmentation, not automation.
+
+**How emergent.core Realizes It:**
+
+The **Agent Framework** enables configurable AI agents with tool use (function calling), multi-agent orchestration, and observability. Agents don't just retrieve information—they reason over the graph and execute complex workflows.
+
+- **Configurable AI Agents:** Define agents declaratively via template packs (prompts, tools, behaviors) without writing code
+- **Multi-Agent Orchestration:** Agents call other agents (e.g., Pathfinder invokes Research Assistant to gather evidence before proposing OKRs)
+- **MCP (Model Context Protocol) Integration:** Agents access external systems (databases, web APIs, browser automation) via standardized tool interfaces
+- **Tool Use (Function Calling):** Agents can execute actions (create documents, query databases, trigger workflows) based on natural language requests
+- **LangSmith Observability:** Every agent interaction traced—inspect reasoning chains, debug failures, measure quality, iterate systematically
+- **Template Packs:** Domain-specific agent libraries (e.g., EPF's Pathfinder, Architect, Synthesizer) ship as config, enabling vertical customization
+
+**Why It Matters:**
+
+Traditional search tools are reactive: you ask, they retrieve. No synthesis, no anticipation, no action.
+
+With intelligent agency, agents become **cognitive partners**:
+- **Synthesize:** "Summarize all evidence for OKR 2.3" → Agent traverses graph, aggregates findings across RATs, generates coherent narrative
+- **Anticipate:** "This Work Package references Assumption X, which is marked unvalidated—should we prioritize testing it?" → Proactive risk flagging
+- **Execute:** "Generate a board deck for Q4 progress" → Agent assembles data from graph, formats slides, outputs presentation deck
+
+Agents transform knowledge graphs from static databases into **living intelligence** that assists decision-making.
+
+### 2.3 Adaptive Infrastructure
+
+**The Principle:** Moving beyond fixed systems to infrastructure that learns and evolves. Sensing → Responding → Learning. Evidence-based evolution, not rigid architectures.
+
+**How emergent.core Realizes It:**
+
+The platform itself adapts: **incremental updates**, **version-controlled evolution**, **template packs** that customize behavior without forking code, and **privacy-first hybrid modes** that adjust to context.
+
+- **Incremental Document Processing:** Detect changes (file modified), re-chunk deltas, embed only new content → Graph updates in real-time, users see changes instantly
+- **Version History & Audit Trails:** Every entity tracks its evolution (Git-like history) → Rollback to previous states, understand how knowledge changed over time
+- **Template Pack System:** Products customize behavior via YAML config (schemas, agents, prompts, UI components) → Adapt platform to vertical needs without forking codebase
+- **Local-First + Hybrid Mode:** Sensitive data processed on-device (LanceDB on-disk, Ollama local LLMs), generic queries use cloud models → System adapts to privacy context automatically
+- **Reranking & Confidence Scoring:** Retrieval pipeline learns from user interactions (implicit feedback: what did they click?) → Optimize relevance over time
+- **A/B Testing Infrastructure:** Test agent behaviors, prompt variations, retrieval strategies → Measure quality, iterate systematically
+
+**Why It Matters:**
+
+Traditional infrastructure is brittle: deploy once, maintain manually, break under change. When requirements shift (new data format, new privacy regulation, new domain logic), you rebuild from scratch.
+
+With adaptive infrastructure, the system evolves:
+- **New data format?** Template pack defines schema, ingestion pipeline adapts automatically
+- **Privacy regulation requires local-only processing?** Switch to hybrid mode, no code changes
+- **Product needs domain-specific agent?** Deploy agent config via template pack, system integrates seamlessly
+- **Retrieval quality declining?** Observability (LangSmith) flags issues, reranking adjusts weights, quality improves
+
+The platform doesn't just store knowledge—it **learns from interaction** and **adapts to context**.
+
+---
+
+## 3. Feature → Value Mapping
+
+### 3.1 Core Value Translations
 
 | Feature                             | Problem Solved                                                                | Builder Benefit                                                                                     |
 | ----------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
@@ -161,7 +246,7 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 | **RBAC with org hierarchy**         | Enterprise needs team collaboration with permissions; no SSO = no enterprise  | "Enable team deployments; meet enterprise security requirements out-of-box"                         |
 | **OpenAPI auto-documentation**      | Manual API docs drift from code; developers waste time with outdated examples | "Self-documenting APIs; reduce integration friction, enable ecosystem of third-party integrations"  |
 
-### 2.2 Value Dimensions Breakdown
+### 3.2 Value Dimensions Breakdown
 
 **For Product Builders:**
 
@@ -187,9 +272,9 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 - **Integration:** MCP servers connect to internal systems (CRM, project management, databases)
 - **Support:** Observability tools (LangSmith) enable troubleshooting and optimization
 
-## 3. Use Cases
+## 4. Use Cases
 
-### 3.1 Use Case 1: Indie Developer Building SaaS Product
+### 4.1 Use Case 1: Indie Developer Building SaaS Product
 
 **Scenario:** A solo developer wants to build an AI-powered legal research tool for small law firms.
 
@@ -221,7 +306,7 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 
 ---
 
-### 3.2 Use Case 2: Enterprise Deploying Internal Knowledge Base
+### 4.2 Use Case 2: Enterprise Deploying Internal Knowledge Base
 
 **Scenario:** A 500-person company has 10 years of internal documentation (Confluence, Google Docs, wikis) that's impossible to search effectively.
 
@@ -257,7 +342,7 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 
 ---
 
-### 3.3 Use Case 3: Researcher Building Academic Literature Review Tool
+### 4.3 Use Case 3: Researcher Building Academic Literature Review Tool
 
 **Scenario:** A PhD student needs to synthesize 500 research papers for a literature review chapter.
 
@@ -292,7 +377,7 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 
 ---
 
-### 3.4 Use Case 4: Product Manager Building Strategic Clarity Tool
+### 4.4 Use Case 4: Product Manager Building Strategic Clarity Tool
 
 **Scenario:** A product leader at a startup needs to maintain alignment across 5 product streams with 20 engineers. Strategy documents live in scattered Google Docs, Notion pages, Slack threads.
 
@@ -330,7 +415,7 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 
 ---
 
-### 3.5 Use Case 5: Content Creator Building Personal Knowledge Management System
+### 4.5 Use Case 5: Content Creator Building Personal Knowledge Management System
 
 **Scenario:** A writer/YouTuber has 10 years of research notes, article drafts, video scripts, and bookmarks scattered across Evernote, Apple Notes, Google Docs, and browser tabs.
 
@@ -369,9 +454,9 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 
 ---
 
-## 4. Target Audiences
+## 5. Target Audiences
 
-### 4.1 Primary Audiences
+### 5.1 Primary Audiences
 
 **Product Builders & Founders**
 
@@ -397,7 +482,7 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 - **Pain Points:** Strategy-execution alignment gaps, documentation debt, artifact generation overhead
 - **Value Proposition:** Living product bible that maintains traceability, auto-generates artifacts, enables agent-assisted planning
 
-### 4.2 Secondary Audiences
+### 5.2 Secondary Audiences
 
 **Researchers & Academics**
 
@@ -422,9 +507,9 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 
 ---
 
-## 5. Competitive Positioning
+## 6. Competitive Positioning
 
-### 5.1 Key Differentiators
+### 6.1 Key Differentiators
 
 **1. Platform, Not Product**
 
@@ -464,7 +549,7 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 - LangSmith observability built-in
 - Competitors bolt AI onto document-first architectures
 
-### 5.2 Competitive Landscape
+### 6.2 Competitive Landscape
 
 | Competitor                    | Strength                                    | Weakness vs. Emergent Core                                      |
 | ----------------------------- | ------------------------------------------- | --------------------------------------------------------------- |
@@ -486,9 +571,9 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 
 ---
 
-## 6. Pricing & Monetization (for Core-Based Products)
+## 7. Pricing & Monetization (for Core-Based Products)
 
-### 6.1 Platform Licensing Model
+### 7.1 Platform Licensing Model
 
 **Open-Source Core + Commercial Products**
 
@@ -496,7 +581,7 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 - Revenue from products built on Core (Personal Assistant, Product Framework)
 - Template Pack Marketplace (80/20 revenue share with creators)
 
-### 6.2 Product Pricing Examples
+### 7.2 Product Pricing Examples
 
 **Emergent Personal Assistant:**
 
@@ -516,7 +601,7 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 - Pricing: $5-50 one-time or $5-20/month subscription
 - Emergent takes 20% platform fee
 
-### 6.3 Enterprise Self-Hosting
+### 7.3 Enterprise Self-Hosting
 
 - **License:** $25K-100K/year based on user count (vs. $500K+ for enterprise search tools)
 - **Includes:** Deployment support, SLA, priority feature requests, custom template pack development
@@ -524,9 +609,9 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 
 ---
 
-## 7. Technical Architecture Highlights
+## 8. Technical Architecture Highlights
 
-### 7.1 Stack Overview
+### 8.1 Stack Overview
 
 **Frontend:**
 
@@ -553,7 +638,7 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 - LangSmith for LLM observability
 - Nx monorepo for multi-project coordination
 
-### 7.2 Key Design Decisions
+### 8.2 Key Design Decisions
 
 **Why LanceDB over Pinecone/Weaviate?**
 
@@ -585,9 +670,9 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 
 ---
 
-## 8. Roadmap & Future Vision
+## 9. Roadmap & Future Vision
 
-### 8.1 Completed (Current State)
+### 9.1 Completed (Current State)
 
 - ✅ Knowledge graph architecture (TypeORM entities, relationships)
 - ✅ Document ingestion pipeline (Markdown, PDF, multi-format)
@@ -599,7 +684,7 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 - ✅ MCP server scaffolding (basic implementation)
 - ✅ LangSmith observability (trace LLM calls)
 
-### 8.2 Near-Term (Q1-Q2 2025)
+### 9.2 Near-Term (Q1-Q2 2025)
 
 - 🔄 **Multi-agent orchestration** (Pathfinder, Architect, Synthesizer for EPF)
 - 🔄 **Advanced graph queries** (optimize recursive CTEs for deep traversal)
@@ -608,7 +693,7 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 - 🔄 **Template Pack Marketplace** (creator portal, revenue sharing)
 - 🔄 **Enhanced privacy controls** (data sanitization pipelines, hybrid mode UX)
 
-### 8.3 Mid-Term (Q3-Q4 2025)
+### 9.3 Mid-Term (Q3-Q4 2025)
 
 - 📅 **Multi-modal support** (images, audio, video in knowledge graph)
 - 📅 **Real-time collaboration** (Google Docs-style co-editing of graph entities)
@@ -617,7 +702,7 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 - 📅 **Performance optimization** (sub-100ms retrieval, 10M+ document scalability)
 - 📅 **Enterprise deployment toolkit** (Kubernetes Helm charts, Terraform modules)
 
-### 8.4 Long-Term (2026+)
+### 9.4 Long-Term (2026+)
 
 - 🔮 **Federated knowledge graphs** (merge graphs across organizations with access control)
 - 🔮 **AI-native data structures** (go beyond documents—structured data ingestion from APIs, databases)
@@ -627,16 +712,16 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 
 ---
 
-## 9. Success Metrics
+## 10. Success Metrics
 
-### 9.1 Platform Adoption Metrics
+### 10.1 Platform Adoption Metrics
 
 - **Products Built on Core:** Target 10 products by end of 2025 (2 internal, 8 external)
 - **Developer Sign-ups:** 1,000 developers exploring Core by Q4 2025
 - **Self-Hosted Deployments:** 50 enterprise self-hosted instances by end of 2025
 - **Template Pack Downloads:** 500 downloads/month by Q2 2025
 
-### 9.2 Product Success Metrics (Examples)
+### 10.2 Product Success Metrics (Examples)
 
 **Emergent Personal Assistant:**
 
@@ -652,14 +737,14 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 - **Planning Time Reduction:** Board deck prep time < 30 min (vs. 10-15 hours manual)
 - **Team NPS:** +50 (product teams love using EPF)
 
-### 9.3 Technical Health Metrics
+### 10.3 Technical Health Metrics
 
 - **API Latency:** p95 < 500ms for chat responses, p95 < 100ms for retrieval
 - **Embedding Generation:** < 2 seconds per 1,000-token document chunk
 - **Uptime:** 99.9% (managed service), 99.5% (self-hosted with monitoring)
 - **LangSmith Trace Coverage:** 100% of LLM calls traced (observability requirement)
 
-### 9.4 Business Metrics
+### 10.4 Business Metrics
 
 - **Revenue per Core Deployment:** $25K-100K/year (enterprise licenses)
 - **Template Pack Revenue:** $10K/month marketplace GMV by Q4 2025 (Emergent takes 20% = $2K/month)
@@ -668,29 +753,29 @@ Emergent Core is not a product sold to end-users—it's the **foundation** that 
 
 ---
 
-## 10. Open Questions & Risks
+## 11. Open Questions & Risks
 
-### 10.1 Strategic Questions
+### 11.1 Strategic Questions
 
 1. **Open-Source Timing:** When to open-source Core? (Now vs. after 2-3 products validated?)
 2. **Vertical Focus:** Which domains to prioritize for template packs? (Legal, healthcare, education, product management?)
 3. **Platform vs. Product Revenue:** What % of revenue from Core licensing vs. products built on Core?
 4. **Self-Hosted vs. Managed:** How much to invest in managed service operations vs. prioritize self-hosted deployments?
 
-### 10.2 Technical Risks
+### 11.2 Technical Risks
 
 - **LanceDB Maturity:** Embedded vector DB is less proven than Pinecone/Weaviate—might hit scalability issues at 10M+ documents
 - **TypeORM Graph Performance:** Recursive CTEs work for moderate graph depth, but may need Neo4j for complex multi-hop queries
 - **Local LLM Quality:** On-device models (Llama, Mistral) lag cloud LLMs in quality—users might resist local-first mode if responses are worse
 - **MCP Adoption:** Protocol is early—if MCP doesn't gain traction, integration story weakens
 
-### 10.3 Market Risks
+### 11.3 Market Risks
 
 - **AI Platform Saturation:** Every company is building AI infrastructure—differentiation depends on execution, not just features
 - **OpenAI/Anthropic Direct Competition:** If GPT/Claude add native knowledge graph + RAG, Core's value prop weakens
 - **Enterprise Sales Complexity:** Self-hosted deployments require sales team + support org—can't scale self-serve only
 
-### 10.4 Execution Risks
+### 11.4 Execution Risks
 
 - **Documentation Debt:** Platform requires extensive docs for builders—under-investment blocks adoption
 - **Template Pack Quality:** Low-quality packs in marketplace hurt brand—need curation + validation
