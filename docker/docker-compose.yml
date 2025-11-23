@@ -1,11 +1,27 @@
 services:
+  # Infisical secrets loader
+  # Fetches secrets from Infisical and exports as environment variables
+  # Services depend on this to get their configuration
+  infisical-secrets:
+    image: infisical/cli:0.31.4-alpine
+    env_file:
+      - .env
+    environment:
+      - INFISICAL_TOKEN=${INFISICAL_TOKEN_DEV}
+    command: export --format=dotenv-export --log-level=error
+    profiles:
+      - infisical
+    # No ports, no volumes needed - just exports env vars
+
   db:
     image: pgvector/pgvector:pg16
+    depends_on:
+      - infisical-secrets
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-spec}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spec}
-      POSTGRES_DB: ${POSTGRES_DB:-spec}
-      ZITADEL_DB_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel}
+      - POSTGRES_USER=${POSTGRES_USER:-spec}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-spec}
+      - POSTGRES_DB=${POSTGRES_DB:-spec}
+      - ZITADEL_DB_PASSWORD=${ZITADEL_DB_PASSWORD:-zitadel}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -40,6 +56,8 @@ services:
   zitadel:
     image: ghcr.io/zitadel/zitadel:latest
     depends_on:
+      infisical-secrets:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
     env_file:
