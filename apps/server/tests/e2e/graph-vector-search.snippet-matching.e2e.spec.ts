@@ -662,7 +662,99 @@ describe('Graph Vector Search - Snippet Matching (e2e)', () => {
   });
 
   /**
-   * Test 8: Performance check - embedding generation and search
+   * Test 8: Use document chunk embedding to find related graph objects
+   * This tests the real-world use case: given a chunk of document content,
+   * find graph objects that are semantically related to that content.
+   */
+  it('should find graph objects related to a document chunk', async () => {
+    // Use the seeded project that has our graph objects
+    const seededProjectId = '51093fb8-3c1f-4861-93de-232eb599bbee';
+
+    // First, create a document chunk with biblical content that relates to our graph objects
+    const chunkText = `Moses was a prophet who spoke to the people of Israel. 
+      He led them out of Egypt and received the Ten Commandments from God on Mount Sinai.
+      His leadership and faith were instrumental in establishing the covenant between God and His people.`;
+
+    // Insert a document first (in the seeded project)
+    const docResult = await pool.query<{ id: string }>(
+      `INSERT INTO kb.documents (project_id, filename, content)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [seededProjectId, 'history.txt', chunkText]
+    );
+    const documentId = docResult.rows[0].id;
+
+    // Generate embedding for the chunk
+    const chunkEmbedding = await embeddingProvider.generate(chunkText);
+    expect(chunkEmbedding.length).toBe(768);
+
+    // Insert chunk with embedding
+    const chunkResult = await pool.query<{ id: string; embedding: number[] }>(
+      `INSERT INTO kb.chunks (document_id, chunk_index, text, embedding)
+       VALUES ($1, $2, $3, $4::vector)
+       RETURNING id, embedding`,
+      [documentId, 0, chunkText, `[${chunkEmbedding.join(',')}]`]
+    );
+    const chunkId = chunkResult.rows[0].id;
+
+    console.log('\n=== Chunk to Graph Objects Test ===');
+    console.log(`Created chunk ${chunkId} in document ${documentId}`);
+    console.log(
+      `Chunk text (first 100 chars): ${chunkText.substring(0, 100)}...`
+    );
+
+    // Now use the chunk's embedding to search for related graph objects
+    const results = await searchByVector(chunkEmbedding, {
+      limit: 5,
+      maxDistance: 0.7,
+      projectId: seededProjectId,
+    });
+
+    console.log(`Found ${results.length} related graph objects`);
+
+    // Should find graph objects related to Moses, prophets, covenant, etc.
+    expect(results.length).toBeGreaterThan(0);
+
+    // Fetch object details
+    const objects = await pool.query<{
+      id: string;
+      type: string;
+      key: string;
+      properties: any;
+    }>(
+      `SELECT id, type, key, properties FROM kb.graph_objects WHERE id = ANY($1)`,
+      [results.map((r) => r.id)]
+    );
+
+    console.log('\nRelated objects:');
+    results.forEach((r, i) => {
+      const obj = objects.rows.find((o) => o.id === r.id);
+      if (obj) {
+        console.log(
+          `${i + 1}. distance: ${r.distance.toFixed(4)} - ${obj.type}: ${
+            obj.key
+          } (${obj.properties.description || 'no description'})`
+        );
+      }
+    });
+
+    // Expect Moses to be among the top results (should have low distance)
+    const mosesResult = results.find((r) => {
+      const obj = objects.rows.find((o) => o.id === r.id);
+      return obj && obj.key === 'moses';
+    });
+
+    expect(mosesResult).toBeDefined();
+    expect(mosesResult!.distance).toBeLessThan(0.6); // Should be very similar
+
+    // All results should be within the threshold
+    results.forEach((r) => {
+      expect(r.distance).toBeLessThanOrEqual(0.7);
+    });
+  });
+
+  /**
+   * Test 9: Performance check - embedding generation and search
    */
   it('should generate embeddings and search within reasonable time', async () => {
     const check = await pool.query<{ count: number }>(`

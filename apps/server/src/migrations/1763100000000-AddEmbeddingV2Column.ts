@@ -16,8 +16,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *
  * Related Bug: docs/bugs/004-embedding-column-mismatch.md
  */
-export class AddEmbeddingV2Column1732166400000 implements MigrationInterface {
-  name = 'AddEmbeddingV2Column1732166400000';
+export class AddEmbeddingV2Column1763100000000 implements MigrationInterface {
+  name = 'AddEmbeddingV2Column1763100000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Ensure pgvector extension is available

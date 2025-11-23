@@ -151,8 +151,13 @@ export class AuthService implements OnModuleInit {
       return await this.ensureUserProfile(zitadelUserId, undefined, scopes);
     }
 
+    // TODO: Re-enable Zitadel introspection once stability issues are resolved.
+    // Temporary bypass to prevent 500 errors from Zitadel service disrupting all authenticated requests.
+    // Set DISABLE_ZITADEL_INTROSPECTION=true to bypass (currently default behavior).
     // Try Zitadel introspection first if configured (provides caching benefit)
-    if (this.zitadelService.isConfigured()) {
+    const disableIntrospection =
+      process.env.DISABLE_ZITADEL_INTROSPECTION !== 'false';
+    if (!disableIntrospection && this.zitadelService.isConfigured()) {
       try {
         Logger.log(
           `[AUTH] Attempting Zitadel introspection for token`,
@@ -180,6 +185,11 @@ export class AuthService implements OnModuleInit {
           'AuthService'
         );
       }
+    } else if (disableIntrospection) {
+      Logger.log(
+        `[AUTH] Zitadel introspection disabled (DISABLE_ZITADEL_INTROSPECTION=${process.env.DISABLE_ZITADEL_INTROSPECTION})`,
+        'AuthService'
+      );
     }
 
     if (!this.jwksUri || !this.issuer) {

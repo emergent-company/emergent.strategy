@@ -264,4 +264,38 @@ export class EmbeddingJobsService {
 
     return { pending, processing, failed, completed };
   }
+
+  /**
+   * Get the active job status for a specific object
+   * Returns null if no active job exists (pending or processing)
+   */
+  async getJobStatusForObject(
+    objectId: string
+  ): Promise<EmbeddingJobRow | null> {
+    const job = await this.embeddingJobRepository.findOne({
+      where: {
+        objectId,
+        status: In(['pending', 'processing']),
+      },
+      order: {
+        createdAt: 'DESC', // Get most recent active job
+      },
+    });
+
+    if (!job) return null;
+
+    return {
+      id: job.id,
+      object_id: job.objectId,
+      status: job.status,
+      attempt_count: job.attemptCount,
+      last_error: job.lastError,
+      priority: job.priority,
+      scheduled_at: job.scheduledAt.toISOString(),
+      started_at: job.startedAt?.toISOString() ?? null,
+      completed_at: job.completedAt?.toISOString() ?? null,
+      created_at: job.createdAt.toISOString(),
+      updated_at: job.updatedAt.toISOString(),
+    };
+  }
 }

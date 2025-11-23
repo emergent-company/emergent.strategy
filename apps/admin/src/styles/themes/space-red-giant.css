@@ -1,0 +1,30 @@
+/* Red Giant Theme
+   Inspired by the fiery colors of a dying star.
+   Dominant Colors: Deep reds and oranges.
+   Fiery and intense. */
+
+@plugin "daisyui/theme" {
+  name: "space-red-giant";
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(20% 0.03 40); /* #3b1e18 */
+  --color-base-200: oklch(25% 0.03 40); /* #4c2a24 */
+  --color-base-300: oklch(30% 0.03 40); /* #5e362f */
+  --color-base-content: oklch(90% 0.01 40); /* #e8e4e3 */
+
+  /* Primary - Deep, bold red */
+  --color-primary: oklch(60% 0.25 30); /* #d93f30 */
+  --color-primary-content: oklch(90% 0.01 40);
+
+  /* Secondary - Bright, fiery orange */
+  --color-secondary: oklch(70% 0.22 55);
+  --color-secondary-content: oklch(20% 0.03 40);
+
+  /* Accent - A bright, hot yellow */
+  --color-accent: oklch(88% 0.2 90);
+  --color-accent-content: oklch(20% 0.03 40);
+
+  --color-neutral: oklch(30% 0.03 40);
+  --color-neutral-content: oklch(90% 0.01 40);
+}

@@ -1,0 +1,29 @@
+/* Dusk Fire Theme
+   From Color Hunt Palette: #0D1164, #640D5F, #EA2264, #F78D60
+   A dark, moody theme with a fiery accent. */
+
+@plugin "daisyui/theme" {
+  name: "colorhunt-dusk-fire";
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(15% 0.15 270); /* #0D1164 */
+  --color-base-200: oklch(20% 0.15 270);
+  --color-base-300: oklch(25% 0.15 270);
+  --color-base-content: oklch(90% 0.02 60); /* #F78D60 (for text) */
+
+  /* Primary - Deep Purple/Magenta */
+  --color-primary: oklch(40% 0.25 310); /* #640D5F */
+  --color-primary-content: oklch(90% 0.02 60);
+
+  /* Secondary - Bright Pink/Red */
+  --color-secondary: oklch(60% 0.25 10); /* #EA2264 */
+  --color-secondary-content: oklch(15% 0.15 270);
+
+  /* Accent - Soft Orange */
+  --color-accent: oklch(70% 0.15 60); /* #F78D60 */
+  --color-accent-content: oklch(15% 0.15 270);
+
+  --color-neutral: oklch(25% 0.15 270);
+  --color-neutral-content: oklch(90% 0.02 60);
+}

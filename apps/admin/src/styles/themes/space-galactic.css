@@ -1,0 +1,29 @@
+/* Galactic Theme
+   A theme with a mix of deep blues and teals.
+   Cool, calm, and cosmic. */
+
+@plugin "daisyui/theme" {
+  name: "space-galactic";
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(18% 0.02 220); /* #1a2a3a */
+  --color-base-200: oklch(23% 0.02 220); /* #2a3c4d */
+  --color-base-300: oklch(28% 0.02 220); /* #3c4d5e */
+  --color-base-content: oklch(91% 0.01 220); /* #e2e8f0 */
+
+  /* Primary - Deep Teal */
+  --color-primary: oklch(65% 0.15 190); /* #00a090 */
+  --color-primary-content: oklch(18% 0.02 220);
+
+  /* Secondary - A brighter cyan/blue */
+  --color-secondary: oklch(70% 0.18 210);
+  --color-secondary-content: oklch(18% 0.02 220);
+
+  /* Accent - A muted green for a touch of color */
+  --color-accent: oklch(65% 0.12 160);
+  --color-accent-content: oklch(18% 0.02 220);
+
+  --color-neutral: oklch(28% 0.02 220);
+  --color-neutral-content: oklch(91% 0.01 220);
+}

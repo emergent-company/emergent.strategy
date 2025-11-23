@@ -3,7 +3,7 @@ import { LangGraphService } from '../chat-ui/services/langgraph.service';
 import { ConversationService } from '../chat-ui/services/conversation.service';
 import { UnifiedSearchService } from '../unified-search/unified-search.service';
 import { DatabaseService } from '../../common/database/database.service';
-import { AIMessage } from '@langchain/core/messages';
+import { AppConfigService } from '../../common/config/config.service';
 import { MessageDto } from './dto/chat-sdk-request.dto';
 import { createChatSearchTool } from './tools/chat-search.tool';
 import { TypeRegistryService } from '../type-registry/type-registry.service';
@@ -44,7 +44,8 @@ export class ChatSdkService {
     private readonly unifiedSearchService: UnifiedSearchService,
     private readonly db: DatabaseService,
     private readonly typeRegistryService: TypeRegistryService,
-    private readonly graphService: GraphService
+    private readonly graphService: GraphService,
+    private readonly config: AppConfigService
   ) {}
 
   /**
@@ -91,9 +92,7 @@ export class ChatSdkService {
     // Create or get conversation
     let dbConversationId = conversationId;
     if (!dbConversationId) {
-      const title =
-        messageContent.substring(0, 100) +
-        (messageContent.length > 100 ? '...' : '');
+      const title = this.createTemporaryTitle(messageContent);
       const conversation = await this.conversationService.createConversation(
         title,
         userId || undefined,
@@ -103,7 +102,7 @@ export class ChatSdkService {
       this.logger.log(
         `Created new conversation: ${dbConversationId} for user ${
           userId || 'anonymous'
-        }${projectId ? ` in project ${projectId}` : ''}`
+        }${projectId ? ` in project ${projectId}` : ''} with title: "${title}"`
       );
     }
 
@@ -234,9 +233,123 @@ NEVER use the UUID (e.g., @400c0654...) in your text response. UUIDs are INTERNA
             'assistant',
             fullResponse
           );
+
+          // Generate title asynchronously (non-blocking)
+          this.generateConversationTitle(dbConversationId).catch((error) => {
+            this.logger.error('Title generation failed:', error);
+          });
         }
       },
     };
+  }
+
+  /**
+   * Generate a descriptive title for a conversation based on its first exchange.
+   * Called asynchronously after the first AI response.
+   */
+  async generateConversationTitle(conversationId: string): Promise<void> {
+    // Check if title generation is enabled
+    if (!this.config.chatTitleGenerationEnabled) {
+      this.logger.debug('Title generation is disabled');
+      return;
+    }
+
+    try {
+      const messages = await this.conversationService.getConversationHistory(
+        conversationId
+      );
+
+      // Only generate title for new conversations (after first exchange)
+      const minMessages = this.config.chatTitleMinMessages;
+      if (messages.length < minMessages) {
+        this.logger.debug(
+          `Skipping title generation for conversation ${conversationId} - not enough messages (${messages.length} < ${minMessages})`
+        );
+        return;
+      }
+
+      // Skip if title was already customized (not a temporary title)
+      const conversation = await this.conversationService.getConversation(
+        conversationId
+      );
+      const isTempTitle =
+        conversation.title.includes('...') || conversation.title.length < 20;
+      if (!isTempTitle && conversation.title !== 'New conversation') {
+        this.logger.debug(
+          `Skipping title generation - conversation already has custom title`
+        );
+        return;
+      }
+
+      // Build context from first user message and AI response
+      const userMessage = messages[0].content;
+      const assistantMessage = messages[1].content;
+
+      const maxLength = this.config.chatTitleMaxLength;
+      const titlePrompt = `Generate a concise, descriptive title (maximum ${maxLength} characters) for this conversation. The title should capture the main topic or question. Return only the title text, with no quotes, prefixes, or suffixes.
+
+User's question: ${userMessage.substring(0, 500)}
+Assistant's response: ${assistantMessage.substring(0, 500)}
+
+Title:`;
+
+      // Use a fast, simple LLM call for title generation
+      const response = await this.langGraphService.generateSimpleResponse(
+        titlePrompt
+      );
+
+      // Clean up the response
+      let title = response
+        .trim()
+        .replace(/^["']|["']$/g, '') // Remove quotes
+        .replace(/^Title:\s*/i, '') // Remove "Title:" prefix
+        .substring(0, maxLength); // Ensure max length
+
+      // Update conversation title
+      await this.conversationService.updateConversationTitle(
+        conversationId,
+        title
+      );
+
+      this.logger.log(
+        `Generated title for conversation ${conversationId}: "${title}"`
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate title for conversation ${conversationId}:`,
+        error
+      );
+      // Non-blocking - don't throw, just log
+    }
+  }
+
+  /**
+   * Create a smart temporary title from a message.
+   * Removes common prefixes and truncates intelligently.
+   */
+  private createTemporaryTitle(messageContent: string): string {
+    // Remove common question prefixes
+    let title = messageContent
+      .replace(
+        /^(how do i|can you|what is|how to|please|could you|i need|help me|show me)\s+/i,
+        ''
+      )
+      .trim();
+
+    // Capitalize first letter
+    title = title.charAt(0).toUpperCase() + title.slice(1);
+
+    // Smart truncation at word boundary
+    if (title.length > 60) {
+      title = title.substring(0, 57).trim();
+      const lastSpace = title.lastIndexOf(' ');
+      if (lastSpace > 40) {
+        title = title.substring(0, lastSpace);
+      }
+      title += '...';
+    }
+
+    return title;
   }
 
   /**

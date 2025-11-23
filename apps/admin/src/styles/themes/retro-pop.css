@@ -1,0 +1,44 @@
+/* Retro Pop Theme
+   Inspired by bold, high-energy 90s aesthetics.
+   Primary: Bright Magenta
+   Accents: Neon Cyan, Vivid Yellow
+   Fun, energetic, and unapologetically loud. */
+
+@plugin "daisyui/theme" {
+  name: "retro-pop";
+  prefersdark: true;
+  color-scheme: dark;
+
+  /* Base surfaces - Deep, slightly muted blue */
+  --color-base-100: oklch(22% 0.04 260);
+  --color-base-200: oklch(28% 0.04 260);
+  --color-base-300: oklch(34% 0.04 260);
+  --color-base-content: oklch(95% 0.01 260);
+
+  /* Primary - Bright Magenta */
+  --color-primary: oklch(70% 0.3 330); /* #ff00ff */
+  --color-primary-content: oklch(95% 0.01 260);
+
+  /* Secondary - Neon Cyan */
+  --color-secondary: oklch(80% 0.25 190); /* #00ffff */
+  --color-secondary-content: oklch(22% 0.04 260);
+
+  /* Accent - Vivid Yellow */
+  --color-accent: oklch(90% 0.25 100); /* #ffff00 */
+  --color-accent-content: oklch(22% 0.04 260);
+
+  /* Neutral - For borders */
+  --color-neutral: oklch(40% 0.04 260);
+  --color-neutral-content: oklch(95% 0.01 260);
+
+  /* Semantic colors */
+  --color-info: oklch(80% 0.25 190);
+  --color-success: oklch(85% 0.25 140);
+  --color-warning: oklch(90% 0.25 100);
+  --color-error: oklch(70% 0.3 330);
+
+  /* Radii - Sharp corners */
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
+}

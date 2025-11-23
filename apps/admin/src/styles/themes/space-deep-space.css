@@ -1,0 +1,29 @@
+/* Deep Space Theme
+   A very dark, almost black theme with a deep blue accent.
+   Minimal and vast. */
+
+@plugin "daisyui/theme" {
+  name: "space-deep-space";
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(10% 0.01 250); /* #0d0f14 */
+  --color-base-200: oklch(15% 0.01 250); /* #1a1c23 */
+  --color-base-300: oklch(20% 0.01 250); /* #2c2e3a */
+  --color-base-content: oklch(90% 0.01 250); /* #e0e0e6 */
+
+  /* Primary - Deep, dark blue */
+  --color-primary: oklch(50% 0.18 260); /* #2a6fdb */
+  --color-primary-content: oklch(90% 0.01 250);
+
+  /* Secondary - A lighter, brighter blue */
+  --color-secondary: oklch(65% 0.15 250);
+  --color-secondary-content: oklch(10% 0.01 250);
+
+  /* Accent - A stark white for contrast */
+  --color-accent: oklch(95% 0.01 250);
+  --color-accent-content: oklch(10% 0.01 250);
+
+  --color-neutral: oklch(20% 0.01 250);
+  --color-neutral-content: oklch(90% 0.01 250);
+}
