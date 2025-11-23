@@ -92,6 +92,10 @@ function validateEnvironment() {
 }
 
 async function bootstrap() {
+  // Load Infisical secrets before anything else
+  const { initializeInfisical } = await import('./config/infisical-loader');
+  await initializeInfisical();
+  
   // Validate environment before doing anything else
   validateEnvironment();
 
