@@ -6,24 +6,24 @@ services:
     command:
       - |
         echo "🔐 Fetching secrets from Infisical..."
-        echo "Environment: ${INFISICAL_ENVIRONMENT:-dev}"
-        echo "Project ID: ${INFISICAL_PROJECT_ID}"
+        echo "Environment: $${INFISICAL_ENVIRONMENT:-dev}"
+        echo "Project ID: $${INFISICAL_PROJECT_ID}"
         echo "Path: /workspace"
         
         # Export secrets using service token
         infisical export \
-          --env="${INFISICAL_ENVIRONMENT:-dev}" \
-          --projectId="${INFISICAL_PROJECT_ID}" \
+          --env="$${INFISICAL_ENVIRONMENT:-dev}" \
+          --projectId="$${INFISICAL_PROJECT_ID}" \
           --path="/workspace" \
           --format=dotenv > /secrets/.env.infisical 2>&1
         
-        EXIT_CODE=$?
-        if [ $EXIT_CODE -eq 0 ]; then
+        EXIT_CODE=$$?
+        if [ $$EXIT_CODE -eq 0 ]; then
           echo "✅ Secrets written to /secrets/.env.infisical"
-          echo "📊 Total secrets fetched: $(wc -l < /secrets/.env.infisical)"
+          echo "📊 Total secrets fetched: $$(wc -l < /secrets/.env.infisical)"
         else
-          echo "❌ Failed to fetch secrets (exit code: $EXIT_CODE)"
-          echo "Debug: Token length = ${#INFISICAL_TOKEN}"
+          echo "❌ Failed to fetch secrets (exit code: $$EXIT_CODE)"
+          echo "Debug: Token length = $${#INFISICAL_TOKEN}"
           exit 1
         fi
         
