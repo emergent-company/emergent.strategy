@@ -53,6 +53,7 @@ services:
         tail -f /dev/null
     volumes:
       - infisical_secrets:/secrets
+      - .:/current-dir:ro  # Mount docker directory for test scripts
     environment:
       # Self-hosted Infisical requires explicit API URL
       # Without this, CLI defaults to Infisical Cloud (app.infisical.com)
