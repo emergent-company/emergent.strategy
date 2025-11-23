@@ -127,7 +127,7 @@ export async function runStatusCommand(argv: readonly string[]): Promise<void> {
   }
 
   process.stdout.write(`\n📊 Workspace Status (profile: ${profileId})\n`);
-  
+
   // Show remote services info if applicable
   if (skipDockerDeps) {
     process.stdout.write('\n🌐 Remote Services Mode:\n');
@@ -175,8 +175,7 @@ export async function runStatusCommand(argv: readonly string[]): Promise<void> {
       } catch (error) {
         // Process not found in configuration
         process.stdout.write(
-          `${status.name.padEnd(15)} ${formatStatus(status).padEnd(12)} ${
-            status.pid?.toString().padEnd(8) || '-'.padEnd(8)
+          `${status.name.padEnd(15)} ${formatStatus(status).padEnd(12)} ${status.pid?.toString().padEnd(8) || '-'.padEnd(8)
           } -               -\n`
         );
       }
@@ -214,8 +213,7 @@ export async function runStatusCommand(argv: readonly string[]): Promise<void> {
       } catch (error) {
         // Process not found in configuration
         process.stdout.write(
-          `${status.name.padEnd(15)} ${formatStatus(status).padEnd(12)} ${
-            status.pid?.toString().padEnd(8) || '-'.padEnd(8)
+          `${status.name.padEnd(15)} ${formatStatus(status).padEnd(12)} ${status.pid?.toString().padEnd(8) || '-'.padEnd(8)
           } -               -\n`
         );
       }

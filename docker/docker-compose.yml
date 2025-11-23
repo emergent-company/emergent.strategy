@@ -1,22 +1,39 @@
 services:
-  # Infisical secrets loader
-  # Fetches secrets from Infisical and exports as environment variables
-  # Services depend on this to get their configuration
+  # Infisical secrets loader - fetches secrets and writes to shared volume
   infisical-secrets:
-    image: infisical/cli:0.31.4-alpine
-    env_file:
-      - .env
+    image: infisical/cli:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "🔐 Fetching secrets from Infisical..."
+        infisical export --token="${INFISICAL_TOKEN}" \
+          --env="${INFISICAL_ENVIRONMENT:-dev}" \
+          --projectId="${INFISICAL_PROJECT_ID}" \
+          --path="/workspace" \
+          --format=dotenv > /secrets/.env.infisical
+        echo "✅ Secrets written to /secrets/.env.infisical"
+        # Keep container running so volume persists
+        tail -f /dev/null
+    volumes:
+      - infisical_secrets:/secrets
     environment:
       - INFISICAL_TOKEN=${INFISICAL_TOKEN}
-    command: export --format=dotenv-export --log-level=error
-    profiles:
-      - infisical
-    # No ports, no volumes needed - just exports env vars
+      - INFISICAL_ENVIRONMENT=${INFISICAL_ENVIRONMENT:-dev}
+      - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID}
+    healthcheck:
+      test: ["CMD", "test", "-f", "/secrets/.env.infisical"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
   db:
     image: pgvector/pgvector:pg16
     depends_on:
-      - infisical-secrets
+      infisical-secrets:
+        condition: service_healthy
+    env_file:
+      - /secrets/.env.infisical
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-spec}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-spec}
@@ -29,6 +46,7 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
       - ./01-init-zitadel.sh:/docker-entrypoint-initdb.d/01-init-zitadel.sh:ro
       - ${DB_LOGS_PATH:-/home/emergent/db_logs}:/var/log/postgresql
+      - infisical_secrets:/secrets:ro
     command: >
       postgres
       -c log_destination=stderr
@@ -56,12 +74,17 @@ services:
   zitadel:
     image: ghcr.io/zitadel/zitadel:latest
     depends_on:
-      infisical-secrets:
-        condition: service_completed_successfully
       db:
+        condition: service_healthy
+      infisical-secrets:
         condition: service_healthy
     env_file:
       - ./zitadel.env
+      - /secrets/.env.infisical
+    volumes:
+      - .:/current-dir:delegated
+      - ../secrets/bootstrap:/machinekey
+      - infisical_secrets:/secrets:ro
     command: ["start-from-init", "--masterkeyFromEnv"]
     ports:
       - "${ZITADEL_HTTP_PORT:-8100}:8080" # Zitadel HTTP (API) - configurable to avoid conflicts
@@ -87,23 +110,26 @@ services:
       retries: 5
       start_period: 10s
     user: "0"
-    volumes:
-      - .:/current-dir:delegated
-      - ../secrets/bootstrap:/machinekey
 
   login:
     image: ghcr.io/zitadel/zitadel-login:latest
     restart: unless-stopped
+    depends_on:
+      zitadel:
+        condition: service_healthy
+      infisical-secrets:
+        condition: service_healthy
+    env_file:
+      - /secrets/.env.infisical
     environment:
       - ZITADEL_API_URL=http://localhost:${ZITADEL_HTTP_PORT:-8100}
       - NEXT_PUBLIC_BASE_PATH=/ui/v2/login
       - ZITADEL_SERVICE_USER_TOKEN_FILE=/current-dir/login-client.pat
     volumes:
       - .:/current-dir:ro
+      - infisical_secrets:/secrets:ro
     network_mode: service:zitadel
-    depends_on:
-      zitadel:
-        condition: service_healthy
 volumes:
   pg_data:
   db_logs:
+  infisical_secrets:
