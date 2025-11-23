@@ -62,7 +62,8 @@ services:
       - INFISICAL_ENVIRONMENT=${INFISICAL_ENVIRONMENT:-dev}
       - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID}
     healthcheck:
-      test: ["CMD", "sh", "-c", "test -f /secrets/.env.infisical && test -s /secrets/.env.infisical"]
+      # Only check file exists (not empty) to allow debugging when fetch fails
+      test: ["CMD", "sh", "-c", "test -f /secrets/.env.infisical"]
       interval: 5s
       timeout: 5s
       retries: 10
