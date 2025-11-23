@@ -9,6 +9,12 @@ services:
         echo "Environment: $${INFISICAL_ENVIRONMENT:-dev}"
         echo "Project ID: $${INFISICAL_PROJECT_ID}"
         echo "Path: /workspace"
+        echo "---"
+        echo "Debug: Checking environment variables..."
+        echo "INFISICAL_TOKEN length: $${#INFISICAL_TOKEN}"
+        echo "INFISICAL_TOKEN first 20 chars: $${INFISICAL_TOKEN:0:20}..."
+        echo "INFISICAL_TOKEN set: $$([ -n "$$INFISICAL_TOKEN" ] && echo 'YES' || echo 'NO')"
+        echo "---"
         
         # Export secrets using service token
         infisical export \
@@ -24,6 +30,8 @@ services:
         else
           echo "❌ Failed to fetch secrets (exit code: $$EXIT_CODE)"
           echo "Debug: Token length = $${#INFISICAL_TOKEN}"
+          echo "Debug: All env vars:"
+          env | grep INFISICAL || echo "No INFISICAL vars found"
           exit 1
         fi
         
