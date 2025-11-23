@@ -50,6 +50,9 @@ services:
     volumes:
       - infisical_secrets:/secrets
     environment:
+      # Self-hosted Infisical requires explicit API URL
+      # Without this, CLI defaults to Infisical Cloud (app.infisical.com)
+      - INFISICAL_API_URL=${INFISICAL_API_URL:-https://infiscal.kucharz.net}
       # Token must be set as env var for Infisical CLI
       - INFISICAL_TOKEN=${INFISICAL_TOKEN}
       - INFISICAL_ENVIRONMENT=${INFISICAL_ENVIRONMENT:-dev}
