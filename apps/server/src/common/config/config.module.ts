@@ -43,8 +43,10 @@ import { EnvVariables, validate } from './config.schema';
       console.log(
         `[DEBUG] GCP_PROJECT_ID before loading: ${process.env.GCP_PROJECT_ID}`
       );
-      // Use override: true to ensure .env files take precedence
-      dotenv.config({ path: p, override: true });
+      // In test environment, preserve env vars set by test setup (don't override)
+      // In production/dev, .env files should override existing values
+      const isTestEnv = process.env.NODE_ENV === 'test';
+      dotenv.config({ path: p, override: !isTestEnv });
       console.log(
         `[DEBUG] GCP_PROJECT_ID after loading: ${process.env.GCP_PROJECT_ID}`
       );

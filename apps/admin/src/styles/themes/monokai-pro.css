@@ -1,0 +1,44 @@
+/* Monokai Pro Theme
+   Beautiful functionality for professional developers
+   Primary: Pink
+   Accents: Yellow, Green, Blue
+   Vibrant and functional. */
+
+@plugin "daisyui/theme" {
+  name: "monokai-pro";
+  prefersdark: true;
+  color-scheme: dark;
+
+  /* Base surfaces - Classic Monokai dark gray */
+  --color-base-100: oklch(22% 0.01 270); /* #272822 - bg */
+  --color-base-200: oklch(28% 0.01 270); /* #3E3D32 */
+  --color-base-300: oklch(35% 0.01 270); /* #75715E */
+  --color-base-content: oklch(95% 0.01 270); /* #F8F8F2 - fg */
+
+  /* Primary - Pink */
+  --color-primary: oklch(70% 0.22 340); /* #F92672 - pink */
+  --color-primary-content: oklch(95% 0.01 270);
+
+  /* Secondary - Yellow */
+  --color-secondary: oklch(80% 0.18 90); /* #E6DB74 - yellow */
+  --color-secondary-content: oklch(22% 0.01 270);
+
+  /* Accent - Green */
+  --color-accent: oklch(75% 0.2 150); /* #A6E22E - green */
+  --color-accent-content: oklch(22% 0.01 270);
+
+  /* Neutral - Gray for borders */
+  --color-neutral: oklch(35% 0.01 270); /* #75715E */
+  --color-neutral-content: oklch(95% 0.01 270);
+
+  /* Semantic colors */
+  --color-info: oklch(70% 0.18 240); /* #66D9EF - blue */
+  --color-success: oklch(75% 0.2 150); /* #A6E22E - green */
+  --color-warning: oklch(80% 0.18 90); /* #E6DB74 - yellow */
+  --color-error: oklch(70% 0.22 340); /* #F92672 - red */
+
+  /* Radii */
+  --radius-selector: 0.5rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+}

@@ -54,6 +54,9 @@ export async function runStatusCommand(argv: readonly string[]): Promise<void> {
 
   const allProcesses = await listProcesses();
 
+  // Check if using remote services
+  const skipDockerDeps = process.env.SKIP_DOCKER_DEPS === 'true';
+
   // Separate services and dependencies
   const serviceStatuses: ProcessStatus[] = [];
   const dependencyStatuses: ProcessStatus[] = [];
@@ -83,24 +86,35 @@ export async function runStatusCommand(argv: readonly string[]): Promise<void> {
     }
   }
 
-  for (const depId of dependencyIds) {
-    if (!dependencyStatuses.find((s) => s.name === depId)) {
-      // Check if this is a Docker dependency
-      try {
-        const depProfile = getDependencyProcess(depId);
-        if (depProfile.composeService) {
-          // Use Docker status check
-          const dockerStatus = await getDockerComposeServiceStatus(
-            depProfile.composeService
-          );
-          dependencyStatuses.push({
-            name: depId,
-            running: dockerStatus.running,
-            pid: null, // Docker containers don't have PIDs in our system
-            metadata: null,
-          });
-        } else {
-          // Regular process (check PID file)
+  // Only check dependencies if not in remote mode
+  if (!skipDockerDeps) {
+    for (const depId of dependencyIds) {
+      if (!dependencyStatuses.find((s) => s.name === depId)) {
+        // Check if this is a Docker dependency
+        try {
+          const depProfile = getDependencyProcess(depId);
+          if (depProfile.composeService) {
+            // Use Docker status check
+            const dockerStatus = await getDockerComposeServiceStatus(
+              depProfile.composeService
+            );
+            dependencyStatuses.push({
+              name: depId,
+              running: dockerStatus.running,
+              pid: null, // Docker containers don't have PIDs in our system
+              metadata: null,
+            });
+          } else {
+            // Regular process (check PID file)
+            dependencyStatuses.push({
+              name: depId,
+              running: false,
+              pid: null,
+              metadata: null,
+            });
+          }
+        } catch (error) {
+          // Dependency not found in config
           dependencyStatuses.push({
             name: depId,
             running: false,
@@ -108,19 +122,32 @@ export async function runStatusCommand(argv: readonly string[]): Promise<void> {
             metadata: null,
           });
         }
-      } catch (error) {
-        // Dependency not found in config
-        dependencyStatuses.push({
-          name: depId,
-          running: false,
-          pid: null,
-          metadata: null,
-        });
       }
     }
   }
 
-  process.stdout.write(`\n📊 Workspace Status (profile: ${profileId})\n\n`);
+  process.stdout.write(`\n📊 Workspace Status (profile: ${profileId})\n`);
+  
+  // Show remote services info if applicable
+  if (skipDockerDeps) {
+    process.stdout.write('\n🌐 Remote Services Mode:\n');
+    process.stdout.write('─'.repeat(80) + '\n');
+    if (process.env.POSTGRES_HOST) {
+      const dbInfo = `${process.env.POSTGRES_HOST}:${process.env.POSTGRES_PORT || 5432}/${process.env.POSTGRES_DB || 'zitadel'}`;
+      process.stdout.write(`  Database:  ${dbInfo}\n`);
+    }
+    if (process.env.ZITADEL_DOMAIN) {
+      const zitadelInfo = `${process.env.ZITADEL_DOMAIN}:${process.env.ZITADEL_URL?.includes(':8100') ? '8100' : '8080'}`;
+      process.stdout.write(`  Zitadel:   ${zitadelInfo}\n`);
+    }
+    if (process.env.ZITADEL_ORG_ID) {
+      process.stdout.write(`  Org ID:    ${process.env.ZITADEL_ORG_ID}\n`);
+    }
+    if (process.env.ZITADEL_PROJECT_ID) {
+      process.stdout.write(`  Project:   ${process.env.ZITADEL_PROJECT_ID}\n`);
+    }
+  }
+  process.stdout.write('\n');
 
   // Display services
   if (serviceStatuses.length > 0) {
@@ -158,8 +185,8 @@ export async function runStatusCommand(argv: readonly string[]): Promise<void> {
     process.stdout.write('\n');
   }
 
-  // Display dependencies
-  if (dependencyStatuses.length > 0) {
+  // Display dependencies (only if not in remote mode)
+  if (!skipDockerDeps && dependencyStatuses.length > 0) {
     process.stdout.write('🛢️  Dependencies:\n');
     process.stdout.write('─'.repeat(80) + '\n');
     process.stdout.write(
@@ -203,7 +230,14 @@ export async function runStatusCommand(argv: readonly string[]): Promise<void> {
     (s) => s.running
   ).length;
 
-  process.stdout.write(
-    `📈 Summary: ${runningServices}/${serviceStatuses.length} services, ${runningDependencies}/${dependencyStatuses.length} dependencies running\n\n`
-  );
+  // Adjust summary based on remote mode
+  if (skipDockerDeps) {
+    process.stdout.write(
+      `📈 Summary: ${runningServices}/${serviceStatuses.length} services running (remote mode: dependencies managed externally)\n\n`
+    );
+  } else {
+    process.stdout.write(
+      `📈 Summary: ${runningServices}/${serviceStatuses.length} services, ${runningDependencies}/${dependencyStatuses.length} dependencies running\n\n`
+    );
+  }
 }

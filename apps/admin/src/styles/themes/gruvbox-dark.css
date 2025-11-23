@@ -1,0 +1,44 @@
+/* Gruvbox Dark Theme
+   Retro groove color scheme for Vim
+   Primary: Warm orange/yellow
+   Accents: Aqua, Green, Red
+   Warm, low-contrast, and easy on the eyes. */
+
+@plugin "daisyui/theme" {
+  name: "gruvbox-dark";
+  prefersdark: true;
+  color-scheme: dark;
+
+  /* Base surfaces - Warm, dark grays */
+  --color-base-100: oklch(24% 0.01 90); /* #282828 - bg */
+  --color-base-200: oklch(30% 0.01 90); /* #3c3836 - bg1 */
+  --color-base-300: oklch(36% 0.01 90); /* #504945 - bg2 */
+  --color-base-content: oklch(88% 0.01 90); /* #ebdbb2 - fg */
+
+  /* Primary - Warm yellow/orange */
+  --color-primary: oklch(75% 0.15 85); /* #fabd2f - yellow */
+  --color-primary-content: oklch(24% 0.01 90);
+
+  /* Secondary - Aqua */
+  --color-secondary: oklch(70% 0.12 180); /* #8ec07c - aqua */
+  --color-secondary-content: oklch(24% 0.01 90);
+
+  /* Accent - Green */
+  --color-accent: oklch(70% 0.15 140); /* #b8bb26 - green */
+  --color-accent-content: oklch(24% 0.01 90);
+
+  /* Neutral - Gray for borders */
+  --color-neutral: oklch(45% 0.01 90); /* #665c54 */
+  --color-neutral-content: oklch(88% 0.01 90);
+
+  /* Semantic colors */
+  --color-info: oklch(65% 0.15 240); /* #83a598 - blue */
+  --color-success: oklch(70% 0.15 140); /* #b8bb26 - green */
+  --color-warning: oklch(75% 0.15 85); /* #fabd2f - yellow */
+  --color-error: oklch(65% 0.2 30); /* #fb4934 - red */
+
+  /* Radii */
+  --radius-selector: 0.5rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+}

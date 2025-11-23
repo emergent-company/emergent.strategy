@@ -1409,6 +1409,18 @@ export class GraphService {
     ctx?: GraphTenantContext
   ): Promise<GraphRelationshipDto[]> {
     return this.runWithRequestContext(ctx, undefined, undefined, async () => {
+      // Resolve object id to canonical_id
+      // The objectId parameter can be either an object.id or a canonical_id
+      // Relationships are stored using canonical_ids, so we need to resolve
+      const objRes = await this.db.query<{ canonical_id: string }>(
+        'SELECT canonical_id FROM kb.graph_objects WHERE id = $1 OR canonical_id = $1 LIMIT 1',
+        [objectId]
+      );
+      if (!objRes.rowCount) {
+        return []; // Object not found, return empty relationships
+      }
+      const canonicalId = objRes.rows[0].canonical_id;
+
       const dirClause =
         direction === 'out'
           ? 'r.src_id = $1'
@@ -1430,7 +1442,7 @@ export class GraphService {
                  WHERE h.deleted_at IS NULL
                  LIMIT $2`;
       const res = await this.db.query<GraphRelationshipRow>(sql, [
-        objectId,
+        canonicalId,
         limit,
       ]);
       return res.rows;
@@ -1506,10 +1518,20 @@ export class GraphService {
                                  o.id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, 
                                  o.version, o.type, o.key, o.status, o.properties, o.labels, 
                                  o.deleted_at, o.created_at, o.embedding, o.embedding_updated_at,
-                                 (SELECT COUNT(DISTINCT r.canonical_id)::int 
-                                  FROM kb.graph_relationships r 
-                                  WHERE (r.src_id = o.id OR r.dst_id = o.id) 
-                                  AND r.deleted_at IS NULL) as relationship_count
+                                 (
+                                   -- Count explicit relationships from kb.graph_relationships
+                                   (SELECT COUNT(DISTINCT r.canonical_id)::int 
+                                    FROM kb.graph_relationships r 
+                                    WHERE (r.src_id = o.id OR r.dst_id = o.id) 
+                                    AND r.deleted_at IS NULL)
+                                   +
+                                   -- Count embedded relationships from properties
+                                   COALESCE(jsonb_array_length(o.properties->'participants_canonical_ids'), 0)
+                                   + COALESCE(jsonb_array_length(o.properties->'parties'), 0)
+                                   + COALESCE(jsonb_array_length(o.properties->'participants'), 0)
+                                   + COALESCE(jsonb_array_length(o.properties->'witnesses'), 0)
+                                   + CASE WHEN o.properties->>'performer' IS NOT NULL THEN 1 ELSE 0 END
+                                 ) as relationship_count
                                  FROM kb.graph_objects o
                                  ${headWhere}
                                  ORDER BY o.canonical_id, o.version DESC`;

@@ -19,11 +19,17 @@ export async function runStopCommand(argv: readonly string[]): Promise<void> {
   const args = parseCliArgs(argv);
   const profileId: EnvironmentProfileId = args.profile;
 
+  // Check if we should skip Docker dependencies (remote mode)
+  const skipDockerDeps = process.env.SKIP_DOCKER_DEPS === 'true';
+  if (skipDockerDeps && (args.dependenciesOnly || args.all || args.workspace)) {
+    process.stdout.write('🌐 Remote mode: Skipping Docker dependencies (using remote services)\n\n');
+  }
+
   const includeDependencies =
-    args.includeDependencies ||
+    !skipDockerDeps && (args.includeDependencies ||
     args.dependenciesOnly ||
     args.all ||
-    args.workspace;
+    args.workspace);
   const includeServices = !args.dependenciesOnly;
 
   // Determine which services to stop

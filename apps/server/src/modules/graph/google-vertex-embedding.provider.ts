@@ -12,9 +12,8 @@ import { AppConfigService } from '../../common/config/config.service';
  *
  * Configuration (environment variables):
  *  - EMBEDDING_PROVIDER: Must be 'vertex' or 'google' to enable
- *  - VERTEX_EMBEDDING_PROJECT: GCP project ID (e.g., 'spec-server-dev')
- *  - VERTEX_EMBEDDING_LOCATION: Region (e.g., 'us-central1')
- *  - VERTEX_EMBEDDING_MODEL: Model name (default: 'text-embedding-004')
+ *  - GCP_PROJECT_ID: GCP project ID (e.g., 'spec-server-dev')
+ *  - VERTEX_AI_LOCATION: Region (e.g., 'us-central1') - shared with LLM
  *  - EMBEDDINGS_NETWORK_DISABLED: If set, uses deterministic hash (offline mode)
  *
  * Behavior:
@@ -22,7 +21,7 @@ import { AppConfigService } from '../../common/config/config.service';
  *  - If EMBEDDINGS_NETWORK_DISABLED set -> returns deterministic local hash (no network)
  *  - Otherwise calls Vertex AI API; on errors falls back to deterministic hash with warning
  *
- * Model: text-embedding-004
+ * Model: text-embedding-004 (hardcoded)
  *  - Vector dimension: 768
  *  - Task type: RETRIEVAL_DOCUMENT (for indexing) or RETRIEVAL_QUERY (for search)
  *  - Max input tokens: ~2048 tokens (~8192 characters)
@@ -43,13 +42,13 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
   }
 
   private initialize() {
-    const projectId = process.env.VERTEX_EMBEDDING_PROJECT;
-    const location = process.env.VERTEX_EMBEDDING_LOCATION;
+    const projectId = process.env.GCP_PROJECT_ID;
+    const location = process.env.VERTEX_AI_LOCATION;
 
     if (!projectId || !location) {
       this.logger.warn(
         'Vertex AI Embeddings not configured. Required: ' +
-          'VERTEX_EMBEDDING_PROJECT, VERTEX_EMBEDDING_LOCATION. ' +
+          'GCP_PROJECT_ID, VERTEX_AI_LOCATION. ' +
           'Check your .env file.'
       );
       return;
@@ -67,16 +66,8 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
         project: projectId,
         location: location,
       });
-      const model = process.env.VERTEX_EMBEDDING_MODEL;
-      if (!model) {
-        this.logger.warn(
-          'VERTEX_EMBEDDING_MODEL not set, defaulting to text-embedding-004'
-        );
-      }
       this.logger.log(
-        `Vertex AI Embeddings initialized: project=${projectId}, location=${location}, model=${
-          model || 'text-embedding-004'
-        }`
+        `Vertex AI Embeddings initialized: project=${projectId}, location=${location}, model=text-embedding-004`
       );
     } catch (error) {
       this.logger.error('Failed to initialize Vertex AI for embeddings', error);
@@ -100,13 +91,13 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
       return this.deterministicStub(text, 'vertex:uninitialized:');
     }
 
-    const model = process.env.VERTEX_EMBEDDING_MODEL || 'text-embedding-004';
-    const projectId = process.env.VERTEX_EMBEDDING_PROJECT;
-    const location = process.env.VERTEX_EMBEDDING_LOCATION;
+    const model = 'text-embedding-004';
+    const projectId = process.env.GCP_PROJECT_ID;
+    const location = process.env.VERTEX_AI_LOCATION;
 
     if (!projectId || !location) {
       this.logger.error(
-        'Vertex AI configuration missing at runtime. Required: VERTEX_EMBEDDING_PROJECT, VERTEX_EMBEDDING_LOCATION'
+        'Vertex AI configuration missing at runtime. Required: GCP_PROJECT_ID, VERTEX_AI_LOCATION'
       );
       return this.deterministicStub(text, 'vertex:config-missing:');
     }

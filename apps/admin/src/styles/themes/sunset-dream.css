@@ -1,0 +1,44 @@
+/* Sunset Dream Theme
+   Inspired by dreamy sunset gradients.
+   Primary: Deep Purple/Blue
+   Accents: Warm Orange, Soft Pink
+   Vibrant and enchanting. */
+
+@plugin "daisyui/theme" {
+  name: "sunset-dream";
+  prefersdark: true;
+  color-scheme: dark;
+
+  /* Base surfaces - Deep twilight blues */
+  --color-base-100: oklch(20% 0.03 280);
+  --color-base-200: oklch(25% 0.03 280);
+  --color-base-300: oklch(30% 0.03 280);
+  --color-base-content: oklch(95% 0.01 280);
+
+  /* Primary - Warm Orange */
+  --color-primary: oklch(70% 0.2 50); /* #ff8c00 */
+  --color-primary-content: oklch(20% 0.03 280);
+
+  /* Secondary - Soft Pink */
+  --color-secondary: oklch(75% 0.18 340); /* #ff69b4 */
+  --color-secondary-content: oklch(20% 0.03 280);
+
+  /* Accent - Bright Yellow */
+  --color-accent: oklch(85% 0.2 90); /* #ffd700 */
+  --color-accent-content: oklch(20% 0.03 280);
+
+  /* Neutral - Dark purple for borders */
+  --color-neutral: oklch(30% 0.03 280);
+  --color-neutral-content: oklch(95% 0.01 280);
+
+  /* Semantic colors */
+  --color-info: oklch(75% 0.18 240);
+  --color-success: oklch(75% 0.2 150);
+  --color-warning: oklch(70% 0.2 50);
+  --color-error: oklch(70% 0.25 25);
+
+  /* Radii */
+  --radius-selector: 0.75rem;
+  --radius-field: 0.5rem;
+  --radius-box: 1rem;
+}

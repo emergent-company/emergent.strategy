@@ -71,7 +71,7 @@ const APPLICATION_PROFILES: readonly ApplicationProcessProfile[] = [
     logs: buildLogConfig('server'),
     healthCheck: {
       url: `http://localhost:${getServerPort()}/healthz`,
-      timeoutMs: 15000,
+      timeoutMs: 30000,
     },
     dependencies: [],
     namespace: WORKSPACE_NAMESPACE,

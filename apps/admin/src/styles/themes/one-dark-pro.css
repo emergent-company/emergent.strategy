@@ -1,0 +1,44 @@
+/* One Dark Pro Theme
+   Atom's iconic theme for VS Code
+   Primary: Blue
+   Accents: Green, Yellow, Red
+   A classic, well-balanced dark theme. */
+
+@plugin "daisyui/theme" {
+  name: "one-dark-pro";
+  prefersdark: true;
+  color-scheme: dark;
+
+  /* Base surfaces - Cool dark gray */
+  --color-base-100: oklch(25% 0.02 250); /* #282c34 - bg */
+  --color-base-200: oklch(30% 0.02 250); /* #353b45 */
+  --color-base-300: oklch(40% 0.02 250); /* #5c6370 - comment */
+  --color-base-content: oklch(85% 0.01 250); /* #abb2bf - fg */
+
+  /* Primary - Blue */
+  --color-primary: oklch(65% 0.15 250); /* #61afef - blue */
+  --color-primary-content: oklch(25% 0.02 250);
+
+  /* Secondary - Green */
+  --color-secondary: oklch(70% 0.15 150); /* #98c379 - green */
+  --color-secondary-content: oklch(25% 0.02 250);
+
+  /* Accent - Yellow */
+  --color-accent: oklch(75% 0.18 90); /* #e5c07b - yellow */
+  --color-accent-content: oklch(25% 0.02 250);
+
+  /* Neutral - Gray for borders */
+  --color-neutral: oklch(40% 0.02 250); /* #5c6370 */
+  --color-neutral-content: oklch(85% 0.01 250);
+
+  /* Semantic colors */
+  --color-info: oklch(65% 0.15 250); /* #61afef - blue */
+  --color-success: oklch(70% 0.15 150); /* #98c379 - green */
+  --color-warning: oklch(75% 0.18 90); /* #e5c07b - yellow */
+  --color-error: oklch(65% 0.2 30); /* #e06c75 - red */
+
+  /* Radii */
+  --radius-selector: 0.5rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+}

@@ -2,7 +2,7 @@
 # This file explicitly sets build contexts to help Coolify
 # understand the repository structure
 
-version: '3.8'
+version: "3.8"
 
 services:
   # PostgreSQL Database with pgvector extension
@@ -20,8 +20,8 @@ services:
     healthcheck:
       test:
         [
-          'CMD-SHELL',
-          'pg_isready -U spec -d spec && pg_isready -U zitadel -d zitadel',
+          "CMD-SHELL",
+          "pg_isready -U spec -d spec && pg_isready -U zitadel -d zitadel",
         ]
       interval: 5s
       timeout: 3s
@@ -67,28 +67,28 @@ services:
       ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: 2030-12-31T23:59:59Z
 
       # Login v2 configuration
-      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: 'true'
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "true"
       ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_BASEURI: ${ZITADEL_LOGIN_URL}/ui/v2/login
       ZITADEL_OIDC_DEFAULTLOGINURLV2: ${ZITADEL_LOGIN_URL}/ui/v2/login/login?authRequest=
       ZITADEL_OIDC_DEFAULTLOGOUTURLV2: ${ZITADEL_LOGIN_URL}/ui/v2/login/logout?post_logout_redirect=
-    command: ['start-from-init', '--masterkeyFromEnv']
+    command: ["start-from-init", "--masterkeyFromEnv"]
     expose:
-      - '8080'
+      - "8080"
     labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.zitadel.rule=Host(`${ZITADEL_EXTERNALDOMAIN}`)'
-      - 'traefik.http.routers.zitadel.entrypoints=web'
-      - 'traefik.http.services.zitadel.loadbalancer.server.port=8080'
-      - 'traefik.http.routers.zitadel.service=zitadel'
+      - "traefik.enable=true"
+      - "traefik.http.routers.zitadel.rule=Host(`${ZITADEL_EXTERNALDOMAIN}`)"
+      - "traefik.http.routers.zitadel.entrypoints=web"
+      - "traefik.http.services.zitadel.loadbalancer.server.port=8080"
+      - "traefik.http.routers.zitadel.service=zitadel"
     volumes:
       - ./secrets/bootstrap:/machinekey
     healthcheck:
-      test: ['CMD', '/app/zitadel', 'ready']
+      test: ["CMD", "/app/zitadel", "ready"]
       interval: 10s
       timeout: 60s
       retries: 5
       start_period: 30s
-    user: '0'
+    user: "0"
 
   # Zitadel Login UI v2
   zitadel-login:
@@ -112,16 +112,16 @@ services:
     volumes:
       - /home/spec-server/zitadel-service-account.json:/app/zitadel-service-account.json:ro
     expose:
-      - '3002'
+      - "3002"
     labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.server.rule=PathPrefix(`/api`)'
-      - 'traefik.http.routers.server.entrypoints=web'
-      - 'traefik.http.routers.server.priority=100'
-      - 'traefik.http.middlewares.api-strip.stripprefix.prefixes=/api'
-      - 'traefik.http.routers.server.middlewares=api-strip'
-      - 'traefik.http.services.server.loadbalancer.server.port=3002'
-      - 'traefik.http.routers.server.service=server'
+      - "traefik.enable=true"
+      - "traefik.http.routers.server.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.server.entrypoints=web"
+      - "traefik.http.routers.server.priority=100"
+      - "traefik.http.middlewares.api-strip.stripprefix.prefixes=/api"
+      - "traefik.http.routers.server.middlewares=api-strip"
+      - "traefik.http.services.server.loadbalancer.server.port=3002"
+      - "traefik.http.routers.server.service=server"
     environment:
       # Database
       POSTGRES_HOST: db
@@ -168,7 +168,7 @@ services:
       zitadel:
         condition: service_healthy
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3002/health']
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -185,18 +185,18 @@ services:
         VITE_ZITADEL_CLIENT_ID: ${VITE_ZITADEL_CLIENT_ID}
         VITE_APP_ENV: ${VITE_APP_ENV:-production}
     expose:
-      - '3000'
+      - "3000"
     labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.admin.rule=PathPrefix(`/`)'
-      - 'traefik.http.routers.admin.entrypoints=web'
-      - 'traefik.http.routers.admin.priority=1'
-      - 'traefik.http.services.admin.loadbalancer.server.port=3000'
-      - 'traefik.http.routers.admin.service=admin'
+      - "traefik.enable=true"
+      - "traefik.http.routers.admin.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.admin.entrypoints=web"
+      - "traefik.http.routers.admin.priority=1"
+      - "traefik.http.services.admin.loadbalancer.server.port=3000"
+      - "traefik.http.routers.admin.service=admin"
     depends_on:
       - server
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3

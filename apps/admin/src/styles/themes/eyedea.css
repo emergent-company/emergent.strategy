@@ -1,0 +1,31 @@
+/* Eyedea Theme
+   Based on the user-provided palette.
+   A unique theme with a dirty green base and vibrant green/cyan/orange accents. */
+
+@plugin "daisyui/theme" {
+  name: "eyedea";
+  prefersdark: true;
+  color-scheme: dark;
+
+  /* Base surfaces - Dirty Greens */
+  --color-base-100: oklch(20% 0.05 150); /* #0A221D */
+  --color-base-200: oklch(25% 0.05 150); /* #1D2F27 */
+  --color-base-300: oklch(30% 0.05 150); /* #2C3C31 */
+  --color-base-content: oklch(98% 0 0); /* #fff */
+
+  /* Primary - Vibrant Green */
+  --color-primary: oklch(55% 0.18 165); /* #008E75 */
+  --color-primary-content: oklch(98% 0 0);
+
+  /* Secondary - Cyan Blue */
+  --color-secondary: oklch(68% 0.12 195); /* #25AAB1 */
+  --color-secondary-content: oklch(98% 0 0);
+
+  /* Accent - Warm Orange */
+  --color-accent: oklch(70% 0.15 60); /* #D6754B */
+  --color-accent-content: oklch(98% 0 0);
+
+  /* Neutral - A darker dirty green */
+  --color-neutral: oklch(35% 0.04 150); /* #3C493A */
+  --color-neutral-content: oklch(98% 0 0);
+}

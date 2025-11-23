@@ -322,6 +322,39 @@ export default function ObjectsPage() {
     setTimeout(() => setSelectedObject(null), 300);
   };
 
+  const handleGenerateEmbedding = async (objectId: string) => {
+    if (!config.activeProjectId) return;
+
+    try {
+      const response = await fetchJson<{
+        enqueued: number;
+        skipped: number;
+        jobIds: string[];
+      }>(`${apiBase}/api/graph/embeddings/object/${objectId}`, {
+        method: 'POST',
+      });
+
+      if (response.enqueued > 0) {
+        showToast({
+          variant: 'success',
+          message: 'Embedding generation job queued successfully!',
+        });
+      } else if (response.skipped > 0) {
+        showToast({
+          variant: 'info',
+          message:
+            'Embedding generation is already in progress for this object.',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to generate embedding:', err);
+      showToast({
+        variant: 'error',
+        message: 'Failed to queue embedding generation. Please try again.',
+      });
+    }
+  };
+
   const handleDelete = async (objectId: string) => {
     if (!config.activeProjectId) return;
 
@@ -715,6 +748,18 @@ export default function ObjectsPage() {
             label: 'View Details',
             icon: 'lucide--eye',
             onAction: handleObjectClick,
+          },
+          {
+            label: 'Generate Embedding',
+            icon: 'lucide--sparkles',
+            onAction: (obj) => handleGenerateEmbedding(obj.id),
+            hidden: (obj: GraphObject) => !!obj.embedding,
+          },
+          {
+            label: 'Regenerate Embedding',
+            icon: 'lucide--refresh-cw',
+            onAction: (obj) => handleGenerateEmbedding(obj.id),
+            hidden: (obj: GraphObject) => !obj.embedding,
           },
           {
             label: 'Accept',

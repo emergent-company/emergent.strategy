@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatConversation } from '../../../entities/chat-conversation.entity';
@@ -6,6 +6,8 @@ import { ChatMessage } from '../../../entities/chat-message.entity';
 
 @Injectable()
 export class ConversationService {
+  private readonly logger = new Logger(ConversationService.name);
+
   constructor(
     @InjectRepository(ChatConversation)
     private readonly conversationRepository: Repository<ChatConversation>,
@@ -115,11 +117,12 @@ export class ConversationService {
    */
   async getConversationHistory(
     conversationId: string
-  ): Promise<Array<{ role: string; content: string }>> {
+  ): Promise<Array<{ role: string; content: string; createdAt: Date }>> {
     const conversation = await this.getConversation(conversationId);
     return conversation.messages.map((msg) => ({
       role: msg.role,
       content: msg.content,
+      createdAt: msg.createdAt,
     }));
   }
 
@@ -156,6 +159,74 @@ export class ConversationService {
       throw new NotFoundException(
         `Conversation with ID ${conversationId} not found`
       );
+    }
+  }
+
+  /**
+   * Generate an AI-powered title for a conversation based on its messages.
+   * This method should be called asynchronously after the first exchange (user + assistant messages).
+   *
+   * @param conversationId - The conversation ID
+   * @param generateTitleFn - Function that takes userMessage and assistantMessage and returns a title
+   * @returns The updated conversation with new title
+   */
+  async generateAndUpdateTitle(
+    conversationId: string,
+    generateTitleFn: (
+      userMessage: string,
+      assistantMessage: string
+    ) => Promise<string>
+  ): Promise<ChatConversation> {
+    try {
+      // Get conversation with messages
+      const conversation = await this.getConversation(conversationId);
+
+      // Check if we have at least 2 messages (user + assistant)
+      if (conversation.messages.length < 2) {
+        this.logger.warn(
+          `Conversation ${conversationId} has insufficient messages for title generation (${conversation.messages.length})`
+        );
+        return conversation;
+      }
+
+      // Get first user message and first assistant response
+      const firstUserMessage = conversation.messages.find(
+        (msg) => msg.role === 'user'
+      );
+      const firstAssistantMessage = conversation.messages.find(
+        (msg) => msg.role === 'assistant'
+      );
+
+      if (!firstUserMessage || !firstAssistantMessage) {
+        this.logger.warn(
+          `Conversation ${conversationId} missing user or assistant message`
+        );
+        return conversation;
+      }
+
+      // Generate title using provided function
+      this.logger.log(`Generating title for conversation ${conversationId}`);
+      const generatedTitle = await generateTitleFn(
+        firstUserMessage.content,
+        firstAssistantMessage.content
+      );
+
+      // Update conversation title (truncate to 100 chars to be safe)
+      const finalTitle = generatedTitle.substring(0, 100);
+      conversation.title = finalTitle;
+
+      this.logger.log(
+        `Generated title for conversation ${conversationId}: "${finalTitle}"`
+      );
+
+      return this.conversationRepository.save(conversation);
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate title for conversation ${conversationId}`,
+        error
+      );
+      // Don't throw - title generation failure shouldn't break the chat
+      return this.getConversation(conversationId);
     }
   }
 }

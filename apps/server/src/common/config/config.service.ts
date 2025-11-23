@@ -113,6 +113,27 @@ export class AppConfigService {
     return this.env.CHAT_SYSTEM_PROMPT;
   }
 
+  /**
+   * Whether automatic title generation is enabled for new conversations
+   */
+  get chatTitleGenerationEnabled(): boolean {
+    return this.env.CHAT_TITLE_GENERATION_ENABLED !== false;
+  }
+
+  /**
+   * Maximum length for generated conversation titles
+   */
+  get chatTitleMaxLength(): number {
+    return this.env.CHAT_TITLE_MAX_LENGTH ?? 60;
+  }
+
+  /**
+   * Minimum messages before generating title
+   */
+  get chatTitleMinMessages(): number {
+    return this.env.CHAT_TITLE_MIN_MESSAGES ?? 2;
+  }
+
   get autoInitDb() {
     return !!this.env.DB_AUTOINIT;
   }

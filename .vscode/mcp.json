@@ -6,7 +6,12 @@
     // },
     "playwright": {
       "command": "npx",
-      "args": ["@playwright/mcp@latest", "--timeout-action=10000"]
+      "args": [
+        "@playwright/mcp@latest",
+        "--browser",
+        "chromium",
+        "--timeout-action=10000"
+      ]
     },
     "postgres": {
       "command": "./scripts/mcp-postgres-wrapper.sh",

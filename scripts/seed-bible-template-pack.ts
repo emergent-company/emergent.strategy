@@ -291,12 +291,6 @@ IMPORTANT: Use entity NAMES for region/country references. The system will resol
           description:
             'Where the event happened - place name (e.g., "Red Sea") - will be linked to Place entity',
         },
-        participants: {
-          type: 'array',
-          items: { type: 'string' },
-          description:
-            'People involved - person names (e.g., ["Moses", "Aaron"]) - will be linked to Person entities',
-        },
         description: {
           type: 'string',
           description: 'Brief description of what happened',
@@ -313,19 +307,18 @@ IMPORTANT: Use entity NAMES for region/country references. The system will resol
         _schema_version: {
           type: 'string',
           description: 'Schema version for migration tracking',
-          default: '2.0.0',
+          default: '3.0.0',
         },
       },
     },
     extraction: {
       system:
-        'Extract significant events from the narrative including when, where, and who was involved. For references to places and people, use entity NAMES which will be resolved to canonical_id.',
+        'Extract significant events from the narrative including when, where they occurred. For location references, use entity NAMES which will be resolved to canonical_id. Participants should be created as explicit HAS_PARTICIPANT relationships, not embedded in the event properties.',
       user: `Identify major events in the text. Return:
 - name: Event name or description
 - type: Category (miracle, battle, covenant, etc.)
 - date_description: When it occurred (textual description)
 - location: Place name where it happened
-- participants: Array of person names involved
 - description: Brief description of what happened
 - theological_significance: Why it matters theologically
 - source_reference: Primary chapter reference
@@ -336,13 +329,15 @@ Example:
   "type": "miracle",
   "date_description": "during the Exodus from Egypt",
   "location": "Red Sea",
-  "participants": ["Moses", "Aaron", "Pharaoh"],
   "description": "God parted the Red Sea allowing Israelites to cross, then closed it over the Egyptian army",
   "theological_significance": "Demonstrates God's power to deliver His people",
   "source_reference": "Exodus 14"
 }
 
-IMPORTANT: Use entity NAMES for location and participants. The system will resolve them to canonical IDs.`,
+IMPORTANT: 
+- Use entity NAMES for location which will be resolved to canonical IDs
+- DO NOT include participants array - participants will be linked via HAS_PARTICIPANT relationships
+- The system will create relationships between Event and Person entities separately`,
     },
   },
   {
@@ -616,11 +611,6 @@ IMPORTANT: Use entity NAMES for region, leader, founded_by. System will resolve 
       required: ['name'],
       properties: {
         name: { type: 'string', description: 'Name of the covenant' },
-        parties: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Parties involved in the covenant',
-        },
         terms: {
           type: 'string',
           description: 'Terms or conditions of the covenant',
@@ -632,14 +622,14 @@ IMPORTANT: Use entity NAMES for region, leader, founded_by. System will resolve 
         _schema_version: {
           type: 'string',
           description: 'Schema version for migration tracking',
-          default: '2.0.0',
+          default: '3.0.0',
         },
       },
     },
     extraction: {
       system:
-        'Extract covenants, agreements, or treaties mentioned in the text. For parties, use entity NAMES.',
-      user: 'Identify covenants or agreements. Return the name, parties involved (person/group names), terms, and any sign or symbol associated with it. Use entity NAMES which will be resolved to canonical IDs.',
+        'Extract covenants, agreements, or treaties mentioned in the text. Parties should be represented as HAS_PARTY relationships, not embedded in properties.',
+      user: 'Identify covenants or agreements. Return the name, terms, and any sign or symbol associated with it. Do NOT include a parties array - parties will be linked via explicit HAS_PARTY relationships.',
     },
   },
   {
@@ -690,15 +680,6 @@ IMPORTANT: Use entity NAMES for region, leader, founded_by. System will resolve 
           type: 'string',
           description: 'Type of miracle (e.g., healing, nature, resurrection)',
         },
-        performer: {
-          type: 'string',
-          description: 'Who performed the miracle',
-        },
-        witnesses: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Who witnessed the miracle',
-        },
         location: {
           type: 'string',
           description:
@@ -707,14 +688,14 @@ IMPORTANT: Use entity NAMES for region, leader, founded_by. System will resolve 
         _schema_version: {
           type: 'string',
           description: 'Schema version for migration tracking',
-          default: '2.0.0',
+          default: '3.0.0',
         },
       },
     },
     extraction: {
       system:
-        'Extract miracles and supernatural events from the text. For performer, witnesses, and location, use entity NAMES.',
-      user: 'Identify miracles or supernatural events. Return the name, type (e.g., healing, nature), performer (person name), witnesses (person names), and location (place name). Use entity NAMES which will be resolved to canonical IDs.',
+        'Extract miracles and supernatural events from the text. Performer and witnesses should be represented as PERFORMED_BY and HAS_WITNESS relationships, not embedded in properties.',
+      user: 'Identify miracles or supernatural events. Return the name, type (e.g., healing, nature), and location (place name). Do NOT include performer or witnesses fields - these will be linked via explicit PERFORMED_BY and HAS_WITNESS relationships.',
     },
   },
   {
@@ -760,116 +741,188 @@ const relationshipTypes = [
   {
     type: 'APPEARS_IN',
     description: 'Entity appears in a book',
+    label: 'Appears In',
+    inverseLabel: 'Contains',
     fromTypes: ['Person', 'Place', 'Event', 'Group', 'Object', 'Angel'],
     toTypes: ['Book'],
   },
   {
     type: 'LOCATED_IN',
     description: 'Geographic containment (place within place)',
+    label: 'Located In',
+    inverseLabel: 'Contains',
     fromTypes: ['Place'],
     toTypes: ['Place'],
   },
   {
     type: 'PARENT_OF',
     description: 'Parental relationship',
+    label: 'Parent Of',
+    inverseLabel: 'Child Of',
     fromTypes: ['Person'],
     toTypes: ['Person'],
   },
   {
     type: 'CHILD_OF',
     description: 'Child relationship',
+    label: 'Child Of',
+    inverseLabel: 'Parent Of',
     fromTypes: ['Person'],
     toTypes: ['Person'],
   },
   {
     type: 'BORN_IN',
     description: 'Person born in location',
+    label: 'Born In',
+    inverseLabel: 'Birthplace Of',
     fromTypes: ['Person'],
     toTypes: ['Place'],
   },
   {
     type: 'DIED_IN',
     description: 'Person died in location',
+    label: 'Died In',
+    inverseLabel: 'Death Place Of',
     fromTypes: ['Person'],
     toTypes: ['Place'],
   },
   {
     type: 'TRAVELS_TO',
     description: 'Person or group travels to location',
+    label: 'Traveled To',
+    inverseLabel: 'Visited By',
     fromTypes: ['Person', 'Group'],
     toTypes: ['Place'],
   },
   {
     type: 'OCCURS_IN',
     description: 'Event or miracle occurs in location',
+    label: 'Occurred In',
+    inverseLabel: 'Location Of',
     fromTypes: ['Event', 'Miracle'],
     toTypes: ['Place'],
   },
   {
     type: 'PARTICIPATES_IN',
     description: 'Person, group, or angel participates in event',
+    label: 'Participated In',
+    inverseLabel: 'Had Participant',
     fromTypes: ['Person', 'Group', 'Angel'],
     toTypes: ['Event'],
   },
   {
     type: 'MEMBER_OF',
     description: 'Person is member of group',
+    label: 'Member Of',
+    inverseLabel: 'Has Member',
     fromTypes: ['Person'],
     toTypes: ['Group'],
   },
   {
     type: 'LEADER_OF',
     description: 'Person leads group',
+    label: 'Leader Of',
+    inverseLabel: 'Led By',
     fromTypes: ['Person'],
     toTypes: ['Group'],
   },
   {
     type: 'FULFILLS',
     description: 'Event or person fulfills prophecy',
+    label: 'Fulfills',
+    inverseLabel: 'Fulfilled By',
     fromTypes: ['Event', 'Person'],
     toTypes: ['Prophecy'],
   },
   {
     type: 'MAKES_COVENANT',
     description: 'Person or group makes covenant',
+    label: 'Made Covenant',
+    inverseLabel: 'Covenant By',
     fromTypes: ['Person', 'Group'],
     toTypes: ['Covenant'],
   },
   {
     type: 'PERFORMS_MIRACLE',
     description: 'Person or angel performs miracle',
+    label: 'Performed Miracle',
+    inverseLabel: 'Performed By',
     fromTypes: ['Person', 'Angel'],
     toTypes: ['Miracle'],
   },
   {
     type: 'WITNESSES',
     description: 'Person or group witnesses miracle or event',
+    label: 'Witnessed',
+    inverseLabel: 'Witnessed By',
     fromTypes: ['Person', 'Group'],
     toTypes: ['Miracle', 'Event'],
   },
   {
     type: 'OWNS',
     description: 'Person or group owns object',
+    label: 'Owns',
+    inverseLabel: 'Owned By',
     fromTypes: ['Person', 'Group'],
     toTypes: ['Object'],
   },
   {
     type: 'DESCENDED_FROM',
     description: 'Genealogical descent or lineage',
+    label: 'Descended From',
+    inverseLabel: 'Ancestor Of',
     fromTypes: ['Person', 'Group'],
     toTypes: ['Person', 'Group'],
   },
   {
     type: 'PROPHESIED_BY',
     description: 'Prophecy delivered by person',
+    label: 'Prophesied By',
+    inverseLabel: 'Prophesied',
     fromTypes: ['Prophecy'],
     toTypes: ['Person'],
   },
   {
     type: 'SPEAKS',
     description: 'Person or angel speaks quote',
+    label: 'Spoke',
+    inverseLabel: 'Spoken By',
     fromTypes: ['Person', 'Angel'],
     toTypes: ['Quote'],
+  },
+  // NEW RELATIONSHIP TYPES for migrating embedded references
+  {
+    type: 'HAS_PARTY',
+    description:
+      'Party involved in a covenant or agreement with legal/spiritual obligations',
+    label: 'Has Party',
+    inverseLabel: 'Party To',
+    fromTypes: ['Covenant', 'Agreement', 'Contract'],
+    toTypes: ['Person', 'Group', 'Angel'],
+  },
+  {
+    type: 'HAS_PARTICIPANT',
+    description: 'Participant in an event, meeting, or activity',
+    label: 'Has Participant',
+    inverseLabel: 'Participant In',
+    fromTypes: ['Event', 'Meeting', 'Activity', 'Gathering'],
+    toTypes: ['Person', 'Group', 'Angel'],
+  },
+  {
+    type: 'HAS_WITNESS',
+    description: 'Witness who observed and can testify to what happened',
+    label: 'Witnessed By',
+    inverseLabel: 'Witnessed',
+    fromTypes: ['Event', 'Miracle', 'Covenant', 'Testimony', 'Sign'],
+    toTypes: ['Person', 'Group', 'Angel'],
+  },
+  {
+    type: 'PERFORMED_BY',
+    description: 'Performed by a person or being who executed the action',
+    label: 'Performed By',
+    inverseLabel: 'Performed',
+    fromTypes: ['Miracle', 'Event', 'Action', 'Sign', 'Wonder'],
+    toTypes: ['Person', 'Angel'],
   },
 ];
 
@@ -877,6 +930,8 @@ async function upsertBibleTemplatePack(client: PoolClient): Promise<void> {
   const objectTypeSchemas: Record<string, unknown> = {};
   const extractionPrompts: Record<string, unknown> = {};
   const uiConfigs: Record<string, unknown> = {};
+  const relationshipTypeSchemas: Record<string, unknown> = {};
+  const relationshipUIConfigs: Record<string, unknown> = {};
 
   for (const type of entityTypes) {
     objectTypeSchemas[type.type] = type.schema;
@@ -915,14 +970,83 @@ async function upsertBibleTemplatePack(client: PoolClient): Promise<void> {
     };
   }
 
-  const relationshipTypeSchemas: Record<string, unknown> = {};
+  // Process relationship types
   for (const rel of relationshipTypes) {
     relationshipTypeSchemas[rel.type] = {
       description: rel.description,
       fromTypes: rel.fromTypes,
       toTypes: rel.toTypes,
+      label: rel.label,
+      inverseLabel: rel.inverseLabel,
+    };
+
+    // Add UI config for relationships
+    const relationshipIconMap: Record<string, string> = {
+      APPEARS_IN: 'lucide--book-open',
+      LOCATED_IN: 'lucide--map-pin',
+      PARENT_OF: 'lucide--users',
+      CHILD_OF: 'lucide--baby',
+      BORN_IN: 'lucide--cake',
+      DIED_IN: 'lucide--cross',
+      TRAVELS_TO: 'lucide--plane',
+      OCCURS_IN: 'lucide--map-pin',
+      PARTICIPATES_IN: 'lucide--user-check',
+      MEMBER_OF: 'lucide--users',
+      LEADER_OF: 'lucide--crown',
+      FULFILLS: 'lucide--check-circle',
+      MAKES_COVENANT: 'lucide--handshake',
+      PERFORMS_MIRACLE: 'lucide--zap',
+      WITNESSES: 'lucide--eye',
+      OWNS: 'lucide--package',
+      DESCENDED_FROM: 'lucide--git-branch',
+      PROPHESIED_BY: 'lucide--message-circle',
+      SPEAKS: 'lucide--quote',
+      // NEW relationship types
+      HAS_PARTY: 'lucide--handshake',
+      HAS_PARTICIPANT: 'lucide--users',
+      HAS_WITNESS: 'lucide--eye',
+      PERFORMED_BY: 'lucide--zap',
+    };
+
+    const relationshipColorMap: Record<string, string> = {
+      APPEARS_IN: 'info',
+      LOCATED_IN: 'primary',
+      PARENT_OF: 'secondary',
+      CHILD_OF: 'secondary',
+      BORN_IN: 'success',
+      DIED_IN: 'error',
+      TRAVELS_TO: 'info',
+      OCCURS_IN: 'warning',
+      PARTICIPATES_IN: 'primary',
+      MEMBER_OF: 'primary',
+      LEADER_OF: 'warning',
+      FULFILLS: 'success',
+      MAKES_COVENANT: 'accent',
+      PERFORMS_MIRACLE: 'error',
+      WITNESSES: 'info',
+      OWNS: 'neutral',
+      DESCENDED_FROM: 'secondary',
+      PROPHESIED_BY: 'warning',
+      SPEAKS: 'accent',
+      // NEW relationship types
+      HAS_PARTY: 'primary',
+      HAS_PARTICIPANT: 'info',
+      HAS_WITNESS: 'secondary',
+      PERFORMED_BY: 'warning',
+    };
+
+    relationshipUIConfigs[rel.type] = {
+      label: rel.label,
+      inverseLabel: rel.inverseLabel,
+      icon: relationshipIconMap[rel.type] || 'lucide--arrow-right',
+      color: relationshipColorMap[rel.type] || 'neutral',
+      description: rel.description,
     };
   }
+
+  // Merge relationship UI configs into main uiConfigs
+  // Store under '__relationships__' key to differentiate from object type configs
+  uiConfigs['__relationships__'] = relationshipUIConfigs;
 
   const existing = await client.query(
     'SELECT id FROM kb.graph_template_packs WHERE id = $1',

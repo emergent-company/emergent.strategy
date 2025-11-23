@@ -11,6 +11,7 @@ import {
   MessageList,
   ChatInput,
   ConversationList,
+  KeyboardShortcutsModal,
   type Conversation,
 } from '@/components/chat';
 import { SidebarProjectDropdown } from '@/components/organisms/SidebarProjectDropdown';
@@ -24,6 +25,7 @@ export default function ChatSdkPage() {
     string | undefined
   >();
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
+  const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
   const { apiBase, buildHeaders } = useApi();
   const { showToast } = useToast();
   const { config, setActiveProject, setActiveOrg } = useConfig();
@@ -131,6 +133,7 @@ export default function ChatSdkPage() {
                   text: msg.content,
                 },
               ],
+              createdAt: msg.createdAt,
             })
           );
 
@@ -452,10 +455,26 @@ export default function ChatSdkPage() {
               onStop={stop}
               isStreaming={status === 'streaming'}
               placeholder="Type your message..."
+              messageHistory={messages
+                .filter((msg) => msg.role === 'user')
+                .map((msg) =>
+                  msg.parts
+                    ?.filter((p) => p.type === 'text')
+                    .map((p) => ('text' in p ? p.text : ''))
+                    .join('')
+                )
+                .reverse()}
+              onShowKeyboardShortcuts={() => setIsKeyboardShortcutsOpen(true)}
             />
           </div>
         </div>
       </div>
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={isKeyboardShortcutsOpen}
+        onClose={() => setIsKeyboardShortcutsOpen(false)}
+      />
 
       {/* Sidebar - Fixed height with internal scrolling */}
       <div className="drawer-side h-screen">
@@ -510,6 +529,12 @@ export default function ChatSdkPage() {
           }
         />
       </div>
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={isKeyboardShortcutsOpen}
+        onClose={() => setIsKeyboardShortcutsOpen(false)}
+      />
     </div>
   );
 }

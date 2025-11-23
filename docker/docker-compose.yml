@@ -48,6 +48,20 @@ services:
     ports:
       - "${ZITADEL_HTTP_PORT:-8100}:8080" # Zitadel HTTP (API) - configurable to avoid conflicts
       - "${ZITADEL_LOGIN_PORT:-8101}:3000" # Zitadel Login v2 (Next.js) - configurable
+    labels:
+      - "traefik.enable=true"
+      # HTTP router (redirects to HTTPS)
+      - "traefik.http.routers.zitadel.rule=Host(`${ZITADEL_EXTERNALDOMAIN}`)"
+      - "traefik.http.routers.zitadel.entrypoints=web"
+      # HTTPS router
+      - "traefik.http.routers.zitadel-https.rule=Host(`${ZITADEL_EXTERNALDOMAIN}`)"
+      - "traefik.http.routers.zitadel-https.entrypoints=websecure"
+      - "traefik.http.routers.zitadel-https.tls=true"
+      - "traefik.http.routers.zitadel-https.tls.certresolver=letsencrypt"
+      # Service configuration (required for both HTTP and HTTPS)
+      - "traefik.http.services.zitadel.loadbalancer.server.port=8080"
+      - "traefik.http.routers.zitadel.service=zitadel"
+      - "traefik.http.routers.zitadel-https.service=zitadel"
     healthcheck:
       test: ["CMD", "/app/zitadel", "ready"]
       interval: 10s

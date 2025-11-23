@@ -1,0 +1,57 @@
+/* Blue-Cyan Modern Theme
+   Custom theme focusing on professionalism and innovation
+   Primary: Deep blue (#2563eb) - trust and stability
+   Secondary: Bright cyan (#06b6d4) - innovation and tech
+   Minimal purple, maximum modernity */
+
+@plugin "daisyui/theme" {
+  name: "blue-cyan-modern";
+  prefersdark: true;
+  color-scheme: dark;
+
+  /* Base surfaces - Cool neutral grays with blue undertone */
+  --color-base-100: oklch(18% 0.015 240); /* Near-black with blue hint */
+  --color-base-200: oklch(24% 0.02 240); /* Main background */
+  --color-base-300: oklch(30% 0.02 240); /* Elevated surfaces */
+  --color-base-content: oklch(92% 0.01 240); /* High contrast text */
+
+  /* Primary - Deep professional blue */
+  --color-primary: oklch(55% 0.2 260); /* Rich blue #2563eb */
+  --color-primary-content: oklch(98% 0.01 260);
+
+  /* Secondary - Bright cyan for tech feel */
+  --color-secondary: oklch(70% 0.15 200); /* Cyan #06b6d4 */
+  --color-secondary-content: oklch(15% 0.02 200);
+
+  /* Accent - Teal for subtle highlights */
+  --color-accent: oklch(65% 0.13 180); /* Teal accent */
+  --color-accent-content: oklch(98% 0.01 180);
+
+  /* Neutral - Clean gray borders */
+  --color-neutral: oklch(36% 0.02 240); /* Subtle borders */
+  --color-neutral-content: oklch(92% 0.01 240);
+
+  /* Semantic colors - Blue-dominant palette */
+  --color-info: oklch(65% 0.18 240); /* Bright blue info */
+  --color-info-content: oklch(15% 0.02 240);
+  --color-success: oklch(68% 0.18 155); /* Emerald green */
+  --color-success-content: oklch(15% 0.02 155);
+  --color-warning: oklch(75% 0.2 75); /* Amber warning */
+  --color-warning-content: oklch(20% 0.04 75);
+  --color-error: oklch(62% 0.22 25); /* Coral red */
+  --color-error-content: oklch(15% 0.02 25);
+
+  /* Radii - Sharp and modern */
+  --radius-selector: 0.5rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.625rem;
+
+  /* Control sizing */
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+
+  /* Border & effects */
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}

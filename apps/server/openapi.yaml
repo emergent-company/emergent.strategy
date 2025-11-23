@@ -3267,6 +3267,134 @@ paths:
         '404':
           description: Branch not found
       tags: *ref_9
+  /graph/embeddings/object/{id}/status:
+    get:
+      operationId: getEmbeddingJobStatus
+      summary: Get embedding job status for an object
+      description: >-
+        Returns the active embedding job status (pending or processing) for the
+        specified object. Returns 404 if no active job exists.
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Active embedding job found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  object_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum:
+                      - pending
+                      - processing
+                  attempt_count:
+                    type: number
+                  priority:
+                    type: number
+                  scheduled_at:
+                    type: string
+                    format: date-time
+                  started_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+        '404':
+          description: No active job found for this object
+      tags: &ref_10
+        - Graph
+  /graph/embeddings/object/{id}:
+    post:
+      operationId: triggerEmbeddingForObject
+      summary: Trigger embedding generation for a single object
+      description: >-
+        Enqueues an embedding job for the specified graph object. The job will
+        be processed asynchronously by the embedding worker. Idempotent: if a
+        job is already pending/processing for this object, returns the existing
+        job.
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: priority
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Embedding job created or found
+        '404':
+          description: Object not found
+      tags: *ref_10
+  /graph/embeddings/batch:
+    post:
+      operationId: triggerEmbeddingsBatch
+      summary: Trigger embedding generation for multiple objects
+      description: >-
+        Enqueues embedding jobs for the specified graph objects. Jobs will be
+        processed asynchronously by the embedding worker. Idempotent: if a job
+        is already pending/processing for an object, that job is skipped.
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerEmbeddingsBatchDto'
+      responses:
+        '201':
+          description: Embedding jobs created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmbeddingJobResponseDto'
+      tags: *ref_10
+  /graph/embeddings/regenerate-project:
+    post:
+      operationId: triggerEmbeddingsProject
+      summary: Trigger embedding regeneration for all objects in a project
+      description: >-
+        Enqueues embedding jobs for all graph objects in the specified project.
+        Optionally filter by object type. Use force=true to regenerate
+        embeddings even if they already exist. Jobs will be processed
+        asynchronously by the embedding worker.
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerEmbeddingsProjectDto'
+      responses:
+        '201':
+          description: Embedding jobs created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmbeddingJobResponseDto'
+        '400':
+          description: Invalid project ID
+      tags: *ref_10
   /graph/branches:
     post:
       operationId: create
@@ -3314,7 +3442,7 @@ paths:
                   error:
                     code: product_version_name_exists
                     message: Name already exists
-      tags: &ref_10
+      tags: &ref_11
         - Product Versions
     get:
       operationId: list
@@ -3348,7 +3476,7 @@ paths:
                       member_count: 42
                       base_product_version_id: null
                   next_cursor: '2025-01-01T00:00:00Z'
-      tags: *ref_10
+      tags: *ref_11
   /product-versions/{id}:
     get:
       operationId: get
@@ -3361,7 +3489,7 @@ paths:
       responses:
         '200':
           description: Get product version snapshot
-      tags: *ref_10
+      tags: *ref_11
   /product-versions/{id}/diff/{otherId}:
     get:
       operationId: diff
@@ -3393,7 +3521,7 @@ paths:
                     removed: 2
                     modified: 10
                     unchanged: 100
-      tags: *ref_10
+      tags: *ref_11
   /tags:
     post:
       operationId: create
@@ -3425,7 +3553,7 @@ paths:
                   error:
                     code: tag_name_exists
                     message: Tag name already exists
-      tags: &ref_11
+      tags: &ref_12
         - Tags
     get:
       operationId: list
@@ -3456,7 +3584,7 @@ paths:
                       description: null
                       created_at: '2025-09-30T00:00:00Z'
                   next_cursor: '2025-09-30T00:00:00Z'
-      tags: *ref_11
+      tags: *ref_12
   /tags/{id}:
     get:
       operationId: get
@@ -3471,7 +3599,7 @@ paths:
           description: Get tag by ID
         '404':
           description: Tag not found
-      tags: *ref_11
+      tags: *ref_12
     put:
       operationId: update
       parameters:
@@ -3491,7 +3619,7 @@ paths:
           description: Update tag
         '404':
           description: Tag not found
-      tags: *ref_11
+      tags: *ref_12
     delete:
       operationId: delete
       parameters:
@@ -3505,7 +3633,7 @@ paths:
           description: Tag deleted
         '404':
           description: Tag not found
-      tags: *ref_11
+      tags: *ref_12
   /tags/by-name/{name}:
     get:
       operationId: getByName
@@ -3520,7 +3648,7 @@ paths:
           description: Get tag by name
         '404':
           description: Tag not found
-      tags: *ref_11
+      tags: *ref_12
   /type-registry/projects/{projectId}:
     get:
       operationId: getProjectTypes
@@ -3737,9 +3865,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_12
+      tags: &ref_13
         - Notifications
-      security: &ref_13
+      security: &ref_14
         - bearer: []
     delete:
       operationId: clearAll
@@ -3793,8 +3921,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_13
+      security: *ref_14
   /notifications/counts:
     get:
       operationId: getUnreadCounts
@@ -3839,8 +3967,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_13
+      security: *ref_14
   /notifications/stats:
     get:
       operationId: getStats
@@ -3885,8 +4013,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_13
+      security: *ref_14
   /notifications/{id}/read:
     post:
       operationId: markRead
@@ -3937,8 +4065,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_13
+      security: *ref_14
   /notifications/{id}/unread:
     post:
       operationId: markUnread
@@ -3989,8 +4117,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_13
+      security: *ref_14
   /notifications/{id}/dismiss:
     post:
       operationId: dismiss
@@ -4041,8 +4169,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_13
+      security: *ref_14
   /notifications/{id}:
     delete:
       operationId: clear
@@ -4093,8 +4221,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_13
+      security: *ref_14
   /notifications/{id}/unclear:
     post:
       operationId: unclear
@@ -4145,8 +4273,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_13
+      security: *ref_14
   /notifications/{id}/snooze:
     post:
       operationId: snooze
@@ -4203,8 +4331,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_13
+      security: *ref_14
   /notifications/{id}/unsnooze:
     post:
       operationId: unsnooze
@@ -4255,8 +4383,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
-      security: *ref_13
+      tags: *ref_13
+      security: *ref_14
   /monitoring/extraction-jobs:
     get:
       operationId: listExtractionJobs
@@ -4320,9 +4448,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourceListResponseDto'
-      tags: &ref_14
+      tags: &ref_15
         - monitoring
-      security: &ref_15
+      security: &ref_16
         - bearer: []
   /monitoring/extraction-jobs/{id}:
     get:
@@ -4343,8 +4471,8 @@ paths:
                 $ref: '#/components/schemas/ResourceDetailResponseDto'
         '404':
           description: Job not found
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_15
+      security: *ref_16
   /monitoring/extraction-jobs/{id}/logs:
     get:
       operationId: getExtractionJobLogs
@@ -4396,8 +4524,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LogEntryDto'
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_15
+      security: *ref_16
   /monitoring/extraction-jobs/{id}/llm-calls:
     get:
       operationId: getExtractionJobLLMCalls
@@ -4417,8 +4545,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LLMCallDto'
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_15
+      security: *ref_16
   /chat/conversations:
     get:
       operationId: listConversations
@@ -4469,7 +4597,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_16
+      tags: &ref_17
         - Chat
     post:
       operationId: createConversation
@@ -4493,7 +4621,7 @@ paths:
                   error:
                     code: bad-request
                     message: message required
-      tags: *ref_16
+      tags: *ref_17
   /chat/{id}:
     get:
       operationId: getConversation
@@ -4551,7 +4679,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_16
+      tags: *ref_17
     patch:
       operationId: rename
       parameters:
@@ -4588,7 +4716,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_16
+      tags: *ref_17
     delete:
       operationId: delete
       parameters:
@@ -4615,7 +4743,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_16
+      tags: *ref_17
   /chat/{id}/stream:
     get:
       operationId: streamGet
@@ -4686,7 +4814,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_16
+      tags: *ref_17
   /chat/stream:
     post:
       operationId: streamPost
@@ -4784,7 +4912,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_16
+      tags: *ref_17
   /invites/with-user:
     post:
       operationId: createWithUser
@@ -4979,9 +5107,9 @@ paths:
           description: Available integrations retrieved successfully
         '401':
           description: Unauthorized
-      tags: &ref_17
+      tags: &ref_18
         - Integrations
-      security: &ref_18
+      security: &ref_19
         - bearer: []
   /integrations:
     get:
@@ -4994,8 +5122,8 @@ paths:
           description: Integrations retrieved successfully
         '401':
           description: Unauthorized
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_18
+      security: *ref_19
     post:
       operationId: createIntegration
       summary: Create integration
@@ -5016,8 +5144,8 @@ paths:
           description: Unauthorized
         '409':
           description: Integration already exists for this project
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_18
+      security: *ref_19
   /integrations/{name}:
     get:
       operationId: getIntegration
@@ -5037,8 +5165,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_18
+      security: *ref_19
     put:
       operationId: updateIntegration
       summary: Update integration
@@ -5065,8 +5193,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_18
+      security: *ref_19
     delete:
       operationId: deleteIntegration
       summary: Delete integration
@@ -5085,8 +5213,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_18
+      security: *ref_19
   /integrations/{name}/public:
     get:
       operationId: getPublicIntegrationInfo
@@ -5106,8 +5234,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_18
+      security: *ref_19
   /integrations/{name}/test:
     post:
       operationId: testConnection
@@ -5127,8 +5255,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_18
+      security: *ref_19
   /integrations/{name}/sync/stream:
     get:
       operationId: triggerSyncStream
@@ -5144,8 +5272,8 @@ paths:
       responses:
         '200':
           description: SSE stream started
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_18
+      security: *ref_19
   /integrations/{name}/sync:
     post:
       operationId: triggerSync
@@ -5167,8 +5295,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_18
+      security: *ref_19
   /integrations/clickup/structure:
     get:
       operationId: getClickUpWorkspaceStructure
@@ -5184,8 +5312,8 @@ paths:
           description: Unauthorized
         '404':
           description: ClickUp integration not found or not configured
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_18
+      security: *ref_19
   /integrations/clickup/spaces/{spaceId}:
     get:
       operationId: getClickUpSpace
@@ -5203,8 +5331,8 @@ paths:
           description: Space details retrieved successfully
         '404':
           description: ClickUp integration not found or space not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_18
+      security: *ref_19
   /integrations/clickup/folders/{folderId}:
     get:
       operationId: getClickUpFolder
@@ -5222,8 +5350,8 @@ paths:
           description: Folder details retrieved successfully
         '404':
           description: ClickUp integration not found or folder not found
-      tags: *ref_17
-      security: *ref_18
+      tags: *ref_18
+      security: *ref_19
   /mcp/schema/version:
     get:
       operationId: getSchemaVersion
@@ -5260,9 +5388,9 @@ paths:
                     details:
                       missing:
                         - schema:read
-      tags: &ref_19
+      tags: &ref_20
         - MCP
-      security: &ref_20
+      security: &ref_21
         - bearer: []
   /mcp/schema/changelog:
     get:
@@ -5310,8 +5438,8 @@ paths:
                     details:
                       missing:
                         - schema:read
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_20
+      security: *ref_21
   /mcp/rpc:
     post:
       operationId: handleRpc
@@ -5479,9 +5607,9 @@ paths:
                   $ref: '#/components/schemas/OrgWithProjectsDto'
         '401':
           description: Unauthorized
-      tags: &ref_21
+      tags: &ref_22
         - user
-      security: &ref_22
+      security: &ref_23
         - bearer: []
   /user/delete-account:
     post:
@@ -5521,8 +5649,8 @@ paths:
                     type: number
         '401':
           description: Unauthorized
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /user/test-cleanup:
     post:
       operationId: testCleanup
@@ -5533,8 +5661,8 @@ paths:
           description: Test data cleaned up successfully
         '403':
           description: Forbidden - not a test environment or test user
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /chat-ui/conversations:
     get:
       operationId: getConversations
@@ -5542,7 +5670,7 @@ paths:
       responses:
         '200':
           description: List user conversations
-      tags: &ref_23
+      tags: &ref_24
         - Chat UI
   /chat-ui/conversations/{id}:
     get:
@@ -5556,7 +5684,7 @@ paths:
       responses:
         '200':
           description: Get conversation details
-      tags: *ref_23
+      tags: *ref_24
     patch:
       operationId: updateConversation
       parameters:
@@ -5568,7 +5696,7 @@ paths:
       responses:
         '200':
           description: Update conversation title
-      tags: *ref_23
+      tags: *ref_24
     delete:
       operationId: deleteConversation
       parameters:
@@ -5580,7 +5708,7 @@ paths:
       responses:
         '200':
           description: Delete conversation
-      tags: *ref_23
+      tags: *ref_24
   /chat-ui/conversations/{id}/draft:
     patch:
       operationId: updateConversationDraft
@@ -5593,7 +5721,7 @@ paths:
       responses:
         '200':
           description: Update conversation draft text
-      tags: *ref_23
+      tags: *ref_24
   /chat-ui:
     post:
       operationId: chat
@@ -5612,7 +5740,7 @@ paths:
               schema:
                 type: string
                 description: Server-sent events stream
-      tags: *ref_23
+      tags: *ref_24
   /chat-sdk/conversations:
     post:
       operationId: createConversation
@@ -5630,7 +5758,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreateConversationResponseDto'
-      tags: &ref_24
+      tags: &ref_25
         - Chat SDK
   /chat-sdk:
     post:
@@ -5650,7 +5778,7 @@ paths:
               schema:
                 type: string
                 description: Vercel AI SDK UI Message protocol stream
-      tags: *ref_24
+      tags: *ref_25
 info:
   title: Spec Server API
   description: >-
@@ -6068,13 +6196,13 @@ components:
           type: string
           description: Deletion status
           example: deleted
-          enum: &ref_25
+          enum: &ref_26
             - deleted
             - partial
         summary:
           type: object
           description: Summary of deleted entities
-          example: &ref_26
+          example: &ref_27
             chunks: 42
             extractionJobs: 3
             graphObjects: 15
@@ -6090,11 +6218,11 @@ components:
           type: string
           description: Deletion status
           example: deleted
-          enum: *ref_25
+          enum: *ref_26
         summary:
           type: object
           description: Summary of deleted entities
-          example: *ref_26
+          example: *ref_27
         deleted:
           type: number
           description: Number of documents successfully deleted
@@ -7254,6 +7382,72 @@ components:
         - fast_forward_count
         - conflict_count
         - objects
+    TriggerEmbeddingsBatchDto:
+      type: object
+      properties:
+        objectIds:
+          description: Array of object IDs to generate embeddings for
+          example:
+            - 123e4567-e89b-12d3-a456-426614174000
+            - 123e4567-e89b-12d3-a456-426614174001
+          type: array
+          items:
+            type: string
+        priority:
+          type: number
+          description: Priority for embedding jobs (higher = processed first)
+          example: 10
+          default: 0
+      required:
+        - objectIds
+    EmbeddingJobResponseDto:
+      type: object
+      properties:
+        enqueued:
+          type: number
+          description: Number of jobs enqueued
+          example: 10
+        skipped:
+          type: number
+          description: Number of jobs that were already pending/processing
+          example: 2
+        jobIds:
+          description: Array of job IDs that were created or found
+          example:
+            - job-1
+            - job-2
+          type: array
+          items:
+            type: string
+      required:
+        - enqueued
+        - skipped
+        - jobIds
+    TriggerEmbeddingsProjectDto:
+      type: object
+      properties:
+        projectId:
+          type: string
+          description: Project ID to regenerate embeddings for
+          example: 123e4567-e89b-12d3-a456-426614174000
+        objectType:
+          type: string
+          description: >-
+            Object type filter (if specified, only regenerate embeddings for
+            this type)
+          example: Person
+        priority:
+          type: number
+          description: Priority for embedding jobs (higher = processed first)
+          example: 10
+          default: 0
+        force:
+          type: boolean
+          description: Force regeneration even if embedding already exists
+          example: false
+          default: false
+      required:
+        - projectId
     CreateProductVersionDto:
       type: object
       properties: {}

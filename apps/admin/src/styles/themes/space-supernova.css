@@ -1,0 +1,29 @@
+/* Supernova Theme
+   A bright, fiery theme with orange and yellow accents on a dark base.
+   Energetic and explosive. */
+
+@plugin "daisyui/theme" {
+  name: "space-supernova";
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(15% 0.02 60); /* #2b1d0e */
+  --color-base-200: oklch(20% 0.02 60); /* #3c2a1a */
+  --color-base-300: oklch(25% 0.02 60); /* #4e3825 */
+  --color-base-content: oklch(90% 0.01 60); /* #e8e2dc */
+
+  /* Primary - Bright Fiery Orange */
+  --color-primary: oklch(70% 0.25 50); /* #ff7700 */
+  --color-primary-content: oklch(15% 0.02 60);
+
+  /* Secondary - Bright Yellow */
+  --color-secondary: oklch(85% 0.22 90);
+  --color-secondary-content: oklch(15% 0.02 60);
+
+  /* Accent - A deep red for highlights */
+  --color-accent: oklch(60% 0.25 25);
+  --color-accent-content: oklch(90% 0.01 60);
+
+  --color-neutral: oklch(25% 0.02 60);
+  --color-neutral-content: oklch(90% 0.01 60);
+}

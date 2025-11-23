@@ -1,0 +1,29 @@
+/* Cosmic Theme
+   A playful theme with a mix of pink, purple, and blue.
+   Fun and vibrant. */
+
+@plugin "daisyui/theme" {
+  name: "space-cosmic";
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(20% 0.02 270); /* #292033 */
+  --color-base-200: oklch(25% 0.02 270); /* #3a2e45 */
+  --color-base-300: oklch(30% 0.02 270); /* #4b3d58 */
+  --color-base-content: oklch(92% 0.01 270); /* #e7e2ed */
+
+  /* Primary - Bright Pink */
+  --color-primary: oklch(70% 0.25 340); /* #ff4081 */
+  --color-primary-content: oklch(20% 0.02 270);
+
+  /* Secondary - Bright Blue */
+  --color-secondary: oklch(68% 0.2 250);
+  --color-secondary-content: oklch(20% 0.02 270);
+
+  /* Accent - Bright Purple */
+  --color-accent: oklch(65% 0.22 290);
+  --color-accent-content: oklch(20% 0.02 270);
+
+  --color-neutral: oklch(30% 0.02 270);
+  --color-neutral-content: oklch(92% 0.01 270);
+}

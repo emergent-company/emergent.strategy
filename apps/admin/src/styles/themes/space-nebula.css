@@ -1,0 +1,29 @@
+/* Nebula Theme
+   A purple and pink focused theme, inspired by nebula clouds.
+   Mysterious and vibrant. */
+
+@plugin "daisyui/theme" {
+  name: "space-nebula";
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(18% 0.02 280); /* #241b2f */
+  --color-base-200: oklch(23% 0.02 280); /* #342a40 */
+  --color-base-300: oklch(28% 0.02 280); /* #453952 */
+  --color-base-content: oklch(92% 0.01 280); /* #e6e0ea */
+
+  /* Primary - Bright Magenta/Pink */
+  --color-primary: oklch(70% 0.22 330); /* #f43f8a */
+  --color-primary-content: oklch(92% 0.01 280);
+
+  /* Secondary - Deep Purple */
+  --color-secondary: oklch(60% 0.2 290);
+  --color-secondary-content: oklch(92% 0.01 280);
+
+  /* Accent - A bright cyan for contrast */
+  --color-accent: oklch(75% 0.18 200);
+  --color-accent-content: oklch(18% 0.02 280);
+
+  --color-neutral: oklch(28% 0.02 280);
+  --color-neutral-content: oklch(92% 0.01 280);
+}
