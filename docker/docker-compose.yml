@@ -18,6 +18,7 @@ services:
         
         # Export secrets using service token
         infisical export \
+          --token="$${INFISICAL_TOKEN}" \
           --env="$${INFISICAL_ENVIRONMENT:-dev}" \
           --projectId="$${INFISICAL_PROJECT_ID}" \
           --path="/workspace" \
