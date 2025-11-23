@@ -52,6 +52,7 @@
     "chrome:debug:status": "./scripts/start-chrome-debug.sh --status",
     "migrate-secrets": "tsx scripts/migrate-secrets-to-infisical.ts",
     "migrate-secrets:dry-run": "tsx scripts/migrate-secrets-to-infisical.ts -- --dry-run",
+    "audit-infisical-duplicates": "tsx scripts/audit-infisical-duplicates.ts",
     "db:e2e:clean": "docker compose -f docker/e2e/docker-compose.yml down -v",
     "db:e2e:wait": "until docker compose -f docker/e2e/docker-compose.yml exec -T db pg_isready -U spec -d spec_e2e; do sleep 1; done",
     "test:e2e": "npm run db:e2e:restart && npm run db:e2e:wait && npm run db:e2e:migrate && nx run server:test-e2e && npm run db:e2e:down",
