@@ -2,12 +2,13 @@
 
 This guide explains how to configure Coolify to deploy the spec-server-2 project with Infisical secrets management.
 
-## Quick Setup (3 Variables Only!)
+## Quick Setup (4 Variables Required!)
 
 In Coolify, set these environment variables:
 
 ```bash
 # Required - Infisical credentials
+INFISICAL_API_URL=https://infiscal.kucharz.net
 INFISICAL_TOKEN=st.your-dev-token-here
 INFISICAL_ENVIRONMENT=dev
 INFISICAL_PROJECT_ID=2c273128-5d01-4156-a134-be9511d99c61
@@ -17,7 +18,16 @@ INFISICAL_PROJECT_ID=2c273128-5d01-4156-a134-be9511d99c61
 
 ## Where to Get These Values
 
-### 1. INFISICAL_TOKEN
+### 1. INFISICAL_API_URL
+
+**Fixed value for self-hosted Infisical:**
+```
+https://infiscal.kucharz.net
+```
+
+This tells the Infisical CLI to use your self-hosted instance instead of the default cloud instance.
+
+### 2. INFISICAL_TOKEN
 
 **IMPORTANT:** The token must be a **Service Token** (not a personal access token).
 
@@ -38,14 +48,14 @@ INFISICAL_PROJECT_ID=2c273128-5d01-4156-a134-be9511d99c61
 - ❌ Token for wrong environment
 - ❌ Token without access to `/workspace` folder
 
-### 2. INFISICAL_ENVIRONMENT
+### 3. INFISICAL_ENVIRONMENT
 
 Choose one:
 - `dev` - Development environment
 - `staging` - Staging environment
 - `production` - Production environment
 
-### 3. INFISICAL_PROJECT_ID
+### 4. INFISICAL_PROJECT_ID
 
 **Fixed value for this project:**
 ```
