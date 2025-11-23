@@ -75,13 +75,26 @@ services:
     depends_on:
       infisical-secrets:
         condition: service_healthy
-    env_file:
-      - /secrets/.env.infisical
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER:-spec}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-spec}
-      - POSTGRES_DB=${POSTGRES_DB:-spec}
-      - ZITADEL_DB_PASSWORD=${ZITADEL_DB_PASSWORD:-zitadel}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Source secrets from Infisical sidecar before starting postgres
+        set -a
+        . /secrets/.env.infisical
+        set +a
+        # Start postgres with all config from Infisical
+        exec docker-entrypoint.sh postgres \
+          -c log_destination=stderr \
+          -c logging_collector=on \
+          -c log_directory=/var/log/postgresql \
+          -c log_filename=postgresql-%Y-%m-%d.log \
+          -c log_rotation_age=1d \
+          -c log_truncate_on_rotation=on \
+          -c log_statement=$${POSTGRES_LOG_STATEMENT:-none} \
+          -c log_connections=on \
+          -c log_disconnections=on \
+          -c log_duration=off \
+          -c log_line_prefix='%t [%p] %u@%d '
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -121,14 +134,19 @@ services:
         condition: service_healthy
       infisical-secrets:
         condition: service_healthy
-    env_file:
-      - ./zitadel.env
-      - /secrets/.env.infisical
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Source secrets from Infisical sidecar volume
+        set -a
+        . /secrets/.env.infisical
+        set +a
+        # Start Zitadel with all config from Infisical
+        exec /app/zitadel start-from-init --masterkeyFromEnv
     volumes:
       - .:/current-dir:delegated
       - ../secrets/bootstrap:/machinekey
       - infisical_secrets:/secrets:ro
-    command: ["start-from-init", "--masterkeyFromEnv"]
     ports:
       - "${ZITADEL_HTTP_PORT:-8100}:8080" # Zitadel HTTP (API) - configurable to avoid conflicts
       - "${ZITADEL_LOGIN_PORT:-8101}:3000" # Zitadel Login v2 (Next.js) - configurable
@@ -162,12 +180,19 @@ services:
         condition: service_healthy
       infisical-secrets:
         condition: service_healthy
-    env_file:
-      - /secrets/.env.infisical
-    environment:
-      - ZITADEL_API_URL=http://localhost:${ZITADEL_HTTP_PORT:-8100}
-      - NEXT_PUBLIC_BASE_PATH=/ui/v2/login
-      - ZITADEL_SERVICE_USER_TOKEN_FILE=/current-dir/login-client.pat
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Source secrets from Infisical sidecar
+        set -a
+        . /secrets/.env.infisical
+        set +a
+        # Override specific environment variables for login service
+        export ZITADEL_API_URL=http://localhost:$${ZITADEL_HTTP_PORT:-8100}
+        export NEXT_PUBLIC_BASE_PATH=/ui/v2/login
+        export ZITADEL_SERVICE_USER_TOKEN_FILE=/current-dir/login-client.pat
+        # Start login service
+        exec node server.js
     volumes:
       - .:/current-dir:ro
       - infisical_secrets:/secrets:ro
