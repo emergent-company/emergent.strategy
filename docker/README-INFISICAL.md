@@ -52,7 +52,7 @@ Edit `docker/.env` and add your token:
 
 ```bash
 # Infisical Configuration
-INFISICAL_TOKEN_DEV=st.your-dev-token-here
+INFISICAL_TOKEN=st.your-dev-token-here
 
 # Optional: Fallback values if Infisical unavailable
 POSTGRES_USER=spec
@@ -228,7 +228,7 @@ docker compose --profile infisical run --rm infisical-secrets export --format=do
 docker compose down
 
 # 2. Add token to docker/.env
-echo "INFISICAL_TOKEN_DEV=st.your-token" >> docker/.env
+echo "INFISICAL_TOKEN=st.your-token" >> docker/.env
 
 # 3. Start with Infisical
 docker compose --profile infisical up -d
