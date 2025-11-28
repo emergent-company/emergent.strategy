@@ -5,7 +5,7 @@ import path from 'node:path';
 const execAsync = promisify(exec);
 
 // Default Docker Compose file path
-const DEFAULT_COMPOSE_FILE = 'docker/docker-compose.yml';
+const DEFAULT_COMPOSE_FILE = 'docker-compose.dev.yml';
 // Default Docker Compose project name
 const DEFAULT_PROJECT_NAME = 'spec-server-2';
 

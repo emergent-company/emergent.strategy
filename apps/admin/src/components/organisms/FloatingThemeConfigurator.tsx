@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Icon } from '@/components/atoms/Icon';
 import { Button } from '@/components/atoms/Button';
+import { useSwitcherPanel } from '@/contexts/switcher-panel';
 
 /**
  * Floating Theme Configurator
@@ -63,7 +64,9 @@ function oklchToHex(oklch: string): string {
   g = Math.max(0, Math.min(255, Math.round(g * 255)));
   bl = Math.max(0, Math.min(255, Math.round(bl * 255)));
 
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${bl.toString(16).padStart(2, '0')}`;
+  return `#${r.toString(16).padStart(2, '0')}${g
+    .toString(16)
+    .padStart(2, '0')}${bl.toString(16).padStart(2, '0')}`;
 }
 
 function hexToOklch(hex: string): string {
@@ -87,9 +90,12 @@ function hexToOklch(hex: string): string {
   const yn = 1.0;
   const zn = 1.089;
 
-  const fx = x / xn > 0.008856 ? (x / xn) ** (1 / 3) : 7.787 * (x / xn) + 16 / 116;
-  const fy = y / yn > 0.008856 ? (y / yn) ** (1 / 3) : 7.787 * (y / yn) + 16 / 116;
-  const fz = z / zn > 0.008856 ? (z / zn) ** (1 / 3) : 7.787 * (z / zn) + 16 / 116;
+  const fx =
+    x / xn > 0.008856 ? (x / xn) ** (1 / 3) : 7.787 * (x / xn) + 16 / 116;
+  const fy =
+    y / yn > 0.008856 ? (y / yn) ** (1 / 3) : 7.787 * (y / yn) + 16 / 116;
+  const fz =
+    z / zn > 0.008856 ? (z / zn) ** (1 / 3) : 7.787 * (z / zn) + 16 / 116;
 
   // Convert to OKLCH
   const l = 1.16 * fy - 0.16;
@@ -292,7 +298,8 @@ const THEME_VARIABLES: ThemeVariable[] = [
 ];
 
 export function FloatingThemeConfigurator() {
-  const [isOpen, setIsOpen] = useState(false);
+  const { openPanel, togglePanel } = useSwitcherPanel();
+  const isOpen = openPanel === 'theme-config';
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [variables, setVariables] = useState<Record<string, string>>({});
   const [activeCategory, setActiveCategory] = useState<
@@ -307,18 +314,18 @@ export function FloatingThemeConfigurator() {
     variables: string[];
   } | null>(null);
 
-  // Load saved theme or defaults
+  // Load saved theme (only apply if user has customized)
   useEffect(() => {
     const saved = localStorage.getItem('theme-configurator-values');
     if (saved) {
       try {
         setVariables(JSON.parse(saved));
       } catch {
-        initializeDefaults();
+        // On parse error, don't apply anything - let CSS themes work
+        setVariables({});
       }
-    } else {
-      initializeDefaults();
     }
+    // Don't initialize defaults - let CSS themes handle it
   }, []);
 
   const initializeDefaults = () => {
@@ -329,8 +336,11 @@ export function FloatingThemeConfigurator() {
     setVariables(defaults);
   };
 
-  // Apply theme variables to document
+  // Apply theme variables to document ONLY when user has explicitly customized
   useEffect(() => {
+    // Only apply inline styles if there are actually saved custom values
+    if (Object.keys(variables).length === 0) return;
+
     const root = document.documentElement;
     Object.entries(variables).forEach(([name, value]) => {
       root.style.setProperty(name, value);
@@ -403,23 +413,23 @@ export function FloatingThemeConfigurator() {
 
     const handleHover = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      
+
       // Skip if hovering over configurator itself
       if (target.closest('.theme-configurator-panel')) {
         setHoveredElement(null);
         return;
       }
-      
+
       const usedVars: Set<string> = new Set();
-      
+
       // Strategy: Check all CSS custom properties defined on the element and ancestors
       // These are the variables that could be affecting the element's appearance
       let currentElement: HTMLElement | null = target;
-      
+
       // Walk up the DOM tree to collect all custom properties
       while (currentElement) {
         const computedStyle = window.getComputedStyle(currentElement);
-        
+
         // Get all custom properties (CSS variables) from computed style
         // This includes properties from :root and inherited values
         for (let i = 0; i < computedStyle.length; i++) {
@@ -431,12 +441,12 @@ export function FloatingThemeConfigurator() {
             }
           }
         }
-        
+
         // Only check up to documentElement (html), not beyond
         if (currentElement === document.documentElement) break;
         currentElement = currentElement.parentElement;
       }
-      
+
       // Also check the actual CSS rules that apply to this element
       // by inspecting matching stylesheets
       try {
@@ -474,17 +484,26 @@ export function FloatingThemeConfigurator() {
       } catch (e) {
         console.warn('Error inspecting stylesheets:', e);
       }
-      
+
       // Update state only if variables changed or element changed
       const varsArray = Array.from(usedVars).sort();
-      
+
       if (varsArray.length > 0) {
         setHoveredElement((prev) => {
           // Only update if different element or different variables
-          if (!prev || prev.element !== target || 
-              prev.variables.length !== varsArray.length ||
-              !prev.variables.every((v, i) => varsArray[i] === v)) {
-            console.log('Detected variables for', target.tagName, target.className, ':', varsArray);
+          if (
+            !prev ||
+            prev.element !== target ||
+            prev.variables.length !== varsArray.length ||
+            !prev.variables.every((v, i) => varsArray[i] === v)
+          ) {
+            console.log(
+              'Detected variables for',
+              target.tagName,
+              target.className,
+              ':',
+              varsArray
+            );
             return { element: target, variables: varsArray };
           }
           return prev;
@@ -495,7 +514,7 @@ export function FloatingThemeConfigurator() {
     };
 
     document.addEventListener('mousemove', handleHover);
-    
+
     return () => {
       document.removeEventListener('mousemove', handleHover);
     };
@@ -509,7 +528,7 @@ export function FloatingThemeConfigurator() {
   if (!isOpen) {
     return (
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={() => togglePanel('theme-config')}
         className="fixed bottom-6 right-[15rem] btn btn-primary btn-circle btn-lg shadow-xl z-[9999] hover:scale-110 transition-transform"
         title="Open Theme Configurator"
       >
@@ -541,7 +560,9 @@ export function FloatingThemeConfigurator() {
         </div>
         <div className="flex items-center gap-1">
           <button
-            className={`btn btn-xs ${hoverMode ? 'btn-primary' : 'btn-ghost'} btn-square`}
+            className={`btn btn-xs ${
+              hoverMode ? 'btn-primary' : 'btn-ghost'
+            } btn-square`}
             onClick={() => {
               setHoverMode(!hoverMode);
               setHoveredElement(null);
@@ -562,7 +583,7 @@ export function FloatingThemeConfigurator() {
           </button>
           <button
             className="btn btn-xs btn-ghost btn-square"
-            onClick={() => setIsOpen(false)}
+            onClick={() => togglePanel(null)}
             title="Close"
           >
             <Icon icon="lucide--x" className="size-4" />
@@ -607,7 +628,8 @@ export function FloatingThemeConfigurator() {
             <div className="p-3 bg-primary/10 border-t border-primary/20 theme-configurator-panel">
               <div className="text-xs font-semibold text-primary mb-1">
                 Hovering: {hoveredElement.element.tagName.toLowerCase()}
-                {hoveredElement.element.className && ` .${hoveredElement.element.className.split(' ')[0]}`}
+                {hoveredElement.element.className &&
+                  ` .${hoveredElement.element.className.split(' ')[0]}`}
               </div>
               <div className="text-xs text-base-content/70">
                 <span className="font-semibold">Using variables:</span>
@@ -630,7 +652,7 @@ export function FloatingThemeConfigurator() {
             {filteredVariables.map((variable) => {
               const isColor = variable.name.includes('color');
               const currentValue = variables[variable.name] || variable.value;
-              
+
               return (
                 <div
                   key={variable.name}
@@ -682,11 +704,16 @@ export function FloatingThemeConfigurator() {
                         </div>
                         {currentValue !== variable.value && (
                           <button
-                            onClick={() => updateVariable(variable.name, variable.value)}
+                            onClick={() =>
+                              updateVariable(variable.name, variable.value)
+                            }
                             className="btn btn-xs btn-ghost btn-square"
                             title="Reset to default"
                           >
-                            <Icon icon="lucide--rotate-ccw" className="size-3" />
+                            <Icon
+                              icon="lucide--rotate-ccw"
+                              className="size-3"
+                            />
                           </button>
                         )}
                       </>

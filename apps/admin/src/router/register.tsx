@@ -145,6 +145,10 @@ const otherRoutes: IRoutesProps[] = [
     path: '/automation',
     element: cw(lazy(() => import('@/pages/automation'))),
   },
+  {
+    path: '/emergent-core',
+    element: cw(lazy(() => import('@/pages/emergent-core'))),
+  },
   { path: '/chat', element: cw(lazy(() => import('@/pages/chat'))) },
   {
     path: '/chat-sdk/:id?',

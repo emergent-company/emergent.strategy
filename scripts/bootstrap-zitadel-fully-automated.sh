@@ -8,14 +8,55 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Load ENVIRONMENT from .env file if it exists
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | grep -E '^ENVIRONMENT=' | xargs)
+fi
+
+# Load INFISICAL_TOKEN and other secrets from .env.local if it exists
+if [ -f .env.local ]; then
+    set -a
+    source .env.local
+    set +a
+fi
+
 # Parse command line arguments
 MODE="${1:-provision}"
+PUSH_TO_INFISICAL=false
+INFISICAL_ENV="${ENVIRONMENT:-local}"  # Use ENVIRONMENT from .env, default to local
+INFISICAL_PATH="/server"
+
+# Parse all arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --push-to-infisical)
+            PUSH_TO_INFISICAL=true
+            shift
+            ;;
+        --infisical-env)
+            INFISICAL_ENV="$2"
+            shift 2
+            ;;
+        --infisical-path)
+            INFISICAL_PATH="$2"
+            shift 2
+            ;;
+        provision|status|test|verify|regenerate|help|--help|-h)
+            MODE="$1"
+            shift
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}"
+            exit 1
+            ;;
+    esac
+done
 
 # Show help if requested
-if [ "$MODE" = "--help" ] || [ "$MODE" = "-h" ]; then
+if [ "$MODE" = "--help" ] || [ "$MODE" = "-h" ] || [ "$MODE" = "help" ]; then
     echo -e "${BLUE}Zitadel Bootstrap Script (Fully Automated)${NC}"
     echo ""
-    echo "Usage: $0 [MODE]"
+    echo "Usage: $0 [MODE] [OPTIONS]"
     echo ""
     echo "Modes:"
     echo "  provision    - Full setup: create org, project, service accounts (default)"
@@ -25,24 +66,42 @@ if [ "$MODE" = "--help" ] || [ "$MODE" = "-h" ]; then
     echo "  regenerate   - Regenerate service account JWT keys"
     echo "  help         - Show this help message"
     echo ""
-    echo "Environment Variables:"
-    echo "  ZITADEL_DOMAIN      - Zitadel domain (default: localhost:8200)"
-    echo "  ORG_NAME            - Organization name (default: Spec Organization)"
-    echo "  PROJECT_NAME        - Project name (default: Spec Server)"
-    echo "  ADMIN_USER_EMAIL      - Admin user email (default: admin@spec.local)"
-    echo "  ADMIN_USER_PASSWORD   - Admin user password (default: AdminPassword123!)"
-    echo "  TEST_USER_EMAIL       - Test user email (default: test@example.com)"
-    echo "  TEST_USER_PASSWORD    - Test user password (default: TestPassword123!)"
-    echo "  E2E_TEST_USER_EMAIL   - E2E test user email (default: e2e-test@example.com)"
-    echo "  E2E_TEST_USER_PASSWORD - E2E test user password (default: E2eTestPassword123!)"
+    echo "Options:"
+    echo "  --push-to-infisical       - Automatically push generated secrets to Infisical"
+    echo "  --infisical-env ENV       - Infisical environment (default: from ENVIRONMENT in .env, or local)"
+    echo "  --infisical-path PATH     - Infisical path to push secrets (default: /server)"
+    echo ""
+    echo "Configuration:"
+    echo "  All configuration is loaded from Infisical"
+    echo "  Environment: Set ENVIRONMENT in .env file (local, dev, staging, production)"
+    echo ""
+    echo "  Authentication (choose one):"
+    echo "    1. Interactive login: infisical login && infisical init"
+    echo "    2. Service token: Set INFISICAL_TOKEN in .env.local"
+    echo "       echo 'INFISICAL_TOKEN=st.your-token-here' >> .env.local"
+    echo ""
+    echo "  Required Infisical paths:"
+    echo "    /workspace - NAMESPACE, ADMIN_PORT, SERVER_PORT"
+    echo "    /docker    - ZITADEL_DOMAIN, ZITADEL_EXTERNALDOMAIN, VITE_ZITADEL_ISSUER"
+    echo ""
+    echo "  Optional variables (with defaults):"
+    echo "    ORG_NAME                - Organization name (default: Spec Organization)"
+    echo "    PROJECT_NAME            - Project name (default: Spec Server)"
+    echo "    ADMIN_USER_EMAIL        - Admin user email (default: admin@spec.local)"
+    echo "    ADMIN_USER_PASSWORD     - Admin user password (default: AdminPassword123!)"
+    echo "    TEST_USER_EMAIL         - Test user email (default: test@example.com)"
+    echo "    TEST_USER_PASSWORD      - Test user password (default: TestPassword123!)"
+    echo "    E2E_TEST_USER_EMAIL     - E2E test user email (default: e2e-test@example.com)"
+    echo "    E2E_TEST_USER_PASSWORD  - E2E test user password (default: E2eTestPassword123!)"
     echo ""
     echo "Examples:"
-    echo "  $0                              # Full provision"
-    echo "  $0 status                       # Check configuration"
-    echo "  $0 test                         # Run comprehensive tests"
-    echo "  $0 verify                       # Detailed verification"
-    echo "  $0 regenerate                   # Regenerate keys"
-    echo "  ZITADEL_DOMAIN=auth.example.com $0 provision"
+    echo "  $0                                      # Full provision (loads config from Infisical)"
+    echo "  $0 provision --push-to-infisical        # Provision and push secrets to Infisical"
+    echo "  $0 provision --push-to-infisical --infisical-env dev"
+    echo "  $0 status                               # Check configuration"
+    echo "  $0 test                                 # Run comprehensive tests"
+    echo "  $0 verify                               # Detailed verification"
+    echo "  $0 regenerate                           # Regenerate keys"
     echo ""
     exit 0
 fi
@@ -52,25 +111,53 @@ echo -e "${BLUE}  Zitadel Bootstrap Script - Mode: ${MODE}${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
 echo ""
 
-# Load environment variables from .env - REQUIRED
-if [ ! -f ".env" ]; then
-    echo -e "${RED}Error: .env file not found${NC}"
-    echo -e "${YELLOW}Copy .env.example to .env and configure it before running this script${NC}"
+# Load environment variables from Infisical
+echo -e "${GREEN}Loading configuration from Infisical...${NC}"
+
+# Check if Infisical CLI is installed
+if ! command -v infisical &> /dev/null; then
+    echo -e "${RED}Error: Infisical CLI not found${NC}"
+    echo -e "${YELLOW}Install Infisical CLI: brew install infisical/brew/infisical${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}Loading configuration from .env${NC}"
-set -a
-# Export all variables from .env, filtering out comments and empty lines
-while IFS='=' read -r key value; do
-    # Skip if line is empty or starts with #
-    [[ -z "$key" || "$key" =~ ^# ]] && continue
-    # Export the variable (remove quotes if present)
-    value="${value%\"}"
-    value="${value#\"}"
-    export "$key=$value"
-done < <(grep -v '^#' .env | grep -v '^$' | grep -E '^[A-Z_]+=')
-set +a
+# Check if authenticated (either via login or token)
+if [ -z "$INFISICAL_TOKEN" ]; then
+    # No token, check if logged in
+    if ! infisical user &> /dev/null; then
+        echo -e "${RED}Error: Not authenticated with Infisical${NC}"
+        echo ""
+        echo -e "${YELLOW}Option 1 (Local development - recommended):${NC}"
+        echo "  Run: infisical login"
+        echo ""
+        echo -e "${YELLOW}Option 2 (CI/CD or remote - use service token):${NC}"
+        echo "  Set INFISICAL_TOKEN in .env.local:"
+        echo "  echo 'INFISICAL_TOKEN=st.your-token-here' >> .env.local"
+        echo ""
+        echo "Get your token from: https://infiscal.kucharz.net"
+        exit 1
+    fi
+    echo -e "${BLUE}Using Infisical interactive login${NC}"
+else
+    echo -e "${BLUE}Using INFISICAL_TOKEN from environment${NC}"
+fi
+
+# Build domain flag if INFISICAL_HOST is set
+DOMAIN_FLAG=""
+if [ -n "${INFISICAL_HOST:-}" ]; then
+    DOMAIN_FLAG="--domain https://${INFISICAL_HOST}/api"
+    echo -e "${BLUE}Using self-hosted Infisical: https://${INFISICAL_HOST}/api${NC}"
+fi
+
+# Load workspace secrets (NAMESPACE, ports, etc.)
+echo -e "${BLUE}Loading workspace secrets from Infisical /workspace...${NC}"
+eval "$(infisical secrets export --env=local --path=/workspace --format=dotenv-export $DOMAIN_FLAG 2>/dev/null)"
+
+# Load Docker secrets (Zitadel configuration)
+echo -e "${BLUE}Loading Docker secrets from Infisical /docker...${NC}"
+eval "$(infisical secrets export --env=local --path=/docker --format=dotenv-export $DOMAIN_FLAG 2>/dev/null)"
+
+echo -e "${GREEN}✓ Configuration loaded from Infisical${NC}"
 
 # Configuration - all values must be set in .env (no fallbacks)
 # Validate required environment variables
@@ -122,57 +209,91 @@ for var_default in "${OPTIONAL_WITH_DEFAULTS[@]}"; do
     fi
 done
 
-# Derived variables
-REDIRECT_URI="${REDIRECT_URI:-http://localhost:${SERVER_PORT}/auth/callback}"
-ADMIN_REDIRECT_URI="http://localhost:${ADMIN_PORT}/auth/callback"
-ADMIN_POST_LOGOUT_URI="http://localhost:${ADMIN_PORT}/"
-
-# Determine protocol
+# Determine protocol based on Zitadel domain
 if [[ "$ZITADEL_DOMAIN" == "localhost"* ]] || [[ "$ZITADEL_DOMAIN" == "127.0.0.1"* ]]; then
-    PROTOCOL="http"
+    ZITADEL_PROTOCOL="http"
 else
-    PROTOCOL="https"
+    ZITADEL_PROTOCOL="https"
 fi
 
-BASE_URL="${PROTOCOL}://${ZITADEL_DOMAIN}"
+# Build Zitadel issuer URL (this is where Zitadel is actually accessible)
+ZITADEL_ISSUER="${VITE_ZITADEL_ISSUER:-${ZITADEL_PROTOCOL}://${ZITADEL_DOMAIN}}"
+BASE_URL="$ZITADEL_ISSUER"
+
+# Determine application URLs based on environment
+# For local development, use localhost with configured ports
+# For production, use environment-specific domains
+if [[ "$ZITADEL_DOMAIN" == "localhost"* ]]; then
+    ADMIN_APP_URL="http://localhost:${ADMIN_PORT}"
+    SERVER_APP_URL="http://localhost:${SERVER_PORT}"
+else
+    # For production, these would come from environment
+    ADMIN_APP_URL="${ADMIN_APP_URL:-https://admin.${ZITADEL_EXTERNALDOMAIN}}"
+    SERVER_APP_URL="${SERVER_APP_URL:-https://api.${ZITADEL_EXTERNALDOMAIN}}"
+fi
+
+# Build redirect URIs using the actual application URLs
+REDIRECT_URI="${SERVER_APP_URL}/auth/callback"
+ADMIN_REDIRECT_URI="${ADMIN_APP_URL}/auth/callback"
+ADMIN_POST_LOGOUT_URI="${ADMIN_APP_URL}/"
+
+echo -e "${BLUE}Configuration derived from Infisical:${NC}"
+echo -e "  Zitadel Issuer: ${ZITADEL_ISSUER}"
+echo -e "  Admin App: ${ADMIN_APP_URL}"
+echo -e "  Server API: ${SERVER_APP_URL}"
+echo -e "  Admin Redirect URI: ${ADMIN_REDIRECT_URI}"
+echo -e "  Server Redirect URI: ${REDIRECT_URI}"
+echo ""
 
 # Function to load PAT
 load_pat() {
-    local PAT_FILE="./secrets/bootstrap/pat.txt"
+    local PAT_FILE="/machinekey/pat.txt"
     
-    if [ -f "$PAT_FILE" ]; then
-        echo -e "${GREEN}✓ Found automatic PAT file!${NC}"
-        ADMIN_PAT=$(cat "$PAT_FILE" | tr -d '\n\r')
+    # Try to read PAT from Docker container volume first
+    echo -e "${BLUE}Checking for automatic PAT in Zitadel container...${NC}"
+    ADMIN_PAT=$(docker compose -f docker-compose.dev.yml exec -T zitadel cat "$PAT_FILE" 2>/dev/null | tr -d '\n\r' || echo "")
+    
+    if [ -n "$ADMIN_PAT" ] && [ "$ADMIN_PAT" != "null" ]; then
+        echo -e "${GREEN}✓ Found automatic PAT from Zitadel container!${NC}"
+        echo -e "${GREEN}✓ PAT loaded automatically${NC}"
+        return 0
+    fi
+    
+    # Fallback: check legacy location for backwards compatibility
+    if [ -f "./secrets/bootstrap/pat.txt" ]; then
+        echo -e "${YELLOW}⚠ Using legacy PAT file location${NC}"
+        ADMIN_PAT=$(cat "./secrets/bootstrap/pat.txt" | tr -d '\n\r')
         
         if [ -z "$ADMIN_PAT" ]; then
             echo -e "${RED}Error: PAT file is empty${NC}"
             exit 1
         fi
         
-        echo -e "${GREEN}✓ PAT loaded automatically${NC}"
-        return 0
-    else
-        echo -e "${YELLOW}⚠ No automatic PAT found at ${PAT_FILE}${NC}"
-        echo ""
-        echo -e "${BLUE}Manual PAT Creation Steps:${NC}"
-        echo -e "1. Open ${BLUE}${BASE_URL}${NC}"
-        echo -e "2. Login with your admin credentials"
-        echo -e "3. Go to Organization Settings → Users"
-        echo -e "4. Click + New → Service User"
-        echo -e "5. Create a service user with admin permissions"
-        echo -e "6. In the service user's settings, go to Personal Access Tokens"
-        echo -e "7. Click + New Token"
-        echo -e "8. Copy the token"
-        echo ""
-        read -sp "Paste the Personal Access Token here: " ADMIN_PAT
-        echo ""
-        
-        if [ -z "$ADMIN_PAT" ]; then
-            echo -e "${RED}Error: No PAT provided${NC}"
-            exit 1
-        fi
+        echo -e "${GREEN}✓ PAT loaded from legacy location${NC}"
         return 0
     fi
+    
+    # No automatic PAT found - prompt for manual entry
+    echo -e "${YELLOW}⚠ No automatic PAT found in container or legacy location${NC}"
+    echo ""
+    echo -e "${BLUE}Manual PAT Creation Steps:${NC}"
+    echo -e "1. Open ${BLUE}${BASE_URL}${NC}"
+    echo -e "2. Login with your admin credentials"
+    echo -e "3. Go to Organization Settings → Users"
+    echo -e "4. Click + New → Service User"
+    echo -e "5. Create a service user with admin permissions"
+    echo -e "6. In the service user's settings, go to Personal Access Tokens"
+    echo -e "7. Click + New Token"
+    echo -e "8. Copy the token"
+    echo ""
+    read -sp "Paste the Personal Access Token here: " ADMIN_PAT
+    echo ""
+    
+    if [ -z "$ADMIN_PAT" ]; then
+        echo -e "${RED}Error: No PAT provided${NC}"
+        exit 1
+    fi
+    return 0
 }
 
 # Function to test authentication
@@ -1655,3 +1776,94 @@ echo -e "${YELLOW}Security Note:${NC}"
 echo "The bootstrap PAT is kept for re-running the script."
 echo "Your application uses the service account JWT keys instead."
 echo ""
+
+# Push to Infisical if requested
+if [ "$PUSH_TO_INFISICAL" = true ]; then
+    echo -e "\n${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}   Pushing secrets to Infisical${NC}"
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "${GREEN}Environment: ${INFISICAL_ENV}${NC}"
+    echo -e "${GREEN}Path: ${INFISICAL_PATH}${NC}"
+    echo ""
+    
+    # Check if Infisical CLI is available
+    if ! command -v infisical &> /dev/null; then
+        echo -e "${RED}Error: Infisical CLI not found${NC}"
+        echo -e "${YELLOW}Install with: brew install infisical/brew/infisical${NC}"
+        exit 1
+    fi
+    
+    # Read the client service account JWT
+    if [ -f "./secrets/zitadel-client-service-account.json" ]; then
+        CLIENT_JWT=$(cat ./secrets/zitadel-client-service-account.json)
+    else
+        echo -e "${YELLOW}⚠ Warning: Client service account JWT not found${NC}"
+        CLIENT_JWT=""
+    fi
+    
+    # Push secrets to Infisical
+    echo -e "${BLUE}Pushing Zitadel configuration...${NC}"
+    
+    # Core Zitadel configuration
+    infisical secrets set ZITADEL_ORG_ID "${ORG_ID}" --env="${INFISICAL_ENV}" --path="${INFISICAL_PATH}" $DOMAIN_FLAG --silent 2>/dev/null
+    infisical secrets set ZITADEL_PROJECT_ID "${PROJECT_ID}" --env="${INFISICAL_ENV}" --path="${INFISICAL_PATH}" $DOMAIN_FLAG --silent 2>/dev/null
+    
+    # OAuth configuration
+    if [ -n "$OAUTH_CLIENT_ID" ]; then
+        infisical secrets set ZITADEL_OAUTH_CLIENT_ID "${OAUTH_CLIENT_ID}" --env="${INFISICAL_ENV}" --path="${INFISICAL_PATH}" $DOMAIN_FLAG --silent 2>/dev/null
+    fi
+    
+    if [ -n "$OAUTH_CLIENT_SECRET" ] && [ "$OAUTH_CLIENT_SECRET" != "null" ]; then
+        infisical secrets set ZITADEL_OAUTH_CLIENT_SECRET "${OAUTH_CLIENT_SECRET}" --env="${INFISICAL_ENV}" --path="${INFISICAL_PATH}" $DOMAIN_FLAG --silent 2>/dev/null
+    fi
+    
+    # API configuration
+    if [ -n "$API_CLIENT_ID" ]; then
+        infisical secrets set ZITADEL_API_CLIENT_ID "${API_CLIENT_ID}" --env="${INFISICAL_ENV}" --path="${INFISICAL_PATH}" $DOMAIN_FLAG --silent 2>/dev/null
+    fi
+    
+    # Service account JWT (if available)
+    if [ -n "$CLIENT_JWT" ]; then
+        infisical secrets set ZITADEL_CLIENT_JWT "${CLIENT_JWT}" --env="${INFISICAL_ENV}" --path="${INFISICAL_PATH}" $DOMAIN_FLAG --silent 2>/dev/null
+    fi
+    
+    echo -e "${GREEN}✓ Pushed to Infisical:${NC}"
+    echo -e "  - ZITADEL_ORG_ID"
+    echo -e "  - ZITADEL_PROJECT_ID"
+    [ -n "$OAUTH_CLIENT_ID" ] && echo -e "  - ZITADEL_OAUTH_CLIENT_ID"
+    [ -n "$OAUTH_CLIENT_SECRET" ] && [ "$OAUTH_CLIENT_SECRET" != "null" ] && echo -e "  - ZITADEL_OAUTH_CLIENT_SECRET"
+    [ -n "$API_CLIENT_ID" ] && echo -e "  - ZITADEL_API_CLIENT_ID"
+    [ -n "$CLIENT_JWT" ] && echo -e "  - ZITADEL_CLIENT_JWT"
+    echo ""
+    
+    # Also push admin-specific configuration to /admin path
+    echo -e "${BLUE}Pushing admin configuration to /admin path...${NC}"
+    if [ -n "$OAUTH_CLIENT_ID" ]; then
+        infisical secrets set VITE_ZITADEL_CLIENT_ID "${OAUTH_CLIENT_ID}" --env="${INFISICAL_ENV}" --path="/admin" $DOMAIN_FLAG --silent 2>/dev/null
+        echo -e "${GREEN}✓ Updated VITE_ZITADEL_CLIENT_ID in /admin${NC}"
+    fi
+    
+    # Re-export .env files to pick up new values
+    echo -e "\n${BLUE}Re-exporting .env files...${NC}"
+    if [ -f "./scripts/env-export.sh" ]; then
+        ./scripts/env-export.sh --path /server --overwrite > /dev/null 2>&1 && echo -e "${GREEN}✓ Exported server .env${NC}"
+        ./scripts/env-export.sh --path /admin --overwrite > /dev/null 2>&1 && echo -e "${GREEN}✓ Exported admin .env${NC}"
+    else
+        echo -e "${YELLOW}⚠ Warning: env-export.sh not found, skipping .env export${NC}"
+    fi
+    
+    echo -e "\n${BLUE}Next steps:${NC}"
+    if [ -n "$INFISICAL_HOST" ]; then
+        echo -e "1. Verify secrets: ${BLUE}infisical secrets --env=${INFISICAL_ENV} --path=${INFISICAL_PATH} --domain=https://${INFISICAL_HOST}/api${NC}"
+    else
+        echo -e "1. Verify secrets: ${BLUE}infisical secrets --env=${INFISICAL_ENV} --path=${INFISICAL_PATH}${NC}"
+    fi
+    echo -e "2. Restart services: ${BLUE}npm run workspace:restart${NC}"
+    echo -e "3. Look for: ${GREEN}'Dual service account mode active'${NC} in logs"
+    echo ""
+else
+    echo -e "${YELLOW}Tip: Use --push-to-infisical to automatically push these secrets to Infisical${NC}"
+    echo ""
+fi
+

@@ -22,6 +22,7 @@ type AuthState = {
 
 export type AuthContextType = {
   isAuthenticated: boolean;
+  isInitialized: boolean; // Add this to track if auth state has been loaded from localStorage
   user?: AuthState['user'];
   beginLogin: () => Promise<void>; // triggers OIDC redirect
   logout: () => void;
@@ -62,26 +63,51 @@ function parseJwtPayload(token: string): any | undefined {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const [isInitialized, setIsInitialized] = useState(false);
   const [state, setState] = useState<AuthState>(() => {
     // Hydrate from localStorage on first mount
+    console.log('[AuthProvider] Initializing state from localStorage');
     try {
       const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (!raw) return {};
+      console.log('[AuthProvider] Retrieved from localStorage', {
+        hasData: !!raw,
+        dataLength: raw?.length || 0
+      });
+      if (!raw) {
+        console.log('[AuthProvider] No auth data in localStorage, starting with empty state');
+        return {};
+      }
       const parsed = JSON.parse(raw) as AuthState;
       // Drop expired tokens eagerly
-      if (parsed.expiresAt && Date.now() > parsed.expiresAt) return {};
+      if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
+        console.log('[AuthProvider] Token expired, clearing state');
+        return {};
+      }
+      console.log('[AuthProvider] Successfully hydrated state', {
+        hasAccessToken: !!parsed.accessToken,
+        hasUser: !!parsed.user
+      });
       return parsed ?? {};
-    } catch {
+    } catch (e) {
+      console.error('[AuthProvider] Failed to parse localStorage', e);
       return {};
     }
   });
   const cfg = useMemo(() => getConfigFromEnv(), []);
 
+  // Mark as initialized after first render
+  useEffect(() => {
+    console.log('[AuthProvider] Marking as initialized');
+    setIsInitialized(true);
+  }, []);
+
   // Token application callback must be declared before login usage
   const applyTokenResponse = useCallback((t: TokenResponse) => {
+    console.log('[AuthContext] applyTokenResponse called', { hasAccessToken: !!t.access_token, hasIdToken: !!t.id_token, expiresIn: t.expires_in });
     const now = Date.now();
     const expiresAt = now + Math.max(0, (t.expires_in || 0) * 1000) - 10_000;
     const claims = parseJwtPayload(t.id_token || t.access_token || '') || {};
+    console.log('[AuthContext] Parsed JWT claims', { sub: claims.sub, email: claims.email, name: claims.name });
     const next: AuthState = {
       accessToken: t.access_token,
       idToken: t.id_token,
@@ -93,10 +119,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       },
     };
     setState(next);
+    console.log('[AuthContext] State updated, saving to localStorage', { key: AUTH_STORAGE_KEY });
     try {
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      /* ignore */
+      console.log('[AuthContext] Successfully saved auth state to localStorage');
+    } catch (e) {
+      console.error('[AuthContext] Failed to save to localStorage', e);
     }
   }, []);
 
@@ -167,8 +195,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const handleCallback = useCallback(
     async (code: string) => {
+      console.log('[AuthContext] handleCallback called', { codeLength: code.length });
       const t: TokenResponse = await exchangeCodeForTokens(cfg, code);
+      console.log('[AuthContext] Token exchange completed, applying token response');
       applyTokenResponse(t);
+      console.log('[AuthContext] handleCallback completed successfully');
     },
     [cfg, applyTokenResponse]
   );
@@ -176,17 +207,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const getAccessToken = useCallback(() => {
     // Prefer access_token if present and not expired
     const expired = state.expiresAt && Date.now() > state.expiresAt;
-    if (expired) return undefined;
+    if (expired) {
+      return undefined;
+    }
     const at = state.accessToken;
     if (at) {
       // If token looks like a JWT (three segments), use it
-      if (at.split('.').length === 3) return at;
+      if (at.split('.').length === 3) {
+        return at;
+      }
       // Otherwise, fall back to id_token (Zitadel may issue opaque access tokens unless configured)
-      if (state.idToken) return state.idToken;
+      if (state.idToken) {
+        console.log('[AuthContext] Access token is opaque, falling back to id_token');
+        return state.idToken;
+      }
+      console.log('[AuthContext] Returning opaque access token');
       return at; // last resort: send opaque token
     }
     // If no access token, try id_token
-    if (state.idToken) return state.idToken;
+    if (state.idToken) {
+      console.log('[AuthContext] No access token, returning id_token');
+      return state.idToken;
+    }
+    console.log('[AuthContext] No tokens available, returning undefined');
     return undefined;
   }, [state.accessToken, state.idToken, state.expiresAt]);
 
@@ -213,6 +256,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const value = useMemo<AuthContextType>(
     () => ({
       isAuthenticated: !!getAccessToken(),
+      isInitialized,
       user: state.user,
       beginLogin,
       logout,
@@ -222,6 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }),
     [
       getAccessToken,
+      isInitialized,
       beginLogin,
       logout,
       state.user,

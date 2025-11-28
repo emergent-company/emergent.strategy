@@ -79,36 +79,28 @@ export { AccessTreeContext };
  */
 export function AccessTreeProvider({ children }: { children: ReactNode }) {
   const { apiBase, fetchJson } = useApi();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, isInitialized, logout } = useAuth();
   const [tree, setTree] = useState<OrgWithProjects[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>(undefined);
 
   const refresh = useCallback(async () => {
-    console.log('[AccessTreeProvider] refresh() called');
     setLoading(true);
     setError(undefined);
     try {
-      console.log(
-        '[AccessTreeProvider] Fetching from:',
-        `${apiBase}/api/user/orgs-and-projects`
-      );
       const data = await fetchJson<OrgWithProjects[]>(
         `${apiBase}/api/user/orgs-and-projects`,
         {
           credentials: 'include',
         }
       );
-      console.log('[AccessTreeProvider] Response:', data.length, 'orgs');
       setTree(data);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-      console.log('[AccessTreeProvider] Fetch failed:', errorMessage);
 
       // For 401/403 errors, clear auth and don't set error state
       // The auth system will handle the redirect to login
       if (e instanceof ApiError && e.isAuthError()) {
-        console.log('[AccessTreeProvider] Auth error detected, logging out');
         logout();
         // Don't set error state - let the app redirect to login
         // This prevents showing the error UI for auth issues
@@ -129,7 +121,11 @@ export function AccessTreeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Skip if already fetched (StrictMode guard)
     if (hasFetchedRef.current) {
-      console.log('[AccessTreeProvider] Skipping duplicate fetch (StrictMode)');
+      return;
+    }
+
+    // Skip if auth not initialized yet
+    if (!isInitialized) {
       return;
     }
 
@@ -140,9 +136,10 @@ export function AccessTreeProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    console.log('[AccessTreeProvider] Auth initialized and authenticated, fetching data');
     hasFetchedRef.current = true;
     refresh().catch(() => void 0);
-  }, [refresh, isAuthenticated]);
+  }, [refresh, isAuthenticated, isInitialized]);
 
   // Memoize flattened data and lookup helpers
   const value: AccessTreeContextValue = useMemo(() => {
@@ -193,7 +190,7 @@ export function AccessTreeProvider({ children }: { children: ReactNode }) {
   // This prevents any page from rendering when we can't load user access data
   if (error && !loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-base-200">
+      <div className="flex justify-center items-center bg-base-200 min-h-screen">
         <div className="mx-4 w-full max-w-md">
           <div className="bg-base-100 shadow-xl border border-base-300 card">
             <div className="space-y-4 card-body">
@@ -229,7 +226,7 @@ export function AccessTreeProvider({ children }: { children: ReactNode }) {
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="size-5 flex-shrink-0"
+                  className="size-5 shrink-0"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -286,7 +283,7 @@ export function useAccessTreeContext(): AccessTreeContextValue {
   if (context === undefined) {
     throw new Error(
       'useAccessTreeContext must be used within an AccessTreeProvider. ' +
-        'Wrap your app with <AccessTreeProvider> at the root level.'
+      'Wrap your app with <AccessTreeProvider> at the root level.'
     );
   }
   return context;

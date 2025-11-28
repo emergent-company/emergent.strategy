@@ -6,6 +6,8 @@ export const Hero = () => {
   return (
     <>
       <div className="relative z-2 overflow-hidden lg:h-screen" id="hero">
+        {/* Grainy texture background */}
+        <div className="absolute inset-0 -z-1 opacity-20 grainy"></div>
         <div className="container flex items-center justify-center pt-20 md:pt-28 xl:pt-36 2xl:pt-48">
           <div className="w-100 text-center md:w-120 xl:w-160 2xl:w-200">
             <div className="flex justify-center">
@@ -215,7 +217,7 @@ export const Hero = () => {
         <div className="absolute end-0 -top-20 -z-1 size-100 rounded-full bg-teal-300/5 blur-[150px] max-lg:hidden dark:bg-teal-200/5"></div>
       </div>
 
-      <div className="from-primary to-secondary mb-8 h-1 w-full bg-linear-to-r max-xl:mt-6 md:mb-12 xl:mb-16 2xl:mb-28"></div>
+      <div className="from-secondary via-accent to-primary dark:from-secondary dark:via-accent dark:to-primary mb-8 h-1 w-full bg-linear-to-r max-xl:mt-6 md:mb-12 xl:mb-16 2xl:mb-28"></div>
     </>
   );
 };

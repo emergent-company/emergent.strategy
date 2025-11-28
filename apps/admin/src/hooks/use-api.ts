@@ -63,8 +63,8 @@ export function useApi() {
             typeof body === 'undefined'
               ? undefined
               : json === false
-              ? (body as unknown as BodyInit)
-              : JSON.stringify(body as unknown),
+                ? (body as unknown as BodyInit)
+                : JSON.stringify(body as unknown),
           credentials,
         });
 

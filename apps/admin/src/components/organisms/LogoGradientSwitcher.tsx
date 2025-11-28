@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLogoVariant, LogoVariant } from '@/hooks/useLogoVariant';
+import { useSwitcherPanel } from '@/contexts/switcher-panel';
 
 interface Gradient {
   id: LogoVariant;
@@ -122,7 +123,8 @@ const gradients: Gradient[] = [
 ];
 
 export function LogoGradientSwitcher() {
-  const [isOpen, setIsOpen] = useState(false);
+  const { openPanel, togglePanel } = useSwitcherPanel();
+  const isOpen = openPanel === 'logo-gradient';
   const { variant: currentVariant, setLogoVariant } = useLogoVariant();
 
   const themeBased = gradients.filter((g) => g.category === 'theme-based');
@@ -131,7 +133,7 @@ export function LogoGradientSwitcher() {
   return (
     <div className="fixed bottom-6 right-24 z-50">
       <motion.button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => togglePanel('logo-gradient')}
         className="btn btn-circle btn-lg bg-base-200 border-base-300 shadow-xl hover:scale-105"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -170,7 +172,7 @@ export function LogoGradientSwitcher() {
                 </p>
               </div>
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={() => togglePanel(null)}
                 className="btn btn-sm btn-ghost btn-circle"
               >
                 ✕
