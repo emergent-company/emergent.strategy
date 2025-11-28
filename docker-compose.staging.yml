@@ -29,40 +29,55 @@ services:
       retries: 15
       start_period: 15s
 
-  # Zitadel Identity Provider
+  # Zitadel Identity Provider (using official image)
   zitadel:
-    build:
-      context: . # Build from repository root
-      dockerfile: docker/Dockerfile.zitadel
+    image: ghcr.io/zitadel/zitadel:latest
+    restart: unless-stopped
+    command: start-from-init --masterkey "${ZITADEL_MASTERKEY}"
     depends_on:
       db:
         condition: service_healthy
     environment:
-      # Infisical configuration (fetches all secrets from Infisical)
-      INFISICAL_TOKEN: ${INFISICAL_TOKEN}
-      INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID}
-      INFISICAL_ENVIRONMENT: ${INFISICAL_ENVIRONMENT:-prod}
-      INFISICAL_API_URL: ${INFISICAL_API_URL}
+      # External domain configuration
+      ZITADEL_EXTERNALDOMAIN: ${ZITADEL_EXTERNALDOMAIN}
+      ZITADEL_EXTERNALSECURE: ${ZITADEL_EXTERNALSECURE:-true}
+      ZITADEL_TLS_ENABLED: ${ZITADEL_TLS_ENABLED:-false}
 
-      # Static configuration (not secret)
+      # Database connection
       ZITADEL_DATABASE_POSTGRES_HOST: db
       ZITADEL_DATABASE_POSTGRES_PORT: 5432
       ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
       ZITADEL_DATABASE_POSTGRES_USER_USERNAME: zitadel
       ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${ZITADEL_DATABASE_POSTGRES_USER_PASSWORD}
       ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
-      ZITADEL_DATABASE_POSTGRES_ADMIN_HOST: db
-      ZITADEL_DATABASE_POSTGRES_ADMIN_PORT: 5432
-      ZITADEL_DATABASE_POSTGRES_ADMIN_DATABASE: postgres
       ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: ${POSTGRES_USER:-spec}
       ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${POSTGRES_PASSWORD}
       ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
+
+      # Login v2 configuration
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: true
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_BASEURI: https://${ZITADEL_EXTERNALDOMAIN}/ui/v2/login
+      ZITADEL_OIDC_DEFAULTLOGINURLV2: https://${ZITADEL_EXTERNALDOMAIN}/ui/v2/login/login?authRequest=
+      ZITADEL_OIDC_DEFAULTLOGOUTURLV2: https://${ZITADEL_EXTERNALDOMAIN}/ui/v2/login/logout?post_logout_redirect=
+      ZITADEL_SAML_DEFAULTLOGINURLV2: https://${ZITADEL_EXTERNALDOMAIN}/ui/v2/login/login?samlRequest=
+
+      # Login client for login v2 (creates PAT for login service)
+      ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH: /machinekey/login-client.pat
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_USERNAME: login-client
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_NAME: Login Client Service Account
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_PAT_EXPIRATIONDATE: "2030-12-31T23:59:59Z"
+
+      # Admin machine user (optional - creates PAT for API access)
+      ZITADEL_FIRSTINSTANCE_PATPATH: /machinekey/admin.pat
       ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: zitadel-admin-sa
       ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: Bootstrap Admin Service Account
-      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINEKEY_TYPE: 1
-      ZITADEL_FIRSTINSTANCE_PATPATH: /machinekey/pat.txt
-      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: 2030-12-31T23:59:59Z
-    command: ["start-from-init", "--masterkeyFromEnv"]
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2030-12-31T23:59:59Z"
+
+      # Initial org and human user
+      ZITADEL_FIRSTINSTANCE_ORG_NAME: ${ZITADEL_ORG_NAME:-Default}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: ${ZITADEL_ADMIN_USERNAME:-admin}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: ${ZITADEL_ADMIN_PASSWORD}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORDCHANGEREQUIRED: false
     expose:
       - "8080"
     labels:
@@ -81,23 +96,18 @@ services:
       start_period: 30s
     user: "0"
 
-  # Zitadel Login UI v2
+  # Zitadel Login UI v2 (using official image)
   zitadel-login:
-    build:
-      context: . # Build from repository root
-      dockerfile: docker/Dockerfile.login
+    image: ghcr.io/zitadel/zitadel-login:latest
     restart: unless-stopped
     environment:
-      # Infisical configuration (fetches all secrets from Infisical)
-      INFISICAL_TOKEN: ${INFISICAL_TOKEN}
-      INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID}
-      INFISICAL_ENVIRONMENT: ${INFISICAL_ENVIRONMENT:-prod}
-      INFISICAL_API_URL: ${INFISICAL_API_URL}
-      
-      # Static configuration
-      ZITADEL_API_URL: http://zitadel:8080
+      ZITADEL_API_URL: http://localhost:8080
       NEXT_PUBLIC_BASE_PATH: /ui/v2/login
+      ZITADEL_SERVICE_USER_TOKEN_FILE: /machinekey/login-client.pat
     network_mode: service:zitadel
+    user: "0"
+    volumes:
+      - zitadel_machinekey:/machinekey:ro
     depends_on:
       zitadel:
         condition: service_healthy
