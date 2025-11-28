@@ -52,8 +52,9 @@ RUN echo "====== BUILD CONTEXT DEBUG ======" && \
     echo "================================="
 
 # Install dependencies with npm cache mount (skip prepare scripts like husky in Docker)
+# Using --legacy-peer-deps to handle LangChain peer dependency conflicts
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --workspace=apps/admin --ignore-scripts && \
+    npm install --workspace=apps/admin --ignore-scripts --legacy-peer-deps && \
     echo "Dependencies installed successfully"
 
 # Copy application source

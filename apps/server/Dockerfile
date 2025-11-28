@@ -29,8 +29,9 @@ COPY apps/server/package.json ./apps/server/
 COPY tsconfig.json ./
 
 # Install dependencies with npm cache mount (workspace-aware, skip prepare scripts like husky)
+# Using --legacy-peer-deps to handle LangChain peer dependency conflicts
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --workspace=apps/server --ignore-scripts
+    npm install --workspace=apps/server --ignore-scripts --legacy-peer-deps
 
 # Copy server source code
 COPY apps/server ./apps/server
