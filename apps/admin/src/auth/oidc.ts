@@ -66,11 +66,13 @@ let authInFlight = false;
 export async function startAuth(config: OidcConfig) {
     if (authInFlight) return; // suppress duplicate clicks / renders
     authInFlight = true;
+    console.log('[OIDC] startAuth called', { issuer: config.issuer, clientId: config.clientId, redirectUri: config.redirectUri, scopes: config.scopes });
     try {
         const disc = await discover(config.issuer);
         const codeVerifier = randString(64);
         const challenge = base64url(await sha256(codeVerifier));
         sessionStorage.setItem(CODE_VERIFIER_KEY, codeVerifier);
+        console.log('[OIDC] Code verifier stored in sessionStorage');
 
         const params = new URLSearchParams({
             response_type: 'code',
@@ -82,6 +84,7 @@ export async function startAuth(config: OidcConfig) {
         });
         if (config.audience) params.set('audience', config.audience);
         const authUrl = `${disc.authorization_endpoint}?${params.toString()}`;
+        console.log('[OIDC] Redirecting to authorization endpoint', { authUrl });
         window.location.assign(authUrl);
     } finally {
         // Do not reset flag; navigation replaces document. If navigation canceled, allow retry after slight delay.
@@ -90,8 +93,10 @@ export async function startAuth(config: OidcConfig) {
 }
 
 export async function exchangeCodeForTokens(config: OidcConfig, code: string): Promise<TokenResponse> {
+    console.log('[OIDC] exchangeCodeForTokens called', { code: code.substring(0, 20) + '...', issuer: config.issuer });
     const disc = await discover(config.issuer);
     const codeVerifier = sessionStorage.getItem(CODE_VERIFIER_KEY) || '';
+    console.log('[OIDC] Code verifier retrieved from sessionStorage', { hasVerifier: !!codeVerifier });
     sessionStorage.removeItem(CODE_VERIFIER_KEY);
     const body = new URLSearchParams({
         grant_type: 'authorization_code',
@@ -101,12 +106,14 @@ export async function exchangeCodeForTokens(config: OidcConfig, code: string): P
         code_verifier: codeVerifier,
     });
     if (config.audience) body.set('audience', config.audience);
+    console.log('[OIDC] Token exchange request', { tokenEndpoint: disc.token_endpoint, clientId: config.clientId });
 
     const res = await fetch(disc.token_endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: body.toString(),
     });
+    console.log('[OIDC] Token exchange response', { status: res.status, ok: res.ok });
     if (!res.ok) {
         // Log detailed error for diagnostics but surface generic message to user
         let detail: unknown = null;
@@ -115,10 +122,12 @@ export async function exchangeCodeForTokens(config: OidcConfig, code: string): P
         } catch {
             // ignore body parse errors
         }
-        console.warn('OIDC token exchange failed', { status: res.status, detail });
+        console.error('[OIDC] Token exchange failed', { status: res.status, detail });
         throw new Error('login_failed');
     }
-    return (await res.json()) as TokenResponse;
+    const tokenResponse = (await res.json()) as TokenResponse;
+    console.log('[OIDC] Token exchange successful', { hasAccessToken: !!tokenResponse.access_token, hasIdToken: !!tokenResponse.id_token, expiresIn: tokenResponse.expires_in });
+    return tokenResponse;
 }
 
 export function parseCallbackParams(): { code?: string; state?: string; error?: string } {

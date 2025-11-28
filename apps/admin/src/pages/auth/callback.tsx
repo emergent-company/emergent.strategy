@@ -15,20 +15,44 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     if (ranRef.current) return; // suppress second StrictMode invocation
     ranRef.current = true;
+    console.log('[AuthCallback] Page loaded, parsing callback params');
     const { code, error } = parseCallbackParams();
+    console.log('[AuthCallback] Parsed params', { hasCode: !!code, error });
     if (error) {
+      console.error('[AuthCallback] OAuth error in callback URL', { error });
       setError(error);
       return;
     }
     if (!code) {
+      console.error('[AuthCallback] Missing authorization code in callback URL');
       setError('Missing authorization code');
       return;
     }
     (async () => {
       try {
+        console.log('[AuthCallback] Calling handleCallback with code');
         await handleCallback(code);
+        console.log('[AuthCallback] handleCallback succeeded, verifying localStorage');
+
+        // Verify localStorage write completed
+        const authData = localStorage.getItem('spec-server-auth');
+        console.log('[AuthCallback] localStorage verification', {
+          hasAuthData: !!authData,
+          dataLength: authData?.length || 0
+        });
+
+        if (!authData) {
+          console.error('[AuthCallback] CRITICAL: localStorage write failed!');
+          throw new Error('Failed to save authentication state');
+        }
+
+        // Small delay to ensure all state updates complete
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        console.log('[AuthCallback] Navigating to /admin');
         nav('/admin', { replace: true });
       } catch (e: any) {
+        console.error('[AuthCallback] handleCallback failed', { error: e, message: e?.message, stack: e?.stack });
         const msg =
           e?.message === 'login_failed'
             ? 'We could not complete sign-in. Please retry.'

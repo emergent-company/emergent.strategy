@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useSwitcherPanel } from '@/contexts/switcher-panel';
 
 interface Theme {
   id: string;
@@ -305,12 +306,24 @@ const themes: Theme[] = [
   },
   {
     id: 'space-asteroid-belt',
-    name: 'Asteroid Belt',
-    description: 'A monochromatic grey theme with a metallic accent',
+    name: 'Asteroid Belt (Dark)',
+    description:
+      'A monochromatic grey theme with a metallic accent - Dark mode',
     colors: {
-      primary: 'oklch(75% 0 0)', // light grey
-      secondary: 'oklch(55% 0 0)', // mid-tone grey
-      accent: 'oklch(70% 0.12 85)', // bronze/gold
+      primary: 'oklch(70% 0.02 240)', // cool steel
+      secondary: 'oklch(50% 0.02 60)', // warm gray
+      accent: 'oklch(65% 0.15 75)', // bronze/gold
+    },
+  },
+  {
+    id: 'space-asteroid-belt-light',
+    name: 'Asteroid Belt (Light)',
+    description:
+      'A monochromatic grey theme with a metallic accent - Light mode',
+    colors: {
+      primary: 'oklch(40% 0.02 240)', // darker cool steel
+      secondary: 'oklch(45% 0.02 60)', // darker warm gray
+      accent: 'oklch(55% 0.15 75)', // darker bronze/gold
     },
   },
   {
@@ -376,16 +389,40 @@ const themes: Theme[] = [
 ];
 
 export function ColorSwitcher() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState<string>('dark');
+  const { openPanel, togglePanel } = useSwitcherPanel();
+  const isOpen = openPanel === 'color';
+
+  const [currentTheme, setCurrentTheme] = useState<string>(() => {
+    // Initialize from actual DOM state
+    return document.documentElement.getAttribute('data-theme') || 'dark';
+  });
 
   useEffect(() => {
-    // Load saved theme from localStorage
-    const savedTheme = localStorage.getItem('emergent-theme');
-    if (savedTheme) {
-      setCurrentTheme(savedTheme);
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    }
+    // Sync state with actual applied theme on mount
+    const actualTheme =
+      document.documentElement.getAttribute('data-theme') || 'dark';
+    setCurrentTheme(actualTheme);
+
+    // Optional: Watch for external theme changes (e.g., from other components)
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (
+          mutation.type === 'attributes' &&
+          mutation.attributeName === 'data-theme'
+        ) {
+          const newTheme =
+            document.documentElement.getAttribute('data-theme') || 'dark';
+          setCurrentTheme(newTheme);
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+
+    return () => observer.disconnect();
   }, []);
 
   const handleThemeChange = (themeId: string) => {
@@ -398,7 +435,7 @@ export function ColorSwitcher() {
     <div className="fixed bottom-6 right-6 z-50">
       {/* Toggle Button */}
       <motion.button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => togglePanel('color')}
         className="btn btn-circle btn-lg bg-base-200 border-base-300 shadow-xl hover:scale-105"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -428,16 +465,18 @@ export function ColorSwitcher() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
             transition={{ duration: 0.2 }}
-            className="absolute bottom-20 right-0 w-96 bg-base-200 border border-base-300 rounded-2xl shadow-2xl p-6"
+            className="absolute bottom-20 right-0 w-[420px] bg-base-200 border border-base-300 rounded-2xl shadow-2xl p-6"
           >
             {/* Header */}
             <div className="flex justify-between items-center mb-4">
               <div>
                 <h3 className="text-lg font-bold">Theme Switcher</h3>
-                <p className="text-xs text-base-content/60">Choose your color theme</p>
+                <p className="text-xs text-base-content/60">
+                  Choose your color theme
+                </p>
               </div>
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={() => togglePanel(null)}
                 className="btn btn-sm btn-ghost btn-circle"
               >
                 ✕
@@ -445,7 +484,7 @@ export function ColorSwitcher() {
             </div>
 
             {/* Theme Options */}
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="space-y-3 max-h-96 overflow-y-auto px-3 py-3 -mx-3 -my-3">
               {themes.map((theme) => (
                 <motion.button
                   key={theme.id}
@@ -457,6 +496,7 @@ export function ColorSwitcher() {
                   }`}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 >
                   {/* Theme Name */}
                   <div className="flex items-center justify-between mb-2">

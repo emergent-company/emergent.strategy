@@ -1,0 +1,216 @@
+# Docker Compose for Coolify Deployment
+# This file explicitly sets build contexts to help Coolify
+# understand the repository structure
+
+version: "3.8"
+
+services:
+  # PostgreSQL Database with pgvector extension
+  db:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.postgres
+    environment:
+      # Database can use either Infisical or direct env vars from Coolify
+      POSTGRES_USER: ${POSTGRES_USER:-spec}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-spec}
+      ZITADEL_DB_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U spec -d spec && pg_isready -U zitadel -d zitadel",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 15s
+
+  # Zitadel Identity Provider
+  zitadel:
+    build:
+      context: . # Build from repository root
+      dockerfile: docker/Dockerfile.zitadel
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Infisical configuration (fetches all secrets from Infisical)
+      INFISICAL_TOKEN: ${INFISICAL_TOKEN}
+      INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID}
+      INFISICAL_ENVIRONMENT: ${INFISICAL_ENVIRONMENT:-prod}
+      INFISICAL_API_URL: ${INFISICAL_API_URL}
+
+      # Static configuration (not secret)
+      ZITADEL_DATABASE_POSTGRES_HOST: db
+      ZITADEL_DATABASE_POSTGRES_PORT: 5432
+      ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${ZITADEL_DATABASE_POSTGRES_USER_PASSWORD}
+      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
+      ZITADEL_DATABASE_POSTGRES_ADMIN_HOST: db
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PORT: 5432
+      ZITADEL_DATABASE_POSTGRES_ADMIN_DATABASE: postgres
+      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: ${POSTGRES_USER:-spec}
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${POSTGRES_PASSWORD}
+      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: zitadel-admin-sa
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: Bootstrap Admin Service Account
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINEKEY_TYPE: 1
+      ZITADEL_FIRSTINSTANCE_PATPATH: /machinekey/pat.txt
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: 2030-12-31T23:59:59Z
+    command: ["start-from-init", "--masterkeyFromEnv"]
+    expose:
+      - "8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.zitadel.rule=Host(`${ZITADEL_EXTERNALDOMAIN}`)"
+      - "traefik.http.routers.zitadel.entrypoints=web"
+      - "traefik.http.services.zitadel.loadbalancer.server.port=8080"
+      - "traefik.http.routers.zitadel.service=zitadel"
+    volumes:
+      - zitadel_machinekey:/machinekey
+    healthcheck:
+      test: ["CMD", "/app/zitadel", "ready"]
+      interval: 10s
+      timeout: 60s
+      retries: 5
+      start_period: 30s
+    user: "0"
+
+  # Zitadel Login UI v2
+  zitadel-login:
+    build:
+      context: . # Build from repository root
+      dockerfile: docker/Dockerfile.login
+    restart: unless-stopped
+    environment:
+      # Infisical configuration (fetches all secrets from Infisical)
+      INFISICAL_TOKEN: ${INFISICAL_TOKEN}
+      INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID}
+      INFISICAL_ENVIRONMENT: ${INFISICAL_ENVIRONMENT:-prod}
+      INFISICAL_API_URL: ${INFISICAL_API_URL}
+      
+      # Static configuration
+      ZITADEL_API_URL: http://zitadel:8080
+      NEXT_PUBLIC_BASE_PATH: /ui/v2/login
+    network_mode: service:zitadel
+    depends_on:
+      zitadel:
+        condition: service_healthy
+
+  # NestJS Backend API
+  server:
+    build:
+      context: . # EXPLICIT: Build from repository root
+      dockerfile: apps/server/Dockerfile # EXPLICIT: Path to Dockerfile
+      args:
+        NODE_ENV: production
+    expose:
+      - "3002"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.server.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.server.entrypoints=web"
+      - "traefik.http.routers.server.priority=100"
+      - "traefik.http.middlewares.api-strip.stripprefix.prefixes=/api"
+      - "traefik.http.routers.server.middlewares=api-strip"
+      - "traefik.http.services.server.loadbalancer.server.port=3002"
+      - "traefik.http.routers.server.service=server"
+    environment:
+      # Infisical configuration (optional - can use direct env vars for flexibility)
+      # Server can use either Infisical or direct env vars from Coolify
+      # Comment out the following 4 lines to disable Infisical and use direct env vars
+      INFISICAL_TOKEN: ${INFISICAL_TOKEN}
+      INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID}
+      INFISICAL_ENVIRONMENT: ${INFISICAL_ENVIRONMENT:-prod}
+      INFISICAL_API_URL: ${INFISICAL_API_URL}
+
+      # Database (can also come from Infisical)
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-spec}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-spec}
+
+      # Zitadel - Frontend App (for token validation)
+      ZITADEL_ISSUER: ${ZITADEL_ISSUER}
+      ZITADEL_FRONTEND_CLIENT_ID: ${ZITADEL_FRONTEND_CLIENT_ID}
+
+      # Zitadel - Backend Service Account (for Management API)
+      # Option 1: Use ZITADEL_CLIENT_JWT env var with JSON content (recommended for Infisical)
+      # Option 2: Use ZITADEL_CLIENT_JWT_PATH with file path (requires volume mount)
+      ZITADEL_CLIENT_JWT: ${ZITADEL_CLIENT_JWT:-}
+      ZITADEL_SERVICE_CLIENT_ID: ${ZITADEL_SERVICE_CLIENT_ID}
+      ZITADEL_SERVICE_CLIENT_SECRET: ${ZITADEL_SERVICE_CLIENT_SECRET}
+      ZITADEL_MAIN_ORG_ID: ${ZITADEL_MAIN_ORG_ID}
+      ZITADEL_PROJECT_ID: ${ZITADEL_PROJECT_ID}
+
+      # Auth (JWT validation - validates tokens from frontend)
+      AUTH_ISSUER: ${ZITADEL_ISSUER}
+      AUTH_AUDIENCE: ${ZITADEL_FRONTEND_CLIENT_ID}
+      AUTH_JWKS_URI: ${ZITADEL_ISSUER}/oauth/v2/keys
+
+      # Server
+      PORT: 3002
+      NODE_ENV: production
+      CORS_ORIGIN: ${CORS_ORIGIN}
+
+      # Google AI
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1536}
+
+      # Security
+      INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY}
+
+      # Features
+      DB_AUTOINIT: ${DB_AUTOINIT:-true}
+      ORGS_DEMO_SEED: ${ORGS_DEMO_SEED:-false}
+      CHAT_ENABLE_MCP: ${CHAT_ENABLE_MCP:-1}
+    depends_on:
+      db:
+        condition: service_healthy
+      zitadel:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # React Admin Frontend
+  admin:
+    build:
+      context: . # EXPLICIT: Build from repository root
+      dockerfile: apps/admin/Dockerfile # EXPLICIT: Path to Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_API_BASE: ${VITE_API_BASE:-https://spec-server.kucharz.net}
+        VITE_ZITADEL_ISSUER: ${VITE_ZITADEL_ISSUER}
+        VITE_ZITADEL_CLIENT_ID: ${VITE_ZITADEL_CLIENT_ID}
+        VITE_APP_ENV: ${VITE_APP_ENV:-production}
+    expose:
+      - "3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.admin.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.admin.entrypoints=web"
+      - "traefik.http.routers.admin.priority=1"
+      - "traefik.http.services.admin.loadbalancer.server.port=3000"
+      - "traefik.http.routers.admin.service=admin"
+    depends_on:
+      - server
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+  zitadel_machinekey:
+    driver: local

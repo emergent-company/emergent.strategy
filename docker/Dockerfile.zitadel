@@ -1,0 +1,45 @@
+# Zitadel with Infisical CLI Integration
+# Uses official Infisical pattern
+
+FROM alpine:latest AS builder
+
+# Download Zitadel binary
+RUN apk add --no-cache wget ca-certificates tar
+RUN wget -q https://github.com/zitadel/zitadel/releases/latest/download/zitadel-linux-amd64.tar.gz -O /tmp/zitadel.tar.gz && \
+    tar -xzf /tmp/zitadel.tar.gz -C /tmp && \
+    mv /tmp/zitadel-linux-amd64/zitadel /zitadel && \
+    chmod +x /zitadel && \
+    rm -rf /tmp/zitadel*
+
+# Download Infisical CLI binary
+RUN wget -q https://github.com/Infisical/cli/releases/latest/download/cli_0.43.30_linux_amd64.tar.gz -O /tmp/infisical.tar.gz && \
+    tar -xzf /tmp/infisical.tar.gz -C /tmp && \
+    mv /tmp/infisical /infisical && \
+    chmod +x /infisical && \
+    rm -f /tmp/infisical.tar.gz
+
+FROM alpine:latest
+
+# Install minimal runtime dependencies  
+RUN apk add --no-cache ca-certificates tzdata bash
+
+# Copy binaries from builder
+COPY --from=builder /zitadel /app/zitadel
+COPY --from=builder /infisical /usr/local/bin/infisical
+
+# Copy entrypoint script
+COPY zitadel-infisical-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Set working directory
+WORKDIR /app
+
+# Use our custom entrypoint that calls Infisical with correct flags
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/app/zitadel", "start-from-init", "--masterkeyFromEnv"]
+
+# Expose ports
+EXPOSE 8080 3000
+
+# Run as root (same as official Zitadel image)
+USER root

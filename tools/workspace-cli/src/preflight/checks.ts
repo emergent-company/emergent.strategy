@@ -229,7 +229,7 @@ async function validateZitadelConfiguration(): Promise<void> {
           `Zitadel is not ready at ${baseUrl} (HTTP ${response.status})`,
           {
             recommendation:
-              'Ensure Zitadel container is running: docker compose --project-name spec-2 -f docker/docker-compose.yml up -d zitadel',
+              'Ensure Zitadel container is running: docker compose --project-name spec-server-2 -f docker-compose.dev.yml up -d zitadel',
           }
         );
       }

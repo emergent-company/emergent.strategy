@@ -3,6 +3,8 @@ import { ColorSwitcher } from '@/components/organisms/ColorSwitcher';
 import { FloatingThemeConfigurator } from '@/components/organisms/FloatingThemeConfigurator';
 import { LogoGradientSwitcher } from '@/components/organisms/LogoGradientSwitcher';
 import { LogoFontSwitcher } from '@/components/organisms/LogoFontSwitcher';
+import { ProductTopbar } from '@/components/organisms/ProductTopbar';
+import { SwitcherPanelProvider } from '@/contexts/switcher-panel';
 
 import { Benefits } from './components/Benefits';
 import { CTA } from './components/CTA';
@@ -13,14 +15,13 @@ import { Integrations } from './components/Integrations';
 import { Pricing } from './components/Pricing';
 import { Process } from './components/Process';
 import { Testimonials } from './components/Testimonials';
-import { Topbar } from './components/Topbar';
 
 const AutomationLandingPage = () => {
   return (
-    <>
+    <SwitcherPanelProvider>
       <MetaData title="Automation Landing" />
 
-      <Topbar />
+      <ProductTopbar />
       <Hero />
       <Features />
       <Process />
@@ -34,7 +35,7 @@ const AutomationLandingPage = () => {
       <LogoGradientSwitcher />
       <LogoFontSwitcher />
       <FloatingThemeConfigurator />
-    </>
+    </SwitcherPanelProvider>
   );
 };
 

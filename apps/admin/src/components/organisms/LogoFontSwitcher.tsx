@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useSwitcherPanel } from '@/contexts/switcher-panel';
 
 export type LogoFont =
   | 'inter'
@@ -279,10 +280,11 @@ const textTransforms: TextTransformOption[] = [
 ];
 
 export function LogoFontSwitcher() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [currentFont, setCurrentFont] = useState<LogoFont>('inter');
+  const { openPanel, togglePanel } = useSwitcherPanel();
+  const isOpen = openPanel === 'logo-font';
+  const [currentFont, setCurrentFont] = useState<LogoFont>('orbitron');
   const [currentTransform, setCurrentTransform] =
-    useState<LogoTextTransform>('uppercase');
+    useState<LogoTextTransform>('lowercase');
 
   const handleFontChange = (fontId: LogoFont) => {
     setCurrentFont(fontId);
@@ -320,7 +322,7 @@ export function LogoFontSwitcher() {
       handleFontChange(savedFont);
     } else {
       // Set default
-      handleFontChange('inter');
+      handleFontChange('orbitron');
     }
 
     const savedTransform = localStorage.getItem(
@@ -330,7 +332,7 @@ export function LogoFontSwitcher() {
       handleTransformChange(savedTransform);
     } else {
       // Set default
-      handleTransformChange('uppercase');
+      handleTransformChange('lowercase');
     }
   });
 
@@ -347,7 +349,7 @@ export function LogoFontSwitcher() {
   return (
     <div className="fixed bottom-6 right-[10.5rem] z-50">
       <motion.button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => togglePanel('logo-font')}
         className="btn btn-circle btn-lg bg-base-200 border-base-300 shadow-xl hover:scale-105"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -392,7 +394,7 @@ export function LogoFontSwitcher() {
                 </p>
               </div>
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={() => togglePanel(null)}
                 className="btn btn-sm btn-ghost btn-circle"
               >
                 ✕

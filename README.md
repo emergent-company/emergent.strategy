@@ -5,7 +5,11 @@ Minimal ingestion server aligned with the spec:
 - Ingest a URL or uploaded file, extract text, chunk, embed with Google Gemini `text-embedding-004`.
 - Store in Postgres with pgvector and FTS.
 
-See `SETUP.md` for end-to-end local setup (DB, Zitadel auth, API server, Admin SPA) and `RUNBOOK.md` for operational details.
+## Getting Started
+
+- **[Environment Setup Guide](docs/guides/ENVIRONMENT_SETUP.md)** - Comprehensive guide for local, dev, staging, and production environments
+- **[Quick Setup](SETUP.md)** - End-to-end local setup (DB, Zitadel auth, API server, Admin SPA)
+- **[Runbook](RUNBOOK.md)** - Operational details and daily workflows
 
 ## ⚠️ Breaking Change: Database Environment Variables (v2.0.0)
 

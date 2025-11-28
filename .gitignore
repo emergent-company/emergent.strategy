@@ -26,6 +26,9 @@ apps/server-nest/dist-openapi/
 secrets/
 !secrets/README.md
 
+# Database backups and schema dumps
+backups/
+
 # Playwright / E2E artifacts
 playwright-report/
 **/playwright-report/

@@ -1,0 +1,52 @@
+services:
+  # PostgreSQL Database with pgvector extension
+  db:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.postgres
+    environment:
+      # These are sourced from Infisical but need to be set for pg_isready healthcheck
+      # The actual values will come from Infisical at runtime
+      POSTGRES_USER: ${POSTGRES_USER:-spec}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spec}
+      POSTGRES_DB: ${POSTGRES_DB:-spec}
+    command:
+      - postgres
+      - -c
+      - log_destination=stderr
+      - -c
+      - logging_collector=on
+      - -c
+      - log_directory=/var/log/postgresql
+      - -c
+      - log_filename=postgresql-%Y-%m-%d.log
+      - -c
+      - log_rotation_age=1d
+      - -c
+      - log_truncate_on_rotation=on
+      - -c
+      - log_statement=none
+      - -c
+      - log_connections=on
+      - -c
+      - log_disconnections=on
+      - -c
+      - log_duration=off
+      - -c
+      - log_line_prefix=%t [%p] %u@%d 
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ${DB_LOGS_PATH:-./docker/logs}:/var/log/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spec -d spec"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # NOTE: Zitadel is now deployed independently in ../emergent-infra/zitadel/
+  # See ../emergent-infra/zitadel/README.md for setup instructions
+
+volumes:
+  pg_data:
