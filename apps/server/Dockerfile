@@ -22,8 +22,8 @@ WORKDIR /build
 # Copy root workspace package files first
 COPY package.json package-lock.json ./
 
-# Copy server package files
-COPY apps/server/package.json apps/server/package-lock.json ./apps/server/
+# Copy server package files (no package-lock.json - workspace uses root lock file)
+COPY apps/server/package.json ./apps/server/
 
 # Copy root tsconfig.json (extended by server tsconfig)
 COPY tsconfig.json ./
