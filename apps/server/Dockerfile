@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.4
 # Dockerfile for NestJS Backend API
 # Build context: REPOSITORY ROOT (.) - workspace-aware build
-# Usage: docker build -f apps/server-nest/Dockerfile .
-# 
+# Usage: docker build -f apps/server/Dockerfile .
+#
 # BuildKit optimizations:
 # - Cache mounts for npm (50-80% faster dependency installs)
 # - Optimized layer ordering for better caching
@@ -19,48 +19,24 @@ ENV NODE_ENV=development
 
 WORKDIR /build
 
-# DEBUG: List what's in the build context root
-RUN echo "=== DEBUG: Listing root directory ===" && \
-    ls -la / && \
-    echo "=== DEBUG: Listing current directory ===" && \
-    pwd && ls -la
-
 # Copy root workspace package files first
 COPY package.json package-lock.json ./
-RUN echo "=== DEBUG: After copying root package files ===" && ls -la
 
-# DEBUG: Check if apps directory exists in build context
-RUN echo "=== DEBUG: Checking for apps directory ===" && \
-    if [ -d "apps" ]; then \
-        echo "apps directory EXISTS" && ls -la apps/; \
-    else \
-        echo "apps directory DOES NOT EXIST"; \
-    fi
+# Copy server package files
+COPY apps/server/package.json apps/server/package-lock.json ./apps/server/
 
-# Copy server-nest package files
-COPY apps/server-nest/package.json apps/server-nest/package-lock.json ./apps/server-nest/
-RUN echo "=== DEBUG: After copying server-nest package files ===" && \
-    ls -la apps/server-nest/
-
-# Copy root tsconfig.json (extended by server-nest tsconfig)
+# Copy root tsconfig.json (extended by server tsconfig)
 COPY tsconfig.json ./
 
 # Install dependencies with npm cache mount (workspace-aware, skip prepare scripts like husky)
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --workspace=apps/server-nest --ignore-scripts
+    npm ci --workspace=apps/server --ignore-scripts
 
-RUN echo "=== DEBUG: After npm ci ===" && \
-    ls -la && \
-    echo "=== DEBUG: node_modules ===" && \
-    ls -la node_modules/ | head -20 && \
-    echo "=== DEBUG: apps/server-nest/node_modules ===" && \
-    ls -la apps/server-nest/node_modules/ | head -20
-
-# Copy server-nest source code
-COPY apps/server-nest ./apps/server-nest
+# Copy server source code
+COPY apps/server ./apps/server
 
 # Build the application
-RUN cd apps/server-nest && npm run build
+RUN cd apps/server && npm run build
 
 # Production stage
 FROM node:20-slim
@@ -77,7 +53,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends tini curl postg
 
 # Create a minimal package.json for production (without "type": "module")
 RUN echo '{\n\
-  "name": "server-nest",\n\
+  "name": "server",\n\
   "version": "0.1.0",\n\
   "private": true,\n\
   "main": "dist/main.js",\n\
@@ -91,13 +67,13 @@ RUN echo '{\n\
 
 # Copy node_modules from both root and workspace
 COPY --from=builder /build/node_modules ./node_modules
-COPY --from=builder /build/apps/server-nest/node_modules ./node_modules
+COPY --from=builder /build/apps/server/node_modules ./node_modules
 
 # Copy built application
-COPY --from=builder /build/apps/server-nest/dist ./dist
+COPY --from=builder /build/apps/server/dist ./dist
 
-# Copy migrations directory from repository root location
-COPY --from=builder /build/apps/server-nest/migrations ./migrations
+# Copy migrations directory
+COPY --from=builder /build/apps/server/migrations ./migrations
 
 # Expose port
 EXPOSE 3002
