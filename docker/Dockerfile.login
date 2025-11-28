@@ -14,7 +14,8 @@ RUN apk add --no-cache wget ca-certificates bash && \
     rm -f /tmp/infisical.tar.gz
 
 # Copy entrypoint script
-COPY login-infisical-entrypoint.sh /entrypoint.sh
+# Note: Path is relative to docker-compose context (repository root)
+COPY docker/login-infisical-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Use our custom entrypoint that calls Infisical with correct flags

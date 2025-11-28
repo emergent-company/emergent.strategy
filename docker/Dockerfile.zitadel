@@ -28,7 +28,8 @@ COPY --from=builder /zitadel /app/zitadel
 COPY --from=builder /infisical /usr/local/bin/infisical
 
 # Copy entrypoint script
-COPY zitadel-infisical-entrypoint.sh /entrypoint.sh
+# Note: Path is relative to docker-compose context (repository root)
+COPY docker/zitadel-infisical-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Set working directory
