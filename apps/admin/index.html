@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="group/html" data-theme="retro">
+<html lang="en" class="group/html" data-theme="space-asteroid-belt-light">
   <head>
     <meta charset="UTF-8" />
     <title>Emergent - Effortless Mastery of Your Domain</title>
@@ -49,11 +49,48 @@
 
     <script>
       try {
-        const localStorageItem = localStorage.getItem('__EMERGENT_CONFIG__');
-        if (localStorageItem) {
-          const theme = JSON.parse(localStorageItem).theme;
-          if (theme !== 'system') {
-            document.documentElement.setAttribute('data-theme', theme);
+        // Check for custom theme first (ColorSwitcher themes)
+        const customTheme = localStorage.getItem('emergent-theme');
+        if (customTheme) {
+          document.documentElement.setAttribute('data-theme', customTheme);
+        } else {
+          // Fall back to config theme with asteroid belt variants
+          const localStorageItem = localStorage.getItem('spec-server');
+          if (localStorageItem) {
+            const config = JSON.parse(localStorageItem);
+            const theme = config.theme || 'system';
+
+            if (theme === 'system') {
+              // Detect OS preference
+              const prefersDark = window.matchMedia(
+                '(prefers-color-scheme: dark)'
+              ).matches;
+              document.documentElement.setAttribute(
+                'data-theme',
+                prefersDark
+                  ? 'space-asteroid-belt'
+                  : 'space-asteroid-belt-light'
+              );
+            } else if (theme === 'light') {
+              document.documentElement.setAttribute(
+                'data-theme',
+                'space-asteroid-belt-light'
+              );
+            } else if (theme === 'dark') {
+              document.documentElement.setAttribute(
+                'data-theme',
+                'space-asteroid-belt'
+              );
+            } else {
+              // Fallback for any other theme names
+              document.documentElement.setAttribute('data-theme', theme);
+            }
+          } else {
+            // No saved config - default to light mode
+            document.documentElement.setAttribute(
+              'data-theme',
+              'space-asteroid-belt-light'
+            );
           }
         }
       } catch (err) {

@@ -1,6 +1,12 @@
 # Dev Runbook
 
-This project provides a minimal ingestion server aligned with the spec. It stores docuSPA/server integration
+This project provides a minimal ingestion server aligned with the spec. It stores documents, chunks, and embeddings in Postgres with pgvector.
+
+> **📚 Environment Setup:** For comprehensive environment configuration guides (local, dev, staging, production), including Infisical workflows and detailed variable reference, see the **[Environment Setup Guide](docs/guides/ENVIRONMENT_SETUP.md)**.
+
+## Local Auth (Zitadel)
+
+SPA/server integration
 
 - Frontend issuer: set to `http://localhost:8100` (see `apps/admin/.env.example`).
 - Server-side validation: set the same issuer and fetch JWKS from `http://localhost:8100` (see `apps/server/.env.example`).
