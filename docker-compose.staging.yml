@@ -65,6 +65,7 @@ services:
       ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH: /machinekey/login-client.pat
       ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_USERNAME: login-client
       ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_NAME: Login Client Service Account
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINEKEY_TYPE: 1
       ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_PAT_EXPIRATIONDATE: "2030-12-31T23:59:59Z"
 
       # Admin machine user (optional - creates PAT for API access)
@@ -80,12 +81,8 @@ services:
       ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORDCHANGEREQUIRED: false
     expose:
       - "8080"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.zitadel.rule=Host(`${ZITADEL_EXTERNALDOMAIN}`)"
-      - "traefik.http.routers.zitadel.entrypoints=web"
-      - "traefik.http.services.zitadel.loadbalancer.server.port=8080"
-      - "traefik.http.routers.zitadel.service=zitadel"
+    # Note: Traefik labels are managed by Coolify - don't add custom labels here
+    # as they can conflict with Coolify's auto-generated labels (e.g., 'web' entrypoint doesn't exist)
     volumes:
       - zitadel_machinekey:/machinekey
     healthcheck:
