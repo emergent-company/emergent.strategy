@@ -45,6 +45,7 @@ export default defineConfig(async (): Promise<UserConfig> => {
         port: DEV_PORT,
         strictPort: true, // fail fast if chosen port is taken to avoid silent proxy logs
         host: true,
+        allowedHosts: true,
         proxy: {
             '/api': {
                 target: API_TARGET,

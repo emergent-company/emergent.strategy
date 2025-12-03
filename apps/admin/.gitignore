@@ -26,3 +26,9 @@ vite.config.js
 tsconfig.node.tsbuildinfo
 tsconfig.tsbuildinfo
 vite.config.d.ts
+
+# Compiled TypeScript config files (use .ts source only)
+vite.config.js
+vite.config.d.ts
+vite-plugin-*.js
+vite-plugin-*.d.ts
