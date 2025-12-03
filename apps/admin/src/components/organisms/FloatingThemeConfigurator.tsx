@@ -297,6 +297,89 @@ const THEME_VARIABLES: ThemeVariable[] = [
   },
 ];
 
+interface ThemeConfig {
+  name: string;
+  default: boolean;
+  prefersdark: boolean;
+  colorScheme: 'light' | 'dark';
+}
+
+/**
+ * Parse DaisyUI theme wizard CSS format
+ * Example input:
+ * @plugin "daisyui/theme" {
+ *   name: "my-theme";
+ *   prefersdark: true;
+ *   color-scheme: "dark";
+ *   --color-base-100: oklch(15% 0 0);
+ *   ...
+ * }
+ */
+function parseThemeWizardCSS(css: string): {
+  config: Partial<ThemeConfig>;
+  variables: Record<string, string>;
+} | null {
+  // Match the @plugin "daisyui/theme" { ... } block
+  const pluginMatch = css.match(/@plugin\s+"daisyui\/theme"\s*\{([^}]+)\}/s);
+  if (!pluginMatch) {
+    // Try alternative format without quotes
+    const altMatch = css.match(/@plugin\s+'daisyui\/theme'\s*\{([^}]+)\}/s);
+    if (!altMatch) return null;
+    return parseThemeContent(altMatch[1]);
+  }
+  return parseThemeContent(pluginMatch[1]);
+}
+
+function parseThemeContent(content: string): {
+  config: Partial<ThemeConfig>;
+  variables: Record<string, string>;
+} {
+  const config: Partial<ThemeConfig> = {};
+  const variables: Record<string, string> = {};
+
+  // Split by lines and parse each property
+  const lines = content.split('\n');
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('//')) continue;
+
+    // Match property: value; format
+    const match = trimmed.match(/^([\w-]+):\s*(.+?);?\s*$/);
+    if (!match) continue;
+
+    const [, key, rawValue] = match;
+    // Remove quotes from value if present
+    const value = rawValue.replace(/^["']|["']$/g, '').trim();
+
+    // Handle config properties
+    switch (key) {
+      case 'name':
+        config.name = value;
+        break;
+      case 'default':
+        config.default = value === 'true';
+        break;
+      case 'prefersdark':
+        config.prefersdark = value === 'true';
+        break;
+      case 'color-scheme':
+        config.colorScheme = value as 'light' | 'dark';
+        break;
+      default:
+        // Handle CSS variables (--color-*, --radius-*, etc.)
+        if (key.startsWith('--')) {
+          variables[key] = value;
+        }
+        break;
+    }
+  }
+
+  return { config, variables };
+}
+
+type EditingMode = 'dark' | 'light';
+
 export function FloatingThemeConfigurator() {
   const { openPanel, togglePanel } = useSwitcherPanel();
   const isOpen = openPanel === 'theme-config';
@@ -313,32 +396,116 @@ export function FloatingThemeConfigurator() {
     element: HTMLElement;
     variables: string[];
   } | null>(null);
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>({
+    name: 'space-asteroid-belt',
+    default: false,
+    prefersdark: true,
+    colorScheme: 'dark',
+  });
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [editingMode, setEditingMode] = useState<EditingMode>('dark');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Load saved theme (only apply if user has customized)
+  // Theme file paths for reference
+  const themeFiles = {
+    dark: 'src/styles/themes/space-asteroid-belt.css',
+    light: 'src/styles/themes/space-asteroid-belt-light.css',
+  };
+
+  // Load current theme values from computed styles
+  const loadFromCurrentTheme = () => {
+    const root = document.documentElement;
+    const computedStyle = getComputedStyle(root);
+    const loadedVars: Record<string, string> = {};
+
+    THEME_VARIABLES.forEach((v) => {
+      const value = computedStyle.getPropertyValue(v.name).trim();
+      if (value) {
+        loadedVars[v.name] = value;
+      }
+    });
+
+    setVariables(loadedVars);
+    setHasUnsavedChanges(false);
+
+    // Update config based on current mode
+    const currentTheme = root.getAttribute('data-theme') || '';
+    const isDark = !currentTheme.includes('-light');
+    setThemeConfig((prev) => ({
+      ...prev,
+      name: isDark ? 'space-asteroid-belt' : 'space-asteroid-belt-light',
+      prefersdark: isDark,
+      colorScheme: isDark ? 'dark' : 'light',
+    }));
+    setEditingMode(isDark ? 'dark' : 'light');
+  };
+
+  // Switch between editing dark/light variants
+  const switchEditingMode = (mode: EditingMode) => {
+    if (hasUnsavedChanges) {
+      if (
+        !confirm(
+          'You have unsaved changes. Switch anyway? (Changes will be lost)'
+        )
+      ) {
+        return;
+      }
+    }
+
+    // Clear inline styles first
+    const root = document.documentElement;
+    THEME_VARIABLES.forEach((v) => {
+      root.style.removeProperty(v.name);
+    });
+
+    // Switch the actual theme
+    if (mode === 'dark') {
+      root.setAttribute('data-theme', 'space-asteroid-belt');
+      setThemeConfig({
+        name: 'space-asteroid-belt',
+        default: false,
+        prefersdark: true,
+        colorScheme: 'dark',
+      });
+    } else {
+      root.setAttribute('data-theme', 'space-asteroid-belt-light');
+      setThemeConfig({
+        name: 'space-asteroid-belt-light',
+        default: false,
+        prefersdark: false,
+        colorScheme: 'light',
+      });
+    }
+
+    setEditingMode(mode);
+    setVariables({});
+    setHasUnsavedChanges(false);
+
+    // Load values from the new theme after a brief delay
+    setTimeout(loadFromCurrentTheme, 50);
+  };
+
+  // Load saved theme on mount (only if user was previously editing)
   useEffect(() => {
     const saved = localStorage.getItem('theme-configurator-values');
     if (saved) {
       try {
-        setVariables(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (parsed.mode && parsed.variables) {
+          setEditingMode(parsed.mode);
+          setVariables(parsed.variables);
+          setHasUnsavedChanges(false);
+        }
       } catch {
-        // On parse error, don't apply anything - let CSS themes work
+        // On parse error, don't apply anything
         setVariables({});
       }
     }
-    // Don't initialize defaults - let CSS themes handle it
   }, []);
 
-  const initializeDefaults = () => {
-    const defaults: Record<string, string> = {};
-    THEME_VARIABLES.forEach((v) => {
-      defaults[v.name] = v.value;
-    });
-    setVariables(defaults);
-  };
-
-  // Apply theme variables to document ONLY when user has explicitly customized
+  // Apply theme variables to document when editing
   useEffect(() => {
-    // Only apply inline styles if there are actually saved custom values
     if (Object.keys(variables).length === 0) return;
 
     const root = document.documentElement;
@@ -350,25 +517,105 @@ export function FloatingThemeConfigurator() {
   const updateVariable = (name: string, value: string) => {
     const updated = { ...variables, [name]: value };
     setVariables(updated);
-    localStorage.setItem('theme-configurator-values', JSON.stringify(updated));
+    setHasUnsavedChanges(true);
+    // Save editing state
+    localStorage.setItem(
+      'theme-configurator-values',
+      JSON.stringify({ mode: editingMode, variables: updated })
+    );
   };
 
   const resetToDefaults = () => {
-    if (confirm('Reset all theme variables to defaults?')) {
-      initializeDefaults();
+    if (confirm('Discard changes and reload from CSS theme?')) {
+      // Clear inline styles
+      const root = document.documentElement;
+      THEME_VARIABLES.forEach((v) => {
+        root.style.removeProperty(v.name);
+      });
+      setVariables({});
+      setHasUnsavedChanges(false);
       localStorage.removeItem('theme-configurator-values');
+      // Reload from current theme
+      setTimeout(loadFromCurrentTheme, 50);
     }
   };
 
   const exportCSS = () => {
-    const css = Object.entries(variables)
-      .map(([name, value]) => `  ${name}: ${value};`)
-      .join('\n');
+    // Build the @plugin "daisyui/theme" format with helpful comment
+    const lines: string[] = [];
+    const themeDescription =
+      editingMode === 'dark'
+        ? 'A monochromatic grey theme with a metallic accent.\n   Stark, minimal, and industrial.'
+        : 'A monochromatic light grey theme with a metallic accent.\n   Clean, minimal, and industrial.';
 
-    const fullCSS = `[data-theme="asteroid-belt"] {\n${css}\n}`;
+    lines.push(
+      `/* ${themeConfig.name
+        .replace('space-', '')
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase())} Theme`
+    );
+    lines.push(`   ${themeDescription} */`);
+    lines.push('');
+    lines.push('@plugin "daisyui/theme" {');
+    lines.push(`  name: '${themeConfig.name}';`);
+    lines.push(`  prefersdark: ${themeConfig.prefersdark};`);
+    lines.push(`  color-scheme: ${themeConfig.colorScheme};`);
+    lines.push('');
+
+    // Add base colors with comments
+    lines.push('  /* Base colors */');
+    const baseVars = THEME_VARIABLES.filter((v) => v.category === 'base');
+    baseVars.forEach((v) => {
+      const value = variables[v.name] || v.value;
+      lines.push(`  ${v.name}: ${value};`);
+    });
+    lines.push('');
+
+    // Add action colors
+    lines.push('  /* Action colors */');
+    const actionVars = THEME_VARIABLES.filter((v) => v.category === 'action');
+    actionVars.forEach((v) => {
+      const value = variables[v.name] || v.value;
+      lines.push(`  ${v.name}: ${value};`);
+    });
+    lines.push('');
+
+    // Add semantic colors
+    lines.push('  /* Semantic colors */');
+    const semanticVars = THEME_VARIABLES.filter(
+      (v) => v.category === 'semantic'
+    );
+    semanticVars.forEach((v) => {
+      const value = variables[v.name] || v.value;
+      lines.push(`  ${v.name}: ${value};`);
+    });
+    lines.push('');
+
+    // Add geometry variables
+    lines.push('  /* Geometry */');
+    const geometryVars = THEME_VARIABLES.filter(
+      (v) => v.category === 'geometry'
+    );
+    geometryVars.forEach((v) => {
+      const value = variables[v.name] || v.value;
+      lines.push(`  ${v.name}: ${value};`);
+    });
+    lines.push('');
+
+    // Add effect variables
+    lines.push('  /* Effects */');
+    const effectVars = THEME_VARIABLES.filter((v) => v.category === 'effect');
+    effectVars.forEach((v) => {
+      const value = variables[v.name] || v.value;
+      lines.push(`  ${v.name}: ${value};`);
+    });
+
+    lines.push('}');
+
+    const fullCSS = lines.join('\n');
 
     navigator.clipboard.writeText(fullCSS);
-    alert('CSS copied to clipboard!');
+    alert(`CSS copied! Paste into:\n${themeFiles[editingMode]}`);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -554,6 +801,9 @@ export function FloatingThemeConfigurator() {
         <div className="flex items-center gap-2">
           <Icon icon="lucide--palette" className="size-5" />
           <h3 className="font-bold text-sm">Theme Configurator</h3>
+          {hasUnsavedChanges && (
+            <span className="badge badge-warning badge-sm">Unsaved</span>
+          )}
           {hoverMode && (
             <span className="badge badge-primary badge-sm">Hover Mode</span>
           )}
@@ -597,6 +847,48 @@ export function FloatingThemeConfigurator() {
           className="configurator-content overflow-hidden flex flex-col"
           style={{ maxHeight: 'calc(80vh - 60px)' }}
         >
+          {/* Mode Toggle + File Path */}
+          <div className="p-3 border-b border-base-300 bg-base-200/50 flex-shrink-0">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-base-content/70">
+                  Editing:
+                </span>
+                <div className="join">
+                  <button
+                    className={`join-item btn btn-xs ${
+                      editingMode === 'dark' ? 'btn-primary' : 'btn-ghost'
+                    }`}
+                    onClick={() => switchEditingMode('dark')}
+                  >
+                    <Icon icon="lucide--moon" className="size-3" />
+                    Dark
+                  </button>
+                  <button
+                    className={`join-item btn btn-xs ${
+                      editingMode === 'light' ? 'btn-primary' : 'btn-ghost'
+                    }`}
+                    onClick={() => switchEditingMode('light')}
+                  >
+                    <Icon icon="lucide--sun" className="size-3" />
+                    Light
+                  </button>
+                </div>
+              </div>
+              <button
+                className="btn btn-xs btn-ghost gap-1"
+                onClick={loadFromCurrentTheme}
+                title="Load current CSS theme values"
+              >
+                <Icon icon="lucide--refresh-cw" className="size-3" />
+                Load CSS
+              </button>
+            </div>
+            <div className="mt-2 text-xs text-base-content/50 font-mono truncate">
+              {themeFiles[editingMode]}
+            </div>
+          </div>
+
           {/* Category Tabs */}
           <div className="flex gap-2 p-3 border-b border-base-300 overflow-x-auto overflow-y-hidden bg-base-200 flex-shrink-0">
             {(
@@ -724,14 +1016,47 @@ export function FloatingThemeConfigurator() {
             })}
           </div>
 
+          {/* Export Section */}
+          <div className="p-3 border-t border-base-300 bg-base-200/50 theme-configurator-panel">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-semibold text-base-content/70">
+                Export to:{' '}
+                <span className="font-mono">{themeFiles[editingMode]}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="col-span-2 flex items-center gap-2">
+                <label className="text-xs text-base-content/60 whitespace-nowrap">
+                  Name:
+                </label>
+                <input
+                  type="text"
+                  value={themeConfig.name}
+                  onChange={(e) =>
+                    setThemeConfig({ ...themeConfig, name: e.target.value })
+                  }
+                  className="input input-xs input-bordered flex-1 font-mono"
+                  placeholder="space-asteroid-belt"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Actions */}
-          <div className="p-4 border-t border-base-300 flex gap-2 theme-configurator-panel">
+          <div className="p-4 border-t border-base-300 flex gap-2 flex-wrap theme-configurator-panel">
             <button
               className="btn btn-xs btn-outline gap-1"
               onClick={resetToDefaults}
             >
               <Icon icon="lucide--rotate-ccw" className="size-3" />
-              Reset
+              Discard
+            </button>
+            <button
+              className="btn btn-xs btn-outline gap-1"
+              onClick={() => setShowImportModal(true)}
+            >
+              <Icon icon="lucide--download" className="size-3" />
+              Import
             </button>
             <button
               className="btn btn-xs btn-primary gap-1"
@@ -740,6 +1065,126 @@ export function FloatingThemeConfigurator() {
               <Icon icon="lucide--copy" className="size-3" />
               Copy CSS
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Import CSS Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000]">
+          <div className="bg-base-100 rounded-lg shadow-2xl border border-base-300 w-[500px] max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-base-300">
+              <h3 className="font-bold text-sm flex items-center gap-2">
+                <Icon icon="lucide--download" className="size-4" />
+                Import Theme CSS
+              </h3>
+              <button
+                className="btn btn-xs btn-ghost btn-square"
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportText('');
+                }}
+              >
+                <Icon icon="lucide--x" className="size-4" />
+              </button>
+            </div>
+            <div className="p-4 flex-1 overflow-hidden flex flex-col gap-3">
+              <p className="text-xs text-base-content/70">
+                Paste DaisyUI theme wizard CSS (the{' '}
+                <code className="bg-base-200 px-1 rounded">
+                  @plugin "daisyui/theme"
+                </code>{' '}
+                block):
+              </p>
+              <textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                className="textarea textarea-bordered flex-1 font-mono text-xs min-h-[200px]"
+                placeholder={`@plugin "daisyui/theme" {
+  name: "my-theme";
+  prefersdark: true;
+  color-scheme: "dark";
+  --color-base-100: oklch(15% 0 0);
+  --color-primary: oklch(70% 0.15 240);
+  ...
+}`}
+              />
+            </div>
+            <div className="p-4 border-t border-base-300 flex justify-end gap-2">
+              <button
+                className="btn btn-xs btn-ghost"
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportText('');
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-xs btn-primary gap-1"
+                onClick={() => {
+                  const parsed = parseThemeWizardCSS(importText);
+                  if (!parsed) {
+                    alert(
+                      'Could not parse theme CSS. Make sure it\'s in the @plugin "daisyui/theme" { ... } format.'
+                    );
+                    return;
+                  }
+
+                  // Apply parsed config
+                  if (parsed.config.name) {
+                    setThemeConfig((prev) => ({
+                      ...prev,
+                      name: parsed.config.name!,
+                    }));
+                  }
+                  if (parsed.config.prefersdark !== undefined) {
+                    setThemeConfig((prev) => ({
+                      ...prev,
+                      prefersdark: parsed.config.prefersdark!,
+                    }));
+                  }
+                  if (parsed.config.colorScheme) {
+                    setThemeConfig((prev) => ({
+                      ...prev,
+                      colorScheme: parsed.config.colorScheme!,
+                    }));
+                  }
+                  if (parsed.config.default !== undefined) {
+                    setThemeConfig((prev) => ({
+                      ...prev,
+                      default: parsed.config.default!,
+                    }));
+                  }
+
+                  // Apply parsed variables
+                  const newVariables = { ...variables };
+                  Object.entries(parsed.variables).forEach(([key, value]) => {
+                    newVariables[key] = value;
+                  });
+                  setVariables(newVariables);
+                  localStorage.setItem(
+                    'theme-configurator-values',
+                    JSON.stringify(newVariables)
+                  );
+
+                  // Close modal
+                  setShowImportModal(false);
+                  setImportText('');
+
+                  // Show success feedback
+                  const varCount = Object.keys(parsed.variables).length;
+                  alert(
+                    `Imported theme "${
+                      parsed.config.name || 'unnamed'
+                    }" with ${varCount} variables!`
+                  );
+                }}
+              >
+                <Icon icon="lucide--check" className="size-3" />
+                Import Theme
+              </button>
+            </div>
           </div>
         </div>
       )}

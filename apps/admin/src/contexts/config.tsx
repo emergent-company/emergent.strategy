@@ -77,9 +77,46 @@ const useHook = () => {
     (theme: IConfig['theme']) => {
       // Clear custom theme when using the normal theme switcher
       localStorage.removeItem('emergent-theme');
+      // Clear theme configurator inline styles so CSS themes can take effect
+      localStorage.removeItem('theme-configurator-values');
 
       // Immediately apply the theme to ensure it takes effect
       if (htmlRef) {
+        // Remove any inline style overrides that would take precedence over CSS themes
+        const themeVars = [
+          '--color-base-100',
+          '--color-base-200',
+          '--color-base-300',
+          '--color-base-content',
+          '--color-primary',
+          '--color-primary-content',
+          '--color-secondary',
+          '--color-secondary-content',
+          '--color-accent',
+          '--color-accent-content',
+          '--color-neutral',
+          '--color-neutral-content',
+          '--color-info',
+          '--color-info-content',
+          '--color-success',
+          '--color-success-content',
+          '--color-warning',
+          '--color-warning-content',
+          '--color-error',
+          '--color-error-content',
+          '--radius-selector',
+          '--radius-field',
+          '--radius-box',
+          '--size-selector',
+          '--size-field',
+          '--border',
+          '--depth',
+          '--noise',
+        ];
+        themeVars.forEach((varName) => {
+          htmlRef.style.removeProperty(varName);
+        });
+
         if (theme === 'system') {
           const prefersDark = window.matchMedia(
             '(prefers-color-scheme: dark)'

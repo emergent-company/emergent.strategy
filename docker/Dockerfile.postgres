@@ -1,14 +1,12 @@
 # Custom PostgreSQL with pgvector and initialization scripts
 # Embeds init scripts directly in image for portability
+#
+# NOTE: Zitadel is managed externally via emergent-infra/zitadel
 FROM pgvector/pgvector:pg16
 
 # Copy initialization scripts
 # These run automatically on first database startup via docker-entrypoint-initdb.d
 COPY init.sql /docker-entrypoint-initdb.d/00-init.sql
-COPY 01-init-zitadel.sh /docker-entrypoint-initdb.d/01-init-zitadel.sh
-
-# Ensure scripts are executable
-RUN chmod +x /docker-entrypoint-initdb.d/01-init-zitadel.sh
 
 # Expose PostgreSQL port
 EXPOSE 5432
