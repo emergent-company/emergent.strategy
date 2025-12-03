@@ -22,8 +22,9 @@
             "@/utils/*": ["src/utils/*"]
         }
     },
-    "include": ["src", ".storybook"],
+    "include": ["src"],
     "exclude": [
+        ".storybook",
         "src/**/*.test.ts",
         "src/**/*.test.tsx",
         "src/**/*.spec.ts",

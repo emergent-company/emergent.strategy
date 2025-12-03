@@ -1,6 +1,9 @@
 # Docker Compose for Coolify Deployment
 # This file explicitly sets build contexts to help Coolify
 # understand the repository structure
+#
+# NOTE: Zitadel is managed externally via emergent-infra/zitadel
+# Configure ZITADEL_ISSUER to point to the external Zitadel instance
 
 version: "3.8"
 
@@ -15,99 +18,14 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-spec}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-spec}
-      ZITADEL_DB_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U spec -d spec && pg_isready -U zitadel -d zitadel",
-        ]
+      test: ["CMD-SHELL", "pg_isready -U spec -d spec"]
       interval: 5s
       timeout: 3s
       retries: 15
       start_period: 15s
-
-  # Zitadel Identity Provider (using official image)
-  zitadel:
-    image: ghcr.io/zitadel/zitadel:latest
-    restart: unless-stopped
-    command: start-from-init --masterkey "${ZITADEL_MASTERKEY}"
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      # External domain configuration
-      ZITADEL_EXTERNALDOMAIN: ${ZITADEL_EXTERNALDOMAIN}
-      ZITADEL_EXTERNALSECURE: ${ZITADEL_EXTERNALSECURE:-true}
-      ZITADEL_TLS_ENABLED: ${ZITADEL_TLS_ENABLED:-false}
-
-      # Database connection
-      ZITADEL_DATABASE_POSTGRES_HOST: db
-      ZITADEL_DATABASE_POSTGRES_PORT: 5432
-      ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
-      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: zitadel
-      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel}
-      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
-      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: ${POSTGRES_USER:-spec}
-      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${POSTGRES_PASSWORD}
-      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
-
-      # Login v2 configuration
-      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: true
-      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_BASEURI: https://${ZITADEL_EXTERNALDOMAIN}/ui/v2/login
-      ZITADEL_OIDC_DEFAULTLOGINURLV2: https://${ZITADEL_EXTERNALDOMAIN}/ui/v2/login/login?authRequest=
-      ZITADEL_OIDC_DEFAULTLOGOUTURLV2: https://${ZITADEL_EXTERNALDOMAIN}/ui/v2/login/logout?post_logout_redirect=
-      ZITADEL_SAML_DEFAULTLOGINURLV2: https://${ZITADEL_EXTERNALDOMAIN}/ui/v2/login/login?samlRequest=
-
-      # Login client for login v2 (creates PAT for login service)
-      ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH: /machinekey/login-client.pat
-      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_USERNAME: login-client
-      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_NAME: Login Client Service Account
-      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINEKEY_TYPE: 1
-      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_PAT_EXPIRATIONDATE: "2030-12-31T23:59:59Z"
-
-      # Admin machine user (optional - creates PAT for API access)
-      ZITADEL_FIRSTINSTANCE_PATPATH: /machinekey/admin.pat
-      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: zitadel-admin-sa
-      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: Bootstrap Admin Service Account
-      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2030-12-31T23:59:59Z"
-
-      # Initial org and human user
-      ZITADEL_FIRSTINSTANCE_ORG_NAME: ${ZITADEL_ORG_NAME:-Default}
-      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: ${ZITADEL_ADMIN_USERNAME:-admin}
-      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: ${ZITADEL_ADMIN_PASSWORD}
-      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORDCHANGEREQUIRED: false
-    expose:
-      - "8080"
-    # Note: Traefik labels are managed by Coolify - don't add custom labels here
-    # as they can conflict with Coolify's auto-generated labels (e.g., 'web' entrypoint doesn't exist)
-    volumes:
-      - zitadel_machinekey:/machinekey
-    healthcheck:
-      test: ["CMD", "/app/zitadel", "ready"]
-      interval: 10s
-      timeout: 60s
-      retries: 5
-      start_period: 30s
-    user: "0"
-
-  # Zitadel Login UI v2 (using official image)
-  zitadel-login:
-    image: ghcr.io/zitadel/zitadel-login:latest
-    restart: unless-stopped
-    environment:
-      ZITADEL_API_URL: http://localhost:8080
-      NEXT_PUBLIC_BASE_PATH: /ui/v2/login
-      ZITADEL_SERVICE_USER_TOKEN_FILE: /machinekey/login-client.pat
-    network_mode: service:zitadel
-    user: "0"
-    volumes:
-      - zitadel_machinekey:/machinekey:ro
-    depends_on:
-      zitadel:
-        condition: service_healthy
 
   # NestJS Backend API
   server:
@@ -180,8 +98,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      zitadel:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
       interval: 30s
@@ -218,6 +134,4 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
-  zitadel_machinekey:
     driver: local

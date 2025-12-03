@@ -7,36 +7,77 @@ The workspace CLI wraps PM2 with preflight checks, health monitoring, and log co
 ## TL;DR
 
 ```bash
-# Start Zitadel (from emergent-infra repository)
-cd ../emergent-infra/zitadel
-docker compose up -d
-cd ../../spec-server-2
-
-# Start dockerized dependencies (Postgres for spec-server-2)
-npm run workspace:deps:start
+# Start infrastructure (from emergent-infra repository)
+cd ../emergent-infra/postgres && docker compose up -d
+cd ../zitadel && docker compose up -d
+cd ../../emergent
 
 # Start API + Admin services
-npm run workspace:start
+pnpm run workspace:start
 
 # Inspect status for everything
-npm run workspace:status
+pnpm run workspace:status
 
 # Tail aggregated logs (adjust --lines as needed)
-npm run workspace:logs -- --lines 200
+pnpm run workspace:logs -- --lines 200
 
 # Stop services when you are done
-npm run workspace:stop
-npm run workspace:deps:stop
+pnpm run workspace:stop
 
-# Stop Zitadel when done (from emergent-infra)
-cd ../emergent-infra/zitadel
-docker compose down
+# Stop infrastructure when done (from emergent-infra)
+cd ../emergent-infra/zitadel && docker compose down
+cd ../postgres && docker compose down
 ```
+
+## Infrastructure Setup
+
+Database and Identity services are managed externally via the `emergent-infra` repository:
+
+### PostgreSQL Database
+
+```bash
+cd ../emergent-infra/postgres
+
+# First time setup
+cp .env.example .env
+# Edit .env with your credentials
+
+# Start PostgreSQL
+docker compose up -d
+
+# Check health
+./scripts/health-check.sh
+```
+
+Connection: `postgresql://emergent:<password>@localhost:5432/emergent`
+
+### Zitadel (Identity Provider)
+
+```bash
+cd ../emergent-infra/zitadel
+
+# First time setup
+cp .env.example .env
+
+# Start Zitadel
+docker compose up -d
+
+# Check health
+./scripts/health-check.sh
+```
+
+Key endpoints:
+- Zitadel Console: https://zitadel.dev.emergent-company.ai
+- Login UI: https://login.dev.emergent-company.ai/ui/v2/login
+
+For detailed setup instructions, see:
+- [emergent-infra/postgres/README.md](../emergent-infra/postgres/README.md)
+- [emergent-infra/zitadel/README.md](../emergent-infra/zitadel/README.md)
 
 ## Starting Services
 
 ```bash
-$ npm run workspace:start
+$ pnpm run workspace:start
 
 🚀 Starting services [admin, server] with profile development
 ∙ Starting admin
@@ -48,90 +89,34 @@ $ npm run workspace:start
 Services run under the `workspace-cli` PM2 namespace with health checks:
 
 - **admin** → http://localhost:5175
-- **server** → http://localhost:3001
+- **server** → http://localhost:3002
 
 Use `--service` to scope a command:
 
 ```bash
-npm run workspace:start -- --service server   # API only
-npm run workspace:start -- --service admin    # Admin SPA only
+pnpm run workspace:start -- --service server   # API only
+pnpm run workspace:start -- --service admin    # Admin SPA only
 ```
-
-## Managing Dependencies
-
-```bash
-$ npm run workspace:deps:start
-
-🛢️  Starting dependencies [postgres] with profile development
-∙ Starting postgres-dependency
-✅ postgres-dependency reached healthy state
-```
-
-**Note:** Zitadel is no longer managed as a workspace dependency. It runs independently from the `emergent-infra` repository. See the [Zitadel Setup](#zitadel-setup) section below.
-
-Dependencies live in the `workspace-cli-deps` namespace. Health checks wait for Docker to report "healthy" before returning.
-
-Stop or restart just the dependencies when needed:
-
-```bash
-npm run workspace:deps:stop
-npm run workspace:deps:restart
-```
-
-## Zitadel Setup
-
-Zitadel (Identity Provider) is deployed independently from the emergent-infra repository:
-
-```bash
-# Navigate to emergent-infra
-cd ../emergent-infra/zitadel
-
-# First time setup
-cp .env.example .env
-# Edit .env if needed (defaults work for local dev)
-
-# Start Zitadel
-docker compose up -d
-
-# Check status
-docker compose ps
-docker compose logs -f zitadel
-
-# Stop when done
-docker compose down
-```
-
-Key endpoints:
-- Zitadel Console: http://localhost:8080
-- Login UI: http://localhost:3000/ui/v2/login
-
-For detailed setup and integration instructions, see:
-- [emergent-infra/zitadel/README.md](../emergent-infra/zitadel/README.md)
-- [docs/setup/ZITADEL_SETUP_GUIDE.md](docs/setup/ZITADEL_SETUP_GUIDE.md)
 
 ## Status & Logs
 
 ```bash
-$ npm run workspace:status
+$ pnpm run workspace:status
 
 Workspace Status (development profile)
 
-Dependencies:
-  • postgres-dependency    online (since 2m)
-
 Services:
-  • server                 online (port 3001)
+  • server                 online (port 3002)
   • admin                  online (port 5175)
 ```
 
-**Note:** Zitadel status is checked separately via `docker compose ps` in the emergent-infra/zitadel directory.
+**Note:** Infrastructure status is checked separately via health-check scripts in emergent-infra.
 
-Tail logs across apps and dependencies:
+Tail logs across apps:
 
 ```bash
-npm run workspace:logs -- --lines 150
-npm run workspace:logs -- --service server
-npm run workspace:logs -- --deps-only
+pnpm run workspace:logs -- --lines 150
+pnpm run workspace:logs -- --service server
 ```
 
 Use `--json` for machine-readable status or log metadata.
@@ -139,35 +124,39 @@ Use `--json` for machine-readable status or log metadata.
 ## Daily Flow
 
 ```bash
-# Morning
-npm run workspace:deps:start
-npm run workspace:start
+# Morning - start infrastructure first
+cd ../emergent-infra/postgres && docker compose up -d
+cd ../zitadel && docker compose up -d
+cd ../../emergent
+
+# Start services
+pnpm run workspace:start
 
 # Check during the day
-npm run workspace:status
+pnpm run workspace:status
 
 # Evening shutdown
-npm run workspace:stop
-npm run workspace:deps:stop
+pnpm run workspace:stop
+
+# Stop infrastructure (optional - can leave running)
+cd ../emergent-infra/zitadel && docker compose down
+cd ../postgres && docker compose down
 ```
 
 ## Graceful Recovery
 
 ```bash
 # Something feels off? Restart services.
-npm run workspace:restart
-
-# Reset the entire stack (including dependencies)
-npm run workspace:deps:restart
+pnpm run workspace:restart
 ```
 
 ## Need Raw Docker?
 
-The CLI wraps Docker Compose, but you can still run it manually:
+For infrastructure, use docker compose directly in emergent-infra:
 
 ```bash
-cd docker
-docker compose up -d db zitadel login
+cd ../emergent-infra/postgres && docker compose up -d
+cd ../emergent-infra/zitadel && docker compose up -d
 ```
 
-However, the workspace CLI is recommended—it enforces preflight checks, health probes, and consistent logging.
+The workspace CLI is recommended for application services—it enforces preflight checks, health probes, and consistent logging.
