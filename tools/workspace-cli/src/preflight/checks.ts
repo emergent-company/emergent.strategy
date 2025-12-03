@@ -26,9 +26,11 @@ const execFileAsync = promisify(execFile);
 const MIN_NODE_VERSION = { major: 20, minor: 19 } as const;
 const ROOT_DIR = path.resolve(process.cwd());
 
+// Infrastructure services are managed externally via emergent-infra
+// No ports need to be checked/blocked by workspace-cli
 const DEPENDENCY_PORT_MAP: Record<string, readonly number[]> = {
-  postgres: [5432],
-  zitadel: [8100, 8101],
+  // postgres: managed by emergent-infra/postgres (port 5432)
+  // zitadel: managed by emergent-infra/zitadel (port 8080)
 };
 
 interface PortConflict {
@@ -172,16 +174,19 @@ async function validateDatabaseSchema(): Promise<void> {
 
 async function validateZitadelConfiguration(): Promise<void> {
   const zitadelDomain = process.env.ZITADEL_DOMAIN;
+  const zitadelIssuer = process.env.ZITADEL_ISSUER;
   const oauthClientId =
-    process.env.ZITADEL_CLIENT_ID || process.env.VITE_ZITADEL_CLIENT_ID;
+    process.env.ZITADEL_OAUTH_CLIENT_ID ||
+    process.env.ZITADEL_CLIENT_ID ||
+    process.env.VITE_ZITADEL_CLIENT_ID;
 
   if (!zitadelDomain) {
     throw new WorkspaceCliError(
       'PRECHECK_ZITADEL_CONFIG_MISSING',
-      'ZITADEL_DOMAIN not set in .env file.',
+      'ZITADEL_DOMAIN not set. Configure via Infisical or .env file.',
       {
         recommendation:
-          'Add ZITADEL_DOMAIN to your .env file (e.g., ZITADEL_DOMAIN=localhost:8200)',
+          'Set ZITADEL_DOMAIN in Infisical (dev/server) or add to .env (e.g., ZITADEL_DOMAIN=zitadel.dev.emergent-company.ai)',
       }
     );
   }
@@ -189,22 +194,25 @@ async function validateZitadelConfiguration(): Promise<void> {
   if (!oauthClientId) {
     throw new WorkspaceCliError(
       'PRECHECK_ZITADEL_CONFIG_MISSING',
-      'OAuth client ID not set. ZITADEL_CLIENT_ID or VITE_ZITADEL_CLIENT_ID required.',
+      'OAuth client ID not set. ZITADEL_OAUTH_CLIENT_ID required.',
       {
         recommendation:
-          'Run: ./scripts/bootstrap-zitadel-fully-automated.sh provision',
+          'Run bootstrap in emergent-infra/zitadel: ./scripts/bootstrap.sh',
       }
     );
   }
 
   // Check if Zitadel is reachable (with retries)
+  // NOTE: Zitadel is managed externally via emergent-infra/zitadel
   const maxRetries = 6;
   const retryDelay = 5000; // 5 seconds
   let lastError: any = null;
 
+  // Use ZITADEL_ISSUER if set (includes https://), otherwise construct from domain
+  const baseUrl = zitadelIssuer || `https://${zitadelDomain}`;
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const baseUrl = `http://${zitadelDomain}`;
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
 
@@ -229,7 +237,7 @@ async function validateZitadelConfiguration(): Promise<void> {
           `Zitadel is not ready at ${baseUrl} (HTTP ${response.status})`,
           {
             recommendation:
-              'Ensure Zitadel container is running: docker compose --project-name spec-server-2 -f docker-compose.dev.yml up -d zitadel',
+              'Check Zitadel: cd ../emergent-infra/zitadel && ./scripts/health-check.sh',
           }
         );
       }
@@ -261,10 +269,10 @@ async function validateZitadelConfiguration(): Promise<void> {
 
       throw new WorkspaceCliError(
         'PRECHECK_ZITADEL_UNREACHABLE',
-        `Cannot reach Zitadel at http://${zitadelDomain} after ${maxRetries} attempts: ${error.message}`,
+        `Cannot reach Zitadel at ${baseUrl} after ${maxRetries} attempts: ${error.message}`,
         {
           recommendation:
-            'Check Zitadel logs: npm run workspace:logs -- --service zitadel',
+            'Check Zitadel: cd ../emergent-infra/zitadel && ./scripts/health-check.sh',
         }
       );
     }
@@ -272,8 +280,8 @@ async function validateZitadelConfiguration(): Promise<void> {
 
   // Quick OAuth app validation
   try {
-    const baseUrl = `http://${zitadelDomain}`;
-    const testUrl = `${baseUrl}/oauth/v2/authorize?response_type=code&client_id=${oauthClientId}&redirect_uri=http://localhost:5176/auth/callback&scope=openid&code_challenge=test&code_challenge_method=S256`;
+    const oauthBaseUrl = zitadelIssuer || `https://${zitadelDomain}`;
+    const testUrl = `${oauthBaseUrl}/oauth/v2/authorize?response_type=code&client_id=${oauthClientId}&redirect_uri=http://localhost:5176/auth/callback&scope=openid&code_challenge=test&code_challenge_method=S256`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
@@ -295,7 +303,7 @@ async function validateZitadelConfiguration(): Promise<void> {
           `OAuth client ID ${oauthClientId} not found in Zitadel.`,
           {
             recommendation:
-              'Run: ./scripts/bootstrap-zitadel-fully-automated.sh provision',
+              'Run bootstrap in emergent-infra/zitadel: ./scripts/bootstrap.sh',
           }
         );
       }
@@ -455,6 +463,36 @@ async function collectEnvWarnings(command: string): Promise<EnvWarning[]> {
     });
   }
 
+  // Check for stale compiled config files that could override TypeScript configs
+  const staleConfigWarnings = await checkForStaleConfigFiles();
+  warnings.push(...staleConfigWarnings);
+
+  return warnings;
+}
+
+/**
+ * Check for stale .js config files that might override .ts configs.
+ * Vite loads .js before .ts, so a stale .js can cause unexpected behavior.
+ */
+async function checkForStaleConfigFiles(): Promise<EnvWarning[]> {
+  const warnings: EnvWarning[] = [];
+  
+  const configPairs = [
+    { ts: 'apps/admin/vite.config.ts', js: 'apps/admin/vite.config.js' },
+    { ts: 'apps/admin/vite-plugin-infisical.ts', js: 'apps/admin/vite-plugin-infisical.js' },
+  ];
+
+  for (const { ts, js } of configPairs) {
+    const tsPath = path.join(ROOT_DIR, ts);
+    const jsPath = path.join(ROOT_DIR, js);
+
+    if (existsSync(tsPath) && existsSync(jsPath)) {
+      warnings.push({
+        message: `Stale ${js} found alongside ${ts}. Vite loads .js first, which may cause unexpected behavior. Delete ${js}`,
+      });
+    }
+  }
+
   return warnings;
 }
 
@@ -502,6 +540,9 @@ async function enforcePortAvailability(
   const services = resolveTargetServices(args, includeServices);
   const dependencies = resolveTargetDependencies(args, includeDependencies);
 
+  // First, clean up any orphan processes on our ports
+  await cleanupOrphanProcesses(services, dependencies);
+
   const conflicts: PortConflict[] = [];
 
   for (const serviceId of services) {
@@ -544,6 +585,49 @@ async function enforcePortAvailability(
         profile: profile.profileId,
       }
     );
+  }
+}
+
+/**
+ * Clean up orphan processes that may be holding onto our ports.
+ * This handles cases where child processes (like vite or ts-node-dev) 
+ * became orphaned when their parent npm process died.
+ */
+async function cleanupOrphanProcesses(
+  services: readonly string[],
+  dependencies: readonly string[]
+): Promise<void> {
+  const portsToClean: number[] = [];
+
+  for (const serviceId of services) {
+    const status = await getProcessStatus(serviceId);
+    // If we think it's stopped but port might be in use, clean it
+    if (!status.running) {
+      const ports = getServicePortHints(serviceId);
+      portsToClean.push(...ports);
+    }
+  }
+
+  for (const dependencyId of dependencies) {
+    const ports = DEPENDENCY_PORT_MAP[dependencyId] ?? [];
+    portsToClean.push(...ports);
+  }
+
+  if (portsToClean.length === 0) {
+    return;
+  }
+
+  // Kill any processes on these ports
+  for (const port of portsToClean) {
+    if (await isPortInUse(port)) {
+      try {
+        await execFileAsync('sh', ['-c', `lsof -ti:${port} | xargs kill -9 2>/dev/null || true`]);
+        // Wait a moment for the process to die
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch {
+        // Ignore errors - the port might already be free
+      }
+    }
   }
 }
 

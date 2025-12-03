@@ -145,23 +145,34 @@ export async function stopProcess(
   }
 
   try {
-    // Send SIGTERM for graceful shutdown
-    if (!force) {
-      process.kill(pid, 'SIGTERM');
+    // Kill the entire process group (negative PID kills the process group)
+    // This ensures child processes spawned by npm/shell are also terminated
+    const signal = force ? 'SIGKILL' : 'SIGTERM';
+    
+    try {
+      // Try to kill process group first (negative pid)
+      process.kill(-pid, signal);
+    } catch (pgError) {
+      // If process group kill fails (e.g., not a process group leader), 
+      // fall back to killing just the process
+      process.kill(pid, signal);
+    }
 
+    if (!force) {
       // Wait for process to exit
       const startTime = Date.now();
       while (isPidRunning(pid)) {
         if (Date.now() - startTime > timeout) {
-          // Timeout exceeded, force kill
-          process.kill(pid, 'SIGKILL');
+          // Timeout exceeded, force kill process group
+          try {
+            process.kill(-pid, 'SIGKILL');
+          } catch {
+            process.kill(pid, 'SIGKILL');
+          }
           break;
         }
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
-    } else {
-      // Force kill immediately
-      process.kill(pid, 'SIGKILL');
     }
 
     // Wait a bit to ensure process is dead
