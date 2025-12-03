@@ -70,7 +70,7 @@ const APPLICATION_PROFILES: readonly ApplicationProcessProfile[] = [
     restartPolicy: DEFAULT_RESTART_POLICY,
     logs: buildLogConfig('server'),
     healthCheck: {
-      url: `http://localhost:${getServerPort()}/healthz`,
+      url: `http://localhost:${getServerPort()}/health`,
       timeoutMs: 30000,
     },
     dependencies: [],
