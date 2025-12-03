@@ -24,39 +24,13 @@ function buildLogConfig(dependencyId: string) {
 
 const DEFAULT_ENV_PROFILE: EnvironmentProfileId = 'development';
 
-const POSTGRES_PORT = process.env.POSTGRES_PORT || '5432';
-const ZITADEL_HTTP_PORT = process.env.ZITADEL_HTTP_PORT || '8100';
-const ZITADEL_LOGIN_PORT = process.env.ZITADEL_LOGIN_PORT || '8101';
+// NOTE: Database and Zitadel are now deployed independently in ../emergent-infra/
+// See ../emergent-infra/postgres/README.md and ../emergent-infra/zitadel/README.md
 
 const DEPENDENCY_PROFILES: readonly DependencyProcessProfile[] = [
-  {
-    dependencyId: 'postgres',
-    composeService: 'db',
-    startScript: 'docker compose up db',
-    stopScript: 'docker compose stop db',
-    envProfile: DEFAULT_ENV_PROFILE,
-    healthCheck: {
-      type: 'docker-healthcheck',
-      timeoutSec: 120
-    },
-    logs: buildLogConfig('postgres'),
-    restartPolicy: DEFAULT_RESTART_POLICY,
-    exposedPorts: [POSTGRES_PORT]
-  },
-  {
-    dependencyId: 'zitadel',
-    composeService: 'zitadel',
-    startScript: 'docker compose up zitadel',
-    stopScript: 'docker compose stop zitadel',
-    envProfile: DEFAULT_ENV_PROFILE,
-    healthCheck: {
-      type: 'docker-healthcheck',
-      timeoutSec: 180
-    },
-    logs: buildLogConfig('zitadel'),
-    restartPolicy: DEFAULT_RESTART_POLICY,
-    exposedPorts: [`${ZITADEL_HTTP_PORT}->8080`, `${ZITADEL_LOGIN_PORT}->3000`]
-  }
+  // All infrastructure services managed externally via emergent-infra
+  // - postgres: emergent-infra/postgres (port 5432)
+  // - zitadel: emergent-infra/zitadel (port 8080)
 ] satisfies readonly DependencyProcessProfile[];
 
 export function listDependencyProcesses(): readonly DependencyProcessProfile[] {
