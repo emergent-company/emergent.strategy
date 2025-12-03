@@ -67,13 +67,13 @@
 
 ## 8. Unit Tests
 
-- [ ] 8.1 Test `SidebarProjectDropdown` renders grouped structure
-- [ ] 8.2 Test selection updates both project and org context
-- [ ] 8.3 Test empty states (no orgs, no projects in org)
-- [ ] 8.4 Test loading state displays correctly
-- [ ] 8.5 Test active project highlighted in correct org group
+- [x] 8.1 Test `SidebarProjectDropdown` renders grouped structure
+- [x] 8.2 Test selection updates both project and org context
+- [x] 8.3 Test empty states (no orgs, no projects in org)
+- [x] 8.4 Test loading state displays correctly
+- [x] 8.5 Test active project highlighted in correct org group
 - [ ] 8.6 Test keyboard navigation through grouped list
-- [ ] 8.7 Update tests for simplified `TopbarProfileMenu`
+- [x] 8.7 Update tests for simplified `TopbarProfileMenu`
 
 ## 9. Integration Tests
 
