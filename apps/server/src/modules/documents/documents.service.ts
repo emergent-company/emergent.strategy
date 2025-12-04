@@ -2,16 +2,19 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { HashService } from '../../common/utils/hash.service';
 import { DatabaseService } from '../../common/database/database.service';
+import { AppConfigService } from '../../common/config/config.service';
 import { DocumentDto } from './dto/document.dto';
 import { Document } from '../../entities/document.entity';
 import { Chunk } from '../../entities/chunk.entity';
 import { Project } from '../../entities/project.entity';
 import { ChunkerService } from '../../common/utils/chunker.service';
+import { ChunkEmbeddingJobsService } from '../chunks/chunk-embedding-jobs.service';
 
 interface DocumentRow {
   id: string;
@@ -34,6 +37,8 @@ interface DocumentRow {
 
 @Injectable()
 export class DocumentsService {
+  private readonly logger = new Logger(DocumentsService.name);
+
   constructor(
     @InjectRepository(Document)
     private readonly documentRepository: Repository<Document>,
@@ -44,7 +49,9 @@ export class DocumentsService {
     private readonly dataSource: DataSource,
     private readonly hash: HashService,
     private readonly db: DatabaseService,
-    private readonly chunker: ChunkerService
+    private readonly chunker: ChunkerService,
+    private readonly chunkEmbeddingJobs: ChunkEmbeddingJobsService,
+    private readonly config: AppConfigService
   ) {}
 
   async list(
@@ -773,7 +780,7 @@ export class DocumentsService {
       config: any;
     };
   }> {
-    return await this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       // 1. Fetch document with content
       const document = await manager.findOne(Document, {
         where: { id: documentId },
@@ -821,7 +828,8 @@ export class DocumentsService {
         chunkingConfig
       );
 
-      // 6. Insert new chunks
+      // 6. Insert new chunks and get their IDs
+      let newChunkIds: string[] = [];
       if (chunksWithMeta.length > 0) {
         const values = chunksWithMeta
           .map(
@@ -833,9 +841,10 @@ export class DocumentsService {
           )
           .join(',');
 
-        await manager.query(
-          `INSERT INTO kb.chunks (document_id, chunk_index, text, metadata) VALUES ${values}`
+        const insertResult = await manager.query(
+          `INSERT INTO kb.chunks (document_id, chunk_index, text, metadata) VALUES ${values} RETURNING id`
         );
+        newChunkIds = insertResult.map((row: { id: string }) => row.id);
       }
 
       return {
@@ -846,7 +855,32 @@ export class DocumentsService {
           strategy: (chunkingConfig as any).strategy || 'character',
           config: chunkingConfig,
         },
+        newChunkIds,
       };
     });
+
+    // 7. Queue embedding jobs for the new chunks (outside transaction)
+    if (result.newChunkIds.length > 0) {
+      const enqueuedCount = await this.chunkEmbeddingJobs.enqueueBatch(
+        result.newChunkIds
+      );
+      this.logger.log(
+        `Queued ${enqueuedCount} embedding jobs for document ${documentId}`
+      );
+
+      // Warn if embeddings are disabled - jobs will remain pending
+      if (!this.config.embeddingsEnabled) {
+        this.logger.warn(
+          `Embeddings are disabled (EMBEDDING_PROVIDER not set). ` +
+            `${enqueuedCount} embedding jobs queued but will NOT be processed until embeddings are enabled.`
+        );
+      }
+    }
+
+    // Return result without internal chunk IDs
+    return {
+      status: result.status,
+      summary: result.summary,
+    };
   }
 }
