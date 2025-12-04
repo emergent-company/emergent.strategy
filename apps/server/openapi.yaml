@@ -6267,6 +6267,17 @@ components:
           type: string
           example: This is the chunk text...
           description: Plaintext content of the chunk (may be truncated client-side)
+        createdAt:
+          type: string
+        totalChars:
+          type: number
+          description: Total characters across all chunks in document
+        chunkCount:
+          type: number
+          description: Total number of chunks in document
+        embeddedChunks:
+          type: number
+          description: Number of embedded chunks in document
       required:
         - id
         - documentId
