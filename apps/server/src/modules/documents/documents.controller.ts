@@ -313,4 +313,41 @@ export class DocumentsController {
 
     return await this.documents.bulkDeleteWithCascade(accessibleIds);
   }
+
+  @Post(':id/recreate-chunks')
+  @ApiOkResponse({
+    description: 'Recreate chunks for a document using project chunking config',
+    schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', example: 'success' },
+        summary: {
+          type: 'object',
+          properties: {
+            oldChunks: { type: 'number', example: 5 },
+            newChunks: { type: 'number', example: 7 },
+            strategy: { type: 'string', example: 'sentence' },
+            config: { type: 'object' },
+          },
+        },
+      },
+    },
+  })
+  @ApiParam({ name: 'id', description: 'Document UUID' })
+  @ApiStandardErrors()
+  @Scopes('documents:write')
+  async recreateChunks(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() req: any
+  ) {
+    // Get document first for scope enforcement
+    const doc = await this.get(id, req);
+    if (!doc)
+      throw new NotFoundException({
+        error: { code: 'not-found', message: 'Document not found' },
+      });
+
+    // Recreate chunks
+    return await this.documents.recreateChunks(id);
+  }
 }

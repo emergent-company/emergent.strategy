@@ -758,4 +758,95 @@ export class DocumentsService {
       .take(limit)
       .getMany();
   }
+
+  /**
+   * Recreate chunks for a document using project chunking configuration.
+   * Deletes existing chunks and creates new ones based on current document content
+   * and project's chunking config.
+   */
+  async recreateChunks(documentId: string): Promise<{
+    status: 'success';
+    summary: {
+      oldChunks: number;
+      newChunks: number;
+      strategy: string;
+      config: any;
+    };
+  }> {
+    return await this.dataSource.transaction(async (manager) => {
+      // 1. Fetch document with content
+      const document = await manager.findOne(Document, {
+        where: { id: documentId },
+        select: ['id', 'projectId', 'content'],
+      });
+
+      if (!document) {
+        throw new NotFoundException('Document not found');
+      }
+
+      if (!document.content) {
+        throw new BadRequestException('Document has no content to chunk');
+      }
+
+      if (!document.projectId) {
+        throw new BadRequestException('Document has no associated project');
+      }
+
+      // 2. Fetch project chunking configuration
+      const project = await manager.findOne(Project, {
+        where: { id: document.projectId },
+        select: ['id', 'chunkingConfig'],
+      });
+
+      if (!project) {
+        throw new NotFoundException('Project not found');
+      }
+
+      // 3. Count existing chunks before deletion
+      const oldChunksResult = await manager.query(
+        `SELECT COUNT(*)::int as count FROM kb.chunks WHERE document_id = $1`,
+        [documentId]
+      );
+      const oldChunksCount = oldChunksResult[0]?.count || 0;
+
+      // 4. Delete existing chunks
+      await manager.query(`DELETE FROM kb.chunks WHERE document_id = $1`, [
+        documentId,
+      ]);
+
+      // 5. Generate new chunks using project's chunking config
+      const chunkingConfig = project.chunkingConfig || {};
+      const chunksWithMeta = this.chunker.chunkWithMetadata(
+        document.content,
+        chunkingConfig
+      );
+
+      // 6. Insert new chunks
+      if (chunksWithMeta.length > 0) {
+        const values = chunksWithMeta
+          .map(
+            (chunk, idx) =>
+              `('${documentId}', ${idx + 1}, '${chunk.text.replace(
+                /'/g,
+                "''"
+              )}', '${JSON.stringify(chunk.metadata).replace(/'/g, "''")}')`
+          )
+          .join(',');
+
+        await manager.query(
+          `INSERT INTO kb.chunks (document_id, chunk_index, text, metadata) VALUES ${values}`
+        );
+      }
+
+      return {
+        status: 'success' as const,
+        summary: {
+          oldChunks: oldChunksCount,
+          newChunks: chunksWithMeta.length,
+          strategy: (chunkingConfig as any).strategy || 'character',
+          config: chunkingConfig,
+        },
+      };
+    });
+  }
 }
