@@ -78,6 +78,7 @@ export default function ObjectsPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [availableTypes, setAvailableTypes] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -302,6 +303,27 @@ export default function ObjectsPage() {
     loadAvailableTypes();
     loadAvailableTags();
   }, [loadAvailableTypes, loadAvailableTags]);
+
+  // Compute available statuses from loaded objects
+  useEffect(() => {
+    const statuses = new Set<string>();
+    objects.forEach((obj) => {
+      if (obj.status) {
+        statuses.add(obj.status);
+      }
+    });
+    // Sort statuses in a logical order
+    const orderedStatuses = ['accepted', 'draft', 'rejected'].filter((s) =>
+      statuses.has(s)
+    );
+    // Add any other statuses that might exist
+    statuses.forEach((s) => {
+      if (!orderedStatuses.includes(s)) {
+        orderedStatuses.push(s);
+      }
+    });
+    setAvailableStatuses(orderedStatuses);
+  }, [objects]);
 
   useEffect(() => {
     loadObjects();
@@ -629,11 +651,16 @@ export default function ObjectsPage() {
       sortable: true,
       render: (obj) => {
         const count = obj.relationship_count || 0;
-        if (count === 0) {
-          return <span className="text-sm text-base-content/50">—</span>;
-        }
         return (
-          <span className="text-sm font-medium text-base-content">{count}</span>
+          <span
+            className={`text-sm ${
+              count === 0
+                ? 'text-base-content/50'
+                : 'font-medium text-base-content'
+            }`}
+          >
+            {count}
+          </span>
         );
       },
     },
@@ -658,6 +685,17 @@ export default function ObjectsPage() {
       options: availableTypes.map((type) => ({ value: type, label: type })),
       getValue: (obj) => obj.type,
       badgeColor: 'primary',
+    },
+    {
+      key: 'status',
+      label: 'Filter by Status',
+      icon: 'lucide--circle-check',
+      options: availableStatuses.map((status) => ({
+        value: status,
+        label: status.charAt(0).toUpperCase() + status.slice(1),
+      })),
+      getValue: (obj) => obj.status || '',
+      badgeColor: 'accent',
     },
     {
       key: 'tags',

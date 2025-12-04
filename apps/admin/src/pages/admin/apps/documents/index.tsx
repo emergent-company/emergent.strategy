@@ -39,6 +39,9 @@ type DocumentRow = {
   createdAt?: string;
   updatedAt?: string;
   chunks: number;
+  // New embedding status fields
+  totalChars?: number;
+  embeddedChunks?: number;
   // Extraction status fields
   extractionStatus?: string;
   extractionCompletedAt?: string;
@@ -79,6 +82,20 @@ export default function DocumentsPage() {
     fileName: string;
     fileSize: number;
     estimatedSeconds: number;
+  } | null>(null);
+  // Batch upload state
+  const [batchUploadProgress, setBatchUploadProgress] = useState<{
+    files: Array<{
+      name: string;
+      size: number;
+      status: 'pending' | 'uploading' | 'success' | 'duplicate' | 'failed';
+      error?: string;
+      documentId?: string;
+      chunks?: number;
+    }>;
+    current: number;
+    total: number;
+    isProcessing: boolean;
   } | null>(null);
   const [dragOver, setDragOver] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -651,9 +668,221 @@ export default function DocumentsPage() {
     }
   }
 
+  /**
+   * Handle batch upload of multiple files.
+   * Uses the /api/ingest/upload-batch endpoint for efficient processing.
+   */
+  async function handleBatchUpload(files: File[]): Promise<void> {
+    // Filter and validate files
+    const validFiles: File[] = [];
+    const invalidFiles: { name: string; reason: string }[] = [];
+    const max = 10 * 1024 * 1024; // 10MB
+
+    for (const file of files) {
+      if (!isAccepted(file)) {
+        invalidFiles.push({
+          name: file.name,
+          reason: 'Unsupported file type',
+        });
+      } else if (file.size > max) {
+        invalidFiles.push({
+          name: file.name,
+          reason: 'File exceeds 10MB limit',
+        });
+      } else {
+        validFiles.push(file);
+      }
+    }
+
+    // Enforce batch limit
+    if (validFiles.length > 100) {
+      showToast({
+        message: `Maximum 100 files per batch. ${validFiles.length} files selected.`,
+        variant: 'error',
+      });
+      return;
+    }
+
+    if (validFiles.length === 0) {
+      if (invalidFiles.length > 0) {
+        showToast({
+          message: `No valid files to upload. ${invalidFiles.length} file(s) rejected.`,
+          variant: 'error',
+        });
+      }
+      return;
+    }
+
+    // Show warning for rejected files
+    if (invalidFiles.length > 0) {
+      showToast({
+        message: `${invalidFiles.length} file(s) rejected: ${invalidFiles
+          .slice(0, 3)
+          .map((f) => f.name)
+          .join(', ')}${invalidFiles.length > 3 ? '...' : ''}`,
+        variant: 'warning',
+        duration: 5000,
+      });
+    }
+
+    // Initialize batch upload progress
+    setBatchUploadProgress({
+      files: validFiles.map((f) => ({
+        name: f.name,
+        size: f.size,
+        status: 'pending',
+      })),
+      current: 0,
+      total: validFiles.length,
+      isProcessing: true,
+    });
+    setUploading(true);
+
+    try {
+      // Create FormData with all files
+      const fd = new FormData();
+      for (const file of validFiles) {
+        fd.append('files', file);
+      }
+      if (config.activeProjectId) {
+        fd.append('projectId', config.activeProjectId);
+      }
+      if (config.activeOrgId) {
+        fd.append('orgId', config.activeOrgId);
+      }
+
+      const t = getAccessToken();
+
+      // Update status to uploading
+      setBatchUploadProgress((prev) =>
+        prev
+          ? {
+              ...prev,
+              files: prev.files.map((f) => ({
+                ...f,
+                status: 'uploading' as const,
+              })),
+            }
+          : null
+      );
+
+      const result = await fetchForm<{
+        summary: {
+          total: number;
+          successful: number;
+          duplicates: number;
+          failed: number;
+        };
+        results: Array<{
+          filename: string;
+          status: 'success' | 'duplicate' | 'failed';
+          documentId?: string;
+          chunks?: number;
+          error?: string;
+        }>;
+      }>(`${apiBase}/api/ingest/upload-batch`, fd, {
+        method: 'POST',
+        headers: t ? buildHeaders({ json: false }) : {},
+      });
+
+      // Update progress with results
+      setBatchUploadProgress((prev) => {
+        if (!prev) return null;
+        const updatedFiles = prev.files.map((f) => {
+          const resultItem = result.results.find((r) => r.filename === f.name);
+          if (resultItem) {
+            return {
+              ...f,
+              status: resultItem.status,
+              documentId: resultItem.documentId,
+              chunks: resultItem.chunks,
+              error: resultItem.error,
+            };
+          }
+          return f;
+        });
+        return {
+          ...prev,
+          files: updatedFiles,
+          current: result.summary.total,
+          isProcessing: false,
+        };
+      });
+
+      // Show summary toast
+      const { summary } = result;
+      if (summary.failed === 0 && summary.duplicates === 0) {
+        showToast({
+          message: `Successfully uploaded ${summary.successful} document${
+            summary.successful !== 1 ? 's' : ''
+          }!`,
+          variant: 'success',
+          duration: 4000,
+        });
+      } else if (summary.successful === 0 && summary.duplicates === 0) {
+        showToast({
+          message: `All ${summary.failed} uploads failed.`,
+          variant: 'error',
+          duration: 6000,
+        });
+      } else {
+        const parts = [];
+        if (summary.successful > 0)
+          parts.push(`${summary.successful} successful`);
+        if (summary.duplicates > 0)
+          parts.push(`${summary.duplicates} duplicates`);
+        if (summary.failed > 0) parts.push(`${summary.failed} failed`);
+        showToast({
+          message: `Batch complete: ${parts.join(', ')}`,
+          variant: summary.failed > 0 ? 'warning' : 'success',
+          duration: 6000,
+        });
+      }
+
+      // Reload documents WITHOUT hiding the table
+      try {
+        const t2 = getAccessToken();
+        const json = await fetchJson<
+          DocumentRow[] | { documents: DocumentRow[]; total?: number }
+        >(`${apiBase}/api/documents?_t=${Date.now()}`, {
+          headers: t2 ? { ...buildHeaders({ json: false }) } : {},
+          json: false,
+        });
+        const docsList = Array.isArray(json) ? json : json.documents;
+        const total =
+          !Array.isArray(json) && 'total' in json
+            ? json.total
+            : docsList.length;
+        const docs = docsList.map(normalize);
+        setData(docs);
+        setTotalCount(total || docs.length);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Failed to refresh list';
+        setError(msg);
+      }
+
+      // Clear progress after delay
+      setTimeout(() => setBatchUploadProgress(null), 8000);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Batch upload failed';
+      showToast({ message: msg, variant: 'error' });
+      setBatchUploadProgress(null);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   function onFileInputChange(e: React.ChangeEvent<HTMLInputElement>): void {
-    const f = e.target.files?.[0];
-    if (f) void handleUpload(f);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // Single file: use existing handler
+    if (files.length === 1) {
+      void handleUpload(files[0]);
+    } else {
+      // Multiple files: use batch handler
+      void handleBatchUpload(Array.from(files));
+    }
     // reset input so selecting the same file again re-triggers change
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
@@ -662,8 +891,16 @@ export default function DocumentsPage() {
     e.preventDefault();
     e.stopPropagation();
     setDragOver(false);
-    const f = e.dataTransfer.files?.[0];
-    if (f) void handleUpload(f);
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    // Single file: use existing handler
+    if (files.length === 1) {
+      void handleUpload(files[0]);
+    } else {
+      // Multiple files: use batch handler
+      void handleBatchUpload(Array.from(files));
+    }
   }
 
   function onDragOver(e: React.DragEvent<HTMLDivElement>): void {
@@ -712,7 +949,7 @@ export default function DocumentsPage() {
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         role="button"
-        aria-label="Upload document. Click to choose a file or drag and drop."
+        aria-label="Upload documents. Click to choose files or drag and drop multiple files."
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -725,9 +962,12 @@ export default function DocumentsPage() {
           <div className="flex items-center gap-3">
             <Icon icon="lucide--upload-cloud" className="size-6" aria-hidden />
             <div>
-              <div className="font-medium">Click to upload or drag & drop</div>
+              <div className="font-medium">
+                Click to upload or drag & drop (multiple files supported)
+              </div>
               <div className="opacity-70 text-sm">
-                Accepted: pdf, docx, pptx, xlsx, md, html, txt. Max 10MB.
+                Accepted: pdf, docx, pptx, xlsx, md, html, txt. Max 10MB per
+                file, 100 files per batch.
               </div>
             </div>
           </div>
@@ -743,7 +983,7 @@ export default function DocumentsPage() {
                   Uploading...
                 </>
               ) : (
-                'Upload document'
+                'Upload documents'
               )}
             </button>
             <input
@@ -752,6 +992,7 @@ export default function DocumentsPage() {
               className="hidden"
               accept={[...acceptedMimeTypes, ...acceptedExtensions].join(',')}
               onChange={onFileInputChange}
+              multiple
             />
           </div>
         </div>
@@ -813,6 +1054,133 @@ export default function DocumentsPage() {
         </div>
       )}
 
+      {/* Batch Upload Progress */}
+      {batchUploadProgress && (
+        <div className="mt-4 card bg-base-200 border border-base-300">
+          <div className="card-body p-4">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-medium flex items-center gap-2">
+                <Icon icon="lucide--files" className="size-5" />
+                {batchUploadProgress.isProcessing
+                  ? `Uploading ${batchUploadProgress.total} files...`
+                  : `Upload Complete`}
+              </h3>
+              {!batchUploadProgress.isProcessing && (
+                <button
+                  className="btn btn-ghost btn-sm btn-circle"
+                  onClick={() => setBatchUploadProgress(null)}
+                  aria-label="Dismiss"
+                >
+                  <Icon icon="lucide--x" className="size-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Progress bar */}
+            {batchUploadProgress.isProcessing && (
+              <progress
+                className="progress progress-primary w-full mb-3"
+                max={batchUploadProgress.total}
+                value={batchUploadProgress.current}
+              />
+            )}
+
+            {/* File list */}
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {batchUploadProgress.files.map((file, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between gap-3 text-sm py-1"
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Icon
+                      icon={
+                        file.status === 'success'
+                          ? 'lucide--check-circle'
+                          : file.status === 'duplicate'
+                          ? 'lucide--copy'
+                          : file.status === 'failed'
+                          ? 'lucide--x-circle'
+                          : file.status === 'uploading'
+                          ? 'lucide--loader-2'
+                          : 'lucide--file'
+                      }
+                      className={`size-4 shrink-0 ${
+                        file.status === 'success'
+                          ? 'text-success'
+                          : file.status === 'duplicate'
+                          ? 'text-warning'
+                          : file.status === 'failed'
+                          ? 'text-error'
+                          : file.status === 'uploading'
+                          ? 'text-info animate-spin'
+                          : 'text-base-content/50'
+                      }`}
+                    />
+                    <span className="truncate" title={file.name}>
+                      {file.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-base-content/50 text-xs">
+                      {(file.size / 1024).toFixed(1)} KB
+                    </span>
+                    {file.status === 'success' && file.chunks && (
+                      <span className="badge badge-success badge-sm">
+                        {file.chunks} chunks
+                      </span>
+                    )}
+                    {file.status === 'duplicate' && (
+                      <span className="badge badge-warning badge-sm">
+                        duplicate
+                      </span>
+                    )}
+                    {file.status === 'failed' && (
+                      <span
+                        className="badge badge-error badge-sm"
+                        title={file.error}
+                      >
+                        failed
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Summary */}
+            {!batchUploadProgress.isProcessing && (
+              <div className="flex gap-4 mt-3 pt-3 border-t border-base-300 text-sm">
+                <span className="text-success">
+                  {
+                    batchUploadProgress.files.filter(
+                      (f) => f.status === 'success'
+                    ).length
+                  }{' '}
+                  successful
+                </span>
+                <span className="text-warning">
+                  {
+                    batchUploadProgress.files.filter(
+                      (f) => f.status === 'duplicate'
+                    ).length
+                  }{' '}
+                  duplicates
+                </span>
+                <span className="text-error">
+                  {
+                    batchUploadProgress.files.filter(
+                      (f) => f.status === 'failed'
+                    ).length
+                  }{' '}
+                  failed
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Documents Table */}
       <div
         className={`mt-4 ${
@@ -825,7 +1193,7 @@ export default function DocumentsPage() {
             [
               {
                 key: 'filename',
-                label: 'Filename',
+                label: 'Document',
                 sortable: true,
                 width: 'max-w-[250px] sm:max-w-[350px] md:max-w-[450px]',
                 cellClassName:
@@ -840,102 +1208,68 @@ export default function DocumentsPage() {
                 ),
               },
               {
-                key: 'size',
-                label: 'Size',
+                key: 'totalChars',
+                label: 'Chars',
                 sortable: true,
                 width: 'w-24',
                 render: (doc) => {
-                  // Use contentLength from API (camelCase or snake_case)
-                  const contentLength =
-                    doc.contentLength ?? doc.content_length ?? 0;
-                  if (contentLength === 0) {
+                  const chars = doc.totalChars ?? 0;
+                  if (chars === 0) {
                     return (
                       <span className="text-sm text-base-content/40">—</span>
                     );
                   }
-
-                  // Format size in human-readable format
-                  const formatSize = (bytes: number): string => {
-                    if (bytes < 1024) return `${bytes} B`;
-                    if (bytes < 1024 * 1024)
-                      return `${(bytes / 1024).toFixed(1)} KB`;
-                    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-                  };
-
+                  // Format with thousands separator
                   return (
                     <span className="text-sm text-base-content/70">
-                      {formatSize(contentLength)}
+                      {chars.toLocaleString()}
                     </span>
                   );
                 },
               },
               {
-                key: 'source_url',
-                label: 'Source',
-                width: 'max-w-[200px]',
-                cellClassName: 'max-w-[200px]',
+                key: 'embeddingStatus',
+                label: 'Embeddings',
+                sortable: true,
+                width: 'w-32',
                 render: (doc) => {
-                  if (!doc.source_url) {
+                  const embedded = doc.embeddedChunks ?? 0;
+                  const total = doc.chunks ?? 0;
+
+                  if (total === 0) {
                     return (
-                      <span className="inline-flex items-center gap-1.5 text-sm text-base-content/70 truncate max-w-full">
-                        <Icon
-                          icon="lucide--upload"
-                          className="w-4 h-4 shrink-0"
-                        />
-                        Upload
-                      </span>
+                      <span className="text-sm text-base-content/40">—</span>
                     );
                   }
 
-                  const isClickUp =
-                    doc.source_url.includes('clickup.com') ||
-                    doc.source_url.includes('app.clickup.com');
-
-                  if (isClickUp) {
-                    return (
-                      <a
-                        href={doc.source_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 transition-colors link hover:link-primary truncate max-w-full"
-                        title={doc.source_url}
-                      >
-                        <Icon
-                          icon="simple-icons--clickup"
-                          className="w-4 h-4 text-purple-500 shrink-0"
-                        />
-                        <span className="truncate">ClickUp</span>
-                      </a>
-                    );
-                  }
+                  const isComplete = embedded === total;
+                  const hasNone = embedded === 0;
+                  const iconColor = isComplete
+                    ? 'text-success'
+                    : hasNone
+                    ? 'text-warning'
+                    : 'text-info';
+                  const icon = isComplete
+                    ? 'lucide--check-circle'
+                    : hasNone
+                    ? 'lucide--clock'
+                    : 'lucide--loader-circle';
 
                   return (
-                    <a
-                      href={doc.source_url}
-                      target="_blank"
-                      className="inline-flex items-center gap-1.5 transition-colors link hover:link-primary truncate max-w-full"
-                      rel="noreferrer"
-                      title={doc.source_url}
-                    >
-                      <Icon icon="lucide--link" className="w-4 h-4 shrink-0" />
-                      <span className="truncate">Link</span>
-                    </a>
+                    <div className="flex items-center gap-2">
+                      <Icon icon={icon} className={`size-4 ${iconColor}`} />
+                      <span className="text-sm text-base-content/70">
+                        {embedded}/{total}
+                      </span>
+                    </div>
                   );
                 },
-              },
-              {
-                key: 'mime_type',
-                label: 'Mime Type',
-                render: (doc) => (
-                  <span className="text-sm text-base-content/70">
-                    {doc.mime_type || 'text/plain'}
-                  </span>
-                ),
               },
               {
                 key: 'chunks',
                 label: 'Chunks',
                 sortable: true,
+                width: 'w-24',
                 render: (doc) => (
                   <a
                     href={`/admin/apps/chunks?docId=${doc.id}`}
@@ -944,86 +1278,6 @@ export default function DocumentsPage() {
                   >
                     {doc.chunks}
                   </a>
-                ),
-              },
-              {
-                key: 'extractionStatus',
-                label: 'Extraction',
-                width: 'w-32',
-                render: (doc) => {
-                  if (!doc.extractionStatus) {
-                    return (
-                      <span className="text-sm text-base-content/40">—</span>
-                    );
-                  }
-
-                  let statusColor = '';
-                  let statusIcon = '';
-                  let tooltipText = '';
-
-                  switch (doc.extractionStatus) {
-                    case 'completed':
-                      statusColor = 'bg-success';
-                      statusIcon = 'lucide--check-circle';
-                      tooltipText = `Completed: ${
-                        doc.extractionCompletedAt
-                          ? new Date(doc.extractionCompletedAt).toLocaleString()
-                          : 'N/A'
-                      }${
-                        doc.extractionObjectsCount
-                          ? ` | ${doc.extractionObjectsCount} objects`
-                          : ''
-                      }`;
-                      break;
-                    case 'running':
-                      statusColor = 'bg-warning';
-                      statusIcon = 'lucide--loader-circle';
-                      tooltipText = 'Extraction in progress...';
-                      break;
-                    case 'pending':
-                      statusColor = 'bg-info';
-                      statusIcon = 'lucide--clock';
-                      tooltipText = 'Extraction pending';
-                      break;
-                    case 'failed':
-                      statusColor = 'bg-error';
-                      statusIcon = 'lucide--x-circle';
-                      tooltipText = 'Extraction failed';
-                      break;
-                    default:
-                      return (
-                        <span className="text-sm text-base-content/40">—</span>
-                      );
-                  }
-
-                  return (
-                    <div
-                      className="tooltip-left tooltip"
-                      data-tip={tooltipText}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`w-2 h-2 rounded-full ${statusColor}`}
-                        />
-                        <Icon
-                          icon={statusIcon}
-                          className="size-4 text-base-content/70"
-                        />
-                      </div>
-                    </div>
-                  );
-                },
-              },
-              {
-                key: 'created_at',
-                label: 'Created',
-                sortable: true,
-                render: (doc) => (
-                  <span className="text-sm text-base-content/70">
-                    {doc.created_at
-                      ? new Date(doc.created_at).toLocaleDateString()
-                      : '—'}
-                  </span>
                 ),
               },
             ] as ColumnDef<DocumentRow>[]

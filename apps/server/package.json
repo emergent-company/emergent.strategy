@@ -68,6 +68,7 @@
     "html-to-text": "^9.0.5",
     "jose": "^6.1.0",
     "js-yaml": "^4.1.0",
+    "langfuse-node": "^3.38.6",
     "passport": "^0.7.0",
     "passport-azure-ad-oauth2": "^0.0.4",
     "passport-github": "^1.1.0",

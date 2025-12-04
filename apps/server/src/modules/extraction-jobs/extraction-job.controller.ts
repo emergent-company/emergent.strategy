@@ -87,7 +87,7 @@ export class ExtractionJobController {
   @ApiOperation({
     summary: 'Create extraction job',
     description:
-      'Creates a new extraction job with pending status. Phase 2 will enqueue to worker queue.',
+      'Creates a new extraction job with queued status. Phase 2 will enqueue to worker queue.',
   })
   @ApiResponse({
     status: 201,
@@ -204,13 +204,13 @@ export class ExtractionJobController {
   @ApiOperation({
     summary: 'Retry a stuck or failed extraction job',
     description:
-      'Resets a job stuck in running status or failed status back to pending for retry. ' +
+      'Resets a job stuck in running status or failed status back to queued for retry. ' +
       'Useful after server restarts that leave jobs orphaned.',
   })
   @ApiParam({ name: 'jobId', description: 'Job ID' })
   @ApiResponse({
     status: 200,
-    description: 'Job reset to pending for retry',
+    description: 'Job reset to queued for retry',
     type: ExtractionJobDto,
   })
   @ApiResponse({ status: 404, description: 'Job not found' })
@@ -237,7 +237,7 @@ export class ExtractionJobController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Cancel extraction job',
-    description: 'Cancel a pending or running extraction job',
+    description: 'Cancel a queued or running extraction job',
   })
   @ApiParam({ name: 'jobId', description: 'Job ID' })
   @ApiResponse({
@@ -275,7 +275,7 @@ export class ExtractionJobController {
   @ApiResponse({ status: 404, description: 'Job not found' })
   @ApiResponse({
     status: 400,
-    description: 'Cannot delete running/pending job',
+    description: 'Cannot delete running/queued job',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Scopes('extraction:write')
@@ -294,9 +294,9 @@ export class ExtractionJobController {
   @Post('projects/:projectId/bulk-cancel')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Cancel all pending/running jobs',
+    summary: 'Cancel all queued/running jobs',
     description:
-      'Bulk cancel all pending and running extraction jobs for a project',
+      'Bulk cancel all queued and running extraction jobs for a project',
   })
   @ApiParam({ name: 'projectId', description: 'Project ID' })
   @ApiResponse({
@@ -417,7 +417,7 @@ export class ExtractionJobController {
         by_status: {
           type: 'object',
           example: {
-            pending: 5,
+            queued: 5,
             running: 2,
             completed: 120,
             failed: 20,

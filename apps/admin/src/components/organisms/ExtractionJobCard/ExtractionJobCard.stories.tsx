@@ -29,7 +29,7 @@ const baseProps = {
 export const Pending: Story = {
     args: {
         ...baseProps,
-        status: 'pending',
+        status: 'queued',
         successfulItems: 0,
         failedItems: 0,
         processedItems: 0,

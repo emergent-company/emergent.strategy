@@ -30,7 +30,7 @@ export interface ExtractionLogEntry {
     | 'error'
     | 'warning'
     | 'completed'
-    | 'pending'
+    | 'queued'
     | 'running'
     | 'failed'
     | 'skipped';
@@ -177,8 +177,8 @@ export function ExtractionLogsModal({
         return 'badge-error';
       case 'running':
         return 'badge-info';
-      case 'pending':
-        return 'badge-warning';
+      case 'queued':
+        return 'badge-secondary badge-soft';
       case 'skipped':
         return 'badge-ghost';
       case 'info':

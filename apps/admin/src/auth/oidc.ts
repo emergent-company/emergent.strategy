@@ -97,6 +97,14 @@ export async function exchangeCodeForTokens(config: OidcConfig, code: string): P
     const disc = await discover(config.issuer);
     const codeVerifier = sessionStorage.getItem(CODE_VERIFIER_KEY) || '';
     console.log('[OIDC] Code verifier retrieved from sessionStorage', { hasVerifier: !!codeVerifier });
+    
+    // Check for missing code_verifier before making the request
+    // This happens when session storage was cleared (tab closed, browser restart, etc.)
+    if (!codeVerifier) {
+        console.error('[OIDC] Missing code_verifier - session may have expired or been cleared');
+        throw new Error('session_expired');
+    }
+    
     sessionStorage.removeItem(CODE_VERIFIER_KEY);
     const body = new URLSearchParams({
         grant_type: 'authorization_code',
@@ -136,4 +144,13 @@ export function parseCallbackParams(): { code?: string; state?: string; error?: 
     const state = url.searchParams.get('state') || undefined;
     const error = url.searchParams.get('error') || undefined;
     return { code, state, error };
+}
+
+/**
+ * Check if a valid code_verifier exists in session storage.
+ * This is used to detect if the PKCE session is still valid before attempting token exchange.
+ */
+export function hasValidCodeVerifier(): boolean {
+    const verifier = sessionStorage.getItem(CODE_VERIFIER_KEY);
+    return !!verifier && verifier.length > 0;
 }

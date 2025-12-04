@@ -3,7 +3,8 @@
 import { Icon } from '@/components/atoms/Icon';
 import { SidebarProjectItem } from '@/components/molecules/SidebarProjectItem';
 import { useAccessTreeContext } from '@/contexts/access-tree';
-import { useMemo } from 'react';
+import { useRovingTabindex } from '@/hooks/use-roving-tabindex';
+import { useCallback, useMemo, useRef } from 'react';
 
 export interface SidebarProjectDropdownProps {
   activeProjectId?: string;
@@ -37,6 +38,8 @@ export function SidebarProjectDropdown({
     loading: treeLoading,
   } = useAccessTreeContext();
 
+  const triggerRef = useRef<HTMLDivElement>(null);
+
   // Use tree loading state if provided, otherwise use prop
   const isLoading = treeLoading || loading;
 
@@ -55,23 +58,87 @@ export function SidebarProjectDropdown({
     return org?.name;
   }, [activeProject, tree]);
 
+  // Create flat list of projects with their org info for keyboard navigation
+  // Also create a map from project ID to flat index for efficient lookup
+  const { flatProjectList, projectIndexMap } = useMemo(() => {
+    const list: Array<{
+      project: (typeof tree)[0]['projects'][0];
+      org: (typeof tree)[0];
+      flatIndex: number;
+    }> = [];
+    const indexMap = new Map<string, number>();
+    tree.forEach((org) => {
+      org.projects.forEach((project) => {
+        const idx = list.length;
+        list.push({ project, org, flatIndex: idx });
+        indexMap.set(project.id, idx);
+      });
+    });
+    return { flatProjectList: list, projectIndexMap: indexMap };
+  }, [tree]);
+
   // Close dropdown helper
-  const closeDropdown = () => {
+  const closeDropdown = useCallback(() => {
     // Remove focus from dropdown to close it
     const activeElement = document.activeElement as HTMLElement;
     if (activeElement) {
       activeElement.blur();
     }
-  };
+    // Return focus to trigger
+    triggerRef.current?.focus();
+  }, []);
+
+  // Handle project selection from keyboard
+  const handleSelectByIndex = useCallback(
+    (index: number) => {
+      const item = flatProjectList[index];
+      if (item) {
+        onSelectProject?.(
+          item.project.id,
+          item.project.name,
+          item.org.id,
+          item.org.name
+        );
+        closeDropdown();
+      }
+    },
+    [flatProjectList, onSelectProject, closeDropdown]
+  );
+
+  // Roving tabindex for keyboard navigation
+  const { getItemProps, resetFocus } = useRovingTabindex({
+    itemCount: flatProjectList.length,
+    wrap: true,
+    orientation: 'vertical',
+    onSelect: handleSelectByIndex,
+    onEscape: closeDropdown,
+  });
+
+  // Reset focus when dropdown opens
+  const handleTriggerKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+        // Dropdown will open, reset roving focus
+        resetFocus();
+      }
+    },
+    [resetFocus]
+  );
 
   return (
     <div
       className={`dropdown-bottom w-full dropdown dropdown-end ${className}`.trim()}
+      role="listbox"
+      aria-label="Project selector"
     >
       <div
+        ref={triggerRef}
         tabIndex={0}
         role="button"
+        aria-haspopup="listbox"
+        aria-expanded="false"
         className="flex items-center gap-2.5 bg-base-200 hover:bg-base-300 mx-2.5 mt-1 px-3 py-2 rounded-box transition-all cursor-pointer"
+        onKeyDown={handleTriggerKeyDown}
       >
         <div className="flex justify-center items-center bg-primary/20 rounded-box size-8">
           <div className="bg-primary size-5 mask mask-hexagon-2" />
@@ -103,6 +170,8 @@ export function SidebarProjectDropdown({
       <div
         tabIndex={0}
         className="bg-base-100 shadow-[0px_10px_40px_0px] shadow-base-content/10 mt-1 p-0 rounded-box w-60 dropdown-content"
+        role="listbox"
+        aria-label="Projects grouped by organization"
       >
         <div className="p-2 w-full max-h-72 overflow-auto">
           {isLoading && (
@@ -117,55 +186,80 @@ export function SidebarProjectDropdown({
             </div>
           )}
           {!isLoading &&
-            tree.map((org) => (
-              <div key={org.id} className="mb-3 last:mb-0">
-                {/* Organization Header (non-interactive) */}
-                <div
-                  className="px-3 py-1.5 text-xs font-semibold text-base-content/70 uppercase tracking-wide"
-                  role="heading"
-                  aria-level={3}
-                >
-                  {org.name}
-                </div>
-                {/* Projects under this organization */}
-                {org.projects.length === 0 ? (
-                  <div className="px-3 py-2 ml-2 text-xs text-base-content/50 italic">
-                    No projects in this organization
-                  </div>
-                ) : (
-                  <ul className="space-y-1 menu">
-                    {org.projects.map((project) => (
-                      <li key={project.id}>
-                        <SidebarProjectItem
-                          project={project}
-                          active={project.id === activeProjectId}
-                          orgName={org.name}
-                          onSelect={(id, name) => {
-                            // Pass both project and org info to parent
-                            onSelectProject?.(id, name, org.id, org.name);
-                            closeDropdown();
-                          }}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {/* Add Project button for this org */}
-                {onAddProject && (
-                  <button
-                    type="button"
-                    className="btn btn-xs btn-ghost gap-1 mt-1 ml-2 text-xs"
-                    onClick={() => {
-                      onAddProject(org.id, org.name);
-                      closeDropdown();
-                    }}
+            tree.map((org) => {
+              const orgProjects = org.projects.map((project) => {
+                const currentFlatIndex = projectIndexMap.get(project.id) ?? 0;
+                const itemProps = getItemProps(currentFlatIndex);
+                return (
+                  <li
+                    key={project.id}
+                    role="option"
+                    aria-selected={project.id === activeProjectId}
                   >
-                    <Icon icon="lucide--plus" className="size-3" />
-                    <span>Add Project</span>
-                  </button>
-                )}
-              </div>
-            ))}
+                    <SidebarProjectItem
+                      ref={itemProps.ref as React.Ref<HTMLButtonElement>}
+                      project={project}
+                      active={project.id === activeProjectId}
+                      orgName={org.name}
+                      tabIndex={itemProps.tabIndex}
+                      onKeyDown={itemProps.onKeyDown}
+                      onFocus={itemProps.onFocus}
+                      onSelect={(id, name) => {
+                        // Pass both project and org info to parent
+                        onSelectProject?.(id, name, org.id, org.name);
+                        closeDropdown();
+                      }}
+                    />
+                  </li>
+                );
+              });
+
+              return (
+                <div
+                  key={org.id}
+                  className="mb-3 last:mb-0"
+                  role="group"
+                  aria-label={org.name}
+                >
+                  {/* Organization Header (non-interactive) */}
+                  <div
+                    className="px-3 py-1.5 text-xs font-semibold text-base-content/70 uppercase tracking-wide"
+                    role="heading"
+                    aria-level={3}
+                    id={`org-header-${org.id}`}
+                  >
+                    {org.name}
+                  </div>
+                  {/* Projects under this organization */}
+                  {org.projects.length === 0 ? (
+                    <div className="px-3 py-2 ml-2 text-xs text-base-content/50 italic">
+                      No projects in this organization
+                    </div>
+                  ) : (
+                    <ul
+                      className="space-y-1 menu"
+                      aria-labelledby={`org-header-${org.id}`}
+                    >
+                      {orgProjects}
+                    </ul>
+                  )}
+                  {/* Add Project button for this org */}
+                  {onAddProject && (
+                    <button
+                      type="button"
+                      className="btn btn-xs btn-ghost gap-1 mt-1 ml-2 text-xs"
+                      onClick={() => {
+                        onAddProject(org.id, org.name);
+                        closeDropdown();
+                      }}
+                    >
+                      <Icon icon="lucide--plus" className="size-3" />
+                      <span>Add Project</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
         </div>
         {(onAddOrganization || errorMsg) && (
           <div className="border-t border-base-300 px-2 pt-2 pb-2">

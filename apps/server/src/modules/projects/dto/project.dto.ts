@@ -5,7 +5,60 @@ import {
   IsOptional,
   IsBoolean,
   IsObject,
+  IsIn,
+  IsInt,
+  Min,
+  Max,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+/**
+ * Configuration for document chunking at the project level.
+ * These settings are used as defaults when ingesting documents.
+ */
+export class ChunkingConfigDto {
+  @ApiProperty({
+    example: 'sentence',
+    description: 'Chunking strategy to use',
+    enum: ['character', 'sentence', 'paragraph'],
+  })
+  @IsIn(['character', 'sentence', 'paragraph'])
+  strategy: 'character' | 'sentence' | 'paragraph';
+
+  @ApiProperty({
+    example: 1200,
+    description: 'Maximum chunk size in characters (100-10000)',
+    required: false,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(100)
+  @Max(10000)
+  maxChunkSize?: number;
+
+  @ApiProperty({
+    example: 100,
+    description: 'Minimum chunk size in characters (10-1000)',
+    required: false,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(10)
+  @Max(1000)
+  minChunkSize?: number;
+
+  @ApiProperty({
+    example: 200,
+    description: 'Overlap between chunks in characters (0-500)',
+    required: false,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(500)
+  overlap?: number;
+}
 
 export class ProjectDto {
   @ApiProperty({ example: 'proj_1' })
@@ -43,6 +96,26 @@ export class ProjectDto {
     required: false,
   })
   auto_extract_config?: any;
+  @ApiProperty({
+    example: {
+      strategy: 'sentence',
+      maxChunkSize: 1200,
+      minChunkSize: 100,
+      overlap: 200,
+    },
+    description:
+      'Default document chunking configuration for this project. Used when ingesting documents without explicit chunking options.',
+    required: false,
+  })
+  chunking_config?: ChunkingConfigDto | null;
+
+  @ApiProperty({
+    example: false,
+    description:
+      'When true, allows multiple extraction jobs to run in parallel for this project. When false (default), jobs are queued and run one at a time.',
+    required: false,
+  })
+  allow_parallel_extraction?: boolean;
 }
 
 export class CreateProjectDto {
@@ -120,4 +193,30 @@ export class UpdateProjectDto {
   @IsOptional()
   @IsObject()
   auto_extract_config?: any;
+
+  @ApiProperty({
+    example: {
+      strategy: 'sentence',
+      maxChunkSize: 1200,
+      minChunkSize: 100,
+      overlap: 200,
+    },
+    description:
+      'Default document chunking configuration. Strategy options: character (fixed boundaries), sentence (preserves sentences), paragraph (preserves paragraphs/sections).',
+    required: false,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ChunkingConfigDto)
+  chunking_config?: ChunkingConfigDto | null;
+
+  @ApiProperty({
+    example: false,
+    description:
+      'When true, allows multiple extraction jobs to run in parallel for this project. When false (default), jobs are queued and run one at a time.',
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  allow_parallel_extraction?: boolean;
 }

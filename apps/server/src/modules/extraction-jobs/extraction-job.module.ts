@@ -11,6 +11,7 @@ import { LangChainGeminiProvider } from './llm/langchain-gemini.provider';
 import { LLMProviderFactory } from './llm/llm-provider.factory';
 import { DatabaseModule } from '../../common/database/database.module';
 import { AppConfigModule } from '../../common/config/config.module';
+import { UtilsModule } from '../../common/utils/utils.module';
 import { GraphModule } from '../graph/graph.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { TemplatePackModule } from '../template-packs/template-pack.module';
@@ -18,6 +19,7 @@ import { EmbeddingsModule } from '../embeddings/embeddings.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
 import { MonitoringModule } from '../monitoring/monitoring.module';
+import { LangfuseModule } from '../langfuse/langfuse.module';
 import { GraphObject } from '../../entities/graph-object.entity';
 import { ObjectExtractionJob } from '../../entities/object-extraction-job.entity';
 import { GraphEmbeddingJob } from '../../entities/graph-embedding-job.entity';
@@ -51,6 +53,7 @@ import { ObjectExtractionLog } from '../../entities/object-extraction-log.entity
     ]),
     DatabaseModule,
     AppConfigModule,
+    UtilsModule,
     GraphModule,
     DocumentsModule,
     TemplatePackModule,
@@ -58,6 +61,7 @@ import { ObjectExtractionLog } from '../../entities/object-extraction-log.entity
     NotificationsModule,
     AuthModule,
     MonitoringModule,
+    LangfuseModule,
   ],
   providers: [
     ExtractionJobService,

@@ -2965,6 +2965,466 @@
         "tags": [
           "Chunks"
         ]
+      },
+      "delete": {
+        "operationId": "bulkDelete",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "description": "Array of chunk UUIDs to delete"
+                  }
+                },
+                "required": [
+                  "ids"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bulk delete chunks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "totalDeleted": 3,
+                    "totalFailed": 0,
+                    "results": [
+                      {
+                        "chunkId": "uuid-1",
+                        "success": true
+                      },
+                      {
+                        "chunkId": "uuid-2",
+                        "success": true
+                      },
+                      {
+                        "chunkId": "uuid-3",
+                        "success": true
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "ids array is required"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Chunks"
+        ]
+      }
+    },
+    "/chunks/{id}": {
+      "delete": {
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Chunk UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chunk deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid chunk ID"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chunk not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "not-found",
+                      "message": "Chunk not found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Chunks"
+        ]
+      }
+    },
+    "/chunks/by-document/{documentId}": {
+      "delete": {
+        "operationId": "deleteByDocument",
+        "parameters": [
+          {
+            "name": "documentId",
+            "required": true,
+            "in": "path",
+            "description": "Document UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delete all chunks for a document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "documentId": "uuid",
+                    "documentTitle": "document.pdf",
+                    "chunksDeleted": 15,
+                    "success": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid document ID"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Document not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "not-found",
+                      "message": "Document not found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Chunks"
+        ]
+      }
+    },
+    "/chunks/by-documents": {
+      "delete": {
+        "operationId": "bulkDeleteByDocuments",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "documentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "description": "Array of document UUIDs to delete chunks for"
+                  }
+                },
+                "required": [
+                  "documentIds"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Delete all chunks for multiple documents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "totalDocuments": 2,
+                    "totalChunksDeleted": 30,
+                    "totalFailed": 0,
+                    "results": [
+                      {
+                        "documentId": "uuid-1",
+                        "documentTitle": "doc1.pdf",
+                        "chunksDeleted": 15,
+                        "success": true
+                      },
+                      {
+                        "documentId": "uuid-2",
+                        "documentTitle": "doc2.pdf",
+                        "chunksDeleted": 15,
+                        "success": true
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "documentIds array is required"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Chunks"
+        ]
       }
     },
     "/ingest/upload": {
@@ -3167,11 +3627,156 @@
         ]
       }
     },
+    "/ingest/upload-batch": {
+      "post": {
+        "operationId": "uploadBatch",
+        "summary": "Batch upload multiple documents",
+        "description": "Upload multiple files in a single batch request for efficient document ingestion.\n    \n**Limits:**\n- Maximum 100 files per batch\n- Maximum 10MB per file\n- Only text-based files are accepted (txt, md, html, json)\n\n**Processing:**\n- Files are processed concurrently (3 at a time)\n- Each file is checked for duplicates independently\n- Binary files are rejected with an error\n\n**Response:**\n- Returns a summary with counts and individual results for each file\n- Files can have status: 'success', 'duplicate', or 'failed'\n- Failed files include an error message explaining the failure",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "Upload multiple files for batch ingestion (max 100 files)",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "files",
+                  "projectId"
+                ],
+                "properties": {
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "Array of files to upload (max 100 files, 10MB each)"
+                  },
+                  "projectId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Project UUID that all documents belong to (required)",
+                    "example": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+                  },
+                  "orgId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Optional organisation UUID to associate documents with",
+                    "example": "11111111-2222-3333-4444-555555555555"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch upload completed with summary and individual results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "summary": {
+                      "total": 5,
+                      "successful": 3,
+                      "duplicates": 1,
+                      "failed": 1
+                    },
+                    "results": [
+                      {
+                        "filename": "doc1.md",
+                        "status": "success",
+                        "documentId": "11111111-2222-3333-4444-555555555555",
+                        "chunks": 12
+                      },
+                      {
+                        "filename": "doc2.txt",
+                        "status": "duplicate",
+                        "documentId": "22222222-3333-4444-5555-666666666666"
+                      },
+                      {
+                        "filename": "doc3.bin",
+                        "status": "failed",
+                        "error": "Binary or unsupported file type"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid batch upload payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "batch-limit-exceeded",
+                      "message": "Maximum 100 files allowed per batch"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Ingestion"
+        ]
+      }
+    },
     "/admin/extraction-jobs": {
       "post": {
         "operationId": "createJob",
         "summary": "Create extraction job",
-        "description": "Creates a new extraction job with pending status. Phase 2 will enqueue to worker queue.",
+        "description": "Creates a new extraction job with queued status. Phase 2 will enqueue to worker queue.",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -3233,7 +3838,7 @@
             "description": "Filter by status",
             "schema": {
               "enum": [
-                "pending",
+                "queued",
                 "running",
                 "completed",
                 "requires_review",
@@ -3433,7 +4038,7 @@
             "description": "Job deleted successfully"
           },
           "400": {
-            "description": "Cannot delete running/pending job"
+            "description": "Cannot delete running/queued job"
           },
           "401": {
             "description": "Unauthorized"
@@ -3456,7 +4061,7 @@
       "post": {
         "operationId": "retryJob",
         "summary": "Retry a stuck or failed extraction job",
-        "description": "Resets a job stuck in running status or failed status back to pending for retry. Useful after server restarts that leave jobs orphaned.",
+        "description": "Resets a job stuck in running status or failed status back to queued for retry. Useful after server restarts that leave jobs orphaned.",
         "parameters": [
           {
             "name": "jobId",
@@ -3470,7 +4075,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Job reset to pending for retry",
+            "description": "Job reset to queued for retry",
             "content": {
               "application/json": {
                 "schema": {
@@ -3503,7 +4108,7 @@
       "post": {
         "operationId": "cancelJob",
         "summary": "Cancel extraction job",
-        "description": "Cancel a pending or running extraction job",
+        "description": "Cancel a queued or running extraction job",
         "parameters": [
           {
             "name": "jobId",
@@ -3549,8 +4154,8 @@
     "/admin/extraction-jobs/projects/{projectId}/bulk-cancel": {
       "post": {
         "operationId": "bulkCancelJobs",
-        "summary": "Cancel all pending/running jobs",
-        "description": "Bulk cancel all pending and running extraction jobs for a project",
+        "summary": "Cancel all queued/running jobs",
+        "description": "Bulk cancel all queued and running extraction jobs for a project",
         "parameters": [
           {
             "name": "projectId",
@@ -3730,7 +4335,7 @@
                     "by_status": {
                       "type": "object",
                       "example": {
-                        "pending": 5,
+                        "queued": 5,
                         "running": 2,
                         "completed": 120,
                         "failed": 20,
@@ -9416,6 +10021,21 @@
               ]
             },
             "description": "Configuration for automatic extraction jobs"
+          },
+          "chunking_config": {
+            "type": "object",
+            "example": {
+              "strategy": "sentence",
+              "maxChunkSize": 1200,
+              "minChunkSize": 100,
+              "overlap": 200
+            },
+            "description": "Default document chunking configuration for this project. Used when ingesting documents without explicit chunking options."
+          },
+          "allow_parallel_extraction": {
+            "type": "boolean",
+            "example": false,
+            "description": "When true, allows multiple extraction jobs to run in parallel for this project. When false (default), jobs are queued and run one at a time."
           }
         },
         "required": [
@@ -9482,6 +10102,21 @@
               ]
             },
             "description": "Configuration for automatic extraction (enabled_types, min_confidence, duplicate_strategy, require_review, notify_on_complete, notification_channels)"
+          },
+          "chunking_config": {
+            "type": "object",
+            "example": {
+              "strategy": "sentence",
+              "maxChunkSize": 1200,
+              "minChunkSize": 100,
+              "overlap": 200
+            },
+            "description": "Default document chunking configuration. Strategy options: character (fixed boundaries), sentence (preserves sentences), paragraph (preserves paragraphs/sections)."
+          },
+          "allow_parallel_extraction": {
+            "type": "boolean",
+            "example": false,
+            "description": "When true, allows multiple extraction jobs to run in parallel for this project. When false (default), jobs are queued and run one at a time."
           }
         }
       },
@@ -9620,6 +10255,16 @@
             "type": "number",
             "example": 12,
             "description": "Number of chunks associated with this document"
+          },
+          "totalChars": {
+            "type": "number",
+            "example": 15420,
+            "description": "Total character count of all chunks in this document"
+          },
+          "embeddedChunks": {
+            "type": "number",
+            "example": 10,
+            "description": "Number of chunks that have embeddings generated"
           },
           "parentDocumentId": {
             "type": "object",
@@ -9887,6 +10532,27 @@
           "text"
         ]
       },
+      "ChunkingOptionsDto": {
+        "type": "object",
+        "properties": {
+          "maxChunkSize": {
+            "type": "number",
+            "description": "Maximum characters per chunk (default: 1200)",
+            "minimum": 100,
+            "maximum": 10000,
+            "default": 1200,
+            "example": 1200
+          },
+          "minChunkSize": {
+            "type": "number",
+            "description": "Minimum characters per chunk to prevent tiny chunks (default: 100)",
+            "minimum": 10,
+            "maximum": 1000,
+            "default": 100,
+            "example": 100
+          }
+        }
+      },
       "IngestionUploadDto": {
         "type": "object",
         "properties": {
@@ -9909,6 +10575,25 @@
             "type": "string",
             "description": "Project UUID that this document belongs to (required)",
             "example": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+          },
+          "chunkingStrategy": {
+            "type": "string",
+            "description": "Chunking strategy for splitting text into chunks. Options: character (default), sentence, paragraph",
+            "enum": [
+              "character",
+              "sentence",
+              "paragraph"
+            ],
+            "default": "character",
+            "example": "sentence"
+          },
+          "chunkingOptions": {
+            "description": "Configuration options for the chunking strategy",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChunkingOptionsDto"
+              }
+            ]
           }
         },
         "required": [
@@ -9932,6 +10617,25 @@
             "type": "string",
             "description": "Project UUID that this document belongs to (required)",
             "example": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+          },
+          "chunkingStrategy": {
+            "type": "string",
+            "description": "Chunking strategy for splitting text into chunks. Options: character (default), sentence, paragraph",
+            "enum": [
+              "character",
+              "sentence",
+              "paragraph"
+            ],
+            "default": "character",
+            "example": "sentence"
+          },
+          "chunkingOptions": {
+            "description": "Configuration options for the chunking strategy",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChunkingOptionsDto"
+              }
+            ]
           }
         },
         "required": [
@@ -10032,7 +10736,7 @@
             "type": "string",
             "description": "Job status",
             "enum": [
-              "pending",
+              "queued",
               "running",
               "completed",
               "requires_review",
@@ -10176,7 +10880,7 @@
             "type": "string",
             "description": "Job status",
             "enum": [
-              "pending",
+              "queued",
               "running",
               "completed",
               "requires_review",

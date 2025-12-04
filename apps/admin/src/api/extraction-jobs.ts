@@ -8,7 +8,6 @@
  * Extraction job status
  */
 export type ExtractionJobStatus =
-  | 'pending'
   | 'queued'
   | 'running'
   | 'completed'

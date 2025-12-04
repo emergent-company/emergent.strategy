@@ -57,4 +57,7 @@ export class LlmCallLog {
 
   @Column({ name: 'duration_ms', type: 'int', nullable: true })
   durationMs: number | null;
+
+  @Column({ name: 'langfuse_observation_id', type: 'text', nullable: true })
+  langfuseObservationId: string | null;
 }

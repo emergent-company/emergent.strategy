@@ -56,6 +56,7 @@ export class MonitoringLoggerService {
         message: input.message,
         metadata: input.metadata || null,
         timestamp: new Date(),
+        langfuseTraceId: input.langfuseTraceId || null,
       });
 
       const saved = await this.systemLogRepo.save(log);
@@ -185,6 +186,7 @@ export class MonitoringLoggerService {
         startedAt: input.startedAt || new Date(),
         completedAt: input.completedAt || new Date(),
         durationMs: input.durationMs || null,
+        langfuseObservationId: input.langfuseObservationId || null,
       });
 
       const saved = await this.llmCallLogRepo.save(log);

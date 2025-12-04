@@ -11,6 +11,7 @@ import { RateLimiterService } from '../../../src/modules/extraction-jobs/rate-li
 import { ConfidenceScorerService } from '../../../src/modules/extraction-jobs/confidence-scorer.service';
 import { GraphService } from '../../../src/modules/extraction-jobs/../graph/graph.service';
 import { DocumentsService } from '../../../src/modules/extraction-jobs/../documents/documents.service';
+import { LangfuseService } from '../../../src/modules/langfuse/langfuse.service';
 
 describe('ExtractionWorkerService - Quality Thresholds', () => {
   let service: ExtractionWorkerService;
@@ -59,12 +60,21 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
       getProjectTemplatePacks: vi.fn().mockResolvedValue([]),
     } as any;
 
+    const langfuseServiceMock = {
+      createJobTrace: vi.fn(),
+      finalizeTrace: vi.fn(),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ExtractionWorkerService,
         {
           provide: AppConfigService,
           useValue: mockConfigService,
+        },
+        {
+          provide: LangfuseService,
+          useValue: langfuseServiceMock,
         },
         {
           provide: DatabaseService,
@@ -161,7 +171,7 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
       expect(updateQuery).toContain('UPDATE kb.object_extraction_jobs');
       expect(updateQuery).toContain('started_at = NULL');
       expect(updateQuery).toContain('error_message = CASE');
-      expect(updateQuery).toContain("ILIKE '%has been reset to pending.%'");
+      expect(updateQuery).toContain("ILIKE '%has been reset to queued.%'");
       expect(updateParams).toEqual([orphanJob.id]);
     });
 
@@ -378,11 +388,10 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
       expect((service as any).db).toBeDefined();
       expect((service as any).db).toBe(databaseService);
 
-      // First TWO calls: no packs (due to duplicate call in implementation - triggers auto-install)
-      // Third call: returns the installed pack
+      // First call: no packs
+      // Second call: returns the installed pack
       templatePackService.getProjectTemplatePacks
         .mockResolvedValueOnce([]) // First call: no packs
-        .mockResolvedValueOnce([]) // Second call (duplicate): no packs
         .mockResolvedValueOnce([
           {
             id: 'assignment-1',
@@ -467,11 +476,10 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
     });
 
     it('retries after conflict without throwing', async () => {
-      // First TWO calls: no packs (due to duplicate call in implementation - triggers auto-install)
-      // Third call: returns the installed pack (after ConflictException is caught)
+      // First call: no packs
+      // Second call: returns the installed pack (after ConflictException is caught)
       templatePackService.getProjectTemplatePacks
         .mockResolvedValueOnce([]) // First call: no packs
-        .mockResolvedValueOnce([]) // Second call (duplicate): no packs
         .mockResolvedValueOnce([
           {
             id: 'assignment-1',

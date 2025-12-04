@@ -227,13 +227,13 @@ export function DataTable<T extends TableDataItem>({
 
   // Render toolbar
   const renderToolbar = () => (
-    <div className="flex flex-wrap items-center gap-3 bg-base-200/50 p-3 border border-base-300 rounded">
+    <div className="flex flex-wrap items-center gap-3 bg-base-200/50 p-3 border border-base-content/5 rounded-box">
       {/* Search */}
       {enableSearch && (
-        <label className="flex items-center gap-2 min-w-64 input input-sm input-ghost">
-          <Icon icon="lucide--search" className="opacity-70 size-4" />
+        <label className="input input-sm min-w-64">
+          <Icon icon="lucide--search" className="opacity-50 size-4" />
           <input
-            type="text"
+            type="search"
             placeholder={searchPlaceholder}
             className="grow"
             value={searchQuery}
@@ -283,7 +283,7 @@ export function DataTable<T extends TableDataItem>({
               </label>
               <ul
                 tabIndex={0}
-                className="z-[1] bg-base-100 shadow-lg p-2 border border-base-300 rounded-box w-64 max-h-80 overflow-y-auto dropdown-content menu"
+                className="dropdown-content menu bg-base-100 rounded-box z-1 w-64 p-2 shadow-sm max-h-80 overflow-y-auto"
               >
                 {isActive && (
                   <li className="mb-2">
@@ -371,7 +371,7 @@ export function DataTable<T extends TableDataItem>({
     if (activeFilters.size === 0) return null;
 
     return (
-      <div className="flex flex-wrap items-center gap-2 bg-base-200/30 px-3 py-2 border border-base-300 rounded">
+      <div className="flex flex-wrap items-center gap-2 bg-base-200/30 px-3 py-2 border border-base-content/5 rounded-box">
         <span className="font-medium text-xs text-base-content/60">
           Active filters:
         </span>
@@ -443,192 +443,168 @@ export function DataTable<T extends TableDataItem>({
 
   // Render table view
   const renderTableView = () => (
-    <div
-      className="border border-base-300 rounded"
-      style={{ overflow: 'visible' }}
-    >
-      <div className="overflow-x-auto">
-        <table className="table table-sm">
-          <thead>
-            <tr className="text-xs text-base-content/60 uppercase">
-              {enableSelection && (
-                <th className="w-8">
-                  <input
-                    type="checkbox"
-                    className="checkbox checkbox-sm"
-                    checked={allSelected}
-                    ref={(input) => {
-                      if (input)
-                        input.indeterminate = someSelected && !allSelected;
-                    }}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                  />
-                </th>
-              )}
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className={`${col.width || ''} ${col.headerClassName || ''} ${
-                    col.sortable ? 'cursor-pointer hover:bg-base-200' : ''
-                  }`}
-                  onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                >
-                  <div className="flex items-center gap-2">
-                    {col.label}
-                    {col.sortable && sortConfig?.key === col.key && (
-                      <Icon
-                        icon={
-                          sortConfig.direction === 'asc'
-                            ? 'lucide--arrow-up'
-                            : 'lucide--arrow-down'
-                        }
-                        className="size-3"
-                      />
-                    )}
-                  </div>
-                </th>
-              ))}
-              {rowActions.length > 0 && <th className="w-32">Actions</th>}
+    <div className="overflow-x-auto rounded-box border border-base-content/5 bg-base-100">
+      <table className="table">
+        <thead>
+          <tr className="text-xs text-base-content/60 uppercase bg-base-200/50">
+            {enableSelection && (
+              <th className="w-8 py-3">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-sm"
+                  checked={allSelected}
+                  ref={(input) => {
+                    if (input)
+                      input.indeterminate = someSelected && !allSelected;
+                  }}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                />
+              </th>
+            )}
+            {columns.map((col) => (
+              <th
+                key={col.key}
+                className={`py-3 ${col.width || ''} ${
+                  col.headerClassName || ''
+                } ${col.sortable ? 'cursor-pointer hover:bg-base-200' : ''}`}
+                onClick={col.sortable ? () => handleSort(col.key) : undefined}
+              >
+                <div className="flex items-center gap-2">
+                  {col.label}
+                  {col.sortable && sortConfig?.key === col.key && (
+                    <Icon
+                      icon={
+                        sortConfig.direction === 'asc'
+                          ? 'lucide--arrow-up'
+                          : 'lucide--arrow-down'
+                      }
+                      className="size-3"
+                    />
+                  )}
+                </div>
+              </th>
+            ))}
+            {rowActions.length > 0 && <th className="w-32 py-3">Actions</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {loading &&
+            Array.from({ length: 5 }).map((_, i) => (
+              <tr key={`skeleton-${i}`} className="opacity-70 animate-pulse">
+                {enableSelection && (
+                  <td className="py-2">
+                    <div className="bg-base-300 rounded w-4 h-4" />
+                  </td>
+                )}
+                {columns.map((col, j) => (
+                  <td key={`skeleton-${i}-${j}`}>
+                    <div className="bg-base-300 rounded w-full h-4" />
+                  </td>
+                ))}
+                {rowActions.length > 0 && (
+                  <td>
+                    <div className="bg-base-300 rounded w-20 h-4" />
+                  </td>
+                )}
+              </tr>
+            ))}
+          {!loading && error && (
+            <tr>
+              <td
+                colSpan={
+                  columns.length +
+                  (enableSelection ? 1 : 0) +
+                  (rowActions.length > 0 ? 1 : 0)
+                }
+                className="py-10 text-error text-sm text-center"
+              >
+                <Icon
+                  icon="lucide--alert-circle"
+                  className="mx-auto mb-2 size-5"
+                />
+                <div>{error}</div>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {loading &&
-              Array.from({ length: 5 }).map((_, i) => (
-                <tr key={`skeleton-${i}`} className="opacity-70 animate-pulse">
-                  {enableSelection && (
-                    <td className="py-2">
-                      <div className="bg-base-300 rounded w-4 h-4" />
-                    </td>
-                  )}
-                  {columns.map((col, j) => (
-                    <td key={`skeleton-${i}-${j}`}>
-                      <div className="bg-base-300 rounded w-full h-4" />
-                    </td>
-                  ))}
-                  {rowActions.length > 0 && (
-                    <td>
-                      <div className="bg-base-300 rounded w-20 h-4" />
-                    </td>
-                  )}
-                </tr>
-              ))}
-            {!loading && error && (
-              <tr>
-                <td
-                  colSpan={
-                    columns.length +
-                    (enableSelection ? 1 : 0) +
-                    (rowActions.length > 0 ? 1 : 0)
-                  }
-                  className="py-10 text-error text-sm text-center"
-                >
-                  <Icon
-                    icon="lucide--alert-circle"
-                    className="mx-auto mb-2 size-5"
-                  />
-                  <div>{error}</div>
-                </td>
-              </tr>
-            )}
-            {!loading && !error && filteredData.length === 0 && (
-              <tr>
-                <td
-                  colSpan={
-                    columns.length +
-                    (enableSelection ? 1 : 0) +
-                    (rowActions.length > 0 ? 1 : 0)
-                  }
-                  className="py-10 text-sm text-base-content/70 text-center"
-                >
-                  <Icon
-                    icon={emptyIcon}
-                    className="opacity-50 mx-auto mb-2 size-8"
-                  />
-                  <div>
-                    {activeFilters.size > 0 || searchQuery
-                      ? noResultsMessage
-                      : emptyMessage}
-                  </div>
-                </td>
-              </tr>
-            )}
-            {!loading &&
-              !error &&
-              filteredData.map((item) => (
-                <tr
-                  key={item.id}
-                  className={`hover:bg-base-200/50 ${
-                    onRowClick ? 'cursor-pointer' : ''
-                  } ${selectedIds.has(item.id) ? 'bg-base-200' : ''}`}
-                  onClick={() => onRowClick?.(item)}
-                >
-                  {enableSelection && (
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        className="checkbox checkbox-sm"
-                        checked={selectedIds.has(item.id)}
-                        onChange={(e) =>
-                          handleSelectOne(item.id, e.target.checked)
-                        }
-                      />
-                    </td>
-                  )}
-                  {columns.map((col) => (
-                    <td key={col.key} className={col.cellClassName || ''}>
-                      {col.render ? col.render(item) : item[col.key] ?? '—'}
-                    </td>
-                  ))}
-                  {rowActions.length > 0 && (
-                    <td
-                      onClick={(e) => e.stopPropagation()}
-                      className="relative overflow-visible"
-                    >
-                      {useDropdownActions ? (
-                        <Dropdown end>
-                          <Dropdown.Trigger
-                            asButton
-                            variant="ghost"
-                            size="xs"
-                            className="gap-1"
-                            onClick={(e: React.MouseEvent) =>
-                              e.stopPropagation()
-                            }
-                          >
-                            Actions
-                            <Icon
-                              icon="lucide--chevron-down"
-                              className="size-3"
-                            />
-                          </Dropdown.Trigger>
-                          <Dropdown.Menu width="w-52">
-                            {rowActions
-                              .filter((action) => !action.hidden?.(item))
-                              .map((action, idx) => {
-                                if (action.asLink && action.href) {
-                                  return (
-                                    <Dropdown.Item
-                                      key={idx}
-                                      asLink
-                                      href={action.href(item)}
-                                    >
-                                      {action.icon && (
-                                        <Icon
-                                          icon={action.icon}
-                                          className="size-4"
-                                        />
-                                      )}
-                                      {action.label}
-                                    </Dropdown.Item>
-                                  );
-                                }
-
+          )}
+          {!loading && !error && filteredData.length === 0 && (
+            <tr>
+              <td
+                colSpan={
+                  columns.length +
+                  (enableSelection ? 1 : 0) +
+                  (rowActions.length > 0 ? 1 : 0)
+                }
+                className="py-10 text-sm text-base-content/70 text-center"
+              >
+                <Icon
+                  icon={emptyIcon}
+                  className="opacity-50 mx-auto mb-2 size-8"
+                />
+                <div>
+                  {activeFilters.size > 0 || searchQuery
+                    ? noResultsMessage
+                    : emptyMessage}
+                </div>
+              </td>
+            </tr>
+          )}
+          {!loading &&
+            !error &&
+            filteredData.map((item) => (
+              <tr
+                key={item.id}
+                className={`hover:bg-base-200/50 ${
+                  onRowClick ? 'cursor-pointer' : ''
+                } ${selectedIds.has(item.id) ? 'bg-base-200' : ''}`}
+                onClick={() => onRowClick?.(item)}
+              >
+                {enableSelection && (
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-sm"
+                      checked={selectedIds.has(item.id)}
+                      onChange={(e) =>
+                        handleSelectOne(item.id, e.target.checked)
+                      }
+                    />
+                  </td>
+                )}
+                {columns.map((col) => (
+                  <td key={col.key} className={col.cellClassName || ''}>
+                    {col.render ? col.render(item) : item[col.key] ?? '—'}
+                  </td>
+                ))}
+                {rowActions.length > 0 && (
+                  <td
+                    onClick={(e) => e.stopPropagation()}
+                    className="relative overflow-visible"
+                  >
+                    {useDropdownActions ? (
+                      <Dropdown end>
+                        <Dropdown.Trigger
+                          asButton
+                          variant="ghost"
+                          size="xs"
+                          className="gap-1"
+                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                        >
+                          Actions
+                          <Icon
+                            icon="lucide--chevron-down"
+                            className="size-3"
+                          />
+                        </Dropdown.Trigger>
+                        <Dropdown.Menu width="w-52">
+                          {rowActions
+                            .filter((action) => !action.hidden?.(item))
+                            .map((action, idx) => {
+                              if (action.asLink && action.href) {
                                 return (
                                   <Dropdown.Item
                                     key={idx}
-                                    onClick={() => {
-                                      action.onAction(item);
-                                    }}
+                                    asLink
+                                    href={action.href(item)}
                                   >
                                     {action.icon && (
                                       <Icon
@@ -639,42 +615,12 @@ export function DataTable<T extends TableDataItem>({
                                     {action.label}
                                   </Dropdown.Item>
                                 );
-                              })}
-                          </Dropdown.Menu>
-                        </Dropdown>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          {rowActions
-                            .filter((action) => !action.hidden?.(item))
-                            .map((action, idx) => {
-                              const variant = action.variant || 'ghost';
-                              const size = action.size || 'xs';
-
-                              if (action.asLink && action.href) {
-                                return (
-                                  <a
-                                    key={idx}
-                                    href={action.href(item)}
-                                    className={`gap-1 btn btn-${size} btn-${variant}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {action.icon && (
-                                      <Icon
-                                        icon={action.icon}
-                                        className="size-4"
-                                      />
-                                    )}
-                                    {action.label}
-                                  </a>
-                                );
                               }
 
                               return (
-                                <button
+                                <Dropdown.Item
                                   key={idx}
-                                  className={`gap-1 btn btn-${size} btn-${variant}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
+                                  onClick={() => {
                                     action.onAction(item);
                                   }}
                                 >
@@ -685,18 +631,62 @@ export function DataTable<T extends TableDataItem>({
                                     />
                                   )}
                                   {action.label}
-                                </button>
+                                </Dropdown.Item>
                               );
                             })}
-                        </div>
-                      )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+                        </Dropdown.Menu>
+                      </Dropdown>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {rowActions
+                          .filter((action) => !action.hidden?.(item))
+                          .map((action, idx) => {
+                            const variant = action.variant || 'ghost';
+                            const size = action.size || 'xs';
+
+                            if (action.asLink && action.href) {
+                              return (
+                                <a
+                                  key={idx}
+                                  href={action.href(item)}
+                                  className={`gap-1 btn btn-${size} btn-${variant}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {action.icon && (
+                                    <Icon
+                                      icon={action.icon}
+                                      className="size-4"
+                                    />
+                                  )}
+                                  {action.label}
+                                </a>
+                              );
+                            }
+
+                            return (
+                              <button
+                                key={idx}
+                                className={`gap-1 btn btn-${size} btn-${variant}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  action.onAction(item);
+                                }}
+                              >
+                                {action.icon && (
+                                  <Icon icon={action.icon} className="size-4" />
+                                )}
+                                {action.label}
+                              </button>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </td>
+                )}
+              </tr>
+            ))}
+        </tbody>
+      </table>
     </div>
   );
 
@@ -710,7 +700,7 @@ export function DataTable<T extends TableDataItem>({
           Array.from({ length: 6 }).map((_, i) => (
             <div
               key={`skeleton-${i}`}
-              className="bg-base-100 p-4 border border-base-300 rounded animate-pulse"
+              className="bg-base-100 p-4 border border-base-content/5 rounded-box animate-pulse"
             >
               <div className="bg-base-300 mb-2 rounded w-3/4 h-5" />
               <div className="bg-base-300 mb-3 rounded w-1/2 h-4" />

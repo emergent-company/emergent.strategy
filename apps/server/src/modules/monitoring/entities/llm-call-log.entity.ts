@@ -20,6 +20,7 @@ export interface LLMCallLog {
   durationMs?: number;
   orgId?: string;
   projectId?: string;
+  langfuseObservationId?: string;
 }
 
 /**
@@ -43,6 +44,7 @@ export interface CreateLLMCallLogInput {
   durationMs?: number;
   orgId?: string;
   projectId?: string;
+  langfuseObservationId?: string;
 }
 
 /**

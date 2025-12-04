@@ -73,6 +73,9 @@ export default function ProjectAutoExtractionSettingsPage() {
   // Discovery Wizard state
   const [showDiscoveryWizard, setShowDiscoveryWizard] = useState(false);
 
+  // Parallel extraction state
+  const [allowParallelExtraction, setAllowParallelExtraction] = useState(false);
+
   // Load available object types from template packs
   const loadAvailableObjectTypes = useCallback(async () => {
     if (!config.activeProjectId) return;
@@ -144,6 +147,11 @@ export default function ProjectAutoExtractionSettingsPage() {
         extractConfig.notification_channels ||
           DEFAULT_CONFIG.notification_channels
       );
+
+      // Load parallel extraction setting
+      setAllowParallelExtraction(
+        projectData.allow_parallel_extraction || false
+      );
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Failed to load project settings'
@@ -181,6 +189,7 @@ export default function ProjectAutoExtractionSettingsPage() {
               notify_on_complete: notifyOnComplete,
               notification_channels: notificationChannels,
             },
+            allow_parallel_extraction: allowParallelExtraction,
           },
         }
       );
@@ -210,6 +219,7 @@ export default function ProjectAutoExtractionSettingsPage() {
     setRequireReview(DEFAULT_CONFIG.require_review);
     setNotifyOnComplete(DEFAULT_CONFIG.notify_on_complete);
     setNotificationChannels(DEFAULT_CONFIG.notification_channels);
+    setAllowParallelExtraction(false);
   };
 
   // Toggle object type
@@ -253,7 +263,8 @@ export default function ProjectAutoExtractionSettingsPage() {
         JSON.stringify(
           currentConfig.notification_channels ||
             DEFAULT_CONFIG.notification_channels
-        )
+        ) ||
+      allowParallelExtraction !== (project.allow_parallel_extraction || false)
     );
   };
 
@@ -655,6 +666,59 @@ export default function ProjectAutoExtractionSettingsPage() {
                       </div>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Job Processing Settings */}
+              <div className="bg-base-100 border border-base-300 card">
+                <div className="card-body">
+                  <h3 className="flex items-center gap-2 mb-4 font-semibold">
+                    <Icon icon="lucide--layers" className="size-5" />
+                    Job Processing
+                  </h3>
+                  <div className="space-y-4">
+                    {/* Parallel Extraction */}
+                    <label className="flex items-start gap-3 p-4 border border-base-300 hover:border-base-400 rounded-lg transition-colors cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 checkbox checkbox-primary"
+                        checked={allowParallelExtraction}
+                        onChange={(e) =>
+                          setAllowParallelExtraction(e.target.checked)
+                        }
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">
+                          Allow Parallel Extraction
+                        </div>
+                        <div className="mt-1 text-sm text-base-content/70">
+                          When enabled, multiple extraction jobs can run
+                          simultaneously. When disabled (default), jobs are
+                          queued and processed one at a time to reduce system
+                          load.
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                  <div className="bg-base-200 mt-3 p-3 rounded-lg text-sm">
+                    <Icon
+                      icon="lucide--info"
+                      className="inline-block mr-1 size-4 text-info"
+                    />
+                    {allowParallelExtraction ? (
+                      <>
+                        Parallel processing is faster for large batches but uses
+                        more system resources. Recommended for projects with
+                        dedicated infrastructure.
+                      </>
+                    ) : (
+                      <>
+                        Sequential processing prevents resource contention and
+                        is recommended for most projects. Jobs will be queued
+                        and processed in order.
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </>

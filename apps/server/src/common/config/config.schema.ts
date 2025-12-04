@@ -162,6 +162,31 @@ export class EnvVariables {
   @IsString()
   @IsOptional()
   LANGSMITH_PROJECT?: string; // Project name for organizing traces
+
+  // --- LangFuse Observability (Optional) ---
+  @IsBoolean()
+  @IsOptional()
+  LANGFUSE_ENABLED?: boolean;
+
+  @IsString()
+  @IsOptional()
+  LANGFUSE_SECRET_KEY?: string;
+
+  @IsString()
+  @IsOptional()
+  LANGFUSE_PUBLIC_KEY?: string;
+
+  @IsString()
+  @IsOptional()
+  LANGFUSE_HOST?: string;
+
+  @IsNumber()
+  @IsOptional()
+  LANGFUSE_FLUSH_AT?: number;
+
+  @IsNumber()
+  @IsOptional()
+  LANGFUSE_FLUSH_INTERVAL?: number;
 }
 
 export function validate(config: Record<string, unknown>): EnvVariables {
@@ -219,6 +244,13 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     LANGSMITH_ENDPOINT: process.env.LANGSMITH_ENDPOINT,
     LANGSMITH_API_KEY: process.env.LANGSMITH_API_KEY,
     LANGSMITH_PROJECT: process.env.LANGSMITH_PROJECT,
+    // LangFuse Observability
+    LANGFUSE_ENABLED: process.env.LANGFUSE_ENABLED,
+    LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY,
+    LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY,
+    LANGFUSE_HOST: process.env.LANGFUSE_HOST,
+    LANGFUSE_FLUSH_AT: process.env.LANGFUSE_FLUSH_AT,
+    LANGFUSE_FLUSH_INTERVAL: process.env.LANGFUSE_FLUSH_INTERVAL,
     ...config,
   };
   const transformed = plainToInstance(EnvVariables, {
@@ -267,6 +299,16 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     ),
     EXTRACTION_CHUNK_SIZE: Number(withDefaults.EXTRACTION_CHUNK_SIZE),
     EXTRACTION_CHUNK_OVERLAP: Number(withDefaults.EXTRACTION_CHUNK_OVERLAP),
+    // LangFuse conversions
+    LANGFUSE_ENABLED:
+      withDefaults.LANGFUSE_ENABLED === 'true' ||
+      withDefaults.LANGFUSE_ENABLED === true,
+    LANGFUSE_FLUSH_AT: withDefaults.LANGFUSE_FLUSH_AT
+      ? Number(withDefaults.LANGFUSE_FLUSH_AT)
+      : undefined,
+    LANGFUSE_FLUSH_INTERVAL: withDefaults.LANGFUSE_FLUSH_INTERVAL
+      ? Number(withDefaults.LANGFUSE_FLUSH_INTERVAL)
+      : undefined,
   });
   const errors = validateSync(transformed, { skipMissingProperties: false });
   if (errors.length) {

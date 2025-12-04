@@ -141,6 +141,19 @@ When enabled, traces are automatically sent to your LangSmith project dashboard.
 - ✅ Visual feedback ("Querying..." indicator)
 - ✅ Full test coverage (unit + integration + E2E)
 
+## Observability (LangFuse)
+
+The system supports self-hosted [LangFuse](https://langfuse.com/) for tracing LLM extraction jobs.
+
+- **[Integration Guide](docs/integrations/langfuse/README.md)** - Architecture and setup
+- **[Developer Guide](docs/integrations/langfuse/DEVELOPER_GUIDE.md)** - How to use and debug
+
+**Features:**
+
+- 🔍 **Full Tracing**: Parent traces for jobs, child spans for LLM calls
+- 📊 **Dual-Path Logging**: Logs to both internal DB and LangFuse
+- 🛠️ **Self-Hosted**: Docker Compose setup included in `~/emergent-infra/langfuse`
+
 ## Error Logging & Debugging
 
 The system includes comprehensive error logging for both server and browser:
