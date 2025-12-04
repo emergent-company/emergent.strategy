@@ -189,7 +189,7 @@ export class ExtractionJobService {
   /**
    * Create a new extraction job
    *
-   * Phase 1: Creates job record with 'pending' status
+   * Phase 1: Creates job record with 'queued' status
    * Phase 2: Will enqueue job to Bull queue for processing
    */
   async createJob(dto: CreateExtractionJobDto): Promise<ExtractionJobDto> {
@@ -221,7 +221,7 @@ export class ExtractionJobService {
     const values: any[] = [
       projectId,
       dto.source_type,
-      ExtractionJobStatus.PENDING,
+      ExtractionJobStatus.QUEUED,
       JSON.stringify(dto.extraction_config ?? {}),
       JSON.stringify(dto.source_metadata ?? {}),
       dto.source_id ?? null,
@@ -501,28 +501,46 @@ export class ExtractionJobService {
    */
   async dequeueJobs(batchSize: number = 1): Promise<ExtractionJobDto[]> {
     this.logger.debug(
-      `[DEQUEUE] Attempting to dequeue ${batchSize} pending jobs`
+      `[DEQUEUE] Attempting to dequeue ${batchSize} queued jobs`
     );
 
     const schema = await this.getSchemaInfo();
 
-    // Step 1: Find pending jobs across all tenants (no tenant context needed for read)
+    // Step 1: Find queued jobs across all tenants (no tenant context needed for read)
     // Clear any existing tenant context so RLS allows system-level SELECT
     await this.db.setTenantContext(null, null);
 
     // Phase 6: organization_id removed from object_extraction_jobs table
     // We now derive organization_id from project_id via projects table join
+    //
+    // Job queuing logic:
+    // - By default, only one job can run per project at a time
+    // - Projects with allow_parallel_extraction=true can have multiple running jobs
+    // - We use a subquery to filter out projects that already have a running job
+    //   (unless that project allows parallel extraction)
     const candidatesResult = await this.db.query<{
       id: string;
       project_id: string | null;
     }>(
-      `SELECT id, project_id
-             FROM kb.object_extraction_jobs
-             WHERE status = $1
-             ORDER BY created_at ASC
+      `SELECT j.id, j.project_id
+             FROM kb.object_extraction_jobs j
+             LEFT JOIN kb.projects p ON j.project_id = p.id
+             WHERE j.status = $1
+               AND (
+                 -- Allow if project has parallel extraction enabled
+                 p.allow_parallel_extraction = true
+                 OR
+                 -- Or if project has no running jobs
+                 NOT EXISTS (
+                   SELECT 1 FROM kb.object_extraction_jobs running
+                   WHERE running.project_id = j.project_id
+                     AND running.status = 'running'
+                 )
+               )
+             ORDER BY j.created_at ASC
              LIMIT $2
-             FOR UPDATE SKIP LOCKED`,
-      [ExtractionJobStatus.PENDING, batchSize]
+             FOR UPDATE OF j SKIP LOCKED`,
+      [ExtractionJobStatus.QUEUED, batchSize]
     );
 
     if (!candidatesResult.rowCount || candidatesResult.rowCount === 0) {
@@ -570,7 +588,7 @@ export class ExtractionJobService {
               [
                 ExtractionJobStatus.RUNNING,
                 candidate.id,
-                ExtractionJobStatus.PENDING,
+                ExtractionJobStatus.QUEUED,
               ]
             )
         );
@@ -822,7 +840,7 @@ export class ExtractionJobService {
   /**
    * Retry/recover a stuck job
    *
-   * Resets a stuck 'running' job back to 'pending' so it can be retried.
+   * Resets a stuck 'running' job back to 'queued' so it can be retried.
    * Useful for manual recovery when server restarts leave jobs orphaned.
    */
   async retryJob(jobId: string, projectId: string): Promise<ExtractionJobDto> {
@@ -841,7 +859,7 @@ export class ExtractionJobService {
     this.logger.log(`Retrying extraction job ${jobId} (was ${job.status})`);
 
     return this.updateJob(jobId, projectId, {
-      status: ExtractionJobStatus.PENDING,
+      status: ExtractionJobStatus.QUEUED,
       error_message: job.error_message
         ? `${job.error_message}\n\nJob was manually retried.`
         : 'Job was manually retried.',
@@ -889,7 +907,7 @@ export class ExtractionJobService {
     // Prevent deletion of running jobs
     if (
       job.status === ExtractionJobStatus.RUNNING ||
-      job.status === ExtractionJobStatus.PENDING
+      job.status === ExtractionJobStatus.QUEUED
     ) {
       throw new BadRequestException(
         `Cannot delete job with status: ${job.status}. Cancel it first.`
@@ -929,7 +947,7 @@ export class ExtractionJobService {
       [
         ExtractionJobStatus.CANCELLED,
         projectId,
-        ExtractionJobStatus.PENDING,
+        ExtractionJobStatus.QUEUED,
         ExtractionJobStatus.RUNNING,
       ]
     );
@@ -982,7 +1000,7 @@ export class ExtractionJobService {
                  updated_at = NOW()
              WHERE ${schema.projectColumn} = $2 
                AND status = $3`,
-      [ExtractionJobStatus.PENDING, projectId, ExtractionJobStatus.FAILED]
+      [ExtractionJobStatus.QUEUED, projectId, ExtractionJobStatus.FAILED]
     );
 
     const retried = result.rowCount || 0;

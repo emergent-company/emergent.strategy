@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { HashService } from '../../common/utils/hash.service';
@@ -7,6 +11,7 @@ import { DocumentDto } from './dto/document.dto';
 import { Document } from '../../entities/document.entity';
 import { Chunk } from '../../entities/chunk.entity';
 import { Project } from '../../entities/project.entity';
+import { ChunkerService } from '../../common/utils/chunker.service';
 
 interface DocumentRow {
   id: string;
@@ -20,6 +25,8 @@ interface DocumentRow {
   updated_at: string;
   integration_metadata: Record<string, any> | null;
   chunks: number;
+  total_chars: number | null;
+  embedded_chunks: number | null;
   extraction_status: string | null;
   extraction_completed_at: string | null;
   extraction_objects_count: number | null;
@@ -36,7 +43,8 @@ export class DocumentsService {
     private readonly projectRepository: Repository<Project>,
     private readonly dataSource: DataSource,
     private readonly hash: HashService,
-    private readonly db: DatabaseService
+    private readonly db: DatabaseService,
+    private readonly chunker: ChunkerService
   ) {}
 
   async list(
@@ -80,6 +88,8 @@ export class DocumentsService {
                       d.integration_metadata,
                       LENGTH(d.content) AS content_length,
                       COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
+                      COALESCE((SELECT SUM(LENGTH(c.text))::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS total_chars,
+                      COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id AND c.embedding IS NOT NULL),0) AS embedded_chunks,
                       ej.status AS extraction_status,
                       ej.completed_at AS extraction_completed_at,
                       ej.objects_created AS extraction_objects_count
@@ -708,6 +718,8 @@ export class DocumentsService {
       updatedAt: r.updated_at,
       integrationMetadata: r.integration_metadata || undefined,
       chunks: r.chunks,
+      totalChars: r.total_chars ?? undefined,
+      embeddedChunks: r.embedded_chunks ?? undefined,
       extractionStatus: r.extraction_status || undefined,
       extractionCompletedAt: r.extraction_completed_at || undefined,
       extractionObjectsCount: r.extraction_objects_count || undefined,

@@ -32,7 +32,7 @@ export class ObjectExtractionJob {
 
   @Column({
     type: 'text',
-    default: 'pending',
+    default: 'queued',
   })
   status!: string;
 

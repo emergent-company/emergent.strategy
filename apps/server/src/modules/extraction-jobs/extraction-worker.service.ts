@@ -20,6 +20,12 @@ import { ExtractionJobDto } from './dto/extraction-job.dto';
 import type { ExtractionResult } from './llm/llm-provider.interface';
 import { TemplatePackService } from '../template-packs/template-pack.service';
 import { MonitoringLoggerService } from '../monitoring/monitoring-logger.service';
+import { LangfuseService } from '../langfuse/langfuse.service';
+import {
+  ChunkerService,
+  ChunkerConfig,
+} from '../../common/utils/chunker.service';
+import { EmbeddingsService } from '../embeddings/embeddings.service';
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 
@@ -91,7 +97,10 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly documentsService: DocumentsService,
     private readonly notificationsService: NotificationsService,
     private readonly templatePacks: TemplatePackService,
-    private readonly monitoringLogger: MonitoringLoggerService
+    private readonly monitoringLogger: MonitoringLoggerService,
+    private readonly langfuseService: LangfuseService,
+    private readonly chunkerService: ChunkerService,
+    private readonly embeddingsService: EmbeddingsService
   ) {}
 
   /**
@@ -168,7 +177,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
    * - Status is 'running'
    * - Updated more than 5 minutes ago (likely interrupted)
    *
-   * These jobs are reset to 'pending' so they can be retried.
+   * These jobs are reset to 'queued' so they can be retried.
    */
   private async recoverOrphanedJobs(): Promise<void> {
     try {
@@ -224,13 +233,13 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             async () =>
               this.db.query<{ id: string }>(
                 `UPDATE kb.object_extraction_jobs
-                             SET status = 'pending',
+                             SET status = 'queued',
                                  started_at = NULL,
                                  updated_at = NOW(),
                                  error_message = CASE
-                                     WHEN error_message ILIKE '%has been reset to pending.%' THEN error_message
-                                     ELSE COALESCE(error_message || E'\n\n', '') ||
-                                         'Job was interrupted by server restart and has been reset to pending.'
+                                  WHEN error_message ILIKE '%has been reset to queued.%' THEN error_message
+                                      ELSE COALESCE(error_message || E'\n\n', '') ||
+                                          'Job was interrupted by server restart and has been reset to queued.'
                                  END
                              WHERE id = $1
                                AND status = 'running'
@@ -261,7 +270,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         this.logger.warn(
           `Recovered ${
             recovered.length
-          } orphaned extraction job(s) from 'running' to 'pending': ${recovered.join(
+          } orphaned extraction job(s) from 'running' to 'queued': ${recovered.join(
             ', '
           )}`
         );
@@ -367,6 +376,14 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     // Fetch organization_id once for reuse throughout the method
     const organizationId = await this.getOrganizationId(job);
 
+    // Create LangFuse trace
+    const traceId = this.langfuseService.createJobTrace(job.id, {
+      name: `Extraction Job ${job.id}`,
+      source_type: job.source_type,
+      project_id: job.project_id,
+      organization_id: organizationId,
+    });
+
     // Log to monitoring system
     await this.monitoringLogger.logProcessEvent({
       processId: job.id,
@@ -378,6 +395,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         source_type: job.source_type,
         source_id: job.source_id,
       },
+      langfuseTraceId: traceId || undefined,
     });
 
     // Reset step counter for this job
@@ -473,31 +491,73 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     });
 
     try {
-      // 1. Load document content
+      // 1. Load document content and ensure chunks + embeddings exist
       const documentStep = beginTimelineStep('load_document', {
         source_id: job.source_id ?? null,
         source_type: job.source_type,
       });
 
-      const documentContent = await this.loadDocumentContent(job).catch(
-        (error) => {
+      let documentContent: string | null = null;
+
+      // For document sources, ensure chunks and embeddings are ready
+      if (job.source_type === 'document' && job.source_id) {
+        const readyResult = await this.ensureDocumentReady(
+          job.source_id,
+          job.project_id
+        ).catch((error) => {
           const message = toErrorMessage(error);
           documentStep('error', { message });
           throw error;
+        });
+
+        if (!readyResult.success || !readyResult.content) {
+          const message = 'Failed to prepare document (chunks/embeddings)';
+          documentStep('error', { message });
+          throw new Error(message);
         }
-      );
 
-      if (!documentContent) {
-        const message = 'Failed to load document content';
-        documentStep('error', { message });
-        throw new Error(message);
+        documentContent = readyResult.content;
+
+        // Log chunk/embedding preparation details
+        documentStep('success', {
+          metadata: {
+            character_count: documentContent.length,
+            chunks_created: readyResult.chunksCreated,
+            chunk_count: readyResult.chunkCount,
+            embeddings_generated: readyResult.embeddingsGenerated,
+          },
+        });
+
+        // Add timeline event for chunk/embedding preparation if chunks were created
+        if (readyResult.chunksCreated || readyResult.embeddingsGenerated > 0) {
+          pushTimelineEvent('ensure_chunks_embeddings', 'success', {
+            metadata: {
+              chunks_created: readyResult.chunksCreated,
+              chunk_count: readyResult.chunkCount,
+              embeddings_generated: readyResult.embeddingsGenerated,
+            },
+          });
+        }
+      } else {
+        // For non-document sources (manual, api), use the original method
+        documentContent = await this.loadDocumentContent(job).catch((error) => {
+          const message = toErrorMessage(error);
+          documentStep('error', { message });
+          throw error;
+        });
+
+        if (!documentContent) {
+          const message = 'Failed to load document content';
+          documentStep('error', { message });
+          throw new Error(message);
+        }
+
+        documentStep('success', {
+          metadata: {
+            character_count: documentContent.length,
+          },
+        });
       }
-
-      documentStep('success', {
-        metadata: {
-          character_count: documentContent.length,
-        },
-      });
 
       // 2. Load extraction config (prompt + schemas) from template pack
       const promptStep = beginTimelineStep('load_prompt', {
@@ -606,13 +666,13 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       // Track LLM call timing for detailed logs
       const llmCallStartTime = Date.now();
 
-      // Create pending log entry for LLM call
+      // Create queued log entry for LLM call
       const llmLogId = await this.extractionLogger.logStep({
         extractionJobId: job.id,
         stepIndex: this.stepCounter++,
         operationType: 'llm_call',
         operationName: 'extract_entities',
-        status: 'pending',
+        status: 'queued',
         inputData: {
           prompt: extractionPrompt,
           document_content: documentContent,
@@ -637,6 +697,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
           {
             jobId: job.id,
             projectId: job.project_id,
+            traceId: traceId || undefined,
           }
         );
 
@@ -1367,6 +1428,13 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
       this.processedCount++;
       this.successCount++;
+
+      if (traceId) {
+        this.langfuseService.finalizeTrace(traceId, 'success', {
+          entities_count: extractionResult.entities.length,
+          duration_ms: duration,
+        });
+      }
     } catch (error) {
       this.logger.error(`Extraction job ${job.id} failed`, error);
 
@@ -1422,6 +1490,13 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         errorMessage,
         willRetry,
       });
+
+      if (traceId) {
+        this.langfuseService.finalizeTrace(traceId, 'error', {
+          error: errorMessage,
+          duration_ms: Date.now() - startTime,
+        });
+      }
 
       this.processedCount++;
       this.failureCount++;
@@ -1543,6 +1618,267 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
     // Return content directly from DocumentsService result
     return doc.content || null;
+  }
+
+  /**
+   * Check if chunks exist for a document
+   * Returns the count of chunks and whether they have embeddings
+   */
+  private async getChunkStatus(documentId: string): Promise<{
+    count: number;
+    withEmbeddings: number;
+    withoutEmbeddings: number;
+  }> {
+    const result = await this.db.query<{
+      total: number;
+      with_embeddings: number;
+    }>(
+      `SELECT 
+         COUNT(*)::int as total,
+         COUNT(CASE WHEN embedding IS NOT NULL THEN 1 END)::int as with_embeddings
+       FROM kb.chunks 
+       WHERE document_id = $1`,
+      [documentId]
+    );
+
+    const total = result.rows[0]?.total ?? 0;
+    const withEmbeddings = result.rows[0]?.with_embeddings ?? 0;
+
+    return {
+      count: total,
+      withEmbeddings,
+      withoutEmbeddings: total - withEmbeddings,
+    };
+  }
+
+  /**
+   * Get project-level chunking configuration
+   * Returns chunking config if set, null otherwise
+   */
+  private async getProjectChunkingConfig(
+    projectId: string
+  ): Promise<ChunkerConfig | null> {
+    try {
+      const result = await this.db.query<{ chunking_config: any }>(
+        'SELECT chunking_config FROM kb.projects WHERE id = $1',
+        [projectId]
+      );
+
+      const storedConfig = result.rows[0]?.chunking_config;
+      if (!storedConfig) {
+        return null;
+      }
+
+      return {
+        strategy:
+          (storedConfig.strategy as ChunkerConfig['strategy']) || 'character',
+        options: {
+          maxChunkSize: storedConfig.maxChunkSize,
+          minChunkSize: storedConfig.minChunkSize,
+        },
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Failed to get chunking config for project ${projectId}: ${toErrorMessage(
+          error
+        )}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Ensure chunks exist for a document
+   * If chunks don't exist, creates them from document content
+   * Returns the chunk texts for further processing
+   */
+  private async ensureChunksExist(
+    documentId: string,
+    projectId: string,
+    content: string
+  ): Promise<{ chunkIds: string[]; chunkTexts: string[]; created: boolean }> {
+    const status = await this.getChunkStatus(documentId);
+
+    if (status.count > 0) {
+      // Chunks already exist, load their texts
+      const chunks = await this.db.query<{ id: string; text: string }>(
+        `SELECT id, text FROM kb.chunks WHERE document_id = $1 ORDER BY chunk_index ASC`,
+        [documentId]
+      );
+      return {
+        chunkIds: chunks.rows.map((c) => c.id),
+        chunkTexts: chunks.rows.map((c) => c.text),
+        created: false,
+      };
+    }
+
+    // No chunks exist - need to create them
+    this.logger.log(
+      `Creating chunks for document ${documentId} (no existing chunks found)`
+    );
+
+    // Get project chunking config or use defaults
+    const chunkingConfig = await this.getProjectChunkingConfig(projectId);
+
+    // Chunk the content
+    const chunksWithMeta = chunkingConfig
+      ? this.chunkerService.chunkWithMetadata(content, chunkingConfig)
+      : this.chunkerService.chunkWithMetadata(content);
+
+    // Insert chunks into database
+    const chunkIds: string[] = [];
+    const chunkTexts: string[] = [];
+
+    for (let i = 0; i < chunksWithMeta.length; i++) {
+      const chunkData = chunksWithMeta[i];
+      const metadataJson = JSON.stringify(chunkData.metadata);
+
+      const insertResult = await this.db.query<{ id: string }>(
+        `INSERT INTO kb.chunks(document_id, chunk_index, text, metadata)
+         VALUES ($1, $2, $3, $4::jsonb)
+         ON CONFLICT (document_id, chunk_index) DO UPDATE 
+         SET text = EXCLUDED.text, metadata = EXCLUDED.metadata
+         RETURNING id`,
+        [documentId, i, chunkData.text, metadataJson]
+      );
+
+      if (insertResult.rows[0]?.id) {
+        chunkIds.push(insertResult.rows[0].id);
+        chunkTexts.push(chunkData.text);
+      }
+    }
+
+    this.logger.log(
+      `Created ${chunkIds.length} chunks for document ${documentId}`
+    );
+
+    return { chunkIds, chunkTexts, created: true };
+  }
+
+  /**
+   * Ensure embeddings exist for chunks
+   * If embeddings are missing, generates them using the embeddings service
+   */
+  private async ensureEmbeddingsExist(
+    documentId: string,
+    chunkTexts: string[]
+  ): Promise<{ generated: number; skipped: number }> {
+    if (!this.config.embeddingsEnabled) {
+      this.logger.debug('Embeddings disabled, skipping embedding generation');
+      return { generated: 0, skipped: chunkTexts.length };
+    }
+
+    // Find chunks without embeddings
+    const chunksWithoutEmbeddings = await this.db.query<{
+      id: string;
+      chunk_index: number;
+      text: string;
+    }>(
+      `SELECT id, chunk_index, text 
+       FROM kb.chunks 
+       WHERE document_id = $1 AND embedding IS NULL
+       ORDER BY chunk_index ASC`,
+      [documentId]
+    );
+
+    if (chunksWithoutEmbeddings.rowCount === 0) {
+      this.logger.debug(
+        `All chunks for document ${documentId} have embeddings`
+      );
+      return { generated: 0, skipped: chunkTexts.length };
+    }
+
+    this.logger.log(
+      `Generating embeddings for ${chunksWithoutEmbeddings.rowCount} chunks of document ${documentId}`
+    );
+
+    // Generate embeddings for chunks without them
+    const textsToEmbed = chunksWithoutEmbeddings.rows.map((c) => c.text);
+
+    try {
+      const vectors = await this.embeddingsService.embedDocuments(textsToEmbed);
+
+      // Update chunks with embeddings
+      for (let i = 0; i < chunksWithoutEmbeddings.rows.length; i++) {
+        const chunk = chunksWithoutEmbeddings.rows[i];
+        const vec = vectors[i];
+
+        if (vec && vec.length > 0) {
+          const vecLiteral =
+            '[' +
+            vec.map((n) => (Number.isFinite(n) ? String(n) : '0')).join(',') +
+            ']';
+
+          await this.db.query(
+            `UPDATE kb.chunks SET embedding = $1::vector WHERE id = $2`,
+            [vecLiteral, chunk.id]
+          );
+        }
+      }
+
+      this.logger.log(
+        `Generated embeddings for ${vectors.length} chunks of document ${documentId}`
+      );
+      return {
+        generated: vectors.length,
+        skipped: chunkTexts.length - vectors.length,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate embeddings for document ${documentId}: ${toErrorMessage(
+          error
+        )}`
+      );
+      return { generated: 0, skipped: chunkTexts.length };
+    }
+  }
+
+  /**
+   * Ensure document has chunks and embeddings before extraction
+   * This is the main entry point for the chunk dependency flow
+   */
+  private async ensureDocumentReady(
+    documentId: string,
+    projectId: string
+  ): Promise<{
+    success: boolean;
+    content: string | null;
+    chunksCreated: boolean;
+    chunkCount: number;
+    embeddingsGenerated: number;
+  }> {
+    // First, load document content
+    const content = await this.loadDocumentById(documentId);
+    if (!content) {
+      return {
+        success: false,
+        content: null,
+        chunksCreated: false,
+        chunkCount: 0,
+        embeddingsGenerated: 0,
+      };
+    }
+
+    // Ensure chunks exist
+    const chunkResult = await this.ensureChunksExist(
+      documentId,
+      projectId,
+      content
+    );
+
+    // Ensure embeddings exist
+    const embeddingResult = await this.ensureEmbeddingsExist(
+      documentId,
+      chunkResult.chunkTexts
+    );
+
+    return {
+      success: true,
+      content,
+      chunksCreated: chunkResult.created,
+      chunkCount: chunkResult.chunkIds.length,
+      embeddingsGenerated: embeddingResult.generated,
+    };
   }
 
   /**

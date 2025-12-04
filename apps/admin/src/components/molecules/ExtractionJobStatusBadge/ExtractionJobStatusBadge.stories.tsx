@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Pending: Story = {
     args: {
-        status: 'pending',
+        status: 'queued',
     },
 };
 

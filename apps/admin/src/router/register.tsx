@@ -86,6 +86,12 @@ const dashboardRoutes: IRoutesProps[] = [
     ),
   },
   {
+    path: '/admin/settings/project/chunking',
+    element: cw(
+      lazy(() => import('@/pages/admin/pages/settings/project/chunking'))
+    ),
+  },
+  {
     path: '/admin/monitoring/dashboard',
     element: cw(lazy(() => import('@/pages/admin/monitoring/dashboard'))),
   },
@@ -148,6 +154,10 @@ const otherRoutes: IRoutesProps[] = [
   {
     path: '/emergent-core',
     element: cw(lazy(() => import('@/pages/emergent-core'))),
+  },
+  {
+    path: '/product-framework',
+    element: cw(lazy(() => import('@/pages/product-framework'))),
   },
   { path: '/chat', element: cw(lazy(() => import('@/pages/chat'))) },
   {

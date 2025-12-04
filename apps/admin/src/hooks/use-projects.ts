@@ -20,6 +20,12 @@ export type Project = {
     notify_on_complete?: boolean;
     notification_channels?: string[];
   };
+  chunking_config?: {
+    strategy?: 'character' | 'sentence' | 'paragraph';
+    maxChunkSize?: number;
+    minChunkSize?: number;
+  };
+  allow_parallel_extraction?: boolean;
 };
 
 type CreateProjectPayload = {

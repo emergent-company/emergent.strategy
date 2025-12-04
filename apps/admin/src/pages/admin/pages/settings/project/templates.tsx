@@ -5,7 +5,37 @@ import { useEffect, useState, useCallback } from 'react';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
 import { Icon } from '@/components/atoms/Icon';
+import { Tooltip } from '@/components/atoms/Tooltip';
 import { SettingsNav } from './SettingsNav';
+
+interface ObjectTypeWithRelationships {
+  type: string;
+  description?: string;
+  sample_count?: number;
+  properties?: Record<
+    string,
+    {
+      type?: string;
+      description?: string;
+      enum?: string[];
+    }
+  >;
+  required?: string[];
+  examples?: any[];
+  outgoingRelationships?: Array<{
+    type: string;
+    label?: string;
+    description?: string;
+    targetTypes: string[];
+  }>;
+  incomingRelationships?: Array<{
+    type: string;
+    label?: string;
+    inverseLabel?: string;
+    description?: string;
+    sourceTypes: string[];
+  }>;
+}
 
 interface TemplatePack {
   id: string;
@@ -14,11 +44,7 @@ interface TemplatePack {
   description?: string;
   author?: string;
   source?: 'manual' | 'discovered' | 'imported' | 'system';
-  object_types: Array<{
-    type: string;
-    description?: string;
-    sample_count?: number;
-  }>;
+  object_types: ObjectTypeWithRelationships[];
   relationship_types: string[];
   relationship_count: number;
   installed: boolean;
@@ -36,10 +62,9 @@ interface InstalledPack {
     version: string;
     description?: string;
     source?: 'manual' | 'discovered' | 'imported' | 'system';
-    object_types: Array<{
-      type: string;
-      description?: string;
-    }>;
+    object_types: ObjectTypeWithRelationships[];
+    relationship_types?: string[];
+    relationship_count?: number;
   };
   installed_at: string;
   installed_by: string;
@@ -48,6 +73,194 @@ interface InstalledPack {
     enabledTypes?: string[];
     disabledTypes?: string[];
   };
+}
+
+// Shared component for displaying object type details
+function ObjectTypeCard({
+  objType,
+  sources,
+}: {
+  objType: ObjectTypeWithRelationships;
+  sources?: Array<{ pack: string; version: string }>;
+}) {
+  return (
+    <div className="bg-base-200 p-4 rounded">
+      <div className="flex justify-between items-start mb-2">
+        <h4 className="font-semibold text-base">{objType.type}</h4>
+        {sources && sources.length > 0 && (
+          <div className="flex flex-wrap justify-end gap-1">
+            {sources.map((source, idx) => (
+              <span
+                key={idx}
+                className="badge badge-sm badge-ghost"
+                title={`From: ${source.pack} v${source.version}`}
+              >
+                {source.pack}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {objType.description && (
+        <p className="mt-1 mb-3 text-sm text-base-content/70">
+          {objType.description}
+        </p>
+      )}
+
+      {/* Properties/Fields */}
+      {objType.properties && Object.keys(objType.properties).length > 0 && (
+        <div className="mt-3">
+          <div className="mb-2 font-medium text-xs text-base-content/60 uppercase tracking-wide">
+            Properties
+          </div>
+          <div className="space-y-1">
+            {Object.entries(objType.properties)
+              .filter(([propName]) => !propName.startsWith('_'))
+              .map(([propName, propDef]) => (
+                <div
+                  key={propName}
+                  className="bg-base-100 px-3 py-2 rounded text-xs"
+                >
+                  <span className="font-mono font-medium">{propName}</span>
+                  {objType.required?.includes(propName) && (
+                    <span className="ml-2 badge badge-xs badge-error">
+                      required
+                    </span>
+                  )}
+                  {propDef.type && !propDef.enum && (
+                    <span className="ml-2 text-base-content/60">
+                      {propDef.type}
+                    </span>
+                  )}
+                  {propDef.enum && (
+                    <span className="ml-2 text-base-content/60">enum</span>
+                  )}
+                  {propDef.description && (
+                    <div className="mt-1 text-base-content/60">
+                      {propDef.description}
+                    </div>
+                  )}
+                  {propDef.enum && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {propDef.enum.map((val) => (
+                        <span key={val} className="badge badge-xs">
+                          {val}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Outgoing relationships: Type -> Target */}
+      {objType.outgoingRelationships &&
+        objType.outgoingRelationships.length > 0 && (
+          <div className="mt-3">
+            <div className="mb-1.5 font-medium text-xs text-base-content/60 uppercase tracking-wide">
+              Relationships
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {objType.outgoingRelationships.map((rel, idx) => {
+                const badge = (
+                  <div
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded text-sm bg-base-300 ${
+                      rel.description ? 'cursor-help' : ''
+                    }`}
+                  >
+                    <span className="font-medium text-base-content/80">
+                      {rel.label || rel.type}
+                    </span>
+                    <Icon
+                      icon="lucide--arrow-right"
+                      className="size-3 text-base-content/40"
+                    />
+                    <span className="text-base-content/70">
+                      {rel.targetTypes.join(', ')}
+                    </span>
+                  </div>
+                );
+                return rel.description ? (
+                  <Tooltip
+                    key={`out-${rel.type}-${idx}`}
+                    content={rel.description}
+                    placement="top"
+                  >
+                    {badge}
+                  </Tooltip>
+                ) : (
+                  <div key={`out-${rel.type}-${idx}`}>{badge}</div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+      {/* Incoming relationships: Source -> Type */}
+      {objType.incomingRelationships &&
+        objType.incomingRelationships.length > 0 && (
+          <div className="mt-3">
+            <div className="mb-1.5 font-medium text-xs text-base-content/60 uppercase tracking-wide">
+              Referenced By
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {objType.incomingRelationships.map((rel, idx) => {
+                const badge = (
+                  <div
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded text-sm bg-base-300 ${
+                      rel.description ? 'cursor-help' : ''
+                    }`}
+                  >
+                    <span className="text-base-content/70">
+                      {rel.sourceTypes.join(', ')}
+                    </span>
+                    <Icon
+                      icon="lucide--arrow-right"
+                      className="size-3 text-base-content/40"
+                    />
+                    <span className="font-medium text-base-content/80">
+                      {rel.inverseLabel || rel.label || rel.type}
+                    </span>
+                  </div>
+                );
+                return rel.description ? (
+                  <Tooltip
+                    key={`in-${rel.type}-${idx}`}
+                    content={rel.description}
+                    placement="top"
+                  >
+                    {badge}
+                  </Tooltip>
+                ) : (
+                  <div key={`in-${rel.type}-${idx}`}>{badge}</div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+      {/* Examples */}
+      {objType.examples && objType.examples.length > 0 && (
+        <div className="mt-3">
+          <div className="mb-2 font-medium text-xs text-base-content/60 uppercase tracking-wide">
+            Examples
+          </div>
+          <div className="space-y-2">
+            {objType.examples.map((example, idx) => (
+              <div key={idx} className="bg-base-100 p-2 rounded">
+                <pre className="overflow-x-auto font-mono text-xs">
+                  {JSON.stringify(example, null, 2)}
+                </pre>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ProjectTemplatesSettingsPage() {
@@ -62,6 +275,7 @@ export default function ProjectTemplatesSettingsPage() {
   const [selectedPreview, setSelectedPreview] = useState<TemplatePack | null>(
     null
   );
+  const [previewIsInstalled, setPreviewIsInstalled] = useState(false);
   const [showCompiledPreview, setShowCompiledPreview] = useState(false);
   const [compiledTypes, setCompiledTypes] = useState<Record<string, any>>({});
 
@@ -368,6 +582,33 @@ export default function ProjectTemplatesSettingsPage() {
                         <div className="flex gap-2">
                           <button
                             className="btn btn-sm btn-ghost"
+                            onClick={() => {
+                              // Convert InstalledPack to TemplatePack format for preview
+                              setSelectedPreview({
+                                id: pack.template_pack.id,
+                                name: pack.template_pack.name,
+                                version: pack.template_pack.version,
+                                description: pack.template_pack.description,
+                                source: pack.template_pack.source,
+                                object_types: pack.template_pack.object_types,
+                                relationship_types:
+                                  pack.template_pack.relationship_types || [],
+                                relationship_count:
+                                  pack.template_pack.relationship_count || 0,
+                                installed: true,
+                                active: pack.active,
+                                assignment_id: pack.id,
+                                compatible: true,
+                                published_at: pack.installed_at,
+                              });
+                              setPreviewIsInstalled(true);
+                            }}
+                          >
+                            <Icon icon="lucide--eye" className="size-4" />
+                            Preview
+                          </button>
+                          <button
+                            className="btn btn-sm btn-ghost"
                             onClick={() =>
                               handleToggleActive(pack.id, pack.active)
                             }
@@ -472,7 +713,10 @@ export default function ProjectTemplatesSettingsPage() {
                           <div className="justify-end mt-4 card-actions">
                             <button
                               className="btn btn-sm btn-ghost"
-                              onClick={() => setSelectedPreview(pack)}
+                              onClick={() => {
+                                setSelectedPreview(pack);
+                                setPreviewIsInstalled(false);
+                              }}
                             >
                               <Icon icon="lucide--eye" className="size-4" />
                               Preview
@@ -585,7 +829,10 @@ export default function ProjectTemplatesSettingsPage() {
                           <div className="justify-end mt-4 card-actions">
                             <button
                               className="btn btn-sm btn-ghost"
-                              onClick={() => setSelectedPreview(pack)}
+                              onClick={() => {
+                                setSelectedPreview(pack);
+                                setPreviewIsInstalled(false);
+                              }}
                             >
                               <Icon icon="lucide--eye" className="size-4" />
                               Preview
@@ -667,7 +914,7 @@ export default function ProjectTemplatesSettingsPage() {
       {/* Preview Modal */}
       {selectedPreview && (
         <dialog className="modal modal-open">
-          <div className="max-w-2xl modal-box">
+          <div className="w-11/12 max-w-6xl modal-box">
             <form method="dialog">
               <button
                 className="top-2 right-2 absolute btn btn-sm btn-circle btn-ghost"
@@ -688,38 +935,11 @@ export default function ProjectTemplatesSettingsPage() {
             <div className="divider">
               Object Types ({selectedPreview.object_types?.length || 0})
             </div>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {selectedPreview.object_types?.map((type) => (
-                <div key={type.type} className="bg-base-200 p-3 rounded">
-                  <div className="font-medium">{type.type}</div>
-                  {type.description && (
-                    <div className="mt-1 text-sm text-base-content/70">
-                      {type.description}
-                    </div>
-                  )}
-                </div>
+            <div className="space-y-3 max-h-[600px] overflow-y-auto">
+              {selectedPreview.object_types?.map((objType) => (
+                <ObjectTypeCard key={objType.type} objType={objType} />
               ))}
             </div>
-
-            {selectedPreview.relationship_types &&
-              selectedPreview.relationship_types.length > 0 && (
-                <>
-                  <div className="divider">
-                    Relationship Types (
-                    {selectedPreview.relationship_types.length})
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedPreview.relationship_types.map((rel, index) => (
-                      <span
-                        key={`${rel}-${index}`}
-                        className="badge-outline badge"
-                      >
-                        {rel}
-                      </span>
-                    ))}
-                  </div>
-                </>
-              )}
 
             <div className="modal-action">
               <button
@@ -728,23 +948,25 @@ export default function ProjectTemplatesSettingsPage() {
               >
                 Close
               </button>
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  handleInstall(selectedPreview.id);
-                  setSelectedPreview(null);
-                }}
-                disabled={installing === selectedPreview.id}
-              >
-                {installing === selectedPreview.id ? (
-                  <>
-                    <span className="loading loading-spinner loading-xs"></span>
-                    Installing...
-                  </>
-                ) : (
-                  'Install Template Pack'
-                )}
-              </button>
+              {!previewIsInstalled && (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    handleInstall(selectedPreview.id);
+                    setSelectedPreview(null);
+                  }}
+                  disabled={installing === selectedPreview.id}
+                >
+                  {installing === selectedPreview.id ? (
+                    <>
+                      <span className="loading loading-spinner loading-xs"></span>
+                      Installing...
+                    </>
+                  ) : (
+                    'Install Template Pack'
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </dialog>
@@ -753,7 +975,7 @@ export default function ProjectTemplatesSettingsPage() {
       {/* Compiled Types Preview Modal */}
       {showCompiledPreview && (
         <dialog className="modal modal-open" data-testid="compiled-types-modal">
-          <div className="max-w-4xl modal-box">
+          <div className="w-11/12 max-w-6xl modal-box">
             <form method="dialog">
               <button
                 className="top-2 right-2 absolute btn btn-sm btn-circle btn-ghost"
@@ -785,99 +1007,17 @@ export default function ProjectTemplatesSettingsPage() {
                 </div>
                 <div className="space-y-3 max-h-[500px] overflow-y-auto">
                   {Object.entries(compiledTypes).map(([typeName, schema]) => (
-                    <div key={typeName} className="bg-base-200 p-4 rounded">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-semibold text-base">{typeName}</h4>
-                        {schema._sources && schema._sources.length > 0 && (
-                          <div className="flex flex-wrap justify-end gap-1">
-                            {schema._sources.map((source: any, idx: number) => (
-                              <span
-                                key={idx}
-                                className="badge badge-sm badge-ghost"
-                                title={`From: ${source.pack} v${source.version}`}
-                              >
-                                {source.pack}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      {schema.description && (
-                        <p className="mt-2 mb-3 text-sm text-base-content/70">
-                          {schema.description}
-                        </p>
-                      )}
-                      {schema.properties &&
-                        Object.keys(schema.properties).length > 0 && (
-                          <div className="mt-3">
-                            <div className="mb-2 font-medium text-sm">
-                              Properties:
-                            </div>
-                            <div className="space-y-1">
-                              {Object.entries(schema.properties).map(
-                                ([propName, propDef]: [string, any]) => (
-                                  <div
-                                    key={propName}
-                                    className="bg-base-100 px-3 py-2 rounded text-xs"
-                                  >
-                                    <span className="font-mono font-medium">
-                                      {propName}
-                                    </span>
-                                    {schema.required?.includes(propName) && (
-                                      <span className="ml-2 badge badge-xs badge-error">
-                                        required
-                                      </span>
-                                    )}
-                                    {propDef.type && (
-                                      <span className="ml-2 text-base-content/60">
-                                        {propDef.type}
-                                      </span>
-                                    )}
-                                    {propDef.description && (
-                                      <div className="mt-1 text-base-content/60">
-                                        {propDef.description}
-                                      </div>
-                                    )}
-                                    {propDef.enum && (
-                                      <div className="flex flex-wrap gap-1 mt-1">
-                                        {propDef.enum.map((val: string) => (
-                                          <span
-                                            key={val}
-                                            className="badge badge-xs"
-                                          >
-                                            {val}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      {schema.examples && schema.examples.length > 0 && (
-                        <div className="mt-3">
-                          <div className="mb-2 font-medium text-sm">
-                            Examples:
-                          </div>
-                          <div className="space-y-2">
-                            {schema.examples.map(
-                              (example: any, idx: number) => (
-                                <div
-                                  key={idx}
-                                  className="bg-base-100 p-2 rounded"
-                                >
-                                  <pre className="overflow-x-auto font-mono text-xs">
-                                    {JSON.stringify(example, null, 2)}
-                                  </pre>
-                                </div>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <ObjectTypeCard
+                      key={typeName}
+                      objType={{
+                        type: typeName,
+                        description: schema.description,
+                        properties: schema.properties,
+                        required: schema.required,
+                        examples: schema.examples,
+                      }}
+                      sources={schema._sources}
+                    />
                   ))}
                 </div>
               </>

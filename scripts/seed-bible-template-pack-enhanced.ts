@@ -1020,7 +1020,10 @@ async function upsertBibleTemplatePack(client: PoolClient): Promise<void> {
   const uiConfigs: Record<string, unknown> = {};
 
   for (const type of entityTypes) {
-    objectTypeSchemas[type.type] = type.schema;
+    objectTypeSchemas[type.type] = {
+      ...type.schema,
+      description: type.description, // Include description at schema level for API access
+    };
     extractionPrompts[type.type] = type.extraction;
 
     const iconMap: Record<string, string> = {

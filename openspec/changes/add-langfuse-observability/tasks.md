@@ -2,27 +2,31 @@
 
 ## Phase 1: Infrastructure Setup
 
-- [ ] **Task 1.1**: Add LangFuse services to Docker Compose
+- [ ] **Task 1.1**: Create LangFuse infrastructure in `~/emergent-infra/`
+
+  - Create directory `~/emergent-infra/` if it doesn't exist
+  - Create `~/emergent-infra/docker-compose.yml`
   - Add `langfuse-db` service (PostgreSQL 16 on port 5433)
   - Add `clickhouse` service (ClickHouse 24.1 on port 8123, 9000)
   - Add `redis` service (Redis 7 on port 6380)
   - Add `langfuse-server` service (Langfuse v3.0 on port 3010)
   - Add `langfuse-worker` service (background job processor)
   - Configure service dependencies and health checks
-  - Test: `docker-compose up langfuse-server` succeeds and UI is accessible at `http://localhost:3010`
+  - Test: `docker-compose -f ~/emergent-infra/docker-compose.yml up langfuse-server` succeeds and UI is accessible at `http://localhost:3010`
 
-- [ ] **Task 1.2**: Create environment configuration template
-  - Add LangFuse environment variables to `.env.example`:
+- [ ] **Task 1.2**: Create environment configuration in `~/emergent-infra/`
+
+  - Create `~/emergent-infra/.env.example`:
     - `LANGFUSE_ENABLED` (default: false)
     - `LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY` (empty defaults)
     - `LANGFUSE_HOST` (default: http://localhost:3010)
     - `LANGFUSE_FLUSH_AT`, `LANGFUSE_FLUSH_INTERVAL` (optional batch config)
-  - Add `POSTGRES_PASSWORD_LANGFUSE`, `SALT`, `NEXTAUTH_SECRET` for langfuse-server
-  - Document configuration in README or SETUP.md
-  - Test: Copy `.env.example` to `.env`, set `LANGFUSE_ENABLED=true`, verify no errors on startup
+    - `POSTGRES_PASSWORD_LANGFUSE`, `SALT`, `NEXTAUTH_SECRET`
+  - Document configuration in `~/emergent-infra/README.md`
+  - Test: Copy `.env.example` to `.env` in `~/emergent-infra/`, set `LANGFUSE_ENABLED=true`, verify no errors on startup
 
 - [ ] **Task 1.3**: Verify Docker Compose deployment
-  - Run `docker-compose up -d langfuse-server langfuse-worker`
+  - Run `docker-compose -f ~/emergent-infra/docker-compose.yml up -d langfuse-server langfuse-worker`
   - Verify all 5 services start without errors (check `docker ps`)
   - Verify langfuse-server web UI loads at `http://localhost:3010`
   - Verify langfuse-server can connect to langfuse-db and clickhouse
@@ -31,12 +35,14 @@
 ## Phase 2: Core NestJS Integration
 
 - [ ] **Task 2.1**: Install LangFuse SDK
+
   - Run `npm install langfuse-node --save` in `apps/server/`
   - Verify package appears in `package.json` dependencies
   - Run `npm install` to update lock file
   - Test: Import `import { Langfuse } from 'langfuse-node'` in a test file, verify no errors
 
 - [ ] **Task 2.2**: Create LangfuseModule
+
   - Create `apps/server/src/modules/langfuse/langfuse.module.ts`
   - Define module with `LangfuseService` as provider
   - Export `LangfuseService` for use in other modules
@@ -44,6 +50,7 @@
   - Test: Import `LangfuseModule` in `AppModule`, verify application starts
 
 - [ ] **Task 2.3**: Implement LangfuseService
+
   - Create `apps/server/src/modules/langfuse/langfuse.service.ts`
   - Inject `AppConfigService` to read configuration
   - Implement `onModuleInit()` to initialize SDK client or skip if disabled
@@ -56,6 +63,7 @@
   - Test: Unit test with mocked SDK client, verify graceful degradation
 
 - [ ] **Task 2.4**: Extend AppConfigService with LangFuse configuration
+
   - Add properties to `AppConfigService`:
     - `langfuseEnabled: boolean`
     - `langfuseSecretKey?: string`
@@ -79,24 +87,16 @@
 
 ## Phase 3: LLM Provider Instrumentation
 
-- [ ] **Task 3.1**: Update VertexAIProvider with LangFuse tracing
+- [ ] **Task 3.1**: Update LangChainGeminiProvider with LangFuse tracing
+
   - Inject `LangfuseService` into constructor
   - Modify `extractEntitiesForType()` to accept optional `traceId` in context
-  - Before LLM call: create observation with `createObservation(traceId, "extract-{type}", input)`
-  - After LLM call: update observation with output, tokens, status
-  - On error: update observation with error status and message
-  - Preserve existing `MonitoringLoggerService` integration (dual-path)
-  - Test: Run extraction job with LangFuse enabled, verify observations in UI
-
-- [ ] **Task 3.2**: Update LangChainGeminiProvider with LangFuse tracing
-  - Inject `LangfuseService` into constructor
-  - Modify `extractEntitiesForType()` similar to VertexAIProvider
   - Create observation before LLM call, update after completion
   - Handle errors gracefully, ensure provider works if LangFuse disabled
   - Test: Run extraction with LangChainGeminiProvider, verify observations
 
-- [ ] **Task 3.3**: Create integration tests for LLM provider tracing
-  - Create `apps/server/src/modules/extraction-jobs/llm/__tests__/vertex-ai-tracing.integration.spec.ts`
+- [ ] **Task 3.2**: Create integration tests for LLM provider tracing
+  - Create `apps/server/src/modules/extraction-jobs/llm/__tests__/langchain-tracing.integration.spec.ts`
   - Test: Observation created when LangFuse enabled
   - Test: Observation includes correct input metadata (type, model, prompt)
   - Test: Observation updates with output and token usage
@@ -107,6 +107,7 @@
 ## Phase 4: Job-Level Parent Traces
 
 - [ ] **Task 4.1**: Update ExtractionWorkerService to create parent traces
+
   - Inject `LangfuseService` into constructor
   - At start of `processJob()`: call `createJobTrace(jobId, metadata)` to get traceId
   - Pass `traceId` in context to LLM provider calls
@@ -114,6 +115,7 @@
   - Test: Run extraction job, verify parent trace appears in LangFuse UI
 
 - [ ] **Task 4.2**: Update MonitoringLoggerService to accept trace context
+
   - Add optional `traceId` and `observationId` to method signatures:
     - `logProcessEvent(eventType, metadata, traceId?)`
     - `startLLMCall(model, context, observationId?)`
@@ -121,6 +123,7 @@
   - Test: Query `kb.llm_call_logs` with observationId, verify linkage
 
 - [ ] **Task 4.3**: Create database migration for LangFuse columns
+
   - Create migration: `apps/server/migrations/add-langfuse-trace-columns.sql`
   - Add `langfuse_trace_id TEXT` to `kb.system_process_logs`
   - Add `langfuse_observation_id TEXT` to `kb.llm_call_logs`
@@ -139,6 +142,7 @@
 ## Phase 5: Documentation and Rollout
 
 - [ ] **Task 5.1**: Update SETUP.md with LangFuse installation
+
   - Document Docker Compose setup for LangFuse services
   - Document environment variable configuration
   - Document how to access LangFuse UI (`http://localhost:3010`)
@@ -146,6 +150,7 @@
   - Document optional vs required deployment
 
 - [ ] **Task 5.2**: Create LangFuse integration README
+
   - Create `docs/integrations/langfuse/README.md`
   - Document architecture: dual-path monitoring, parent traces, observations
   - Document how to enable/disable LangFuse
@@ -154,11 +159,13 @@
   - Include screenshots of LangFuse UI showing traces
 
 - [ ] **Task 5.3**: Update main README with LangFuse mention
+
   - Add LangFuse to "Features" or "Observability" section
   - Link to LangFuse integration README
   - Mention optional deployment (works without LangFuse)
 
 - [ ] **Task 5.4**: Create developer guide for using LangFuse
+
   - Create `docs/integrations/langfuse/DEVELOPER_GUIDE.md`
   - Document how to inspect traces for debugging
   - Document how to share traces with teammates

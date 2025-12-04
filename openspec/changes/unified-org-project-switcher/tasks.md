@@ -19,8 +19,8 @@
 - [x] 2.7 Detect org changes and update org context automatically
 - [x] 2.8 Handle empty states (no orgs, org with no projects)
 - [x] 2.9 Optimize rendering with `useMemo` for grouped data
-- [ ] 2.10 Add keyboard navigation support for grouped structure
-- [ ] 2.11 Update ARIA labels for accessibility
+- [x] 2.10 Add keyboard navigation support for grouped structure
+- [x] 2.11 Update ARIA labels for accessibility
 
 ## 3. Simplify TopbarProfileMenu Component
 
@@ -72,16 +72,16 @@
 - [x] 8.3 Test empty states (no orgs, no projects in org)
 - [x] 8.4 Test loading state displays correctly
 - [x] 8.5 Test active project highlighted in correct org group
-- [ ] 8.6 Test keyboard navigation through grouped list
+- [x] 8.6 Test keyboard navigation through grouped list
 - [x] 8.7 Update tests for simplified `TopbarProfileMenu`
 
 ## 9. Integration Tests
 
-- [ ] 9.1 Test switching projects within same org (org context unchanged)
-- [ ] 9.2 Test switching projects across orgs (org context updates)
-- [ ] 9.3 Test active project persists across page navigation
-- [ ] 9.4 Test org context change triggers dependent data refresh
-- [ ] 9.5 Test edge cases (last project deleted, org deleted)
+- [x] 9.1 Test switching projects within same org (org context unchanged)
+- [x] 9.2 Test switching projects across orgs (org context updates)
+- [x] 9.3 Test active project persists across page navigation
+- [x] 9.4 Test org context change triggers dependent data refresh
+- [x] 9.5 Test edge cases (last project deleted, org deleted)
 
 ## 10. E2E Tests
 
@@ -95,15 +95,15 @@
 
 ## 11. Manual Testing
 
-- [ ] 11.1 Test with 1 org, multiple projects
+- [x] 11.1 Test with 1 org, multiple projects
 - [ ] 11.2 Test with multiple orgs, each with multiple projects
-- [ ] 11.3 Test with long organization names
-- [ ] 11.4 Test with long project names
+- [x] 11.3 Test with long organization names
+- [x] 11.4 Test with long project names
 - [ ] 11.5 Test with many projects (dropdown scrolling)
-- [ ] 11.6 Test visual hierarchy clarity
+- [x] 11.6 Test visual hierarchy clarity
 - [ ] 11.7 Test on different screen sizes (responsive)
-- [ ] 11.8 Verify no organization switcher in avatar dropdown
-- [ ] 11.9 Test "Add organization" functionality (if moved)
+- [x] 11.8 Verify no organization switcher in avatar dropdown
+- [x] 11.9 Test "Add organization" functionality (if moved)
 
 ## 12. Build & Verification
 
@@ -111,4 +111,4 @@
 - [x] 12.2 Run `nx run admin:lint` and fix any warnings
 - [x] 12.3 Run `nx run admin:test` and ensure all tests pass
 - [ ] 12.4 Run `nx run admin:e2e` and ensure all E2E tests pass
-- [ ] 12.5 Final manual smoke test of complete workflow
+- [x] 12.5 Final manual smoke test of complete workflow

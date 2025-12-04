@@ -7,7 +7,6 @@
 import { Icon } from '@/components/atoms/Icon';
 
 export type ExtractionJobStatus =
-  | 'pending'
   | 'queued'
   | 'running'
   | 'completed'
@@ -31,15 +30,10 @@ const STATUS_CONFIG: Record<
     badgeClass: string;
   }
 > = {
-  pending: {
-    label: 'Pending',
-    icon: 'lucide--clock',
-    badgeClass: 'badge-ghost',
-  },
   queued: {
     label: 'Queued',
-    icon: 'lucide--list-start',
-    badgeClass: 'badge-info badge-soft',
+    icon: 'lucide--clock',
+    badgeClass: 'badge-secondary badge-soft',
   },
   running: {
     label: 'Running',

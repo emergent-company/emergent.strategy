@@ -5,12 +5,12 @@ import {
   UsePipes,
   ValidationPipe,
   UploadedFile,
+  UploadedFiles,
   UseInterceptors,
   BadRequestException,
   UnsupportedMediaTypeException,
   UseGuards,
 } from '@nestjs/common';
-import type { Express } from 'express';
 // Local minimal file type to avoid reliance on Express.Multer global type which may not be picked up by TS in strict build.
 interface UploadedMulterFile {
   originalname?: string;
@@ -24,6 +24,7 @@ import {
   ApiProperty,
   ApiBadRequestResponse,
   ApiConsumes,
+  ApiOperation,
 } from '@nestjs/swagger';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import {
@@ -32,12 +33,27 @@ import {
   IsOptional,
   IsDefined,
   IsNotEmpty,
+  IsInt,
+  Min,
+  Max,
+  IsIn,
+  ValidateNested,
 } from 'class-validator';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { IngestionService, IngestResult } from './ingestion.service';
+import { Type } from 'class-transformer';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import {
+  IngestionService,
+  IngestResult,
+  BatchUploadResult,
+} from './ingestion.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
 import { Scopes } from '../auth/scopes.decorator';
+import {
+  ChunkingOptionsDto,
+  ChunkingStrategyDto,
+  CHUNKING_STRATEGIES,
+} from './dto/chunking-options.dto';
 
 export class IngestionUploadDto {
   @IsString()
@@ -75,6 +91,29 @@ export class IngestionUploadDto {
     example: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
   })
   projectId!: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(CHUNKING_STRATEGIES)
+  @ApiProperty({
+    description:
+      'Chunking strategy for splitting text into chunks. Options: character (default), sentence, paragraph',
+    required: false,
+    enum: CHUNKING_STRATEGIES,
+    default: 'character',
+    example: 'sentence',
+  })
+  chunkingStrategy?: ChunkingStrategyDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ChunkingOptionsDto)
+  @ApiProperty({
+    description: 'Configuration options for the chunking strategy',
+    required: false,
+    type: ChunkingOptionsDto,
+  })
+  chunkingOptions?: ChunkingOptionsDto;
 }
 
 export class IngestionUrlDto {
@@ -102,6 +141,75 @@ export class IngestionUrlDto {
     example: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
   })
   projectId!: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(CHUNKING_STRATEGIES)
+  @ApiProperty({
+    description:
+      'Chunking strategy for splitting text into chunks. Options: character (default), sentence, paragraph',
+    required: false,
+    enum: CHUNKING_STRATEGIES,
+    default: 'character',
+    example: 'sentence',
+  })
+  chunkingStrategy?: ChunkingStrategyDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ChunkingOptionsDto)
+  @ApiProperty({
+    description: 'Configuration options for the chunking strategy',
+    required: false,
+    type: ChunkingOptionsDto,
+  })
+  chunkingOptions?: ChunkingOptionsDto;
+}
+
+/**
+ * DTO for batch file upload
+ * Accepts multiple files with shared project context
+ */
+export class IngestionBatchUploadDto {
+  @IsString()
+  @IsOptional()
+  @ApiProperty({
+    description: 'Optional organisation UUID to associate documents with',
+    required: false,
+    example: '11111111-2222-3333-4444-555555555555',
+  })
+  orgId?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty({
+    description: 'Project UUID that all documents belong to (required)',
+    example: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+  })
+  projectId!: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(CHUNKING_STRATEGIES)
+  @ApiProperty({
+    description:
+      'Chunking strategy for splitting text into chunks. Options: character (default), sentence, paragraph',
+    required: false,
+    enum: CHUNKING_STRATEGIES,
+    default: 'character',
+    example: 'sentence',
+  })
+  chunkingStrategy?: ChunkingStrategyDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ChunkingOptionsDto)
+  @ApiProperty({
+    description: 'Configuration options for the chunking strategy',
+    required: false,
+    type: ChunkingOptionsDto,
+  })
+  chunkingOptions?: ChunkingOptionsDto;
 }
 
 @ApiTags('Ingestion')
@@ -190,6 +298,17 @@ export class IngestionController {
       mimeType: dto.mimeType || file.mimetype,
       orgId: dto.orgId,
       projectId: dto.projectId,
+      chunkingConfig: dto.chunkingStrategy
+        ? {
+            strategy: dto.chunkingStrategy,
+            options: dto.chunkingOptions
+              ? {
+                  maxChunkSize: dto.chunkingOptions.maxChunkSize,
+                  minChunkSize: dto.chunkingOptions.minChunkSize,
+                }
+              : undefined,
+          }
+        : undefined,
     });
   }
 
@@ -230,6 +349,243 @@ export class IngestionController {
   // URL ingestion also requires ingest:write
   @Scopes('ingest:write')
   ingestUrl(@Body() dto: IngestionUrlDto): Promise<IngestResult> {
-    return this.ingestion.ingestUrl(dto.url, dto.orgId, dto.projectId);
+    return this.ingestion.ingestUrl(
+      dto.url,
+      dto.orgId,
+      dto.projectId,
+      dto.chunkingStrategy
+        ? {
+            strategy: dto.chunkingStrategy,
+            options: dto.chunkingOptions
+              ? {
+                  maxChunkSize: dto.chunkingOptions.maxChunkSize,
+                  minChunkSize: dto.chunkingOptions.minChunkSize,
+                }
+              : undefined,
+          }
+        : undefined
+    );
+  }
+
+  /**
+   * Upload multiple files in a single batch request.
+   * Max 100 files per batch, each max 10MB.
+   * Files are processed with concurrency=3 by default.
+   */
+  @Post('upload-batch')
+  @ApiOperation({
+    summary: 'Batch upload multiple documents',
+    description: `Upload multiple files in a single batch request for efficient document ingestion.
+    
+**Limits:**
+- Maximum 100 files per batch
+- Maximum 10MB per file
+- Only text-based files are accepted (txt, md, html, json)
+
+**Processing:**
+- Files are processed concurrently (3 at a time)
+- Each file is checked for duplicates independently
+- Binary files are rejected with an error
+
+**Response:**
+- Returns a summary with counts and individual results for each file
+- Files can have status: 'success', 'duplicate', or 'failed'
+- Failed files include an error message explaining the failure`,
+  })
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidUnknownValues: false,
+      transformOptions: { enableImplicitConversion: true },
+      validateCustomDecorators: true,
+    })
+  )
+  @ApiBody({
+    description: 'Upload multiple files for batch ingestion (max 100 files)',
+    schema: {
+      type: 'object',
+      required: ['files', 'projectId'],
+      properties: {
+        files: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+          description: 'Array of files to upload (max 100 files, 10MB each)',
+        },
+        projectId: {
+          type: 'string',
+          format: 'uuid',
+          description: 'Project UUID that all documents belong to (required)',
+          example: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        },
+        orgId: {
+          type: 'string',
+          format: 'uuid',
+          description: 'Optional organisation UUID to associate documents with',
+          example: '11111111-2222-3333-4444-555555555555',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: 'Batch upload completed with summary and individual results',
+    schema: {
+      example: {
+        summary: {
+          total: 5,
+          successful: 3,
+          duplicates: 1,
+          failed: 1,
+        },
+        results: [
+          {
+            filename: 'doc1.md',
+            status: 'success',
+            documentId: '11111111-2222-3333-4444-555555555555',
+            chunks: 12,
+          },
+          {
+            filename: 'doc2.txt',
+            status: 'duplicate',
+            documentId: '22222222-3333-4444-5555-666666666666',
+          },
+          {
+            filename: 'doc3.bin',
+            status: 'failed',
+            error: 'Binary or unsupported file type',
+          },
+        ],
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid batch upload payload',
+    schema: {
+      example: {
+        error: {
+          code: 'batch-limit-exceeded',
+          message: 'Maximum 100 files allowed per batch',
+        },
+      },
+    },
+  })
+  @ApiStandardErrors()
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FilesInterceptor('files', 100, { limits: { fileSize: 10 * 1024 * 1024 } })
+  )
+  @Scopes('ingest:write')
+  async uploadBatch(
+    @Body() dto: IngestionBatchUploadDto,
+    @UploadedFiles() files?: UploadedMulterFile[]
+  ): Promise<BatchUploadResult> {
+    if (!files || files.length === 0) {
+      throw new BadRequestException({
+        error: {
+          code: 'files-required',
+          message: 'At least one file is required',
+        },
+      });
+    }
+
+    if (files.length > 100) {
+      throw new BadRequestException({
+        error: {
+          code: 'batch-limit-exceeded',
+          message: 'Maximum 100 files allowed per batch',
+        },
+      });
+    }
+
+    // Pre-process files: validate and convert to text
+    const processedFiles: Array<{
+      text: string;
+      filename: string;
+      mimeType?: string;
+    }> = [];
+
+    const earlyFailures: Array<{
+      filename: string;
+      status: 'failed';
+      error: string;
+    }> = [];
+
+    for (const file of files) {
+      const filename = file.originalname || 'upload';
+      const declaredMime = file.mimetype || 'application/octet-stream';
+      const isLikelyTextMime =
+        declaredMime.startsWith('text/') ||
+        ['application/json'].includes(declaredMime);
+
+      // Check for binary content
+      if (!isLikelyTextMime || file.buffer.includes(0x00)) {
+        earlyFailures.push({
+          filename,
+          status: 'failed',
+          error:
+            'Binary or unsupported file type. Please upload a text-based document.',
+        });
+        continue;
+      }
+
+      const text = file.buffer.toString('utf-8');
+      if (!text.trim()) {
+        earlyFailures.push({
+          filename,
+          status: 'failed',
+          error: 'File content is empty',
+        });
+        continue;
+      }
+
+      processedFiles.push({
+        text,
+        filename,
+        mimeType: declaredMime,
+      });
+    }
+
+    // If all files failed early validation, return immediately
+    if (processedFiles.length === 0) {
+      return {
+        summary: {
+          total: files.length,
+          successful: 0,
+          duplicates: 0,
+          failed: earlyFailures.length,
+        },
+        results: earlyFailures,
+      };
+    }
+
+    // Process valid files through ingestion service
+    const batchResult = await this.ingestion.ingestBatch({
+      files: processedFiles,
+      orgId: dto.orgId,
+      projectId: dto.projectId,
+      chunkingConfig: dto.chunkingStrategy
+        ? {
+            strategy: dto.chunkingStrategy,
+            options: dto.chunkingOptions
+              ? {
+                  maxChunkSize: dto.chunkingOptions.maxChunkSize,
+                  minChunkSize: dto.chunkingOptions.minChunkSize,
+                }
+              : undefined,
+          }
+        : undefined,
+    });
+
+    // Merge early failures with batch results
+    if (earlyFailures.length > 0) {
+      batchResult.summary.total += earlyFailures.length;
+      batchResult.summary.failed += earlyFailures.length;
+      batchResult.results.push(...earlyFailures);
+    }
+
+    return batchResult;
   }
 }

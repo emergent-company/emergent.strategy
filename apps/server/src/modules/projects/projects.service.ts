@@ -83,6 +83,8 @@ export class ProjectsService {
       chat_prompt_template: project.chatPromptTemplate ?? undefined,
       auto_extract_objects: project.autoExtractObjects,
       auto_extract_config: project.autoExtractConfig,
+      chunking_config: project.chunkingConfig ?? undefined,
+      allow_parallel_extraction: project.allowParallelExtraction,
     };
   }
 
@@ -206,6 +208,8 @@ export class ProjectsService {
       chat_prompt_template?: string;
       auto_extract_objects?: boolean;
       auto_extract_config?: any;
+      chunking_config?: any;
+      allow_parallel_extraction?: boolean;
     }
   ): Promise<ProjectDto | null> {
     // Validate UUID shape
@@ -239,6 +243,12 @@ export class ProjectsService {
     if (updates.auto_extract_config !== undefined) {
       project.autoExtractConfig = updates.auto_extract_config;
     }
+    if (updates.chunking_config !== undefined) {
+      project.chunkingConfig = updates.chunking_config;
+    }
+    if (updates.allow_parallel_extraction !== undefined) {
+      project.allowParallelExtraction = updates.allow_parallel_extraction;
+    }
 
     const savedProject = await this.projectRepo.save(project);
 
@@ -250,6 +260,8 @@ export class ProjectsService {
       chat_prompt_template: savedProject.chatPromptTemplate ?? undefined,
       auto_extract_objects: savedProject.autoExtractObjects,
       auto_extract_config: savedProject.autoExtractConfig,
+      chunking_config: savedProject.chunkingConfig ?? undefined,
+      allow_parallel_extraction: savedProject.allowParallelExtraction,
     };
   }
 

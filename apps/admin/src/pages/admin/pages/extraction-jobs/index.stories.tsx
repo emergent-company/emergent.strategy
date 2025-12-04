@@ -52,7 +52,7 @@ const mockJobs: ExtractionJobCardProps[] = [
     },
     {
         id: 'job-4',
-        status: 'pending',
+        status: 'queued',
         sourceDocument: 'user-stories.md',
         successfulItems: 0,
         failedItems: 0,

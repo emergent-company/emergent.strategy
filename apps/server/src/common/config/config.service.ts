@@ -235,4 +235,29 @@ Return your response as a valid JSON array matching the expected schema format.`
   get langsmithProject(): string | undefined {
     return this.env.LANGSMITH_PROJECT;
   }
+
+  // --- LangFuse Observability ---
+  get langfuseEnabled(): boolean {
+    return !!this.env.LANGFUSE_ENABLED;
+  }
+
+  get langfuseSecretKey(): string | undefined {
+    return this.env.LANGFUSE_SECRET_KEY;
+  }
+
+  get langfusePublicKey(): string | undefined {
+    return this.env.LANGFUSE_PUBLIC_KEY;
+  }
+
+  get langfuseHost(): string | undefined {
+    return this.env.LANGFUSE_HOST;
+  }
+
+  get langfuseFlushAt(): number | undefined {
+    return this.env.LANGFUSE_FLUSH_AT;
+  }
+
+  get langfuseFlushInterval(): number | undefined {
+    return this.env.LANGFUSE_FLUSH_INTERVAL;
+  }
 }

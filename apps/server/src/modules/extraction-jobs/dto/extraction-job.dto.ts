@@ -14,7 +14,7 @@ import {
  * Extraction job status enum
  */
 export enum ExtractionJobStatus {
-  PENDING = 'pending',
+  QUEUED = 'queued',
   RUNNING = 'running',
   COMPLETED = 'completed',
   REQUIRES_REVIEW = 'requires_review',

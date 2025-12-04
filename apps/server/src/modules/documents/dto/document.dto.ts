@@ -50,6 +50,18 @@ export class DocumentDto {
   chunks!: number;
   @ApiProperty({
     required: false,
+    example: 15420,
+    description: 'Total character count of all chunks in this document',
+  })
+  totalChars?: number;
+  @ApiProperty({
+    required: false,
+    example: 10,
+    description: 'Number of chunks that have embeddings generated',
+  })
+  embeddedChunks?: number;
+  @ApiProperty({
+    required: false,
     nullable: true,
     example: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
     description:

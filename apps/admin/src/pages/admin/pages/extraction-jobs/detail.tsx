@@ -78,7 +78,7 @@ export function ExtractionJobDetailPage() {
       return;
     }
 
-    if (job.status !== 'running' && job.status !== 'pending') {
+    if (job.status !== 'running' && job.status !== 'queued') {
       return;
     }
 
@@ -289,7 +289,7 @@ export function ExtractionJobDetailPage() {
     const rounded = rate >= 10 ? Math.round(rate) : rate.toFixed(1);
     return `${rounded} items/min`;
   };
-  const canCancel = job.status === 'running' || job.status === 'pending';
+  const canCancel = job.status === 'running' || job.status === 'queued';
   const canDelete =
     job.status === 'completed' ||
     job.status === 'failed' ||

@@ -40,6 +40,35 @@ class ChunkerMock {
     for (let i = 0; i < text.length; i += 20) out.push(text.slice(i, i + 20));
     return out.length ? out : [''];
   };
+  chunkWithMetadata = (text: string, config?: any) => {
+    // simple fixed split every 20 chars for determinism, with metadata
+    const chunks: Array<{ text: string; metadata: any }> = [];
+    for (let i = 0; i < text.length; i += 20) {
+      const chunkText = text.slice(i, i + 20);
+      chunks.push({
+        text: chunkText,
+        metadata: {
+          strategy: config?.strategy || 'character',
+          startOffset: i,
+          endOffset: Math.min(i + 20, text.length),
+          boundaryType: 'character',
+        },
+      });
+    }
+    return chunks.length
+      ? chunks
+      : [
+          {
+            text: '',
+            metadata: {
+              strategy: 'character',
+              startOffset: 0,
+              endOffset: 0,
+              boundaryType: 'character',
+            },
+          },
+        ];
+  };
 }
 class HashMock {
   sha256 = (t: string) => `hash_${t.length}`;
@@ -59,6 +88,12 @@ class ExtractionJobServiceMock {
   }));
 }
 
+class ProjectRepositoryMock {
+  findOne = vi.fn(async () => null);
+  find = vi.fn(async () => []);
+  save = vi.fn(async (entity: any) => entity);
+}
+
 // Helper to build service with scripted DB queue
 function build(
   queue: Array<{ rows: any[]; rowCount?: number }>,
@@ -67,6 +102,7 @@ function build(
     config: ConfigMock;
     embeddings: EmbeddingsMock;
     extractionJobService: ExtractionJobServiceMock;
+    projectRepository: ProjectRepositoryMock;
   }>
 ) {
   const db = overrides?.db ?? new DbMock();
@@ -77,7 +113,8 @@ function build(
     new HashMock() as any,
     (overrides?.embeddings ?? new EmbeddingsMock()) as any,
     (overrides?.config ?? new ConfigMock()) as any,
-    (overrides?.extractionJobService ?? new ExtractionJobServiceMock()) as any
+    (overrides?.extractionJobService ?? new ExtractionJobServiceMock()) as any,
+    (overrides?.projectRepository ?? new ProjectRepositoryMock()) as any
   );
   return { svc, db };
 }
@@ -459,5 +496,203 @@ describe('IngestionService.ingestUrl', () => {
       /INSERT INTO kb.chunks/.test(q.sql)
     );
     expect(chunkInsert).toBeTruthy();
+  });
+});
+
+describe('IngestionService.ingestBatch', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('processes multiple files and returns batch summary', async () => {
+    const docId1 = fakeUuid(30);
+    const docId2 = fakeUuid(31);
+    const { svc, db } = build([
+      // Feature detection query
+      { rows: [{ content_hash: 'x' }], rowCount: 1 },
+      // File 1: project lookup, existing check (none), insert doc
+      { rows: [projectRow], rowCount: 1 },
+      { rows: [], rowCount: 0 },
+      { rows: [{ id: docId1 }], rowCount: 1 },
+      // File 1: chunk inserts (text is 21 chars -> 2 chunks with 20-char chunker)
+      { rows: [], rowCount: 1 },
+      { rows: [], rowCount: 1 },
+      // File 2: project lookup, existing check (none), insert doc
+      { rows: [projectRow], rowCount: 1 },
+      { rows: [], rowCount: 0 },
+      { rows: [{ id: docId2 }], rowCount: 1 },
+      // File 2: chunk inserts
+      { rows: [], rowCount: 1 },
+      { rows: [], rowCount: 1 },
+    ]);
+
+    // Force concurrency to 1 so queue consumption is deterministic
+    const result = await svc.ingestBatch({
+      files: [
+        { text: 'First document content', filename: 'doc1.txt' },
+        { text: 'Second document content', filename: 'doc2.txt' },
+      ],
+      projectId: projectRow.id,
+      concurrency: 1,
+    });
+
+    expect(result.summary.total).toBe(2);
+    expect(result.summary.successful).toBe(2);
+    expect(result.summary.duplicates).toBe(0);
+    expect(result.summary.failed).toBe(0);
+    expect(result.results).toHaveLength(2);
+    expect(result.results[0].status).toBe('success');
+    expect(result.results[1].status).toBe('success');
+  });
+
+  it('handles duplicates in batch', async () => {
+    const existingDocId = fakeUuid(32);
+    const { svc, db } = build([
+      { rows: [{ content_hash: 'x' }], rowCount: 1 }, // feature detect
+      { rows: [projectRow], rowCount: 1 }, // project lookup
+      { rows: [{ id: existingDocId }], rowCount: 1 }, // existing by hash - duplicate!
+    ]);
+
+    const result = await svc.ingestBatch({
+      files: [{ text: 'Duplicate content', filename: 'dup.txt' }],
+      projectId: projectRow.id,
+    });
+
+    expect(result.summary.total).toBe(1);
+    expect(result.summary.successful).toBe(0);
+    expect(result.summary.duplicates).toBe(1);
+    expect(result.summary.failed).toBe(0);
+    expect(result.results[0].status).toBe('duplicate');
+    expect(result.results[0].documentId).toBe(existingDocId);
+  });
+
+  it('handles failures in batch gracefully', async () => {
+    const { svc, db } = build([
+      { rows: [{ content_hash: 'x' }], rowCount: 1 }, // feature detect
+      { rows: [], rowCount: 0 }, // project not found - causes BadRequestException
+    ]);
+
+    const result = await svc.ingestBatch({
+      files: [{ text: 'Content for missing project', filename: 'fail.txt' }],
+      projectId: fakeUuid(99), // non-existent project
+    });
+
+    expect(result.summary.total).toBe(1);
+    expect(result.summary.successful).toBe(0);
+    expect(result.summary.duplicates).toBe(0);
+    expect(result.summary.failed).toBe(1);
+    expect(result.results[0].status).toBe('failed');
+    expect(result.results[0].error).toBeDefined();
+  });
+
+  it('handles mixed results in batch', async () => {
+    const successDocId = fakeUuid(33);
+    const duplicateDocId = fakeUuid(34);
+    const { svc, db } = build([
+      // Feature detection query
+      { rows: [{ content_hash: 'x' }], rowCount: 1 },
+      // File 1 - success: project lookup, existing check (none), insert doc
+      { rows: [projectRow], rowCount: 1 },
+      { rows: [], rowCount: 0 },
+      { rows: [{ id: successDocId }], rowCount: 1 },
+      // File 1: chunk inserts (text ~22 chars -> 2 chunks)
+      { rows: [], rowCount: 1 },
+      { rows: [], rowCount: 1 },
+      // File 2 - duplicate: project lookup, existing check (found!)
+      { rows: [projectRow], rowCount: 1 },
+      { rows: [{ id: duplicateDocId }], rowCount: 1 },
+    ]);
+
+    // Force concurrency to 1 so queue consumption is deterministic
+    const result = await svc.ingestBatch({
+      files: [
+        { text: 'New unique content here', filename: 'new.txt' },
+        { text: 'Already existing content', filename: 'existing.txt' },
+      ],
+      projectId: projectRow.id,
+      concurrency: 1,
+    });
+
+    expect(result.summary.total).toBe(2);
+    expect(result.summary.successful).toBe(1);
+    expect(result.summary.duplicates).toBe(1);
+    expect(result.summary.failed).toBe(0);
+
+    const successResult = result.results.find((r) => r.status === 'success');
+    const dupResult = result.results.find((r) => r.status === 'duplicate');
+
+    expect(successResult).toBeDefined();
+    expect(successResult?.documentId).toBe(successDocId);
+    expect(dupResult).toBeDefined();
+    expect(dupResult?.documentId).toBe(duplicateDocId);
+  });
+
+  it('rejects empty file content in batch', async () => {
+    const validDocId = fakeUuid(35);
+    const { svc, db } = build([
+      // File 2 - valid file
+      { rows: [{ content_hash: 'x' }], rowCount: 1 }, // feature detect
+      { rows: [projectRow], rowCount: 1 }, // project lookup
+      { rows: [], rowCount: 0 }, // no duplicate
+      { rows: [{ id: validDocId }], rowCount: 1 }, // insert new doc
+    ]);
+
+    const result = await svc.ingestBatch({
+      files: [
+        { text: '   ', filename: 'empty.txt' }, // empty content
+        { text: 'Valid content here', filename: 'valid.txt' },
+      ],
+      projectId: projectRow.id,
+    });
+
+    expect(result.summary.total).toBe(2);
+    expect(result.summary.successful).toBe(1);
+    expect(result.summary.failed).toBe(1);
+
+    const emptyResult = result.results.find((r) => r.filename === 'empty.txt');
+    expect(emptyResult?.status).toBe('failed');
+    expect(emptyResult?.error).toContain('empty');
+  });
+
+  it('respects concurrency limit', async () => {
+    const docIds = [
+      fakeUuid(40),
+      fakeUuid(41),
+      fakeUuid(42),
+      fakeUuid(43),
+      fakeUuid(44),
+    ];
+    const dbQueue: Array<{ rows: any[]; rowCount: number }> = [];
+
+    // Feature detection query (consumed once at the start)
+    dbQueue.push({ rows: [{ content_hash: 'x' }], rowCount: 1 });
+
+    // Set up responses for 5 files (each file: project lookup, existing check, insert, chunk inserts)
+    for (let i = 0; i < 5; i++) {
+      dbQueue.push({ rows: [projectRow], rowCount: 1 }); // project lookup
+      dbQueue.push({ rows: [], rowCount: 0 }); // no duplicate
+      dbQueue.push({ rows: [{ id: docIds[i] }], rowCount: 1 }); // insert doc
+      // chunk inserts (short text -> 1 chunk)
+      dbQueue.push({ rows: [], rowCount: 1 });
+    }
+
+    const { svc } = build(dbQueue);
+
+    // Use concurrency: 1 to ensure deterministic queue consumption
+    const result = await svc.ingestBatch({
+      files: [
+        { text: 'Content 1', filename: 'file1.txt' },
+        { text: 'Content 2', filename: 'file2.txt' },
+        { text: 'Content 3', filename: 'file3.txt' },
+        { text: 'Content 4', filename: 'file4.txt' },
+        { text: 'Content 5', filename: 'file5.txt' },
+      ],
+      projectId: projectRow.id,
+      concurrency: 1, // Deterministic sequential processing for test
+    });
+
+    expect(result.summary.total).toBe(5);
+    expect(result.summary.successful).toBe(5);
+    expect(result.results).toHaveLength(5);
   });
 });

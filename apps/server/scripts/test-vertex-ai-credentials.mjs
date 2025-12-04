@@ -12,7 +12,7 @@
  * - Server .env files override root settings
  * - Shows TWO PHASES: root config vs server config
  *
- * Usage: node scripts/test-vertex-ai-credentials.mjs
+ * Usage: cd apps/server && node scripts/test-vertex-ai-credentials.mjs
  */
 
 import { ChatVertexAI } from '@langchain/google-vertexai';
@@ -24,8 +24,8 @@ import { existsSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const rootDir = resolve(__dirname, '..');
-const serverDir = resolve(rootDir, 'apps', 'server');
+const serverDir = resolve(__dirname, '..');
+const rootDir = resolve(serverDir, '..', '..');
 
 // ANSI colors for output
 const colors = {

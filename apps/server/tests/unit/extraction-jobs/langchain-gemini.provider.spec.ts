@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LangChainGeminiProvider } from '../../../src/modules/extraction-jobs/llm/langchain-gemini.provider';
-import { SemanticChunkerService } from '../../../src/modules/extraction-jobs/semantic-chunker.service';
 import { AppConfigService } from '../../../src/common/config/config.service';
+import { LangfuseService } from '../../../src/modules/langfuse/langfuse.service';
 
 // Mock ChatVertexAI
 const mockWithStructuredOutput = vi.fn();
@@ -10,6 +10,7 @@ const mockInvoke = vi.fn();
 vi.mock('@langchain/google-vertexai', () => {
   return {
     ChatVertexAI: vi.fn().mockImplementation(() => ({
+      invoke: mockInvoke,
       withStructuredOutput: mockWithStructuredOutput.mockReturnValue({
         invoke: mockInvoke,
       }),
@@ -21,7 +22,7 @@ vi.mock('@langchain/google-vertexai', () => {
 describe('LangChainGeminiProvider', () => {
   let provider: LangChainGeminiProvider;
   let mockConfig: any;
-  let mockSemanticChunker: any;
+  let mockLangfuseService: any;
 
   beforeEach(() => {
     mockConfig = {
@@ -32,13 +33,14 @@ describe('LangChainGeminiProvider', () => {
       extractionChunkOverlap: 100,
     };
 
-    mockSemanticChunker = {
-      chunkDocument: vi.fn().mockResolvedValue(['chunk1', 'chunk2']),
+    mockLangfuseService = {
+      createObservation: vi.fn(),
+      updateObservation: vi.fn(),
     };
 
     provider = new LangChainGeminiProvider(
       mockConfig as AppConfigService,
-      mockSemanticChunker as SemanticChunkerService
+      mockLangfuseService as LangfuseService
     );
 
     mockInvoke.mockReset();
@@ -50,11 +52,15 @@ describe('LangChainGeminiProvider', () => {
   it('should split document and extract entities using map-reduce', async () => {
     // Mock LLM response for chunk 1
     mockInvoke.mockResolvedValueOnce({
-      requirements: [{ name: 'Req 1', description: 'Desc 1', confidence: 0.9 }],
+      content: JSON.stringify({
+        entities: [{ name: 'Req 1', description: 'Desc 1', confidence: 0.9 }],
+      }),
     });
     // Mock LLM response for chunk 2
     mockInvoke.mockResolvedValueOnce({
-      risks: [{ name: 'Risk 1', description: 'Desc 2', confidence: 0.8 }],
+      content: JSON.stringify({
+        entities: [{ name: 'Risk 1', description: 'Desc 2', confidence: 0.8 }],
+      }),
     });
 
     const result = await provider.extractEntities(
@@ -62,10 +68,6 @@ describe('LangChainGeminiProvider', () => {
       'base prompt',
       { Requirement: {}, Risk: {} },
       ['Requirement', 'Risk']
-    );
-
-    expect(mockSemanticChunker.chunkDocument).toHaveBeenCalledWith(
-      'some long document content'
     );
 
     // Should be called once per chunk
@@ -79,7 +81,7 @@ describe('LangChainGeminiProvider', () => {
   });
 
   it('should handle empty results gracefully', async () => {
-    mockInvoke.mockResolvedValue({}); // Empty object
+    mockInvoke.mockResolvedValue({ content: JSON.stringify({}) }); // Empty object
 
     const result = await provider.extractEntities(
       'content',

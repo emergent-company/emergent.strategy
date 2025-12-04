@@ -1,0 +1,11 @@
+# Batch Test Document 1
+
+This is a test document for batch upload testing.
+It contains simple text content for verification.
+
+## Purpose
+- Test multi-file upload functionality
+- Verify batch processing
+- Check progress indicators
+
+Created for e2e testing purposes.

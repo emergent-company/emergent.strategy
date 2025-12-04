@@ -1,12 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/useAuth';
-import { parseCallbackParams } from '@/auth/oidc';
+import { parseCallbackParams, hasValidCodeVerifier } from '@/auth/oidc';
 import { Icon } from '@/components/atoms/Icon';
 
 export default function AuthCallbackPage() {
   const nav = useNavigate();
-  const { handleCallback } = useAuth();
+  const { handleCallback, beginLogin } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [attempted, setAttempted] = useState(false);
   // Prevent double execution in React 18 StrictMode dev (effects run twice)
@@ -18,6 +18,17 @@ export default function AuthCallbackPage() {
     console.log('[AuthCallback] Page loaded, parsing callback params');
     const { code, error } = parseCallbackParams();
     console.log('[AuthCallback] Parsed params', { hasCode: !!code, error });
+    
+    // Check for missing code_verifier early - if missing, the session expired
+    // and we should restart the auth flow automatically
+    if (code && !hasValidCodeVerifier()) {
+      console.log('[AuthCallback] Session expired (missing code_verifier), restarting auth flow');
+      // Clear the stale code from URL and restart login
+      window.history.replaceState({}, '', window.location.pathname);
+      beginLogin();
+      return;
+    }
+    
     if (error) {
       console.error('[AuthCallback] OAuth error in callback URL', { error });
       setError(error);
@@ -53,15 +64,20 @@ export default function AuthCallbackPage() {
         nav('/admin', { replace: true });
       } catch (e: any) {
         console.error('[AuthCallback] handleCallback failed', { error: e, message: e?.message, stack: e?.stack });
-        const msg =
-          e?.message === 'login_failed'
-            ? 'We could not complete sign-in. Please retry.'
-            : e?.message || 'Login failed';
+        let msg: string;
+        if (e?.message === 'login_failed') {
+          msg = 'We could not complete sign-in. Please retry.';
+        } else if (e?.message === 'session_expired') {
+          // code_verifier was missing - session storage cleared (tab closed, browser restart, etc.)
+          msg = 'Your login session expired. Please sign in again.';
+        } else {
+          msg = e?.message || 'Login failed';
+        }
         setError(msg);
       }
       setAttempted(true);
     })();
-  }, [handleCallback, nav]);
+  }, [handleCallback, nav, beginLogin]);
 
   return (
     <div
