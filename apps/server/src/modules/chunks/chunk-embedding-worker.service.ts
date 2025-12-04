@@ -75,8 +75,8 @@ export class ChunkEmbeddingWorkerService
 
     // Only start if embeddings are enabled
     if (!this.config?.embeddingsEnabled) {
-      this.logger.log(
-        'Chunk embedding worker not started (embeddings disabled)'
+      this.logger.warn(
+        'Chunk embedding worker not started (EMBEDDING_PROVIDER not set to "vertex" or "google"). Pending embedding jobs will NOT be processed.'
       );
       return;
     }
