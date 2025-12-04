@@ -60,6 +60,7 @@ apps/server-nest/logs/
 
 # Development PID files
 .dev-pids/
+apps/pids/
 
 # Misc
 *.log
