@@ -29,4 +29,21 @@ export class ChunkDto {
       'Plaintext content of the chunk (may be truncated client-side)',
   })
   text!: string;
+  @ApiProperty({ required: false })
+  createdAt?: string;
+  @ApiProperty({
+    required: false,
+    description: 'Total characters across all chunks in document',
+  })
+  totalChars?: number;
+  @ApiProperty({
+    required: false,
+    description: 'Total number of chunks in document',
+  })
+  chunkCount?: number;
+  @ApiProperty({
+    required: false,
+    description: 'Number of embedded chunks in document',
+  })
+  embeddedChunks?: number;
 }
