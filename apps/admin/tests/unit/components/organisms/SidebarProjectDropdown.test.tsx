@@ -365,4 +365,194 @@ describe('SidebarProjectDropdown', () => {
       expect(screen.getByText('Failed to load projects')).toBeInTheDocument();
     });
   });
+
+  describe('8.6: Keyboard navigation', () => {
+    /**
+     * Helper to find the project item button in the dropdown list
+     * (not the trigger, which also has role="button")
+     */
+    const findProjectItemButton = (name: RegExp) => {
+      const allButtons = screen.getAllByRole('button', { name });
+      // The project item button is the one with aria-current attribute defined or undefined
+      // and is inside a list item (li > button)
+      return allButtons.find(
+        (btn) => btn.tagName === 'BUTTON' && btn.closest('li') !== null
+      );
+    };
+
+    it('navigates through projects with ArrowDown key', async () => {
+      renderWithContext(<SidebarProjectDropdown />);
+
+      // Focus first project and fire focus event to sync state
+      const firstProject = findProjectItemButton(/Alpha Project 1/i);
+      expect(firstProject).toBeDefined();
+      fireEvent.focus(firstProject!);
+
+      // Press ArrowDown
+      fireEvent.keyDown(firstProject!, { key: 'ArrowDown' });
+
+      // Should move to second project
+      const secondProject = findProjectItemButton(/Alpha Project 2/i);
+      expect(document.activeElement).toBe(secondProject);
+    });
+
+    it('navigates through projects with ArrowUp key', () => {
+      renderWithContext(<SidebarProjectDropdown />);
+
+      // Focus second project and fire focus event
+      const secondProject = findProjectItemButton(/Alpha Project 2/i);
+      expect(secondProject).toBeDefined();
+      fireEvent.focus(secondProject!);
+
+      // Press ArrowUp
+      fireEvent.keyDown(secondProject!, { key: 'ArrowUp' });
+
+      // Should move to first project
+      const firstProject = findProjectItemButton(/Alpha Project 1/i);
+      expect(document.activeElement).toBe(firstProject);
+    });
+
+    it('wraps from last to first project with ArrowDown', () => {
+      renderWithContext(<SidebarProjectDropdown />);
+
+      // Focus last project (Beta Project)
+      const lastProject = findProjectItemButton(/Beta Project/i);
+      expect(lastProject).toBeDefined();
+      fireEvent.focus(lastProject!);
+
+      // Press ArrowDown
+      fireEvent.keyDown(lastProject!, { key: 'ArrowDown' });
+
+      // Should wrap to first project
+      const firstProject = findProjectItemButton(/Alpha Project 1/i);
+      expect(document.activeElement).toBe(firstProject);
+    });
+
+    it('wraps from first to last project with ArrowUp', () => {
+      renderWithContext(<SidebarProjectDropdown />);
+
+      // Focus first project
+      const firstProject = findProjectItemButton(/Alpha Project 1/i);
+      expect(firstProject).toBeDefined();
+      fireEvent.focus(firstProject!);
+
+      // Press ArrowUp
+      fireEvent.keyDown(firstProject!, { key: 'ArrowUp' });
+
+      // Should wrap to last project
+      const lastProject = findProjectItemButton(/Beta Project/i);
+      expect(document.activeElement).toBe(lastProject);
+    });
+
+    it('navigates to first project with Home key', () => {
+      renderWithContext(<SidebarProjectDropdown />);
+
+      // Focus last project
+      const lastProject = findProjectItemButton(/Beta Project/i);
+      expect(lastProject).toBeDefined();
+      fireEvent.focus(lastProject!);
+
+      // Press Home
+      fireEvent.keyDown(lastProject!, { key: 'Home' });
+
+      // Should move to first project
+      const firstProject = findProjectItemButton(/Alpha Project 1/i);
+      expect(document.activeElement).toBe(firstProject);
+    });
+
+    it('navigates to last project with End key', () => {
+      renderWithContext(<SidebarProjectDropdown />);
+
+      // Focus first project
+      const firstProject = findProjectItemButton(/Alpha Project 1/i);
+      expect(firstProject).toBeDefined();
+      fireEvent.focus(firstProject!);
+
+      // Press End
+      fireEvent.keyDown(firstProject!, { key: 'End' });
+
+      // Should move to last project
+      const lastProject = findProjectItemButton(/Beta Project/i);
+      expect(document.activeElement).toBe(lastProject);
+    });
+
+    it('selects project with Enter key', () => {
+      const onSelectProject = vi.fn();
+      renderWithContext(
+        <SidebarProjectDropdown onSelectProject={onSelectProject} />
+      );
+
+      // Focus first project
+      const firstProject = findProjectItemButton(/Alpha Project 1/i);
+      expect(firstProject).toBeDefined();
+      fireEvent.focus(firstProject!);
+
+      // Press Enter
+      fireEvent.keyDown(firstProject!, { key: 'Enter' });
+
+      expect(onSelectProject).toHaveBeenCalledWith(
+        'proj-1',
+        'Alpha Project 1',
+        'org-1',
+        'Alpha Organization'
+      );
+    });
+
+    it('selects project with Space key', () => {
+      const onSelectProject = vi.fn();
+      renderWithContext(
+        <SidebarProjectDropdown onSelectProject={onSelectProject} />
+      );
+
+      // Focus second project
+      const secondProject = findProjectItemButton(/Alpha Project 2/i);
+      expect(secondProject).toBeDefined();
+      fireEvent.focus(secondProject!);
+
+      // Press Space
+      fireEvent.keyDown(secondProject!, { key: ' ' });
+
+      expect(onSelectProject).toHaveBeenCalledWith(
+        'proj-2',
+        'Alpha Project 2',
+        'org-1',
+        'Alpha Organization'
+      );
+    });
+
+    it('navigates across organization boundaries', () => {
+      renderWithContext(<SidebarProjectDropdown />);
+
+      // Focus Alpha Project 2 (last in first org)
+      const alphaProject2 = findProjectItemButton(/Alpha Project 2/i);
+      expect(alphaProject2).toBeDefined();
+      fireEvent.focus(alphaProject2!);
+
+      // Press ArrowDown - should go to Beta Project (first in second org)
+      fireEvent.keyDown(alphaProject2!, { key: 'ArrowDown' });
+
+      const betaProject = findProjectItemButton(/Beta Project/i);
+      expect(document.activeElement).toBe(betaProject);
+    });
+
+    it('only one item has tabIndex=0 (roving tabindex pattern)', () => {
+      renderWithContext(<SidebarProjectDropdown />);
+
+      // Find all project buttons in list items
+      const allProjectButtons = [
+        findProjectItemButton(/Alpha Project 1/i),
+        findProjectItemButton(/Alpha Project 2/i),
+        findProjectItemButton(/Beta Project/i),
+      ].filter(Boolean);
+
+      // Count items with tabIndex=0
+      const tabbableItems = allProjectButtons.filter(
+        (btn) => btn!.getAttribute('tabindex') === '0'
+      );
+
+      // Only one should be tabbable
+      expect(tabbableItems.length).toBe(1);
+    });
+  });
 });
+

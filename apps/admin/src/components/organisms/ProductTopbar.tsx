@@ -21,7 +21,7 @@ const productMenu = [
   },
   {
     title: 'emergent.product',
-    href: '/solutions',
+    href: '/product-framework',
     description: 'Living product bible',
     layer: 'Solution Layer',
   },

@@ -15,7 +15,7 @@ export type ExtractionLogOperationType =
   | 'error';
 
 export type ExtractionLogStatus =
-  | 'pending'
+  | 'queued'
   | 'running'
   | 'completed'
   | 'failed'

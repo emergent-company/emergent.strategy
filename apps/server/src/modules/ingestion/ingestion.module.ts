@@ -7,6 +7,7 @@ import { UtilsModule } from '../../common/utils/utils.module';
 import { EmbeddingsModule } from '../embeddings/embeddings.module';
 import { AuthModule } from '../auth/auth.module';
 import { ExtractionJobModule } from '../extraction-jobs/extraction-job.module';
+import { ChunksModule } from '../chunks/chunks.module';
 import { Project } from '../../entities/project.entity';
 
 @Module({
@@ -16,6 +17,7 @@ import { Project } from '../../entities/project.entity';
     EmbeddingsModule,
     AuthModule,
     ExtractionJobModule,
+    ChunksModule,
     TypeOrmModule.forFeature([Project]),
   ],
   controllers: [IngestionController],

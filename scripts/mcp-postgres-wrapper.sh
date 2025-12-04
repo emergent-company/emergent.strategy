@@ -6,43 +6,49 @@
 # different port configurations without hardcoding values.
 #
 # Environment variables used (with defaults):
-#   POSTGRES_USER (default: spec)
-#   POSTGRES_PASSWORD (default: spec)
+#   POSTGRES_USER (default: emergent)
+#   POSTGRES_PASSWORD (default: emergent-dev-password)
 #   POSTGRES_HOST (default: localhost)
 #   POSTGRES_PORT (default: 5432)
-#   POSTGRES_DB (default: spec)
+#   POSTGRES_DB (default: emergent)
 #
 # Usage: Referenced by opencode.jsonc and .vscode/mcp.json
 
-# Load .env file from repository root
+# Load .env files from repository root (.env first, then .env.local overrides)
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPO_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
-ENV_FILE="$REPO_ROOT/.env"
 
-if [ -f "$ENV_FILE" ]; then
-  # Export variables from .env file using safer parsing
-  # This avoids issues with values containing spaces or special characters
-  set -a
-  while IFS='=' read -r key value; do
-    # Skip empty lines and comments
-    [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
-    # Remove leading/trailing whitespace and quotes from value
-    value="${value%\"}"
-    value="${value#\"}"
-    value="${value%\'}"
-    value="${value#\'}"
-    # Export the variable
-    export "$key=$value"
-  done < <(grep -v '^[[:space:]]*#' "$ENV_FILE" | grep -v '^[[:space:]]*$')
-  set +a
-fi
+load_env_file() {
+  local env_file="$1"
+  if [ -f "$env_file" ]; then
+    # Export variables from .env file using safer parsing
+    # This avoids issues with values containing spaces or special characters
+    set -a
+    while IFS='=' read -r key value; do
+      # Skip empty lines and comments
+      [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+      # Remove leading/trailing whitespace and quotes from value
+      value="${value%\"}"
+      value="${value#\"}"
+      value="${value%\'}"
+      value="${value#\'}"
+      # Export the variable
+      export "$key=$value"
+    done < <(grep -v '^[[:space:]]*#' "$env_file" | grep -v '^[[:space:]]*$')
+    set +a
+  fi
+}
+
+# Load .env first, then .env.local (which overrides)
+load_env_file "$REPO_ROOT/.env"
+load_env_file "$REPO_ROOT/.env.local"
 
 # Use environment variables with defaults
-POSTGRES_USER="${POSTGRES_USER:-spec}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-spec}"
+POSTGRES_USER="${POSTGRES_USER:-emergent}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-emergent-dev-password}"
 POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
-POSTGRES_DB="${POSTGRES_DB:-spec}"
+POSTGRES_DB="${POSTGRES_DB:-emergent}"
 
 # Build connection string
 CONNECTION_STRING="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"

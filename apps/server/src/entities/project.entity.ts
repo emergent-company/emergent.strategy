@@ -41,4 +41,19 @@ export class Project {
 
   @Column({ name: 'chat_prompt_template', type: 'text', nullable: true })
   chatPromptTemplate: string | null;
+
+  @Column({ name: 'chunking_config', type: 'jsonb', nullable: true })
+  chunkingConfig: {
+    strategy: 'character' | 'sentence' | 'paragraph';
+    maxChunkSize?: number;
+    minChunkSize?: number;
+    overlap?: number;
+  } | null;
+
+  @Column({
+    name: 'allow_parallel_extraction',
+    type: 'boolean',
+    default: false,
+  })
+  allowParallelExtraction: boolean;
 }

@@ -1,0 +1,11 @@
+# Batch Test Document 2
+
+This is the second test document for batch upload testing.
+It has different content than document 1.
+
+## Notes
+- Each document should be processed independently
+- Duplicates should be detected correctly
+- Status should update in real-time
+
+Created for e2e testing purposes.

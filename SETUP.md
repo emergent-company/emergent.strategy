@@ -78,6 +78,7 @@ Key endpoints once Zitadel is healthy:
 - Zitadel PostgreSQL: localhost:5433
 
 For detailed Zitadel setup, configuration, and troubleshooting, see:
+
 - **[emergent-infra/zitadel/README.md](../emergent-infra/zitadel/README.md)** - Comprehensive setup guide
 - **[docs/setup/ZITADEL_SETUP_GUIDE.md](docs/setup/ZITADEL_SETUP_GUIDE.md)** - Application integration
 
@@ -174,6 +175,29 @@ Or via HTTP:
 - Vite port changed: update SPA redirect URIs and Allowed Origins in Zitadel
 - Zitadel startup errors: master key length, SSL mode, or missing `zitadel` role/db → see [Zitadel Setup Guide](docs/setup/ZITADEL_SETUP_GUIDE.md)
 - Node version warnings: ensure Node >= 20.19 for Vite and React 19
+
+## 9) (Optional) LangFuse Observability
+
+To enable LLM trace debugging:
+
+1. Start LangFuse infrastructure:
+
+   ```bash
+   cd ../emergent-infra/langfuse
+   cp .env.example .env
+   # Generate secrets as instructed in .env
+   docker compose up -d
+   ```
+
+2. Access UI at http://localhost:3010, create an account and project, and generate API keys.
+
+3. Update server `.env`:
+   ```env
+   LANGFUSE_ENABLED=true
+   LANGFUSE_HOST=http://localhost:3010
+   LANGFUSE_PUBLIC_KEY=pk_...
+   LANGFUSE_SECRET_KEY=sk_...
+   ```
 
 ## References
 

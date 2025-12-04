@@ -11,6 +11,7 @@ export interface SystemProcessLog {
   timestamp: Date;
   orgId?: string;
   projectId?: string;
+  langfuseTraceId?: string;
 }
 
 /**
@@ -24,4 +25,5 @@ export interface CreateSystemProcessLogInput {
   metadata?: Record<string, any>;
   orgId?: string;
   projectId?: string;
+  langfuseTraceId?: string;
 }

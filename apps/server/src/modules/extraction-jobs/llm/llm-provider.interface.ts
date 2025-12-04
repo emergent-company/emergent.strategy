@@ -61,7 +61,7 @@ export interface ILLMProvider {
    * @param objectSchemas - Object type schemas from template pack (JSON Schema format)
    * @param allowedTypes - Optional list of allowed entity types
    * @param availableTags - Optional list of existing tags to prefer for consistency
-   * @param context - Optional job context for monitoring (jobId, projectId)
+   * @param context - Optional job context for monitoring (jobId, projectId, traceId)
    * @returns Extraction result with entities and metadata
    */
   extractEntities(
@@ -70,7 +70,7 @@ export interface ILLMProvider {
     objectSchemas: Record<string, any>,
     allowedTypes?: string[],
     availableTags?: string[],
-    context?: { jobId: string; projectId: string }
+    context?: { jobId: string; projectId: string; traceId?: string }
   ): Promise<ExtractionResult>;
 
   /**

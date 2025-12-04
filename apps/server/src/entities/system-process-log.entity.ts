@@ -25,6 +25,9 @@ export class SystemProcessLog {
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any> | null;
 
+  @Column({ name: 'langfuse_trace_id', type: 'text', nullable: true })
+  langfuseTraceId: string | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   timestamp: Date;
 }

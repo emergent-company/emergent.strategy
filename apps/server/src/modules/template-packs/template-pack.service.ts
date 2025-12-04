@@ -504,15 +504,90 @@ export class TemplatePackService {
     );
 
     // Transform object_type_schemas object into object_types array for frontend
-    return result.rows.map((row) => ({
-      ...row,
-      template_pack: {
-        ...row.template_pack,
-        object_types: row.template_pack.object_type_schemas
-          ? Object.keys(row.template_pack.object_type_schemas)
-          : [],
-      },
-    }));
+    // Also transform relationship_type_schemas to relationship_types array
+    // And attach relationships to each object type (both outgoing and incoming)
+    return result.rows.map((row) => {
+      const relationshipSchemas =
+        row.template_pack.relationship_type_schemas || {};
+      const relationshipTypes = Object.keys(relationshipSchemas);
+
+      // Build maps of object type -> outgoing and incoming relationships
+      const outgoingRelationships: Record<
+        string,
+        Array<{
+          type: string;
+          label?: string;
+          description?: string;
+          targetTypes: string[];
+        }>
+      > = {};
+      const incomingRelationships: Record<
+        string,
+        Array<{
+          type: string;
+          label?: string;
+          inverseLabel?: string;
+          description?: string;
+          sourceTypes: string[];
+        }>
+      > = {};
+
+      Object.entries(relationshipSchemas).forEach(
+        ([relType, schema]: [string, any]) => {
+          const sourceTypes = schema.fromTypes || schema.sourceTypes || [];
+          const targetTypes = schema.toTypes || schema.targetTypes || [];
+
+          // Outgoing: source -> target
+          sourceTypes.forEach((sourceType: string) => {
+            if (!outgoingRelationships[sourceType]) {
+              outgoingRelationships[sourceType] = [];
+            }
+            outgoingRelationships[sourceType].push({
+              type: relType,
+              label: schema.label,
+              description: schema.description,
+              targetTypes,
+            });
+          });
+
+          // Incoming: target <- source
+          targetTypes.forEach((targetType: string) => {
+            if (!incomingRelationships[targetType]) {
+              incomingRelationships[targetType] = [];
+            }
+            incomingRelationships[targetType].push({
+              type: relType,
+              label: schema.label,
+              inverseLabel: schema.inverseLabel,
+              description: schema.description,
+              sourceTypes,
+            });
+          });
+        }
+      );
+
+      return {
+        ...row,
+        template_pack: {
+          ...row.template_pack,
+          object_types: row.template_pack.object_type_schemas
+            ? Object.entries(row.template_pack.object_type_schemas).map(
+                ([type, schema]: [string, any]) => ({
+                  type,
+                  description: schema?.description,
+                  properties: schema?.properties,
+                  required: schema?.required,
+                  examples: schema?.examples,
+                  outgoingRelationships: outgoingRelationships[type] || [],
+                  incomingRelationships: incomingRelationships[type] || [],
+                })
+              )
+            : [],
+          relationship_types: relationshipTypes,
+          relationship_count: relationshipTypes.length,
+        },
+      };
+    });
   }
 
   /**
@@ -610,9 +685,64 @@ export class TemplatePackService {
 
     // Build response
     return packsResult.rows.map((pack) => {
-      const relationshipTypes = Object.keys(
-        pack.relationship_type_schemas || {}
+      const relationshipSchemas = pack.relationship_type_schemas || {};
+      const relationshipTypes = Object.keys(relationshipSchemas);
+
+      // Build maps of object type -> outgoing and incoming relationships
+      const outgoingRelationships: Record<
+        string,
+        Array<{
+          type: string;
+          label?: string;
+          description?: string;
+          targetTypes: string[];
+        }>
+      > = {};
+      const incomingRelationships: Record<
+        string,
+        Array<{
+          type: string;
+          label?: string;
+          inverseLabel?: string;
+          description?: string;
+          sourceTypes: string[];
+        }>
+      > = {};
+
+      Object.entries(relationshipSchemas).forEach(
+        ([relType, schema]: [string, any]) => {
+          const sourceTypes = schema.fromTypes || schema.sourceTypes || [];
+          const targetTypes = schema.toTypes || schema.targetTypes || [];
+
+          // Outgoing: source -> target
+          sourceTypes.forEach((sourceType: string) => {
+            if (!outgoingRelationships[sourceType]) {
+              outgoingRelationships[sourceType] = [];
+            }
+            outgoingRelationships[sourceType].push({
+              type: relType,
+              label: schema.label,
+              description: schema.description,
+              targetTypes,
+            });
+          });
+
+          // Incoming: target <- source
+          targetTypes.forEach((targetType: string) => {
+            if (!incomingRelationships[targetType]) {
+              incomingRelationships[targetType] = [];
+            }
+            incomingRelationships[targetType].push({
+              type: relType,
+              label: schema.label,
+              inverseLabel: schema.inverseLabel,
+              description: schema.description,
+              sourceTypes,
+            });
+          });
+        }
       );
+
       const isInstalled = installedIds.has(pack.id);
       const response: any = {
         id: pack.id,
@@ -625,7 +755,12 @@ export class TemplatePackService {
           ([type, schema]: [string, any]) => ({
             type,
             description: schema.description,
+            properties: schema.properties,
+            required: schema.required,
+            examples: schema.examples,
             sample_count: typeCounts.get(type) || 0,
+            outgoingRelationships: outgoingRelationships[type] || [],
+            incomingRelationships: incomingRelationships[type] || [],
           })
         ),
         relationship_types: relationshipTypes,

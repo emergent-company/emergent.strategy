@@ -3,12 +3,17 @@ import type { QueryResultRow } from 'pg';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
-import { ChunkerService } from '../../common/utils/chunker.service';
+import {
+  ChunkerService,
+  ChunkerConfig,
+  ChunkWithMetadata,
+} from '../../common/utils/chunker.service';
 import { HashService } from '../../common/utils/hash.service';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 import { AppConfigService } from '../../common/config/config.service';
 import { ExtractionJobService } from '../extraction-jobs/extraction-job.service';
 import { ExtractionSourceType } from '../extraction-jobs/dto/extraction-job.dto';
+import { ChunkEmbeddingJobsService } from '../chunks/chunk-embedding-jobs.service';
 import { Project } from '../../entities/project.entity';
 
 export interface IngestResult {
@@ -16,6 +21,35 @@ export interface IngestResult {
   chunks: number;
   alreadyExists: boolean;
   extractionJobId?: string;
+}
+
+/**
+ * Result for a single file in a batch upload
+ */
+export interface BatchFileResult {
+  filename: string;
+  status: 'success' | 'duplicate' | 'failed';
+  documentId?: string;
+  chunks?: number;
+  error?: string;
+}
+
+/**
+ * Summary of batch upload results
+ */
+export interface BatchUploadSummary {
+  total: number;
+  successful: number;
+  duplicates: number;
+  failed: number;
+}
+
+/**
+ * Complete batch upload result
+ */
+export interface BatchUploadResult {
+  summary: BatchUploadSummary;
+  results: BatchFileResult[];
 }
 
 @Injectable()
@@ -36,6 +70,7 @@ export class IngestionService {
     private readonly embeddings: EmbeddingsService,
     private readonly config: AppConfigService,
     private readonly extractionJobService: ExtractionJobService,
+    private readonly chunkEmbeddingJobs: ChunkEmbeddingJobsService,
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>
   ) {}
@@ -94,7 +129,8 @@ export class IngestionService {
   async ingestUrl(
     url: string,
     orgId: string | undefined,
-    projectId: string
+    projectId: string,
+    chunkingConfig?: ChunkerConfig
   ): Promise<IngestResult> {
     // Early validation: avoid outbound fetch if project already deleted / invalid
     if (this.db.isOnline()) {
@@ -148,6 +184,7 @@ export class IngestionService {
       mimeType: contentType,
       orgId,
       projectId,
+      chunkingConfig,
     });
   }
 
@@ -180,6 +217,48 @@ export class IngestionService {
     } catch (e) {
       this.logger.warn(
         `Failed to check auto-extraction settings for project ${projectId}: ${
+          (e as Error).message
+        }`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Get project-level chunking configuration
+   * Returns chunking config if set, null otherwise
+   */
+  private async getProjectChunkingConfig(
+    projectId: string
+  ): Promise<ChunkerConfig | null> {
+    try {
+      const project = await this.projectRepository.findOne({
+        where: { id: projectId },
+        select: ['chunkingConfig'],
+      });
+
+      if (!project || !project.chunkingConfig) {
+        return null;
+      }
+
+      // Map stored config to ChunkerConfig format
+      const storedConfig = project.chunkingConfig as {
+        strategy?: string;
+        maxChunkSize?: number;
+        minChunkSize?: number;
+      };
+
+      return {
+        strategy:
+          (storedConfig.strategy as ChunkerConfig['strategy']) || 'character',
+        options: {
+          maxChunkSize: storedConfig.maxChunkSize,
+          minChunkSize: storedConfig.minChunkSize,
+        },
+      };
+    } catch (e) {
+      this.logger.warn(
+        `Failed to get chunking config for project ${projectId}: ${
           (e as Error).message
         }`
       );
@@ -244,6 +323,7 @@ export class IngestionService {
     mimeType,
     orgId,
     projectId,
+    chunkingConfig,
   }: {
     text: string;
     sourceUrl?: string;
@@ -251,6 +331,8 @@ export class IngestionService {
     mimeType?: string;
     orgId?: string;
     projectId: string;
+    /** Optional chunking configuration (strategy and options) */
+    chunkingConfig?: ChunkerConfig;
   }): Promise<IngestResult> {
     if (!text || !text.trim())
       throw new BadRequestException({
@@ -320,11 +402,40 @@ export class IngestionService {
       }
     }
     const tenantOrgId = derivedOrg || orgId || null;
-    const chunks = this.chunker.chunk(text);
+
+    // Determine effective chunking config: use provided config, or fall back to project defaults
+    let effectiveChunkingConfig = chunkingConfig;
+    if (!effectiveChunkingConfig) {
+      const projectConfig = await this.getProjectChunkingConfig(projectId);
+      if (projectConfig) {
+        this.logger.debug(
+          `Using project-level chunking config for project ${projectId}: ${JSON.stringify(
+            projectConfig
+          )}`
+        );
+        effectiveChunkingConfig = projectConfig;
+      }
+    }
+
+    // Use chunkWithMetadata with effective config (project defaults or system defaults)
+    let chunksWithMeta: ChunkWithMetadata[];
+    if (effectiveChunkingConfig) {
+      chunksWithMeta = this.chunker.chunkWithMetadata(
+        text,
+        effectiveChunkingConfig
+      );
+    } else {
+      // Default to character strategy with default options
+      chunksWithMeta = this.chunker.chunkWithMetadata(text);
+    }
+
+    // Extract text for embeddings
+    const chunkTexts = chunksWithMeta.map((c) => c.text);
+
     let vectors: number[][] = [];
     if (this.config.embeddingsEnabled) {
       try {
-        vectors = await this.embeddings.embedDocuments(chunks);
+        vectors = await this.embeddings.embedDocuments(chunkTexts);
       } catch (e) {
         this.logger.warn(
           `Embedding generation failed, proceeding with NULL embeddings: ${
@@ -486,8 +597,10 @@ export class IngestionService {
         }
 
         let hasEmbeddingColumn: boolean | undefined;
+        let hasMetadataColumn: boolean | undefined;
         let hasChunkUpsertConstraint = true;
-        for (let i = 0; i < chunks.length; i++) {
+        for (let i = 0; i < chunksWithMeta.length; i++) {
+          const chunkData = chunksWithMeta[i];
           const vec = vectors[i];
           // Fix: Check if vec exists AND has length > 0 to avoid "vector must have at least 1 dimension" error
           const vecLiteral =
@@ -498,56 +611,206 @@ export class IngestionService {
                   .join(',') +
                 ']'
               : null;
+          // Serialize metadata as JSON for storage
+          const metadataJson = JSON.stringify(chunkData.metadata);
+
           if (hasEmbeddingColumn === false) {
             if (hasChunkUpsertConstraint) {
               try {
-                await query(
-                  `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                // Try with metadata column first
+                if (hasMetadataColumn !== false) {
+                  try {
+                    await query(
+                      `INSERT INTO kb.chunks(document_id, chunk_index, text, metadata)
+                                       VALUES ($1,$2,$3,$4::jsonb)
+                                       ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text, metadata = EXCLUDED.metadata`,
+                      [documentId, i, chunkData.text, metadataJson]
+                    );
+                    hasMetadataColumn = true;
+                  } catch (e: any) {
+                    if (e?.code === '42703') {
+                      // metadata column doesn't exist, fall back to without it
+                      hasMetadataColumn = false;
+                      await query(
+                        `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                         VALUES ($1,$2,$3)
+                                         ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text`,
+                        [documentId, i, chunkData.text]
+                      );
+                    } else {
+                      throw e;
+                    }
+                  }
+                } else {
+                  await query(
+                    `INSERT INTO kb.chunks(document_id, chunk_index, text)
                                      VALUES ($1,$2,$3)
                                      ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text`,
-                  [documentId, i, chunks[i]]
-                );
+                    [documentId, i, chunkData.text]
+                  );
+                }
               } catch (e) {
                 if ((e as any)?.code === '42P10') {
                   hasChunkUpsertConstraint = false;
-                  await query(
-                    `INSERT INTO kb.chunks(document_id, chunk_index, text)
-                                         VALUES ($1,$2,$3)`,
-                    [documentId, i, chunks[i]]
-                  );
+                  if (hasMetadataColumn !== false) {
+                    try {
+                      await query(
+                        `INSERT INTO kb.chunks(document_id, chunk_index, text, metadata)
+                                             VALUES ($1,$2,$3,$4::jsonb)`,
+                        [documentId, i, chunkData.text, metadataJson]
+                      );
+                      hasMetadataColumn = true;
+                    } catch (e2: any) {
+                      if (e2?.code === '42703') {
+                        hasMetadataColumn = false;
+                        await query(
+                          `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                               VALUES ($1,$2,$3)`,
+                          [documentId, i, chunkData.text]
+                        );
+                      } else {
+                        throw e2;
+                      }
+                    }
+                  } else {
+                    await query(
+                      `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                           VALUES ($1,$2,$3)`,
+                      [documentId, i, chunkData.text]
+                    );
+                  }
                 } else throw e;
               }
             } else {
-              await query(
-                `INSERT INTO kb.chunks(document_id, chunk_index, text)
-                                 VALUES ($1,$2,$3)`,
-                [documentId, i, chunks[i]]
-              );
+              if (hasMetadataColumn !== false) {
+                try {
+                  await query(
+                    `INSERT INTO kb.chunks(document_id, chunk_index, text, metadata)
+                                     VALUES ($1,$2,$3,$4::jsonb)`,
+                    [documentId, i, chunkData.text, metadataJson]
+                  );
+                  hasMetadataColumn = true;
+                } catch (e: any) {
+                  if (e?.code === '42703') {
+                    hasMetadataColumn = false;
+                    await query(
+                      `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                       VALUES ($1,$2,$3)`,
+                      [documentId, i, chunkData.text]
+                    );
+                  } else {
+                    throw e;
+                  }
+                }
+              } else {
+                await query(
+                  `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                   VALUES ($1,$2,$3)`,
+                  [documentId, i, chunkData.text]
+                );
+              }
             }
             continue;
           }
           try {
-            if (hasChunkUpsertConstraint) {
-              await query(
-                `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
+            // Build the INSERT with embedding and optionally metadata
+            if (hasMetadataColumn !== false) {
+              if (hasChunkUpsertConstraint) {
+                try {
+                  await query(
+                    `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding, metadata)
+                                   VALUES ($1,$2,$3,${
+                                     vecLiteral ? '$4::vector' : 'NULL'
+                                   },$${vecLiteral ? '5' : '4'}::jsonb)
+                                   ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text, embedding = EXCLUDED.embedding, metadata = EXCLUDED.metadata`,
+                    vecLiteral
+                      ? [
+                          documentId,
+                          i,
+                          chunkData.text,
+                          vecLiteral,
+                          metadataJson,
+                        ]
+                      : [documentId, i, chunkData.text, metadataJson]
+                  );
+                  hasMetadataColumn = true;
+                } catch (e: any) {
+                  if (e?.code === '42703') {
+                    // metadata column doesn't exist
+                    hasMetadataColumn = false;
+                    await query(
+                      `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
+                                     VALUES ($1,$2,$3,${
+                                       vecLiteral ? '$4::vector' : 'NULL'
+                                     })
+                                     ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text, embedding = EXCLUDED.embedding`,
+                      vecLiteral
+                        ? [documentId, i, chunkData.text, vecLiteral]
+                        : [documentId, i, chunkData.text]
+                    );
+                  } else {
+                    throw e;
+                  }
+                }
+              } else {
+                try {
+                  await query(
+                    `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding, metadata)
+                                   VALUES ($1,$2,$3,${
+                                     vecLiteral ? '$4::vector' : 'NULL'
+                                   },$${vecLiteral ? '5' : '4'}::jsonb)`,
+                    vecLiteral
+                      ? [
+                          documentId,
+                          i,
+                          chunkData.text,
+                          vecLiteral,
+                          metadataJson,
+                        ]
+                      : [documentId, i, chunkData.text, metadataJson]
+                  );
+                  hasMetadataColumn = true;
+                } catch (e: any) {
+                  if (e?.code === '42703') {
+                    hasMetadataColumn = false;
+                    await query(
+                      `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
+                                     VALUES ($1,$2,$3,${
+                                       vecLiteral ? '$4::vector' : 'NULL'
+                                     })`,
+                      vecLiteral
+                        ? [documentId, i, chunkData.text, vecLiteral]
+                        : [documentId, i, chunkData.text]
+                    );
+                  } else {
+                    throw e;
+                  }
+                }
+              }
+            } else {
+              // Already know metadata column doesn't exist
+              if (hasChunkUpsertConstraint) {
+                await query(
+                  `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
                                  VALUES ($1,$2,$3,${
                                    vecLiteral ? '$4::vector' : 'NULL'
                                  })
                                  ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text, embedding = EXCLUDED.embedding`,
-                vecLiteral
-                  ? [documentId, i, chunks[i], vecLiteral]
-                  : [documentId, i, chunks[i]]
-              );
-            } else {
-              await query(
-                `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
+                  vecLiteral
+                    ? [documentId, i, chunkData.text, vecLiteral]
+                    : [documentId, i, chunkData.text]
+                );
+              } else {
+                await query(
+                  `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
                                  VALUES ($1,$2,$3,${
                                    vecLiteral ? '$4::vector' : 'NULL'
                                  })`,
-                vecLiteral
-                  ? [documentId, i, chunks[i], vecLiteral]
-                  : [documentId, i, chunks[i]]
-              );
+                  vecLiteral
+                    ? [documentId, i, chunkData.text, vecLiteral]
+                    : [documentId, i, chunkData.text]
+                );
+              }
             }
             hasEmbeddingColumn = true;
           } catch (e) {
@@ -561,40 +824,144 @@ export class IngestionService {
               hasEmbeddingColumn = false;
               if (hasChunkUpsertConstraint) {
                 try {
-                  await query(
-                    `INSERT INTO kb.chunks(document_id, chunk_index, text)
-                                         VALUES ($1,$2,$3)
-                                         ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text`,
-                    [documentId, i, chunks[i]]
-                  );
+                  if (hasMetadataColumn !== false) {
+                    try {
+                      await query(
+                        `INSERT INTO kb.chunks(document_id, chunk_index, text, metadata)
+                                             VALUES ($1,$2,$3,$4::jsonb)
+                                             ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text, metadata = EXCLUDED.metadata`,
+                        [documentId, i, chunkData.text, metadataJson]
+                      );
+                      hasMetadataColumn = true;
+                    } catch (e3: any) {
+                      if (e3?.code === '42703') {
+                        hasMetadataColumn = false;
+                        await query(
+                          `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                               VALUES ($1,$2,$3)
+                                               ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text`,
+                          [documentId, i, chunkData.text]
+                        );
+                      } else {
+                        throw e3;
+                      }
+                    }
+                  } else {
+                    await query(
+                      `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                           VALUES ($1,$2,$3)
+                                           ON CONFLICT (document_id, chunk_index) DO UPDATE SET text = EXCLUDED.text`,
+                      [documentId, i, chunkData.text]
+                    );
+                  }
                 } catch (e2) {
                   if ((e2 as any)?.code === '42P10') {
                     hasChunkUpsertConstraint = false;
-                    await query(
-                      `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                    if (hasMetadataColumn !== false) {
+                      try {
+                        await query(
+                          `INSERT INTO kb.chunks(document_id, chunk_index, text, metadata)
+                                               VALUES ($1,$2,$3,$4::jsonb)`,
+                          [documentId, i, chunkData.text, metadataJson]
+                        );
+                        hasMetadataColumn = true;
+                      } catch (e4: any) {
+                        if (e4?.code === '42703') {
+                          hasMetadataColumn = false;
+                          await query(
+                            `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                                 VALUES ($1,$2,$3)`,
+                            [documentId, i, chunkData.text]
+                          );
+                        } else {
+                          throw e4;
+                        }
+                      }
+                    } else {
+                      await query(
+                        `INSERT INTO kb.chunks(document_id, chunk_index, text)
                                              VALUES ($1,$2,$3)`,
-                      [documentId, i, chunks[i]]
-                    );
+                        [documentId, i, chunkData.text]
+                      );
+                    }
                   } else throw e2;
                 }
               } else {
-                await query(
-                  `INSERT INTO kb.chunks(document_id, chunk_index, text)
-                                     VALUES ($1,$2,$3)`,
-                  [documentId, i, chunks[i]]
-                );
+                if (hasMetadataColumn !== false) {
+                  try {
+                    await query(
+                      `INSERT INTO kb.chunks(document_id, chunk_index, text, metadata)
+                                           VALUES ($1,$2,$3,$4::jsonb)`,
+                      [documentId, i, chunkData.text, metadataJson]
+                    );
+                    hasMetadataColumn = true;
+                  } catch (e3: any) {
+                    if (e3?.code === '42703') {
+                      hasMetadataColumn = false;
+                      await query(
+                        `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                             VALUES ($1,$2,$3)`,
+                        [documentId, i, chunkData.text]
+                      );
+                    } else {
+                      throw e3;
+                    }
+                  }
+                } else {
+                  await query(
+                    `INSERT INTO kb.chunks(document_id, chunk_index, text)
+                                         VALUES ($1,$2,$3)`,
+                    [documentId, i, chunkData.text]
+                  );
+                }
               }
             } else if ((e as any)?.code === '42P10') {
               hasChunkUpsertConstraint = false;
-              await query(
-                `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
+              if (hasMetadataColumn !== false) {
+                try {
+                  await query(
+                    `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding, metadata)
+                                   VALUES ($1,$2,$3,${
+                                     vecLiteral ? '$4::vector' : 'NULL'
+                                   },$${vecLiteral ? '5' : '4'}::jsonb)`,
+                    vecLiteral
+                      ? [
+                          documentId,
+                          i,
+                          chunkData.text,
+                          vecLiteral,
+                          metadataJson,
+                        ]
+                      : [documentId, i, chunkData.text, metadataJson]
+                  );
+                  hasMetadataColumn = true;
+                } catch (e3: any) {
+                  if (e3?.code === '42703') {
+                    hasMetadataColumn = false;
+                    await query(
+                      `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
+                                     VALUES ($1,$2,$3,${
+                                       vecLiteral ? '$4::vector' : 'NULL'
+                                     })`,
+                      vecLiteral
+                        ? [documentId, i, chunkData.text, vecLiteral]
+                        : [documentId, i, chunkData.text]
+                    );
+                  } else {
+                    throw e3;
+                  }
+                }
+              } else {
+                await query(
+                  `INSERT INTO kb.chunks(document_id, chunk_index, text, embedding)
                                  VALUES ($1,$2,$3,${
                                    vecLiteral ? '$4::vector' : 'NULL'
                                  })`,
-                vecLiteral
-                  ? [documentId, i, chunks[i], vecLiteral]
-                  : [documentId, i, chunks[i]]
-              );
+                  vecLiteral
+                    ? [documentId, i, chunkData.text, vecLiteral]
+                    : [documentId, i, chunkData.text]
+                );
+              }
             } else {
               throw e;
             }
@@ -641,7 +1008,7 @@ export class IngestionService {
               filename: filename || null,
               source_url: sourceUrl || null,
               mime_type: mimeType || 'text/plain',
-              chunks: chunks.length,
+              chunks: chunksWithMeta.length,
             },
             extraction_config: {
               ...autoExtractSettings.config,
@@ -666,13 +1033,153 @@ export class IngestionService {
         }
       }
 
+      // Queue chunk embedding jobs if embedding generation failed during sync upload
+      // This enables async retry with exponential backoff
+      if (
+        this.config.embeddingsEnabled &&
+        chunksWithMeta.length > 0 &&
+        vectors.length === 0
+      ) {
+        try {
+          // Query for chunk IDs of this document
+          const chunkResult = await this.db.query<{ id: string }>(
+            `SELECT id FROM kb.chunks WHERE document_id = $1`,
+            [documentId]
+          );
+          const chunkIds = chunkResult.rows.map((r) => r.id);
+
+          if (chunkIds.length > 0) {
+            const queued = await this.chunkEmbeddingJobs.enqueueBatch(chunkIds);
+            if (queued > 0) {
+              this.logger.log(
+                `Queued ${queued} chunk embedding jobs for document ${documentId} (async retry)`
+              );
+            }
+          }
+        } catch (e) {
+          this.logger.warn(
+            `Failed to queue chunk embedding jobs for document ${documentId}: ${
+              (e as Error).message
+            }`
+          );
+        }
+      }
+
       return {
         documentId: documentId!,
-        chunks: chunks.length,
+        chunks: chunksWithMeta.length,
         alreadyExists: false,
         extractionJobId,
       };
     });
+  }
+
+  /**
+   * Ingest multiple files in a batch with controlled concurrency.
+   *
+   * @param files Array of file data to ingest
+   * @param orgId Optional organization ID
+   * @param projectId Project ID (required)
+   * @param concurrency Number of files to process in parallel (default: 3, max: 5)
+   * @param chunkingConfig Optional chunking configuration to apply to all files
+   * @returns BatchUploadResult with summary and individual file results
+   */
+  async ingestBatch({
+    files,
+    orgId,
+    projectId,
+    concurrency = 3,
+    chunkingConfig,
+  }: {
+    files: Array<{
+      text: string;
+      filename: string;
+      mimeType?: string;
+    }>;
+    orgId?: string;
+    projectId: string;
+    concurrency?: number;
+    chunkingConfig?: ChunkerConfig;
+  }): Promise<BatchUploadResult> {
+    const pLimit = (await import('p-limit')).default;
+
+    // Enforce concurrency limits
+    const effectiveConcurrency = Math.min(Math.max(1, concurrency), 5);
+    const limit = pLimit(effectiveConcurrency);
+
+    const results: BatchFileResult[] = [];
+    const summary: BatchUploadSummary = {
+      total: files.length,
+      successful: 0,
+      duplicates: 0,
+      failed: 0,
+    };
+
+    this.logger.log(
+      `Starting batch ingestion of ${files.length} files for project ${projectId} with concurrency ${effectiveConcurrency}`
+    );
+
+    // Process files with controlled concurrency
+    const promises = files.map((file, index) =>
+      limit(async (): Promise<BatchFileResult> => {
+        try {
+          const result = await this.ingestText({
+            text: file.text,
+            filename: file.filename,
+            mimeType: file.mimeType,
+            orgId,
+            projectId,
+            chunkingConfig,
+          });
+
+          if (result.alreadyExists) {
+            summary.duplicates++;
+            return {
+              filename: file.filename,
+              status: 'duplicate',
+              documentId: result.documentId,
+            };
+          }
+
+          summary.successful++;
+          return {
+            filename: file.filename,
+            status: 'success',
+            documentId: result.documentId,
+            chunks: result.chunks,
+          };
+        } catch (e) {
+          summary.failed++;
+          const errorMessage =
+            e instanceof BadRequestException
+              ? (e.getResponse() as any)?.error?.message ?? (e as Error).message
+              : (e as Error).message;
+
+          this.logger.warn(
+            `Batch ingestion failed for file ${file.filename}: ${errorMessage}`
+          );
+
+          return {
+            filename: file.filename,
+            status: 'failed',
+            error: errorMessage,
+          };
+        }
+      })
+    );
+
+    // Wait for all files to complete
+    const batchResults = await Promise.all(promises);
+    results.push(...batchResults);
+
+    this.logger.log(
+      `Batch ingestion complete: ${summary.successful} successful, ${summary.duplicates} duplicates, ${summary.failed} failed`
+    );
+
+    return {
+      summary,
+      results,
+    };
   }
 }
 
