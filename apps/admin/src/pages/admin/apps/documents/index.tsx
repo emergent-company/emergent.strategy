@@ -481,6 +481,40 @@ export default function DocumentsPage() {
     }
   };
 
+  // Handle recreate chunks action
+  const handleRecreateChunks = async (doc: DocumentRow) => {
+    try {
+      const result = await documentsClient.recreateChunks(doc.id);
+      showToast({
+        message: `Chunks recreated: ${result.summary.oldChunks} → ${result.summary.newChunks} (${result.summary.strategy})`,
+        variant: 'success',
+        duration: 5000,
+      });
+
+      // Refresh the documents list to show updated chunk counts
+      const t = getAccessToken();
+      const json = await fetchJson<
+        DocumentRow[] | { documents: DocumentRow[]; total?: number }
+      >(`${apiBase}/api/documents`, {
+        headers: t ? { ...buildHeaders({ json: false }) } : {},
+        json: false,
+      });
+      const docsList = Array.isArray(json) ? json : json.documents;
+      const total =
+        !Array.isArray(json) && 'total' in json ? json.total : docsList.length;
+      const docs = docsList.map(normalize);
+      setData(docs);
+      setTotalCount(total || docs.length);
+    } catch (err) {
+      console.error('Failed to recreate chunks:', err);
+      showToast({
+        message:
+          err instanceof Error ? err.message : 'Failed to recreate chunks',
+        variant: 'error',
+      });
+    }
+  };
+
   // Confirm deletion from modal
   const handleConfirmDeletion = async () => {
     try {
@@ -1342,6 +1376,11 @@ export default function DocumentsPage() {
                 icon: 'lucide--list',
                 asLink: true,
                 href: (doc) => `/admin/apps/chunks?docId=${doc.id}`,
+              },
+              {
+                label: 'Recreate chunks',
+                icon: 'lucide--refresh-cw',
+                onAction: handleRecreateChunks,
               },
               {
                 label: 'View metadata',
