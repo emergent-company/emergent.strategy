@@ -2,45 +2,42 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/useAuth';
 import { useApi } from '@/hooks/use-api';
 import { useConfig } from '@/contexts/config';
-import { useSearchParams } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
-import { DataTable } from '@/components/organisms/DataTable';
-import type {
-  ColumnDef,
-  RowAction,
-} from '@/components/organisms/DataTable/types';
 
-interface ChunkRow {
+interface ChunkData {
   id: string;
-  document_id: string;
-  document_title: string;
-  source_url: string | null;
-  chunk_index: number;
-  created_at: string;
+  documentId: string;
+  documentTitle: string;
+  index: number;
+  size: number;
+  hasEmbedding: boolean;
   text: string;
+  createdAt?: string;
+  totalChars?: number;
+  chunkCount?: number;
+  embeddedChunks?: number;
 }
 
-interface ChunksResponse {
-  items: ChunkRow[];
-  page: number;
-  pageSize: number;
-  total: number;
+interface DocumentGroup {
+  documentId: string;
+  documentTitle: string;
+  totalChars: number;
+  chunkCount: number;
+  embeddedChunks: number;
+  chunks: ChunkData[];
 }
 
 export default function ChunksPage() {
   const { getAccessToken } = useAuth();
   const { buildHeaders, apiBase, fetchJson } = useApi();
   const { config } = useConfig();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [data, setData] = useState<ChunksResponse | null>(null);
+  const [data, setData] = useState<ChunkData[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [preview, setPreview] = useState<ChunkRow | null>(null);
+  const [preview, setPreview] = useState<ChunkData | null>(null);
+  const [expandedDocs, setExpandedDocs] = useState<Set<string>>(new Set());
 
   const apiBaseMemo = useMemo(() => apiBase, [apiBase]);
-
-  const page = Math.max(1, Number(searchParams.get('page') || 1));
-  const pageSize = 25; // Fixed page size
 
   useEffect(() => {
     let cancelled = false;
@@ -48,92 +45,13 @@ export default function ChunksPage() {
       setLoading(true);
       setError(null);
       try {
-        const qs = new URLSearchParams();
-        qs.set('page', String(page));
-        qs.set('pageSize', String(pageSize));
         const t = getAccessToken();
-        // Accept both unified paginated shape and legacy/alternate array responses
-        const json = await fetchJson<any>(
-          `${apiBase}/api/chunks?${qs.toString()}`,
-          {
-            headers: t ? { ...buildHeaders({ json: false }) } : {},
-            json: false,
-          }
-        );
+        const json = await fetchJson<ChunkData[]>(`${apiBase}/api/chunks`, {
+          headers: t ? { ...buildHeaders({ json: false }) } : {},
+          json: false,
+        });
         if (!cancelled) {
-          let next: ChunksResponse | null = null;
-          if (Array.isArray(json)) {
-            // Legacy simple array (e.g. Nest chunks list). Map to expected richer shape with fallbacks.
-            const mapped: ChunkRow[] = json.map(
-              (c: any): ChunkRow => ({
-                id: String(c.id),
-                document_id: c.document_id || c.documentId || 'unknown',
-                document_title:
-                  c.document_title ||
-                  c.documentTitle ||
-                  c.filename ||
-                  c.source_url ||
-                  c.sourceUrl ||
-                  c.document_id ||
-                  c.documentId ||
-                  'document',
-                source_url: c.source_url || c.sourceUrl || null,
-                chunk_index:
-                  typeof c.chunk_index === 'number'
-                    ? c.chunk_index
-                    : typeof c.index === 'number'
-                    ? c.index
-                    : 0,
-                created_at:
-                  c.created_at || c.createdAt || new Date().toISOString(),
-                text: c.text || '',
-              })
-            );
-            next = {
-              items: mapped,
-              page: 1,
-              pageSize: mapped.length || pageSize,
-              total: mapped.length,
-            };
-          } else if (
-            json &&
-            typeof json === 'object' &&
-            Array.isArray(json.items)
-          ) {
-            // Canonical paginated shape
-            const items: ChunkRow[] = json.items.map(
-              (c: any): ChunkRow => ({
-                id: String(c.id),
-                document_id: c.document_id || c.documentId || 'unknown',
-                document_title:
-                  c.document_title ||
-                  c.documentTitle ||
-                  c.filename ||
-                  c.source_url ||
-                  c.sourceUrl ||
-                  c.document_id ||
-                  c.documentId ||
-                  'document',
-                source_url: c.source_url || c.sourceUrl || null,
-                chunk_index:
-                  typeof c.chunk_index === 'number'
-                    ? c.chunk_index
-                    : typeof c.index === 'number'
-                    ? c.index
-                    : 0,
-                created_at:
-                  c.created_at || c.createdAt || new Date().toISOString(),
-                text: c.text || '',
-              })
-            );
-            next = {
-              items,
-              page: Number(json.page) || page,
-              pageSize: Number(json.pageSize) || items.length || pageSize,
-              total: Number(json.total) || items.length,
-            };
-          }
-          setData(next);
+          setData(Array.isArray(json) ? json : []);
         }
       } catch (e: any) {
         if (!cancelled) setError(e.message || 'Failed to load');
@@ -148,8 +66,6 @@ export default function ChunksPage() {
   }, [
     apiBase,
     apiBaseMemo,
-    page,
-    pageSize,
     getAccessToken,
     buildHeaders,
     fetchJson,
@@ -157,100 +73,79 @@ export default function ChunksPage() {
     config.activeOrgId,
   ]);
 
-  const totalPages = data
-    ? Math.max(1, Math.ceil(data.total / data.pageSize))
-    : 1;
+  // Group chunks by document
+  const documentGroups = useMemo(() => {
+    const groups = new Map<string, DocumentGroup>();
 
-  function updateParam(key: string, value: string) {
-    const next = new URLSearchParams(searchParams);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    setSearchParams(next);
-  }
+    data.forEach((chunk) => {
+      if (!groups.has(chunk.documentId)) {
+        groups.set(chunk.documentId, {
+          documentId: chunk.documentId,
+          documentTitle: chunk.documentTitle,
+          totalChars: chunk.totalChars || 0,
+          chunkCount: chunk.chunkCount || 0,
+          embeddedChunks: chunk.embeddedChunks || 0,
+          chunks: [],
+        });
+      }
+      groups.get(chunk.documentId)!.chunks.push(chunk);
+    });
 
-  const columns: ColumnDef<ChunkRow>[] = [
-    {
-      key: 'chunk_index',
-      label: 'Index',
-      width: 'w-24',
-      render: (chunk) => <span>{chunk.chunk_index}</span>,
-    },
-    {
-      key: 'document_title',
-      label: 'Document',
-      width: 'max-w-[250px] sm:max-w-[350px] md:max-w-[450px]',
-      cellClassName: 'max-w-[250px] sm:max-w-[350px] md:max-w-[450px]',
-      render: (chunk) => (
-        <div className="truncate">
-          {chunk.source_url ? (
-            chunk.source_url.includes('clickup.com') ||
-            chunk.source_url.includes('app.clickup.com') ? (
-              <div className="flex items-center gap-2">
-                <span className="font-medium truncate">
-                  {chunk.document_title}
-                </span>
-                <a
-                  href={chunk.source_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-sm transition-colors link hover:link-primary shrink-0"
-                  title={chunk.source_url}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Icon
-                    icon="simple-icons--clickup"
-                    className="w-3.5 h-3.5 text-purple-500"
-                  />
-                  <span>Link</span>
-                </a>
-              </div>
-            ) : (
-              <a
-                href={chunk.source_url}
-                target="_blank"
-                className="link truncate block"
-                rel="noreferrer"
-                title={chunk.source_url}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {chunk.document_title}
-              </a>
-            )
-          ) : (
-            <span className="font-medium truncate block">
-              {chunk.document_title}
-            </span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'text',
-      label: 'Length',
-      width: 'w-32',
-      render: (chunk) => (
-        <span>{chunk.text.length.toLocaleString()} chars</span>
-      ),
-    },
-    {
-      key: 'created_at',
-      label: 'Created',
-      cellClassName: 'whitespace-nowrap',
-      render: (chunk) => (
-        <span>{new Date(chunk.created_at).toLocaleString()}</span>
-      ),
-    },
-  ];
+    return Array.from(groups.values());
+  }, [data]);
 
-  const rowActions: RowAction<ChunkRow>[] = [
-    {
-      label: 'Preview',
-      icon: 'lucide--eye',
-      variant: 'ghost',
-      size: 'xs',
-      onAction: (chunk) => setPreview(chunk),
-    },
-  ];
+  const toggleDocument = (documentId: string) => {
+    const next = new Set(expandedDocs);
+    if (next.has(documentId)) {
+      next.delete(documentId);
+    } else {
+      next.add(documentId);
+    }
+    setExpandedDocs(next);
+  };
+
+  const renderEmbeddingStatus = (hasEmbedding: boolean) => {
+    if (hasEmbedding) {
+      return (
+        <Icon
+          icon="lucide--check-circle"
+          className="w-5 h-5 text-success"
+          title="Embedded"
+        />
+      );
+    }
+    return (
+      <Icon
+        icon="lucide--clock"
+        className="w-5 h-5 text-warning"
+        title="Pending"
+      />
+    );
+  };
+
+  const renderEmbeddingStats = (embeddedChunks: number, chunkCount: number) => {
+    const hasAll = embeddedChunks === chunkCount;
+    return (
+      <div className="flex items-center gap-2">
+        {hasAll ? (
+          <Icon
+            icon="lucide--check-circle"
+            className="w-5 h-5 text-success"
+            title="All embedded"
+          />
+        ) : (
+          <Icon
+            icon="lucide--clock"
+            className="w-5 h-5 text-warning"
+            title="Partially embedded"
+          />
+        )}
+        <span className="text-sm">
+          {embeddedChunks}/{chunkCount}
+        </span>
+      </div>
+    );
+  };
 
   return (
     <div data-testid="page-chunks" className="w-full px-4">
@@ -262,44 +157,113 @@ export default function ChunksPage() {
         </p>
       </div>
 
-      {/* DataTable */}
-      <DataTable
-        data={data?.items || []}
-        columns={columns}
-        loading={loading}
-        error={error}
-        rowActions={rowActions}
-        useDropdownActions={true}
-        onRowClick={(chunk) => setPreview(chunk)}
-        enableSearch={true}
-        searchPlaceholder="Search chunks..."
-        getSearchText={(chunk) => `${chunk.document_title} ${chunk.text}`}
-        emptyMessage="No chunks found"
-        noResultsMessage="No chunks match your search"
-      />
+      {/* Loading State */}
+      {loading && (
+        <div className="flex justify-center items-center py-12">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      )}
 
-      {/* Pagination */}
-      {!loading && !error && data && data.total > 0 && (
-        <div className="flex justify-between items-center mt-4">
-          <div className="opacity-70">
-            Page {data.page} of {totalPages} • {data.total} results
-          </div>
-          <div className="join">
-            <button
-              className="btn btn-sm join-item"
-              disabled={page <= 1}
-              onClick={() => updateParam('page', String(page - 1))}
-            >
-              Prev
-            </button>
-            <button
-              className="btn btn-sm join-item"
-              disabled={page >= totalPages}
-              onClick={() => updateParam('page', String(page + 1))}
-            >
-              Next
-            </button>
-          </div>
+      {/* Error State */}
+      {error && (
+        <div className="alert alert-error">
+          <Icon icon="lucide--alert-circle" className="w-5 h-5" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Table */}
+      {!loading && !error && (
+        <div className="overflow-x-auto">
+          <table className="table table-zebra">
+            <thead>
+              <tr>
+                <th className="w-12"></th>
+                <th>Document</th>
+                <th className="w-32">Chars</th>
+                <th className="w-32">Embeddings</th>
+                <th className="w-24">Chunks</th>
+                <th className="w-24">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {documentGroups.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="text-center py-8 text-base-content/70"
+                  >
+                    No chunks found
+                  </td>
+                </tr>
+              )}
+              {documentGroups.map((doc) => {
+                const isExpanded = expandedDocs.has(doc.documentId);
+                return (
+                  <>
+                    {/* Document Row */}
+                    <tr
+                      key={doc.documentId}
+                      className="hover cursor-pointer font-medium"
+                      onClick={() => toggleDocument(doc.documentId)}
+                    >
+                      <td>
+                        <Icon
+                          icon={
+                            isExpanded
+                              ? 'lucide--chevron-down'
+                              : 'lucide--chevron-right'
+                          }
+                          className="w-5 h-5"
+                        />
+                      </td>
+                      <td className="truncate max-w-md">{doc.documentTitle}</td>
+                      <td>{doc.totalChars.toLocaleString()}</td>
+                      <td>
+                        {renderEmbeddingStats(
+                          doc.embeddedChunks,
+                          doc.chunkCount
+                        )}
+                      </td>
+                      <td>{doc.chunkCount}</td>
+                      <td></td>
+                    </tr>
+
+                    {/* Chunk Rows (when expanded) */}
+                    {isExpanded &&
+                      doc.chunks.map((chunk) => (
+                        <tr
+                          key={chunk.id}
+                          className="hover"
+                          onClick={() => setPreview(chunk)}
+                        >
+                          <td></td>
+                          <td className="pl-8 text-sm text-base-content/70">
+                            Chunk #{chunk.index}
+                          </td>
+                          <td className="text-sm">
+                            {chunk.size.toLocaleString()}
+                          </td>
+                          <td>{renderEmbeddingStatus(chunk.hasEmbedding)}</td>
+                          <td></td>
+                          <td>
+                            <button
+                              className="btn btn-ghost btn-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreview(chunk);
+                              }}
+                            >
+                              <Icon icon="lucide--eye" className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -307,9 +271,9 @@ export default function ChunksPage() {
       {preview && (
         <dialog className="modal" open>
           <div className="max-w-3xl modal-box">
-            <h3 className="card-title">{preview.document_title}</h3>
+            <h3 className="card-title">{preview.documentTitle}</h3>
             <div className="opacity-70 mt-2 text-sm">
-              Chunk #{preview.chunk_index}
+              Chunk #{preview.index} • {preview.size.toLocaleString()} chars
             </div>
             <pre className="mt-4 text-sm whitespace-pre-wrap">
               {preview.text}

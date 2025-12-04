@@ -13,6 +13,10 @@ interface ChunkRow {
   embedding: number[] | null;
   filename: string | null;
   source_url: string | null;
+  created_at: string;
+  total_chars?: number;
+  chunk_count?: number;
+  embedded_chunks?: number;
 }
 
 @Injectable()
@@ -27,12 +31,15 @@ export class ChunksService {
     // Use raw SQL with DatabaseService.query() to leverage RLS enforcement
     const queryFn = async () => {
       const result = await this.db.query<ChunkRow>(
-        `SELECT c.id, c.document_id, c.chunk_index, c.text, c.embedding,
-                d.filename, d.source_url
+        `SELECT c.id, c.document_id, c.chunk_index, c.text, c.embedding, c.created_at,
+                d.filename, d.source_url,
+                SUM(LENGTH(c.text)) OVER (PARTITION BY c.document_id) as total_chars,
+                COUNT(*) OVER (PARTITION BY c.document_id) as chunk_count,
+                COUNT(c.embedding) OVER (PARTITION BY c.document_id) as embedded_chunks
          FROM kb.chunks c
          INNER JOIN kb.documents d ON c.document_id = d.id
          WHERE ($1::uuid IS NULL OR c.document_id = $1)
-         ORDER BY c.created_at ASC, c.chunk_index ASC`,
+         ORDER BY d.created_at DESC, c.chunk_index ASC`,
         [documentId || null]
       );
       return result.rows;
@@ -51,6 +58,10 @@ export class ChunksService {
       size: row.text?.length || 0,
       hasEmbedding: !!row.embedding,
       text: row.text,
+      createdAt: row.created_at,
+      totalChars: row.total_chars,
+      chunkCount: row.chunk_count,
+      embeddedChunks: row.embedded_chunks,
     }));
   }
 }
