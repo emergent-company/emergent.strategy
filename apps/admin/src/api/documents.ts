@@ -149,6 +149,19 @@ export interface DocumentsClient {
    * Bulk delete documents with cascade
    */
   bulkDeleteDocuments(documentIds: string[]): Promise<BulkDeletionSummary>;
+
+  /**
+   * Recreate chunks for a document using project chunking config
+   */
+  recreateChunks(documentId: string): Promise<{
+    status: 'success';
+    summary: {
+      oldChunks: number;
+      newChunks: number;
+      strategy: string;
+      config: any;
+    };
+  }>;
 }
 
 /**
@@ -210,6 +223,21 @@ export function createDocumentsClient(
       return fetchJson<BulkDeletionSummary>(url, {
         method: 'DELETE',
         body: { ids: documentIds },
+      });
+    },
+
+    async recreateChunks(documentId: string) {
+      const url = `${apiBase}/api/documents/${documentId}/recreate-chunks`;
+      return fetchJson<{
+        status: 'success';
+        summary: {
+          oldChunks: number;
+          newChunks: number;
+          strategy: string;
+          config: any;
+        };
+      }>(url, {
+        method: 'POST',
       });
     },
   };
