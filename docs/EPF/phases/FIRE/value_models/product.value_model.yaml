@@ -1,0 +1,17 @@
+# The Product Value Model defines the value your product delivers to users.
+# It is tech-agnostic and should be built from scratch for your specific product.
+# Its structure (Layers, Components, Sub-components) forms the sections of your living Product Requirement Document (PRD).
+track_name: "Product"
+version: "1.0.0"
+status: "placeholder"
+description: "This is a placeholder for the Product Value Model. It should be developed from scratch for your specific product."
+high_level_model:
+  product_mission: ""
+  main_goal: ""
+  product_goals: []
+  value_delivery_description: []
+  needs_addressed: []
+  values_delivered: []
+  solution_steps: []
+activation_notes: "This is a comprehensive map of potential value. Flip `active: true` on L3 sub-components as you decide to invest in them. Start narrow and focused."
+layers: []
