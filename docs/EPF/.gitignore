@@ -1,0 +1,22 @@
+# EPF Framework .gitignore
+# This is the CANONICAL EPF repo - instances should NOT be here
+
+# Instance folders - always ignored in canonical repo
+# Each product repo has its own instances in _instances/{product-name}/
+_instances/*
+!_instances/README.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Temporary files
+*.tmp
+*.temp

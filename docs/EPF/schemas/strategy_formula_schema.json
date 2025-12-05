@@ -1,0 +1,141 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Strategy Formula Schema",
+  "description": "Defines the structure for documenting the winning formula in the STRATEGY phase.",
+  "type": "object",
+  "properties": {
+    "strategy": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the strategy"
+        },
+        "opportunity_id": {
+          "type": "string",
+          "description": "Reference to the opportunity this strategy addresses"
+        },
+        "title": {
+          "type": "string"
+        },
+        "positioning": {
+          "type": "object",
+          "properties": {
+            "unique_value_proposition": {
+              "type": "string"
+            },
+            "target_customer_profile": {
+              "type": "string"
+            },
+            "category": {
+              "type": "string"
+            }
+          },
+          "required": ["unique_value_proposition", "target_customer_profile"]
+        },
+        "competitive_moat": {
+          "type": "object",
+          "properties": {
+            "advantages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "differentiation": {
+              "type": "string"
+            },
+            "barriers_to_entry": {
+              "type": "string"
+            }
+          }
+        },
+        "value_creation": {
+          "type": "object",
+          "properties": {
+            "user_journey": {
+              "type": "string"
+            },
+            "key_capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "value_drivers": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": ["key_capabilities"]
+        },
+        "business_model": {
+          "type": "object",
+          "properties": {
+            "revenue_model": {
+              "type": "string"
+            },
+            "pricing_strategy": {
+              "type": "string"
+            },
+            "unit_economics": {
+              "type": "string"
+            },
+            "growth_engines": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "trade_offs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "decision": {
+                "type": "string"
+              },
+              "rationale": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "risk": {
+                "type": "string"
+              },
+              "mitigation": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "validated", "active", "superseded"]
+        },
+        "confidence_level": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        }
+      },
+      "required": ["id", "opportunity_id", "title", "positioning", "value_creation", "status"]
+    }
+  },
+  "required": ["strategy"]
+}

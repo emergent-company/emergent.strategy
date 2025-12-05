@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Assessment Report Schema",
+  "description": "Defines the structure for cycle assessment reports based on roadmap execution. Assessments focus on OKR/KR-level outcomes and assumption validation. Work package outcomes are tracked in spec-driven development tools.",
+  "type": "object",
+  "properties": {
+    "roadmap_id": {
+      "type": "string",
+      "description": "Reference to the roadmap being assessed"
+    },
+    "cycle": {
+      "type": "integer"
+    },
+    "okr_assessments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "okr_id": {
+            "type": "string",
+            "description": "Reference to the OKR being assessed"
+          },
+          "assessment": {
+            "type": "string",
+            "description": "Overall assessment narrative"
+          },
+          "key_result_outcomes": {
+            "type": "array",
+            "description": "Outcomes for each Key Result under this OKR",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kr_id": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                },
+                "actual": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": ["exceeded", "met", "partially_met", "missed"]
+                },
+                "learnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": ["kr_id", "status"]
+            }
+          },
+          "data_summary": {
+            "type": "object",
+            "properties": {
+              "quantitative": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "metric": {
+                      "type": "string"
+                    },
+                    "target": {
+                      "type": "string"
+                    },
+                    "actual": {
+                      "type": "string"
+                    },
+                    "variance": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "qualitative": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "insight": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "cross_functional_insights": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["okr_id", "assessment"]
+      }
+    },
+    "assumption_validations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["validated", "invalidated", "inconclusive", "pending"]
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "confidence_change": {
+            "type": "string",
+            "enum": ["increased", "decreased", "no change"]
+          }
+        },
+        "required": ["id", "status"]
+      }
+    },
+    "strategic_insights": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "next_cycle_recommendations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": ["roadmap_id", "cycle", "okr_assessments", "assumption_validations"]
+}

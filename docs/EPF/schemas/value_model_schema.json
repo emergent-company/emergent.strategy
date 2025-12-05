@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Value Model Schema",
+  "description": "Defines the structure for value models across all tracks.",
+  "type": "object",
+  "properties": {
+    "track_name": {
+      "type": "string",
+      "enum": ["Product", "Strategy", "OrgOps", "Commercial"],
+      "description": "The value track this model represents"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version of the value model"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "placeholder", "deprecated"],
+      "description": "Current status of the value model"
+    },
+    "description": {
+      "type": "string",
+      "description": "High-level description of what this track delivers"
+    },
+    "packaged_default": {
+      "type": "boolean",
+      "description": "Whether this is a canonical default model"
+    },
+    "activation_notes": {
+      "type": "string",
+      "description": "Instructions for activating components"
+    },
+    "high_level_model": {
+      "type": "object",
+      "description": "Product-specific high-level model structure"
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the L1 layer"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the layer"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the layer's purpose"
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Unique identifier for the L2 component"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Name of the component"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Description of the component"
+                },
+                "sub_components": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the L3 sub-component"
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Name of the sub-component"
+                      },
+                      "active": {
+                        "type": "boolean",
+                        "description": "Whether this sub-component is actively being built"
+                      },
+                      "premium": {
+                        "type": "boolean",
+                        "description": "Whether this is a premium feature"
+                      },
+                      "uvp": {
+                        "type": "string",
+                        "description": "Unique value proposition"
+                      }
+                    },
+                    "required": ["id", "name", "active"]
+                  }
+                }
+              },
+              "required": ["id", "name"]
+            }
+          }
+        },
+        "required": ["id", "name"]
+      }
+    }
+  },
+  "required": ["track_name", "version", "status", "description"]
+}
