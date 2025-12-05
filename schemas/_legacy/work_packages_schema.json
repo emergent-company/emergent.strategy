@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Work Packages Schema",
+  "description": "Defines the structure for work packages.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Unique identifier for the work package"
+      },
+      "name": {
+        "type": "string",
+        "description": "Name of the work package"
+      },
+      "description": {
+        "type": "string",
+        "description": "Detailed description of the work"
+      },
+      "owner": {
+        "type": "string",
+        "description": "Person or team responsible"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["ready", "in_progress", "completed", "blocked"],
+        "description": "Current status of the work package"
+      },
+      "output": {
+        "type": "string",
+        "description": "Expected measurable output"
+      }
+    },
+    "required": ["id", "name", "description", "owner", "status", "output"]
+  }
+}

@@ -1,0 +1,63 @@
+# This is the default, canonical value model for the Strategy track.
+# It provides a comprehensive starting point for most organizations.
+# The sections here form the basis of the living Strategy Requirement Document (SRD).
+
+track_name: "Strategy"
+version: "1.0.0"
+status: "active"
+description: "Defines, communicates, and executes the company's overarching strategy."
+packaged_default: true
+activation_notes: 'Flip `active: true` on L3 sub-components as you invest. Start narrow.'
+layers:
+  - id: STRATEGY-L1-strategic-roadmap
+    name: STRATEGIC ROADMAP
+    description: "Long-term vision, high-level goals, and strategic initiatives."
+    components:
+      - id: STRATEGY-L2-vision-mission
+        name: Vision & Mission
+        description: "The company's purpose and long-term aspirations."
+        sub_components:
+          - id: STRATEGY-L3-vision-statement
+            name: Vision Statement
+            active: false
+          - id: STRATEGY-L3-mission-statement
+            name: Mission Statement
+            active: false
+      - id: STRATEGY-L2-strategic-objectives
+        name: Strategic Objectives
+        description: "High-level goals aligned with the vision."
+        sub_components:
+          - id: STRATEGY-L3-annual-objectives
+            name: Annual Objectives
+            active: false
+          - id: STRATEGY-L3-quarterly-okrs
+            name: Quarterly OKRs
+            active: false
+  - id: STRATEGY-L1-tactical-roadmap
+    name: TACTICAL ROADMAP
+    description: "Near-term execution plans and initiatives."
+    components:
+      - id: STRATEGY-L2-product-roadmap
+        name: Product Roadmap
+        description: "Planned product development initiatives."
+        sub_components:
+          - id: STRATEGY-L3-feature-prioritization
+            name: Feature Prioritization
+            active: false
+          - id: STRATEGY-L3-release-planning
+            name: Release Planning
+            active: false
+  - id: STRATEGY-L1-strategic-communications
+    name: STRATEGIC COMMUNICATIONS
+    description: "How strategy is communicated internally and externally."
+    components:
+      - id: STRATEGY-L2-internal-comms
+        name: Internal Communications
+        description: "Keeping the team aligned on strategic direction."
+        sub_components:
+          - id: STRATEGY-L3-all-hands-meetings
+            name: All-Hands Meetings
+            active: false
+          - id: STRATEGY-L3-strategy-docs
+            name: Strategy Documents
+            active: false

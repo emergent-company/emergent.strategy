@@ -1,0 +1,14 @@
+# This is a placeholder for a canonical state machine definition.
+name: "Example State Machine"
+initial_state: "StateA"
+states:
+  - "StateA"
+  - "StateB"
+  - "StateC"
+transitions:
+  - name: "GOTO_B"
+    from: "StateA"
+    to: "StateB"
+  - name: "GOTO_C"
+    from: "StateB"
+    to: "StateC"

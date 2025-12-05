@@ -1,0 +1,581 @@
+# EPF Integration Specification
+# Machine-readable contract for spec-driven development tools
+# Version: 1.4.0 (EPF v1.9.7)
+
+specification:
+  name: "EPF Tool Integration Specification"
+  version: "1.4.0"
+  epf_version: "1.9.7"
+  purpose: |
+    This file defines the interface contract between the Emergent Product Framework (EPF)
+    and any spec-driven software development tool (e.g., OpenSpec, SpecIt, AI coding agents).
+    Tools should read this file to understand what EPF provides and what is expected of them.
+
+# ============================================================================
+# SECTION 1: WORK HIERARCHY AND HANDOFF POINT
+# ============================================================================
+
+work_hierarchy:
+  description: |
+    EPF and spec-driven tools have a clear division of responsibility.
+    EPF owns strategic planning (O → KR → Feature Definitions).
+    Tools own implementation details (Work Packages → Tasks).
+
+  hierarchy:
+    - level: "Objective (O)"
+      owner: "EPF"
+      description: |
+        Strategic direction. Answers "What are we trying to achieve?"
+        Example: "Position Huma as market-leading TES solution"
+      location: "05_roadmap_recipe.yaml → tracks.{track}.okrs[].objective"
+
+    - level: "Key Result (KR)"
+      owner: "EPF"
+      description: |
+        Measurable milestone toward the objective. The "meta work package" that
+        gets handed off to spec-driven tools. KRs define WHAT success looks like.
+        Example: "Achieve TRL 6 for LMC technology by Q2"
+      location: "05_roadmap_recipe.yaml → tracks.{track}.okrs[].key_results[]"
+
+    - level: "Feature Definition (FD)"
+      owner: "EPF (interface layer)"
+      description: |
+        Detailed specification of a product capability. Feature definitions
+        are the PRIMARY INTERFACE consumed by spec-driven tools.
+        They translate KR intent into capabilities, scenarios, and boundaries.
+        Example: "fd-001: Digital Twin Ecosystem"
+      location: "_instances/{product}/feature_definitions/{feature-slug}.yaml"
+
+    - level: "Work Package"
+      owner: "Spec-Driven Tool"
+      description: |
+        Implementation unit created by spec tools. Work packages decompose
+        feature definitions into buildable components.
+        Example: "Implement real-time sensor data ingestion pipeline"
+      location: "Defined by spec tool (e.g., OpenSpec specs, GitHub issues)"
+
+    - level: "Task"
+      owner: "Spec-Driven Tool"
+      description: |
+        Atomic implementation unit. Individual coding tasks, tests,
+        documentation items, etc.
+        Example: "Create WebSocket handler for sensor updates"
+      location: "Defined by spec tool (e.g., task tracker, PR descriptions)"
+
+  handoff_diagram: |
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                           EPF DOMAIN                                     │
+    │  ┌─────────────┐                                                        │
+    │  │  Objective  │  "What are we trying to achieve?"                      │
+    │  └──────┬──────┘                                                        │
+    │         │                                                               │
+    │  ┌──────▼──────┐                                                        │
+    │  │ Key Results │  "Measurable milestone" (the meta work package)        │
+    │  └──────┬──────┘                                                        │
+    │         │                                                               │
+    │  ┌──────▼──────────────┐                                                │
+    │  │ Feature Definitions │  "Capabilities, scenarios, boundaries"         │
+    │  └──────┬──────────────┘                                                │
+    ├─────────┼───────────────────────────────────────────────────────────────┤
+    │         │            ▼▼▼ HANDOFF POINT ▼▼▼                              │
+    ├─────────┼───────────────────────────────────────────────────────────────┤
+    │         │                    SPEC-DRIVEN TOOL DOMAIN                    │
+    │  ┌──────▼──────────┐                                                    │
+    │  │  Work Packages  │  "How do we break this into buildable units?"      │
+    │  └──────┬──────────┘                                                    │
+    │         │                                                               │
+    │  ┌──────▼──────┐                                                        │
+    │  │    Tasks    │  "What are the atomic implementation steps?"           │
+    │  └─────────────┘                                                        │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+  key_principles:
+    - principle: "KRs are the meta work packages"
+      description: |
+        Key Results define measurable milestones. They are what gets handed off
+        to spec-driven tools. EPF does not decompose KRs into work packages -
+        that's the tool's responsibility.
+
+    - principle: "Feature definitions are the interface"
+      description: |
+        Feature definitions translate KR intent into something spec-driven
+        tools can parse: capabilities, scenarios, acceptance criteria.
+        They are the "API" between EPF and implementation.
+
+    - principle: "Work packages and tasks are tool domain"
+      description: |
+        EPF does NOT define work packages or tasks. These are implementation
+        concepts that belong entirely to spec-driven tools. EPF hands off
+        at the feature definition level.
+
+# ============================================================================
+# SECTION 2: WHAT EPF PROVIDES (Inputs to Spec-Driven Tools)
+# ============================================================================
+
+epf_provides:
+  description: |
+    EPF is the STRATEGIC layer. It answers WHY something is valuable and WHAT should be built.
+    It does NOT prescribe HOW to implement. Spec-driven tools consume EPF artifacts and
+    translate strategic intent into implementation specifications.
+
+  primary_artifact:
+    name: "Feature Definition"
+    location: "_instances/{product}/feature_definitions/{feature-slug}.yaml"
+    schema: "schemas/feature_definition_schema.json"
+    description: |
+      The primary handoff artifact from EPF to implementation tools.
+      Contains strategic context, job-to-be-done, capabilities, scenarios, and boundaries.
+
+  supporting_artifacts:
+    - name: "Value Model"
+      location: "_instances/{product}/value_models/*.yaml"
+      purpose: |
+        Explains WHY each capability is valuable. Use `contributes_to` paths in feature
+        definitions to look up the value proposition for each component.
+      
+    - name: "Roadmap"
+      location: "_instances/{product}/05_roadmap_recipe.yaml"
+      purpose: |
+        Provides timeline context, OKR structure, and assumptions being tested.
+        Feature definitions reference assumptions via `assumptions_tested`.
+
+    - name: "Strategy Formula"
+      location: "_instances/{product}/04_strategy_formula.yaml"
+      purpose: |
+        Provides competitive context, differentiation strategy, and business model.
+        Useful for understanding why certain capabilities are prioritized.
+
+    - name: "North Star"
+      location: "_instances/{product}/00_north_star.yaml"
+      purpose: |
+        Organizational purpose, vision, mission, and values.
+        The highest-level context for all decisions.
+
+# ============================================================================
+# SECTION 2: WHAT EPF EXPECTS (Outputs from Spec-Driven Tools)
+# ============================================================================
+
+epf_expects:
+  description: |
+    EPF is tool-agnostic. It does not prescribe which tools consume feature definitions.
+    However, EPF expects spec-driven tools to:
+    1. Parse feature definitions as the source of truth for WHAT to build
+    2. Maintain traceability back to EPF artifacts
+    3. Not duplicate strategic context (reference, don't copy)
+
+  traceability_requirements:
+    - requirement: "Reference feature definition IDs"
+      description: |
+        Implementation specs should reference the EPF feature definition ID (e.g., `fd-001`)
+        so changes can be traced bidirectionally.
+    
+    - requirement: "Preserve capability mapping"
+      description: |
+        When implementing a capability (e.g., `cap-001`), maintain the link so validation
+        can verify that all capabilities are addressed.
+    
+    - requirement: "Link scenarios to tests"
+      description: |
+        EPF scenarios (e.g., `scn-001`) describe user-level acceptance criteria.
+        Implementation tests should reference these scenario IDs.
+
+  anti_patterns:
+    - pattern: "Duplicating strategic context"
+      description: |
+        Don't copy job-to-be-done, value propositions, or strategic rationale into
+        implementation specs. Reference EPF as the source of truth.
+    
+    - pattern: "Ignoring boundaries"
+      description: |
+        EPF feature definitions include explicit non-goals and constraints.
+        Implementation tools should surface these as guardrails.
+    
+    - pattern: "Overriding EPF decisions"
+      description: |
+        If implementation reveals that an EPF assumption is wrong, feed this back
+        through EPF's AIM phase (calibration). Don't silently diverge.
+
+# ============================================================================
+# SECTION 3: INTERFACE CONTRACT
+# ============================================================================
+
+interface_contract:
+  description: |
+    This defines the "handshake" between EPF and spec-driven tools.
+
+  feature_definition_contract:
+    required_fields_for_tools:
+      - field: "id"
+        purpose: "Unique identifier for traceability (e.g., fd-001)"
+      - field: "name"
+        purpose: "Human-readable feature name"
+      - field: "status"
+        purpose: "draft|ready|in-progress|delivered - tools should only implement 'ready' or later"
+      - field: "definition.job_to_be_done"
+        purpose: "The core user need - use for test scenario framing"
+      - field: "definition.capabilities"
+        purpose: "List of capabilities to implement - each gets own spec/component"
+      - field: "implementation.scenarios"
+        purpose: "User scenarios with acceptance criteria - map to E2E tests"
+      - field: "boundaries.non_goals"
+        purpose: "What NOT to build - use as implementation guardrails"
+      - field: "boundaries.constraints"
+        purpose: "Technical/business limits - use as design constraints"
+
+    optional_fields_for_context:
+      - field: "strategic_context.contributes_to"
+        purpose: "Value model paths - look up for understanding WHY"
+      - field: "strategic_context.assumptions_tested"
+        purpose: "Roadmap assumptions - understand what success validates"
+      - field: "implementation.contexts"
+        purpose: "UI/API/notification contexts - map to implementation domains"
+      - field: "dependencies"
+        purpose: "Feature dependencies - inform implementation sequencing"
+
+  tool_output_expectations:
+    description: |
+      When a spec-driven tool processes an EPF feature definition, it should produce
+      implementation artifacts that:
+    
+    expectations:
+      - "Reference the EPF feature ID in generated specs"
+      - "Map capabilities to components/modules"
+      - "Map scenarios to test cases"
+      - "Respect non-goals as out-of-scope markers"
+      - "Surface constraints in technical design docs"
+      - "NOT regenerate or modify EPF artifacts"
+
+# ============================================================================
+# SECTION 4: RECOMMENDED TOOL BEHAVIORS
+# ============================================================================
+
+recommended_behaviors:
+  on_feature_definition_read:
+    - action: "Validate status"
+      detail: "Only process features with status 'ready' or 'in-progress'"
+    
+    - action: "Parse capabilities"
+      detail: "Create implementation backlog item for each capability"
+    
+    - action: "Parse scenarios"
+      detail: "Create test case skeleton for each scenario with acceptance criteria"
+    
+    - action: "Check dependencies"
+      detail: "Warn if required features (fd-XXX) are not yet delivered"
+    
+    - action: "Load boundaries"
+      detail: "Surface non-goals and constraints in implementation context"
+
+  on_implementation_complete:
+    - action: "Report capability coverage"
+      detail: "List which capabilities were implemented vs skipped"
+    
+    - action: "Link tests to scenarios"
+      detail: "Map test IDs to EPF scenario IDs for traceability"
+    
+    - action: "Suggest status update"
+      detail: "Recommend changing feature status to 'delivered' in EPF"
+
+  on_assumption_invalidation:
+    - action: "Flag for EPF review"
+      detail: |
+        If implementation reveals an assumption is wrong, create a note for
+        EPF's AIM phase rather than silently changing scope.
+
+# ============================================================================
+# SECTION 5: BI-DIRECTIONAL TRACEABILITY
+# ============================================================================
+
+bidirectional_traceability:
+  description: |
+    EPF and spec-driven tools maintain a two-way reference system.
+    EPF provides the WHAT (feature definitions), tools provide the HOW (specs).
+    Both sides maintain links to each other for complete traceability.
+
+  epf_to_tool:
+    description: |
+      EPF feature definitions can reference implementation artifacts created by tools.
+      This is stored in the `implementation_references` field of feature definitions.
+    
+    field_location: "feature_definitions/{feature}.yaml → implementation_references"
+    
+    schema:
+      implementation_references:
+        description: "Links to implementation specs created by external tools"
+        properties:
+          tool_name:
+            type: "string"
+            description: "Name of the spec-driven tool (e.g., 'openspec', 'specit', 'cursor-agent')"
+          specs:
+            type: "array"
+            description: "List of implementation specs created for this feature"
+            items:
+              id:
+                type: "string"
+                description: "Spec ID in the tool's system"
+              path:
+                type: "string"
+                description: "Relative path to spec file (from repo root)"
+              url:
+                type: "string"
+                description: "URL if hosted externally (GitHub issue, Notion, etc.)"
+              capability_coverage:
+                type: "array"
+                description: "Which EPF capabilities this spec implements"
+              status:
+                type: "string"
+                enum: ["planned", "in-progress", "implemented", "tested"]
+          last_sync:
+            type: "string"
+            format: "date-time"
+            description: "When implementation references were last updated"
+    
+    example: |
+      # In feature_definitions/digital-twin-ecosystem.yaml
+      implementation_references:
+        tool_name: "openspec"
+        specs:
+          - id: "spec-dt-001"
+            path: "openspec/specs/digital-twin-data-model.md"
+            capability_coverage: ["cap-001", "cap-002"]
+            status: "implemented"
+          - id: "spec-dt-002"
+            path: "openspec/specs/digital-twin-api.md"
+            capability_coverage: ["cap-003"]
+            status: "in-progress"
+        last_sync: "2025-12-01T10:30:00Z"
+
+  tool_to_epf:
+    description: |
+      Spec-driven tools should include EPF references in their artifacts.
+      This creates the reverse link for complete traceability.
+    
+    required_references:
+      - field: "epf_feature_id"
+        description: "The EPF feature definition ID (e.g., 'fd-001')"
+        example: "epf_feature_id: fd-001"
+      
+      - field: "epf_capabilities"
+        description: "List of EPF capability IDs this spec implements"
+        example: "epf_capabilities: [cap-001, cap-002]"
+      
+      - field: "epf_scenarios"
+        description: "List of EPF scenario IDs covered by tests in this spec"
+        example: "epf_scenarios: [scn-001, scn-002]"
+    
+    optional_references:
+      - field: "epf_kr"
+        description: "The Key Result this implementation contributes to"
+        example: "epf_kr: kr-p-001"
+      
+      - field: "epf_assumptions_tested"
+        description: "Which EPF assumptions this implementation helps validate"
+        example: "epf_assumptions_tested: [asm-001]"
+
+  sync_protocol:
+    description: |
+      Protocol for keeping EPF and tool references in sync.
+    
+    tool_responsibilities:
+      - responsibility: "Register specs with EPF"
+        description: |
+          When a tool creates implementation specs from an EPF feature definition,
+          it SHOULD update the feature definition's `implementation_references` field.
+          This can be done via:
+          - Direct file edit (if tool has repo access)
+          - PR/MR with the reference update
+          - API call (if EPF provides one in future)
+          - Manual notification to EPF maintainer
+      
+      - responsibility: "Update on status change"
+        description: |
+          When spec status changes (planned → in-progress → implemented → tested),
+          the tool should update the corresponding reference in EPF.
+      
+      - responsibility: "Report capability coverage"
+        description: |
+          After implementation, report which capabilities were fully covered,
+          partially covered, or descoped.
+    
+    epf_responsibilities:
+      - responsibility: "Provide stable IDs"
+        description: |
+          EPF must maintain stable IDs for features, capabilities, and scenarios.
+          ID changes require explicit migration (documented in calibration_memo).
+      
+      - responsibility: "Expose readiness"
+        description: |
+          EPF must clearly indicate which feature definitions are ready for
+          implementation (status: 'ready' or 'in-progress').
+      
+      - responsibility: "Accept reference updates"
+        description: |
+          EPF instances should accept updates to `implementation_references`
+          from spec-driven tools without requiring strategic approval.
+
+  coverage_tracking:
+    description: |
+      Track implementation coverage across features and capabilities.
+    
+    metrics:
+      - metric: "Feature Coverage"
+        description: "% of 'ready' features that have implementation_references"
+        calculation: "features_with_refs / features_ready"
+      
+      - metric: "Capability Coverage"
+        description: "% of capabilities across all features that are implemented"
+        calculation: "capabilities_in_specs / total_capabilities"
+      
+      - metric: "Scenario Coverage"
+        description: "% of scenarios that have linked tests"
+        calculation: "scenarios_with_tests / total_scenarios"
+    
+    reporting:
+      description: |
+        Tools can generate coverage reports to include in EPF's AIM phase.
+        This helps calibration_memo assess what was actually delivered.
+
+# ============================================================================
+# SECTION 6: FILE DISCOVERY
+# ============================================================================
+
+file_discovery:
+  description: |
+    How tools should discover EPF artifacts in a repository.
+
+  detection:
+    epf_root: "docs/EPF/"
+    instance_pattern: "docs/EPF/_instances/{product-name}/"
+    feature_definitions_dir: "docs/EPF/_instances/{product-name}/feature_definitions/"
+    
+  discovery_steps:
+    - step: 1
+      action: "Find EPF root"
+      detail: "Look for docs/EPF/ directory in repository"
+    
+    - step: 2
+      action: "Read integration spec"
+      detail: "Parse docs/EPF/integration_specification.yaml (this file)"
+    
+    - step: 3
+      action: "List instances"
+      detail: "Enumerate directories in docs/EPF/_instances/"
+    
+    - step: 4
+      action: "Read instance metadata"
+      detail: "Parse _meta.yaml in each instance for context"
+    
+    - step: 5
+      action: "List feature definitions"
+      detail: "Enumerate YAML files in feature_definitions/ directory"
+    
+    - step: 6
+      action: "Filter by status"
+      detail: "Only process features with status 'ready' or later"
+
+# ============================================================================
+# SECTION 7: VERSIONING AND COMPATIBILITY
+# ============================================================================
+
+versioning:
+  this_spec_version: "1.4.0"
+  epf_version_required: ">=1.9.6"
+  
+  compatibility_notes: |
+    - This specification is versioned independently from EPF
+    - Tools should check epf_version in _meta.yaml before processing
+    - Breaking changes to this spec will increment MAJOR version
+    - New optional fields increment MINOR version
+    
+  changelog:
+    - version: "1.4.0"
+      date: "2025-12-05"
+      changes: "Extended feature_definition_schema with value_propositions, architecture_patterns, design_guidance, enhanced contexts with key_elements/user_actions/data_displayed, jtbd_category for scenarios, and external_integrations"
+    - version: "1.3.0"
+      changes:
+        - "Added SECTION 5: Bi-directional Traceability"
+        - "Defined implementation_references field for feature definitions"
+        - "Defined sync protocol between EPF and spec-driven tools"
+        - "Added coverage tracking metrics"
+    - version: "1.2.0"
+      changes:
+        - "Updated work hierarchy to remove work_packages from EPF"
+        - "Clarified KRs as meta work packages"
+    - version: "1.1.0"
+      changes:
+        - "Initial integration specification"
+
+  migration_policy: |
+    If EPF evolves the feature definition schema, this integration spec
+    will document the changes and provide migration guidance.
+
+# ============================================================================
+# SECTION 8: EXAMPLE TOOL PROMPT
+# ============================================================================
+
+example_tool_prompt:
+  description: |
+    This is an example prompt that a spec-driven tool could use to configure
+    itself for EPF integration. Copy and adapt as needed.
+
+  prompt: |
+    You are a spec-driven development tool that consumes EPF (Emergent Product Framework)
+    feature definitions and produces implementation specifications.
+
+    ## Your Responsibilities
+    1. Read feature definitions from `docs/EPF/_instances/{product}/feature_definitions/`
+    2. Only process features with status "ready" or "in-progress"
+    3. For each feature:
+       - Create implementation specs for each capability in `definition.capabilities`
+       - Create test case skeletons for each scenario in `implementation.scenarios`
+       - Surface `boundaries.non_goals` as explicit out-of-scope markers
+       - Apply `boundaries.constraints` as design constraints
+
+    ## Traceability Rules
+    - Always reference EPF feature ID (e.g., "Implements fd-001")
+    - Map your specs to capability IDs (e.g., "cap-001 → ComponentX")
+    - Map your tests to scenario IDs (e.g., "scn-001 → test_user_can_...")
+
+    ## Bi-Directional Traceability (IMPORTANT)
+    When you create implementation specs, you MUST register them back with EPF:
+    
+    1. Update the feature definition's `implementation_references` field:
+       ```yaml
+       implementation_references:
+         tool_name: "your-tool-name"
+         specs:
+           - id: "your-spec-id"
+             path: "path/to/spec.md"
+             capability_coverage: ["cap-001", "cap-002"]
+             status: "in-progress"
+         last_sync: "2025-12-01T10:30:00Z"
+       ```
+    
+    2. Include EPF references in your specs:
+       ```yaml
+       # In your spec file header
+       epf_feature_id: fd-001
+       epf_capabilities: [cap-001, cap-002]
+       epf_scenarios: [scn-001]
+       epf_kr: kr-p-001
+       ```
+    
+    3. Update status as work progresses:
+       - planned → in-progress → implemented → tested
+
+    ## What You Do NOT Do
+    - Do not modify EPF strategic artifacts (roadmap, strategy, etc.)
+    - Do not duplicate strategic context (job-to-be-done, value propositions)
+    - Do not implement anything listed in non_goals
+    - Do not make strategic decisions - flag uncertainties for EPF review
+
+    ## When Implementation Reveals Problems
+    If you discover that an EPF assumption is incorrect or a capability is infeasible,
+    do NOT silently adjust scope. Instead:
+    1. Document the finding
+    2. Flag it for EPF's AIM phase (calibration_memo.yaml)
+    3. Continue with what IS feasible, clearly marking scope changes
+    4. Report partial coverage in implementation_references
+
+    ## Integration Specification
+    Read the full contract at: docs/EPF/integration_specification.yaml

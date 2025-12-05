@@ -1,0 +1,16 @@
+# This document creates a traceable link between the abstract value model and concrete implementation artifacts.
+# It is populated during the FIRE phase by the engineering team.
+# It ensures that every piece of code, design, or documentation has a clear purpose and can be traced back to the value it's intended to create.
+
+product:
+  - sub_component_id: "example.id.from.product.value.model"
+    artifacts:
+      - type: "code"
+        url: "https://github.com/org/repo/path/to/file.ts"
+        description: "Implementation of example feature"
+      - type: "design"
+        url: "https://figma.com/example"
+        description: "UI design for example feature"
+strategy: []
+org_ops: []
+commercial: []
