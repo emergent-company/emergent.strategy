@@ -1,0 +1,298 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Roadmap Recipe Schema",
+  "description": "Defines the structure for the complete roadmap in the ROADMAP phase.",
+  "type": "object",
+  "properties": {
+    "roadmap": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "strategy_id": {
+          "type": "string",
+          "description": "Reference to the strategy this roadmap implements"
+        },
+        "cycle": {
+          "type": "integer"
+        },
+        "timeframe": {
+          "type": "string"
+        },
+        "okrs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "objective": {
+                "type": "string"
+              },
+              "key_results": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "target": {
+                      "type": "string"
+                    },
+                    "measurement_method": {
+                      "type": "string"
+                    },
+                    "baseline": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["id", "description", "target"]
+                }
+              }
+            },
+            "required": ["id", "objective", "key_results"]
+          }
+        },
+        "riskiest_assumptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["desirability", "feasibility", "viability", "adaptability"]
+              },
+              "criticality": {
+                "type": "string",
+                "enum": ["high", "medium", "low"]
+              },
+              "confidence": {
+                "type": "string",
+                "enum": ["low", "medium", "high"]
+              },
+              "evidence_required": {
+                "type": "string"
+              },
+              "linked_to_kr": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["id", "description", "type", "criticality", "confidence"]
+          }
+        },
+        "solution_scaffold": {
+          "type": "object",
+          "properties": {
+            "description": {
+              "type": "string"
+            },
+            "key_components": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "purpose": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": ["must-have", "should-have", "could-have"]
+                  },
+                  "maps_to_value_model": {
+                    "type": "string"
+                  }
+                },
+                "required": ["id", "name", "purpose", "priority"]
+              }
+            },
+            "architecture_principles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "technical_constraints": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "work_packages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["discovery", "design", "build", "test", "launch"]
+              },
+              "description": {
+                "type": "string"
+              },
+              "owner": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["ready", "in_progress", "completed", "blocked", "cancelled"]
+              },
+              "services_kr": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "tests_assumptions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "builds_components": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "estimated_effort": {
+                "type": "string"
+              },
+              "dependencies": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "outputs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["artifact", "learning", "capability"]
+                    },
+                    "description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "definition_of_done": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "success_metrics": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["id", "name", "type", "description", "owner", "status"]
+          }
+        },
+        "execution_plan": {
+          "type": "object",
+          "properties": {
+            "sequencing_rationale": {
+              "type": "string"
+            },
+            "critical_path": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "parallel_tracks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "work_packages": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "key_milestones": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string"
+                  },
+                  "milestone": {
+                    "type": "string"
+                  },
+                  "deliverables": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "approved", "active", "completed", "cancelled"]
+        },
+        "approved_by": {
+          "type": ["string", "null"]
+        },
+        "approval_date": {
+          "type": ["string", "null"]
+        },
+        "start_date": {
+          "type": ["string", "null"]
+        },
+        "target_completion_date": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["id", "strategy_id", "cycle", "okrs", "riskiest_assumptions", "work_packages", "status"]
+    }
+  },
+  "required": ["roadmap"]
+}

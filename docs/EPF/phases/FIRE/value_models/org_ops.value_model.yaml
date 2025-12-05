@@ -1,0 +1,90 @@
+# This is the default, canonical value model for the Org & Ops track.
+# It provides a comprehensive starting point for most organizations.
+# The sections here form the basis of the living Org & Ops Requirement Document (ORD).
+
+track_name: "OrgOps"
+version: "1.0.0"
+status: "active"
+description: "Builds and maintains the company's operational and cultural engine."
+packaged_default: true
+activation_notes: 'Flip `active: true` on L3 sub-components as you invest. Start narrow.'
+layers:
+  - id: ORGOPS-L1-talent-management
+    name: TALENT MANAGEMENT
+    description: "Recruiting, developing, and retaining top talent."
+    components:
+      - id: ORGOPS-L2-recruitment
+        name: Recruitment
+        description: "Finding and hiring the right people."
+        sub_components:
+          - id: ORGOPS-L3-job-postings
+            name: Job Postings
+            active: false
+          - id: ORGOPS-L3-interview-process
+            name: Interview Process
+            active: false
+      - id: ORGOPS-L2-onboarding
+        name: Onboarding
+        description: "Getting new hires up to speed quickly."
+        sub_components:
+          - id: ORGOPS-L3-onboarding-docs
+            name: Onboarding Documentation
+            active: false
+          - id: ORGOPS-L3-mentor-assignment
+            name: Mentor Assignment
+            active: false
+  - id: ORGOPS-L1-culture-internal-communications
+    name: CULTURE & INTERNAL COMMUNICATIONS
+    description: "Building and maintaining company culture."
+    components:
+      - id: ORGOPS-L2-values
+        name: Company Values
+        description: "Defining and living the company values."
+        sub_components:
+          - id: ORGOPS-L3-values-definition
+            name: Values Definition
+            active: false
+  - id: ORGOPS-L1-financial-legal
+    name: FINANCIAL & LEGAL
+    description: "Managing finances and legal compliance."
+    components:
+      - id: ORGOPS-L2-accounting
+        name: Accounting
+        description: "Financial record keeping and reporting."
+        sub_components:
+          - id: ORGOPS-L3-bookkeeping
+            name: Bookkeeping
+            active: false
+  - id: ORGOPS-L1-facilities-it
+    name: FACILITIES & IT
+    description: "Physical and digital infrastructure."
+    components:
+      - id: ORGOPS-L2-it-infrastructure
+        name: IT Infrastructure
+        description: "Technology systems and support."
+        sub_components:
+          - id: ORGOPS-L3-hardware-provisioning
+            name: Hardware Provisioning
+            active: false
+  - id: ORGOPS-L1-company-governance-compliance
+    name: COMPANY GOVERNANCE & COMPLIANCE
+    description: "Corporate governance and regulatory compliance."
+    components:
+      - id: ORGOPS-L2-board-management
+        name: Board Management
+        description: "Managing board relationships and meetings."
+        sub_components:
+          - id: ORGOPS-L3-board-meetings
+            name: Board Meetings
+            active: false
+  - id: ORGOPS-L1-operational-structure
+    name: OPERATIONAL STRUCTURE
+    description: "How the company organizes its work."
+    components:
+      - id: ORGOPS-L2-team-structure
+        name: Team Structure
+        description: "Organizational design and reporting lines."
+        sub_components:
+          - id: ORGOPS-L3-org-chart
+            name: Organizational Chart
+            active: false

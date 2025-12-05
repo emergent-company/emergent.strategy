@@ -1,0 +1,344 @@
+#!/bin/bash
+# EPF Instance Validation Script
+# Version: 1.9.6
+# 
+# This script validates that an EPF instance follows the framework structure
+# and conventions. Run this script from the EPF root directory or pass the
+# path as an argument.
+#
+# Usage:
+#   ./scripts/validate-instance.sh [instance-path]
+#   ./scripts/validate-instance.sh _instances/my-product
+#
+# Exit codes:
+#   0 - All validations passed
+#   1 - Validation errors found
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Counters
+ERRORS=0
+WARNINGS=0
+PASSED=0
+
+# Helper functions
+log_error() {
+    echo -e "${RED}✗ ERROR:${NC} $1"
+    ((ERRORS++)) || true
+}
+
+log_warning() {
+    echo -e "${YELLOW}⚠ WARNING:${NC} $1"
+    ((WARNINGS++)) || true
+}
+
+log_pass() {
+    echo -e "${GREEN}✓${NC} $1"
+    ((PASSED++)) || true
+}
+
+log_info() {
+    echo -e "${BLUE}ℹ${NC} $1"
+}
+
+log_section() {
+    echo ""
+    echo -e "${BLUE}━━━ $1 ━━━${NC}"
+}
+
+# Determine the EPF root and instance path
+if [ -n "$1" ]; then
+    INSTANCE_PATH="$1"
+else
+    # Try to find instance path from current directory
+    if [ -d "_instances" ]; then
+        EPF_ROOT="."
+        # Find first instance
+        INSTANCE_PATH=$(find _instances -mindepth 1 -maxdepth 1 -type d | head -1)
+    elif [ -d "docs/EPF/_instances" ]; then
+        EPF_ROOT="docs/EPF"
+        INSTANCE_PATH=$(find docs/EPF/_instances -mindepth 1 -maxdepth 1 -type d | head -1)
+    else
+        echo "Usage: $0 <instance-path>"
+        echo "Example: $0 _instances/my-product"
+        exit 1
+    fi
+fi
+
+if [ ! -d "$INSTANCE_PATH" ]; then
+    log_error "Instance path does not exist: $INSTANCE_PATH"
+    exit 1
+fi
+
+INSTANCE_NAME=$(basename "$INSTANCE_PATH")
+
+echo ""
+echo "╔══════════════════════════════════════════════════════════════════╗"
+echo "║         EPF Instance Validation Script v1.9.6                    ║"
+echo "╚══════════════════════════════════════════════════════════════════╝"
+echo ""
+log_info "Validating instance: $INSTANCE_NAME"
+log_info "Instance path: $INSTANCE_PATH"
+
+# =============================================================================
+# Section 1: Required Files (READY Phase)
+# =============================================================================
+log_section "1. Required READY Phase Files"
+
+READY_FILES=(
+    "00_north_star.yaml"
+    "01_insight_analyses.yaml"
+    "02_strategy_foundations.yaml"
+    "03_insight_opportunity.yaml"
+    "04_strategy_formula.yaml"
+)
+
+# Note: 05_roadmap_recipe.yaml was replaced with 04_roadmap_recipe.yaml in v1.9.6
+# Check for either version
+for file in "${READY_FILES[@]}"; do
+    if [ -f "$INSTANCE_PATH/$file" ]; then
+        log_pass "Found: $file"
+    else
+        log_error "Missing required file: $file"
+    fi
+done
+
+# Special handling for roadmap (could be 04 or 05 depending on version)
+if [ -f "$INSTANCE_PATH/04_roadmap_recipe.yaml" ] || [ -f "$INSTANCE_PATH/05_roadmap_recipe.yaml" ]; then
+    log_pass "Found: roadmap_recipe.yaml (04 or 05 numbering)"
+else
+    log_error "Missing required file: roadmap_recipe.yaml"
+fi
+
+# =============================================================================
+# Section 2: Required Directories
+# =============================================================================
+log_section "2. Required Directories"
+
+REQUIRED_DIRS=(
+    "feature_definitions"
+    "value_models"
+)
+
+OPTIONAL_DIRS=(
+    "workflows"
+    "cycles"
+)
+
+for dir in "${REQUIRED_DIRS[@]}"; do
+    if [ -d "$INSTANCE_PATH/$dir" ]; then
+        log_pass "Found directory: $dir/"
+    else
+        log_error "Missing required directory: $dir/"
+    fi
+done
+
+for dir in "${OPTIONAL_DIRS[@]}"; do
+    if [ -d "$INSTANCE_PATH/$dir" ]; then
+        log_pass "Found optional directory: $dir/"
+    else
+        log_warning "Optional directory not found: $dir/"
+    fi
+done
+
+# =============================================================================
+# Section 3: Feature Definition Format Validation
+# =============================================================================
+log_section "3. Feature Definition Format"
+
+FD_DIR="$INSTANCE_PATH/feature_definitions"
+if [ -d "$FD_DIR" ]; then
+    # Check for YAML files (should NOT exist)
+    YAML_COUNT=$(find "$FD_DIR" -maxdepth 1 -name "*.yaml" -o -name "*.yml" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$YAML_COUNT" -gt 0 ]; then
+        log_error "Feature definitions MUST be Markdown (.md), not YAML. Found $YAML_COUNT YAML files."
+        find "$FD_DIR" -maxdepth 1 \( -name "*.yaml" -o -name "*.yml" \) -exec echo "  - {}" \;
+    else
+        log_pass "No YAML files in feature_definitions (correct)"
+    fi
+    
+    # Check for Markdown files
+    MD_COUNT=$(find "$FD_DIR" -maxdepth 1 -name "*.md" ! -name "README.md" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$MD_COUNT" -gt 0 ]; then
+        log_pass "Found $MD_COUNT Markdown feature definition(s)"
+        
+        # Validate naming convention
+        for md_file in "$FD_DIR"/*.md; do
+            [ -f "$md_file" ] || continue
+            filename=$(basename "$md_file")
+            [ "$filename" = "README.md" ] && continue
+            
+            if [[ "$filename" =~ ^feature_definition_[a-z0-9_]+\.md$ ]]; then
+                log_pass "Correct naming: $filename"
+            else
+                log_warning "Non-standard naming: $filename (expected: feature_definition_{slug}.md)"
+            fi
+        done
+        
+        # Validate required sections in each feature definition
+        for md_file in "$FD_DIR"/*.md; do
+            [ -f "$md_file" ] || continue
+            filename=$(basename "$md_file")
+            [ "$filename" = "README.md" ] && continue
+            
+            # Check for required sections
+            if grep -q "## 1\. Background" "$md_file" && \
+               grep -q "## 2\. WHY" "$md_file" && \
+               grep -q "## 3\. HOW" "$md_file" && \
+               grep -q "## 4\. WHAT" "$md_file"; then
+                log_pass "Required sections present in: $filename"
+            else
+                log_error "Missing required sections in: $filename (needs: 1. Background, 2. WHY, 3. HOW, 4. WHAT)"
+            fi
+        done
+    else
+        log_warning "No feature definitions found in $FD_DIR"
+    fi
+else
+    log_error "feature_definitions directory not found"
+fi
+
+# =============================================================================
+# Section 4: Value Models Validation
+# =============================================================================
+log_section "4. Value Models"
+
+VM_DIR="$INSTANCE_PATH/value_models"
+if [ -d "$VM_DIR" ]; then
+    VM_COUNT=$(find "$VM_DIR" -maxdepth 1 -name "*.yaml" -o -name "*.yml" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$VM_COUNT" -gt 0 ]; then
+        log_pass "Found $VM_COUNT value model file(s)"
+    else
+        log_warning "No value model files found in $VM_DIR"
+    fi
+else
+    log_error "value_models directory not found"
+fi
+
+# =============================================================================
+# Section 5: Meta and Documentation Files
+# =============================================================================
+log_section "5. Meta and Documentation"
+
+META_FILES=(
+    "_meta.yaml"
+)
+
+DOC_FILES=(
+    "README.md"
+)
+
+for file in "${META_FILES[@]}"; do
+    if [ -f "$INSTANCE_PATH/$file" ]; then
+        log_pass "Found: $file"
+        
+        # Check EPF version in _meta.yaml
+        if [ "$file" = "_meta.yaml" ]; then
+            if grep -q "epf_version:" "$INSTANCE_PATH/$file"; then
+                VERSION=$(grep "epf_version:" "$INSTANCE_PATH/$file" | head -1 | awk '{print $2}' | tr -d '"')
+                log_info "EPF version in _meta.yaml: $VERSION"
+            else
+                log_warning "_meta.yaml missing epf_version field"
+            fi
+        fi
+    else
+        log_warning "Optional file not found: $file"
+    fi
+done
+
+for file in "${DOC_FILES[@]}"; do
+    if [ -f "$INSTANCE_PATH/$file" ]; then
+        log_pass "Found: $file"
+    else
+        log_warning "Documentation file not found: $file"
+    fi
+done
+
+# =============================================================================
+# Section 6: Cross-Reference Validation
+# =============================================================================
+log_section "6. Cross-Reference Validation"
+
+# Check that roadmap references exist in feature definitions
+ROADMAP_FILE=""
+if [ -f "$INSTANCE_PATH/04_roadmap_recipe.yaml" ]; then
+    ROADMAP_FILE="$INSTANCE_PATH/04_roadmap_recipe.yaml"
+elif [ -f "$INSTANCE_PATH/05_roadmap_recipe.yaml" ]; then
+    ROADMAP_FILE="$INSTANCE_PATH/05_roadmap_recipe.yaml"
+fi
+
+if [ -n "$ROADMAP_FILE" ] && [ -d "$FD_DIR" ]; then
+    # Extract KR IDs from roadmap
+    KR_IDS=$(grep -oE 'kr-[a-z0-9-]+' "$ROADMAP_FILE" 2>/dev/null | sort -u || true)
+    if [ -n "$KR_IDS" ]; then
+        log_info "Found KR references in roadmap"
+    fi
+    
+    # Check if feature definitions reference the roadmap
+    FD_REFS=$(grep -l "roadmap_recipe\|Work Package" "$FD_DIR"/*.md 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$FD_REFS" -gt 0 ]; then
+        log_pass "Feature definitions reference roadmap"
+    else
+        log_warning "No feature definitions reference the roadmap"
+    fi
+else
+    log_warning "Could not perform cross-reference validation"
+fi
+
+# =============================================================================
+# Section 7: Framework vs Instance Separation
+# =============================================================================
+log_section "7. Framework vs Instance Separation"
+
+# Check that instance doesn't contain framework files
+FRAMEWORK_MARKERS=(
+    "schemas"
+    "wizards"
+    "phases/READY"
+    "phases/FIRE"
+    "phases/AIM"
+)
+
+for marker in "${FRAMEWORK_MARKERS[@]}"; do
+    if [ -d "$INSTANCE_PATH/$marker" ]; then
+        log_error "Instance contains framework directory: $marker (should be in framework, not instance)"
+    fi
+done
+log_pass "Instance does not contain framework directories"
+
+# =============================================================================
+# Summary
+# =============================================================================
+echo ""
+echo "╔══════════════════════════════════════════════════════════════════╗"
+echo "║                        VALIDATION SUMMARY                         ║"
+echo "╚══════════════════════════════════════════════════════════════════╝"
+echo ""
+echo -e "Instance: ${BLUE}$INSTANCE_NAME${NC}"
+echo ""
+echo -e "${GREEN}Passed:${NC}   $PASSED"
+echo -e "${YELLOW}Warnings:${NC} $WARNINGS"
+echo -e "${RED}Errors:${NC}   $ERRORS"
+echo ""
+
+if [ "$ERRORS" -gt 0 ]; then
+    echo -e "${RED}━━━ VALIDATION FAILED ━━━${NC}"
+    echo ""
+    echo "Please fix the errors above before proceeding."
+    exit 1
+else
+    if [ "$WARNINGS" -gt 0 ]; then
+        echo -e "${YELLOW}━━━ VALIDATION PASSED WITH WARNINGS ━━━${NC}"
+    else
+        echo -e "${GREEN}━━━ VALIDATION PASSED ━━━${NC}"
+    fi
+    echo ""
+    exit 0
+fi
