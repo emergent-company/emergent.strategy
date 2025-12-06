@@ -139,6 +139,12 @@ export class GraphObjectsController {
     type: String,
     description: 'Comma-separated list of object IDs to fetch.',
   })
+  @ApiQuery({
+    name: 'extraction_job_id',
+    required: false,
+    type: String,
+    description: 'Filter objects by extraction job ID.',
+  })
   searchObjects(
     @Query('type') type?: string,
     @Query('key') key?: string,
@@ -153,6 +159,7 @@ export class GraphObjectsController {
       new ParseArrayPipe({ items: String, separator: ',', optional: true })
     )
     ids?: string[],
+    @Query('extraction_job_id') extraction_job_id?: string,
     @Req() req?: any
   ) {
     const parsedLimit = limit ? parseInt(limit, 10) : 20;
@@ -171,6 +178,11 @@ export class GraphObjectsController {
         branch_id === 'null' || branch_id === '' ? null : branch_id;
     }
 
+    // Build properties filter for extraction_job_id
+    const properties: Record<string, any> | undefined = extraction_job_id
+      ? { _extraction_job_id: extraction_job_id }
+      : undefined;
+
     return this.service.searchObjects(
       {
         type,
@@ -184,6 +196,7 @@ export class GraphObjectsController {
         project_id: projectId,
         related_to_id,
         ids,
+        properties,
       },
       { orgId, projectId }
     );
@@ -561,7 +574,7 @@ export class GraphObjectsController {
   @ApiOperation({
     summary: 'Vector similarity search',
     description:
-      'Returns nearest neighbors (cosine distance) for provided query vector over embedding_vec. Threshold: use maxDistance (preferred) or legacy minScore (acts as maximum distance). When both are supplied, maxDistance takes precedence.',
+      'Returns nearest neighbors (cosine distance) for provided query vector over embedding_v2. Threshold: use maxDistance (preferred) or legacy minScore (acts as maximum distance). When both are supplied, maxDistance takes precedence.',
   })
   @HttpCode(200)
   async vectorSearch(@Body() dto: VectorSearchDto) {
@@ -593,7 +606,7 @@ export class GraphObjectsController {
   @Scopes('graph:read')
   @ApiOperation({
     summary:
-      'Find objects similar to given object id using stored embedding_vec',
+      'Find objects similar to given object id using stored embedding_v2',
     description:
       'Supports same filters as POST /graph/objects/vector-search (type, orgId, projectId, branchId, keyPrefix, labelsAll, labelsAny, maxDistance|minScore, limit). maxDistance preferred; if both provided, maxDistance overrides minScore.',
   })
