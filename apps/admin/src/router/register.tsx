@@ -30,6 +30,10 @@ const dashboardRoutes: IRoutesProps[] = [
     element: cw(lazy(() => import('@/pages/admin/apps/chunks/index'))),
   },
   {
+    path: '/admin/recent',
+    element: cw(lazy(() => import('@/pages/admin/pages/recent/index'))),
+  },
+  {
     path: '/admin/objects',
     element: cw(lazy(() => import('@/pages/admin/pages/objects/index'))),
   },
