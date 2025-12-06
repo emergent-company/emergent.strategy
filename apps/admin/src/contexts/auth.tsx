@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import {
   exchangeCodeForTokens,
+  refreshTokens,
   startAuth,
   type OidcConfig,
   type TokenResponse,
@@ -16,9 +17,13 @@ import { AUTH_STORAGE_KEY, OLD_AUTH_STORAGE_KEY } from '@/constants/storage';
 type AuthState = {
   accessToken?: string;
   idToken?: string;
+  refreshToken?: string;
   expiresAt?: number; // epoch ms
   user?: { sub: string; email?: string; name?: string };
 };
+
+// Refresh threshold - refresh token when less than 2 minutes remaining
+const REFRESH_THRESHOLD_MS = 2 * 60 * 1000;
 
 export type AuthContextType = {
   isAuthenticated: boolean;
@@ -29,6 +34,7 @@ export type AuthContextType = {
   getAccessToken: () => string | undefined;
   handleCallback: (code: string) => Promise<void>;
   ensureAuthenticated: () => void; // auto-redirect helper
+  refreshAccessToken: () => Promise<boolean>; // attempt token refresh
 };
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -71,10 +77,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const raw = localStorage.getItem(AUTH_STORAGE_KEY);
       console.log('[AuthProvider] Retrieved from localStorage', {
         hasData: !!raw,
-        dataLength: raw?.length || 0
+        dataLength: raw?.length || 0,
       });
       if (!raw) {
-        console.log('[AuthProvider] No auth data in localStorage, starting with empty state');
+        console.log(
+          '[AuthProvider] No auth data in localStorage, starting with empty state'
+        );
         return {};
       }
       const parsed = JSON.parse(raw) as AuthState;
@@ -85,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       console.log('[AuthProvider] Successfully hydrated state', {
         hasAccessToken: !!parsed.accessToken,
-        hasUser: !!parsed.user
+        hasUser: !!parsed.user,
       });
       return parsed ?? {};
     } catch (e) {
@@ -103,14 +111,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Token application callback must be declared before login usage
   const applyTokenResponse = useCallback((t: TokenResponse) => {
-    console.log('[AuthContext] applyTokenResponse called', { hasAccessToken: !!t.access_token, hasIdToken: !!t.id_token, expiresIn: t.expires_in });
+    console.log('[AuthContext] applyTokenResponse called', {
+      hasAccessToken: !!t.access_token,
+      hasIdToken: !!t.id_token,
+      hasRefreshToken: !!t.refresh_token,
+      expiresIn: t.expires_in,
+    });
     const now = Date.now();
     const expiresAt = now + Math.max(0, (t.expires_in || 0) * 1000) - 10_000;
     const claims = parseJwtPayload(t.id_token || t.access_token || '') || {};
-    console.log('[AuthContext] Parsed JWT claims', { sub: claims.sub, email: claims.email, name: claims.name });
+    console.log('[AuthContext] Parsed JWT claims', {
+      sub: claims.sub,
+      email: claims.email,
+      name: claims.name,
+    });
     const next: AuthState = {
       accessToken: t.access_token,
       idToken: t.id_token,
+      refreshToken: t.refresh_token,
       expiresAt,
       user: {
         sub: claims.sub,
@@ -119,21 +137,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       },
     };
     setState(next);
-    console.log('[AuthContext] State updated, saving to localStorage', { key: AUTH_STORAGE_KEY });
+    console.log('[AuthContext] State updated, saving to localStorage', {
+      key: AUTH_STORAGE_KEY,
+    });
     try {
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(next));
-      console.log('[AuthContext] Successfully saved auth state to localStorage');
+      console.log(
+        '[AuthContext] Successfully saved auth state to localStorage'
+      );
     } catch (e) {
       console.error('[AuthContext] Failed to save to localStorage', e);
     }
   }, []);
 
   const authStartRef = React.useRef(false);
+  const refreshInProgressRef = React.useRef(false);
+
   const beginLogin = useCallback(async () => {
     if (authStartRef.current) return;
     authStartRef.current = true;
     await startAuth(cfg);
   }, [cfg]);
+
+  /**
+   * Attempt to refresh the access token using the refresh token.
+   * Returns true if refresh was successful, false otherwise.
+   */
+  const refreshAccessToken = useCallback(async (): Promise<boolean> => {
+    if (refreshInProgressRef.current) {
+      console.log('[AuthContext] Token refresh already in progress');
+      return false;
+    }
+
+    if (!state.refreshToken) {
+      console.log('[AuthContext] No refresh token available');
+      return false;
+    }
+
+    refreshInProgressRef.current = true;
+    console.log('[AuthContext] Attempting token refresh');
+
+    try {
+      const t = await refreshTokens(cfg, state.refreshToken);
+      applyTokenResponse(t);
+      console.log('[AuthContext] Token refresh successful');
+      return true;
+    } catch (e) {
+      console.error('[AuthContext] Token refresh failed', e);
+      // Don't clear state here - let the 401 handler deal with logout
+      return false;
+    } finally {
+      refreshInProgressRef.current = false;
+    }
+  }, [cfg, state.refreshToken, applyTokenResponse]);
 
   /**
    * Logs out the current user and clears all authentication data from localStorage.
@@ -195,9 +251,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const handleCallback = useCallback(
     async (code: string) => {
-      console.log('[AuthContext] handleCallback called', { codeLength: code.length });
+      console.log('[AuthContext] handleCallback called', {
+        codeLength: code.length,
+      });
       const t: TokenResponse = await exchangeCodeForTokens(cfg, code);
-      console.log('[AuthContext] Token exchange completed, applying token response');
+      console.log(
+        '[AuthContext] Token exchange completed, applying token response'
+      );
       applyTokenResponse(t);
       console.log('[AuthContext] handleCallback completed successfully');
     },
@@ -218,7 +278,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       // Otherwise, fall back to id_token (Zitadel may issue opaque access tokens unless configured)
       if (state.idToken) {
-        console.log('[AuthContext] Access token is opaque, falling back to id_token');
+        console.log(
+          '[AuthContext] Access token is opaque, falling back to id_token'
+        );
         return state.idToken;
       }
       console.log('[AuthContext] Returning opaque access token');
@@ -249,6 +311,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [state]);
 
+  // Proactive token refresh before expiry
+  useEffect(() => {
+    if (!state.expiresAt || !state.refreshToken) return;
+
+    const timeUntilExpiry = state.expiresAt - Date.now();
+    const timeUntilRefresh = timeUntilExpiry - REFRESH_THRESHOLD_MS;
+
+    if (timeUntilRefresh <= 0) {
+      // Token is about to expire or already expired, refresh immediately
+      console.log('[AuthContext] Token near expiry, refreshing immediately');
+      void refreshAccessToken();
+      return;
+    }
+
+    console.log(
+      '[AuthContext] Scheduling token refresh in',
+      Math.round(timeUntilRefresh / 1000),
+      'seconds'
+    );
+
+    const timer = setTimeout(() => {
+      console.log('[AuthContext] Proactive token refresh triggered');
+      void refreshAccessToken();
+    }, timeUntilRefresh);
+
+    return () => clearTimeout(timer);
+  }, [state.expiresAt, state.refreshToken, refreshAccessToken]);
+
   const ensureAuthenticated = useCallback(() => {
     if (!getAccessToken()) void beginLogin();
   }, [getAccessToken, beginLogin]);
@@ -263,6 +353,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       getAccessToken,
       handleCallback,
       ensureAuthenticated,
+      refreshAccessToken,
     }),
     [
       getAccessToken,
@@ -272,6 +363,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       state.user,
       handleCallback,
       ensureAuthenticated,
+      refreshAccessToken,
     ]
   );
 

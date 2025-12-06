@@ -183,7 +183,7 @@ export class AppConfigService {
     return this.env.EXTRACTION_CONFIDENCE_THRESHOLD_REVIEW || 0.7;
   }
   get extractionConfidenceThresholdAuto() {
-    return this.env.EXTRACTION_CONFIDENCE_THRESHOLD_AUTO || 0.85;
+    return this.env.EXTRACTION_CONFIDENCE_THRESHOLD_AUTO || 0.9;
   }
 
   get extractionDefaultTemplatePackId(): string | null {
@@ -203,19 +203,31 @@ export class AppConfigService {
     return this.env.EXTRACTION_CHUNK_OVERLAP || 2000;
   }
 
+  get llmCallTimeoutMs() {
+    return this.env.LLM_CALL_TIMEOUT_MS || 300000; // 5 minutes default
+  }
+
+  /**
+   * Whether LLM call dumping is enabled for debugging extraction jobs.
+   * When enabled, each LLM call is written to files for analysis.
+   */
+  get llmDumpEnabled(): boolean {
+    return !!this.env.LLM_DUMP_ENABLED;
+  }
+
+  /**
+   * Directory for LLM call dump files.
+   * Defaults to 'logs/llm-dumps' relative to cwd.
+   */
+  get llmDumpDir(): string {
+    return this.env.LLM_DUMP_DIR || 'logs/llm-dumps';
+  }
+
   get extractionBasePrompt(): string {
-    return (
-      this.env.EXTRACTION_BASE_PROMPT ||
-      `You are an expert entity extraction system. Your task is to analyze the provided document and extract structured entities according to the schema definitions that follow.
-
-Extract entities that match the defined types. For each entity:
-- Provide a clear, descriptive name
-- Include all relevant properties from the schema
-- Assign appropriate confidence scores (0.0-1.0)
-- Identify relationships between entities
-
-Return your response as a valid JSON array matching the expected schema format.`
-    );
+    // Note: This is a minimal base prompt. The tool-specific instructions are
+    // added by buildToolExtractionPrompt() in langchain-gemini.provider.ts.
+    // Keep this minimal to avoid duplication with tool-specific prompts.
+    return this.env.EXTRACTION_BASE_PROMPT || '';
   }
 
   // --- LangSmith Tracing (Optional) ---
