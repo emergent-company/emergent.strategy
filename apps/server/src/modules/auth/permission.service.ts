@@ -26,6 +26,8 @@ const ROLE_SCOPE_MAP: Record<string, string[]> = {
     'notifications:write',
     'extraction:read',
     'extraction:write',
+    'user-activity:read',
+    'user-activity:write',
   ],
   project_admin: [
     'org:read',
@@ -42,6 +44,8 @@ const ROLE_SCOPE_MAP: Record<string, string[]> = {
     'notifications:write',
     'extraction:read',
     'extraction:write',
+    'user-activity:read',
+    'user-activity:write',
   ],
   project_user: [
     'org:read',
@@ -53,6 +57,8 @@ const ROLE_SCOPE_MAP: Record<string, string[]> = {
     'notifications:read',
     'notifications:write',
     'extraction:read',
+    'user-activity:read',
+    'user-activity:write',
   ],
 };
 

@@ -46,6 +46,9 @@ export const MOCK_SCOPES = {
   dataRead: 'data:read',
   dataWrite: 'data:write',
   mcpAdmin: 'mcp:admin',
+  // User activity scopes
+  userActivityRead: 'user-activity:read',
+  userActivityWrite: 'user-activity:write',
 };
 
 @Injectable()
