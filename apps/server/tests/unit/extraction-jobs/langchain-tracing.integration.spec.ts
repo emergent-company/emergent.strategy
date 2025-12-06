@@ -62,10 +62,11 @@ describe('LangChainGeminiProvider with LangFuse', () => {
     const result = await provider.extractEntities(
       'document content',
       'base prompt',
-      { Requirement: {} },
-      ['Requirement'],
-      undefined,
-      { jobId: 'job-1', projectId: 'proj-1', traceId: 'trace-123' }
+      {
+        objectSchemas: { Requirement: {} },
+        allowedTypes: ['Requirement'],
+        context: { jobId: 'job-1', projectId: 'proj-1', traceId: 'trace-123' },
+      }
     );
 
     // Verify observation creation
@@ -100,14 +101,11 @@ describe('LangChainGeminiProvider with LangFuse', () => {
     mockInvoke.mockRejectedValue(new Error('LLM API Error'));
 
     await expect(
-      provider.extractEntities(
-        'document content',
-        'base prompt',
-        { Requirement: {} },
-        ['Requirement'],
-        undefined,
-        { jobId: 'job-1', projectId: 'proj-1', traceId: 'trace-123' }
-      )
+      provider.extractEntities('document content', 'base prompt', {
+        objectSchemas: { Requirement: {} },
+        allowedTypes: ['Requirement'],
+        context: { jobId: 'job-1', projectId: 'proj-1', traceId: 'trace-123' },
+      })
     ).resolves.not.toThrow(); // Provider catches error and continues (returning empty for that chunk)
 
     // Verify observation update with error
@@ -126,13 +124,11 @@ describe('LangChainGeminiProvider with LangFuse', () => {
       content: JSON.stringify({ entities: [] }),
     });
 
-    await provider.extractEntities(
-      'document content',
-      'base prompt',
-      { Requirement: {} },
-      ['Requirement']
+    await provider.extractEntities('document content', 'base prompt', {
+      objectSchemas: { Requirement: {} },
+      allowedTypes: ['Requirement'],
       // No context
-    );
+    });
 
     expect(mockLangfuseService.createObservation).not.toHaveBeenCalled();
   });

@@ -686,3 +686,318 @@ describe('ExtractionWorkerService - Quality Thresholds', () => {
     });
   });
 });
+
+describe('ExtractionWorkerService - Relationship Processing', () => {
+  let service: ExtractionWorkerService;
+  let databaseService: {
+    isOnline: ReturnType<typeof vi.fn>;
+    query: ReturnType<typeof vi.fn>;
+    runWithTenantContext: ReturnType<typeof vi.fn>;
+  };
+  let graphService: {
+    createRelationship: ReturnType<typeof vi.fn>;
+  };
+
+  beforeEach(async () => {
+    const mockConfigService = {
+      extractionConfidenceThresholdMin: 0.0,
+      extractionConfidenceThresholdReview: 0.7,
+      extractionConfidenceThresholdAuto: 0.85,
+      extractionWorkerEnabled: false,
+      extractionWorkerBatchSize: 1,
+      extractionWorkerPollIntervalMs: 1000,
+      extractionDefaultTemplatePackId: 'pack-default',
+      extractionBasePrompt: 'Default base prompt',
+    } as any;
+
+    const dbMock = {
+      isOnline: vi.fn().mockReturnValue(false),
+      query: vi.fn(),
+      runWithTenantContext: vi.fn(
+        async (_project: string | null, fn: () => Promise<any>) => {
+          return fn();
+        }
+      ),
+    } as any;
+
+    const templatePackMock = {
+      assignTemplatePackToProject: vi.fn(),
+      getProjectTemplatePacks: vi.fn().mockResolvedValue([]),
+    } as any;
+
+    const langfuseServiceMock = {
+      createJobTrace: vi.fn(),
+      finalizeTrace: vi.fn(),
+    } as any;
+
+    const graphServiceMock = {
+      createRelationship: vi.fn().mockResolvedValue({ id: 'rel-123' }),
+    } as any;
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ExtractionWorkerService,
+        {
+          provide: AppConfigService,
+          useValue: mockConfigService,
+        },
+        {
+          provide: LangfuseService,
+          useValue: langfuseServiceMock,
+        },
+        {
+          provide: DatabaseService,
+          useValue: dbMock,
+        },
+        {
+          provide: ExtractionJobService,
+          useValue: {},
+        },
+        {
+          provide: LLMProviderFactory,
+          useValue: {},
+        },
+        {
+          provide: RateLimiterService,
+          useValue: {},
+        },
+        {
+          provide: ConfidenceScorerService,
+          useValue: {},
+        },
+        {
+          provide: GraphService,
+          useValue: graphServiceMock,
+        },
+        {
+          provide: DocumentsService,
+          useValue: {},
+        },
+        {
+          provide: TemplatePackService,
+          useValue: templatePackMock,
+        },
+      ],
+    }).compile();
+
+    service = module.get<ExtractionWorkerService>(ExtractionWorkerService);
+    databaseService = module.get(DatabaseService) as typeof dbMock;
+    graphService = module.get(GraphService) as typeof graphServiceMock;
+
+    // Ensure private fields are populated
+    (service as any).db = databaseService;
+    (service as any).graphService = graphService;
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('resolveEntityReference', () => {
+    const projectId = 'project-123';
+
+    it('should resolve entity by valid UUID', async () => {
+      const validUuid = '550e8400-e29b-41d4-a716-446655440000';
+      const batchEntityMap = new Map<string, string>();
+
+      // Mock database to return the entity
+      databaseService.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ id: validUuid }],
+      });
+
+      const result = await (service as any).resolveEntityReference(
+        { id: validUuid },
+        batchEntityMap,
+        projectId
+      );
+
+      expect(result).toBe(validUuid);
+      expect(databaseService.query).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT id FROM kb.graph_objects'),
+        [validUuid, projectId]
+      );
+    });
+
+    it('should return null for invalid UUID format', async () => {
+      const invalidUuid = 'not-a-valid-uuid';
+      const batchEntityMap = new Map<string, string>();
+
+      const result = await (service as any).resolveEntityReference(
+        { id: invalidUuid },
+        batchEntityMap,
+        projectId
+      );
+
+      expect(result).toBeNull();
+      // Should not query database for invalid UUID
+      expect(databaseService.query).not.toHaveBeenCalled();
+    });
+
+    it('should return null when UUID not found in database', async () => {
+      const validUuid = '550e8400-e29b-41d4-a716-446655440000';
+      const batchEntityMap = new Map<string, string>();
+
+      // Mock database to return no results
+      databaseService.query.mockResolvedValueOnce({
+        rowCount: 0,
+        rows: [],
+      });
+
+      const result = await (service as any).resolveEntityReference(
+        { id: validUuid },
+        batchEntityMap,
+        projectId
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it('should resolve entity by name from batch map', async () => {
+      const entityName = 'User Service';
+      const entityId = '550e8400-e29b-41d4-a716-446655440001';
+      const batchEntityMap = new Map<string, string>();
+      batchEntityMap.set('user service', entityId);
+
+      const result = await (service as any).resolveEntityReference(
+        { name: entityName },
+        batchEntityMap,
+        projectId
+      );
+
+      expect(result).toBe(entityId);
+      // Should not query database if found in batch map
+      expect(databaseService.query).not.toHaveBeenCalled();
+    });
+
+    it('should resolve entity by name from database when not in batch map', async () => {
+      const entityName = 'Auth Database';
+      const entityId = '550e8400-e29b-41d4-a716-446655440002';
+      const batchEntityMap = new Map<string, string>();
+
+      // Mock database to return the entity
+      databaseService.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ id: entityId }],
+      });
+
+      const result = await (service as any).resolveEntityReference(
+        { name: entityName },
+        batchEntityMap,
+        projectId
+      );
+
+      expect(result).toBe(entityId);
+      expect(databaseService.query).toHaveBeenCalledWith(
+        expect.stringContaining("properties->>'name' ILIKE"),
+        [projectId, entityName]
+      );
+      // Should cache the result in batch map
+      expect(batchEntityMap.get('auth database')).toBe(entityId);
+    });
+
+    it('should return null when name not found in batch map or database', async () => {
+      const entityName = 'Unknown Entity';
+      const batchEntityMap = new Map<string, string>();
+
+      // Mock database to return no results
+      databaseService.query.mockResolvedValueOnce({
+        rowCount: 0,
+        rows: [],
+      });
+
+      const result = await (service as any).resolveEntityReference(
+        { name: entityName },
+        batchEntityMap,
+        projectId
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it('should prefer id over name when both are provided', async () => {
+      const entityId = '550e8400-e29b-41d4-a716-446655440003';
+      const entityName = 'Some Entity';
+      const batchEntityMap = new Map<string, string>();
+
+      // Mock database to return the entity by ID
+      databaseService.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ id: entityId }],
+      });
+
+      const result = await (service as any).resolveEntityReference(
+        { id: entityId, name: entityName },
+        batchEntityMap,
+        projectId
+      );
+
+      expect(result).toBe(entityId);
+      // Should query by ID, not name
+      expect(databaseService.query).toHaveBeenCalledWith(
+        expect.stringContaining('WHERE id = $1'),
+        [entityId, projectId]
+      );
+    });
+
+    it('should handle database query errors gracefully', async () => {
+      const entityName = 'Failing Entity';
+      const batchEntityMap = new Map<string, string>();
+
+      // Mock database to throw error
+      databaseService.query.mockRejectedValueOnce(
+        new Error('DB connection lost')
+      );
+
+      const result = await (service as any).resolveEntityReference(
+        { name: entityName },
+        batchEntityMap,
+        projectId
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null when both id and name are empty', async () => {
+      const batchEntityMap = new Map<string, string>();
+
+      const result = await (service as any).resolveEntityReference(
+        {},
+        batchEntityMap,
+        projectId
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it('should handle case-insensitive name matching in batch map', async () => {
+      const entityId = '550e8400-e29b-41d4-a716-446655440004';
+      const batchEntityMap = new Map<string, string>();
+      batchEntityMap.set('my component', entityId);
+
+      // Test with different case
+      const result = await (service as any).resolveEntityReference(
+        { name: 'My COMPONENT' },
+        batchEntityMap,
+        projectId
+      );
+
+      expect(result).toBe(entityId);
+    });
+
+    it('should trim whitespace from entity names', async () => {
+      const entityId = '550e8400-e29b-41d4-a716-446655440005';
+      const batchEntityMap = new Map<string, string>();
+      batchEntityMap.set('trimmed name', entityId);
+
+      // Test with extra whitespace
+      const result = await (service as any).resolveEntityReference(
+        { name: '  Trimmed Name  ' },
+        batchEntityMap,
+        projectId
+      );
+
+      expect(result).toBe(entityId);
+    });
+  });
+});

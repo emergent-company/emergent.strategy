@@ -9,6 +9,7 @@ import { ConfidenceScorerService } from './confidence-scorer.service';
 import { EntityLinkingService } from './entity-linking.service';
 import { LangChainGeminiProvider } from './llm/langchain-gemini.provider';
 import { LLMProviderFactory } from './llm/llm-provider.factory';
+import { LlmCallDumpService } from './llm/llm-call-dump.service';
 import { DatabaseModule } from '../../common/database/database.module';
 import { AppConfigModule } from '../../common/config/config.module';
 import { UtilsModule } from '../../common/utils/utils.module';
@@ -72,6 +73,7 @@ import { ObjectExtractionLog } from '../../entities/object-extraction-log.entity
     EntityLinkingService,
     LangChainGeminiProvider,
     LLMProviderFactory,
+    LlmCallDumpService,
   ],
   controllers: [ExtractionJobController],
   exports: [
@@ -79,6 +81,7 @@ import { ObjectExtractionLog } from '../../entities/object-extraction-log.entity
     ExtractionWorkerService,
     ExtractionLoggerService,
     LangChainGeminiProvider,
+    LlmCallDumpService,
   ],
 })
 export class ExtractionJobModule {}
