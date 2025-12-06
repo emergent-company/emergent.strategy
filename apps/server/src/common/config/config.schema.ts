@@ -142,6 +142,18 @@ export class EnvVariables {
   @IsOptional()
   EXTRACTION_CHUNK_OVERLAP?: number; // Overlap between chunks in characters (default: 2000)
 
+  @IsNumber()
+  @IsOptional()
+  LLM_CALL_TIMEOUT_MS?: number; // Timeout for LLM API calls in milliseconds (default: 120000 = 2 minutes)
+
+  @IsBoolean()
+  @IsOptional()
+  LLM_DUMP_ENABLED?: boolean; // Enable file-based LLM call dumping for debugging
+
+  @IsString()
+  @IsOptional()
+  LLM_DUMP_DIR?: string; // Directory for LLM call dump files (default: logs/llm-dumps)
+
   @IsString()
   @IsOptional()
   EXTRACTION_BASE_PROMPT?: string; // Base instruction prompt for LLM entity extraction (schema-agnostic)
@@ -228,7 +240,7 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     EXTRACTION_CONFIDENCE_THRESHOLD_REVIEW:
       process.env.EXTRACTION_CONFIDENCE_THRESHOLD_REVIEW || '0.7',
     EXTRACTION_CONFIDENCE_THRESHOLD_AUTO:
-      process.env.EXTRACTION_CONFIDENCE_THRESHOLD_AUTO || '0.85',
+      process.env.EXTRACTION_CONFIDENCE_THRESHOLD_AUTO || '0.9',
     EXTRACTION_DEFAULT_TEMPLATE_PACK_ID: (() => {
       const raw = process.env.EXTRACTION_DEFAULT_TEMPLATE_PACK_ID;
       if (raw && raw.trim().length > 0) {
@@ -238,6 +250,9 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     })(),
     EXTRACTION_CHUNK_SIZE: process.env.EXTRACTION_CHUNK_SIZE || '100000',
     EXTRACTION_CHUNK_OVERLAP: process.env.EXTRACTION_CHUNK_OVERLAP || '2000',
+    LLM_CALL_TIMEOUT_MS: process.env.LLM_CALL_TIMEOUT_MS || '300000', // 5 minutes default
+    LLM_DUMP_ENABLED: process.env.LLM_DUMP_ENABLED,
+    LLM_DUMP_DIR: process.env.LLM_DUMP_DIR,
     EXTRACTION_BASE_PROMPT: process.env.EXTRACTION_BASE_PROMPT,
     // LangSmith Tracing
     LANGSMITH_TRACING: process.env.LANGSMITH_TRACING,
@@ -299,6 +314,10 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     ),
     EXTRACTION_CHUNK_SIZE: Number(withDefaults.EXTRACTION_CHUNK_SIZE),
     EXTRACTION_CHUNK_OVERLAP: Number(withDefaults.EXTRACTION_CHUNK_OVERLAP),
+    LLM_CALL_TIMEOUT_MS: Number(withDefaults.LLM_CALL_TIMEOUT_MS),
+    LLM_DUMP_ENABLED:
+      withDefaults.LLM_DUMP_ENABLED === 'true' ||
+      withDefaults.LLM_DUMP_ENABLED === true,
     // LangFuse conversions
     LANGFUSE_ENABLED:
       withDefaults.LANGFUSE_ENABLED === 'true' ||
