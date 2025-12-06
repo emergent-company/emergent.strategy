@@ -178,14 +178,15 @@ export class EntityLinkingService {
       const embedding = await this.generateEmbedding(entityText);
 
       // Query for similar objects using cosine similarity - keep as raw SQL for pgvector
+      // Uses embedding_v2 (768-dim) which matches Gemini text-embedding-004 output
       const result = (await this.dataSource.query(
         `SELECT id, 
-                        1 - (embedding_v1 <=> $1::vector) as similarity
+                        1 - (embedding_v2 <=> $1::vector) as similarity
                  FROM kb.graph_objects
                  WHERE project_id = $2 
                    AND type = $3
-                   AND embedding_v1 IS NOT NULL
-                   AND 1 - (embedding_v1 <=> $1::vector) >= $4
+                   AND embedding_v2 IS NOT NULL
+                   AND 1 - (embedding_v2 <=> $1::vector) >= $4
                  ORDER BY similarity DESC
                  LIMIT 1`,
         [JSON.stringify(embedding), projectId, entity.type_name, threshold]
