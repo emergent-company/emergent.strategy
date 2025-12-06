@@ -79,6 +79,7 @@ export class UserActivityService {
   /**
    * Get recent items for a user within a project, separated by type.
    * Returns up to MAX_RECENT_ITEMS per type, ordered by most recently accessed.
+   * Only returns items where the referenced resource still exists.
    *
    * @param userId - Internal user UUID
    * @param projectId - Project UUID
@@ -95,26 +96,63 @@ export class UserActivityService {
       return { objects: [], documents: [] };
     }
     try {
-      // Fetch recent objects
-      const objects = await this.recentItemRepo.find({
-        where: {
-          userId,
-          projectId,
-          resourceType: 'object',
-        },
-        order: { accessedAt: 'DESC' },
-        take: MAX_RECENT_ITEMS,
+      // Fetch recent objects - only those that still exist in graph_objects
+      // Using raw query since we need INNER JOIN with non-entity tables
+      const objectsRaw = await this.recentItemRepo.query(
+        `SELECT ri.* 
+         FROM kb.user_recent_items ri
+         INNER JOIN kb.graph_objects go ON go.id = ri.resource_id AND go.project_id = ri.project_id
+         WHERE ri.user_id = $1
+           AND ri.project_id = $2
+           AND ri.resource_type = 'object'
+         ORDER BY ri.accessed_at DESC
+         LIMIT $3`,
+        [userId, projectId, MAX_RECENT_ITEMS]
+      );
+
+      // Map raw results to entity instances
+      const objects = objectsRaw.map((row: Record<string, unknown>) => {
+        const item = new UserRecentItem();
+        item.id = row.id as string;
+        item.userId = row.user_id as string;
+        item.projectId = row.project_id as string;
+        item.resourceType = row.resource_type as 'document' | 'object';
+        item.resourceId = row.resource_id as string;
+        item.resourceName = row.resource_name as string | null;
+        item.resourceSubtype = row.resource_subtype as string | null;
+        item.actionType = row.action_type as 'viewed' | 'edited';
+        item.accessedAt = new Date(row.accessed_at as string);
+        item.createdAt = new Date(row.created_at as string);
+        return item;
       });
 
-      // Fetch recent documents
-      const documents = await this.recentItemRepo.find({
-        where: {
-          userId,
-          projectId,
-          resourceType: 'document',
-        },
-        order: { accessedAt: 'DESC' },
-        take: MAX_RECENT_ITEMS,
+      // Fetch recent documents - only those that still exist in documents
+      const documentsRaw = await this.recentItemRepo.query(
+        `SELECT ri.* 
+         FROM kb.user_recent_items ri
+         INNER JOIN kb.documents d ON d.id = ri.resource_id
+         WHERE ri.user_id = $1
+           AND ri.project_id = $2
+           AND ri.resource_type = 'document'
+         ORDER BY ri.accessed_at DESC
+         LIMIT $3`,
+        [userId, projectId, MAX_RECENT_ITEMS]
+      );
+
+      // Map raw results to entity instances
+      const documents = documentsRaw.map((row: Record<string, unknown>) => {
+        const item = new UserRecentItem();
+        item.id = row.id as string;
+        item.userId = row.user_id as string;
+        item.projectId = row.project_id as string;
+        item.resourceType = row.resource_type as 'document' | 'object';
+        item.resourceId = row.resource_id as string;
+        item.resourceName = row.resource_name as string | null;
+        item.resourceSubtype = row.resource_subtype as string | null;
+        item.actionType = row.action_type as 'viewed' | 'edited';
+        item.accessedAt = new Date(row.accessed_at as string);
+        item.createdAt = new Date(row.created_at as string);
+        return item;
       });
 
       return {
