@@ -1,7 +1,7 @@
 // Page: Object Browser
 // Route: /admin/objects
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
@@ -15,6 +15,14 @@ import {
   type TableDataItem,
 } from '@/components/organisms/DataTable';
 import { Icon } from '@/components/atoms/Icon';
+import {
+  createUserActivityClient,
+  createRecordActivityFn,
+} from '@/api/user-activity';
+import {
+  createExtractionJobsClient,
+  type ExtractionJob,
+} from '@/api/extraction-jobs';
 
 interface GraphObjectResponse {
   id: string;
@@ -74,6 +82,10 @@ export default function ObjectsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const objectIdParam = searchParams.get('id');
 
+  // Activity tracking client for Recent Items feature
+  const activityClient = createUserActivityClient(apiBase, fetchJson);
+  const recordActivity = createRecordActivityFn(activityClient);
+
   const [objects, setObjects] = useState<GraphObject[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [availableTypes, setAvailableTypes] = useState<string[]>([]);
@@ -89,11 +101,27 @@ export default function ObjectsPage() {
     null
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [documentNamesCache, setDocumentNamesCache] = useState<
-    Record<string, string>
-  >({});
+  // Use refs for document names cache to prevent re-render loops
+  const documentNamesCacheRef = useRef<Record<string, string>>({});
+  const inFlightRequestsRef = useRef<Set<string>>(new Set());
+  // Counter to trigger re-render when cache is updated
+  const [cacheVersion, setCacheVersion] = useState(0);
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
+
+  // Extraction filter state
+  const extractionJobIdParam = searchParams.get('extraction_job_id');
+  const [extractionJobs, setExtractionJobs] = useState<ExtractionJob[]>([]);
+  const [selectedExtractionJobId, setSelectedExtractionJobId] = useState<
+    string | null
+  >(extractionJobIdParam);
+
+  // Create extraction jobs client
+  const extractionJobsClient = useMemo(
+    () =>
+      createExtractionJobsClient(apiBase, fetchJson, config.activeProjectId),
+    [apiBase, fetchJson, config.activeProjectId]
+  );
 
   const loadObjects = useCallback(async () => {
     if (!config.activeProjectId) return;
@@ -109,6 +137,10 @@ export default function ObjectsPage() {
         // Use full-text search if there's a search query
         params.append('q', searchQuery);
         params.append('limit', '100');
+        // Include type filter in FTS search
+        if (selectedTypes.length > 0) {
+          params.append('type', selectedTypes[0]);
+        }
 
         const response = await fetchJson<{
           query: string;
@@ -274,10 +306,18 @@ export default function ObjectsPage() {
 
   const fetchDocumentName = useCallback(
     async (documentId: string) => {
-      // Check cache first
-      if (documentNamesCache[documentId]) {
-        return documentNamesCache[documentId];
+      // Check cache first (using ref, no re-render trigger)
+      if (documentNamesCacheRef.current[documentId]) {
+        return documentNamesCacheRef.current[documentId];
       }
+
+      // Skip if already in-flight
+      if (inFlightRequestsRef.current.has(documentId)) {
+        return null;
+      }
+
+      // Mark as in-flight
+      inFlightRequestsRef.current.add(documentId);
 
       try {
         const doc = await fetchJson<{
@@ -287,17 +327,48 @@ export default function ObjectsPage() {
         }>(`${apiBase}/api/documents/${documentId}`);
         const name = doc.filename || doc.name || documentId.substring(0, 8);
 
-        // Update cache
-        setDocumentNamesCache((prev) => ({ ...prev, [documentId]: name }));
+        // Update cache (ref, no re-render)
+        documentNamesCacheRef.current[documentId] = name;
 
         return name;
       } catch (err) {
         console.error(`Failed to fetch document name for ${documentId}:`, err);
-        return documentId.substring(0, 8) + '...';
+        const fallback = documentId.substring(0, 8) + '...';
+        documentNamesCacheRef.current[documentId] = fallback;
+        return fallback;
+      } finally {
+        // Remove from in-flight
+        inFlightRequestsRef.current.delete(documentId);
       }
     },
-    [apiBase, fetchJson, documentNamesCache]
+    [apiBase, fetchJson]
   );
+
+  // Batch fetch document names when objects change
+  useEffect(() => {
+    const documentIds = objects
+      .filter((obj) => obj.source === 'document' && obj.source_id)
+      .map((obj) => obj.source_id as string)
+      .filter((id) => !documentNamesCacheRef.current[id]);
+
+    if (documentIds.length === 0) return;
+
+    // Deduplicate
+    const uniqueIds = [...new Set(documentIds)];
+
+    // Batch fetch (sequentially to avoid overwhelming the server, but could be parallel with limit)
+    const fetchAll = async () => {
+      const BATCH_SIZE = 10;
+      for (let i = 0; i < uniqueIds.length; i += BATCH_SIZE) {
+        const batch = uniqueIds.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map((id) => fetchDocumentName(id)));
+      }
+      // Trigger single re-render after all fetches complete
+      setCacheVersion((v) => v + 1);
+    };
+
+    fetchAll();
+  }, [objects, fetchDocumentName]);
 
   useEffect(() => {
     loadAvailableTypes();
@@ -332,6 +403,14 @@ export default function ObjectsPage() {
   const handleObjectClick = (object: GraphObject) => {
     setSelectedObject(object);
     setIsModalOpen(true);
+    // Record activity for Recent Items feature (fire-and-forget)
+    recordActivity({
+      resourceType: 'object',
+      resourceId: object.id,
+      resourceName: object.name || undefined,
+      resourceSubtype: object.type || undefined,
+      actionType: 'viewed',
+    });
   };
 
   const handleModalClose = () => {
@@ -508,6 +587,14 @@ export default function ObjectsPage() {
   // Define table columns
   const columns: ColumnDef<GraphObject>[] = [
     {
+      key: 'type',
+      label: 'Type',
+      sortable: true,
+      render: (obj) => (
+        <span className="badge badge-sm badge-ghost">{obj.type}</span>
+      ),
+    },
+    {
       key: 'name',
       label: 'Name',
       sortable: true,
@@ -531,14 +618,6 @@ export default function ObjectsPage() {
           </div>
         );
       },
-    },
-    {
-      key: 'type',
-      label: 'Type',
-      sortable: true,
-      render: (obj) => (
-        <span className="badge badge-sm badge-ghost">{obj.type}</span>
-      ),
     },
     {
       key: 'status',
@@ -574,14 +653,9 @@ export default function ObjectsPage() {
 
         // Handle document sources with icon and document name
         if (obj.source === 'document' && obj.source_id) {
-          // Use cached document name or show loading/fallback
+          // Use cached document name from ref (fetched via useEffect batch)
           const documentName =
-            documentNamesCache[obj.source_id] || 'Loading...';
-
-          // Fetch document name if not in cache
-          if (!documentNamesCache[obj.source_id]) {
-            fetchDocumentName(obj.source_id);
-          }
+            documentNamesCacheRef.current[obj.source_id] || 'Loading...';
 
           return (
             <a
