@@ -33,6 +33,7 @@ import { UserModule } from './user/user.module';
 import { ChatUiModule } from './chat-ui/chat-ui.module';
 import { ChatSdkModule } from './chat-sdk/chat-sdk.module';
 import { LangfuseModule } from './langfuse/langfuse.module';
+import { UserActivityModule } from './user-activity/user-activity.module';
 import { AppConfigService } from '../common/config/config.service';
 import { entities } from '../entities';
 
@@ -93,6 +94,7 @@ import { entities } from '../entities';
     ChatUiModule,
     ChatSdkModule,
     LangfuseModule,
+    UserActivityModule,
     DatabaseModule,
   ],
 })

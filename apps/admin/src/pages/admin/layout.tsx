@@ -153,6 +153,13 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
           />
           <Sidebar.Section id="admin-primary" title="Overview">
             <Sidebar.MenuItem
+              id="admin-recent"
+              url="/admin/recent"
+              icon="lucide--clock"
+            >
+              Recent
+            </Sidebar.MenuItem>
+            <Sidebar.MenuItem
               id="apps-documents"
               url="/admin/apps/documents"
               icon="lucide--file-text"
