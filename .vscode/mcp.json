@@ -43,6 +43,19 @@
         "--browserUrl",
         "http://127.0.0.1:9222"
       ]
+    },
+    "local-logs": {
+      "command": "npx",
+      "args": ["-y", "local-logs-mcp-server"],
+      "env": {
+        "LOGS_DIR": "./apps/logs",
+        "LOG_EXTENSIONS": ".log"
+      }
+    }
+    },
+    "langfuse-docs": {
+      "type": "http",
+      "url": "https://langfuse.com/api/mcp"
     }
   }
 }

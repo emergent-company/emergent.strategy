@@ -75,13 +75,6 @@
         "forwardAllArgs": true
       }
     },
-    "workspace:logs": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "npx tsx tools/workspace-cli/src/cli.ts logs --workspace --dependencies",
-        "forwardAllArgs": true
-      }
-    },
     "workspace:status": {
       "executor": "nx:run-commands",
       "options": {

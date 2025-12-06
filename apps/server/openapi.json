@@ -4826,6 +4826,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "extraction_job_id",
+            "required": false,
+            "in": "query",
+            "description": "Filter objects by extraction job ID.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -5480,7 +5489,7 @@
       "post": {
         "operationId": "vectorSearch",
         "summary": "Vector similarity search",
-        "description": "Returns nearest neighbors (cosine distance) for provided query vector over embedding_vec. Threshold: use maxDistance (preferred) or legacy minScore (acts as maximum distance). When both are supplied, maxDistance takes precedence.",
+        "description": "Returns nearest neighbors (cosine distance) for provided query vector over embedding_v2. Threshold: use maxDistance (preferred) or legacy minScore (acts as maximum distance). When both are supplied, maxDistance takes precedence.",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -5505,7 +5514,7 @@
     "/graph/objects/{id}/similar": {
       "get": {
         "operationId": "similar",
-        "summary": "Find objects similar to given object id using stored embedding_vec",
+        "summary": "Find objects similar to given object id using stored embedding_v2",
         "description": "Supports same filters as POST /graph/objects/vector-search (type, orgId, projectId, branchId, keyPrefix, labelsAll, labelsAny, maxDistance|minScore, limit). maxDistance preferred; if both provided, maxDistance overrides minScore.",
         "parameters": [
           {
@@ -9981,6 +9990,473 @@
           "Chat SDK"
         ]
       }
+    },
+    "/user-activity/record": {
+      "post": {
+        "operationId": "recordActivity",
+        "summary": "Record user activity (view or edit of a resource)",
+        "description": "Records that the current user accessed a document or object. Uses upsert to update existing records.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordActivityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Activity recorded successfully"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "User Activity"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/user-activity/recent": {
+      "get": {
+        "operationId": "getRecentItems",
+        "summary": "Get recent items for the current user",
+        "description": "Returns recently accessed objects and documents for the current user in the current project.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Recent items retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentItemsResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "User Activity"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "clearAllRecentItems",
+        "summary": "Clear all recent items",
+        "description": "Removes all recent items for the current user in the current project.",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "All items cleared successfully"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "User Activity"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/user-activity/recent/{type}": {
+      "get": {
+        "operationId": "getRecentItemsByType",
+        "summary": "Get recent items by type",
+        "description": "Returns recently accessed items of a specific type (documents or objects).",
+        "parameters": [
+          {
+            "name": "type",
+            "required": true,
+            "in": "path",
+            "description": "Type of resource to retrieve",
+            "schema": {
+              "enum": [
+                "document",
+                "object"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent items retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecentItemDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "User Activity"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/user-activity/recent/{type}/{resourceId}": {
+      "delete": {
+        "operationId": "removeRecentItem",
+        "summary": "Remove a specific item from recent items",
+        "description": "Removes a specific document or object from the recent items list.",
+        "parameters": [
+          {
+            "name": "type",
+            "required": true,
+            "in": "path",
+            "description": "Type of resource",
+            "schema": {
+              "enum": [
+                "document",
+                "object"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "resourceId",
+            "required": true,
+            "in": "path",
+            "description": "UUID of the resource to remove",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Item removed successfully"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "User Activity"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
@@ -13735,6 +14211,127 @@
         },
         "required": [
           "messages"
+        ]
+      },
+      "RecordActivityDto": {
+        "type": "object",
+        "properties": {
+          "resourceType": {
+            "type": "string",
+            "description": "Type of resource being accessed",
+            "enum": [
+              "document",
+              "object"
+            ],
+            "example": "document"
+          },
+          "resourceId": {
+            "type": "string",
+            "description": "UUID of the document or graph object",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "resourceName": {
+            "type": "string",
+            "description": "Display name of the resource (filename or object name)",
+            "example": "requirements.pdf",
+            "maxLength": 500
+          },
+          "resourceSubtype": {
+            "type": "string",
+            "description": "Additional type info: MIME type for documents, object type for objects",
+            "example": "application/pdf",
+            "maxLength": 100
+          },
+          "actionType": {
+            "type": "string",
+            "description": "Type of action performed",
+            "enum": [
+              "viewed",
+              "edited"
+            ],
+            "example": "viewed"
+          }
+        },
+        "required": [
+          "resourceType",
+          "resourceId",
+          "actionType"
+        ]
+      },
+      "RecentItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier"
+          },
+          "resourceType": {
+            "type": "string",
+            "description": "Type of resource",
+            "enum": [
+              "document",
+              "object"
+            ]
+          },
+          "resourceId": {
+            "type": "string",
+            "description": "UUID of the resource"
+          },
+          "resourceName": {
+            "type": "object",
+            "description": "Display name of the resource",
+            "nullable": true
+          },
+          "resourceSubtype": {
+            "type": "object",
+            "description": "Additional type info (MIME type or object type)",
+            "nullable": true
+          },
+          "actionType": {
+            "type": "string",
+            "description": "Type of last action",
+            "enum": [
+              "viewed",
+              "edited"
+            ]
+          },
+          "accessedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the resource was last accessed"
+          }
+        },
+        "required": [
+          "id",
+          "resourceType",
+          "resourceId",
+          "resourceName",
+          "resourceSubtype",
+          "actionType",
+          "accessedAt"
+        ]
+      },
+      "RecentItemsResponseDto": {
+        "type": "object",
+        "properties": {
+          "objects": {
+            "description": "List of recent objects",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecentItemDto"
+            }
+          },
+          "documents": {
+            "description": "List of recent documents",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecentItemDto"
+            }
+          }
+        },
+        "required": [
+          "objects",
+          "documents"
         ]
       }
     }

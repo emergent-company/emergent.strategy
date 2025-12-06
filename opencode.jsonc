@@ -7,17 +7,11 @@
     // },
     "playwright": {
       "type": "local",
-      "command": [
-        "npx",
-        "@playwright/mcp@latest",
-        "--timeout-action=10000"
-      ]
+      "command": ["npx", "@playwright/mcp@latest", "--timeout-action=10000"]
     },
     "postgres": {
       "type": "local",
-      "command": [
-        "./scripts/mcp-postgres-wrapper.sh"
-      ]
+      "command": ["./scripts/mcp-postgres-wrapper.sh"]
     },
     "context7": {
       "type": "local",
@@ -33,10 +27,10 @@
       "type": "remote",
       "url": "https://mcp.grep.app"
     },
-    "react-daisyui Docs": {
-      "type": "remote",
-      "url": "https://gitmcp.io/daisyui/react-daisyui"
-    },
+//    "react-daisyui Docs": {
+//      "type": "remote",
+//      "url": "https://gitmcp.io/daisyui/react-daisyui"
+ //   },
     "chrome-devtools": {
       "type": "local",
       "command": [
@@ -49,15 +43,23 @@
     },
     "daisyui-blueprint": {
       "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "daisyui-blueprint@latest"
-      ],
+      "command": ["npx", "-y", "daisyui-blueprint@latest"],
       "environment": {
         "LICENSE": "19B37-Q9DO7-1YBUL-SUX2D-VHYR4",
         "EMAIL": "maciej@kucharz.net"
       }
+    },
+    "local-logs": {
+      "type": "local",
+      "command": ["npx", "-y", "local-logs-mcp-server"],
+      "environment": {
+        "LOGS_DIR": "./apps/logs",
+        "LOG_EXTENSIONS": ".log"
+      }
+    },
+    "langfuse-docs": {
+      "type": "remote",
+      "url": "https://langfuse.com/api/mcp"
     }
     // ,
     // "nx-mcp": {
@@ -65,9 +67,7 @@
     //   "args": ["nx-mcp@latest"]
     // }
   },
-  "instructions": [
-    ".opencode/instructions.md"
-  ],
+  "instructions": [".opencode/instructions.md"],
   "tools": {
     "todowrite": true,
     "webfetch": true
