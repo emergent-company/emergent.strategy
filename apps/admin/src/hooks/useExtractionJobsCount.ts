@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { useApi } from './use-api';
 import { useConfig } from '@/contexts/config';
 import { createExtractionJobsClient } from '@/api/extraction-jobs';
+import { usePageVisibility } from './use-page-visibility';
 
 export interface ExtractionJobsCount {
   queued: number;
@@ -16,11 +17,12 @@ export interface ExtractionJobsCount {
 
 /**
  * Fetches count of queued and running extraction jobs
- * Updates every 10 seconds
+ * Updates every 10 seconds (only when tab is visible)
  */
 export function useExtractionJobsCount() {
   const { apiBase, fetchJson } = useApi();
   const { config } = useConfig();
+  const isVisible = usePageVisibility();
   const [counts, setCounts] = useState<ExtractionJobsCount>({
     queued: 0,
     running: 0,
@@ -33,6 +35,9 @@ export function useExtractionJobsCount() {
       setCounts({ queued: 0, running: 0, total: 0 });
       return;
     }
+
+    // Don't poll when tab is hidden
+    if (!isVisible) return;
 
     const client = createExtractionJobsClient(
       apiBase,
@@ -73,7 +78,13 @@ export function useExtractionJobsCount() {
     const interval = setInterval(fetchCounts, 10000);
 
     return () => clearInterval(interval);
-  }, [apiBase, fetchJson, config.activeProjectId, config.activeOrgId]);
+  }, [
+    apiBase,
+    fetchJson,
+    config.activeProjectId,
+    config.activeOrgId,
+    isVisible,
+  ]);
 
   return { counts, loading };
 }
