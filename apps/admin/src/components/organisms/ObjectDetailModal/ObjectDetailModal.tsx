@@ -7,7 +7,7 @@ import {
 } from 'react';
 import { Icon } from '@/components/atoms/Icon';
 import { GraphObject } from '../ObjectBrowser/ObjectBrowser';
-import { RelationshipGraph } from '../RelationshipGraph';
+import { RelationshipGraph, TreeRelationshipGraph } from '../RelationshipGraph';
 import { useApi } from '@/hooks/use-api';
 import type {
   ObjectVersion,
@@ -16,6 +16,9 @@ import type {
 
 /** Tab names for the modal */
 type ModalTab = 'properties' | 'relationships' | 'system' | 'history';
+
+/** Graph layout options */
+type GraphLayout = 'radial' | 'tree' | 'orthogonal';
 
 interface GraphObjectResponse {
   id: string;
@@ -62,6 +65,7 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
   // Tab and fullscreen state
   const [activeTab, setActiveTab] = useState<ModalTab>('properties');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [graphLayout, setGraphLayout] = useState<GraphLayout>('radial');
 
   const [versions, setVersions] = useState<ObjectVersion[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
@@ -70,9 +74,11 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
     { type: string; direction: 'in' | 'out'; objects: GraphObject[] }[]
   >([]);
   const [loadingRelations, setLoadingRelations] = useState(false);
-  const [documentNames, setDocumentNames] = useState<Record<string, string>>(
-    {}
-  );
+  // Use refs for document names cache to prevent re-render loops
+  const documentNamesCacheRef = useRef<Record<string, string>>({});
+  const inFlightDocRequestsRef = useRef<Set<string>>(new Set());
+  // Counter to trigger re-render when cache is updated
+  const [docCacheVersion, setDocCacheVersion] = useState(0);
   const [loadingObjectName, setLoadingObjectName] = useState<string | null>(
     null
   );
@@ -99,29 +105,57 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
 
   const fetchDocumentName = useCallback(
     async (docId: string) => {
-      if (documentNames[docId]) return;
+      // Check cache first (using ref, no re-render trigger)
+      if (documentNamesCacheRef.current[docId]) return;
+
+      // Skip if already in-flight
+      if (inFlightDocRequestsRef.current.has(docId)) return;
+
+      // Mark as in-flight
+      inFlightDocRequestsRef.current.add(docId);
+
       try {
         const doc = await fetchJson<{ filename?: string; name?: string }>(
           `${apiBase}/api/documents/${docId}`
         );
         const name = doc.filename || doc.name || docId.substring(0, 8);
-        setDocumentNames((prev) => ({ ...prev, [docId]: name }));
+        documentNamesCacheRef.current[docId] = name;
       } catch (e) {
-        setDocumentNames((prev) => ({ ...prev, [docId]: 'Unknown Document' }));
+        documentNamesCacheRef.current[docId] = 'Unknown Document';
+      } finally {
+        inFlightDocRequestsRef.current.delete(docId);
       }
     },
-    [apiBase, fetchJson, documentNames]
+    [apiBase, fetchJson]
   );
 
+  // Batch fetch document names when object changes
   useEffect(() => {
     if (!object?.properties) return;
-    const sourceId = object.properties._extraction_source_id as string;
-    const sourceIds = object.properties._extraction_source_ids as string[];
 
-    if (sourceId) fetchDocumentName(sourceId);
-    if (sourceIds && Array.isArray(sourceIds)) {
-      sourceIds.forEach((id) => fetchDocumentName(id));
+    const sourceIds: string[] = [];
+    const sourceId = object.properties._extraction_source_id as string;
+    const sourceIdArray = object.properties._extraction_source_ids as string[];
+
+    if (sourceId) sourceIds.push(sourceId);
+    if (sourceIdArray && Array.isArray(sourceIdArray)) {
+      sourceIds.push(...sourceIdArray);
     }
+
+    // Filter out already-cached IDs
+    const idsToFetch = sourceIds.filter(
+      (id) => !documentNamesCacheRef.current[id]
+    );
+
+    if (idsToFetch.length === 0) return;
+
+    const fetchAll = async () => {
+      await Promise.all(idsToFetch.map((id) => fetchDocumentName(id)));
+      // Trigger single re-render after all fetches complete
+      setDocCacheVersion((v) => v + 1);
+    };
+
+    fetchAll();
   }, [object, fetchDocumentName]);
 
   const loadRelatedObjects = useCallback(async () => {
@@ -363,6 +397,8 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
         object_id: string;
       }>(`${apiBase}/api/graph/embeddings/object/${object.id}/status`, {
         method: 'GET',
+        // Suppress 404 logging - expected when no active job exists
+        suppressErrorLog: true,
       });
 
       setEmbeddingJobStatus({
@@ -419,6 +455,7 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
       // Reset tab and fullscreen state
       setActiveTab('properties');
       setIsFullscreen(false);
+      setGraphLayout('radial');
     }
   }, [isOpen, object, loadVersionHistory, loadRelatedObjects]);
 
@@ -456,6 +493,139 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
     if (typeof value === 'object') return JSON.stringify(value, null, 2);
     if (typeof value === 'number') return value.toString();
     return String(value);
+  };
+
+  /**
+   * Try to parse a string as NDJSON (newline-delimited JSON objects)
+   * Returns array of parsed objects if successful, null otherwise
+   */
+  const tryParseNDJSON = (value: string): object[] | null => {
+    if (typeof value !== 'string') return null;
+    const lines = value.trim().split('\n');
+    if (lines.length < 1) return null;
+
+    try {
+      const parsed = lines.map((line) => JSON.parse(line.trim()));
+      // Verify all items are objects
+      if (parsed.every((item) => typeof item === 'object' && item !== null)) {
+        return parsed;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  /**
+   * Render a source reference object nicely
+   */
+  const renderSourceReference = (
+    ref: { snippet?: string; reference?: string },
+    idx: number
+  ) => (
+    <div
+      key={idx}
+      className="bg-base-100 border border-base-300 rounded p-3 mb-2"
+    >
+      {ref.reference && (
+        <div className="text-xs font-semibold text-primary mb-1">
+          {ref.reference}
+        </div>
+      )}
+      {ref.snippet && (
+        <div className="text-sm text-base-content/80 italic">
+          &ldquo;{ref.snippet}&rdquo;
+        </div>
+      )}
+    </div>
+  );
+
+  /**
+   * Render a property value with smart formatting
+   */
+  const renderPropertyValue = (key: string, value: unknown) => {
+    // Handle arrays
+    if (Array.isArray(value)) {
+      // Check if it's an array of source references
+      const isSourceRefs = value.every(
+        (item) =>
+          typeof item === 'object' &&
+          item !== null &&
+          ('snippet' in item || 'reference' in item)
+      );
+      if (isSourceRefs && value.length > 0) {
+        return (
+          <div className="space-y-1">
+            {value.map((item, idx) =>
+              renderSourceReference(
+                item as { snippet?: string; reference?: string },
+                idx
+              )
+            )}
+          </div>
+        );
+      }
+      // Regular array
+      return (
+        <div className="flex flex-wrap gap-1">
+          {value.map((item, idx) => (
+            <span key={idx} className="badge badge-sm badge-ghost">
+              {typeof item === 'object' && item !== null
+                ? JSON.stringify(item)
+                : String(item)}
+            </span>
+          ))}
+        </div>
+      );
+    }
+
+    // Handle objects
+    if (typeof value === 'object' && value !== null) {
+      // Check if it's a source reference object
+      if ('snippet' in value || 'reference' in value) {
+        return renderSourceReference(
+          value as { snippet?: string; reference?: string },
+          0
+        );
+      }
+      return (
+        <pre className="bg-base-100 p-2 rounded overflow-x-auto text-xs">
+          {JSON.stringify(value, null, 2)}
+        </pre>
+      );
+    }
+
+    // Handle strings that might be NDJSON
+    if (typeof value === 'string') {
+      const ndjson = tryParseNDJSON(value);
+      if (ndjson) {
+        // Check if it's source references
+        const isSourceRefs = ndjson.every(
+          (item) => 'snippet' in item || 'reference' in item
+        );
+        if (isSourceRefs) {
+          return (
+            <div className="space-y-1">
+              {ndjson.map((item, idx) =>
+                renderSourceReference(
+                  item as { snippet?: string; reference?: string },
+                  idx
+                )
+              )}
+            </div>
+          );
+        }
+        // Generic NDJSON - render as formatted JSON array
+        return (
+          <pre className="bg-base-100 p-2 rounded overflow-x-auto text-xs">
+            {JSON.stringify(ndjson, null, 2)}
+          </pre>
+        );
+      }
+    }
+
+    // Default string/number/other
+    return <span>{formatValue(value)}</span>;
   };
 
   const formatPropertyName = (key: string): string => {
@@ -593,26 +763,7 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                           {formatPropertyName(key)}
                         </span>
                         <span className="flex-1 text-sm text-base-content/70 break-words">
-                          {Array.isArray(value) ? (
-                            <div className="flex flex-wrap gap-1">
-                              {value.map((item, idx) => (
-                                <span
-                                  key={idx}
-                                  className="badge badge-sm badge-ghost"
-                                >
-                                  {typeof item === 'object' && item !== null
-                                    ? JSON.stringify(item)
-                                    : String(item)}
-                                </span>
-                              ))}
-                            </div>
-                          ) : typeof value === 'object' && value !== null ? (
-                            <pre className="bg-base-100 p-2 rounded overflow-x-auto text-xs">
-                              {JSON.stringify(value, null, 2)}
-                            </pre>
-                          ) : (
-                            <span>{formatValue(value)}</span>
-                          )}
+                          {renderPropertyValue(key, value)}
                         </span>
                       </div>
                     ))}
@@ -636,6 +787,54 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
           {/* Relationships Tab */}
           {activeTab === 'relationships' && (
             <div className="space-y-6">
+              {/* Graph Layout Toggle */}
+              <div className="flex items-center justify-between">
+                <h4 className="flex items-center gap-2 font-semibold text-lg">
+                  <Icon icon="lucide--git-branch" className="size-5" />
+                  Relationship Graph
+                </h4>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-base-content/60">Layout:</span>
+                  <div className="join">
+                    <button
+                      className={`join-item btn btn-xs ${
+                        graphLayout === 'radial' ? 'btn-primary' : 'btn-ghost'
+                      }`}
+                      onClick={() => setGraphLayout('radial')}
+                      title="Radial layout - auto-arranges nodes in a radial pattern"
+                    >
+                      <Icon icon="lucide--circle-dot" className="size-3 mr-1" />
+                      Radial
+                    </button>
+                    <button
+                      className={`join-item btn btn-xs ${
+                        graphLayout === 'tree' ? 'btn-primary' : 'btn-ghost'
+                      }`}
+                      onClick={() => setGraphLayout('tree')}
+                      title="Tree layout - curved edges, expands left-to-right"
+                    >
+                      <Icon icon="lucide--git-branch" className="size-3 mr-1" />
+                      Tree
+                    </button>
+                    <button
+                      className={`join-item btn btn-xs ${
+                        graphLayout === 'orthogonal'
+                          ? 'btn-primary'
+                          : 'btn-ghost'
+                      }`}
+                      onClick={() => setGraphLayout('orthogonal')}
+                      title="Orthogonal tree - right-angle edges"
+                    >
+                      <Icon
+                        icon="lucide--layout-grid"
+                        className="size-3 mr-1"
+                      />
+                      Ortho
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* Interactive Graph Visualization */}
               <div
                 className="bg-base-200/30 border border-base-300 rounded-lg overflow-hidden"
@@ -643,12 +842,24 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                   height: isFullscreen ? 'calc(100vh - 400px)' : '450px',
                 }}
               >
-                <RelationshipGraph
-                  objectId={object.id}
-                  onNodeDoubleClick={handleObjectIdClick}
-                  initialDepth={2}
-                  showMinimap={isFullscreen}
-                />
+                {graphLayout === 'radial' ? (
+                  <RelationshipGraph
+                    objectId={object.id}
+                    onNodeDoubleClick={handleObjectIdClick}
+                    initialDepth={1}
+                    showMinimap={isFullscreen}
+                  />
+                ) : (
+                  <TreeRelationshipGraph
+                    objectId={object.id}
+                    onNodeDoubleClick={handleObjectIdClick}
+                    initialDepth={1}
+                    showMinimap={isFullscreen}
+                    edgeStyle={
+                      graphLayout === 'orthogonal' ? 'orthogonal' : 'bezier'
+                    }
+                  />
+                )}
               </div>
 
               {/* Relationship Groups Section */}
@@ -821,7 +1032,7 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                                 className="size-4 text-primary shrink-0"
                               />
                               <span className="text-sm truncate max-w-[200px]">
-                                {documentNames[
+                                {documentNamesCacheRef.current[
                                   extractionMetadata._extraction_source_id
                                 ] || 'Loading...'}
                               </span>
@@ -845,8 +1056,9 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                                     className="size-4 text-primary shrink-0"
                                   />
                                   <span className="text-sm truncate max-w-[200px]">
-                                    {documentNames[sourceId as string] ||
-                                      'Loading...'}
+                                    {documentNamesCacheRef.current[
+                                      sourceId as string
+                                    ] || 'Loading...'}
                                   </span>
                                 </a>
                               )
