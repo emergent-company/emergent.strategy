@@ -91,9 +91,17 @@ export class LangfuseService implements OnModuleInit, OnModuleDestroy {
     input: any,
     metadata?: Record<string, any>
   ) {
-    if (!this.langfuse) return null;
+    if (!this.langfuse) {
+      this.logger.debug(
+        `[createObservation] Langfuse not initialized, skipping observation for ${name}`
+      );
+      return null;
+    }
 
     try {
+      this.logger.log(
+        `[createObservation] Creating observation "${name}" for trace ${traceId}`
+      );
       // In SDK v3, we can create a generation directly linked to a trace ID
       // We don't necessarily need the parent trace object if we have the ID
       const generation = this.langfuse.generation({
@@ -103,6 +111,9 @@ export class LangfuseService implements OnModuleInit, OnModuleDestroy {
         metadata,
         startTime: new Date(),
       });
+      this.logger.log(
+        `[createObservation] Created observation with id: ${generation.id}`
+      );
       return generation;
     } catch (error) {
       this.logger.error(
@@ -128,9 +139,17 @@ export class LangfuseService implements OnModuleInit, OnModuleDestroy {
     status: 'success' | 'error' = 'success',
     statusMessage?: string
   ) {
-    if (!observation || !this.langfuse) return;
+    if (!observation || !this.langfuse) {
+      this.logger.debug(
+        `[updateObservation] No observation or Langfuse not initialized, skipping update`
+      );
+      return;
+    }
 
     try {
+      this.logger.log(
+        `[updateObservation] Updating observation ${observation.id} with status: ${status}`
+      );
       observation.update({
         output,
         usage: usage
@@ -145,6 +164,9 @@ export class LangfuseService implements OnModuleInit, OnModuleDestroy {
         level: status === 'error' ? 'ERROR' : undefined,
         statusMessage,
       });
+      this.logger.log(
+        `[updateObservation] Successfully updated observation ${observation.id}`
+      );
     } catch (error) {
       this.logger.error('Failed to update observation', error);
     }
@@ -154,18 +176,42 @@ export class LangfuseService implements OnModuleInit, OnModuleDestroy {
    * Finalize a trace (mark as completed)
    * Note: In LangFuse, traces don't explicitly need "closing" but we can update status/output
    */
-  finalizeTrace(traceId: string, status: 'success' | 'error', output?: any) {
+  async finalizeTrace(
+    traceId: string,
+    status: 'success' | 'error',
+    output?: any
+  ) {
     if (!this.langfuse) return;
 
     try {
+      this.logger.log(
+        `[finalizeTrace] Finalizing trace ${traceId} with status: ${status}`
+      );
       // We can update the trace using its ID
       this.langfuse.trace({
         id: traceId,
         output,
         tags: [status],
       });
+      // Flush to ensure all observations are sent
+      await this.flush();
     } catch (error) {
       this.logger.error(`Failed to finalize trace ${traceId}`, error);
+    }
+  }
+
+  /**
+   * Flush pending events to Langfuse
+   */
+  async flush(): Promise<void> {
+    if (!this.langfuse) return;
+
+    try {
+      this.logger.debug('[flush] Flushing pending Langfuse events...');
+      await this.langfuse.flushAsync();
+      this.logger.debug('[flush] Successfully flushed Langfuse events');
+    } catch (error) {
+      this.logger.error('Failed to flush Langfuse events', error);
     }
   }
 

@@ -1,0 +1,22 @@
+# Implementation Tasks
+
+- [ ] **Enhance LangfuseService** <!-- id: 0 -->
+  - Add `createSpan` method exposing `langfuse.span()`
+  - Update `createObservation` to accept `parentObservationId`
+  - Add `updateSpan` method for closing spans with status/metadata
+  - Ensure robust error handling if Langfuse is not initialized
+- [ ] **Instrument ExtractionWorkerService** <!-- id: 1 -->
+  - Modify `beginTimelineStep` helper to create Langfuse spans automatically
+  - Attach `span.id` to the returned finish callback
+  - Update `beginTimelineStep` to close spans on completion (success/error)
+  - Pass the active span ID (from `llm_extract`) as `parentObservationId` to `llmProvider.extractEntities`
+- [ ] **Update LLM Interfaces** <!-- id: 2 -->
+  - Update `ExtractionOptions` interface in `llm-provider.interface.ts` to include `parentObservationId` in context
+- [ ] **Update LangChainGeminiProvider** <!-- id: 3 -->
+  - Update `extractEntities` to accept `parentObservationId` from context
+  - Pass `parentObservationId` when calling `langfuseService.createObservation`
+  - (Optional) Create intermediate spans for "Extract Type X" if feasible
+- [ ] **Verify Implementation** <!-- id: 4 -->
+  - Run a manual extraction test
+  - Verify hierarchical trace structure in Langfuse UI
+  - Verify error scenarios (force failure) show up correctly in the trace

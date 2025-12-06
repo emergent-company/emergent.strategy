@@ -14,10 +14,14 @@ import { RateLimiterService } from './rate-limiter.service';
 import { ConfidenceScorerService } from './confidence-scorer.service';
 import { EntityLinkingService } from './entity-linking.service';
 import { GraphService } from '../graph/graph.service';
+import { GraphVectorSearchService } from '../graph/graph-vector-search.service';
 import { DocumentsService } from '../documents/documents.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ExtractionJobDto } from './dto/extraction-job.dto';
-import type { ExtractionResult } from './llm/llm-provider.interface';
+import type {
+  ExtractionResult,
+  ExistingEntityContext,
+} from './llm/llm-provider.interface';
 import { TemplatePackService } from '../template-packs/template-pack.service';
 import { MonitoringLoggerService } from '../monitoring/monitoring-logger.service';
 import { LangfuseService } from '../langfuse/langfuse.service';
@@ -55,6 +59,18 @@ interface BuildDebugInfoArgs {
   reviewRequiredCount?: number;
   errorMessage?: string;
   organizationId?: string | null;
+  /** Confidence thresholds used for this extraction */
+  thresholds?: {
+    min: number;
+    review: number;
+    autoAccept: number;
+    /** Whether thresholds came from job config vs server defaults */
+    source: {
+      min: 'job_config' | 'server_default';
+      review: 'job_config' | 'server_default';
+      autoAccept: 'job_config' | 'server_default';
+    };
+  };
 }
 
 const toErrorMessage = (error: unknown): string =>
@@ -100,7 +116,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly monitoringLogger: MonitoringLoggerService,
     private readonly langfuseService: LangfuseService,
     private readonly chunkerService: ChunkerService,
-    private readonly embeddingsService: EmbeddingsService
+    private readonly embeddingsService: EmbeddingsService,
+    private readonly vectorSearchService: GraphVectorSearchService
   ) {}
 
   /**
@@ -376,6 +393,67 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     // Fetch organization_id once for reuse throughout the method
     const organizationId = await this.getOrganizationId(job);
 
+    // Get confidence thresholds early
+    // - minThreshold: Below this, entities are rejected (server default: 0%)
+    // - reviewThreshold/draftThreshold: Between min and auto, entities are "draft" status
+    // - autoThreshold: At or above this, entities are "accepted" status
+    //
+    // The UI's confidence_threshold is the "draft threshold" (what the user considers minimum quality)
+    // The UI's auto_accept_threshold is the threshold for auto-accepting as final
+    const minThresholdFromConfig =
+      job.extraction_config?.min_threshold !== undefined;
+    const draftThresholdFromConfig =
+      job.extraction_config?.confidence_threshold !== undefined;
+    const autoThresholdFromConfig =
+      job.extraction_config?.auto_accept_threshold !== undefined;
+
+    // Minimum threshold for rejection (server default: 0%, rarely overridden)
+    const minThreshold = minThresholdFromConfig
+      ? job.extraction_config.min_threshold
+      : this.config.extractionConfidenceThresholdMin;
+
+    // Draft threshold - entities below this get extra review marking
+    // This comes from the UI's "confidence_threshold" slider
+    const reviewThreshold = draftThresholdFromConfig
+      ? job.extraction_config.confidence_threshold
+      : this.config.extractionConfidenceThresholdReview;
+
+    // Auto-accept threshold - at or above this, entities are marked "accepted"
+    const autoThreshold = autoThresholdFromConfig
+      ? job.extraction_config.auto_accept_threshold
+      : this.config.extractionConfidenceThresholdAuto;
+
+    // Build thresholds object for debug info
+    const thresholdsInfo = {
+      min: minThreshold,
+      review: reviewThreshold,
+      autoAccept: autoThreshold,
+      source: {
+        min: (minThresholdFromConfig ? 'job_config' : 'server_default') as
+          | 'job_config'
+          | 'server_default',
+        review: (draftThresholdFromConfig ? 'job_config' : 'server_default') as
+          | 'job_config'
+          | 'server_default',
+        autoAccept: (autoThresholdFromConfig
+          ? 'job_config'
+          : 'server_default') as 'job_config' | 'server_default',
+      },
+    };
+
+    this.logger.log(
+      `Extraction thresholds for job ${job.id}: ` +
+        `min=${(minThreshold * 100).toFixed(0)}% (${
+          thresholdsInfo.source.min
+        }), ` +
+        `review=${(reviewThreshold * 100).toFixed(0)}% (${
+          thresholdsInfo.source.review
+        }), ` +
+        `autoAccept=${(autoThreshold * 100).toFixed(0)}% (${
+          thresholdsInfo.source.autoAccept
+        })`
+    );
+
     // Create LangFuse trace
     const traceId = this.langfuseService.createJobTrace(job.id, {
       name: `Extraction Job ${job.id}`,
@@ -572,19 +650,26 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         }
       );
 
-      if (!extractionConfig.prompt) {
-        const message = 'No extraction prompt configured for this project';
+      // Check if we have object schemas - the actual extraction prompt is built
+      // by buildToolExtractionPrompt() in the LLM provider using these schemas.
+      // The basePrompt is optional and just provides additional context.
+      if (Object.keys(extractionConfig.objectSchemas).length === 0) {
+        const message =
+          'No extraction schemas configured for this project. Install a template pack with object type schemas.';
         promptStep('error', { message });
         throw new Error(message);
       }
 
-      const extractionPrompt = extractionConfig.prompt;
+      // Base prompt is optional - buildToolExtractionPrompt provides the core instructions
+      const extractionPrompt = extractionConfig.prompt || '';
       const objectSchemas = extractionConfig.objectSchemas;
+      const relationshipSchemas = extractionConfig.relationshipSchemas;
 
       promptStep('success', {
         metadata: {
           prompt_length: extractionPrompt.length,
           schema_count: Object.keys(objectSchemas).length,
+          relationship_schema_count: Object.keys(relationshipSchemas).length,
         },
       });
 
@@ -658,6 +743,37 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         // Don't throw - continue extraction without tags
       }
 
+      // Fetch existing similar entities using vector search for better relationship extraction
+      const fetchEntitiesStep = beginTimelineStep('fetch_existing_entities');
+      let existingEntities: ExistingEntityContext[] = [];
+      try {
+        if (job.source_type === 'document' && job.source_id) {
+          existingEntities = await this.findSimilarExistingEntities(
+            job.source_id,
+            job.project_id,
+            30, // limit
+            0.5 // maxDistance
+          );
+          fetchEntitiesStep('success', {
+            metadata: { entities_count: existingEntities.length },
+          });
+          this.logger.debug(
+            `Fetched ${existingEntities.length} similar existing entities for extraction context`
+          );
+        } else {
+          fetchEntitiesStep('info', {
+            message: 'Non-document source, skipping entity context',
+          });
+        }
+      } catch (error) {
+        const message = toErrorMessage(error);
+        fetchEntitiesStep('warning', { message });
+        this.logger.warn(
+          `Failed to fetch existing entities, proceeding without: ${message}`
+        );
+        // Don't throw - continue extraction without entity context
+      }
+
       const llmStep = beginTimelineStep('llm_extract', {
         provider: providerName,
         allowed_types: allowedTypes ?? null,
@@ -691,13 +807,17 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         const result = await llmProvider.extractEntities(
           documentContent,
           extractionPrompt,
-          objectSchemas,
-          allowedTypes,
-          availableTags,
           {
-            jobId: job.id,
-            projectId: job.project_id,
-            traceId: traceId || undefined,
+            objectSchemas,
+            relationshipSchemas,
+            allowedTypes,
+            availableTags,
+            existingEntities,
+            context: {
+              jobId: job.id,
+              projectId: job.project_id,
+              traceId: traceId || undefined,
+            },
           }
         );
 
@@ -898,11 +1018,6 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       const createdObjectIds: string[] = [];
       const reviewRequiredObjectIds: string[] = [];
       const strategy = this.config.extractionEntityLinkingStrategy;
-
-      // Get confidence thresholds
-      const minThreshold = this.config.extractionConfidenceThresholdMin;
-      const reviewThreshold = this.config.extractionConfidenceThresholdReview;
-      const autoThreshold = this.config.extractionConfidenceThresholdAuto;
 
       const graphStep = beginTimelineStep('graph_upsert', {
         strategy,
@@ -1301,6 +1416,166 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         await recordProgress(outcome);
       }
 
+      // 6b. Build BatchEntityMap: name (lowercase) → UUID for extracted entities
+      const batchEntityMap = new Map<string, string>();
+      for (const entity of extractionResult.entities) {
+        // Map entity names to their created object IDs
+        // Note: We need to track which entities were successfully created
+        // For now, we use the entity name as key since we don't have direct mapping
+        const normalizedName = entity.name.toLowerCase().trim();
+        // We'll try to find the object ID via database lookup if not already tracked
+        // This is a simplification - ideally we'd track entity → objectId during creation
+        if (!batchEntityMap.has(normalizedName)) {
+          // Try to find the object by name in the project
+          try {
+            const lookupResult = await this.db.runWithTenantContext(
+              job.project_id,
+              async () => {
+                return this.db.query<{ id: string }>(
+                  `SELECT id FROM kb.graph_objects
+                   WHERE project_id = $1
+                     AND branch_id IS NULL
+                     AND deleted_at IS NULL
+                     AND properties->>'name' ILIKE $2
+                   ORDER BY created_at DESC
+                   LIMIT 1`,
+                  [job.project_id, entity.name]
+                );
+              }
+            );
+            if (lookupResult.rowCount && lookupResult.rowCount > 0) {
+              batchEntityMap.set(normalizedName, lookupResult.rows[0].id);
+            }
+          } catch {
+            // Ignore lookup errors
+          }
+        }
+      }
+
+      this.logger.debug(
+        `Built BatchEntityMap with ${batchEntityMap.size} entity mappings`
+      );
+
+      // 6c. Process extracted relationships
+      let relationshipsCreated = 0;
+      let relationshipsSkipped = 0;
+      let relationshipsFailed = 0;
+
+      if (
+        extractionResult.relationships &&
+        extractionResult.relationships.length > 0
+      ) {
+        const relStep = beginTimelineStep('create_relationships', {
+          total_relationships: extractionResult.relationships.length,
+        });
+
+        for (const rel of extractionResult.relationships) {
+          try {
+            // Resolve source entity ID
+            const sourceId = await this.resolveEntityReference(
+              rel.source,
+              batchEntityMap,
+              job.project_id
+            );
+
+            // Resolve target entity ID
+            const targetId = await this.resolveEntityReference(
+              rel.target,
+              batchEntityMap,
+              job.project_id
+            );
+
+            if (!sourceId) {
+              this.logger.warn(
+                `[Relationship] Could not resolve source entity: ${
+                  rel.source.name || rel.source.id
+                } for relationship type ${rel.relationship_type}`
+              );
+              relationshipsSkipped++;
+              continue;
+            }
+
+            if (!targetId) {
+              this.logger.warn(
+                `[Relationship] Could not resolve target entity: ${
+                  rel.target.name || rel.target.id
+                } for relationship type ${rel.relationship_type}`
+              );
+              relationshipsSkipped++;
+              continue;
+            }
+
+            // Validate against relationship schema if available
+            if (
+              relationshipSchemas &&
+              relationshipSchemas[rel.relationship_type]
+            ) {
+              const schema = relationshipSchemas[rel.relationship_type];
+              // Could add source/target type validation here
+              // For now, we just log that the relationship type is valid
+              this.logger.debug(
+                `[Relationship] Type ${rel.relationship_type} is valid per schema`
+              );
+            }
+
+            // Create the relationship
+            await this.graphService.createRelationship(
+              {
+                type: rel.relationship_type,
+                src_id: sourceId,
+                dst_id: targetId,
+                properties: {
+                  description: rel.description,
+                  _extraction_confidence: rel.confidence,
+                  _extraction_job_id: job.id,
+                  _extraction_source: 'llm',
+                },
+              },
+              organizationId ?? '',
+              job.project_id
+            );
+
+            relationshipsCreated++;
+            this.logger.debug(
+              `[Relationship] Created ${rel.relationship_type}: ${sourceId} → ${targetId}`
+            );
+          } catch (relError) {
+            const relErr =
+              relError instanceof Error
+                ? relError
+                : new Error(String(relError));
+
+            // Handle duplicate relationship gracefully
+            if (
+              relErr.message.includes('duplicate') ||
+              relErr.message.includes('unique')
+            ) {
+              this.logger.debug(
+                `[Relationship] Skipped duplicate: ${rel.relationship_type}`
+              );
+              relationshipsSkipped++;
+            } else {
+              this.logger.warn(
+                `[Relationship] Failed to create ${rel.relationship_type}: ${relErr.message}`
+              );
+              relationshipsFailed++;
+            }
+          }
+        }
+
+        relStep('success', {
+          metadata: {
+            created: relationshipsCreated,
+            skipped: relationshipsSkipped,
+            failed: relationshipsFailed,
+          },
+        });
+
+        this.logger.log(
+          `Relationships: ${relationshipsCreated} created, ${relationshipsSkipped} skipped, ${relationshipsFailed} failed`
+        );
+      }
+
       graphStep('success', {
         metadata: {
           created: outcomeCounts.created,
@@ -1309,6 +1584,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
           rejected: outcomeCounts.rejected,
           failed: outcomeCounts.failed,
           review_required: reviewRequiredObjectIds.length,
+          relationships_created: relationshipsCreated,
+          relationships_skipped: relationshipsSkipped,
+          relationships_failed: relationshipsFailed,
         },
       });
 
@@ -1327,6 +1605,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         rejectedCount,
         reviewRequiredCount: reviewRequiredObjectIds.length,
         organizationId,
+        thresholds: thresholdsInfo,
       });
 
       if (requiresReview) {
@@ -1430,7 +1709,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       this.successCount++;
 
       if (traceId) {
-        this.langfuseService.finalizeTrace(traceId, 'success', {
+        await this.langfuseService.finalizeTrace(traceId, 'success', {
           entities_count: extractionResult.entities.length,
           duration_ms: duration,
         });
@@ -1473,6 +1752,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         extractionResult,
         errorMessage,
         organizationId,
+        thresholds: thresholdsInfo,
       });
 
       await this.jobService.markFailed(
@@ -1492,7 +1772,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       });
 
       if (traceId) {
-        this.langfuseService.finalizeTrace(traceId, 'error', {
+        await this.langfuseService.finalizeTrace(traceId, 'error', {
           error: errorMessage,
           duration_ms: Date.now() - startTime,
         });
@@ -1574,6 +1854,25 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
     if (errorMessage) {
       debugInfo.error_message = errorMessage;
+    }
+
+    // Add threshold information for debugging
+    if (args.thresholds) {
+      debugInfo.confidence_thresholds = {
+        min_threshold: args.thresholds.min,
+        review_threshold: args.thresholds.review,
+        auto_accept_threshold: args.thresholds.autoAccept,
+        threshold_sources: args.thresholds.source,
+        interpretation: {
+          rejected: `confidence < ${(args.thresholds.min * 100).toFixed(0)}%`,
+          draft: `${(args.thresholds.min * 100).toFixed(0)}% <= confidence < ${(
+            args.thresholds.autoAccept * 100
+          ).toFixed(0)}%`,
+          accepted: `confidence >= ${(args.thresholds.autoAccept * 100).toFixed(
+            0
+          )}%`,
+        },
+      };
     }
 
     return debugInfo;
@@ -1892,11 +2191,12 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
   private async loadExtractionConfig(job: ExtractionJobDto): Promise<{
     prompt: string | null;
     objectSchemas: Record<string, any>;
+    relationshipSchemas: Record<string, any>;
   }> {
     const organizationId = await this.getOrganizationId(job);
     if (!organizationId) {
       this.logger.warn(`Missing organization ID for job ${job.id}`);
-      return { prompt: null, objectSchemas: {} };
+      return { prompt: null, objectSchemas: {}, relationshipSchemas: {} };
     }
 
     // Get project's assigned template packs using TemplatePackService
@@ -1930,14 +2230,14 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         this.logger.warn(
           'No default extraction template pack configured; skipping auto-install'
         );
-        return { prompt: null, objectSchemas: {} };
+        return { prompt: null, objectSchemas: {}, relationshipSchemas: {} };
       }
 
       if (!organizationId) {
         this.logger.warn(
           `Cannot auto-install default template pack ${defaultTemplatePackId}: missing organization ID on job ${job.id}`
         );
-        return { prompt: null, objectSchemas: {} };
+        return { prompt: null, objectSchemas: {}, relationshipSchemas: {} };
       }
 
       const userId =
@@ -1970,7 +2270,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             `Failed to auto-install default template pack ${defaultTemplatePackId} for project ${job.project_id}`,
             err
           );
-          return { prompt: null, objectSchemas: {} };
+          return { prompt: null, objectSchemas: {}, relationshipSchemas: {} };
         }
       }
 
@@ -1984,13 +2284,14 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         this.logger.warn(
           `Default template pack ${defaultTemplatePackId} available but prompts still missing for project ${job.project_id}`
         );
-        return { prompt: null, objectSchemas: {} };
+        return { prompt: null, objectSchemas: {}, relationshipSchemas: {} };
       }
     }
 
-    // Merge extraction prompts and object schemas from ALL active template packs
+    // Merge extraction prompts, object schemas, and relationship schemas from ALL active template packs
     const mergedExtractionPrompts: Record<string, string> = {};
     const mergedObjectSchemas: Record<string, any> = {};
+    const mergedRelationshipSchemas: Record<string, any> = {};
     let firstDefaultPromptKey: string | null = null;
 
     this.logger.log(
@@ -2049,6 +2350,40 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         }
       }
 
+      // Merge relationship type schemas
+      const relationshipSchemas = pack.relationship_type_schemas || {};
+      for (const [typeName, schema] of Object.entries(relationshipSchemas)) {
+        if (typeof schema !== 'object' || schema === null) {
+          this.logger.warn(
+            `[loadExtractionConfig] Invalid relationship schema for type ${typeName} in ${packName}, skipping`
+          );
+          continue;
+        }
+
+        if (mergedRelationshipSchemas[typeName]) {
+          // Later packs override earlier ones for same type
+          this.logger.debug(
+            `[loadExtractionConfig] Merging relationship schema for type: ${typeName} (from ${packName})`
+          );
+          mergedRelationshipSchemas[typeName] = {
+            ...mergedRelationshipSchemas[typeName],
+            ...(schema as Record<string, any>),
+            _sources: [
+              ...(mergedRelationshipSchemas[typeName]._sources || []),
+              { pack: packName },
+            ],
+          };
+        } else {
+          this.logger.debug(
+            `[loadExtractionConfig] Adding relationship schema for type: ${typeName} (from ${packName})`
+          );
+          mergedRelationshipSchemas[typeName] = {
+            ...(schema as Record<string, any>),
+            _sources: [{ pack: packName }],
+          };
+        }
+      }
+
       // Use the first default_prompt_key we encounter from customizations
       // Note: customizations structure doesn't include default_prompt_key in type definition
       // but may be present in database - use type assertion
@@ -2062,13 +2397,22 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(
       `[loadExtractionConfig] Merged ${
         Object.keys(mergedObjectSchemas).length
-      } object type(s) from ${templatePacks.length} template pack(s)`
+      } object type(s) and ${
+        Object.keys(mergedRelationshipSchemas).length
+      } relationship type(s) from ${templatePacks.length} template pack(s)`
     );
     this.logger.debug(
       `[loadExtractionConfig] Object types: ${Object.keys(
         mergedObjectSchemas
       ).join(', ')}`
     );
+    if (Object.keys(mergedRelationshipSchemas).length > 0) {
+      this.logger.debug(
+        `[loadExtractionConfig] Relationship types: ${Object.keys(
+          mergedRelationshipSchemas
+        ).join(', ')}`
+      );
+    }
 
     // Load base extraction prompt from database settings or fall back to environment/default
     // Priority: 1. Database (kb.settings) -> 2. Environment variable -> 3. Default
@@ -2098,9 +2442,15 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(
       `Using schema-based extraction with ${
         Object.keys(mergedObjectSchemas).length
-      } object type(s)`
+      } object type(s) and ${
+        Object.keys(mergedRelationshipSchemas).length
+      } relationship type(s)`
     );
-    return { prompt: basePrompt, objectSchemas: mergedObjectSchemas };
+    return {
+      prompt: basePrompt,
+      objectSchemas: mergedObjectSchemas,
+      relationshipSchemas: mergedRelationshipSchemas,
+    };
   }
 
   /**
@@ -2374,5 +2724,274 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       .substring(0, 8);
 
     return `${typePrefix}-${normalized}-${hash}`.substring(0, 128);
+  }
+
+  /**
+   * Resolve an entity reference to a UUID.
+   *
+   * Resolution order:
+   * 1. If ref.id is provided, validate it exists and return it
+   * 2. If ref.name is provided, look up in batchEntityMap first
+   * 3. Fall back to database lookup by name
+   *
+   * @param ref - Entity reference with name and/or id
+   * @param batchEntityMap - Map of entity names (lowercase) to UUIDs from current extraction
+   * @param projectId - Project ID for database lookups
+   * @returns UUID of the resolved entity, or null if not found
+   */
+  private async resolveEntityReference(
+    ref: { name?: string; id?: string },
+    batchEntityMap: Map<string, string>,
+    projectId: string
+  ): Promise<string | null> {
+    // 1. If ID is provided, validate and return
+    if (ref.id) {
+      // Validate UUID format
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(ref.id)) {
+        this.logger.warn(
+          `[resolveEntityReference] Invalid UUID format: ${ref.id}`
+        );
+        return null;
+      }
+
+      // Verify it exists in database
+      try {
+        const result = await this.db.runWithTenantContext(projectId, async () =>
+          this.db.query<{ id: string }>(
+            `SELECT id FROM kb.graph_objects
+             WHERE id = $1 AND project_id = $2 AND deleted_at IS NULL
+             LIMIT 1`,
+            [ref.id, projectId]
+          )
+        );
+
+        if (result.rowCount && result.rowCount > 0) {
+          return ref.id;
+        }
+        this.logger.warn(
+          `[resolveEntityReference] Entity not found by ID: ${ref.id}`
+        );
+        return null;
+      } catch {
+        return null;
+      }
+    }
+
+    // 2. If name is provided, try batch map first
+    if (ref.name) {
+      const normalizedName = ref.name.toLowerCase().trim();
+
+      // Check batch map (entities from current extraction)
+      if (batchEntityMap.has(normalizedName)) {
+        return batchEntityMap.get(normalizedName)!;
+      }
+
+      // 3. Fall back to database lookup by name
+      try {
+        const result = await this.db.runWithTenantContext(projectId, async () =>
+          this.db.query<{ id: string }>(
+            `SELECT id FROM kb.graph_objects
+             WHERE project_id = $1
+               AND branch_id IS NULL
+               AND deleted_at IS NULL
+               AND properties->>'name' ILIKE $2
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [projectId, ref.name]
+          )
+        );
+
+        if (result.rowCount && result.rowCount > 0) {
+          // Cache for future lookups
+          batchEntityMap.set(normalizedName, result.rows[0].id);
+          return result.rows[0].id;
+        }
+      } catch (error) {
+        this.logger.debug(
+          `[resolveEntityReference] DB lookup failed for name: ${ref.name}`
+        );
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Find existing entities similar to a document's chunks using vector search.
+   *
+   * This method:
+   * 1. Gets the document's chunk embeddings
+   * 2. Searches for existing graph objects with similar embeddings
+   * 3. Returns unique entities as context for the LLM
+   *
+   * @param documentId - The document being processed
+   * @param projectId - The project to search within
+   * @param limit - Maximum number of entities to return (default 30)
+   * @param maxDistance - Maximum cosine distance threshold (default 0.5)
+   */
+  private async findSimilarExistingEntities(
+    documentId: string,
+    projectId: string,
+    limit: number = 30,
+    maxDistance: number = 0.5
+  ): Promise<ExistingEntityContext[]> {
+    try {
+      // 1. Get chunk embeddings for the document
+      const chunkResult = await this.db.query<{
+        id: string;
+        embedding: string | number[];
+      }>(
+        `SELECT id, embedding 
+         FROM kb.chunks 
+         WHERE document_id = $1 AND embedding IS NOT NULL
+         LIMIT 5`, // Use first 5 chunks for efficiency
+        [documentId]
+      );
+
+      if (!chunkResult.rowCount || chunkResult.rowCount === 0) {
+        this.logger.debug(
+          `[findSimilarEntities] No embeddings found for document ${documentId}`
+        );
+        return [];
+      }
+
+      // 2. Search for similar entities using each chunk embedding
+      const seenIds = new Set<string>();
+      const results: ExistingEntityContext[] = [];
+
+      for (const chunk of chunkResult.rows) {
+        // Parse embedding if it's a string
+        let embedding: number[];
+        if (typeof chunk.embedding === 'string') {
+          // Handle pgvector string format: "[1,2,3,...]" - already valid JSON
+          embedding = JSON.parse(chunk.embedding);
+        } else if (Array.isArray(chunk.embedding)) {
+          embedding = chunk.embedding;
+        } else {
+          // pgvector may return a typed array or other format
+          this.logger.warn(
+            `[findSimilarEntities] Unexpected embedding type: ${typeof chunk.embedding}`
+          );
+          continue;
+        }
+
+        this.logger.debug(
+          `[findSimilarEntities] Chunk ${chunk.id}: embedding dim=${
+            embedding.length
+          }, first few values=[${embedding.slice(0, 3).join(',')}]`
+        );
+
+        // Search for similar objects
+        const searchResults = await this.vectorSearchService.searchByVector(
+          embedding,
+          {
+            projectId,
+            limit: Math.ceil(limit / chunkResult.rowCount), // Distribute limit across chunks
+            maxDistance,
+          }
+        );
+
+        this.logger.debug(
+          `[findSimilarEntities] Vector search returned ${searchResults.length} results`
+        );
+
+        // 3. Fetch entity details with properties and relationships for each result
+        for (const result of searchResults) {
+          if (seenIds.has(result.id)) continue;
+          seenIds.add(result.id);
+
+          // Fetch entity details with full properties
+          const entityResult = await this.db.query<{
+            id: string;
+            type: string;
+            properties: Record<string, any>;
+          }>(
+            `SELECT id, type, properties 
+             FROM kb.graph_objects 
+             WHERE id = $1 AND deleted_at IS NULL`,
+            [result.id]
+          );
+
+          if (entityResult.rowCount && entityResult.rowCount > 0) {
+            const entity = entityResult.rows[0];
+
+            // Fetch relationships (one level deep) - both outgoing and incoming
+            // Note: graph_relationships uses src_id/dst_id column names
+            const relationshipsResult = await this.db.query<{
+              rel_type: string;
+              direction: 'outgoing' | 'incoming';
+              related_name: string;
+              related_type: string;
+            }>(
+              `SELECT 
+                 r.type as rel_type,
+                 CASE WHEN r.src_id = $1 THEN 'outgoing' ELSE 'incoming' END as direction,
+                 COALESCE(go.properties->>'name', go.key) as related_name,
+                 go.type as related_type
+               FROM kb.graph_relationships r
+               JOIN kb.graph_objects go ON (
+                 CASE WHEN r.src_id = $1 THEN r.dst_id ELSE r.src_id END = go.id
+               )
+               WHERE (r.src_id = $1 OR r.dst_id = $1)
+                 AND r.deleted_at IS NULL
+                 AND go.deleted_at IS NULL
+               LIMIT 10`,
+              [result.id]
+            );
+
+            const relationships = relationshipsResult.rows.map((r) => ({
+              type: r.rel_type,
+              direction: r.direction,
+              related_entity_name: r.related_name,
+              related_entity_type: r.related_type,
+            }));
+
+            // Extract name and description, filter out internal properties (those starting with _)
+            const { name, description, ...rawOtherProperties } =
+              entity.properties || {};
+
+            // Filter out internal/metadata properties (prefixed with _)
+            const filteredProperties = Object.fromEntries(
+              Object.entries(rawOtherProperties).filter(
+                ([key]) => !key.startsWith('_')
+              )
+            );
+
+            results.push({
+              id: entity.id,
+              name: name || `Unnamed ${entity.type}`,
+              type_name: entity.type,
+              description: description,
+              properties:
+                Object.keys(filteredProperties).length > 0
+                  ? filteredProperties
+                  : undefined,
+              relationships:
+                relationships.length > 0 ? relationships : undefined,
+            });
+          }
+
+          // Stop if we have enough
+          if (results.length >= limit) break;
+        }
+
+        if (results.length >= limit) break;
+      }
+
+      this.logger.debug(
+        `[findSimilarEntities] Found ${results.length} similar entities for document ${documentId}`
+      );
+
+      return results;
+    } catch (error) {
+      this.logger.warn(
+        `[findSimilarEntities] Error finding similar entities: ${
+          (error as Error).message
+        }`
+      );
+      return [];
+    }
   }
 }
