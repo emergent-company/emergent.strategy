@@ -15,7 +15,7 @@ export interface CandidateRow {
  *
  * Performs hybrid search over kb.graph_objects using:
  * - Lexical search: PostgreSQL full-text search (ts_rank) over fts column
- * - Vector search: pgvector similarity search over embedding_v1 column
+ * - Vector search: pgvector similarity search over embedding_v2 column (768-dim, Gemini text-embedding-004)
  */
 @Injectable()
 export class GraphSearchRepository {
@@ -66,7 +66,7 @@ export class GraphSearchRepository {
    * Vector search using pgvector similarity
    *
    * Uses cosine similarity (<->) operator to find nearest neighbors.
-   * Searches the embedding_v1 (vector(1536)) column.
+   * Searches the embedding_v2 (vector(768)) column which matches Gemini text-embedding-004 output.
    *
    * Note: Returns empty if no objects have embeddings populated.
    */
@@ -82,12 +82,12 @@ export class GraphSearchRepository {
     const sql = `
       SELECT 
         id,
-        (1 - (embedding_v1 <-> $1::vector)) as vector_score
+        (1 - (embedding_v2 <-> $1::vector)) as vector_score
       FROM kb.graph_objects
       WHERE 
         deleted_at IS NULL
-        AND embedding_v1 IS NOT NULL
-      ORDER BY embedding_v1 <-> $1::vector
+        AND embedding_v2 IS NOT NULL
+      ORDER BY embedding_v2 <-> $1::vector
       LIMIT $2
     `;
 

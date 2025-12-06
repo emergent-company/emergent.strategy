@@ -2,7 +2,7 @@
  * Main RelationshipGraph component
  * Provides an interactive graph visualization of object relationships
  */
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -18,6 +18,7 @@ import { GraphNode } from './GraphNode';
 import { GraphEdge } from './GraphEdge';
 import { GraphControls } from './GraphControls';
 import { GraphMinimap } from './GraphMinimap';
+import { GraphSearch } from './GraphSearch';
 import { useGraphData, type GraphNodeData } from './useGraphData';
 
 export interface RelationshipGraphProps {
@@ -25,7 +26,7 @@ export interface RelationshipGraphProps {
   objectId: string;
   /** Called when a node is double-clicked to open its details */
   onNodeDoubleClick?: (objectId: string) => void;
-  /** Initial depth for the graph (default: 2) */
+  /** Initial depth for the graph (default: 1) */
   initialDepth?: number;
   /** Whether to show the minimap */
   showMinimap?: boolean;
@@ -49,7 +50,6 @@ const defaultEdgeOptions = {
     type: MarkerType.ArrowClosed,
     width: 15,
     height: 15,
-    color: 'oklch(var(--bc) / 0.3)',
   },
 };
 
@@ -59,11 +59,37 @@ const defaultEdgeOptions = {
 function RelationshipGraphInner({
   objectId,
   onNodeDoubleClick,
-  initialDepth = 2,
+  initialDepth = 1,
   showMinimap = true,
   className = '',
 }: RelationshipGraphProps) {
   const { fitView } = useReactFlow();
+
+  // Track focused node for highlighting after search
+  const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
+  const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear focus after 2 seconds
+  const handleNodeFocus = useCallback((nodeId: string) => {
+    // Clear any existing timeout
+    if (focusTimeoutRef.current) {
+      clearTimeout(focusTimeoutRef.current);
+    }
+    setFocusedNodeId(nodeId);
+    // Auto-clear focus after 2 seconds
+    focusTimeoutRef.current = setTimeout(() => {
+      setFocusedNodeId(null);
+    }, 2000);
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const {
     nodes,
@@ -72,6 +98,7 @@ function RelationshipGraphInner({
     error,
     truncated,
     expandNode,
+    collapseNode,
     resetGraph,
     expandedNodes,
     relayout,
@@ -80,14 +107,30 @@ function RelationshipGraphInner({
     initialDepth,
   });
 
-  // Handle node click to expand
+  // Add expandedNodes and focus info to each node's data for rendering
+  const nodesWithExpandState = useMemo(() => {
+    return nodes.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        isExpanded: expandedNodes.has(node.id),
+        isFocused: node.id === focusedNodeId,
+      },
+    }));
+  }, [nodes, expandedNodes, focusedNodeId]);
+
+  // Handle node click to expand or collapse
   const handleNodeClick = useCallback(
     (_event: React.MouseEvent, node: { id: string; data: GraphNodeData }) => {
-      if (!expandedNodes.has(node.id) && node.data.hasMore) {
+      if (expandedNodes.has(node.id) && node.id !== objectId) {
+        // Node is expanded, collapse it
+        collapseNode(node.id);
+      } else if (!expandedNodes.has(node.id) && node.data.hasMore) {
+        // Node is not expanded, expand it
         expandNode(node.id);
       }
     },
-    [expandedNodes, expandNode]
+    [expandedNodes, expandNode, collapseNode, objectId]
   );
 
   // Handle node double-click to open details
@@ -161,8 +204,11 @@ function RelationshipGraphInner({
 
   return (
     <div className={`relative w-full h-full min-h-[400px] ${className}`}>
+      {/* Search component */}
+      <GraphSearch nodes={nodesWithExpandState} onNodeFocus={handleNodeFocus} />
+
       <ReactFlow
-        nodes={nodes}
+        nodes={nodesWithExpandState}
         edges={edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}

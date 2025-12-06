@@ -21,33 +21,66 @@ export const GraphNode = memo(function GraphNode({
   data,
   selected,
 }: GraphNodeComponentProps) {
-  const { label, type, status, isRoot, hasMore, depth, relationshipCount } =
-    data;
+  const {
+    label,
+    type,
+    status,
+    isRoot,
+    isExpanded,
+    isFocused,
+    isHovered,
+    hasMore,
+    depth,
+    relationshipCount,
+  } = data;
 
   const typeColor = getTypeColor(type);
   const typeIcon = getTypeIcon(type);
-  const truncatedLabel = truncateText(label, 20);
+  const truncatedLabel = truncateText(label, 30);
 
   return (
     <div
       className={`
         relative px-3 py-2 rounded-lg border-2 shadow-md
         transition-all duration-200 cursor-pointer
-        min-w-[140px] max-w-[180px]
-        ${
-          isRoot
-            ? 'border-primary bg-primary/10'
-            : 'border-base-300 bg-base-100'
-        }
+        min-w-[200px] max-w-[270px]
+        ${isRoot ? 'border-primary bg-base-200' : 'border-base-300 bg-base-100'}
         ${selected ? 'ring-2 ring-primary ring-offset-2' : ''}
-        hover:shadow-lg hover:border-primary/50
+        ${isFocused ? 'ring-4 ring-accent ring-offset-2 animate-pulse' : ''}
+        ${
+          isHovered
+            ? 'border-warning shadow-lg shadow-warning/20'
+            : 'hover:shadow-lg hover:border-primary/50'
+        }
       `}
     >
-      {/* Input handle (left side for incoming connections) - hidden, only for edge routing */}
+      {/* Handles on all sides for optimal edge routing */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="target-top"
+        className="!w-1 !h-1 !bg-transparent !border-0"
+        isConnectable={false}
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="target-bottom"
+        className="!w-1 !h-1 !bg-transparent !border-0"
+        isConnectable={false}
+      />
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-2 !h-2 !bg-base-300 !border-0 !opacity-0"
+        id="target-left"
+        className="!w-1 !h-1 !bg-transparent !border-0"
+        isConnectable={false}
+      />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="target-right"
+        className="!w-1 !h-1 !bg-transparent !border-0"
         isConnectable={false}
       />
 
@@ -65,10 +98,7 @@ export const GraphNode = memo(function GraphNode({
 
         {/* Label and metadata */}
         <div className="flex-1 min-w-0 overflow-hidden">
-          <div className="font-medium text-sm truncate" title={label}>
-            {truncatedLabel}
-          </div>
-          <div className="flex items-center gap-1 mt-0.5">
+          <div className="flex items-center gap-1">
             <span className="text-xs text-base-content/60 truncate">
               {type}
             </span>
@@ -83,41 +113,63 @@ export const GraphNode = memo(function GraphNode({
               </span>
             )}
           </div>
+          <div className="font-medium text-sm truncate mt-0.5" title={label}>
+            {truncatedLabel}
+          </div>
         </div>
       </div>
 
-      {/* Relationship count indicator */}
-      {relationshipCount !== undefined && relationshipCount > 0 && (
+      {/* Expand/Collapse indicator - pointer-events-none so clicks pass through to node */}
+      {!isRoot && isExpanded && (
         <div
-          className="absolute -top-2 -right-2 badge badge-sm badge-neutral"
-          title={`${relationshipCount} relationships`}
+          className="absolute -bottom-2 right-2 btn btn-xs bg-error hover:bg-error text-error-content pointer-events-none flex items-center gap-0.5 px-2"
+          title={`Collapse to hide ${data.descendantCount ?? ''} relationships`}
         >
-          {relationshipCount}
+          <Icon icon="lucide--minus" className="size-3" />
+          {data.descendantCount !== undefined && data.descendantCount > 0 && (
+            <span className="text-xs font-medium">{data.descendantCount}</span>
+          )}
         </div>
       )}
-
-      {/* Root indicator */}
-      {isRoot && (
-        <div className="absolute -top-2 -left-2">
-          <span className="badge badge-xs badge-primary">root</span>
-        </div>
-      )}
-
-      {/* Expand indicator */}
-      {hasMore && depth < 5 && (
+      {hasMore && !isExpanded && depth < 5 && (
         <div
-          className="absolute -bottom-2 right-2 btn btn-xs btn-circle btn-primary"
-          title="Expand to show more relationships"
+          className="absolute -bottom-2 right-2 btn btn-xs bg-success hover:bg-success text-success-content pointer-events-none flex items-center gap-0.5 px-2"
+          title={`Expand to show ${relationshipCount ?? 'more'} relationships`}
         >
           <Icon icon="lucide--plus" className="size-3" />
+          {relationshipCount !== undefined && relationshipCount > 0 && (
+            <span className="text-xs font-medium">{relationshipCount}</span>
+          )}
         </div>
       )}
 
-      {/* Output handle (right side for outgoing connections) - hidden, only for edge routing */}
+      {/* Source handles on all sides for optimal edge routing */}
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="source-top"
+        className="!w-1 !h-1 !bg-transparent !border-0"
+        isConnectable={false}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="source-bottom"
+        className="!w-1 !h-1 !bg-transparent !border-0"
+        isConnectable={false}
+      />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="source-left"
+        className="!w-1 !h-1 !bg-transparent !border-0"
+        isConnectable={false}
+      />
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-2 !h-2 !bg-base-300 !border-0 !opacity-0"
+        id="source-right"
+        className="!w-1 !h-1 !bg-transparent !border-0"
         isConnectable={false}
       />
     </div>

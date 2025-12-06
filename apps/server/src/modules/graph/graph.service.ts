@@ -443,9 +443,10 @@ export class GraphService {
           const created = row.rows[0];
 
           // Policy-aware embedding job enqueueing (Phase 3: selective embedding)
+          // Check if embeddingV2 is null (the active embedding column)
           if (
             this.isEmbeddingsEnabled() &&
-            (created as any).embedding == null
+            (created as any).embedding_v2 == null
           ) {
             try {
               // Check policies before queueing
@@ -494,13 +495,17 @@ export class GraphService {
   ): Promise<GraphObjectDto> {
     return this.runWithRequestContext(ctx, undefined, undefined, async () => {
       const res = await this.db.query<
-        GraphObjectRow & { revision_count: number }
+        GraphObjectRow & { revision_count: number; relationship_count: number }
       >(
         `SELECT 
                     o.id, o.project_id, o.canonical_id, o.supersedes_id, o.version, 
                     o.type, o.key, o.properties, o.labels, o.deleted_at, o.created_at,
-                    o.embedding, o.embedding_updated_at,
-                    COALESCE(rc.revision_count, 1) as revision_count
+                    o.embedding_v2, o.embedding_updated_at,
+                    COALESCE(rc.revision_count, 1) as revision_count,
+                    (SELECT COUNT(DISTINCT r.canonical_id)::int 
+                     FROM kb.graph_relationships r 
+                     WHERE (r.src_id = o.id OR r.dst_id = o.id) 
+                     AND r.deleted_at IS NULL) as relationship_count
                  FROM kb.graph_objects o
                  LEFT JOIN kb.graph_object_revision_counts rc ON rc.canonical_id = o.canonical_id
                  WHERE o.id=$1`,
@@ -770,7 +775,8 @@ export class GraphService {
         );
         await client.query('COMMIT');
         const updated = { ...inserted.rows[0], diff } as any;
-        if (this.isEmbeddingsEnabled() && updated.embedding == null) {
+        // Check if embedding_v2 is null (the active embedding column)
+        if (this.isEmbeddingsEnabled() && updated.embedding_v2 == null) {
           try {
             await this.embeddingJobs?.enqueue(updated.id);
           } catch {
@@ -1409,17 +1415,17 @@ export class GraphService {
     ctx?: GraphTenantContext
   ): Promise<GraphRelationshipDto[]> {
     return this.runWithRequestContext(ctx, undefined, undefined, async () => {
-      // Resolve object id to canonical_id
+      // Validate that the object exists
       // The objectId parameter can be either an object.id or a canonical_id
-      // Relationships are stored using canonical_ids, so we need to resolve
-      const objRes = await this.db.query<{ canonical_id: string }>(
-        'SELECT canonical_id FROM kb.graph_objects WHERE id = $1 OR canonical_id = $1 LIMIT 1',
+      // Note: Relationships store src_id/dst_id as regular object ids, not canonical_ids
+      const objRes = await this.db.query<{ id: string }>(
+        'SELECT id FROM kb.graph_objects WHERE id = $1 OR canonical_id = $1 LIMIT 1',
         [objectId]
       );
       if (!objRes.rowCount) {
         return []; // Object not found, return empty relationships
       }
-      const canonicalId = objRes.rows[0].canonical_id;
+      const resolvedId = objRes.rows[0].id;
 
       const dirClause =
         direction === 'out'
@@ -1442,7 +1448,7 @@ export class GraphService {
                  WHERE h.deleted_at IS NULL
                  LIMIT $2`;
       const res = await this.db.query<GraphRelationshipRow>(sql, [
-        canonicalId,
+        resolvedId,
         limit,
       ]);
       return res.rows;
@@ -1511,27 +1517,20 @@ export class GraphService {
             `branch_id IS NOT DISTINCT FROM $${headParams.length}`
           );
         }
-        const headWhere = headFilters.length
-          ? 'WHERE ' + headFilters.join(' AND ')
-          : '';
+        // CRITICAL: Always exclude deleted rows BEFORE DISTINCT ON
+        // Otherwise, if the highest version is deleted but a lower version is not,
+        // DISTINCT ON picks the deleted one, and the outer WHERE deleted_at IS NULL
+        // removes it, making the non-deleted version invisible.
+        headFilters.push('o.deleted_at IS NULL');
+        const headWhere = 'WHERE ' + headFilters.join(' AND ');
         const baseHeadCte = `SELECT DISTINCT ON (o.canonical_id) 
                                  o.id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, 
                                  o.version, o.type, o.key, o.status, o.properties, o.labels, 
-                                 o.deleted_at, o.created_at, o.embedding, o.embedding_updated_at,
-                                 (
-                                   -- Count explicit relationships from kb.graph_relationships
-                                   (SELECT COUNT(DISTINCT r.canonical_id)::int 
-                                    FROM kb.graph_relationships r 
-                                    WHERE (r.src_id = o.id OR r.dst_id = o.id) 
-                                    AND r.deleted_at IS NULL)
-                                   +
-                                   -- Count embedded relationships from properties
-                                   COALESCE(jsonb_array_length(o.properties->'participants_canonical_ids'), 0)
-                                   + COALESCE(jsonb_array_length(o.properties->'parties'), 0)
-                                   + COALESCE(jsonb_array_length(o.properties->'participants'), 0)
-                                   + COALESCE(jsonb_array_length(o.properties->'witnesses'), 0)
-                                   + CASE WHEN o.properties->>'performer' IS NOT NULL THEN 1 ELSE 0 END
-                                 ) as relationship_count
+                                 o.deleted_at, o.created_at, o.embedding_v2, o.embedding_updated_at,
+                                 (SELECT COUNT(DISTINCT r.canonical_id)::int 
+                                  FROM kb.graph_relationships r 
+                                  WHERE (r.src_id = o.id OR r.dst_id = o.id) 
+                                  AND r.deleted_at IS NULL) as relationship_count
                                  FROM kb.graph_objects o
                                  ${headWhere}
                                  ORDER BY o.canonical_id, o.version DESC`;
@@ -1841,10 +1840,17 @@ export class GraphService {
           filters.push(`h.branch_id IS NOT DISTINCT FROM $${idx}`);
         }
         // Head selection restricted to FTS matches first, then filter deleted heads; rank computed on head row's fts vector.
+        // CRITICAL: Exclude deleted rows BEFORE DISTINCT ON to ensure we pick the highest non-deleted version.
+        // Otherwise, if the highest version is deleted but a lower version matches FTS, the object becomes invisible.
         const sql = `WITH heads AS (
-              SELECT DISTINCT ON (o.canonical_id) o.id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.status, o.properties, o.labels, o.deleted_at, o.created_at, o.fts, o.embedding, o.embedding_updated_at
+              SELECT DISTINCT ON (o.canonical_id) o.id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.status, o.properties, o.labels, o.deleted_at, o.created_at, o.fts, o.embedding_v2, o.embedding_updated_at,
+                (SELECT COUNT(DISTINCT r.canonical_id)::int 
+                 FROM kb.graph_relationships r 
+                 WHERE (r.src_id = o.id OR r.dst_id = o.id) 
+                 AND r.deleted_at IS NULL) as relationship_count
               FROM kb.graph_objects o
               WHERE (o.fts @@ websearch_to_tsquery('simple', $1) OR o.id::text ILIKE '%' || $1 || '%')
+                AND o.deleted_at IS NULL
               ORDER BY o.canonical_id, o.version DESC
           )
           SELECT *, (ts_rank(fts, websearch_to_tsquery('simple', $1)) + (CASE WHEN id::text ILIKE '%' || $1 || '%' THEN 1.0 ELSE 0.0 END)) AS rank

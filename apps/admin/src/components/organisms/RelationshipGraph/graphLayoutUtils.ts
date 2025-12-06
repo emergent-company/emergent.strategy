@@ -17,15 +17,50 @@ export interface LayoutOptions {
 }
 
 /** Default node dimensions used for layout calculation */
-export const DEFAULT_NODE_WIDTH = 180;
+export const DEFAULT_NODE_WIDTH = 270;
 export const DEFAULT_NODE_HEIGHT = 60;
+
+/**
+ * Determines the optimal handle (connection point) based on relative node positions
+ * Returns the side of the source node closest to the target node
+ */
+function getOptimalHandles(
+  sourceX: number,
+  sourceY: number,
+  targetX: number,
+  targetY: number
+): { sourceHandle: string; targetHandle: string } {
+  const dx = targetX - sourceX;
+  const dy = targetY - sourceY;
+
+  // Determine primary direction based on which axis has greater difference
+  if (Math.abs(dx) > Math.abs(dy)) {
+    // Horizontal connection
+    if (dx > 0) {
+      // Target is to the right of source
+      return { sourceHandle: 'source-right', targetHandle: 'target-left' };
+    } else {
+      // Target is to the left of source
+      return { sourceHandle: 'source-left', targetHandle: 'target-right' };
+    }
+  } else {
+    // Vertical connection
+    if (dy > 0) {
+      // Target is below source
+      return { sourceHandle: 'source-bottom', targetHandle: 'target-top' };
+    } else {
+      // Target is above source
+      return { sourceHandle: 'source-top', targetHandle: 'target-bottom' };
+    }
+  }
+}
 
 /**
  * Applies dagre layout algorithm to position nodes in the graph
  * @param nodes - Array of React Flow nodes
  * @param edges - Array of React Flow edges
  * @param options - Layout configuration options
- * @returns Nodes with updated positions
+ * @returns Nodes with updated positions and edges with optimal handles
  */
 export function getLayoutedElements(
   nodes: Node[],
@@ -66,23 +101,56 @@ export function getLayoutedElements(
   // Run the layout algorithm
   dagre.layout(dagreGraph);
 
+  // Build a map of node positions for edge handle calculation
+  const nodePositions = new Map<string, { x: number; y: number }>();
+
   // Apply calculated positions to nodes
   const layoutedNodes = nodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
     const width = node.width ?? DEFAULT_NODE_WIDTH;
     const height = node.height ?? DEFAULT_NODE_HEIGHT;
 
+    const position = {
+      x: nodeWithPosition.x - width / 2,
+      y: nodeWithPosition.y - height / 2,
+    };
+
+    // Store center position for edge calculations
+    nodePositions.set(node.id, {
+      x: nodeWithPosition.x,
+      y: nodeWithPosition.y,
+    });
+
     return {
       ...node,
-      // Center the node on the calculated position
-      position: {
-        x: nodeWithPosition.x - width / 2,
-        y: nodeWithPosition.y - height / 2,
-      },
+      position,
     };
   });
 
-  return { nodes: layoutedNodes, edges };
+  // Update edges with optimal handles based on node positions
+  const layoutedEdges = edges.map((edge) => {
+    const sourcePos = nodePositions.get(edge.source);
+    const targetPos = nodePositions.get(edge.target);
+
+    if (sourcePos && targetPos) {
+      const { sourceHandle, targetHandle } = getOptimalHandles(
+        sourcePos.x,
+        sourcePos.y,
+        targetPos.x,
+        targetPos.y
+      );
+
+      return {
+        ...edge,
+        sourceHandle,
+        targetHandle,
+      };
+    }
+
+    return edge;
+  });
+
+  return { nodes: layoutedNodes, edges: layoutedEdges };
 }
 
 /**
