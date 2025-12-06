@@ -34,7 +34,7 @@ test.describe('Documents Page - accessibility structure', () => {
       await expect(breadcrumbs).toMatchAriaSnapshot(`
         - list:
           - listitem:
-            - link "Nexus"
+            - link "Emergent"
           - listitem: Apps
           - listitem: Documents
       `);

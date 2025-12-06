@@ -11,7 +11,10 @@ import { useApi } from '@/hooks/use-api';
 
 export interface ExtractionConfig {
   entity_types: string[];
+  /** Draft threshold - entities below this get extra review marking (default: 70%) */
   confidence_threshold: number;
+  /** Auto-accept threshold - entities at or above this are marked 'accepted', below are 'draft' (default: 90%) */
+  auto_accept_threshold: number;
   entity_linking_strategy: 'strict' | 'fuzzy' | 'none';
   duplicate_strategy?: 'skip' | 'merge';
   require_review: boolean;
@@ -56,6 +59,7 @@ export function ExtractionConfigModal({
   const [config, setConfig] = useState<ExtractionConfig>({
     entity_types: [],
     confidence_threshold: 0.7,
+    auto_accept_threshold: 0.9,
     entity_linking_strategy: 'fuzzy',
     duplicate_strategy: 'skip',
     require_review: false,
@@ -236,19 +240,78 @@ export function ExtractionConfigModal({
               )}
           </div>
 
-          {/* Confidence Threshold */}
+          {/* Confidence Thresholds */}
           <div className="mb-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="flex items-center">
-                <span className="font-semibold label-text">
-                  Confidence Threshold
-                </span>
+            <label className="mb-3 label">
+              <span className="font-semibold label-text">
+                Confidence Thresholds
+              </span>
+            </label>
+
+            {/* Visual Zone Indicator */}
+            <div className="mb-4">
+              <div className="flex h-8 rounded-lg overflow-hidden border border-base-300">
+                {/* Needs Review Zone (0 to draft threshold) */}
+                <div
+                  className="bg-warning/30 flex items-center justify-center text-xs font-medium text-warning-content/70 border-r border-base-300"
+                  style={{ width: `${config.confidence_threshold * 100}%` }}
+                >
+                  {config.confidence_threshold >= 0.15 && (
+                    <span className="truncate px-1">Needs Review</span>
+                  )}
+                </div>
+                {/* Draft Zone (draft threshold to auto-accept) */}
+                <div
+                  className="bg-info/30 flex items-center justify-center text-xs font-medium text-info-content/70 border-r border-base-300"
+                  style={{
+                    width: `${
+                      (config.auto_accept_threshold -
+                        config.confidence_threshold) *
+                      100
+                    }%`,
+                  }}
+                >
+                  {config.auto_accept_threshold - config.confidence_threshold >=
+                    0.1 && <span className="truncate px-1">Draft</span>}
+                </div>
+                {/* Accepted Zone (auto-accept to 100%) */}
+                <div
+                  className="bg-success/30 flex items-center justify-center text-xs font-medium text-success-content/70"
+                  style={{
+                    width: `${(1 - config.auto_accept_threshold) * 100}%`,
+                  }}
+                >
+                  {1 - config.auto_accept_threshold >= 0.08 && (
+                    <span className="truncate px-1">Accepted</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-between text-xs text-base-content/50 mt-1">
+                <span>0%</span>
+                <span>100%</span>
+              </div>
+            </div>
+
+            {/* Draft Threshold Slider */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-sm bg-warning/50" />
+                <span className="label-text">Review Threshold</span>
+                <div
+                  className="tooltip tooltip-right"
+                  data-tip="Entities below this confidence will be marked for extra review"
+                >
+                  <Icon
+                    icon="lucide--info"
+                    className="size-3.5 text-base-content/60 cursor-help"
+                  />
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <input
                   type="range"
                   min="0"
-                  max="100"
+                  max={config.auto_accept_threshold * 100 - 5}
                   value={config.confidence_threshold * 100}
                   onChange={(e) =>
                     setConfig((prev) => ({
@@ -256,20 +319,77 @@ export function ExtractionConfigModal({
                       confidence_threshold: parseInt(e.target.value) / 100,
                     }))
                   }
-                  className="range range-primary flex-1"
+                  className="range range-warning range-sm flex-1"
                   step="5"
                   disabled={isLoading}
                 />
-                <span className="text-lg font-bold text-primary min-w-[4rem] text-right">
+                <span className="text-sm font-bold text-warning min-w-[3.5rem] text-right">
                   {(config.confidence_threshold * 100).toFixed(0)}%
                 </span>
               </div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-2">
-              <div></div>
-              <div className="flex justify-between text-xs text-base-content/60">
-                <span>Lower confidence</span>
-                <span>Higher confidence</span>
+
+            {/* Auto-Accept Threshold Slider */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-sm bg-success/50" />
+                <span className="label-text">Auto-Accept Threshold</span>
+                <div
+                  className="tooltip tooltip-right"
+                  data-tip="Entities at or above this confidence will be marked as 'accepted', below will be 'draft'"
+                >
+                  <Icon
+                    icon="lucide--info"
+                    className="size-3.5 text-base-content/60 cursor-help"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={config.confidence_threshold * 100 + 5}
+                  max="100"
+                  value={config.auto_accept_threshold * 100}
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      auto_accept_threshold: parseInt(e.target.value) / 100,
+                    }))
+                  }
+                  className="range range-success range-sm flex-1"
+                  step="5"
+                  disabled={isLoading}
+                />
+                <span className="text-sm font-bold text-success min-w-[3.5rem] text-right">
+                  {(config.auto_accept_threshold * 100).toFixed(0)}%
+                </span>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="mt-4 p-3 bg-base-200 rounded-lg text-xs text-base-content/70">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm bg-warning/30 border border-warning/50" />
+                  <span>
+                    &lt;{(config.confidence_threshold * 100).toFixed(0)}%: Needs
+                    Review
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm bg-info/30 border border-info/50" />
+                  <span>
+                    {(config.confidence_threshold * 100).toFixed(0)}%-
+                    {(config.auto_accept_threshold * 100).toFixed(0)}%: Draft
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm bg-success/30 border border-success/50" />
+                  <span>
+                    ≥{(config.auto_accept_threshold * 100).toFixed(0)}%:
+                    Accepted
+                  </span>
+                </div>
               </div>
             </div>
           </div>

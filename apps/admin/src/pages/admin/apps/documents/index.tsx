@@ -14,6 +14,10 @@ import { DeletionConfirmationModal } from '@/components/organisms/DeletionConfir
 import { createExtractionJobsClient } from '@/api/extraction-jobs';
 import { createDocumentsClient } from '@/api/documents';
 import {
+  createUserActivityClient,
+  createRecordActivityFn,
+} from '@/api/user-activity';
+import {
   DataTable,
   type ColumnDef,
   type RowAction,
@@ -178,6 +182,10 @@ export default function DocumentsPage() {
     fetchJson,
     config.activeProjectId
   );
+
+  // Activity tracking client for Recent Items feature
+  const activityClient = createUserActivityClient(apiBase, fetchJson);
+  const recordActivity = createRecordActivityFn(activityClient);
 
   // Deletion modal state
   const [isDeletionModalOpen, setIsDeletionModalOpen] = useState(false);
@@ -1364,7 +1372,17 @@ export default function DocumentsPage() {
               {
                 label: 'Preview',
                 icon: 'lucide--eye',
-                onAction: (doc) => setPreview(doc),
+                onAction: (doc) => {
+                  setPreview(doc);
+                  // Record activity for Recent Items feature (fire-and-forget)
+                  recordActivity({
+                    resourceType: 'document',
+                    resourceId: doc.id,
+                    resourceName: doc.filename || undefined,
+                    resourceSubtype: doc.mime_type || undefined,
+                    actionType: 'viewed',
+                  });
+                },
               },
               {
                 label: 'Extract',
