@@ -20,7 +20,6 @@
     "workspace:stop": "nx run workspace-cli:workspace:stop",
     "workspace:restart": "nx run workspace-cli:workspace:restart",
     "workspace:status": "nx run workspace-cli:workspace:status",
-    "workspace:logs": "nx run workspace-cli:workspace:logs",
     "workspace:deps:start": "nx run workspace-cli:workspace:deps:start",
     "workspace:deps:stop": "nx run workspace-cli:workspace:deps:stop",
     "workspace:deps:restart": "nx run workspace-cli:workspace:deps:restart",

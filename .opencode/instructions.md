@@ -9,38 +9,38 @@ This document provides instructions for interacting with the workspace, includin
 
 ## 1. Logging
 
-All service logs are managed by the workspace CLI. The primary command for accessing logs is `nx run workspace-cli:workspace:logs`.
-
-### Viewing Logs
-
-- **Tail logs for default services (admin + server) and dependencies:**
-
-  ```bash
-  nx run workspace-cli:workspace:logs
-  ```
-
-- **Tail logs in real-time:**
-
-  ```bash
-  nx run workspace-cli:workspace:logs -- --follow
-  ```
-
-- **View logs for a specific service:**
-  ```bash
-  nx run workspace-cli:workspace:logs -- --service=<service-id>
-  ```
-  _(Replace `<service-id>` with the service you want to inspect, e.g., `server`)_
+Logs are browsed using the **local-logs MCP server**. AI assistants can query logs directly using natural language.
 
 ### Log File Locations
 
 Log files are stored in the `apps/logs/` directory.
 
-- **Service logs:** `apps/logs/<serviceId>/out.log` (stdout) and `apps/logs/<serviceId>/error.log` (stderr)
+- **Application logs:** `apps/logs/<serviceId>/out.log` (stdout) and `apps/logs/<serviceId>/error.log` (stderr)
 - **Dependency logs:** `apps/logs/dependencies/<id>/out.log` and `apps/logs/dependencies/<id>/error.log`
 
-## 2. Process Management (PM2)
+### Available MCP Tools for Logs
 
-Services are managed as processes by PM2, but you should interact with them through the workspace CLI.
+The `local-logs` MCP server provides these tools:
+
+| Tool                | Description                 | Example                                  |
+| ------------------- | --------------------------- | ---------------------------------------- |
+| `get_log_files`     | List available log files    | "What log files are available?"          |
+| `tail_log`          | Get last N lines from a log | "Show last 50 lines from server/out.log" |
+| `get_errors`        | Get recent error entries    | "Are there any errors?"                  |
+| `get_server_status` | Server status from logs     | "What's the server status?"              |
+| `search_logs`       | Search for text patterns    | "Search logs for 'database connection'"  |
+
+### Example Log Queries
+
+- "Check my server logs"
+- "Are there any errors in the logs?"
+- "Show me the last 100 lines from admin/error.log"
+- "Search logs for 'TypeError'"
+- "What log files are available?"
+
+## 2. Process Management
+
+Services are managed using PID-based process management through the workspace CLI.
 
 - **Start all services:**
 
@@ -55,8 +55,14 @@ Services are managed as processes by PM2, but you should interact with them thro
   ```
 
 - **Restart all services:**
+
   ```bash
   nx run workspace-cli:workspace:restart
+  ```
+
+- **Check status:**
+  ```bash
+  nx run workspace-cli:workspace:status
   ```
 
 ## 3. Running Scripts and Tests
@@ -69,7 +75,7 @@ All scripts and tests should be executed using `nx`. Note that commands for the 
   nx run <project>:<script>
   ```
 
-  _(e.g., `nx run workspace-cli:workspace:logs`)_
+  _(e.g., `nx run workspace-cli:workspace:status`)_
 
 ### Testing
 
@@ -134,19 +140,6 @@ The workspace provides custom OpenCode tools for common development tasks:
   - Provides usage guidance for manual testing with DevTools MCP
   - Usage: Simply ask "get test credentials" or "show me the credentials"
 
-- **logs** - Retrieve recent log entries from application and dependency services
-
-  - Retrieves last 50 lines from log files (configurable)
-  - Supports filtering by service: "all", "admin", "web", "server", "api", "database", "postgres", "zitadel"
-  - Returns both stdout (out.log) and stderr (error.log) for each service
-  - Formatted output with clear service labels and separators
-  - Usage examples:
-    - "get all logs"
-    - "show me server logs"
-    - "what are the database logs?"
-    - "show admin and server logs"
-    - "get server logs with 100 lines"
-
 - **open-browser** - Open browser with test credentials for manual testing
   - **Launches a separate browser instance** (Chromium preferred, Chrome fallback)
   - **Isolated from your regular browsing** - uses temporary profile with no cache
@@ -194,6 +187,7 @@ The workspace has several MCP (Model Context Protocol) servers configured for en
 - **gh_grep** - GitHub code search across public repositories
 - **react-daisyui Docs** - React DaisyUI component documentation
 - **Chrome DevTools** - Browser debugging, performance profiling, network inspection, and DOM manipulation via Chrome DevTools Protocol (development/testing use only)
+- **local-logs** - Log file browsing with tailing, search, and error tracking
 
 ### Using Chrome DevTools MCP
 
