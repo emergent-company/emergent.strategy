@@ -71,14 +71,21 @@ export class GraphObject {
   @Column({ type: 'tsvector', nullable: true })
   fts!: any | null;
 
-  @Column({ type: 'bytea', nullable: true })
-  embedding!: Buffer | null;
-
   @Column({ name: 'embedding_updated_at', type: 'timestamptz', nullable: true })
   embeddingUpdatedAt!: Date | null;
 
-  @Column({ name: 'embedding_vec', type: 'vector', length: 32, nullable: true })
-  embeddingVec!: number[] | null;
+  /**
+   * Active embedding column for vector similarity search.
+   * Uses 768 dimensions to match Gemini text-embedding-004 model output.
+   * Indexed with ivfflat for fast cosine similarity queries.
+   */
+  @Column({
+    name: 'embedding_v2',
+    type: 'vector',
+    length: 768,
+    nullable: true,
+  })
+  embeddingV2!: number[] | null;
 
   @Column({ name: 'extraction_job_id', type: 'uuid', nullable: true })
   extractionJobId!: string | null;
@@ -99,22 +106,6 @@ export class GraphObject {
 
   @Column({ name: 'reviewed_at', type: 'timestamptz', nullable: true })
   reviewedAt!: Date | null;
-
-  @Column({
-    name: 'embedding_v1',
-    type: 'vector',
-    length: 1536,
-    nullable: true,
-  })
-  embeddingV1!: number[] | null;
-
-  @Column({
-    name: 'embedding_v2',
-    type: 'vector',
-    length: 768,
-    nullable: true,
-  })
-  embeddingV2!: number[] | null;
 
   // Relations
   @ManyToOne(() => Project, { onDelete: 'CASCADE' })
