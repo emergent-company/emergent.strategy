@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/useAuth';
 import { useConfig } from '@/contexts/config';
 import { errorLogger } from '@/lib/error-logger';
@@ -9,10 +9,15 @@ export type ApiHeadersOptions = {
 };
 
 export function useApi() {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, refreshAccessToken, logout } = useAuth();
   const {
     config: { activeOrgId, activeProjectId },
   } = useConfig();
+
+  // Track if we're currently refreshing to avoid multiple refreshes
+  const isRefreshingRef = useRef(false);
+  // Queue of requests waiting for token refresh
+  const refreshPromiseRef = useRef<Promise<boolean> | null>(null);
 
   const apiBase = useMemo(() => {
     const env = (import.meta as any).env || {};
@@ -43,6 +48,10 @@ export function useApi() {
     credentials?: RequestCredentials;
     // When sending non-JSON (rare), set json to false and stringify yourself.
     json?: boolean;
+    // Internal: skip retry on 401 (used for retry attempt)
+    _skipRetry?: boolean;
+    // Suppress error logging for expected errors (e.g., polling endpoints that return 404)
+    suppressErrorLog?: boolean;
   };
 
   const fetchJson = useCallback(
@@ -50,7 +59,15 @@ export function useApi() {
       url: string,
       init: FetchJsonInit<B> = {}
     ): Promise<T> => {
-      const { method = 'GET', body, headers, credentials, json } = init;
+      const {
+        method = 'GET',
+        body,
+        headers,
+        credentials,
+        json,
+        _skipRetry,
+        suppressErrorLog,
+      } = init;
 
       try {
         const res = await fetch(url, {
@@ -63,12 +80,40 @@ export function useApi() {
             typeof body === 'undefined'
               ? undefined
               : json === false
-                ? (body as unknown as BodyInit)
-                : JSON.stringify(body as unknown),
+              ? (body as unknown as BodyInit)
+              : JSON.stringify(body as unknown),
           credentials,
         });
 
         if (!res.ok) {
+          // Handle 401 Unauthorized - attempt token refresh and retry
+          if (res.status === 401 && !_skipRetry) {
+            console.log('[useApi] 401 received, attempting token refresh');
+
+            // Use a shared promise for concurrent 401s
+            if (!refreshPromiseRef.current) {
+              refreshPromiseRef.current = refreshAccessToken();
+            }
+
+            try {
+              const refreshed = await refreshPromiseRef.current;
+              refreshPromiseRef.current = null;
+
+              if (refreshed) {
+                console.log('[useApi] Token refreshed, retrying request');
+                // Retry the request with new token
+                return fetchJson<T, B>(url, { ...init, _skipRetry: true });
+              } else {
+                console.log('[useApi] Token refresh failed, logging out');
+                logout();
+              }
+            } catch (e) {
+              console.error('[useApi] Token refresh error', e);
+              refreshPromiseRef.current = null;
+              logout();
+            }
+          }
+
           // Robust error extraction supporting nested { error: { code, message, details } }
           let message = `Request failed (${res.status})`;
           let responseData: unknown;
@@ -144,8 +189,10 @@ export function useApi() {
             }
           }
 
-          // Log API errors
-          errorLogger.logApiError(url, method, res.status, responseData);
+          // Log API errors (unless suppressed for expected errors like polling 404s)
+          if (!suppressErrorLog) {
+            errorLogger.logApiError(url, method, res.status, responseData);
+          }
 
           throw new ApiError(
             message || `Request failed (${res.status})`,
@@ -168,7 +215,7 @@ export function useApi() {
         throw error;
       }
     },
-    [buildHeaders]
+    [buildHeaders, refreshAccessToken, logout]
   );
 
   const fetchForm = useCallback(
