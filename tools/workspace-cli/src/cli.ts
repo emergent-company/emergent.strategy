@@ -7,7 +7,6 @@ import { runStartCommand } from './commands/start-service.js';
 import { runRestartCommand } from './commands/restart-service.js';
 import { runStopCommand } from './commands/stop-service.js';
 import { runStatusCommand } from './commands/status.js';
-import { runLogsCommand } from './logs/read.js';
 import { isWorkspaceCliError } from './errors.js';
 import { runPreflightChecks } from './preflight/checks.js';
 
@@ -33,7 +32,6 @@ async function main(): Promise<void> {
     'restart',
     'stop',
     'status',
-    'logs',
   ]);
   if (preflightCommands.has(rawCommand)) {
     await runPreflightChecks(rawCommand, rest);
@@ -60,10 +58,6 @@ async function main(): Promise<void> {
       await runStatusCommand(rest);
       return;
 
-    case 'logs':
-      await runLogsCommand(rest);
-      return;
-
     default:
       process.stderr.write(`Unknown command: ${rawCommand}\n`);
       printHelp();
@@ -83,7 +77,6 @@ Commands:
   restart  Restart services or dependencies (stop + start)
   stop     Gracefully stop services or dependencies
   status   Report status including PID and port information
-  logs     Tail recent log output for managed services and dependencies
 
 Options:
   --service <id>     Target a specific service (repeatable)
@@ -93,7 +86,6 @@ Options:
   --all              Target every registered application service
   --dependencies     Include the default dependency set
   --deps-only        Restrict the command to dependencies only
-  --lines <n>        Limit the number of log lines per file (default: 100)
   --profile <name>   Select environment profile (development, staging, production)
   --dry-run          Print actions without executing them
   --json             Emit status output as structured JSON

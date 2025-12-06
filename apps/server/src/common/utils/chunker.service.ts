@@ -57,17 +57,26 @@ export class ChunkerService {
    *
    * @param text - Text to chunk
    * @param config - Chunking configuration (strategy and options)
+   *                 Supports both nested format { strategy, options: { maxChunkSize, minChunkSize } }
+   *                 and flat format { strategy, maxChunkSize, minChunkSize } from project settings
    * @returns Array of chunks with metadata
    */
   chunkWithMetadata(text: string, config?: ChunkerConfig): ChunkWithMetadata[] {
     const strategyName = config?.strategy ?? 'character';
     const strategy = ChunkingStrategyFactory.getStrategy(strategyName);
 
+    // Support both nested (options.maxChunkSize) and flat (maxChunkSize) config formats
+    // Project settings store as flat, but ChunkerConfig interface uses nested
+    const flatConfig = config as any;
     const options: ChunkingOptions = {
       maxChunkSize:
-        config?.options?.maxChunkSize ?? DEFAULT_CHUNKING_OPTIONS.maxChunkSize,
+        config?.options?.maxChunkSize ??
+        flatConfig?.maxChunkSize ??
+        DEFAULT_CHUNKING_OPTIONS.maxChunkSize,
       minChunkSize:
-        config?.options?.minChunkSize ?? DEFAULT_CHUNKING_OPTIONS.minChunkSize,
+        config?.options?.minChunkSize ??
+        flatConfig?.minChunkSize ??
+        DEFAULT_CHUNKING_OPTIONS.minChunkSize,
     };
 
     const results = strategy.chunk(text, options);

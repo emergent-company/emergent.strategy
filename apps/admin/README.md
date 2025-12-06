@@ -3,11 +3,11 @@
 To upgrade your plan, send us your order ID to pouya@daisyui.com.
 We will then provide you with a discount code so you won't have to pay the full price.
 
-# Nexus - Client & Admin Dashboard
+# Emergent - Admin Dashboard
 
 ## Package
 
-Thank you for purchasing Nexus Admin. I hope it's going to be helpful for you.
+Thank you for using Emergent Admin. I hope it's going to be helpful for you.
 Please share your feedback by filling out [the form](https://forms.gle/UeX3jgsjFNFcZsq9A)
 
 ### Please refer [online documentation](https://nexus.daisyui.com/docs/) for full details
@@ -84,7 +84,7 @@ We recommended using bun for faster deps installation
 
 Use the shared dev Zitadel stack for OAuth/OIDC during development.
 
-1) Start Zitadel (from repo root):
+1. Start Zitadel (from repo root):
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d db zitadel login
@@ -92,17 +92,18 @@ open http://localhost:8100/.well-known/openid-configuration
 open http://localhost:8101/ui/v2/login
 ```
 
-2) Configure Admin app issuer
+2. Configure Admin app issuer
 
 - Copy `apps/admin/.env.example` to `apps/admin/.env` and set the issuer to:
-	- `http://localhost:8100`
+  - `http://localhost:8100`
 
-3) Run Admin app
+3. Run Admin app
 
 ```bash
 npm run dev
 ```
 
 Notes
+
 - Dev admin account: admin@example.com / admin (password in `docker/zitadel.env`, default `admin12345`). Change before exposing beyond local.
 - Troubleshooting and full guide: see `RUNBOOK.md` → "Local Auth (Zitadel)" and `docker/README-zitadel.md`.
