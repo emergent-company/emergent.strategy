@@ -84,16 +84,66 @@ INSTANCE_NAME=$(basename "$INSTANCE_PATH")
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║         EPF Instance Validation Script v1.9.7                    ║"
+echo "║         EPF Instance Validation Script v1.9.8                    ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 log_info "Validating instance: $INSTANCE_NAME"
 log_info "Instance path: $INSTANCE_PATH"
 
 # =============================================================================
-# Section 1: Required Files (READY Phase)
+# Section 1: Phase-Based Directory Structure
 # =============================================================================
-log_section "1. Required READY Phase Files"
+log_section "1. Phase-Based Directory Structure"
+
+# Check for phase directories (required)
+PHASE_DIRS=("READY" "FIRE")
+OPTIONAL_PHASE_DIRS=("AIM")
+
+for dir in "${PHASE_DIRS[@]}"; do
+    if [ -d "$INSTANCE_PATH/$dir" ]; then
+        log_pass "Found phase directory: $dir/"
+    else
+        log_error "Missing required phase directory: $dir/"
+        log_info "  Instances MUST use phase-based structure. See _instances/README.md"
+    fi
+done
+
+for dir in "${OPTIONAL_PHASE_DIRS[@]}"; do
+    if [ -d "$INSTANCE_PATH/$dir" ]; then
+        log_pass "Found optional phase directory: $dir/"
+    else
+        log_warning "Optional phase directory not found: $dir/ (create when entering AIM phase)"
+    fi
+done
+
+# Detect legacy flat structure (files in root instead of READY/)
+LEGACY_FILES=("00_north_star.yaml" "01_insight_analyses.yaml" "04_strategy_formula.yaml" "05_roadmap_recipe.yaml")
+FLAT_STRUCTURE_DETECTED=false
+
+for file in "${LEGACY_FILES[@]}"; do
+    if [ -f "$INSTANCE_PATH/$file" ]; then
+        FLAT_STRUCTURE_DETECTED=true
+        break
+    fi
+done
+
+if [ "$FLAT_STRUCTURE_DETECTED" = true ]; then
+    log_error "LEGACY FLAT STRUCTURE DETECTED"
+    log_info "  Files found in instance root instead of READY/ directory"
+    log_info "  Run migration: see docs/EPF/_instances/README.md 'Migrating from Flat Structure'"
+fi
+
+# =============================================================================
+# Section 2: Required READY Phase Files
+# =============================================================================
+log_section "2. Required READY Phase Files"
+
+# Determine READY path (phase-based or flat for backwards compatibility)
+if [ -d "$INSTANCE_PATH/READY" ]; then
+    READY_PATH="$INSTANCE_PATH/READY"
+else
+    READY_PATH="$INSTANCE_PATH"
+fi
 
 READY_FILES=(
     "00_north_star.yaml"
@@ -103,10 +153,8 @@ READY_FILES=(
     "04_strategy_formula.yaml"
 )
 
-# Note: 05_roadmap_recipe.yaml was replaced with 04_roadmap_recipe.yaml in v1.9.6
-# Check for either version
 for file in "${READY_FILES[@]}"; do
-    if [ -f "$INSTANCE_PATH/$file" ]; then
+    if [ -f "$READY_PATH/$file" ]; then
         log_pass "Found: $file"
     else
         log_error "Missing required file: $file"
@@ -114,49 +162,62 @@ for file in "${READY_FILES[@]}"; do
 done
 
 # Special handling for roadmap (could be 04 or 05 depending on version)
-if [ -f "$INSTANCE_PATH/04_roadmap_recipe.yaml" ] || [ -f "$INSTANCE_PATH/05_roadmap_recipe.yaml" ]; then
+if [ -f "$READY_PATH/04_roadmap_recipe.yaml" ] || [ -f "$READY_PATH/05_roadmap_recipe.yaml" ]; then
     log_pass "Found: roadmap_recipe.yaml (04 or 05 numbering)"
 else
     log_error "Missing required file: roadmap_recipe.yaml"
 fi
 
 # =============================================================================
-# Section 2: Required Directories
+# Section 3: Required FIRE Phase Directories
 # =============================================================================
-log_section "2. Required Directories"
+log_section "3. Required FIRE Phase Directories"
 
-REQUIRED_DIRS=(
+# Determine FIRE path (phase-based or flat for backwards compatibility)
+if [ -d "$INSTANCE_PATH/FIRE" ]; then
+    FIRE_PATH="$INSTANCE_PATH/FIRE"
+else
+    FIRE_PATH="$INSTANCE_PATH"
+fi
+
+REQUIRED_FIRE_DIRS=(
     "feature_definitions"
     "value_models"
 )
 
-OPTIONAL_DIRS=(
+OPTIONAL_FIRE_DIRS=(
     "workflows"
-    "cycles"
 )
 
-for dir in "${REQUIRED_DIRS[@]}"; do
-    if [ -d "$INSTANCE_PATH/$dir" ]; then
+for dir in "${REQUIRED_FIRE_DIRS[@]}"; do
+    if [ -d "$FIRE_PATH/$dir" ]; then
         log_pass "Found directory: $dir/"
     else
         log_error "Missing required directory: $dir/"
     fi
 done
 
-for dir in "${OPTIONAL_DIRS[@]}"; do
-    if [ -d "$INSTANCE_PATH/$dir" ]; then
+for dir in "${OPTIONAL_FIRE_DIRS[@]}"; do
+    if [ -d "$FIRE_PATH/$dir" ]; then
         log_pass "Found optional directory: $dir/"
     else
         log_warning "Optional directory not found: $dir/"
     fi
 done
 
-# =============================================================================
-# Section 3: Feature Definition Format Validation
-# =============================================================================
-log_section "3. Feature Definition Format"
+# Check for mappings.yaml in FIRE
+if [ -f "$FIRE_PATH/mappings.yaml" ]; then
+    log_pass "Found: FIRE/mappings.yaml"
+else
+    log_warning "Optional file not found: FIRE/mappings.yaml"
+fi
 
-FD_DIR="$INSTANCE_PATH/feature_definitions"
+# =============================================================================
+# Section 4: Feature Definition Format Validation
+# =============================================================================
+log_section "4. Feature Definition Format"
+
+FD_DIR="$FIRE_PATH/feature_definitions"
 if [ -d "$FD_DIR" ]; then
     # Check for YAML files (the correct format per EPF schema)
     YAML_COUNT=$(find "$FD_DIR" -maxdepth 1 \( -name "*.yaml" -o -name "*.yml" \) ! -name "_*" 2>/dev/null | wc -l | tr -d ' ')
@@ -218,11 +279,11 @@ else
 fi
 
 # =============================================================================
-# Section 4: Value Models Validation
+# Section 5: Value Models Validation
 # =============================================================================
-log_section "4. Value Models"
+log_section "5. Value Models"
 
-VM_DIR="$INSTANCE_PATH/value_models"
+VM_DIR="$FIRE_PATH/value_models"
 if [ -d "$VM_DIR" ]; then
     VM_COUNT=$(find "$VM_DIR" -maxdepth 1 -name "*.yaml" -o -name "*.yml" 2>/dev/null | wc -l | tr -d ' ')
     if [ "$VM_COUNT" -gt 0 ]; then
@@ -235,9 +296,9 @@ else
 fi
 
 # =============================================================================
-# Section 5: Meta and Documentation Files
+# Section 6: Meta and Documentation Files
 # =============================================================================
-log_section "5. Meta and Documentation"
+log_section "6. Meta and Documentation"
 
 META_FILES=(
     "_meta.yaml"
@@ -274,16 +335,16 @@ for file in "${DOC_FILES[@]}"; do
 done
 
 # =============================================================================
-# Section 6: Cross-Reference Validation
+# Section 7: Cross-Reference Validation
 # =============================================================================
-log_section "6. Cross-Reference Validation"
+log_section "7. Cross-Reference Validation"
 
 # Check that roadmap references exist in feature definitions
 ROADMAP_FILE=""
-if [ -f "$INSTANCE_PATH/04_roadmap_recipe.yaml" ]; then
-    ROADMAP_FILE="$INSTANCE_PATH/04_roadmap_recipe.yaml"
-elif [ -f "$INSTANCE_PATH/05_roadmap_recipe.yaml" ]; then
-    ROADMAP_FILE="$INSTANCE_PATH/05_roadmap_recipe.yaml"
+if [ -f "$READY_PATH/04_roadmap_recipe.yaml" ]; then
+    ROADMAP_FILE="$READY_PATH/04_roadmap_recipe.yaml"
+elif [ -f "$READY_PATH/05_roadmap_recipe.yaml" ]; then
+    ROADMAP_FILE="$READY_PATH/05_roadmap_recipe.yaml"
 fi
 
 if [ -n "$ROADMAP_FILE" ] && [ -d "$FD_DIR" ]; then
@@ -312,9 +373,9 @@ else
 fi
 
 # =============================================================================
-# Section 7: Framework vs Instance Separation
+# Section 8: Framework vs Instance Separation
 # =============================================================================
-log_section "7. Framework vs Instance Separation"
+log_section "8. Framework vs Instance Separation"
 
 # Check that instance doesn't contain framework files
 FRAMEWORK_MARKERS=(
