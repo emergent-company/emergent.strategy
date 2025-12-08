@@ -1,6 +1,6 @@
 #!/bin/bash
 # EPF Instance Validation Script
-# Version: 1.9.6
+# Version: 1.9.7
 # 
 # This script validates that an EPF instance follows the framework structure
 # and conventions. Run this script from the EPF root directory or pass the
@@ -13,6 +13,9 @@
 # Exit codes:
 #   0 - All validations passed
 #   1 - Validation errors found
+#
+# Changelog:
+#   v1.9.7 - Fixed feature definition validation to accept YAML format per schema
 
 set -e
 
@@ -81,7 +84,7 @@ INSTANCE_NAME=$(basename "$INSTANCE_PATH")
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║         EPF Instance Validation Script v1.9.6                    ║"
+echo "║         EPF Instance Validation Script v1.9.7                    ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 log_info "Validating instance: $INSTANCE_NAME"
@@ -155,51 +158,60 @@ log_section "3. Feature Definition Format"
 
 FD_DIR="$INSTANCE_PATH/feature_definitions"
 if [ -d "$FD_DIR" ]; then
-    # Check for YAML files (should NOT exist)
-    YAML_COUNT=$(find "$FD_DIR" -maxdepth 1 -name "*.yaml" -o -name "*.yml" 2>/dev/null | wc -l | tr -d ' ')
+    # Check for YAML files (the correct format per EPF schema)
+    YAML_COUNT=$(find "$FD_DIR" -maxdepth 1 \( -name "*.yaml" -o -name "*.yml" \) ! -name "_*" 2>/dev/null | wc -l | tr -d ' ')
     if [ "$YAML_COUNT" -gt 0 ]; then
-        log_error "Feature definitions MUST be Markdown (.md), not YAML. Found $YAML_COUNT YAML files."
-        find "$FD_DIR" -maxdepth 1 \( -name "*.yaml" -o -name "*.yml" \) -exec echo "  - {}" \;
-    else
-        log_pass "No YAML files in feature_definitions (correct)"
-    fi
-    
-    # Check for Markdown files
-    MD_COUNT=$(find "$FD_DIR" -maxdepth 1 -name "*.md" ! -name "README.md" 2>/dev/null | wc -l | tr -d ' ')
-    if [ "$MD_COUNT" -gt 0 ]; then
-        log_pass "Found $MD_COUNT Markdown feature definition(s)"
+        log_pass "Found $YAML_COUNT YAML feature definition(s)"
         
-        # Validate naming convention
-        for md_file in "$FD_DIR"/*.md; do
-            [ -f "$md_file" ] || continue
-            filename=$(basename "$md_file")
-            [ "$filename" = "README.md" ] && continue
+        # Validate naming convention (fd-XXX_slug.yaml or slug.yaml)
+        for yaml_file in "$FD_DIR"/*.yaml "$FD_DIR"/*.yml; do
+            [ -f "$yaml_file" ] || continue
+            filename=$(basename "$yaml_file")
             
-            if [[ "$filename" =~ ^feature_definition_[a-z0-9_]+\.md$ ]]; then
+            # Skip supplementary/helper files
+            [[ "$filename" == _* ]] && continue
+            
+            if [[ "$filename" =~ ^fd-[0-9]+_[a-z0-9_-]+\.yaml$ ]] || [[ "$filename" =~ ^[a-z0-9]+(-[a-z0-9]+)*\.yaml$ ]]; then
                 log_pass "Correct naming: $filename"
             else
-                log_warning "Non-standard naming: $filename (expected: feature_definition_{slug}.md)"
+                log_warning "Non-standard naming: $filename (expected: fd-XXX_slug.yaml or slug.yaml)"
             fi
         done
         
-        # Validate required sections in each feature definition
-        for md_file in "$FD_DIR"/*.md; do
-            [ -f "$md_file" ] || continue
-            filename=$(basename "$md_file")
-            [ "$filename" = "README.md" ] && continue
+        # Validate required fields in each feature definition (per schema)
+        for yaml_file in "$FD_DIR"/*.yaml "$FD_DIR"/*.yml; do
+            [ -f "$yaml_file" ] || continue
+            filename=$(basename "$yaml_file")
+            [[ "$filename" == _* ]] && continue
             
-            # Check for required sections
-            if grep -q "## 1\. Background" "$md_file" && \
-               grep -q "## 2\. WHY" "$md_file" && \
-               grep -q "## 3\. HOW" "$md_file" && \
-               grep -q "## 4\. WHAT" "$md_file"; then
-                log_pass "Required sections present in: $filename"
+            # Check for required fields: id, name, slug, status, strategic_context, definition
+            if grep -q "^id:" "$yaml_file" && \
+               grep -q "^name:" "$yaml_file" && \
+               grep -q "^slug:" "$yaml_file" && \
+               grep -q "^status:" "$yaml_file" && \
+               grep -q "^strategic_context:" "$yaml_file" && \
+               grep -q "^definition:" "$yaml_file"; then
+                log_pass "Required fields present in: $filename"
             else
-                log_error "Missing required sections in: $filename (needs: 1. Background, 2. WHY, 3. HOW, 4. WHAT)"
+                log_error "Missing required fields in: $filename (needs: id, name, slug, status, strategic_context, definition)"
+            fi
+            
+            # Validate status is one of the allowed values
+            STATUS=$(grep "^status:" "$yaml_file" | head -1 | awk '{print $2}' | tr -d '"' | tr -d "'" || true)
+            if [[ "$STATUS" =~ ^(draft|ready|in-progress|delivered)$ ]]; then
+                : # Valid status, no message needed
+            else
+                log_error "Invalid status '$STATUS' in $filename (must be: draft, ready, in-progress, or delivered)"
             fi
         done
     else
         log_warning "No feature definitions found in $FD_DIR"
+    fi
+    
+    # Legacy check: warn if Markdown files exist (deprecated format)
+    MD_COUNT=$(find "$FD_DIR" -maxdepth 1 -name "*.md" ! -name "README.md" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$MD_COUNT" -gt 0 ]; then
+        log_warning "Found $MD_COUNT Markdown file(s) - consider migrating to YAML format per EPF v1.9.6+ schema"
     fi
 else
     log_error "feature_definitions directory not found"
@@ -281,10 +293,17 @@ if [ -n "$ROADMAP_FILE" ] && [ -d "$FD_DIR" ]; then
         log_info "Found KR references in roadmap"
     fi
     
-    # Check if feature definitions reference the roadmap
-    FD_REFS=$(grep -l "roadmap_recipe\|Work Package" "$FD_DIR"/*.md 2>/dev/null | wc -l | tr -d ' ')
+    # Check if feature definitions reference the roadmap (check both YAML and MD files)
+    FD_REFS=0
+    if ls "$FD_DIR"/*.yaml "$FD_DIR"/*.yml 2>/dev/null | head -1 > /dev/null; then
+        FD_REFS=$(grep -l "roadmap\|kr-\|asm-" "$FD_DIR"/*.yaml "$FD_DIR"/*.yml 2>/dev/null | wc -l | tr -d ' ')
+    fi
+    if [ "$FD_REFS" -eq 0 ] && ls "$FD_DIR"/*.md 2>/dev/null | head -1 > /dev/null; then
+        FD_REFS=$(grep -l "roadmap_recipe\|Work Package" "$FD_DIR"/*.md 2>/dev/null | wc -l | tr -d ' ')
+    fi
+    
     if [ "$FD_REFS" -gt 0 ]; then
-        log_pass "Feature definitions reference roadmap"
+        log_pass "Feature definitions reference roadmap/assumptions"
     else
         log_warning "No feature definitions reference the roadmap"
     fi
