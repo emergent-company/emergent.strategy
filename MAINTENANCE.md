@@ -763,6 +763,45 @@ The `_instances/` folder contains product-specific data and should **never** be 
 - The push will fail or create unwanted files in the EPF repo
 - Solution: Ensure `_instances/` was created *after* the initial subtree add, not as part of it
 
+#### Handling `.gitignore` for Instance Tracking
+
+The EPF framework includes two different `.gitignore` patterns:
+
+1. **Canonical EPF repo (`.gitignore`):** Ignores ALL `_instances/*` (no instances should exist here)
+2. **Product repos:** Should track THEIR product's instance while ignoring others
+
+**Problem:** When you `git subtree pull` from canonical EPF, the canonical `.gitignore` can overwrite your product-specific one, causing your instance to become untracked.
+
+**Solution (Automatic):** The `sync-repos.sh` script (v2.1+) automatically detects when this happens and restores your product-specific `.gitignore`:
+```bash
+./docs/EPF/scripts/sync-repos.sh pull
+# Automatically restores product .gitignore if overwritten
+```
+
+**Manual Fix:** If your `.gitignore` shows "This is the CANONICAL EPF repo", replace it with:
+```gitignore
+# EPF Framework .gitignore
+# This is the {product-name} product repo - the {product-name} instance IS tracked here
+
+_instances/*
+!_instances/README.md
+!_instances/{product-name}
+!_instances/{product-name}/**
+
+.DS_Store
+*.swp
+*.swo
+```
+
+**Template:** A template is provided at `.gitignore.product-template` for reference.
+
+**Initializing a New Product Instance:**
+```bash
+./docs/EPF/scripts/sync-repos.sh init {product-name}
+# Creates _instances/{product-name}/ folder structure
+# Creates product-specific .gitignore automatically
+```
+
 #### Sync Status Check
 
 To see if your product repo's EPF is behind or ahead of the main EPF repo:
@@ -800,14 +839,11 @@ cd /path/to/new-product
 # Add EPF as subtree
 git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squash
 
-# Create product-specific instance folder (this stays local)
-mkdir -p docs/EPF/_instances/new-product
-
-# Copy instance template or create fresh
-cp docs/EPF/phases/READY/00_north_star.yaml docs/EPF/_instances/new-product/
+# Initialize product-specific instance (creates folder, .gitignore, and templates)
+./docs/EPF/scripts/sync-repos.sh init new-product
 
 # Commit the new instance
-git add docs/EPF/_instances/
+git add docs/EPF/
 git commit -m "EPF: Initialize new-product instance"
 ```
 
@@ -837,9 +873,11 @@ git log --oneline -20 git@github.com:eyedea-io/epf.git main
 
 | Task | Command |
 |------|---------|
-| **Pull EPF updates** | `git subtree pull --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squash -m "EPF: Pull updates"` |
-| **Push EPF changes** | `git subtree push --prefix=docs/EPF git@github.com:eyedea-io/epf.git main` |
+| **Pull EPF updates** | `./docs/EPF/scripts/sync-repos.sh pull` (auto-restores .gitignore) |
+| **Push EPF changes** | `./docs/EPF/scripts/sync-repos.sh push` (excludes _instances/) |
 | **Initial setup** | `git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squash` |
+| **Init new product** | `./docs/EPF/scripts/sync-repos.sh init {product-name}` |
+| **Check sync status** | `./docs/EPF/scripts/sync-repos.sh check` |
 | **Check status** | `git status` then `pwd` to confirm location |
 
 ---
@@ -1102,16 +1140,30 @@ docs/EPF/
 │
 └── _instances/               # Product-specific instances (LOCAL ONLY)
     └── {product-name}/
-        ├── 00_north_star.yaml
-        ├── 01_insight_analyses.yaml
-        ├── 02_strategy_foundations.yaml
-        ├── 03_insight_opportunity.yaml
-        ├── 04_strategy_formula.yaml
-        ├── 05_roadmap_recipe.yaml
-        ├── _meta.yaml
-        ├── feature_definitions/   # Feature definition docs
-        ├── value_models/          # Value model artifacts
-        └── ad-hoc-artifacts/      # Generated memos, summaries (optional)
+        ├── _meta.yaml            # Instance metadata
+        ├── README.md             # Instance overview
+        ├── context-sheets/       # Context documents (optional)
+        ├── cycles/               # Archived cycle artifacts
+        │
+        ├── READY/                # Strategy & Planning Phase
+        │   ├── 00_north_star.yaml
+        │   ├── 01_insight_analyses.yaml
+        │   ├── 02_strategy_foundations.yaml
+        │   ├── 03_insight_opportunity.yaml
+        │   ├── 04_strategy_formula.yaml
+        │   └── 05_roadmap_recipe.yaml
+        │
+        ├── FIRE/                 # Execution & Delivery Phase
+        │   ├── feature_definitions/
+        │   ├── value_models/
+        │   ├── workflows/
+        │   └── mappings.yaml
+        │
+        ├── AIM/                  # Learning & Adaptation Phase
+        │   ├── assessment_report.yaml
+        │   └── calibration_memo.yaml
+        │
+        └── ad-hoc-artifacts/     # Generated memos, summaries (optional)
 ```
 
 ---
@@ -1144,19 +1196,39 @@ npx ajv validate -s docs/EPF/schemas/north_star_schema.json -d /tmp/north_star.j
 When user wants to start a new EPF instance for a product:
 
 ```bash
-# Create instance directory
-mkdir -p docs/EPF/_instances/{product-name}
+# Create instance directory with phase-based structure
+mkdir -p docs/EPF/_instances/{product-name}/READY
+mkdir -p docs/EPF/_instances/{product-name}/FIRE/feature_definitions
+mkdir -p docs/EPF/_instances/{product-name}/FIRE/value_models
+mkdir -p docs/EPF/_instances/{product-name}/FIRE/workflows
+mkdir -p docs/EPF/_instances/{product-name}/AIM
+mkdir -p docs/EPF/_instances/{product-name}/context-sheets
+mkdir -p docs/EPF/_instances/{product-name}/cycles
 
-# Copy template files
-cp docs/EPF/phases/READY/00_north_star.yaml docs/EPF/_instances/{product-name}/
-cp docs/EPF/phases/READY/01_insight_analyses.yaml docs/EPF/_instances/{product-name}/
-cp docs/EPF/phases/READY/02_strategy_foundations.yaml docs/EPF/_instances/{product-name}/
-cp docs/EPF/phases/READY/03_insight_opportunity.yaml docs/EPF/_instances/{product-name}/
-cp docs/EPF/phases/READY/04_strategy_formula.yaml docs/EPF/_instances/{product-name}/
-cp docs/EPF/phases/READY/05_roadmap_recipe.yaml docs/EPF/_instances/{product-name}/
+# Copy READY phase template files
+cp docs/EPF/phases/READY/00_north_star.yaml docs/EPF/_instances/{product-name}/READY/
+cp docs/EPF/phases/READY/01_insight_analyses.yaml docs/EPF/_instances/{product-name}/READY/
+cp docs/EPF/phases/READY/02_strategy_foundations.yaml docs/EPF/_instances/{product-name}/READY/
+cp docs/EPF/phases/READY/03_insight_opportunity.yaml docs/EPF/_instances/{product-name}/READY/
+cp docs/EPF/phases/READY/04_strategy_formula.yaml docs/EPF/_instances/{product-name}/READY/
+cp docs/EPF/phases/READY/05_roadmap_recipe.yaml docs/EPF/_instances/{product-name}/READY/
+
+# Copy FIRE phase template files
+cp docs/EPF/phases/FIRE/mappings.yaml docs/EPF/_instances/{product-name}/FIRE/
+cp -r docs/EPF/phases/FIRE/value_models/* docs/EPF/_instances/{product-name}/FIRE/value_models/
+cp -r docs/EPF/phases/FIRE/workflows/* docs/EPF/_instances/{product-name}/FIRE/workflows/
+
+# Copy AIM phase template files
+cp docs/EPF/phases/AIM/assessment_report.yaml docs/EPF/_instances/{product-name}/AIM/
+cp docs/EPF/phases/AIM/calibration_memo.yaml docs/EPF/_instances/{product-name}/AIM/
 ```
 
-Then guide user to fill in product-specific content, starting with `00_north_star.yaml`.
+Then guide user to fill in product-specific content, starting with `READY/00_north_star.yaml`.
+
+**Important:** Instance structure MUST mirror the framework's phase-based organization:
+- `READY/` contains strategy & planning artifacts (00-05)
+- `FIRE/` contains execution artifacts (feature_definitions, value_models, mappings)
+- `AIM/` contains assessment & learning artifacts
 
 #### Task: Trace from North Star to Key Results
 
