@@ -1,6 +1,6 @@
 #!/bin/bash
 # EPF Schema Validation Script
-# Version: 1.9.6
+# Version: 1.9.7
 #
 # This script validates that EPF YAML artifacts conform to their JSON schemas.
 # It uses yq for YAML-to-JSON conversion and ajv-cli for schema validation.
@@ -17,6 +17,9 @@
 #   0 - All validations passed
 #   1 - Validation errors found
 #   2 - Missing dependencies
+#
+# Changelog:
+#   v1.9.7 - Added feature definition schema validation
 
 set -e
 
@@ -154,7 +157,7 @@ find_epf_root() {
 main() {
     echo ""
     echo "╔══════════════════════════════════════════════════════════════════╗"
-    echo "║         EPF Schema Validation Script v1.9.6                      ║"
+    echo "║         EPF Schema Validation Script v1.9.7                      ║"
     echo "╚══════════════════════════════════════════════════════════════════╝"
     echo ""
     
@@ -253,6 +256,26 @@ main() {
         validate_file "$INSTANCE_PATH/mappings.yaml" "$SCHEMA_DIR/mappings_schema.json"
     else
         log_warning "No mappings.yaml found"
+    fi
+    
+    log_section "FIRE Phase Artifacts (Feature Definitions)"
+    
+    # Feature Definitions
+    if [ -d "$INSTANCE_PATH/feature_definitions" ]; then
+        local fd_count=0
+        for fd_file in "$INSTANCE_PATH/feature_definitions"/*.yaml "$INSTANCE_PATH/feature_definitions"/*.yml; do
+            [ -f "$fd_file" ] || continue
+            filename=$(basename "$fd_file")
+            # Skip underscore-prefixed files (helper/config files)
+            [[ "$filename" == _* ]] && continue
+            validate_file "$fd_file" "$SCHEMA_DIR/feature_definition_schema.json"
+            ((fd_count++)) || true
+        done
+        if [ "$fd_count" -eq 0 ]; then
+            log_warning "No feature definition YAML files found"
+        fi
+    else
+        log_warning "No feature_definitions directory found"
     fi
     
     # ==========================================================================
