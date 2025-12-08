@@ -1,6 +1,6 @@
 #!/bin/bash
 # EPF Instance Validation Script
-# Version: 1.9.8
+# Version: 1.10.0
 # 
 # This script validates that an EPF instance follows the framework structure
 # and conventions. Run this script from the EPF root directory or pass the
