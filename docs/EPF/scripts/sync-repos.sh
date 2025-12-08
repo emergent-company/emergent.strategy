@@ -1,9 +1,9 @@
 #!/bin/bash
-# EPF Sync Script v2.0
+# EPF Sync Script v2.1
 # Ensures EPF framework is synchronized across canonical repo and product instances
 #
 # CRITICAL: git subtree push CANNOT exclude directories, so we use a different approach:
-# - PULL: Uses git subtree (safe, canonical → product)
+# - PULL: Uses git subtree (safe, canonical → product), auto-restores product .gitignore
 # - PUSH: Clones canonical, copies files, commits, pushes (excludes _instances/)
 #
 # Usage: ./sync-repos.sh [push|pull|check|validate]
@@ -239,6 +239,78 @@ Framework files only (no instances)"
     log_info "Don't forget to update other product repos with: ./sync-repos.sh pull"
 }
 
+detect_product_name() {
+    # Try to detect product name from existing instance folders
+    local instances_dir="$EPF_PREFIX/_instances"
+    if [[ -d "$instances_dir" ]]; then
+        for dir in "$instances_dir"/*/; do
+            local dirname=$(basename "$dir")
+            if [[ "$dirname" != "README.md" && -d "$dir" ]]; then
+                echo "$dirname"
+                return 0
+            fi
+        done
+    fi
+    echo ""
+}
+
+restore_product_gitignore() {
+    local product_name="$1"
+    local gitignore_file="$EPF_PREFIX/.gitignore"
+    local backup_file="$EPF_PREFIX/.gitignore.product-backup"
+    
+    if [[ -z "$product_name" ]]; then
+        log_warn "Could not detect product name - .gitignore may need manual fix"
+        log_info "Check: $gitignore_file should NOT ignore your instance folder"
+        return 1
+    fi
+    
+    # Check if current .gitignore is the canonical version (ignores all instances)
+    if grep -q "^# This is the CANONICAL EPF repo" "$gitignore_file" 2>/dev/null; then
+        log_warn ".gitignore was overwritten with canonical version - restoring product version..."
+        
+        cat > "$gitignore_file" << EOF
+# EPF Framework .gitignore
+# This is the $product_name product repo - the $product_name instance IS tracked here
+
+# Instance folders - only $product_name instance is tracked
+# Other instances are ignored (if syncing from canonical repo)
+_instances/*
+!_instances/README.md
+!_instances/$product_name
+!_instances/$product_name/**
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Temporary files
+*.tmp
+*.temp
+EOF
+        
+        log_info "Restored product-specific .gitignore for '$product_name'"
+        git add "$gitignore_file"
+        return 0
+    fi
+    
+    # Check if .gitignore already tracks this product's instance
+    if grep -q "!_instances/$product_name" "$gitignore_file" 2>/dev/null; then
+        log_info ".gitignore correctly tracks '$product_name' instance ✓"
+        return 0
+    fi
+    
+    log_warn ".gitignore may not correctly track '$product_name' instance - please verify"
+    return 1
+}
+
 pull_from_canonical() {
     log_info "Pulling framework updates from canonical EPF repo..."
     echo ""
@@ -246,15 +318,140 @@ pull_from_canonical() {
     check_remote
     check_no_instances_in_canonical || exit 1
     
+    # Detect product name BEFORE pull (in case .gitignore gets overwritten)
+    local product_name=$(detect_product_name)
+    if [[ -n "$product_name" ]]; then
+        log_info "Detected product instance: $product_name"
+    fi
+    
+    # Backup current .gitignore if it's product-specific
+    local gitignore_file="$EPF_PREFIX/.gitignore"
+    local backup_file="$EPF_PREFIX/.gitignore.product-backup"
+    if [[ -f "$gitignore_file" ]] && ! grep -q "^# This is the CANONICAL EPF repo" "$gitignore_file"; then
+        cp "$gitignore_file" "$backup_file"
+    fi
+    
     log_step "Running git subtree pull..."
     git subtree pull --prefix="$EPF_PREFIX" "$CANONICAL_REMOTE" "$CANONICAL_BRANCH" --squash \
         -m "EPF: Pull framework updates from canonical repo"
+    
+    log_step "Checking .gitignore after pull..."
+    if [[ -n "$product_name" ]]; then
+        restore_product_gitignore "$product_name"
+    fi
+    
+    # Clean up backup if it exists
+    rm -f "$backup_file"
     
     log_step "Validating pulled version..."
     validate_version_consistency
     
     log_info "Pull complete! ✓"
     log_warn "Note: Your _instances/ folder is preserved (not affected by pull)"
+}
+
+init_product_instance() {
+    local product_name="${1:-}"
+    
+    if [[ -z "$product_name" ]]; then
+        echo "Usage: $0 init <product-name>"
+        echo ""
+        echo "Example: $0 init myproduct"
+        echo ""
+        echo "This will:"
+        echo "  1. Create _instances/<product-name>/ folder structure"
+        echo "  2. Create a product-specific .gitignore that tracks your instance"
+        echo "  3. Copy template files for your instance"
+        exit 1
+    fi
+    
+    log_info "Initializing EPF instance for '$product_name'..."
+    echo ""
+    
+    local instances_dir="$EPF_PREFIX/_instances/$product_name"
+    local gitignore_file="$EPF_PREFIX/.gitignore"
+    
+    # Check if instance already exists
+    if [[ -d "$instances_dir" ]]; then
+        log_warn "Instance folder already exists: $instances_dir"
+        echo ""
+    else
+        log_step "Creating instance folder structure..."
+        mkdir -p "$instances_dir/feature_definitions"
+        
+        # Copy template files from READY phase
+        if [[ -d "$EPF_PREFIX/phases/READY" ]]; then
+            for template in "$EPF_PREFIX/phases/READY"/*.yaml; do
+                if [[ -f "$template" ]]; then
+                    local basename=$(basename "$template")
+                    cp "$template" "$instances_dir/$basename"
+                    echo "  Copied: $basename"
+                fi
+            done
+        fi
+        
+        # Create instance README
+        cat > "$instances_dir/README.md" << EOF
+# EPF Instance: $product_name
+
+This folder contains the EPF artifacts specific to the **$product_name** product.
+
+## Structure
+
+- \`*.yaml\` - READY phase artifacts (strategy, roadmap, assumptions)
+- \`feature_definitions/\` - FIRE phase feature definitions
+
+## Getting Started
+
+1. Edit the READY phase templates to define your product strategy
+2. Create feature definitions in \`feature_definitions/\` as you plan work
+3. Run validation: \`./docs/EPF/scripts/validate-instance.sh $product_name\`
+
+See the main EPF README for full documentation.
+EOF
+        
+        log_info "Created instance folder: $instances_dir"
+    fi
+    
+    # Create/update product-specific .gitignore
+    log_step "Setting up product-specific .gitignore..."
+    
+    cat > "$gitignore_file" << EOF
+# EPF Framework .gitignore
+# This is the $product_name product repo - the $product_name instance IS tracked here
+
+# Instance folders - only $product_name instance is tracked
+# Other instances are ignored (if syncing from canonical repo)
+_instances/*
+!_instances/README.md
+!_instances/$product_name
+!_instances/$product_name/**
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Temporary files
+*.tmp
+*.temp
+EOF
+    
+    log_info "Created product-specific .gitignore for '$product_name'"
+    
+    echo ""
+    log_info "EPF instance initialized! ✓"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Edit your instance files in: $instances_dir/"
+    echo "  2. Commit: git add $EPF_PREFIX && git commit -m 'EPF: Initialize $product_name instance'"
+    echo "  3. Validate: ./docs/EPF/scripts/validate-instance.sh $product_name"
 }
 
 # Main
@@ -271,19 +468,26 @@ case "${1:-check}" in
     validate)
         validate_version_consistency
         ;;
+    init)
+        init_product_instance "$2"
+        ;;
     *)
-        echo "EPF Sync Script v2.0"
+        echo "EPF Sync Script v2.1"
         echo ""
         echo "Usage: $0 [command]"
         echo ""
         echo "Commands:"
-        echo "  check     Verify sync status (default)"
-        echo "  validate  Check version consistency within files"
-        echo "  push      Push framework to canonical repo (excludes _instances/)"
-        echo "  pull      Pull framework from canonical repo"
+        echo "  check       Verify sync status (default)"
+        echo "  validate    Check version consistency within files"
+        echo "  push        Push framework to canonical repo (excludes _instances/)"
+        echo "  pull        Pull framework from canonical repo (auto-restores .gitignore)"
+        echo "  init <name> Initialize a new product instance"
         echo ""
         echo "The push command uses file copy instead of git subtree to properly"
         echo "exclude _instances/ which should never be in the canonical repo."
+        echo ""
+        echo "The pull command automatically restores the product-specific .gitignore"
+        echo "if it gets overwritten by the canonical version."
         exit 1
         ;;
 esac
