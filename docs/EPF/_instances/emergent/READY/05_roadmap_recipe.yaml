@@ -1,19 +1,20 @@
 # ROADMAP Phase: Recipe for Solution
 # This is the third sub-phase of READY where we create the actionable plan.
 # 
-# EPF v1.9.6 BREAKING CHANGE: Work packages removed from EPF.
-# EPF now defines: Objectives → Key Results → Feature Definitions
-# Spec-driven tools own: Work Packages → Tasks
-#
 # STRUCTURE: The roadmap is organized by TRACKS (Product, Strategy, Org/Ops, Commercial)
 # to align with the four value models in the FIRE phase. Each track has its own OKRs,
-# assumptions, and solution scaffold. Feature definitions (in FIRE phase) translate
-# KR intent into capabilities that spec-driven tools consume.
+# assumptions, and solution scaffold.
+#
+# KEY PRINCIPLE: Key Results (KRs) are the lowest level EPF defines. KRs are measurable
+# milestones that are handed off to spec-driven development tools (Linear, Jira, etc.)
+# which create work packages, tasks, and tickets for implementation.
+#
+# The roadmap defines WHAT outcomes we want and WHY (strategic traceability).
+# Work packages define HOW we achieve those outcomes (implementation detail).
 
 roadmap:
   id: "roadmap-001"
-  template_version: "1.9.6"
-  strategy_id: "strat-001" # Links back to the strategy from 04_strategy_formula.yaml
+  strategy_id: "strat-001" # Links back to the strategy from 03_strategy_formula.yaml
   cycle: 1
   timeframe: "Q1 2025" # or "Sprint 1-3", etc.
   
@@ -38,8 +39,6 @@ roadmap:
               target: "TBD"
               measurement_method: "How will we measure this?"
               baseline: "Current state if known"
-              # Feature definitions that implement this KR are created in:
-              # _instances/{product}/feature_definitions/
             - id: "kr-p-002"
               description: "Example Product Key Result 2"
               target: "TBD"
@@ -185,25 +184,50 @@ roadmap:
   # ============================================================================
   
   cross_track_dependencies:
-    # Dependencies between KRs across tracks
+    # Explicit dependencies between Key Results across tracks
+    # This helps spec-driven tools understand sequencing constraints
     - from_kr: "kr-c-001"
       to_kr: "kr-p-001"
       dependency_type: "requires" # requires, informs, enables
-      description: "Commercial validation requires product capability to be delivered"
+      description: "Commercial validation requires product capabilities to demonstrate"
     
     - from_kr: "kr-s-001"
       to_kr: "kr-p-001"
       dependency_type: "informs"
       description: "Market positioning informs product feature prioritization"
   
-  # Timeline & Milestones
-  timeline:
-    cycle_start: "TBD"
-    cycle_end: "TBD"
+  # Execution Plan (KR-level view)
+  # Detailed work package planning happens in spec-driven development tools
+  execution_plan:
+    sequencing_rationale: "Product and Strategy KRs start in parallel. Org/Ops supports both. Commercial validates after product prototype exists."
+    
+    critical_path: 
+      # Format: track:kr-id (the sequence of Key Results that determines timeline)
+      - "product:kr-p-001"
+      - "commercial:kr-c-001"
+    
+    parallel_tracks:
+      - name: "Product & Strategy Discovery"
+        key_results: ["product:kr-p-001", "strategy:kr-s-001"]
+        timeframe: "Weeks 1-2"
+      
+      - name: "Org/Ops Foundation"
+        key_results: ["org_ops:kr-o-001"]
+        timeframe: "Weeks 2-4"
+      
+      - name: "Commercial Validation"
+        key_results: ["commercial:kr-c-001"]
+        timeframe: "Weeks 3-4"
+        depends_on: ["product:kr-p-001"]
+    
     key_milestones:
-      - date: "TBD"
-        milestone: "Example milestone"
-        key_results: ["kr-p-001", "kr-s-001"]
+      - date: "TBD - End of Week 2"
+        milestone: "Product prototype and market positioning validated"
+        key_results: ["product:kr-p-001", "strategy:kr-s-001"]
+      
+      - date: "TBD - End of Week 4"
+        milestone: "Commercial model validated and ops foundation established"
+        key_results: ["commercial:kr-c-001", "org_ops:kr-o-001"]
   
   # Review & Approval
   status: "draft" # draft, approved, active, completed, cancelled
