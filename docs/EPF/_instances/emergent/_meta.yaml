@@ -1,0 +1,27 @@
+# Emergent EPF Instance Metadata
+# This file tracks the EPF framework version and instance evolution
+
+instance:
+  product_name: "Emergent"
+  description: "AI-powered knowledge management and document intelligence platform"
+  epf_version: "1.10.1"
+  instance_version: "1.0.0"
+  created_date: "2025-12-01"
+  
+  current_cycle:
+    cycle_number: 1
+    cycle_id: "cycle-001"
+    phase: "FIRE"
+    started_date: "2025-12-01"
+
+  contacts:
+    - role: "Product Owner"
+      name: "TBD"
+    - role: "EPF Maintainer"
+      name: "TBD"
+
+  # Track evolution of instance structure
+  history:
+    - version: "1.0.0"
+      date: "2025-12-09"
+      description: "Initial _meta.yaml creation during EPF v1.10.1 sync"
