@@ -1,6 +1,24 @@
-# Emergent Product Framework (EPF) Repository - v1.9.7
+# Emergent Product Framework (EPF) Repository - v1.10.1
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
+
+## What's New in v1.10.1
+
+* **Product Portfolio Support (NEW):** New `product_portfolio.yaml` artifact and schema for organizations with multiple product lines:
+  - **Product Lines**: Track distinct products with their own value models (software, hardware, services)
+  - **Product Line Relationships**: Document how products interact (controls, monitors, integrates_with)
+  - **Brand Architecture**: Flexible brand identities at various granularities (product_lines, components, offerings)
+  - **Offerings**: Concrete commercial implementations that customers purchase
+  - See `PRODUCT_PORTFOLIO.md` for complete documentation and examples
+* **New Schema**: `schemas/product_portfolio_schema.json` for validating portfolio artifacts
+* **Fixed North Star Template**: YAML structure corrected for `value_conflicts` placement
+* **Enhanced Validation**: `scripts/epf-health-check.sh` now validates version consistency across all files
+
+### Migration from v1.9.7
+
+1. **No action required** if you have a single product
+2. **For multi-product organizations:** Create `product_portfolio.yaml` in your instance using the template
+3. **Update _meta.yaml:** Set `epf_version: "1.10.1"`
 
 ## What's New in v1.9.7
 

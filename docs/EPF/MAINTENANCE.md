@@ -44,7 +44,7 @@ The EPF framework version is tracked in `README.md` and `MAINTENANCE.md`.
 | **MINOR (Y)** | New features, new artifact types, new optional fields, new wizards. Backward-compatible additions that enhance capability. | v1.9.0 → v1.10.0: Add new agent prompt |
 | **PATCH (Z)** | Bug fixes, documentation improvements, schema clarifications, typo fixes. No structural changes. | v1.9.3 → v1.9.4: Fix schema validation issue |
 
-**Current Framework Version:** v1.9.6
+**Current Framework Version:** v1.10.1
 
 **Version History Convention:**
 - Document version changes in `README.md` under "What's New in vX.Y.Z"
@@ -122,16 +122,48 @@ When the EPF framework is updated:
 
 **Before releasing a framework version:**
 - [ ] Determine correct version increment (MAJOR/MINOR/PATCH)
-- [ ] Update version in `README.md`
+- [ ] Update version in `VERSION` file (single source of truth)
+- [ ] Update version in `README.md` header
 - [ ] Update "What's New" section
 - [ ] If MAJOR: provide migration guide
-- [ ] Update `MAINTENANCE.md` if conventions changed
+- [ ] Update `MAINTENANCE.md` "Current Framework Version" if conventions changed
+- [ ] Update script version headers (`scripts/validate-schemas.sh`, `scripts/epf-health-check.sh`)
+- [ ] **Run health check:** `./scripts/epf-health-check.sh` (must pass before commit)
 
 **Before incrementing an instance version:**
 - [ ] Determine correct version increment
 - [ ] Update `_meta.yaml` with new `instance_version`
 - [ ] If cycle completed: archive cycle artifacts, increment MINOR
 - [ ] If major pivot: document reasoning, increment MAJOR
+
+### Automated Version Consistency Check
+
+**MANDATORY:** Run the health check script before committing ANY framework changes:
+
+```bash
+# From EPF root (docs/EPF/ in product repos, or repo root in canonical EPF)
+./scripts/epf-health-check.sh
+
+# To attempt auto-fixes for version mismatches:
+./scripts/epf-health-check.sh --fix
+
+# For verbose output:
+./scripts/epf-health-check.sh --verbose
+```
+
+The health check validates:
+1. **Version Consistency**: VERSION file matches README.md, MAINTENANCE.md, script headers
+2. **YAML Parsing**: All YAML files parse without syntax errors
+3. **JSON Schemas**: All schema files are valid JSON
+4. **Documentation Completeness**: Required docs exist
+5. **File Structure**: Required directories exist
+6. **Instance Validation**: Instance metadata is present and valid
+
+**Exit codes:**
+- `0` - All checks passed ✅
+- `1` - Critical errors found ❌ (DO NOT COMMIT)
+- `2` - Warnings found ⚠️ (Should fix)
+- `3` - Missing dependencies
 
 ---
 
