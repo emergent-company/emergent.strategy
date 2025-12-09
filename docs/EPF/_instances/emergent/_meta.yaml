@@ -3,15 +3,22 @@
 
 instance:
   product_name: "Emergent"
-  description: "AI-powered knowledge management and document intelligence platform"
+  description: |
+    Emergent is an ecosystem of AI-powered products, frameworks, and tools for 
+    knowledge management, product development, and emergent understanding. 
+    Product lines include:
+    - Emergent Core: The knowledge engine (formerly "Spec Server")
+    - Emergent Frameworks: EPF, OpenSpec, and other methodologies
+    - Emergent Tools: CLI utilities, MCP servers, and integrations
+  
   epf_version: "1.10.1"
-  instance_version: "1.0.0"
+  instance_version: "1.2.0"
   created_date: "2025-12-01"
   
   current_cycle:
     cycle_number: 1
     cycle_id: "cycle-001"
-    phase: "FIRE"
+    phase: "READY"
     started_date: "2025-12-01"
 
   contacts:
@@ -20,8 +27,40 @@ instance:
     - role: "EPF Maintainer"
       name: "TBD"
 
+  # Product Portfolio Configuration
+  # See product_portfolio.yaml for full documentation
+  portfolio:
+    enabled: true
+    portfolio_file: "product_portfolio.yaml"
+    product_lines:
+      - id: "pl-emergent-core"
+        name: "Emergent Core"
+        value_model: "FIRE/value_models/product.core.value_model.yaml"
+      - id: "pl-epf"
+        name: "Emergent Product Framework"
+        value_model: "FIRE/value_models/product.epf.value_model.yaml"
+      - id: "pl-openspec"
+        name: "OpenSpec"
+        value_model: "FIRE/value_models/product.openspec.value_model.yaml"
+      - id: "pl-emergent-tools"
+        name: "Emergent Tools"
+        value_model: "FIRE/value_models/product.tools.value_model.yaml"
+
   # Track evolution of instance structure
   history:
-    - version: "1.0.0"
-      date: "2025-12-09"
-      description: "Initial _meta.yaml creation during EPF v1.10.1 sync"
+    epf_framework_migrations:
+      - from_version: null
+        to_version: "1.10.1"
+        date: "2025-12-09"
+        notes: "Initial EPF adoption from canonical repository"
+    
+    instance_changes:
+      - version: "1.0.0"
+        date: "2025-12-09"
+        description: "Initial _meta.yaml creation during EPF v1.10.1 sync"
+      - version: "1.1.0"
+        date: "2025-12-09"
+        description: "Updated to reflect Emergent as ecosystem with multiple product lines; clarified that Emergent Core was formerly 'Spec Server'"
+      - version: "1.2.0"
+        date: "2025-12-09"
+        description: "Added product portfolio configuration following canonical schema; corrected product line IDs to match schema patterns (pl-*)"
