@@ -36,11 +36,13 @@ NC='\033[0m'
 
 # Framework files/directories to sync (NOT _instances/)
 FRAMEWORK_ITEMS=(
+    "VERSION"
     "README.md"
     "MAINTENANCE.md"
     "NORTH_STAR.md"
     "STRATEGY_FOUNDATIONS.md"
     "TRACK_BASED_ARCHITECTURE.md"
+    "PRODUCT_PORTFOLIO.md"
     ".ai-agent-instructions.md"
     "integration_specification.yaml"
     "phases"
