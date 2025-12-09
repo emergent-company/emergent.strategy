@@ -1,6 +1,6 @@
 #!/bin/bash
 # EPF Schema Validation Script
-# Version: 1.9.7
+# Version: 1.10.1
 #
 # This script validates that EPF YAML artifacts conform to their JSON schemas.
 # It uses yq for YAML-to-JSON conversion and ajv-cli for schema validation.
@@ -19,6 +19,7 @@
 #   2 - Missing dependencies
 #
 # Changelog:
+#   v1.10.1 - Added product portfolio schema validation
 #   v1.9.7 - Added feature definition schema validation
 
 set -e
@@ -157,7 +158,7 @@ find_epf_root() {
 main() {
     echo ""
     echo "╔══════════════════════════════════════════════════════════════════╗"
-    echo "║         EPF Schema Validation Script v1.9.7                      ║"
+    echo "║         EPF Schema Validation Script v1.10.1                     ║"
     echo "╚══════════════════════════════════════════════════════════════════╝"
     echo ""
     
@@ -276,6 +277,15 @@ main() {
         fi
     else
         log_warning "No feature_definitions directory found"
+    fi
+    
+    log_section "FIRE Phase Artifacts (Product Portfolio)"
+    
+    # Product Portfolio (v1.10.1+)
+    if [ -f "$INSTANCE_PATH/product_portfolio.yaml" ]; then
+        validate_file "$INSTANCE_PATH/product_portfolio.yaml" "$SCHEMA_DIR/product_portfolio_schema.json"
+    else
+        log_info "No product_portfolio.yaml found (optional for single-product orgs)"
     fi
     
     # ==========================================================================

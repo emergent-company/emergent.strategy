@@ -151,10 +151,10 @@ north_star:
     
     # Typical values: Customer obsession, Bias for action, Ownership, Transparency, 
     # Excellence, Simplicity, Speed, Learning, Collaboration, Impact, etc.
-    
-    value_conflicts:
-      - tension: "When two values conflict (e.g., Speed vs. Quality)"
-        resolution_principle: "How we resolve this tension"
+  
+  value_conflicts:
+    - tension: "When two values conflict (e.g., Speed vs. Quality)"
+      resolution_principle: "How we resolve this tension"
   
   # ============================================================================
   # 5. CORE BELIEFS - First Principles That Underpin Our Reasoning
