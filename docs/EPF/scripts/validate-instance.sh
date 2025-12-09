@@ -1,6 +1,6 @@
 #!/bin/bash
 # EPF Instance Validation Script
-# Version: 1.10.0
+# Version: 1.10.2
 # 
 # This script validates that an EPF instance follows the framework structure
 # and conventions. Run this script from the EPF root directory or pass the
@@ -15,6 +15,7 @@
 #   1 - Validation errors found
 #
 # Changelog:
+#   v1.10.2 - Added product_portfolio.yaml validation for multi-product orgs
 #   v1.9.7 - Fixed feature definition validation to accept YAML format per schema
 
 set -e
@@ -84,7 +85,7 @@ INSTANCE_NAME=$(basename "$INSTANCE_PATH")
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║         EPF Instance Validation Script v1.9.8                    ║"
+echo "║         EPF Instance Validation Script v1.10.2                   ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 log_info "Validating instance: $INSTANCE_NAME"
@@ -293,6 +294,42 @@ if [ -d "$VM_DIR" ]; then
     fi
 else
     log_error "value_models directory not found"
+fi
+
+# =============================================================================
+# Section 5b: Product Portfolio (Optional for Multi-Product Orgs)
+# =============================================================================
+log_section "5b. Product Portfolio"
+
+PORTFOLIO_FILE="$INSTANCE_PATH/product_portfolio.yaml"
+if [ -f "$PORTFOLIO_FILE" ]; then
+    log_pass "Found: product_portfolio.yaml (multi-product organization)"
+    
+    # Validate required top-level structure
+    if grep -q "^portfolio:" "$PORTFOLIO_FILE"; then
+        log_pass "Portfolio has required 'portfolio:' root key"
+        
+        # Check for required portfolio fields
+        if grep -q "id:" "$PORTFOLIO_FILE" && \
+           grep -q "name:" "$PORTFOLIO_FILE" && \
+           grep -q "product_lines:" "$PORTFOLIO_FILE"; then
+            log_pass "Portfolio has required fields (id, name, product_lines)"
+        else
+            log_error "Portfolio missing required fields (id, name, or product_lines)"
+        fi
+        
+        # Check product line references in value_models
+        if [ -d "$VM_DIR" ]; then
+            PL_COUNT=$(grep -c "id: \"pl-" "$PORTFOLIO_FILE" 2>/dev/null || echo "0")
+            if [ "$PL_COUNT" -gt 0 ]; then
+                log_info "Portfolio defines $PL_COUNT product line(s)"
+            fi
+        fi
+    else
+        log_error "product_portfolio.yaml missing required 'portfolio:' root key"
+    fi
+else
+    log_info "No product_portfolio.yaml found (single-product organization - OK)"
 fi
 
 # =============================================================================
