@@ -15,9 +15,9 @@
 
 north_star:
   organization: "Emergent (by Eyedea)"
-  last_reviewed: "2025-12-09"
+  last_reviewed: "2025-12-11"
   next_review: "2026-06-01"
-  version: "1.1"
+  version: "1.2"
   
   # ============================================================================
   # 1. PURPOSE - Why We Exist
@@ -26,9 +26,10 @@ north_star:
   purpose:
     statement: |
       We exist to help knowledge workers and organizations achieve emergent understanding—
-      the ability to see patterns, connections, and insights that only become visible when
-      information is properly structured, connected, and AI-enhanced. We build the tools,
-      frameworks, and platforms that transform information chaos into actionable intelligence.
+      insights that arise from connections, not just searches. Like emergence in nature,
+      where simple building blocks following clear rules create complexity far greater than
+      the sum of its parts, we build the tools, frameworks, and platforms that transform
+      information chaos into self-organizing intelligence.
     
     problem_we_solve: |
       Organizations drown in unstructured information scattered across documents, URLs,
@@ -44,11 +45,12 @@ north_star:
     who_we_serve: "Knowledge workers, product teams, and organizations who need to find, understand, connect, and act on information"
     
     impact_we_seek: |
-      A world where organizational knowledge is alive—automatically structured, 
-      connected, and surfaced exactly when needed. Where AI assistants truly 
-      understand your domain because they have context, not just prompts. Where 
-      the answer is always seconds away, not hours of searching. Where emergent
-      insights surface automatically, revealing connections humans would miss.
+      A world where organizational knowledge is alive—a self-organizing system
+      where simple building blocks (documents, entities, relationships) combine
+      through clear rules (extraction, connection, retrieval) to create understanding
+      greater than the sum of its parts. Where AI assistants truly understand your
+      domain because they reason over connected context. Where emergent insights
+      surface automatically, revealing patterns humans couldn't predict.
   
   # ============================================================================
   # 2. VISION - Where We Imagine Being in the Future
@@ -68,9 +70,10 @@ north_star:
       - "Emergent Core powers thousands of organizations' knowledge infrastructure"
       - "Emergent frameworks (like EPF) become standard methodologies in product teams"
       - "AI assistants answer questions with citations grounded in organizational knowledge"
-      - "Knowledge graphs auto-emerge from unstructured content without manual tagging"
-      - "Teams discover connections and insights they didn't know existed"
+      - "Knowledge graphs auto-emerge from unstructured content—building blocks form higher-level building blocks"
+      - "Teams discover connections and insights they couldn't have predicted—emergent intelligence"
       - "The Emergent ecosystem becomes the 'intelligence layer' for enterprise AI"
+      - "Organizations experience Design by Emergence: invent the rules, discover the consequences"
     
     not_the_vision:
       - "We are NOT a general-purpose search engine competing with Google"
@@ -235,6 +238,23 @@ north_star:
   # ============================================================================
   
   core_beliefs:
+    about_emergence:
+      - belief: "Intelligence emerges from connections, not just content—the whole is greater than the sum of its parts"
+        implication: "We focus on building connected systems (graphs, relationships) not just storing documents"
+        evidence: "Emergence in nature: simple rules + building blocks = complex organized behavior (ant colonies, brains, ecosystems)"
+      
+      - belief: "Simple building blocks + clear rules = exponential combinatorial power"
+        implication: "We design atomic primitives (chunks, objects, relationships) that combine through well-defined operations"
+        evidence: "DNA's 4 bases create all life; neurons create consciousness; our components should enable unlimited emergent patterns"
+      
+      - belief: "Design by Emergence: invent the rules, discover the consequences through iteration"
+        implication: "Strategy can't be shortcut—we must run experiments and learn. AIM phase validates FIRE phase hypotheses"
+        evidence: "Computational irreducibility: complex systems must be run to see outcomes; no algorithm can predict emergent behavior"
+      
+      - belief: "Self-organizing complexity is the sweet spot between chaos and rigidity"
+        implication: "We avoid both over-structured systems (too rigid to adapt) and under-structured systems (too chaotic to be useful)"
+        evidence: "Successful complex systems (cities, markets, ecosystems) are organized but not centrally planned"
+    
     about_our_market:
       - belief: "LLMs are transforming knowledge work, but need grounding in organizational context to be truly useful"
         implication: "RAG and knowledge graphs become essential infrastructure, not optional"
@@ -311,6 +331,16 @@ north_star:
   # ============================================================================
   
   evolution_history:
+    - date: "2025-12-11"
+      what_changed: "Added emergence philosophy based on 'Emergent Complexity' video insights"
+      why: "Refining core positioning around building blocks + rules = emergent behavior"
+      impact: |
+        - Added 'about_emergence' core beliefs section with 4 foundational beliefs
+        - Updated purpose statement with emergence framing
+        - Updated vision success indicators with emergence language
+        - Reframed product portfolio as 'layers of emergence'
+        - Aligned with updated landing page messaging
+    
     - date: "2025-12-09"
       what_changed: "Initial EPF v1.9.6 North Star creation"
       why: "Formalizing strategic foundation for Emergent platform"
@@ -371,9 +401,13 @@ usage_guidance: |
 
 product_portfolio:
   description: |
-    Emergent is an ecosystem of products, frameworks, and tools—not a single monolithic
-    application. Each product line serves a distinct purpose while sharing common values,
-    technology foundations, and the goal of enabling emergent understanding.
+    Emergent is a layered ecosystem where each product enables the next level of emergence.
+    Building blocks form higher-level building blocks: documents become knowledge (Core),
+    knowledge informs strategy (Frameworks), strategy enables execution (Tools).
+    
+    Like emergence in nature, the value of the ecosystem is exponentially greater than
+    the sum of its parts. Each product line serves a distinct purpose while sharing common
+    values, technology foundations, and the philosophy of Design by Emergence.
 
   product_lines:
     # -------------------------------------------------------------------------
@@ -508,4 +542,4 @@ product_portfolio:
       - "Frameworks can reference Core for AI-enhanced workflows"
       - "Tools can operate standalone or with Core backend"
       - "All products share authentication patterns (when applicable)"
-        - "MCP protocol for external AI integration"
+      - "MCP protocol for external AI integration"
