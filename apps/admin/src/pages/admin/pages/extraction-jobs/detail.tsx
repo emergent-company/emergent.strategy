@@ -570,10 +570,22 @@ export function ExtractionJobDetailPage() {
         <div className="mb-6 card-border card">
           <div className="card-body">
             <h2 className="card-title">
-              Created Objects ({job.created_objects.length})
+              <Link
+                to={`/admin/objects?extraction_job_id=${job.id}`}
+                className="link link-hover inline-flex items-center gap-2"
+              >
+                Created Objects ({job.created_objects.length})
+                <Icon icon="lucide--external-link" className="size-4" />
+              </Link>
             </h2>
             <p className="mb-4 text-sm text-base-content/60">
-              Objects extracted and created in the knowledge graph
+              Objects extracted and created in the knowledge graph.{' '}
+              <Link
+                to={`/admin/objects?extraction_job_id=${job.id}`}
+                className="link link-primary"
+              >
+                View all in Objects table
+              </Link>
             </p>
             <div className="flex flex-wrap gap-2">
               {job.created_objects
@@ -590,9 +602,12 @@ export function ExtractionJobDetailPage() {
                   </Link>
                 ))}
               {job.created_objects.length > 20 && (
-                <span className="badge badge-ghost">
+                <Link
+                  to={`/admin/objects?extraction_job_id=${job.id}`}
+                  className="badge badge-primary"
+                >
                   +{job.created_objects.length - 20} more
-                </span>
+                </Link>
               )}
             </div>
           </div>

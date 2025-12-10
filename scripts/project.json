@@ -28,9 +28,15 @@
         "cwd": ".",
         "forwardAllArgs": false
       }
+    },
+    "seed-langfuse-prompts": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsx scripts/seed-langfuse-prompts.ts",
+        "cwd": ".",
+        "forwardAllArgs": true
+      }
     }
   },
-  "tags": [
-    "scope:scripts"
-  ]
+  "tags": ["scope:scripts"]
 }

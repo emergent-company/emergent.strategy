@@ -6,6 +6,14 @@
  */
 
 /**
+ * Action types for context-aware extraction.
+ * - 'create': New entity not in existing context (default)
+ * - 'enrich': Entity matches existing context, add/update information
+ * - 'reference': Pure reference to existing entity (for relationships only)
+ */
+export type EntityAction = 'create' | 'enrich' | 'reference';
+
+/**
  * Extracted entity from document processing
  */
 export interface ExtractedEntity {
@@ -26,6 +34,20 @@ export interface ExtractedEntity {
 
   /** Confidence score 0.0-1.0 indicating extraction quality */
   confidence?: number;
+
+  /**
+   * Action determined by LLM based on existing entity context:
+   * - 'create': New entity not in existing context (default)
+   * - 'enrich': Matches existing entity, merge new information
+   * - 'reference': Pure reference to existing entity (for relationships only)
+   */
+  action?: EntityAction;
+
+  /**
+   * ID of existing entity this references (when action is 'enrich' or 'reference').
+   * Used to bypass entity linking search and directly use the known UUID.
+   */
+  existing_entity_id?: string;
 }
 
 /**
@@ -125,6 +147,9 @@ export interface ExistingEntityContext {
 
   /** Relationships to/from this entity (one level deep) */
   relationships?: EntityRelationshipContext[];
+
+  /** Similarity score from vector search (0-1, higher = more similar) */
+  similarity?: number;
 }
 
 /**
@@ -146,8 +171,32 @@ export interface ExtractionOptions {
   /** Existing entities in the project that can be referenced by UUID */
   existingEntities?: ExistingEntityContext[];
 
-  /** Job context for monitoring (jobId, projectId, traceId) */
-  context?: { jobId: string; projectId: string; traceId?: string };
+  /** Job context for monitoring (jobId, projectId, traceId, parentObservationId) */
+  context?: {
+    jobId: string;
+    projectId: string;
+    traceId?: string;
+    /** Parent span ID for hierarchical Langfuse nesting */
+    parentObservationId?: string;
+  };
+
+  /** Langfuse prompt label to use (e.g., 'tuned-v1', 'production') */
+  promptLabel?: string;
+
+  /**
+   * Pre-chunked document text for efficient LLM processing.
+   * If provided, extraction will process these chunks in batches
+   * instead of the full document content, improving performance on large documents.
+   */
+  documentChunks?: string[];
+
+  /**
+   * LLM extraction method override.
+   * - 'responseSchema': Uses Gemini's structured output with JSON schema (default)
+   * - 'function_calling': Uses Gemini's function/tool calling API
+   * If not provided, falls back to server default from EXTRACTION_METHOD env var.
+   */
+  extractionMethod?: 'responseSchema' | 'function_calling';
 }
 
 /**

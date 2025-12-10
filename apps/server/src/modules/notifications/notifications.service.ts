@@ -318,6 +318,92 @@ export class NotificationsService {
   }
 
   /**
+   * Resolve an actionable notification (accept or reject)
+   *
+   * This is used for notifications that require user action (e.g., merge suggestions).
+   * - 'accepted': User approved the action
+   * - 'rejected': User rejected the action
+   *
+   * Once resolved, the notification no longer counts toward pending limits.
+   */
+  async resolve(
+    notificationId: string,
+    userId: string,
+    status: 'accepted' | 'rejected'
+  ): Promise<void> {
+    // First check if the notification exists and belongs to the user
+    const notification = await this.notificationRepo.findOne({
+      where: { id: notificationId, userId },
+    });
+
+    if (!notification) {
+      throw new NotFoundException('Notification not found');
+    }
+
+    // Check if it's an actionable notification
+    if (!notification.actionStatus) {
+      this.logger.warn(
+        `Attempted to resolve non-actionable notification ${notificationId}`
+      );
+      // Still allow resolution - it might be a legacy notification
+    }
+
+    // Update the action status
+    const result = await this.notificationRepo.update(
+      { id: notificationId, userId },
+      {
+        actionStatus: status,
+        actionStatusAt: new Date(),
+        actionStatusBy: userId,
+      }
+    );
+
+    if (!result.affected || result.affected === 0) {
+      throw new NotFoundException('Notification not found');
+    }
+
+    this.logger.log(
+      `Notification ${notificationId} resolved as '${status}' by user ${userId}`
+    );
+  }
+
+  /**
+   * Get notification by ID
+   */
+  async findOne(notificationId: string, userId: string): Promise<Notification> {
+    const notification = await this.notificationRepo.findOne({
+      where: { id: notificationId, userId },
+    });
+
+    if (!notification) {
+      throw new NotFoundException('Notification not found');
+    }
+
+    return notification;
+  }
+
+  /**
+   * Mark all notifications linked to a task as read for a specific user.
+   * This is called when a task is resolved to automatically mark the user's
+   * notification as read.
+   */
+  async markReadByTaskId(taskId: string, userId: string): Promise<number> {
+    const result = await this.notificationRepo.update(
+      { taskId, userId, readAt: IsNull() },
+      { readAt: new Date() }
+    );
+
+    const affected = result.affected || 0;
+    if (affected > 0) {
+      this.logger.debug(
+        `Marked ${affected} notification(s) as read for task ${taskId} and user ${userId}`
+      );
+    }
+
+    return affected;
+  }
+
+  /**
    * Get user notification preferences
    */
   async getPreferences(

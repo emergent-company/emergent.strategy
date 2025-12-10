@@ -73,6 +73,25 @@ export interface FilterOption {
 }
 
 /**
+ * Selection mode for bulk operations
+ */
+export type SelectionMode = 'page' | 'all';
+
+/**
+ * Selection context passed to bulk action handlers
+ */
+export interface SelectionContext<T extends TableDataItem> {
+  /** Currently selected item IDs (from loaded page data) */
+  selectedIds: string[];
+  /** Currently selected items (from loaded page data) */
+  selectedItems: T[];
+  /** Selection mode: 'page' for visible items only, 'all' for all matching items in database */
+  mode: SelectionMode;
+  /** Total count of all items (when mode is 'all') */
+  totalCount?: number;
+}
+
+/**
  * Bulk action configuration
  */
 export interface BulkAction<T extends TableDataItem> {
@@ -93,8 +112,20 @@ export interface BulkAction<T extends TableDataItem> {
     | 'ghost';
   /** Button style (filled or outline) */
   style?: 'filled' | 'outline';
-  /** Action handler - receives selected item IDs */
-  onAction: (selectedIds: string[], selectedItems: T[]) => void | Promise<void>;
+  /**
+   * Action handler - receives selection context with mode information
+   * @deprecated Use onActionWithContext for new implementations
+   */
+  onAction?: (
+    selectedIds: string[],
+    selectedItems: T[]
+  ) => void | Promise<void>;
+  /**
+   * Enhanced action handler with full selection context
+   * When mode is 'all', the action should operate on all matching items,
+   * not just the ones currently loaded in the UI
+   */
+  onActionWithContext?: (context: SelectionContext<T>) => void | Promise<void>;
 }
 
 /**
@@ -184,6 +215,12 @@ export interface DataTableProps<T extends TableDataItem> {
 
   /** Callback when selection changes */
   onSelectionChange?: (selectedIds: string[], selectedItems: T[]) => void;
+
+  /**
+   * Total count of all items in the database (for "select all" feature)
+   * When provided, enables the "Select all X items" option in bulk actions bar
+   */
+  totalCount?: number;
 
   /** Empty state message */
   emptyMessage?: string;

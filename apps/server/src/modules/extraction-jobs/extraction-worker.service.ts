@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -25,11 +26,13 @@ import type {
 import { TemplatePackService } from '../template-packs/template-pack.service';
 import { MonitoringLoggerService } from '../monitoring/monitoring-logger.service';
 import { LangfuseService } from '../langfuse/langfuse.service';
+import type { LangfuseSpanClient } from 'langfuse-node';
 import {
   ChunkerService,
   ChunkerConfig,
 } from '../../common/utils/chunker.service';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
+import { ExtractionContextService } from './extraction-context.service';
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 
@@ -117,7 +120,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly langfuseService: LangfuseService,
     private readonly chunkerService: ChunkerService,
     private readonly embeddingsService: EmbeddingsService,
-    private readonly vectorSearchService: GraphVectorSearchService
+    private readonly vectorSearchService: GraphVectorSearchService,
+    private readonly extractionContextService: ExtractionContextService
   ) {}
 
   /**
@@ -541,15 +545,37 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       );
     };
 
+    /**
+     * Map to track active spans by step name for hierarchical nesting
+     */
+    const activeSpans = new Map<string, LangfuseSpanClient | null>();
+
+    /**
+     * Begin a timeline step with optional Langfuse span tracking.
+     * Returns a function to complete the step.
+     */
     const beginTimelineStep = (
       step: string,
       metadata?: Record<string, any>
-    ) => {
+    ): ((
+      status: TimelineEventStatus,
+      details?: { message?: string; metadata?: Record<string, any> }
+    ) => void) & { spanId?: string } => {
       const startedAt = Date.now();
-      return (
+
+      // Create Langfuse span for this step
+      const span = traceId
+        ? this.langfuseService.createSpan(traceId, step, metadata)
+        : null;
+
+      // Store the span for potential child observations
+      activeSpans.set(step, span);
+
+      const endStep = (
         status: TimelineEventStatus,
         details?: { message?: string; metadata?: Record<string, any> }
       ) => {
+        // Push timeline event
         pushTimelineEvent(step, status, {
           durationMs: Date.now() - startedAt,
           message: details?.message,
@@ -558,7 +584,28 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             ...(details?.metadata ?? {}),
           },
         });
+
+        // End Langfuse span
+        if (span) {
+          this.langfuseService.endSpan(
+            span,
+            details?.metadata,
+            status === 'error' ? 'error' : 'success',
+            details?.message
+          );
+        }
+
+        // Remove from active spans
+        activeSpans.delete(step);
       };
+
+      // Attach span ID as property for accessing in llm_extract step
+      (endStep as any).spanId = span?.id;
+
+      return endStep as ((
+        status: TimelineEventStatus,
+        details?: { message?: string; metadata?: Record<string, any> }
+      ) => void) & { spanId?: string };
     };
 
     pushTimelineEvent('job_started', 'info', {
@@ -576,6 +623,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       });
 
       let documentContent: string | null = null;
+      let documentChunks: string[] = [];
 
       // For document sources, ensure chunks and embeddings are ready
       if (job.source_type === 'document' && job.source_id) {
@@ -595,6 +643,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         }
 
         documentContent = readyResult.content;
+        documentChunks = readyResult.chunkTexts;
 
         // Log chunk/embedding preparation details
         documentStep('success', {
@@ -630,9 +679,18 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
           throw new Error(message);
         }
 
+        // Create chunks on-the-fly for non-document sources
+        // This ensures the relationship builder always has semantic chunks to work with
+        const chunksWithMeta = this.chunkerService.chunkWithMetadata(
+          documentContent,
+          { strategy: 'paragraph' } // Use paragraph strategy for semantic boundaries
+        );
+        documentChunks = chunksWithMeta.map((c) => c.text);
+
         documentStep('success', {
           metadata: {
             character_count: documentContent.length,
+            chunks_created: documentChunks.length,
           },
         });
       }
@@ -667,9 +725,12 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
       promptStep('success', {
         metadata: {
-          prompt_length: extractionPrompt.length,
+          base_prompt_length: extractionPrompt.length,
+          base_prompt_configured: extractionPrompt.length > 0,
           schema_count: Object.keys(objectSchemas).length,
+          schema_types: Object.keys(objectSchemas),
           relationship_schema_count: Object.keys(relationshipSchemas).length,
+          relationship_types: Object.keys(relationshipSchemas),
         },
       });
 
@@ -717,7 +778,10 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
           throw error;
         }
       })();
-      const allowedTypes = this.extractAllowedTypes(job);
+
+      // Derive allowed types from job config or fall back to template pack schema keys
+      // This ensures LLM only extracts entity types defined in the template pack
+      const allowedTypes = this.extractAllowedTypes(job, objectSchemas);
 
       // Fetch available tags for LLM to prefer existing tags
       const fetchTagsStep = beginTimelineStep('fetch_available_tags');
@@ -743,35 +807,45 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         // Don't throw - continue extraction without tags
       }
 
-      // Fetch existing similar entities using vector search for better relationship extraction
-      const fetchEntitiesStep = beginTimelineStep('fetch_existing_entities');
+      // Load relevant existing entities using vector search for context-aware extraction
+      // This helps the LLM recognize existing entities and avoid duplicates
+      const loadContextStep = beginTimelineStep('load_existing_context');
       let existingEntities: ExistingEntityContext[] = [];
       try {
-        if (job.source_type === 'document' && job.source_id) {
-          existingEntities = await this.findSimilarExistingEntities(
-            job.source_id,
-            job.project_id,
-            30, // limit
-            0.5 // maxDistance
+        const contextResult =
+          await this.extractionContextService.loadRelevantEntities(
+            documentContent,
+            {
+              projectId: job.project_id,
+              entityTypes: allowedTypes,
+              limitPerType: 30, // Top 30 most similar per type
+              similarityThreshold: 0.5, // Only include if >50% similar
+              includeAllIfBelowCount: 50, // Load all if type has <50 entities
+            }
           );
-          fetchEntitiesStep('success', {
-            metadata: { entities_count: existingEntities.length },
-          });
-          this.logger.debug(
-            `Fetched ${existingEntities.length} similar existing entities for extraction context`
-          );
-        } else {
-          fetchEntitiesStep('info', {
-            message: 'Non-document source, skipping entity context',
-          });
-        }
+
+        existingEntities = contextResult.allEntities;
+
+        loadContextStep('success', {
+          metadata: {
+            entities_loaded: existingEntities.length,
+            search_method: contextResult.searchMethod,
+            type_breakdown: contextResult.stats.typeBreakdown,
+            avg_similarity: contextResult.stats.averageSimilarity?.toFixed(2),
+            duration_ms: contextResult.stats.searchDurationMs,
+          },
+        });
+
+        this.logger.log(
+          `Loaded ${existingEntities.length} existing entities as context (method: ${contextResult.searchMethod})`
+        );
       } catch (error) {
         const message = toErrorMessage(error);
-        fetchEntitiesStep('warning', { message });
+        loadContextStep('warning', { message });
         this.logger.warn(
-          `Failed to fetch existing entities, proceeding without: ${message}`
+          `Failed to load existing entity context, proceeding without: ${message}`
         );
-        // Don't throw - continue extraction without entity context
+        // Don't throw - continue extraction without existing entity context
       }
 
       const llmStep = beginTimelineStep('llm_extract', {
@@ -804,6 +878,12 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       });
 
       try {
+        // Get extraction method from job config or use server default
+        const extractionMethod = job.extraction_config?.extraction_method as
+          | 'responseSchema'
+          | 'function_calling'
+          | undefined;
+
         const result = await llmProvider.extractEntities(
           documentContent,
           extractionPrompt,
@@ -812,11 +892,14 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             relationshipSchemas,
             allowedTypes,
             availableTags,
-            existingEntities,
+            existingEntities: [], // Empty - deduplication via merge suggestions
+            documentChunks,
+            extractionMethod, // Pass per-job extraction method override
             context: {
               jobId: job.id,
               projectId: job.project_id,
               traceId: traceId || undefined,
+              parentObservationId: (llmStep as any).spanId,
             },
           }
         );
@@ -941,6 +1024,31 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         failed: 0,
       };
 
+      // Track skip/fail reasons for better observability (similar to relationshipSkipReasons)
+      const entitySkipReasons: Record<string, number> = {
+        low_confidence: 0,
+        entity_linking_skip: 0,
+        duplicate_skip_strategy: 0,
+        merge_failure_fallback: 0,
+      };
+
+      const entityFailReasons: Record<string, number> = {
+        validation_error: 0,
+        database_error: 0,
+        unknown_error: 0,
+      };
+
+      // Detailed per-entity results for tracing (similar to relationshipDetails)
+      const entityDetails: Array<{
+        name: string;
+        type: string;
+        status: 'created' | 'merged' | 'skipped' | 'rejected' | 'failed';
+        reason?: string;
+        object_id?: string;
+        confidence?: number;
+        error?: string;
+      }> = [];
+
       let rejectedCount = 0;
 
       const recordProgress = async (progressOutcome: EntityOutcome) => {
@@ -1019,6 +1127,29 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       const reviewRequiredObjectIds: string[] = [];
       const strategy = this.config.extractionEntityLinkingStrategy;
 
+      // Build batchEntityMap DURING object creation to ensure relationships
+      // use the newly created object IDs, not older objects with similar names
+      const batchEntityMap = new Map<string, string>();
+
+      // Helper function to add entity name variants to the map
+      const addToBatchEntityMap = (entityName: string, objectId: string) => {
+        // Add exact normalized name
+        const normalizedName = entityName.toLowerCase().trim();
+        if (!batchEntityMap.has(normalizedName)) {
+          batchEntityMap.set(normalizedName, objectId);
+        }
+        // Also add without common prefixes/articles for fuzzy matching
+        const withoutArticles = normalizedName
+          .replace(/^(the|a|an)\s+/i, '')
+          .trim();
+        if (
+          withoutArticles !== normalizedName &&
+          !batchEntityMap.has(withoutArticles)
+        ) {
+          batchEntityMap.set(withoutArticles, objectId);
+        }
+      };
+
       const graphStep = beginTimelineStep('graph_upsert', {
         strategy,
       });
@@ -1059,6 +1190,14 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 `below minimum threshold ${minThreshold}`
             );
             outcome = 'rejected';
+            entitySkipReasons.low_confidence++;
+            entityDetails.push({
+              name: entity.name,
+              type: entity.type_name,
+              status: 'rejected',
+              reason: 'low_confidence',
+              confidence: finalConfidence,
+            });
             await recordProgress(outcome);
             continue; // Skip this entity
           }
@@ -1075,7 +1214,22 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             this.logger.debug(
               `Skipped entity ${entity.name}: already exists as ${linkingDecision.existingObjectId}`
             );
+            // Still add to map so relationships can reference this entity
+            if (linkingDecision.existingObjectId) {
+              addToBatchEntityMap(
+                entity.name,
+                linkingDecision.existingObjectId
+              );
+            }
             outcome = 'skipped';
+            entitySkipReasons.entity_linking_skip++;
+            entityDetails.push({
+              name: entity.name,
+              type: entity.type_name,
+              status: 'skipped',
+              reason: 'entity_linking_skip',
+              object_id: linkingDecision.existingObjectId,
+            });
             await recordProgress(outcome);
             continue;
           }
@@ -1089,6 +1243,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             );
 
             createdObjectIds.push(linkingDecision.existingObjectId!);
+
+            // Add to batchEntityMap for relationship resolution
+            addToBatchEntityMap(entity.name, linkingDecision.existingObjectId!);
 
             if (qualityDecision === 'review') {
               reviewRequiredObjectIds.push(linkingDecision.existingObjectId!);
@@ -1150,6 +1307,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
               createdObjectIds.push(graphObject.id);
 
+              // Add to batchEntityMap for relationship resolution
+              addToBatchEntityMap(entity.name, graphObject.id);
+
               if (qualityDecision === 'review') {
                 reviewRequiredObjectIds.push(graphObject.id);
               }
@@ -1210,6 +1370,37 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
                 if (duplicateStrategy === 'skip') {
                   // Skip creation - object already exists
+                  // Look up existing object ID to add to batchEntityMap
+                  try {
+                    const existingLookup = await this.db.runWithTenantContext(
+                      job.project_id,
+                      async () => {
+                        return this.db.query<{ id: string }>(
+                          `SELECT id FROM kb.graph_objects
+                           WHERE project_id = $1
+                             AND branch_id IS NULL
+                             AND type = $2
+                             AND key = $3
+                             AND deleted_at IS NULL
+                           ORDER BY version DESC
+                           LIMIT 1`,
+                          [job.project_id, entity.type_name, objectKey]
+                        );
+                      }
+                    );
+                    if (
+                      existingLookup.rowCount &&
+                      existingLookup.rowCount > 0
+                    ) {
+                      addToBatchEntityMap(
+                        entity.name,
+                        existingLookup.rows[0].id
+                      );
+                    }
+                  } catch {
+                    // Ignore lookup errors - relationship resolution will fall back
+                  }
+
                   await this.extractionLogger.logStep({
                     extractionJobId: job.id,
                     stepIndex: this.stepCounter++,
@@ -1252,6 +1443,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                                                        AND branch_id IS NULL 
                                                        AND type = $2 
                                                        AND key = $3
+                                                       AND deleted_at IS NULL
                                                      ORDER BY version DESC
                                                      LIMIT 1`,
                           [job.project_id, entity.type_name, objectKey]
@@ -1364,6 +1556,10 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                           updatedObject.version
                         }, confidence: ${finalConfidence.toFixed(3)})`
                     );
+
+                    // Add to batchEntityMap for relationship resolution
+                    addToBatchEntityMap(entity.name, updatedObject.id);
+
                     outcome = 'merged';
                   } catch (mergeError) {
                     const mergeErr =
@@ -1391,7 +1587,20 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
           outcome = 'failed';
           const err = error instanceof Error ? error : new Error(String(error));
 
-          // Log object creation error
+          // Extract detailed error information from BadRequestException
+          let errorDetails: Record<string, any> | undefined;
+          if (error instanceof BadRequestException) {
+            const response = error.getResponse();
+            if (typeof response === 'object' && response !== null) {
+              errorDetails = {
+                code: (response as any).code,
+                errors: (response as any).errors,
+                entity_properties: entity.properties,
+              };
+            }
+          }
+
+          // Log object creation error with full context
           await this.extractionLogger.logStep({
             extractionJobId: job.id,
             stepIndex: this.stepCounter++,
@@ -1400,14 +1609,20 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             status: 'failed',
             errorMessage: err.message,
             errorStack: err.stack,
+            errorDetails,
             metadata: {
               entity_name: entity.name,
               entity_type: entity.type_name,
+              entity_key:
+                entity.business_key ||
+                this.generateKeyFromName(entity.name, entity.type_name),
+              entity_properties: entity.properties,
+              entity_description: entity.description,
             },
           });
 
           this.logger.error(
-            `Failed to create object for entity ${entity.name}: ${err.message}`,
+            `Failed to create object for entity ${entity.name} (${entity.type_name}): ${err.message}`,
             err.stack
           );
           // Continue processing other entities
@@ -1416,50 +1631,32 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         await recordProgress(outcome);
       }
 
-      // 6b. Build BatchEntityMap: name (lowercase) → UUID for extracted entities
-      const batchEntityMap = new Map<string, string>();
-      for (const entity of extractionResult.entities) {
-        // Map entity names to their created object IDs
-        // Note: We need to track which entities were successfully created
-        // For now, we use the entity name as key since we don't have direct mapping
-        const normalizedName = entity.name.toLowerCase().trim();
-        // We'll try to find the object ID via database lookup if not already tracked
-        // This is a simplification - ideally we'd track entity → objectId during creation
-        if (!batchEntityMap.has(normalizedName)) {
-          // Try to find the object by name in the project
-          try {
-            const lookupResult = await this.db.runWithTenantContext(
-              job.project_id,
-              async () => {
-                return this.db.query<{ id: string }>(
-                  `SELECT id FROM kb.graph_objects
-                   WHERE project_id = $1
-                     AND branch_id IS NULL
-                     AND deleted_at IS NULL
-                     AND properties->>'name' ILIKE $2
-                   ORDER BY created_at DESC
-                   LIMIT 1`,
-                  [job.project_id, entity.name]
-                );
-              }
-            );
-            if (lookupResult.rowCount && lookupResult.rowCount > 0) {
-              batchEntityMap.set(normalizedName, lookupResult.rows[0].id);
-            }
-          } catch {
-            // Ignore lookup errors
-          }
-        }
-      }
-
+      // 6b. batchEntityMap was populated during object creation above
+      // Log the map size for debugging
       this.logger.debug(
-        `Built BatchEntityMap with ${batchEntityMap.size} entity mappings`
+        `BatchEntityMap populated during creation with ${batchEntityMap.size} entity mappings`
       );
 
       // 6c. Process extracted relationships
       let relationshipsCreated = 0;
       let relationshipsSkipped = 0;
       let relationshipsFailed = 0;
+      // Track skip reasons for better observability
+      const relationshipSkipReasons: Record<string, number> = {
+        source_not_resolved: 0,
+        target_not_resolved: 0,
+        duplicate: 0,
+      };
+      // Detailed per-relationship results for tracing
+      const relationshipDetails: Array<{
+        type: string;
+        source: string;
+        target: string;
+        status: 'created' | 'skipped' | 'failed';
+        reason?: string;
+        source_id?: string;
+        target_id?: string;
+      }> = [];
 
       if (
         extractionResult.relationships &&
@@ -1492,6 +1689,16 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 } for relationship type ${rel.relationship_type}`
               );
               relationshipsSkipped++;
+              relationshipSkipReasons.source_not_resolved++;
+              relationshipDetails.push({
+                type: rel.relationship_type,
+                source: rel.source.name || rel.source.id || 'unknown',
+                target: rel.target.name || rel.target.id || 'unknown',
+                status: 'skipped',
+                reason: `source_not_resolved: "${
+                  rel.source.name || rel.source.id
+                }" not found in batch or database`,
+              });
               continue;
             }
 
@@ -1502,6 +1709,17 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 } for relationship type ${rel.relationship_type}`
               );
               relationshipsSkipped++;
+              relationshipSkipReasons.target_not_resolved++;
+              relationshipDetails.push({
+                type: rel.relationship_type,
+                source: rel.source.name || rel.source.id || 'unknown',
+                target: rel.target.name || rel.target.id || 'unknown',
+                status: 'skipped',
+                reason: `target_not_resolved: "${
+                  rel.target.name || rel.target.id
+                }" not found in batch or database`,
+                source_id: sourceId,
+              });
               continue;
             }
 
@@ -1536,6 +1754,14 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             );
 
             relationshipsCreated++;
+            relationshipDetails.push({
+              type: rel.relationship_type,
+              source: rel.source.name || rel.source.id || 'unknown',
+              target: rel.target.name || rel.target.id || 'unknown',
+              status: 'created',
+              source_id: sourceId,
+              target_id: targetId,
+            });
             this.logger.debug(
               `[Relationship] Created ${rel.relationship_type}: ${sourceId} → ${targetId}`
             );
@@ -1554,11 +1780,26 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                 `[Relationship] Skipped duplicate: ${rel.relationship_type}`
               );
               relationshipsSkipped++;
+              relationshipSkipReasons.duplicate++;
+              relationshipDetails.push({
+                type: rel.relationship_type,
+                source: rel.source.name || rel.source.id || 'unknown',
+                target: rel.target.name || rel.target.id || 'unknown',
+                status: 'skipped',
+                reason: 'duplicate: relationship already exists',
+              });
             } else {
               this.logger.warn(
                 `[Relationship] Failed to create ${rel.relationship_type}: ${relErr.message}`
               );
               relationshipsFailed++;
+              relationshipDetails.push({
+                type: rel.relationship_type,
+                source: rel.source.name || rel.source.id || 'unknown',
+                target: rel.target.name || rel.target.id || 'unknown',
+                status: 'failed',
+                reason: `error: ${relErr.message}`,
+              });
             }
           }
         }
@@ -1568,11 +1809,13 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             created: relationshipsCreated,
             skipped: relationshipsSkipped,
             failed: relationshipsFailed,
+            skip_reasons: relationshipSkipReasons,
+            relationship_details: relationshipDetails,
           },
         });
 
         this.logger.log(
-          `Relationships: ${relationshipsCreated} created, ${relationshipsSkipped} skipped, ${relationshipsFailed} failed`
+          `Relationships: ${relationshipsCreated} created, ${relationshipsSkipped} skipped (${relationshipSkipReasons.source_not_resolved} source unresolved, ${relationshipSkipReasons.target_not_resolved} target unresolved, ${relationshipSkipReasons.duplicate} duplicates), ${relationshipsFailed} failed`
         );
       }
 
@@ -1587,6 +1830,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
           relationships_created: relationshipsCreated,
           relationships_skipped: relationshipsSkipped,
           relationships_failed: relationshipsFailed,
+          relationship_skip_reasons: relationshipSkipReasons,
+          relationship_details: relationshipDetails,
         },
       });
 
@@ -1711,6 +1956,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       if (traceId) {
         await this.langfuseService.finalizeTrace(traceId, 'success', {
           entities_count: extractionResult.entities.length,
+          relationships_count: extractionResult.relationships?.length || 0,
+          discovered_types_count:
+            extractionResult.discovered_types?.length || 0,
           duration_ms: duration,
         });
       }
@@ -1774,6 +2022,10 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       if (traceId) {
         await this.langfuseService.finalizeTrace(traceId, 'error', {
           error: errorMessage,
+          entities_count: extractionResult?.entities?.length || 0,
+          relationships_count: extractionResult?.relationships?.length || 0,
+          discovered_types_count:
+            extractionResult?.discovered_types?.length || 0,
           duration_ms: Date.now() - startTime,
         });
       }
@@ -2142,6 +2394,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
   ): Promise<{
     success: boolean;
     content: string | null;
+    chunkTexts: string[];
     chunksCreated: boolean;
     chunkCount: number;
     embeddingsGenerated: number;
@@ -2152,6 +2405,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       return {
         success: false,
         content: null,
+        chunkTexts: [],
         chunksCreated: false,
         chunkCount: 0,
         embeddingsGenerated: 0,
@@ -2174,6 +2428,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     return {
       success: true,
       content,
+      chunkTexts: chunkResult.chunkTexts,
       chunksCreated: chunkResult.created,
       chunkCount: chunkResult.chunkIds.length,
       embeddingsGenerated: embeddingResult.generated,
@@ -2472,10 +2727,57 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Extract allowed types from job configuration
+   * Extract allowed types from job configuration or derive from template pack schemas.
+   *
+   * Priority:
+   * 1. Job's extraction_config.target_types (explicitly configured by user)
+   * 2. Template pack's object schema keys (automatically derived)
+   *
+   * This ensures the LLM only extracts entity types that are defined in the
+   * project's template pack, preventing invalid types like "Concept" when
+   * the template pack only defines types like "Person", "Place", etc.
+   *
+   * @param job - The extraction job
+   * @param objectSchemas - Object schemas from template pack (optional fallback)
+   * @returns Array of allowed type names, or undefined if no constraints
    */
-  private extractAllowedTypes(job: ExtractionJobDto): string[] | undefined {
-    return job.extraction_config?.target_types;
+  private extractAllowedTypes(
+    job: ExtractionJobDto,
+    objectSchemas?: Record<string, any>
+  ): string[] | undefined {
+    // 1. Check if job has explicit target_types configured
+    const explicitTypes = job.extraction_config?.target_types;
+    if (explicitTypes && explicitTypes.length > 0) {
+      this.logger.debug(
+        `[extractAllowedTypes] Using explicit target_types from job config: ${explicitTypes.join(
+          ', '
+        )}`
+      );
+      return explicitTypes;
+    }
+
+    // 2. Fall back to template pack schema keys if available
+    if (objectSchemas && Object.keys(objectSchemas).length > 0) {
+      // Filter out internal keys (those starting with _) and get type names
+      const schemaTypes = Object.keys(objectSchemas).filter(
+        (key) => !key.startsWith('_')
+      );
+      if (schemaTypes.length > 0) {
+        this.logger.debug(
+          `[extractAllowedTypes] Using template pack schema types: ${schemaTypes.join(
+            ', '
+          )}`
+        );
+        return schemaTypes;
+      }
+    }
+
+    // 3. No constraints - allow any type (not recommended but backward compatible)
+    this.logger.warn(
+      `[extractAllowedTypes] No allowed types configured for job ${job.id}. ` +
+        `LLM may extract arbitrary entity types. Consider installing a template pack.`
+    );
+    return undefined;
   }
 
   /**

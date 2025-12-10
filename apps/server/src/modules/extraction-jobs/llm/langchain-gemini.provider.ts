@@ -279,7 +279,8 @@ export class LangChainGeminiProvider implements ILLMProvider {
               previouslyExtracted,
               chunkIndex,
               chunks.length,
-              context?.traceId
+              context?.traceId,
+              context?.parentObservationId
             );
 
           // Store debug information for this call
@@ -475,7 +476,8 @@ export class LangChainGeminiProvider implements ILLMProvider {
     previouslyExtracted?: ExtractedEntity[],
     chunkIndex?: number,
     totalChunks?: number,
-    traceId?: string
+    traceId?: string,
+    parentObservationId?: string
   ): Promise<{
     entities: ExtractedEntity[];
     prompt: string;
@@ -542,7 +544,8 @@ ${jsonSchemaStr}
         {
           model: this.config.vertexAiModel,
           provider: 'LangChain-Gemini',
-        }
+        },
+        parentObservationId
       );
     }
 

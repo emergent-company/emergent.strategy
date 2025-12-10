@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { UserProfile } from './user-profile.entity';
 import { Project } from './project.entity';
+import { Task } from './task.entity';
 
 @Entity({ schema: 'kb', name: 'notifications' })
 @Index(['userId'])
@@ -91,6 +92,22 @@ export class Notification {
   @Column({ type: 'jsonb', nullable: true })
   details: Record<string, any> | null;
 
+  /**
+   * Action status for actionable notifications (e.g., merge suggestions)
+   * - 'pending': Action not yet taken (default for actionable notifications)
+   * - 'accepted': User accepted/approved the action
+   * - 'rejected': User rejected/dismissed the action
+   * - null: Not an actionable notification
+   */
+  @Column({ name: 'action_status', type: 'text', nullable: true })
+  actionStatus: 'pending' | 'accepted' | 'rejected' | null;
+
+  @Column({ name: 'action_status_at', type: 'timestamptz', nullable: true })
+  actionStatusAt: Date | null;
+
+  @Column({ name: 'action_status_by', type: 'uuid', nullable: true })
+  actionStatusBy: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
@@ -104,4 +121,15 @@ export class Notification {
   @ManyToOne(() => Project, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'project_id' })
   project: Project;
+
+  /**
+   * Optional link to a task that this notification references.
+   * When set, the notification serves as a personal alert about a project-scoped task.
+   */
+  @Column({ name: 'task_id', type: 'uuid', nullable: true })
+  taskId: string | null;
+
+  @ManyToOne(() => Task, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'task_id' })
+  task: Task | null;
 }

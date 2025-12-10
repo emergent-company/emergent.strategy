@@ -5,7 +5,6 @@ import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { Pool } from 'pg';
 import { AppConfigService } from '../../../common/config/config.service';
 import { HumanMessage } from '@langchain/core/messages';
-// import { getWeatherTool } from '../tools/weather.tool'; // Temporarily commented due to TypeScript compilation issue
 
 export interface StreamConversationOptions {
   message: string;
@@ -115,9 +114,7 @@ export class LangGraphService implements OnModuleInit {
 
       this.logger.log(`Vertex AI Chat initialized: model=${modelName}`);
 
-      // Build the default agent with just the weather tool
-      // Temporarily disabled due to TypeScript compilation issue with weather tool
-      // this.defaultAgent = this.createAgent([getWeatherTool]);
+      // Build the default agent (tools can be passed via streamConversation)
       this.defaultAgent = this.createAgent([]);
     } catch (error) {
       this.logger.error('Failed to initialize Vertex AI Chat', error);
@@ -157,9 +154,7 @@ export class LangGraphService implements OnModuleInit {
       );
     }
 
-    // Merge default tools (weather) with provided tools
-    // Temporarily disabled due to TypeScript compilation issue with weather tool
-    // const allTools = [getWeatherTool, ...(tools || [])];
+    // Merge any provided tools
     const allTools = [...(tools || [])];
 
     this.logger.log(
@@ -169,7 +164,7 @@ export class LangGraphService implements OnModuleInit {
     // Create user message
     const userMessage = new HumanMessage(message);
 
-    // Use default agent if only weather tool is present and no system message override, otherwise create new agent
+    // Use default agent if no custom tools or system message, otherwise create new agent
     let agent = this.defaultAgent;
     if ((tools && tools.length > 0) || systemMessage) {
       agent = this.createAgent(allTools, systemMessage);

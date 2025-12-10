@@ -13,6 +13,7 @@ import {
   type FilterConfig,
   type BulkAction,
   type TableDataItem,
+  type SelectionContext,
 } from '@/components/organisms/DataTable';
 import { Icon } from '@/components/atoms/Icon';
 import {
@@ -75,6 +76,38 @@ const transformObject = (obj: GraphObjectResponse): GraphObject => ({
   embedding_updated_at: obj.embedding_updated_at,
 });
 
+// Helper to format relative time (e.g., "3 minutes ago")
+const formatRelativeTime = (date: string | Date): string => {
+  const now = new Date();
+  const then = new Date(date);
+  const diffMs = now.getTime() - then.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffDay > 0) return `${diffDay}d ago`;
+  if (diffHour > 0) return `${diffHour}h ago`;
+  if (diffMin > 0) return `${diffMin}m ago`;
+  return 'just now';
+};
+
+// Helper to get extraction job filename
+const getExtractionFilename = (job: ExtractionJob): string => {
+  return (
+    (job.source_metadata?.filename as string) ||
+    (job.source_metadata?.name as string) ||
+    `Extraction ${job.id.substring(0, 8)}`
+  );
+};
+
+// Helper to format extraction job label for dropdown (used in trigger button)
+const formatExtractionLabel = (job: ExtractionJob): string => {
+  const filename = getExtractionFilename(job);
+  const relativeTime = formatRelativeTime(job.created_at);
+  return `${filename} - ${relativeTime}`;
+};
+
 export default function ObjectsPage() {
   const { config } = useConfig();
   const { apiBase, fetchJson } = useApi();
@@ -115,6 +148,8 @@ export default function ObjectsPage() {
   const [selectedExtractionJobId, setSelectedExtractionJobId] = useState<
     string | null
   >(extractionJobIdParam);
+  const [extractionDropdownOpen, setExtractionDropdownOpen] = useState(false);
+  const extractionDropdownRef = useRef<HTMLDivElement>(null);
 
   // Create extraction jobs client
   const extractionJobsClient = useMemo(
@@ -162,6 +197,10 @@ export default function ObjectsPage() {
           // For now, just use the first type (API doesn't support multiple types in one call)
           params.append('type', selectedTypes[0]);
         }
+        // Add extraction job filter if selected
+        if (selectedExtractionJobId) {
+          params.append('extraction_job_id', selectedExtractionJobId);
+        }
         params.append('limit', '100');
         params.append('order', 'desc'); // Get newest first
 
@@ -186,7 +225,14 @@ export default function ObjectsPage() {
     } finally {
       setLoading(false);
     }
-  }, [config.activeProjectId, searchQuery, selectedTypes, apiBase, fetchJson]);
+  }, [
+    config.activeProjectId,
+    searchQuery,
+    selectedTypes,
+    selectedExtractionJobId,
+    apiBase,
+    fetchJson,
+  ]);
 
   const loadMore = useCallback(async () => {
     if (!config.activeProjectId || !nextCursor || loadingMore) return;
@@ -198,6 +244,10 @@ export default function ObjectsPage() {
       const params = new URLSearchParams();
       if (selectedTypes.length > 0) {
         params.append('type', selectedTypes[0]);
+      }
+      // Add extraction job filter if selected
+      if (selectedExtractionJobId) {
+        params.append('extraction_job_id', selectedExtractionJobId);
       }
       params.append('limit', '100');
       params.append('order', 'desc');
@@ -228,6 +278,7 @@ export default function ObjectsPage() {
     config.activeProjectId,
     nextCursor,
     selectedTypes,
+    selectedExtractionJobId,
     apiBase,
     fetchJson,
     loadingMore,
@@ -375,6 +426,49 @@ export default function ObjectsPage() {
     loadAvailableTags();
   }, [loadAvailableTypes, loadAvailableTags]);
 
+  // Load extraction jobs for filter dropdown
+  useEffect(() => {
+    if (!config.activeProjectId) return;
+
+    const loadExtractionJobs = async () => {
+      try {
+        const response = await extractionJobsClient.listJobs(
+          config.activeProjectId,
+          { limit: 100 }
+        );
+        // Sort by created_at descending (newest first)
+        const sorted = [...response.jobs].sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setExtractionJobs(sorted);
+      } catch (err) {
+        console.error('Failed to load extraction jobs:', err);
+      }
+    };
+
+    loadExtractionJobs();
+  }, [config.activeProjectId, extractionJobsClient]);
+
+  // Handle click outside extraction dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        extractionDropdownOpen &&
+        extractionDropdownRef.current &&
+        !extractionDropdownRef.current.contains(event.target as Node)
+      ) {
+        setExtractionDropdownOpen(false);
+      }
+    };
+
+    if (extractionDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () =>
+        document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [extractionDropdownOpen]);
+
   // Compute available statuses from loaded objects
   useEffect(() => {
     const statuses = new Set<string>();
@@ -485,41 +579,203 @@ export default function ObjectsPage() {
     }
   };
 
-  const handleBulkDelete = async (selectedIds: string[]) => {
-    if (!config.activeProjectId || selectedIds.length === 0) return;
+  const handleBulkDelete = async (context: SelectionContext<GraphObject>) => {
+    if (!config.activeProjectId) return;
 
-    if (
-      !confirm(
-        `Are you sure you want to delete ${selectedIds.length} object(s)? This action cannot be undone.`
-      )
-    ) {
+    const isAllMode = context.mode === 'all';
+    const count = isAllMode
+      ? context.totalCount || 0
+      : context.selectedIds.length;
+
+    if (count === 0) return;
+
+    const confirmMessage = isAllMode
+      ? `Are you sure you want to delete ALL ${count.toLocaleString()} objects? This action cannot be undone.`
+      : `Are you sure you want to delete ${count} object(s)? This action cannot be undone.`;
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
     try {
-      // Delete in parallel
-      await Promise.all(
-        selectedIds.map((id) =>
-          fetchJson(`${apiBase}/api/graph/objects/${id}`, {
-            method: 'DELETE',
-          })
-        )
-      );
+      let idsToDelete = context.selectedIds;
+
+      // If "all" mode, we need to fetch all matching object IDs first
+      // TODO: Replace with server-side filter-based bulk delete once available
+      if (isAllMode) {
+        showToast({
+          variant: 'info',
+          message: `Fetching all ${count.toLocaleString()} object IDs...`,
+        });
+
+        // Fetch all object IDs with current filters
+        const params = new URLSearchParams();
+        if (selectedTypes.length > 0) {
+          params.append('type', selectedTypes[0]);
+        }
+        if (selectedExtractionJobId) {
+          params.append('extraction_job_id', selectedExtractionJobId);
+        }
+        params.append('limit', '10000'); // Fetch up to 10k at a time
+        params.append('order', 'desc');
+
+        const allIds: string[] = [];
+        let cursor: string | undefined;
+
+        do {
+          const fetchParams = new URLSearchParams(params);
+          if (cursor) {
+            fetchParams.append('cursor', cursor);
+          }
+
+          const response = await fetchJson<{
+            items: GraphObjectResponse[];
+            next_cursor?: string;
+          }>(`${apiBase}/api/graph/objects/search?${fetchParams}`);
+
+          allIds.push(...response.items.map((item) => item.id));
+          cursor = response.next_cursor;
+        } while (cursor);
+
+        idsToDelete = allIds;
+      }
+
+      showToast({
+        variant: 'info',
+        message: `Deleting ${idsToDelete.length.toLocaleString()} objects...`,
+      });
+
+      // Delete in batches to avoid overwhelming the server
+      const BATCH_SIZE = 50;
+      let deleted = 0;
+      let skipped = 0;
+      let failed = 0;
+
+      for (let i = 0; i < idsToDelete.length; i += BATCH_SIZE) {
+        const batch = idsToDelete.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map((id) =>
+            fetchJson(`${apiBase}/api/graph/objects/${id}`, {
+              method: 'DELETE',
+            })
+          )
+        );
+
+        // Count successes, skips (already deleted), and failures
+        results.forEach((result) => {
+          if (result.status === 'fulfilled') {
+            deleted++;
+          } else {
+            // Check if it's an "already_deleted" error (which is fine to skip)
+            const errorMessage =
+              result.reason?.message || String(result.reason);
+            if (errorMessage.includes('already_deleted')) {
+              skipped++;
+            } else {
+              failed++;
+              console.error('Delete failed:', result.reason);
+            }
+          }
+        });
+
+        // Show progress for large operations
+        if (idsToDelete.length > BATCH_SIZE) {
+          const processed = deleted + skipped + failed;
+          showToast({
+            variant: 'info',
+            message: `Progress: ${processed.toLocaleString()} of ${idsToDelete.length.toLocaleString()} (${deleted} deleted, ${skipped} skipped)...`,
+          });
+        }
+      }
+
+      // Show final result
+      if (failed > 0) {
+        showToast({
+          variant: 'warning',
+          message: `Deleted ${deleted.toLocaleString()} objects, ${skipped} already deleted, ${failed} failed.`,
+        });
+      } else if (skipped > 0) {
+        showToast({
+          variant: 'success',
+          message: `Deleted ${deleted.toLocaleString()} objects (${skipped} were already deleted).`,
+        });
+      } else {
+        showToast({
+          variant: 'success',
+          message: `Successfully deleted ${deleted.toLocaleString()} objects.`,
+        });
+      }
 
       // Reload objects after deletion
       await loadObjects();
     } catch (err) {
       console.error('Failed to delete objects:', err);
-      alert(
-        err instanceof Error ? err.message : 'Failed to delete some objects'
-      );
+      showToast({
+        variant: 'error',
+        message:
+          err instanceof Error ? err.message : 'Failed to delete some objects',
+      });
     }
   };
 
-  const handleBulkAccept = async (selectedIds: string[]) => {
-    if (!config.activeProjectId || selectedIds.length === 0) return;
+  const handleBulkAccept = async (context: SelectionContext<GraphObject>) => {
+    if (!config.activeProjectId) return;
+
+    const isAllMode = context.mode === 'all';
+    const count = isAllMode
+      ? context.totalCount || 0
+      : context.selectedIds.length;
+
+    if (count === 0) return;
 
     try {
+      let idsToAccept = context.selectedIds;
+
+      // If "all" mode, we need to fetch all matching object IDs first
+      // TODO: Replace with server-side filter-based bulk update once available
+      if (isAllMode) {
+        showToast({
+          variant: 'info',
+          message: `Fetching all ${count.toLocaleString()} object IDs...`,
+        });
+
+        // Fetch all object IDs with current filters
+        const params = new URLSearchParams();
+        if (selectedTypes.length > 0) {
+          params.append('type', selectedTypes[0]);
+        }
+        if (selectedExtractionJobId) {
+          params.append('extraction_job_id', selectedExtractionJobId);
+        }
+        params.append('limit', '10000');
+        params.append('order', 'desc');
+
+        const allIds: string[] = [];
+        let cursor: string | undefined;
+
+        do {
+          const fetchParams = new URLSearchParams(params);
+          if (cursor) {
+            fetchParams.append('cursor', cursor);
+          }
+
+          const response = await fetchJson<{
+            items: GraphObjectResponse[];
+            next_cursor?: string;
+          }>(`${apiBase}/api/graph/objects/search?${fetchParams}`);
+
+          allIds.push(...response.items.map((item) => item.id));
+          cursor = response.next_cursor;
+        } while (cursor);
+
+        idsToAccept = allIds;
+      }
+
+      showToast({
+        variant: 'info',
+        message: `Accepting ${idsToAccept.length.toLocaleString()} objects...`,
+      });
+
       const response = await fetchJson<{
         success: number;
         failed: number;
@@ -527,22 +783,32 @@ export default function ObjectsPage() {
       }>(`${apiBase}/api/graph/objects/bulk-update-status`, {
         method: 'POST',
         body: {
-          ids: selectedIds,
+          ids: idsToAccept,
           status: 'accepted',
         },
       });
 
       if (response.failed > 0) {
-        alert(
-          `Updated ${response.success} object(s), ${response.failed} failed.`
-        );
+        showToast({
+          variant: 'warning',
+          message: `Updated ${response.success} object(s), ${response.failed} failed.`,
+        });
+      } else {
+        showToast({
+          variant: 'success',
+          message: `Successfully accepted ${response.success.toLocaleString()} objects.`,
+        });
       }
 
       // Reload objects after update
       await loadObjects();
     } catch (err) {
       console.error('Failed to accept objects:', err);
-      alert(err instanceof Error ? err.message : 'Failed to accept objects');
+      showToast({
+        variant: 'error',
+        message:
+          err instanceof Error ? err.message : 'Failed to accept objects',
+      });
     }
   };
 
@@ -788,8 +1054,8 @@ export default function ObjectsPage() {
       label: 'Accept',
       icon: 'lucide--check-circle',
       variant: 'success',
-      onAction: async (selectedIds) => {
-        await handleBulkAccept(selectedIds);
+      onActionWithContext: async (context) => {
+        await handleBulkAccept(context);
       },
     },
     {
@@ -798,8 +1064,8 @@ export default function ObjectsPage() {
       icon: 'lucide--trash-2',
       variant: 'error',
       style: 'outline',
-      onAction: async (selectedIds) => {
-        await handleBulkDelete(selectedIds);
+      onActionWithContext: async (context) => {
+        await handleBulkDelete(context);
       },
     },
   ];
@@ -855,6 +1121,7 @@ export default function ObjectsPage() {
         onSearch={handleSearchChange}
         filters={filters}
         bulkActions={bulkActions}
+        totalCount={totalCount}
         rowActions={[
           {
             label: 'View Details',
@@ -894,6 +1161,79 @@ export default function ObjectsPage() {
         emptyIcon="lucide--inbox"
         noResultsMessage="No objects match current filters."
         formatDate={(date) => new Date(date).toLocaleDateString()}
+        toolbarActions={
+          extractionJobs.length > 0 ? (
+            <div
+              ref={extractionDropdownRef}
+              className={`dropdown ${
+                extractionDropdownOpen ? 'dropdown-open' : ''
+              }`}
+            >
+              <label
+                tabIndex={0}
+                className={`gap-2 btn btn-sm ${
+                  selectedExtractionJobId ? 'btn-info' : 'btn-ghost'
+                }`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setExtractionDropdownOpen(!extractionDropdownOpen);
+                }}
+              >
+                <Icon icon="lucide--file-search" className="size-4" />
+                {selectedExtractionJobId ? (
+                  <span>Extraction (1)</span>
+                ) : (
+                  <span>Filter by Extraction</span>
+                )}
+              </label>
+              <ul
+                tabIndex={0}
+                className="dropdown-content menu bg-base-100 rounded-box z-50 w-80 p-2 shadow-sm max-h-80 overflow-y-auto"
+              >
+                {selectedExtractionJobId && (
+                  <li className="mb-2">
+                    <button
+                      className="btn-block justify-between btn btn-xs btn-ghost"
+                      onClick={() => {
+                        setSelectedExtractionJobId(null);
+                        setSearchParams({});
+                        setExtractionDropdownOpen(false);
+                      }}
+                    >
+                      <span className="opacity-70 text-xs">Clear filter</span>
+                      <Icon icon="lucide--x" className="size-3" />
+                    </button>
+                  </li>
+                )}
+                {extractionJobs.map((job) => (
+                  <li key={job.id}>
+                    <label className="flex justify-between items-center gap-2 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="extraction-filter"
+                          className="radio radio-sm radio-info"
+                          checked={selectedExtractionJobId === job.id}
+                          onChange={() => {
+                            setSelectedExtractionJobId(job.id);
+                            setSearchParams({ extraction_job_id: job.id });
+                            setExtractionDropdownOpen(false);
+                          }}
+                        />
+                        <span className="font-medium truncate max-w-40">
+                          {getExtractionFilename(job)}
+                        </span>
+                      </div>
+                      <span className="badge badge-sm badge-ghost whitespace-nowrap">
+                        {formatRelativeTime(job.created_at)}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : undefined
+        }
       />
 
       {/* Load More Button */}

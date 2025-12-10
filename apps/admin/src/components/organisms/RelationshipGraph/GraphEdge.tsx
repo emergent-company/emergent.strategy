@@ -1,14 +1,10 @@
 /**
  * Custom edge component for the relationship graph
  * Gray by default, orange with label on hover
+ * Uses custom arrow markers that change color with the edge
  */
 import { memo } from 'react';
-import {
-  BaseEdge,
-  EdgeLabelRenderer,
-  getBezierPath,
-  type Position,
-} from '@xyflow/react';
+import { EdgeLabelRenderer, getBezierPath, type Position } from '@xyflow/react';
 import type { GraphEdgeData } from './useGraphData';
 
 export interface GraphEdgeComponentProps {
@@ -27,6 +23,7 @@ export interface GraphEdgeComponentProps {
 /**
  * Custom edge component for displaying relationships
  * Shows gray line by default, orange line with label when connected node is hovered
+ * Uses custom markers that change color with the edge
  */
 export const GraphEdge = memo(function GraphEdge({
   id,
@@ -37,7 +34,6 @@ export const GraphEdge = memo(function GraphEdge({
   sourcePosition,
   targetPosition,
   data,
-  markerEnd,
 }: GraphEdgeComponentProps) {
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -52,22 +48,43 @@ export const GraphEdge = memo(function GraphEdge({
   const labelOffsetY = data?.labelOffsetY || 0;
   const isHighlighted = data?.isHighlighted ?? false;
 
+  // Unique marker ID for this edge - include highlight state to force re-render
+  const markerId = `bezier-arrow-${id}-${isHighlighted ? 'hl' : 'def'}`;
+
+  // Use CSS custom properties with var() - daisyUI format
+  // Warning color for highlighted, base-content with opacity for default
+  const strokeColor = isHighlighted
+    ? 'var(--color-warning, #f59e0b)' // warning color with fallback
+    : 'color-mix(in oklch, var(--color-base-content, #888) 30%, transparent)';
+
   return (
     <>
-      <BaseEdge
+      {/* Define custom marker that inherits the edge color */}
+      <defs>
+        <marker
+          id={markerId}
+          markerWidth="15"
+          markerHeight="15"
+          refX="12"
+          refY="7.5"
+          orient="auto"
+          markerUnits="userSpaceOnUse"
+        >
+          <path d="M 0 0 L 15 7.5 L 0 15 L 3 7.5 Z" fill={strokeColor} />
+        </marker>
+      </defs>
+      {/* Custom path element with proper styling */}
+      {/* Use style prop to override React Flow's CSS variables */}
+      <path
         id={id}
-        path={edgePath}
-        markerEnd={markerEnd}
-        className={`
-          transition-all duration-200
-          ${
-            isHighlighted
-              ? '!stroke-warning !stroke-2'
-              : '!stroke-base-content/30 !stroke-[1.5px]'
-          }
-        `}
+        d={edgePath}
+        fill="none"
+        strokeLinecap="round"
+        markerEnd={`url(#${markerId})`}
+        className="react-flow__edge-path"
         style={{
-          strokeLinecap: 'round',
+          stroke: strokeColor,
+          strokeWidth: isHighlighted ? 2.5 : 1.5,
         }}
       />
       {/* Only show label when highlighted */}

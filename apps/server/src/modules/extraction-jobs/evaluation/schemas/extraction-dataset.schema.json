@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://emergent.ai/schemas/extraction-dataset-item.json",
+  "title": "ExtractionDatasetItem",
+  "description": "JSON Schema for LangFuse Extraction Evaluation dataset items. Use this to validate golden dataset entries before uploading to LangFuse.",
+  "type": "object",
+  "required": ["input", "expected_output"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the dataset item (optional, assigned by LangFuse if not provided)"
+    },
+    "input": {
+      "$ref": "#/$defs/ExtractionDatasetInput"
+    },
+    "expected_output": {
+      "$ref": "#/$defs/ExtractionExpectedOutput"
+    },
+    "metadata": {
+      "$ref": "#/$defs/ExtractionDatasetMetadata"
+    }
+  },
+  "$defs": {
+    "ExtractionDatasetInput": {
+      "type": "object",
+      "title": "ExtractionDatasetInput",
+      "description": "Input structure for extraction evaluation dataset items. Contains all the information needed to run an extraction.",
+      "required": ["document_text", "object_schemas"],
+      "additionalProperties": false,
+      "properties": {
+        "document_text": {
+          "type": "string",
+          "description": "The document text to extract entities and relationships from",
+          "minLength": 1
+        },
+        "object_schemas": {
+          "type": "object",
+          "description": "Object schemas from template pack defining entity type definitions. Keys are entity type names.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "properties": { "type": "object" }
+            }
+          }
+        },
+        "relationship_schemas": {
+          "type": "object",
+          "description": "Relationship schemas from template pack defining relationship types. Keys are relationship type names.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "source_types": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "target_types": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        },
+        "allowed_types": {
+          "type": "array",
+          "description": "Optional filter for allowed entity types. If provided, only these types will be extracted.",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "available_tags": {
+          "type": "array",
+          "description": "Optional available tags for entity tagging consistency",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "ExtractionExpectedOutput": {
+      "type": "object",
+      "title": "ExtractionExpectedOutput",
+      "description": "Expected output for extraction evaluation. This is what we compare the actual extraction results against.",
+      "required": ["entities", "relationships"],
+      "additionalProperties": false,
+      "properties": {
+        "entities": {
+          "type": "array",
+          "description": "Expected entities to be extracted",
+          "items": {
+            "$ref": "#/$defs/ExpectedEntity"
+          }
+        },
+        "relationships": {
+          "type": "array",
+          "description": "Expected relationships between entities",
+          "items": {
+            "$ref": "#/$defs/ExpectedRelationship"
+          }
+        }
+      }
+    },
+    "ExpectedEntity": {
+      "type": "object",
+      "title": "ExpectedEntity",
+      "description": "Entity definition for expected output in evaluation datasets",
+      "required": ["name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable name of the entity",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "description": "Entity type (e.g., 'Person', 'Organization', 'Location')",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description of the entity"
+        },
+        "properties": {
+          "type": "object",
+          "description": "Optional additional properties specific to this entity",
+          "additionalProperties": true
+        }
+      }
+    },
+    "ExpectedRelationship": {
+      "type": "object",
+      "title": "ExpectedRelationship",
+      "description": "Relationship definition for expected output. Uses entity names instead of temp_ids for easier human authoring.",
+      "required": ["source_name", "target_name", "relationship_type"],
+      "additionalProperties": false,
+      "properties": {
+        "source_name": {
+          "type": "string",
+          "description": "Name of the source entity (must match an entity in the entities array)",
+          "minLength": 1
+        },
+        "target_name": {
+          "type": "string",
+          "description": "Name of the target entity (must match an entity in the entities array)",
+          "minLength": 1
+        },
+        "relationship_type": {
+          "type": "string",
+          "description": "Relationship type (e.g., 'WORKS_FOR', 'LOCATED_IN', 'PARENT_OF')",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description of this specific relationship instance"
+        }
+      }
+    },
+    "ExtractionDatasetMetadata": {
+      "type": "object",
+      "title": "ExtractionDatasetMetadata",
+      "description": "Metadata for a dataset item, useful for filtering and analysis",
+      "additionalProperties": true,
+      "properties": {
+        "source_trace_id": {
+          "type": "string",
+          "description": "Optional source trace ID if created from a real extraction"
+        },
+        "document_category": {
+          "type": "string",
+          "description": "Document category for filtering and analysis",
+          "enum": ["narrative", "legal", "technical", "other"]
+        },
+        "difficulty": {
+          "type": "string",
+          "description": "Difficulty rating for analysis",
+          "enum": ["easy", "medium", "hard"]
+        },
+        "notes": {
+          "type": "string",
+          "description": "Human notes about this dataset item"
+        },
+        "tags": {
+          "type": "array",
+          "description": "Tags for filtering",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}
