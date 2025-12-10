@@ -21,11 +21,12 @@ export const CTA = () => {
               />
             </div>
             <p className="mt-4 text-xl font-bold sm:text-2xl lg:text-4xl">
-              Ready to Navigate Product Uncertainty?
+              Design by Emergence
             </p>
             <p className="mt-3 inline-block max-w-2xl max-sm:text-sm">
-              Transform your product strategy from scattered documents to a
-              living, intelligent system that learns from outcomes and adapts.
+              Invent the rules, discover the consequences. You define OKRs and
+              RATs. The system reveals strategies you couldn't have predicted.
+              Trial, iteration, evolution.
             </p>
           </div>
 
@@ -37,7 +38,7 @@ export const CTA = () => {
                   className="text-success size-6"
                   ariaLabel="Check"
                 />
-                Living knowledge graph connects intent to execution
+                Building blocks + rules = exponential insight
               </li>
               <li className="flex items-center gap-2 max-sm:text-sm">
                 <Icon
@@ -45,7 +46,7 @@ export const CTA = () => {
                   className="text-success size-6"
                   ariaLabel="Check"
                 />
-                AI agents generate artifacts from your product bible
+                Self-organizing complexity, not chaos or rigidity
               </li>
               <li className="flex items-center gap-2 max-sm:text-sm">
                 <Icon
@@ -53,7 +54,7 @@ export const CTA = () => {
                   className="text-success size-6"
                   ariaLabel="Check"
                 />
-                READY-FIRE-AIM loop for evidence-based adaptation
+                Iterate fast, discover emergent strategies
               </li>
             </ul>
           </div>

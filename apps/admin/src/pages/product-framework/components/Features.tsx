@@ -12,12 +12,13 @@ export const Features = () => {
         <div className="bg-accent/80 h-4 w-0.5 -translate-x-1.5 rounded-full opacity-0 transition-all group-hover/section:translate-x-0 group-hover/section:opacity-100" />
       </div>
       <p className="mt-2 text-center text-2xl font-semibold sm:text-3xl">
-        The Living Product Bible
+        Building Blocks + Rules = Emergent Strategy
       </p>
       <div className="mt-2 flex justify-center text-center">
         <p className="text-base-content/80 max-w-lg">
-          Connect intent to execution with intelligent infrastructure that
-          learns from outcomes and generates artifacts automatically.
+          Simple components connected through clear rules create self-organizing
+          complexity. Not chaos, not rigidity—organized emergence that surprises
+          even its creators.
         </p>
       </div>
       <div className="mt-8 grid gap-6 md:mt-12 md:grid-cols-2 lg:mt-16 xl:grid-cols-3 2xl:mt-24">
@@ -28,11 +29,11 @@ export const Features = () => {
               <span className="iconify lucide--network text-accent size-6"></span>
             </div>
             <p className="mt-3 text-lg font-medium">
-              Living Product Knowledge Graph
+              Executable Strategy Graph
             </p>
             <p className="text-base-content/80 mt-0.5 text-sm">
-              Knowledge graph for OKRs, RATs, Work Packages, and Components.
-              Trace intent to assumptions to work to outcomes in a single
+              Version-controlled YAML for OKRs, Key Results, RATs, and Feature
+              Definitions. Trace intent to assumptions to outcomes in a single
               connected system.
             </p>
             <div className="absolute end-1 top-2">
@@ -87,11 +88,11 @@ export const Features = () => {
             <div className="bg-base-200 inline-flex rounded-full p-2.5">
               <span className="iconify lucide--bot size-6"></span>
             </div>
-            <p className="mt-3 text-lg font-medium">Strategic Agents</p>
+            <p className="mt-3 text-lg font-medium">AI Knowledge Agents</p>
             <p className="text-base-content/80 mt-0.5 text-sm">
-              Three specialized agents—Pathfinder, Product Architect,
-              Synthesizer—that reason over your product bible and generate
-              artifacts autonomously.
+              Pathfinder (READY), Product Architect (FIRE), Synthesizer
+              (AIM)—agents that reason over your strategy graph and generate
+              validated artifacts.
             </p>
             <div className="absolute end-3.5 top-3.5">
               <svg
@@ -141,11 +142,11 @@ export const Features = () => {
             <div className="bg-base-200 inline-flex rounded-full p-2.5">
               <span className="iconify lucide--file-output size-6"></span>
             </div>
-            <p className="mt-3 text-lg font-medium">Artifact Generation</p>
+            <p className="mt-3 text-lg font-medium">Living Artifacts</p>
             <p className="text-base-content/80 mt-0.5 text-sm">
-              Real-time rendering of PRDs, pitch decks, one-pagers, roadmaps,
-              and stakeholder reports—all generated from your single source of
-              truth.
+              Feature Definitions, calibration memos, assessment reports—all
+              machine-readable YAML generated from your strategy graph and
+              rendered on demand.
             </p>
             <div className="absolute end-3.5 top-3.5">
               <svg
@@ -168,11 +169,11 @@ export const Features = () => {
             <div className="bg-base-200 inline-flex rounded-full p-2.5">
               <span className="iconify lucide--layers size-6"></span>
             </div>
-            <p className="mt-3 text-lg font-medium">Four Value Tracks</p>
+            <p className="mt-3 text-lg font-medium">Four Parallel Tracks</p>
             <p className="text-base-content/80 mt-0.5 text-sm">
-              Pre-configured template packs for Product, Strategy, Org & Ops,
-              and Commercial tracks. Hierarchical value models with L1/L2/L3
-              components.
+              Product, Strategy, Org/Ops, and Commercial—each with its own OKRs
+              and Key Results. Cross-track dependencies are explicit and
+              traceable.
             </p>
             <div className="absolute end-4 bottom-3">
               <svg

@@ -21,17 +21,16 @@ export const Hero = () => {
               </div>
             </div>
             <p className="mt-3 text-2xl leading-tight font-extrabold tracking-[-0.5px] transition-all duration-1000 md:text-4xl xl:text-5xl 2xl:text-6xl starting:scale-110 starting:blur-md">
-              The Living
+              Strategy That
               <br />
               <span className="animate-background-shift from-accent to-primary bg-linear-to-r bg-[400%,400%] bg-clip-text text-transparent">
-                Product Bible
+                Evolves
               </span>
             </p>
             <p className="text-base-content/80 mt-5 xl:text-lg">
-              Navigate product uncertainty with strategic clarity. A living
-              knowledge graph that connects intent to execution, learning to
-              adaptation, and generates artifacts automatically from your
-              product's single source of truth.
+              Simple building blocks—OKRs, Key Results, RATs—combined through
+              clear rules create emergent intelligence far greater than the sum
+              of its parts. Design the system, discover the strategy.
             </p>
             <div className="mt-8 inline-flex justify-center gap-3 transition-all duration-1000 starting:scale-110">
               <Link
@@ -64,9 +63,9 @@ export const Hero = () => {
                       <span className="iconify lucide--target text-accent size-4"></span>
                     </div>
                     <div>
-                      <p className="text-sm font-medium">OKRs Defined</p>
+                      <p className="text-sm font-medium">Track OKRs</p>
                       <p className="text-base-content/60 text-xs">
-                        3 objectives
+                        4 parallel tracks
                       </p>
                     </div>
                   </div>
@@ -80,9 +79,9 @@ export const Hero = () => {
                 <span className="iconify lucide--rocket block size-7"></span>
               </div>
 
-              <div className="from-accent to-primary text-primary-content rounded-box w-60 bg-linear-to-r p-4">
+                <div className="from-accent to-primary text-primary-content rounded-box w-60 bg-linear-to-r p-4">
                 <p className="text-center font-medium">
-                  Strategic Knowledge Graph
+                  Executable Strategy Graph
                 </p>
               </div>
             </div>
@@ -154,16 +153,16 @@ export const Hero = () => {
               <p className="text-secondary mt-1 font-medium">FIRE</p>
               <p className="text-base-content/60 text-xs">Build & Deliver</p>
             </div>
-            <div className="rounded-box card bg-base-100 absolute start-10 top-40 z-2 overflow-visible shadow max-2xl:hidden">
+                <div className="rounded-box card bg-base-100 absolute start-10 top-40 z-2 overflow-visible shadow max-2xl:hidden">
               <div className="flex items-center gap-3 p-3">
                 <div className="bg-secondary/10 rounded-full p-2">
-                  <span className="iconify lucide--package text-secondary block size-4"></span>
+                  <span className="iconify lucide--check-circle text-secondary block size-4"></span>
                 </div>
                 <div>
                   <p className="text-base-content/80 text-sm/none font-medium">
-                    Work Packages
+                    Key Results
                   </p>
-                  <p className="text-base-content/60 text-xs">12 in progress</p>
+                  <p className="text-base-content/60 text-xs">8 in progress</p>
                 </div>
               </div>
             </div>
