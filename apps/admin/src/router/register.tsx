@@ -52,8 +52,16 @@ const dashboardRoutes: IRoutesProps[] = [
     element: cw(lazy(() => import('@/pages/admin/pages/integrations'))),
   },
   {
+    path: '/admin/agents',
+    element: cw(lazy(() => import('@/pages/admin/pages/agents'))),
+  },
+  {
     path: '/admin/inbox',
     element: cw(lazy(() => import('@/pages/admin/inbox/index'))),
+  },
+  {
+    path: '/admin/tasks',
+    element: cw(lazy(() => import('@/pages/admin/tasks/index'))),
   },
   {
     path: '/admin/profile',

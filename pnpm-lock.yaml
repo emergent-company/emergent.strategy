@@ -17,6 +17,9 @@ importers:
       '@api/clickup':
         specifier: file:.api/apis/clickup
         version: file:.api/apis/clickup(openapi-types@12.1.3)
+      '@google/genai':
+        specifier: ^1.32.0
+        version: 1.32.0(@modelcontextprotocol/sdk@1.24.1(@cfworker/json-schema@4.1.1)(zod@3.25.76))
       '@langchain/core':
         specifier: ^1.1.0
         version: 1.1.1(@opentelemetry/api@1.9.0)
@@ -35,6 +38,9 @@ importers:
       '@langchain/textsplitters':
         specifier: ^1.0.1
         version: 1.0.1(@langchain/core@1.1.1(@opentelemetry/api@1.9.0))
+      '@langfuse/langchain':
+        specifier: ^4.4.9
+        version: 4.4.9(@langchain/core@1.1.1(@opentelemetry/api@1.9.0))(@opentelemetry/api@1.9.0)
       '@modelcontextprotocol/sdk':
         specifier: ^1.1.7
         version: 1.24.1(@cfworker/json-schema@4.1.1)(zod@3.25.76)
@@ -89,6 +95,12 @@ importers:
       langchain:
         specifier: ^1.0.0
         version: 1.1.2(@langchain/core@1.1.1(@opentelemetry/api@1.9.0))(@opentelemetry/api@1.9.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(zod-to-json-schema@3.25.0(zod@3.25.76))
+      langextract:
+        specifier: ^1.2.0
+        version: 1.2.0
+      langfuse-node:
+        specifier: ^3.38.6
+        version: 3.38.6
       multer:
         specifier: ^1.4.5-lts.1
         version: 1.4.5-lts.2
@@ -484,6 +496,9 @@ importers:
       '@nestjs/platform-express':
         specifier: ^10.3.0
         version: 10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.20)
+      '@nestjs/schedule':
+        specifier: ^6.0.1
+        version: 6.0.1(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.20)
       '@nestjs/swagger':
         specifier: ^7.4.2
         version: 7.4.2(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.20)(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)
@@ -505,6 +520,9 @@ importers:
       class-validator:
         specifier: ^0.14.2
         version: 0.14.3
+      cron:
+        specifier: ^4.3.5
+        version: 4.3.5
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -1772,6 +1790,15 @@ packages:
     resolution: {integrity: sha512-HqYqoivNtkq59po8m7KI0n+lWKdz4kabENncYQXZCX/hBWJfXtKAfR/2nUQsP+TwSfHKoA7zDL2RrJYIv/j3VQ==}
     engines: {node: '>=18.0.0'}
 
+  '@google/genai@1.32.0':
+    resolution: {integrity: sha512-46vaEaHAThIBlqWFTti1fo3xYU6DwCOwnIIotLhYUbNha90wk5cZL79zdf+NoAfKVsx4DPmjCtXvbQNNVPl5ZQ==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      '@modelcontextprotocol/sdk': ^1.24.0
+    peerDependenciesMeta:
+      '@modelcontextprotocol/sdk':
+        optional: true
+
   '@google/generative-ai@0.24.1':
     resolution: {integrity: sha512-MqO+MLfM6kjxcKoy0p1wRzG3b4ZZXtPI+z2IE26UogS2Cm/XHO+7gGRBh6gcJsOiIVoH93UwKvW4HdgiOZCy9Q==}
     engines: {node: '>=18.0.0'}
@@ -1953,6 +1980,23 @@ packages:
     peerDependencies:
       '@langchain/core': ^1.0.0
 
+  '@langfuse/core@4.4.9':
+    resolution: {integrity: sha512-9Hz/eH6dkOP8E/FLt1fsAQR8RE/TF8Ag/39GmY8JjN1o/Tl/MFJfK2QvqRGrkjDkIkMJGOSD+iQmV2pYm4upDA==}
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.0
+
+  '@langfuse/langchain@4.4.9':
+    resolution: {integrity: sha512-DG0ar89/Nhs9Lnw6ynTbpOPjuO7DTBv+Y0uYR5qWl5+FLcktPN+HCLGmbpsI+clxJDVhzMyn9rPnT8P/OuiGqg==}
+    peerDependencies:
+      '@langchain/core': '>=0.3.0'
+      '@opentelemetry/api': ^1.9.0
+
+  '@langfuse/tracing@4.4.9':
+    resolution: {integrity: sha512-if+G/v9NsyTKj40KKX96bRSdMXwyDbVL4GJQvmwQ9SxvGYF+d99pGFB7L6QOeCd1KBHMdmDe733ncmvCnSHJ9w==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.0
+
   '@lukeed/csprng@1.1.0':
     resolution: {integrity: sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA==}
     engines: {node: '>=8'}
@@ -2044,6 +2088,12 @@ packages:
     peerDependencies:
       '@nestjs/common': ^10.0.0
       '@nestjs/core': ^10.0.0
+
+  '@nestjs/schedule@6.0.1':
+    resolution: {integrity: sha512-v3yO6cSPAoBSSyH67HWnXHzuhPhSNZhRmLY38JvCt2sqY8sPMOODpcU1D79iUMFf7k16DaMEbL4Mgx61ZhiC8Q==}
+    peerDependencies:
+      '@nestjs/common': ^10.0.0 || ^11.0.0
+      '@nestjs/core': ^10.0.0 || ^11.0.0
 
   '@nestjs/swagger@7.4.2':
     resolution: {integrity: sha512-Mu6TEn1M/owIvAx2B4DUQObQXqo2028R2s9rSZ/hJEgBK95+doTwS0DjmVA2wTeZTyVtXOoN7CsoM5pONBzvKQ==}
@@ -3209,6 +3259,9 @@ packages:
   '@types/jsonwebtoken@9.0.10':
     resolution: {integrity: sha512-asx5hIG9Qmf/1oStypjanR7iKTv0gXQ1Ov/jfrX6kS/EO0OFni8orbmGCn0672NHR3kXHwpAwR+B368ZGN/2rA==}
 
+  '@types/luxon@3.7.1':
+    resolution: {integrity: sha512-H3iskjFIAn5SlJU7OuxUmTEpebK6TKB8rxZShDslBMZJ5u9S//KM1sbdAisiSrqwLQncVjnpi2OK2J51h+4lsg==}
+
   '@types/mdast@4.0.4':
     resolution: {integrity: sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==}
 
@@ -3976,6 +4029,14 @@ packages:
 
   create-require@1.1.1:
     resolution: {integrity: sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==}
+
+  cron@4.3.3:
+    resolution: {integrity: sha512-B/CJj5yL3sjtlun6RtYHvoSB26EmQ2NUmhq9ZiJSyKIM4K/fqfh9aelDFlIayD2YMeFZqWLi9hHV+c+pq2Djkw==}
+    engines: {node: '>=18.x'}
+
+  cron@4.3.5:
+    resolution: {integrity: sha512-hKPP7fq1+OfyCqoePkKfVq7tNAdFwiQORr4lZUHwrf0tebC65fYEeWgOrXOL6prn1/fegGOdTfrM6e34PJfksg==}
+    engines: {node: '>=18.x'}
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -5280,6 +5341,9 @@ packages:
     peerDependencies:
       '@langchain/core': 1.1.1
 
+  langextract@1.2.0:
+    resolution: {integrity: sha512-ejS3dRyYRQPRKmjnE+EwjgS/fL0DHbyeq9PDo/mZ8fcYbi8n118Eu3L83oL71D99EGrWEeNW6BO60/q5Tyy/3g==}
+
   langfuse-core@3.38.6:
     resolution: {integrity: sha512-EcZXa+DK9FJdi1I30+u19eKjuBJ04du6j2Nybk19KKCuraLczg/ppkTQcGvc4QOk//OAi3qUHrajUuV74RXsBQ==}
     engines: {node: '>=18'}
@@ -5484,6 +5548,10 @@ packages:
 
   lru-queue@0.1.0:
     resolution: {integrity: sha512-BpdYkt9EvGl8OfWHDQPISVpcl5xZthb+XPsbELj5AQXxIC8IriDZIQYjBJPEm5rS420sjZ0TLEzRcq5KdBhYrQ==}
+
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
+    engines: {node: '>=12'}
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -9129,6 +9197,17 @@ snapshots:
       - encoding
       - supports-color
 
+  '@google/genai@1.32.0(@modelcontextprotocol/sdk@1.24.1(@cfworker/json-schema@4.1.1)(zod@3.25.76))':
+    dependencies:
+      google-auth-library: 10.5.0
+      ws: 8.18.3
+    optionalDependencies:
+      '@modelcontextprotocol/sdk': 1.24.1(@cfworker/json-schema@4.1.1)(zod@3.25.76)
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
   '@google/generative-ai@0.24.1': {}
 
   '@humanfs/core@0.19.1': {}
@@ -9361,6 +9440,22 @@ snapshots:
       '@langchain/core': 1.1.1(@opentelemetry/api@1.9.0)
       js-tiktoken: 1.0.21
 
+  '@langfuse/core@4.4.9(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@opentelemetry/api': 1.9.0
+
+  '@langfuse/langchain@4.4.9(@langchain/core@1.1.1(@opentelemetry/api@1.9.0))(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@langchain/core': 1.1.1(@opentelemetry/api@1.9.0)
+      '@langfuse/core': 4.4.9(@opentelemetry/api@1.9.0)
+      '@langfuse/tracing': 4.4.9(@opentelemetry/api@1.9.0)
+      '@opentelemetry/api': 1.9.0
+
+  '@langfuse/tracing@4.4.9(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@langfuse/core': 4.4.9(@opentelemetry/api@1.9.0)
+      '@opentelemetry/api': 1.9.0
+
   '@lukeed/csprng@1.1.0': {}
 
   '@mdx-js/react@3.1.1(@types/react@19.2.7)(react@19.2.0)':
@@ -9466,6 +9561,12 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+
+  '@nestjs/schedule@6.0.1(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.20)':
+    dependencies:
+      '@nestjs/common': 10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.20)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      cron: 4.3.3
 
   '@nestjs/swagger@7.4.2(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.20)(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)':
     dependencies:
@@ -10898,6 +10999,8 @@ snapshots:
       '@types/ms': 2.1.0
       '@types/node': 22.19.1
 
+  '@types/luxon@3.7.1': {}
+
   '@types/mdast@4.0.4':
     dependencies:
       '@types/unist': 3.0.3
@@ -11816,6 +11919,16 @@ snapshots:
       yaml: 1.10.2
 
   create-require@1.1.1: {}
+
+  cron@4.3.3:
+    dependencies:
+      '@types/luxon': 3.7.1
+      luxon: 3.7.2
+
+  cron@4.3.5:
+    dependencies:
+      '@types/luxon': 3.7.1
+      luxon: 3.7.2
 
   cross-spawn@7.0.6:
     dependencies:
@@ -13388,6 +13501,14 @@ snapshots:
       - react-dom
       - zod-to-json-schema
 
+  langextract@1.2.0:
+    dependencies:
+      axios: 1.13.2
+      js-yaml: 4.1.1
+      uuid: 9.0.1
+    transitivePeerDependencies:
+      - debug
+
   langfuse-core@3.38.6:
     dependencies:
       mustache: 4.2.0
@@ -13550,6 +13671,8 @@ snapshots:
   lru-queue@0.1.0:
     dependencies:
       es5-ext: 0.10.64
+
+  luxon@3.7.2: {}
 
   lz-string@1.5.0: {}
 

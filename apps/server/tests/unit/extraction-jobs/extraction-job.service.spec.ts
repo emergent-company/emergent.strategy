@@ -61,7 +61,7 @@ describe('ExtractionJobService', () => {
     source_id: 'doc-123',
     source_metadata: { filename: 'test.pdf' },
     extraction_config: { target_types: ['Requirement'] },
-    status: ExtractionJobStatus.PENDING,
+    status: ExtractionJobStatus.QUEUED,
     total_items: 0,
     processed_items: 0,
     successful_items: 0,
@@ -96,6 +96,13 @@ describe('ExtractionJobService', () => {
         sql.includes('information_schema.columns')
       ) {
         return { rows: schemaRows, rowCount: schemaRows.length };
+      }
+      // Mock the organization lookup query (getOrganizationIdFromProject)
+      if (
+        typeof sql === 'string' &&
+        sql.includes('SELECT organization_id FROM kb.projects')
+      ) {
+        return { rows: [{ organization_id: mockOrganizationId }], rowCount: 1 };
       }
       if (!queuedResponses.length) {
         throw new Error(`Unexpected query: ${sql}`);
@@ -154,11 +161,7 @@ describe('ExtractionJobService', () => {
         subject_id: mockUserId,
       };
 
-      // Mock the query to get organization_id from project
-      enqueueQueryResult({
-        rows: [{ organization_id: mockOrganizationId }],
-        rowCount: 1,
-      });
+      // organization_id lookup is handled by global mock
 
       const jobRow = buildJobRow();
       enqueueQueryResult({ rowCount: 1, rows: [jobRow] });
@@ -181,14 +184,14 @@ describe('ExtractionJobService', () => {
       expect(params).toEqual([
         mockProjectId,
         ExtractionSourceType.DOCUMENT,
-        ExtractionJobStatus.PENDING,
+        ExtractionJobStatus.QUEUED,
         JSON.stringify(createDto.extraction_config),
         JSON.stringify(createDto.source_metadata),
         'doc-123',
         mockUserId,
       ]);
       expect(result.id).toBe(mockJobId);
-      expect(result.status).toBe(ExtractionJobStatus.PENDING);
+      expect(result.status).toBe(ExtractionJobStatus.QUEUED);
     });
 
     it('throws when insert fails', async () => {
@@ -219,11 +222,7 @@ describe('ExtractionJobService', () => {
     it('returns job when found', async () => {
       enqueueQueryResult({ rowCount: 1, rows: [buildJobRow()] });
 
-      const result = await service.getJobById(
-        mockJobId,
-        mockProjectId,
-        mockOrganizationId
-      );
+      const result = await service.getJobById(mockJobId, mockProjectId);
 
       expect(mockDb.setTenantContext).toHaveBeenCalledWith(
         mockOrganizationId,
@@ -236,7 +235,7 @@ describe('ExtractionJobService', () => {
       enqueueQueryResult({ rowCount: 0, rows: [] });
 
       await expect(
-        service.getJobById(mockJobId, mockProjectId, mockOrganizationId)
+        service.getJobById(mockJobId, mockProjectId)
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -248,7 +247,7 @@ describe('ExtractionJobService', () => {
         rows: [buildJobRow({ id: 'job-1' }), buildJobRow({ id: 'job-2' })],
       });
 
-      const result = await service.listJobs(mockProjectId, mockOrganizationId, {
+      const result = await service.listJobs(mockProjectId, {
         page: 1,
         limit: 2,
       });
@@ -265,7 +264,7 @@ describe('ExtractionJobService', () => {
       enqueueQueryResult({ rows: [{ count: '0' }], rowCount: 1 });
       enqueueQueryResult({ rows: [] });
 
-      await service.listJobs(mockProjectId, mockOrganizationId, {
+      await service.listJobs(mockProjectId, {
         status: ExtractionJobStatus.COMPLETED,
       });
 
@@ -285,14 +284,9 @@ describe('ExtractionJobService', () => {
         rows: [buildJobRow({ status: ExtractionJobStatus.COMPLETED })],
       });
 
-      const result = await service.updateJob(
-        mockJobId,
-        mockProjectId,
-        mockOrganizationId,
-        {
-          status: ExtractionJobStatus.COMPLETED,
-        }
-      );
+      const result = await service.updateJob(mockJobId, mockProjectId, {
+        status: ExtractionJobStatus.COMPLETED,
+      });
 
       expect(mockDb.setTenantContext).toHaveBeenCalledWith(
         mockOrganizationId,
@@ -312,12 +306,7 @@ describe('ExtractionJobService', () => {
         total_items: 20,
       };
 
-      await service.updateJob(
-        mockJobId,
-        mockProjectId,
-        mockOrganizationId,
-        dto
-      );
+      await service.updateJob(mockJobId, mockProjectId, dto);
 
       const updateCall = mockDb.query.mock.calls.find(
         ([sql]) =>
@@ -330,7 +319,7 @@ describe('ExtractionJobService', () => {
 
     it('throws BadRequest when dto empty', async () => {
       await expect(
-        service.updateJob(mockJobId, mockProjectId, mockOrganizationId, {})
+        service.updateJob(mockJobId, mockProjectId, {})
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -338,7 +327,7 @@ describe('ExtractionJobService', () => {
       enqueueQueryResult({ rowCount: 0, rows: [] });
 
       await expect(
-        service.updateJob(mockJobId, mockProjectId, mockOrganizationId, {
+        service.updateJob(mockJobId, mockProjectId, {
           status: ExtractionJobStatus.COMPLETED,
         })
       ).rejects.toThrow(NotFoundException);
@@ -349,18 +338,14 @@ describe('ExtractionJobService', () => {
     it('cancels pending job', async () => {
       enqueueQueryResult({
         rowCount: 1,
-        rows: [buildJobRow({ status: ExtractionJobStatus.PENDING })],
+        rows: [buildJobRow({ status: ExtractionJobStatus.QUEUED })],
       });
       enqueueQueryResult({
         rowCount: 1,
         rows: [buildJobRow({ status: ExtractionJobStatus.CANCELLED })],
       });
 
-      const result = await service.cancelJob(
-        mockJobId,
-        mockProjectId,
-        mockOrganizationId
-      );
+      const result = await service.cancelJob(mockJobId, mockProjectId);
 
       expect(result.status).toBe(ExtractionJobStatus.CANCELLED);
     });
@@ -371,9 +356,9 @@ describe('ExtractionJobService', () => {
         rows: [buildJobRow({ status: ExtractionJobStatus.COMPLETED })],
       });
 
-      await expect(
-        service.cancelJob(mockJobId, mockProjectId, mockOrganizationId)
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.cancelJob(mockJobId, mockProjectId)).rejects.toThrow(
+        BadRequestException
+      );
     });
   });
 
@@ -385,7 +370,7 @@ describe('ExtractionJobService', () => {
       });
       enqueueQueryResult({ rowCount: 1 });
 
-      await service.deleteJob(mockJobId, mockProjectId, mockOrganizationId);
+      await service.deleteJob(mockJobId, mockProjectId);
 
       const deleteCall = mockDb.query.mock.calls.find(
         ([sql]) =>
@@ -401,17 +386,17 @@ describe('ExtractionJobService', () => {
         rows: [buildJobRow({ status: ExtractionJobStatus.RUNNING })],
       });
 
-      await expect(
-        service.deleteJob(mockJobId, mockProjectId, mockOrganizationId)
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.deleteJob(mockJobId, mockProjectId)).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('throws NotFound if job missing', async () => {
       enqueueQueryResult({ rowCount: 0, rows: [] });
 
-      await expect(
-        service.deleteJob(mockJobId, mockProjectId, mockOrganizationId)
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.deleteJob(mockJobId, mockProjectId)).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 
@@ -433,10 +418,7 @@ describe('ExtractionJobService', () => {
         rowCount: 2,
       });
 
-      const result = await service.getJobStatistics(
-        mockProjectId,
-        mockOrganizationId
-      );
+      const result = await service.getJobStatistics(mockProjectId);
 
       expect(mockDb.setTenantContext).toHaveBeenCalledWith(
         mockOrganizationId,

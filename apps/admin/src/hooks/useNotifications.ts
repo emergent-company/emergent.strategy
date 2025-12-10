@@ -31,9 +31,20 @@ export function useNotifications(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  // Use refs to track current values without triggering recreate
+  // Memoize filters to avoid triggering refetch on object reference changes
+  // Only recalculate when actual filter values change
+  const stableFilters = useMemo(
+    () => ({
+      category: filters.category,
+      unreadOnly: filters.unreadOnly,
+      search: filters.search,
+    }),
+    [filters.category, filters.unreadOnly, filters.search]
+  );
+
+  // Use refs to track current values for the refetch callback
   const tabRef = useRef(tab);
-  const filtersRef = useRef(filters);
+  const filtersRef = useRef(stableFilters);
 
   // Update refs when values change
   useEffect(() => {
@@ -41,8 +52,8 @@ export function useNotifications(
   }, [tab]);
 
   useEffect(() => {
-    filtersRef.current = filters;
-  }, [filters]);
+    filtersRef.current = stableFilters;
+  }, [stableFilters]);
 
   const refetch = useCallback(async () => {
     try {
@@ -65,7 +76,7 @@ export function useNotifications(
 
   useEffect(() => {
     refetch();
-  }, [tab, filters, refetch]); // Refetch when tab/filters change OR when refetch is called
+  }, [tab, stableFilters, refetch]); // Use stableFilters instead of raw filters object
 
   return { data, isLoading, error, refetch };
 }
@@ -290,6 +301,23 @@ export function useNotificationMutations(onSuccess?: () => void) {
     [notificationApi, onSuccess]
   );
 
+  const resolve = useCallback(
+    async (notificationId: string, status: 'accepted' | 'rejected') => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        await notificationApi.resolve(notificationId, status);
+        onSuccess?.();
+      } catch (err) {
+        setError(err as Error);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [notificationApi, onSuccess]
+  );
+
   return {
     markRead,
     markUnread,
@@ -297,6 +325,7 @@ export function useNotificationMutations(onSuccess?: () => void) {
     clearAll,
     snooze,
     dismiss,
+    resolve,
     isLoading,
     error,
   };

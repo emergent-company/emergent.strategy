@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/useAuth';
 import { useNotificationCounts } from '@/hooks/useNotifications';
+import { useTaskCounts } from '@/hooks/useTasks';
 import { useExtractionJobsCount } from '@/hooks/useExtractionJobsCount';
 import { useConfig } from '@/contexts/config';
 import { useOrganizations } from '@/hooks/use-organizations';
@@ -22,6 +23,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
   const { data: notificationCounts } = useNotificationCounts();
   const { counts: extractionJobsCounts } = useExtractionJobsCount();
   const { config, setActiveProject, setActiveOrg } = useConfig();
+  const { data: taskCounts } = useTaskCounts(config.activeProjectId || null);
   const { createOrg } = useOrganizations();
   const { showToast } = useToast();
   const { apiBase, fetchJson } = useApi();
@@ -153,11 +155,51 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
           />
           <Sidebar.Section id="admin-primary" title="Overview">
             <Sidebar.MenuItem
+              id="admin-inbox"
+              url="/admin/inbox"
+              icon="lucide--inbox"
+              badges={
+                totalUnread > 0
+                  ? [
+                      {
+                        label:
+                          totalUnread > 99 ? '99+' : totalUnread.toString(),
+                        variant: notificationCounts?.important
+                          ? 'primary'
+                          : 'neutral',
+                      },
+                    ]
+                  : undefined
+              }
+            >
+              Inbox
+            </Sidebar.MenuItem>
+            <Sidebar.MenuItem
               id="admin-recent"
               url="/admin/recent"
               icon="lucide--clock"
             >
               Recent
+            </Sidebar.MenuItem>
+            <Sidebar.MenuItem
+              id="admin-tasks"
+              url="/admin/tasks"
+              icon="lucide--check-square"
+              badges={
+                (taskCounts?.pending || 0) > 0
+                  ? [
+                      {
+                        label:
+                          (taskCounts?.pending || 0) > 99
+                            ? '99+'
+                            : (taskCounts?.pending || 0).toString(),
+                        variant: 'warning',
+                      },
+                    ]
+                  : undefined
+              }
+            >
+              Tasks
             </Sidebar.MenuItem>
             <Sidebar.MenuItem
               id="apps-documents"
@@ -181,6 +223,26 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
               Objects
             </Sidebar.MenuItem>
             <Sidebar.MenuItem
+              id="admin-chat"
+              url="/admin/apps/chat"
+              icon="lucide--message-square"
+            >
+              Chat
+            </Sidebar.MenuItem>
+          </Sidebar.Section>
+          <Sidebar.Section
+            id="admin-monitoring"
+            title="System Monitoring"
+            className="mt-4"
+          >
+            <Sidebar.MenuItem
+              id="admin-monitoring-dashboard"
+              url="/admin/monitoring/dashboard"
+              icon="lucide--activity"
+            >
+              Dashboard
+            </Sidebar.MenuItem>
+            <Sidebar.MenuItem
               id="extraction-jobs"
               url="/admin/extraction-jobs"
               icon="lucide--workflow"
@@ -202,31 +264,11 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
               Extraction Jobs
             </Sidebar.MenuItem>
             <Sidebar.MenuItem
-              id="admin-chat"
-              url="/admin/apps/chat"
-              icon="lucide--message-square"
+              id="admin-agents"
+              url="/admin/agents"
+              icon="lucide--bot"
             >
-              Chat
-            </Sidebar.MenuItem>
-            <Sidebar.MenuItem
-              id="admin-inbox"
-              url="/admin/inbox"
-              icon="lucide--inbox"
-              badges={
-                totalUnread > 0
-                  ? [
-                      {
-                        label:
-                          totalUnread > 99 ? '99+' : totalUnread.toString(),
-                        variant: notificationCounts?.important
-                          ? 'primary'
-                          : 'neutral',
-                      },
-                    ]
-                  : undefined
-              }
-            >
-              Inbox
+              Agents
             </Sidebar.MenuItem>
           </Sidebar.Section>
           <Sidebar.Section
@@ -261,19 +303,6 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
               icon="lucide--palette"
             >
               Theme Editor
-            </Sidebar.MenuItem>
-          </Sidebar.Section>
-          <Sidebar.Section
-            id="admin-monitoring"
-            title="System Monitoring"
-            className="mt-4"
-          >
-            <Sidebar.MenuItem
-              id="admin-monitoring-dashboard"
-              url="/admin/monitoring/dashboard"
-              icon="lucide--activity"
-            >
-              Dashboard
             </Sidebar.MenuItem>
           </Sidebar.Section>
         </Sidebar>

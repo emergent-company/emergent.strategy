@@ -25,6 +25,7 @@ import { TypeRegistryModule } from './type-registry/type-registry.module';
 import { ExtractionJobModule } from './extraction-jobs/extraction-job.module';
 import { DiscoveryJobModule } from './discovery-jobs/discovery-job.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { TasksModule } from './tasks/tasks.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { ClickUpModule } from './clickup/clickup.module';
 import { McpModule } from './mcp/mcp.module';
@@ -34,6 +35,7 @@ import { ChatUiModule } from './chat-ui/chat-ui.module';
 import { ChatSdkModule } from './chat-sdk/chat-sdk.module';
 import { LangfuseModule } from './langfuse/langfuse.module';
 import { UserActivityModule } from './user-activity/user-activity.module';
+import { AgentsModule } from './agents/agents.module';
 import { AppConfigService } from '../common/config/config.service';
 import { entities } from '../entities';
 
@@ -86,6 +88,7 @@ import { entities } from '../entities';
     ExtractionJobModule,
     DiscoveryJobModule,
     NotificationsModule,
+    TasksModule,
     IntegrationsModule,
     ClickUpModule,
     McpModule,
@@ -95,6 +98,7 @@ import { entities } from '../entities';
     ChatSdkModule,
     LangfuseModule,
     UserActivityModule,
+    AgentsModule,
     DatabaseModule,
   ],
 })

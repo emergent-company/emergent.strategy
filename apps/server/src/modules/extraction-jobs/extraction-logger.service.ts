@@ -31,6 +31,7 @@ export interface LogExtractionStepParams {
   outputData?: any;
   errorMessage?: string;
   errorStack?: string;
+  errorDetails?: Record<string, any>;
   durationMs?: number;
   tokensUsed?: number;
   metadata?: Record<string, any>;
@@ -96,8 +97,10 @@ export class ExtractionLoggerService {
       outputData,
       errorMessage,
       errorStack,
+      errorDetails,
       durationMs,
       tokensUsed,
+      metadata,
     } = params;
 
     // Generate step name and message
@@ -108,6 +111,12 @@ export class ExtractionLoggerService {
         ? `${operationType} completed successfully`
         : `${operationType} ${status}`);
 
+    // Merge metadata into inputData if provided (for backward compatibility)
+    const finalInputData =
+      metadata && Object.keys(metadata).length > 0
+        ? { ...(inputData || {}), ...metadata }
+        : inputData || null;
+
     // Create log entry using TypeORM
     const log = this.extractionLogRepo.create({
       extractionJobId,
@@ -117,10 +126,11 @@ export class ExtractionLoggerService {
       step,
       status,
       message,
-      inputData: inputData || null,
+      inputData: finalInputData,
       outputData: outputData || null,
       errorMessage: errorMessage || null,
       errorStack: errorStack || null,
+      errorDetails: errorDetails || null,
       durationMs: durationMs || null,
       tokensUsed: tokensUsed || null,
     });

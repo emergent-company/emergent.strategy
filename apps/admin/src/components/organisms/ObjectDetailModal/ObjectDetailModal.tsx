@@ -461,7 +461,7 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
 
   if (!object) return null;
 
-  // Separate extraction metadata from regular properties
+  // Separate extraction metadata and system properties from regular properties
   const extractionMetadata: Record<string, unknown> = {};
   const regularProperties: Record<string, unknown> = {};
 
@@ -478,6 +478,9 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
     Object.entries(object.properties).forEach(([key, value]) => {
       if (key.startsWith('_extraction_')) {
         extractionMetadata[key] = value;
+      } else if (key.startsWith('_')) {
+        // Skip all other underscore-prefixed properties (system/internal like _mergeHistory)
+        // These are shown in history view, not in properties
       } else if (!relationshipKeys.includes(key)) {
         // Exclude relationship properties from regular properties
         regularProperties[key] = value;

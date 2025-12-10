@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LangChainGeminiProvider } from '../../../src/modules/extraction-jobs/llm/langchain-gemini.provider';
 import { AppConfigService } from '../../../src/common/config/config.service';
 import { LangfuseService } from '../../../src/modules/langfuse/langfuse.service';
+import { LlmCallDumpService } from '../../../src/modules/extraction-jobs/llm/llm-call-dump.service';
 
 // Mock ChatVertexAI - including tool model support
 const mockWithStructuredOutput = vi.fn();
@@ -39,6 +40,7 @@ describe('LangChainGeminiProvider', () => {
   let provider: LangChainGeminiProvider;
   let mockConfig: any;
   let mockLangfuseService: any;
+  let mockLlmCallDumpService: any;
 
   beforeEach(() => {
     mockConfig = {
@@ -54,9 +56,17 @@ describe('LangChainGeminiProvider', () => {
       updateObservation: vi.fn(),
     };
 
+    mockLlmCallDumpService = {
+      isEnabled: vi.fn().mockReturnValue(false),
+      startJob: vi.fn(),
+      recordLlmCall: vi.fn(),
+      completeJob: vi.fn(),
+    };
+
     provider = new LangChainGeminiProvider(
       mockConfig as AppConfigService,
-      mockLangfuseService as LangfuseService
+      mockLangfuseService as LangfuseService,
+      mockLlmCallDumpService as LlmCallDumpService
     );
 
     mockInvoke.mockReset();
@@ -375,8 +385,10 @@ describe('LangChainGeminiProvider', () => {
     });
 
     it('should handle tool call errors gracefully', async () => {
-      // Simulate timeout/error
-      mockToolModelInvoke.mockRejectedValueOnce(new Error('API timeout'));
+      // Simulate an empty generations error (recognized by the provider)
+      mockToolModelInvoke.mockRejectedValueOnce(
+        new Error("Cannot read properties of undefined (reading 'message')")
+      );
 
       const result = await provider.extractEntities(
         'Some content',
@@ -516,7 +528,7 @@ describe('LangChainGeminiProvider', () => {
       );
 
       // Verify existing entities are listed for reference
-      expect(capturedPrompt).toContain('Existing Entities');
+      expect(capturedPrompt).toContain('Existing Objects in Knowledge Graph');
       expect(capturedPrompt).toContain('Auth System');
       expect(capturedPrompt).toContain('uuid-123');
       expect(capturedPrompt).toContain('User Database');

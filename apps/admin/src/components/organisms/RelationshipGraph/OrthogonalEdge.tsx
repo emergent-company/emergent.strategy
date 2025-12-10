@@ -3,9 +3,10 @@
  * Uses right-angle (step) paths instead of curves
  * Gray by default, orange with label on hover
  * Supports vertical offset for parallel edges on the horizontal segment
+ * Uses custom arrow markers that change color with the edge
  */
 import { memo } from 'react';
-import { BaseEdge, EdgeLabelRenderer, type Position } from '@xyflow/react';
+import { EdgeLabelRenderer, type Position } from '@xyflow/react';
 import type { GraphEdgeData } from './useGraphData';
 
 export interface OrthogonalEdgeComponentProps {
@@ -64,7 +65,6 @@ export const OrthogonalEdge = memo(function OrthogonalEdge({
   targetX,
   targetY,
   data,
-  markerEnd,
 }: OrthogonalEdgeComponentProps) {
   const label = data?.label || '';
   const labelOffsetY = data?.labelOffsetY || 0;
@@ -78,23 +78,44 @@ export const OrthogonalEdge = memo(function OrthogonalEdge({
     labelY,
   } = buildOrthogonalPath(sourceX, sourceY, targetX, targetY, edgeOffsetY);
 
+  // Unique marker ID for this edge to ensure proper coloring
+  const markerId = `orthogonal-arrow-${id}-${isHighlighted ? 'hl' : 'def'}`;
+
+  // Use CSS custom properties with var() - daisyUI format
+  // Warning color for highlighted, base-content with opacity for default
+  const strokeColor = isHighlighted
+    ? 'var(--color-warning, #f59e0b)' // warning color with fallback
+    : 'color-mix(in oklch, var(--color-base-content, #888) 30%, transparent)';
+
   return (
     <>
-      <BaseEdge
+      {/* Define custom marker that inherits the edge color */}
+      <defs>
+        <marker
+          id={markerId}
+          markerWidth="15"
+          markerHeight="15"
+          refX="12"
+          refY="7.5"
+          orient="auto"
+          markerUnits="userSpaceOnUse"
+        >
+          <path d="M 0 0 L 15 7.5 L 0 15 L 3 7.5 Z" fill={strokeColor} />
+        </marker>
+      </defs>
+      {/* Custom path element with proper styling */}
+      {/* Use style prop to override React Flow's CSS variables */}
+      <path
         id={id}
-        path={edgePath}
-        markerEnd={markerEnd}
-        className={`
-          transition-all duration-200
-          ${
-            isHighlighted
-              ? '!stroke-warning !stroke-2'
-              : '!stroke-base-content/30 !stroke-[1.5px]'
-          }
-        `}
+        d={edgePath}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        markerEnd={`url(#${markerId})`}
+        className="react-flow__edge-path"
         style={{
-          strokeLinecap: 'round',
-          strokeLinejoin: 'round',
+          stroke: strokeColor,
+          strokeWidth: isHighlighted ? 2.5 : 1.5,
         }}
       />
       {/* Only show label when highlighted */}

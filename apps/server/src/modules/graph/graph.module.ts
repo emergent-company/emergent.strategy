@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GraphObjectsController } from './graph.controller';
 import { GraphEmbeddingsController } from './graph-embeddings.controller';
@@ -24,7 +24,9 @@ import { TagController } from './tag.controller';
 import { TagCleanupWorkerService } from './tag-cleanup-worker.service';
 import { RevisionCountRefreshWorkerService } from './revision-count-refresh-worker.service';
 import { RedactionInterceptor } from './redaction.interceptor';
+import { ObjectMergeService } from './object-merge.service';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { TasksModule } from '../tasks/tasks.module';
 import { Tag } from '../../entities/tag.entity';
 import { ProductVersion } from '../../entities/product-version.entity';
 import { ProductVersionMember } from '../../entities/product-version-member.entity';
@@ -48,6 +50,7 @@ import { GraphObject } from '../../entities/graph-object.entity';
     AppConfigModule,
     AuthModule,
     TypeRegistryModule,
+    forwardRef(() => TasksModule),
   ],
   controllers: [
     GraphObjectsController,
@@ -66,6 +69,7 @@ import { GraphObject } from '../../entities/graph-object.entity';
     RevisionCountRefreshWorkerService,
     EmbeddingJobsService,
     EmbeddingPolicyService,
+    ObjectMergeService,
     {
       provide: 'EMBEDDING_PROVIDER',
       useFactory: (config: AppConfigService) => {
@@ -92,6 +96,7 @@ import { GraphObject } from '../../entities/graph-object.entity';
     GraphVectorSearchService,
     ProductVersionService,
     TagService,
+    ObjectMergeService,
   ],
 })
 export class GraphModule {}

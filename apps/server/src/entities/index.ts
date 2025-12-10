@@ -38,6 +38,9 @@ export { ClickUpSyncState } from './clickup-sync-state.entity';
 export { ObjectExtractionLog } from './object-extraction-log.entity';
 export { Integration } from './integration.entity';
 export { UserRecentItem } from './user-recent-item.entity';
+export { Agent } from './agent.entity';
+export { AgentRun } from './agent-run.entity';
+export { Task } from './task.entity';
 
 // Core Schema Entities
 export { UserProfile } from './user-profile.entity';
@@ -77,6 +80,9 @@ import { ClickUpSyncState } from './clickup-sync-state.entity';
 import { ObjectExtractionLog } from './object-extraction-log.entity';
 import { Integration } from './integration.entity';
 import { UserRecentItem } from './user-recent-item.entity';
+import { Agent } from './agent.entity';
+import { AgentRun } from './agent-run.entity';
+import { Task } from './task.entity';
 import { UserProfile } from './user-profile.entity';
 import { UserEmail } from './user-email.entity';
 
@@ -118,4 +124,8 @@ export const entities = [
   // Core Schema
   UserProfile,
   UserEmail,
+  // Agent System
+  Agent,
+  AgentRun,
+  Task,
 ];

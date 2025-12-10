@@ -17,6 +17,8 @@ export interface ExtractionConfig {
   auto_accept_threshold: number;
   entity_linking_strategy: 'strict' | 'fuzzy' | 'none';
   duplicate_strategy?: 'skip' | 'merge';
+  /** LLM extraction method - responseSchema uses structured output, function_calling uses tool calls */
+  extraction_method?: 'responseSchema' | 'function_calling';
   require_review: boolean;
   send_notification: boolean;
 }
@@ -62,6 +64,7 @@ export function ExtractionConfigModal({
     auto_accept_threshold: 0.9,
     entity_linking_strategy: 'fuzzy',
     duplicate_strategy: 'skip',
+    extraction_method: 'responseSchema',
     require_review: false,
     send_notification: true,
   });
@@ -538,6 +541,75 @@ export function ExtractionConfigModal({
                   </>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Extraction Method (Advanced) */}
+          <div className="mb-6">
+            <label className="mb-3 label">
+              <span className="font-semibold label-text">
+                LLM Extraction Method
+              </span>
+              <span className="badge badge-ghost badge-sm ml-2">Advanced</span>
+            </label>
+            <div className="w-full join join-vertical">
+              <label className="flex items-start gap-3 hover:bg-base-200 p-3 border border-base-300 cursor-pointer join-item">
+                <input
+                  type="radio"
+                  name="extraction-method"
+                  className="mt-0.5 radio radio-primary"
+                  checked={config.extraction_method === 'responseSchema'}
+                  onChange={() =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      extraction_method: 'responseSchema',
+                    }))
+                  }
+                  disabled={isLoading}
+                />
+                <div className="flex-1">
+                  <div className="font-medium">Response Schema (Default)</div>
+                  <div className="text-xs text-base-content/60">
+                    Uses Gemini's structured output with JSON schema validation
+                  </div>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 hover:bg-base-200 p-3 border border-base-300 cursor-pointer join-item">
+                <input
+                  type="radio"
+                  name="extraction-method"
+                  className="mt-0.5 radio radio-primary"
+                  checked={config.extraction_method === 'function_calling'}
+                  onChange={() =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      extraction_method: 'function_calling',
+                    }))
+                  }
+                  disabled={isLoading}
+                />
+                <div className="flex-1">
+                  <div className="font-medium">Function Calling</div>
+                  <div className="text-xs text-base-content/60">
+                    Uses Gemini's function/tool calling API - may have different
+                    latency characteristics
+                  </div>
+                </div>
+              </label>
+            </div>
+            <div className="mt-2 text-xs text-base-content/60">
+              <Icon icon="lucide--info" className="inline-block mr-1 size-3" />
+              {config.extraction_method === 'function_calling' ? (
+                <>
+                  Function calling uses tool declarations - useful for debugging
+                  timeout issues
+                </>
+              ) : (
+                <>
+                  Response schema enforces strict JSON output format directly in
+                  the model response
+                </>
+              )}
             </div>
           </div>
 

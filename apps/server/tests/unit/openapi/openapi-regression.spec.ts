@@ -34,9 +34,10 @@ function hashSpecPaths(spec: any): string {
 // Updated after adding MCP RPC endpoint and user deletion endpoints (October 2025)
 // Updated after adding PATCH /projects/:id endpoint for kb_purpose updates (November 2025)
 // Updated after adding /user/orgs-and-projects, /documents/deletion-impact endpoints and DELETE /documents (November 2025)
+// Updated after adding agents, tasks, user-activity, chunks management, and embeddings endpoints (December 2025)
 const EXPECTED_HASH =
   process.env.OPENAPI_EXPECTED_HASH ||
-  '7f57a7ed3e546973f70f5b6928cc22b52342fb48d194bf1ad01a2a216a2c9097';
+  'cc8fb47b80f614805dfa891d169c5f78bc05b046c4620e054b5fb133ea729323';
 
 describe('OpenAPI regression', () => {
   it('paths+tags hash matches expected (update EXPECTED_HASH intentionally if spec changed)', () => {
