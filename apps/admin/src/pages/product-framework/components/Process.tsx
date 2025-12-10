@@ -16,9 +16,9 @@ export const Process = () => {
       </p>
       <div className="mt-2 flex justify-center text-center">
         <p className="text-base-content/80 max-w-lg">
-          Continuous sensing, responsive execution, and evidence-based
-          calibration. Not linear roadmaps—adaptive cycles that learn from
-          reality.
+          Design by Emergence: invent the rules (OKRs, RATs), then discover the
+          consequences through iteration. Strategy can't be shortcut—you have
+          to run the experiment.
         </p>
       </div>
       <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 md:mt-12 lg:mt-16 xl:grid-cols-3 2xl:mt-24">
@@ -35,22 +35,22 @@ export const Process = () => {
               Sense & Frame
             </p>
             <p className="text-accent-content/90 mt-4 text-sm">
-              Define OKRs, identify RATs (Riskiest Assumptions), scaffold value
-              models, and generate dependent Work Packages.
+              Define track OKRs, identify RATs (Riskiest Assumptions), scaffold
+              value models, and set measurable Key Results.
             </p>
 
             <div className="mt-6 space-y-2">
               <div className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm">
                 <span className="iconify lucide--target size-4"></span>
-                Define OKRs
+                Define Track OKRs
               </div>
               <div className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm">
                 <span className="iconify lucide--alert-triangle size-4"></span>
                 Identify RATs
               </div>
               <div className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm">
-                <span className="iconify lucide--git-branch size-4"></span>
-                Scaffold Value Models
+                <span className="iconify lucide--check-circle size-4"></span>
+                Set Key Results
               </div>
             </div>
 
@@ -79,22 +79,22 @@ export const Process = () => {
                 Build & Deliver
               </p>
               <p className="text-base-content/80 mt-4 text-sm">
-                Execute Work Packages, run experiments to validate RATs, and
-                gather evidence. Every commit links back to a RAT and KR.
+                Execute toward Key Results, run experiments to validate RATs.
+                Work packages hand off to your tools (Linear, Jira, GitHub).
               </p>
 
               <div className="mt-6 space-y-2">
                 <div className="border-base-200 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-                  <span className="iconify lucide--package size-4 text-secondary"></span>
-                  Execute Work Packages
+                  <span className="iconify lucide--check-circle size-4 text-secondary"></span>
+                  Execute Key Results
                 </div>
                 <div className="border-base-200 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
                   <span className="iconify lucide--flask-conical size-4 text-secondary"></span>
                   Run Experiments
                 </div>
                 <div className="border-base-200 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-                  <span className="iconify lucide--file-check size-4 text-secondary"></span>
-                  Gather Evidence
+                  <span className="iconify lucide--arrow-right-left size-4 text-secondary"></span>
+                  Hand Off to Tools
                 </div>
               </div>
 
