@@ -130,6 +130,13 @@ function TreeRelationshipGraphInner({
     initialDepth,
   });
 
+  // Clear hover state if the hovered node is no longer in the graph
+  useEffect(() => {
+    if (hoveredNodeId && !nodes.some((n) => n.id === hoveredNodeId)) {
+      setHoveredNodeId(null);
+    }
+  }, [hoveredNodeId, nodes]);
+
   // Focus on the expanded node after expansion
   useEffect(() => {
     if (lastExpandedNodeId && !loading) {

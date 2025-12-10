@@ -69,6 +69,9 @@ function RelationshipGraphInner({
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Track hovered node for edge highlighting
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+
   // Clear focus after 2 seconds
   const handleNodeFocus = useCallback((nodeId: string) => {
     // Clear any existing timeout
@@ -107,7 +110,14 @@ function RelationshipGraphInner({
     initialDepth,
   });
 
-  // Add expandedNodes and focus info to each node's data for rendering
+  // Clear hover state if the hovered node is no longer in the graph
+  useEffect(() => {
+    if (hoveredNodeId && !nodes.some((n) => n.id === hoveredNodeId)) {
+      setHoveredNodeId(null);
+    }
+  }, [hoveredNodeId, nodes]);
+
+  // Add expandedNodes, focus info, and hover state to each node's data for rendering
   const nodesWithExpandState = useMemo(() => {
     return nodes.map((node) => ({
       ...node,
@@ -115,9 +125,40 @@ function RelationshipGraphInner({
         ...node.data,
         isExpanded: expandedNodes.has(node.id),
         isFocused: node.id === focusedNodeId,
+        isHovered: node.id === hoveredNodeId,
       },
     }));
-  }, [nodes, expandedNodes, focusedNodeId]);
+  }, [nodes, expandedNodes, focusedNodeId, hoveredNodeId]);
+
+  // Add highlight state to edges based on hovered node
+  // Also filter out any edges that reference non-existent nodes (safety check)
+  const edgesWithHighlight = useMemo(() => {
+    const nodeIds = new Set(nodes.map((n) => n.id));
+    return edges
+      .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+      .map((edge) => ({
+        ...edge,
+        data: {
+          ...edge.data,
+          // Highlight if this edge connects to the hovered node
+          isHighlighted:
+            hoveredNodeId !== null &&
+            (edge.source === hoveredNodeId || edge.target === hoveredNodeId),
+        },
+      }));
+  }, [edges, hoveredNodeId, nodes]);
+
+  // Handle node hover
+  const handleNodeMouseEnter = useCallback(
+    (_event: React.MouseEvent, node: { id: string }) => {
+      setHoveredNodeId(node.id);
+    },
+    []
+  );
+
+  const handleNodeMouseLeave = useCallback(() => {
+    setHoveredNodeId(null);
+  }, []);
 
   // Handle node click to expand or collapse
   const handleNodeClick = useCallback(
@@ -209,12 +250,14 @@ function RelationshipGraphInner({
 
       <ReactFlow
         nodes={nodesWithExpandState}
-        edges={edges}
+        edges={edgesWithHighlight}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={defaultEdgeOptions}
         onNodeClick={handleNodeClick}
         onNodeDoubleClick={handleNodeDoubleClick}
+        onNodeMouseEnter={handleNodeMouseEnter}
+        onNodeMouseLeave={handleNodeMouseLeave}
         onNodesChange={handleNodesChange}
         fitView
         fitViewOptions={{ padding: 0.4, maxZoom: 0.8 }}

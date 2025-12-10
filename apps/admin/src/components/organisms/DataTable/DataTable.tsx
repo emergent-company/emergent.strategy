@@ -18,6 +18,8 @@ import type {
   DataTableProps,
   FilterConfig,
   SortConfig,
+  SelectionMode,
+  SelectionContext,
 } from './types';
 
 export function DataTable<T extends TableDataItem>({
@@ -46,6 +48,7 @@ export function DataTable<T extends TableDataItem>({
   enableExport = false,
   onExport,
   toolbarActions,
+  totalCount,
   className = '',
 }: DataTableProps<T>) {
   // State
@@ -54,6 +57,7 @@ export function DataTable<T extends TableDataItem>({
     new Map()
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>('page');
   const [view, setView] = useState<'table' | 'cards'>(defaultView);
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -154,11 +158,27 @@ export function DataTable<T extends TableDataItem>({
     if (checked) {
       const allIds = new Set(filteredData.map((item) => item.id));
       setSelectedIds(allIds);
+      setSelectionMode('page'); // Reset to page mode when selecting via checkbox
       onSelectionChange?.(Array.from(allIds), filteredData);
     } else {
       setSelectedIds(new Set());
+      setSelectionMode('page');
       onSelectionChange?.([], []);
     }
+  };
+
+  const handleSelectAllFromDatabase = () => {
+    // Select all visible items and set mode to 'all'
+    const allIds = new Set(filteredData.map((item) => item.id));
+    setSelectedIds(allIds);
+    setSelectionMode('all');
+    onSelectionChange?.(Array.from(allIds), filteredData);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds(new Set());
+    setSelectionMode('page');
+    onSelectionChange?.([], []);
   };
 
   const handleSelectOne = (id: string, checked: boolean) => {
@@ -169,6 +189,7 @@ export function DataTable<T extends TableDataItem>({
       newSelected.delete(id);
     }
     setSelectedIds(newSelected);
+    setSelectionMode('page'); // Reset to page mode when manually selecting
 
     const selectedItems = filteredData.filter((item) =>
       newSelected.has(item.id)
@@ -412,31 +433,92 @@ export function DataTable<T extends TableDataItem>({
   const renderBulkActions = () => {
     if (selectedIds.size === 0 || bulkActions.length === 0) return null;
 
-    return (
-      <div className="flex items-center gap-4 bg-primary/10 p-3 border border-primary/30 rounded">
-        <span className="font-medium text-sm">{selectedIds.size} selected</span>
-        {bulkActions.map((action) => {
-          const variant = action.variant || 'primary';
-          const style = action.style || 'filled';
-          const btnClass =
-            style === 'outline'
-              ? `btn-outline btn-${variant}`
-              : `btn-${variant}`;
+    // Determine display count based on selection mode
+    const displayCount =
+      selectionMode === 'all' && totalCount ? totalCount : selectedIds.size;
+    const showSelectAllOption =
+      totalCount &&
+      totalCount > filteredData.length &&
+      selectionMode === 'page' &&
+      allSelected;
 
-          return (
+    const handleBulkAction = async (action: (typeof bulkActions)[0]) => {
+      const context: SelectionContext<T> = {
+        selectedIds: Array.from(selectedIds),
+        selectedItems: selectedItems,
+        mode: selectionMode,
+        totalCount: selectionMode === 'all' ? totalCount : selectedIds.size,
+      };
+
+      // Support both old and new action handlers
+      if (action.onActionWithContext) {
+        await action.onActionWithContext(context);
+      } else if (action.onAction) {
+        await action.onAction(Array.from(selectedIds), selectedItems);
+      }
+
+      // Clear selection after action
+      handleClearSelection();
+    };
+
+    return (
+      <div className="flex flex-wrap items-center gap-4 bg-primary/10 p-3 border border-primary/30 rounded">
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-sm">
+            {selectionMode === 'all' && totalCount ? (
+              <>All {totalCount.toLocaleString()} items selected</>
+            ) : (
+              <>{selectedIds.size} selected</>
+            )}
+          </span>
+
+          {/* Show "Select all X items" option when all visible items are selected */}
+          {showSelectAllOption && (
             <button
-              key={action.key}
-              className={`gap-2 btn btn-sm ${btnClass}`}
-              onClick={() => {
-                action.onAction(Array.from(selectedIds), selectedItems);
-                setSelectedIds(new Set());
-              }}
+              className="text-sm text-primary hover:underline font-medium"
+              onClick={handleSelectAllFromDatabase}
             >
-              {action.icon && <Icon icon={action.icon} className="size-4" />}
-              {action.label}
+              Select all {totalCount.toLocaleString()} items
             </button>
-          );
-        })}
+          )}
+
+          {/* Show "Clear selection" when in 'all' mode */}
+          {selectionMode === 'all' && (
+            <button
+              className="text-sm text-base-content/60 hover:text-base-content underline"
+              onClick={handleClearSelection}
+            >
+              Clear selection
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 ml-auto">
+          {bulkActions.map((action) => {
+            const variant = action.variant || 'primary';
+            const style = action.style || 'filled';
+            const btnClass =
+              style === 'outline'
+                ? `btn-outline btn-${variant}`
+                : `btn-${variant}`;
+
+            return (
+              <button
+                key={action.key}
+                className={`gap-2 btn btn-sm ${btnClass}`}
+                onClick={() => handleBulkAction(action)}
+              >
+                {action.icon && <Icon icon={action.icon} className="size-4" />}
+                {action.label}
+                {selectionMode === 'all' && totalCount && (
+                  <span className="opacity-70">
+                    ({totalCount.toLocaleString()})
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
   };

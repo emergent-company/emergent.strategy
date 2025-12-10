@@ -62,6 +62,15 @@ export class EnvVariables {
   @IsOptional()
   GCP_PROJECT_ID?: string;
 
+  // --- Google AI Studio (API Key auth) ---
+  @IsString()
+  @IsOptional()
+  GOOGLE_API_KEY?: string;
+
+  @IsString()
+  @IsOptional()
+  GOOGLE_AI_MODEL?: string; // Model name for Google AI Studio (default: gemini-2.5-flash)
+
   @IsString()
   @IsOptional()
   VERTEX_AI_LOCATION?: string;
@@ -69,6 +78,10 @@ export class EnvVariables {
   @IsString()
   @IsOptional()
   VERTEX_AI_MODEL?: string;
+
+  @IsString()
+  @IsOptional()
+  EXTRACTION_METHOD?: string; // 'responseSchema' (default) or 'function_calling'
 
   // --- Embeddings Configuration ---
   @IsString()
@@ -142,6 +155,18 @@ export class EnvVariables {
   @IsOptional()
   EXTRACTION_CHUNK_OVERLAP?: number; // Overlap between chunks in characters (default: 2000)
 
+  @IsString()
+  @IsOptional()
+  EXTRACTION_PIPELINE_MODE?: string; // 'single_pass' (default) | 'langgraph'
+
+  @IsNumber()
+  @IsOptional()
+  LANGGRAPH_MAX_RETRIES?: number; // Max retry attempts for orphan recovery (default: 3)
+
+  @IsNumber()
+  @IsOptional()
+  LANGGRAPH_ORPHAN_THRESHOLD?: number; // Max % orphan entities before retry (default: 0.10)
+
   @IsNumber()
   @IsOptional()
   LLM_CALL_TIMEOUT_MS?: number; // Timeout for LLM API calls in milliseconds (default: 120000 = 2 minutes)
@@ -199,6 +224,15 @@ export class EnvVariables {
   @IsNumber()
   @IsOptional()
   LANGFUSE_FLUSH_INTERVAL?: number;
+
+  // --- LangFuse Prompt Management ---
+  @IsNumber()
+  @IsOptional()
+  LANGFUSE_PROMPT_CACHE_TTL?: number; // Cache TTL in seconds (default: 60)
+
+  @IsString()
+  @IsOptional()
+  LANGFUSE_PROMPT_LABEL?: string; // Default label for prompts (default: 'production')
 }
 
 export function validate(config: Record<string, unknown>): EnvVariables {
@@ -217,6 +251,8 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     RLS_POLICY_STRICT: process.env.RLS_POLICY_STRICT,
     // Extraction Worker defaults
     GCP_PROJECT_ID: process.env.GCP_PROJECT_ID,
+    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+    GOOGLE_AI_MODEL: process.env.GOOGLE_AI_MODEL,
     VERTEX_AI_LOCATION: process.env.VERTEX_AI_LOCATION,
     VERTEX_AI_MODEL: process.env.VERTEX_AI_MODEL,
     // Embeddings config
@@ -250,6 +286,11 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     })(),
     EXTRACTION_CHUNK_SIZE: process.env.EXTRACTION_CHUNK_SIZE || '100000',
     EXTRACTION_CHUNK_OVERLAP: process.env.EXTRACTION_CHUNK_OVERLAP || '2000',
+    EXTRACTION_PIPELINE_MODE:
+      process.env.EXTRACTION_PIPELINE_MODE || 'single_pass',
+    LANGGRAPH_MAX_RETRIES: process.env.LANGGRAPH_MAX_RETRIES || '3',
+    LANGGRAPH_ORPHAN_THRESHOLD:
+      process.env.LANGGRAPH_ORPHAN_THRESHOLD || '0.10',
     LLM_CALL_TIMEOUT_MS: process.env.LLM_CALL_TIMEOUT_MS || '300000', // 5 minutes default
     LLM_DUMP_ENABLED: process.env.LLM_DUMP_ENABLED,
     LLM_DUMP_DIR: process.env.LLM_DUMP_DIR,
@@ -266,6 +307,9 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     LANGFUSE_HOST: process.env.LANGFUSE_HOST,
     LANGFUSE_FLUSH_AT: process.env.LANGFUSE_FLUSH_AT,
     LANGFUSE_FLUSH_INTERVAL: process.env.LANGFUSE_FLUSH_INTERVAL,
+    // LangFuse Prompt Management
+    LANGFUSE_PROMPT_CACHE_TTL: process.env.LANGFUSE_PROMPT_CACHE_TTL || '60',
+    LANGFUSE_PROMPT_LABEL: process.env.LANGFUSE_PROMPT_LABEL || 'production',
     ...config,
   };
   const transformed = plainToInstance(EnvVariables, {
@@ -314,6 +358,8 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     ),
     EXTRACTION_CHUNK_SIZE: Number(withDefaults.EXTRACTION_CHUNK_SIZE),
     EXTRACTION_CHUNK_OVERLAP: Number(withDefaults.EXTRACTION_CHUNK_OVERLAP),
+    LANGGRAPH_MAX_RETRIES: Number(withDefaults.LANGGRAPH_MAX_RETRIES),
+    LANGGRAPH_ORPHAN_THRESHOLD: Number(withDefaults.LANGGRAPH_ORPHAN_THRESHOLD),
     LLM_CALL_TIMEOUT_MS: Number(withDefaults.LLM_CALL_TIMEOUT_MS),
     LLM_DUMP_ENABLED:
       withDefaults.LLM_DUMP_ENABLED === 'true' ||
@@ -328,6 +374,11 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     LANGFUSE_FLUSH_INTERVAL: withDefaults.LANGFUSE_FLUSH_INTERVAL
       ? Number(withDefaults.LANGFUSE_FLUSH_INTERVAL)
       : undefined,
+    // LangFuse Prompt Management conversions
+    LANGFUSE_PROMPT_CACHE_TTL: withDefaults.LANGFUSE_PROMPT_CACHE_TTL
+      ? Number(withDefaults.LANGFUSE_PROMPT_CACHE_TTL)
+      : 60,
+    LANGFUSE_PROMPT_LABEL: withDefaults.LANGFUSE_PROMPT_LABEL || 'production',
   });
   const errors = validateSync(transformed, { skipMissingProperties: false });
   if (errors.length) {

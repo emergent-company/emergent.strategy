@@ -4268,6 +4268,308 @@ paths:
       responses:
         '200':
           description: ''
+  /tasks:
+    get:
+      operationId: getTasks
+      summary: Get tasks for a project
+      parameters:
+        - name: project_id
+          required: true
+          in: query
+          description: Project ID to get tasks for
+          schema:
+            type: string
+        - name: status
+          required: false
+          in: query
+          description: Filter by status
+          schema:
+            enum:
+              - pending
+              - accepted
+              - rejected
+              - cancelled
+            type: string
+        - name: type
+          required: false
+          in: query
+          description: Filter by type (e.g., "merge_suggestion")
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: number
+        - name: limit
+          required: false
+          in: query
+          description: Page size (default 50)
+          schema:
+            type: number
+      responses:
+        '200':
+          description: List of tasks
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: &ref_14
+        - Tasks
+      security: &ref_15
+        - bearer: []
+  /tasks/counts:
+    get:
+      operationId: getCounts
+      summary: Get task counts by status for a project
+      parameters:
+        - name: project_id
+          required: true
+          in: query
+          description: Project ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task counts
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_14
+      security: *ref_15
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      summary: Get a single task by ID
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Task ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task details
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_14
+      security: *ref_15
+  /tasks/{id}/resolve:
+    post:
+      operationId: resolve
+      summary: Resolve a task (accept or reject)
+      description: >-
+        Resolves a pending task and marks any linked notifications as read. For
+        merge_suggestion tasks that are accepted, this also executes the merge
+        operation.
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Task ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveTaskDto'
+      responses:
+        '200':
+          description: Task resolved
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_14
+      security: *ref_15
+  /tasks/{id}/cancel:
+    post:
+      operationId: cancel
+      summary: Cancel a task
+      description: Cancels a pending task. Only applicable to pending tasks.
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Task ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task cancelled
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_14
+      security: *ref_15
   /notifications:
     get:
       operationId: getNotifications
@@ -4341,9 +4643,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_14
+      tags: &ref_16
         - Notifications
-      security: &ref_15
+      security: &ref_17
         - bearer: []
     delete:
       operationId: clearAll
@@ -4397,8 +4699,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_16
+      security: *ref_17
   /notifications/counts:
     get:
       operationId: getUnreadCounts
@@ -4443,8 +4745,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_16
+      security: *ref_17
   /notifications/stats:
     get:
       operationId: getStats
@@ -4489,8 +4791,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_16
+      security: *ref_17
   /notifications/{id}/read:
     post:
       operationId: markRead
@@ -4541,8 +4843,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_16
+      security: *ref_17
   /notifications/{id}/unread:
     post:
       operationId: markUnread
@@ -4593,8 +4895,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_16
+      security: *ref_17
   /notifications/{id}/dismiss:
     post:
       operationId: dismiss
@@ -4645,8 +4947,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_16
+      security: *ref_17
   /notifications/{id}:
     delete:
       operationId: clear
@@ -4697,8 +4999,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_16
+      security: *ref_17
   /notifications/{id}/unclear:
     post:
       operationId: unclear
@@ -4749,8 +5051,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_16
+      security: *ref_17
   /notifications/{id}/snooze:
     post:
       operationId: snooze
@@ -4807,8 +5109,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_16
+      security: *ref_17
   /notifications/{id}/unsnooze:
     post:
       operationId: unsnooze
@@ -4859,8 +5161,64 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_14
-      security: *ref_15
+      tags: *ref_16
+      security: *ref_17
+  /notifications/{id}/resolve:
+    post:
+      operationId: resolve
+      summary: Resolve an actionable notification (accept or reject)
+      description: >-
+        Used for notifications that require user action (e.g., merge
+        suggestions). Once resolved, the notification no longer counts toward
+        pending limits.
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Notification ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notification resolved
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_16
+      security: *ref_17
   /monitoring/extraction-jobs:
     get:
       operationId: listExtractionJobs
@@ -4924,9 +5282,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourceListResponseDto'
-      tags: &ref_16
+      tags: &ref_18
         - monitoring
-      security: &ref_17
+      security: &ref_19
         - bearer: []
   /monitoring/extraction-jobs/{id}:
     get:
@@ -4947,8 +5305,8 @@ paths:
                 $ref: '#/components/schemas/ResourceDetailResponseDto'
         '404':
           description: Job not found
-      tags: *ref_16
-      security: *ref_17
+      tags: *ref_18
+      security: *ref_19
   /monitoring/extraction-jobs/{id}/logs:
     get:
       operationId: getExtractionJobLogs
@@ -5000,8 +5358,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LogEntryDto'
-      tags: *ref_16
-      security: *ref_17
+      tags: *ref_18
+      security: *ref_19
   /monitoring/extraction-jobs/{id}/llm-calls:
     get:
       operationId: getExtractionJobLLMCalls
@@ -5021,8 +5379,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LLMCallDto'
-      tags: *ref_16
-      security: *ref_17
+      tags: *ref_18
+      security: *ref_19
   /chat/conversations:
     get:
       operationId: listConversations
@@ -5073,7 +5431,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_18
+      tags: &ref_20
         - Chat
     post:
       operationId: createConversation
@@ -5097,7 +5455,7 @@ paths:
                   error:
                     code: bad-request
                     message: message required
-      tags: *ref_18
+      tags: *ref_20
   /chat/{id}:
     get:
       operationId: getConversation
@@ -5155,7 +5513,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_18
+      tags: *ref_20
     patch:
       operationId: rename
       parameters:
@@ -5192,7 +5550,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_18
+      tags: *ref_20
     delete:
       operationId: delete
       parameters:
@@ -5219,7 +5577,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_18
+      tags: *ref_20
   /chat/{id}/stream:
     get:
       operationId: streamGet
@@ -5290,7 +5648,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_18
+      tags: *ref_20
   /chat/stream:
     post:
       operationId: streamPost
@@ -5388,7 +5746,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_18
+      tags: *ref_20
   /invites/with-user:
     post:
       operationId: createWithUser
@@ -5583,9 +5941,9 @@ paths:
           description: Available integrations retrieved successfully
         '401':
           description: Unauthorized
-      tags: &ref_19
+      tags: &ref_21
         - Integrations
-      security: &ref_20
+      security: &ref_22
         - bearer: []
   /integrations:
     get:
@@ -5598,8 +5956,8 @@ paths:
           description: Integrations retrieved successfully
         '401':
           description: Unauthorized
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_21
+      security: *ref_22
     post:
       operationId: createIntegration
       summary: Create integration
@@ -5620,8 +5978,8 @@ paths:
           description: Unauthorized
         '409':
           description: Integration already exists for this project
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_21
+      security: *ref_22
   /integrations/{name}:
     get:
       operationId: getIntegration
@@ -5641,8 +5999,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_21
+      security: *ref_22
     put:
       operationId: updateIntegration
       summary: Update integration
@@ -5669,8 +6027,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_21
+      security: *ref_22
     delete:
       operationId: deleteIntegration
       summary: Delete integration
@@ -5689,8 +6047,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_21
+      security: *ref_22
   /integrations/{name}/public:
     get:
       operationId: getPublicIntegrationInfo
@@ -5710,8 +6068,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_21
+      security: *ref_22
   /integrations/{name}/test:
     post:
       operationId: testConnection
@@ -5731,8 +6089,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_21
+      security: *ref_22
   /integrations/{name}/sync/stream:
     get:
       operationId: triggerSyncStream
@@ -5748,8 +6106,8 @@ paths:
       responses:
         '200':
           description: SSE stream started
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_21
+      security: *ref_22
   /integrations/{name}/sync:
     post:
       operationId: triggerSync
@@ -5771,8 +6129,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_21
+      security: *ref_22
   /integrations/clickup/structure:
     get:
       operationId: getClickUpWorkspaceStructure
@@ -5788,8 +6146,8 @@ paths:
           description: Unauthorized
         '404':
           description: ClickUp integration not found or not configured
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_21
+      security: *ref_22
   /integrations/clickup/spaces/{spaceId}:
     get:
       operationId: getClickUpSpace
@@ -5807,8 +6165,8 @@ paths:
           description: Space details retrieved successfully
         '404':
           description: ClickUp integration not found or space not found
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_21
+      security: *ref_22
   /integrations/clickup/folders/{folderId}:
     get:
       operationId: getClickUpFolder
@@ -5826,8 +6184,8 @@ paths:
           description: Folder details retrieved successfully
         '404':
           description: ClickUp integration not found or folder not found
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_21
+      security: *ref_22
   /mcp/schema/version:
     get:
       operationId: getSchemaVersion
@@ -5864,9 +6222,9 @@ paths:
                     details:
                       missing:
                         - schema:read
-      tags: &ref_21
+      tags: &ref_23
         - MCP
-      security: &ref_22
+      security: &ref_24
         - bearer: []
   /mcp/schema/changelog:
     get:
@@ -5914,8 +6272,8 @@ paths:
                     details:
                       missing:
                         - schema:read
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_23
+      security: *ref_24
   /mcp/rpc:
     post:
       operationId: handleRpc
@@ -6083,9 +6441,9 @@ paths:
                   $ref: '#/components/schemas/OrgWithProjectsDto'
         '401':
           description: Unauthorized
-      tags: &ref_23
+      tags: &ref_25
         - user
-      security: &ref_24
+      security: &ref_26
         - bearer: []
   /user/delete-account:
     post:
@@ -6125,8 +6483,8 @@ paths:
                     type: number
         '401':
           description: Unauthorized
-      tags: *ref_23
-      security: *ref_24
+      tags: *ref_25
+      security: *ref_26
   /user/test-cleanup:
     post:
       operationId: testCleanup
@@ -6137,8 +6495,8 @@ paths:
           description: Test data cleaned up successfully
         '403':
           description: Forbidden - not a test environment or test user
-      tags: *ref_23
-      security: *ref_24
+      tags: *ref_25
+      security: *ref_26
   /chat-ui/conversations:
     get:
       operationId: getConversations
@@ -6146,7 +6504,7 @@ paths:
       responses:
         '200':
           description: List user conversations
-      tags: &ref_25
+      tags: &ref_27
         - Chat UI
   /chat-ui/conversations/{id}:
     get:
@@ -6160,7 +6518,7 @@ paths:
       responses:
         '200':
           description: Get conversation details
-      tags: *ref_25
+      tags: *ref_27
     patch:
       operationId: updateConversation
       parameters:
@@ -6172,7 +6530,7 @@ paths:
       responses:
         '200':
           description: Update conversation title
-      tags: *ref_25
+      tags: *ref_27
     delete:
       operationId: deleteConversation
       parameters:
@@ -6184,7 +6542,7 @@ paths:
       responses:
         '200':
           description: Delete conversation
-      tags: *ref_25
+      tags: *ref_27
   /chat-ui/conversations/{id}/draft:
     patch:
       operationId: updateConversationDraft
@@ -6197,7 +6555,7 @@ paths:
       responses:
         '200':
           description: Update conversation draft text
-      tags: *ref_25
+      tags: *ref_27
   /chat-ui:
     post:
       operationId: chat
@@ -6216,7 +6574,7 @@ paths:
               schema:
                 type: string
                 description: Server-sent events stream
-      tags: *ref_25
+      tags: *ref_27
   /chat-sdk/conversations:
     post:
       operationId: createConversation
@@ -6234,7 +6592,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreateConversationResponseDto'
-      tags: &ref_26
+      tags: &ref_28
         - Chat SDK
   /chat-sdk:
     post:
@@ -6254,7 +6612,7 @@ paths:
               schema:
                 type: string
                 description: Vercel AI SDK UI Message protocol stream
-      tags: *ref_26
+      tags: *ref_28
   /user-activity/record:
     post:
       operationId: recordActivity
@@ -6308,9 +6666,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_27
+      tags: &ref_29
         - User Activity
-      security: &ref_28
+      security: &ref_30
         - bearer: []
   /user-activity/recent:
     get:
@@ -6363,8 +6721,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_27
-      security: *ref_28
+      tags: *ref_29
+      security: *ref_30
     delete:
       operationId: clearAllRecentItems
       summary: Clear all recent items
@@ -6409,8 +6767,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_27
-      security: *ref_28
+      tags: *ref_29
+      security: *ref_30
   /user-activity/recent/{type}:
     get:
       operationId: getRecentItemsByType
@@ -6473,8 +6831,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_27
-      security: *ref_28
+      tags: *ref_29
+      security: *ref_30
   /user-activity/recent/{type}/{resourceId}:
     delete:
       operationId: removeRecentItem
@@ -6535,8 +6893,278 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_27
-      security: *ref_28
+      tags: *ref_29
+      security: *ref_30
+  /admin/agents:
+    get:
+      operationId: listAgents
+      summary: List all agents
+      parameters: []
+      responses:
+        '200':
+          description: List of agent configurations
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: &ref_31
+        - Agents
+      security: &ref_32
+        - bearer: []
+  /admin/agents/{id}:
+    get:
+      operationId: getAgent
+      summary: Get agent by ID
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: Agent configuration
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_31
+      security: *ref_32
+    patch:
+      operationId: updateAgent
+      summary: Update agent configuration
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                enabled:
+                  type: boolean
+                cronSchedule:
+                  type: string
+                config:
+                  type: object
+      responses:
+        '200':
+          description: Updated agent configuration
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_31
+      security: *ref_32
+  /admin/agents/{id}/runs:
+    get:
+      operationId: getAgentRuns
+      summary: Get recent runs for an agent
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: List of agent runs
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_31
+      security: *ref_32
+  /admin/agents/{id}/trigger:
+    post:
+      operationId: triggerAgent
+      summary: Trigger an immediate run of the agent
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: Agent triggered successfully
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_31
+      security: *ref_32
 info:
   title: Spec Server API
   description: >-
@@ -6997,13 +7625,13 @@ components:
           type: string
           description: Deletion status
           example: deleted
-          enum: &ref_29
+          enum: &ref_33
             - deleted
             - partial
         summary:
           type: object
           description: Summary of deleted entities
-          example: &ref_30
+          example: &ref_34
             chunks: 42
             extractionJobs: 3
             graphObjects: 15
@@ -7019,11 +7647,11 @@ components:
           type: string
           description: Deletion status
           example: deleted
-          enum: *ref_29
+          enum: *ref_33
         summary:
           type: object
           description: Summary of deleted entities
-          example: *ref_30
+          example: *ref_34
         deleted:
           type: number
           description: Number of documents successfully deleted
@@ -7128,7 +7756,7 @@ components:
           description: >-
             Chunking strategy for splitting text into chunks. Options: character
             (default), sentence, paragraph
-          enum: &ref_31
+          enum: &ref_35
             - character
             - sentence
             - paragraph
@@ -7160,7 +7788,7 @@ components:
           description: >-
             Chunking strategy for splitting text into chunks. Options: character
             (default), sentence, paragraph
-          enum: *ref_31
+          enum: *ref_35
           default: character
           example: sentence
         chunkingOptions:
@@ -8338,6 +8966,20 @@ components:
     UpdateObjectTypeDto:
       type: object
       properties: {}
+    ResolveTaskDto:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Resolution status
+          enum:
+            - accepted
+            - rejected
+        notes:
+          type: string
+          description: Optional notes about the resolution
+      required:
+        - status
     SnoozeNotificationDto:
       type: object
       properties:

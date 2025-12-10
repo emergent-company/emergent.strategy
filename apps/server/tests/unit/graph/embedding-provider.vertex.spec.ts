@@ -84,7 +84,7 @@ describe('GoogleVertexEmbeddingProvider integration modes', () => {
     const provider: any = await make();
     // Should NOT throw, but return deterministic stub instead
     const result = await provider.generate('hello');
-    expect(Buffer.isBuffer(result)).toBe(true);
+    expect(Array.isArray(result)).toBe(true);
     expect(result.length).toBeGreaterThan(0);
   });
 
@@ -95,7 +95,7 @@ describe('GoogleVertexEmbeddingProvider integration modes', () => {
     const provider: any = await make();
     const a = await provider.generate('hello world');
     const b = await provider.generate('hello world');
-    expect(a.equals(b)).toBe(true); // deterministic
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b)); // deterministic
   });
 
   it('falls back on HTTP error but stays deterministic', async () => {
@@ -121,10 +121,10 @@ describe('GoogleVertexEmbeddingProvider integration modes', () => {
     const provider: any = await make();
     const a = await provider.generate('x');
     const b = await provider.generate('x');
-    expect(a.equals(b)).toBe(true);
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
-  it('converts remote vector to Buffer when successful', async () => {
+  it('returns number array when successful', async () => {
     process.env.EMBEDDING_PROVIDER = 'vertex';
     process.env.GOOGLE_API_KEY = 'k';
     process.env.VERTEX_EMBEDDING_PROJECT = 'test-project';
@@ -150,8 +150,9 @@ describe('GoogleVertexEmbeddingProvider integration modes', () => {
       }),
     });
     const provider: any = await make();
-    const buf = await provider.generate('abc');
-    expect(Buffer.isBuffer(buf)).toBe(true);
-    expect(buf.byteLength).toBe(new Float32Array([0.1, 0.2, 0.3]).byteLength);
+    const result = await provider.generate('abc');
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBe(3);
+    expect(result).toEqual([0.1, 0.2, 0.3]);
   });
 });

@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { AppConfigService } from '../../common/config/config.service';
+import { LangfuseService } from '../langfuse/langfuse.service';
 
 // Embedding vector dimension (Gemini text-embedding-004)
 export const EMBEDDING_DIMENSION = 768;
@@ -9,12 +10,30 @@ type EmbeddingClient = {
   embedDocuments(texts: string[]): Promise<number[][]>;
 };
 
+/**
+ * Tracing context for embedding operations.
+ * Similar to TracingContext used in LLM operations.
+ */
+export interface EmbeddingTracingContext {
+  /** Parent trace ID (e.g., from extraction job) */
+  traceId?: string;
+  /** Parent observation/span ID for nesting */
+  parentObservationId?: string;
+  /** Custom name for the span */
+  spanName?: string;
+  /** Additional metadata to attach to the trace */
+  metadata?: Record<string, any>;
+}
+
 @Injectable()
 export class EmbeddingsService {
   private client: EmbeddingClient | null = null;
   private readonly logger = new Logger(EmbeddingsService.name);
 
-  constructor(private readonly config: AppConfigService) {}
+  constructor(
+    private readonly config: AppConfigService,
+    @Optional() private readonly langfuseService?: LangfuseService
+  ) {}
 
   isEnabled(): boolean {
     return this.config.embeddingsEnabled;
@@ -169,13 +188,208 @@ export class EmbeddingsService {
     }) as EmbeddingClient;
   }
 
-  async embedQuery(text: string): Promise<number[]> {
-    const client = await this.ensureClient();
-    return client.embedQuery(text);
+  /**
+   * Generate embedding for a single query text.
+   *
+   * @param text - The text to embed
+   * @param tracing - Optional tracing context for Langfuse observability
+   */
+  async embedQuery(
+    text: string,
+    tracing?: EmbeddingTracingContext
+  ): Promise<number[]> {
+    const startTime = Date.now();
+    const spanName = tracing?.spanName || 'embed_query';
+    const inputChars = text.length;
+
+    // Create Langfuse span if tracing is enabled
+    const span =
+      this.langfuseService && tracing?.traceId
+        ? this.langfuseService.createSpan(
+            tracing.traceId,
+            spanName,
+            {
+              input_chars: inputChars,
+              input_preview: text.slice(0, 200),
+            },
+            {
+              ...tracing.metadata,
+              model: 'text-embedding-004',
+              operation: 'embed_query',
+            }
+          )
+        : null;
+
+    try {
+      const client = await this.ensureClient();
+      const result = await client.embedQuery(text);
+      const durationMs = Date.now() - startTime;
+
+      // End span with success
+      if (span && this.langfuseService) {
+        this.langfuseService.endSpan(
+          span,
+          {
+            dimensions: result.length,
+            duration_ms: durationMs,
+          },
+          'success'
+        );
+      }
+
+      this.logger.debug(
+        `[embedQuery] Generated ${result.length}-dim embedding in ${durationMs}ms (${inputChars} chars)`
+      );
+
+      return result;
+    } catch (error) {
+      const durationMs = Date.now() - startTime;
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      // End span with error
+      if (span && this.langfuseService) {
+        this.langfuseService.endSpan(
+          span,
+          { error: errorMessage, duration_ms: durationMs },
+          'error',
+          errorMessage
+        );
+      }
+
+      this.logger.error(
+        `[embedQuery] Failed after ${durationMs}ms: ${errorMessage}`
+      );
+      throw error;
+    }
   }
 
-  async embedDocuments(texts: string[]): Promise<number[][]> {
-    const client = await this.ensureClient();
-    return client.embedDocuments(texts);
+  /**
+   * Generate embeddings for multiple documents in batch.
+   *
+   * @param texts - Array of texts to embed
+   * @param tracing - Optional tracing context for Langfuse observability
+   */
+  async embedDocuments(
+    texts: string[],
+    tracing?: EmbeddingTracingContext
+  ): Promise<number[][]> {
+    const startTime = Date.now();
+    const spanName = tracing?.spanName || 'embed_documents';
+    const totalChars = texts.reduce((sum, t) => sum + t.length, 0);
+
+    // Create Langfuse span if tracing is enabled
+    const span =
+      this.langfuseService && tracing?.traceId
+        ? this.langfuseService.createSpan(
+            tracing.traceId,
+            spanName,
+            {
+              document_count: texts.length,
+              total_chars: totalChars,
+              avg_chars:
+                texts.length > 0 ? Math.round(totalChars / texts.length) : 0,
+            },
+            {
+              ...tracing.metadata,
+              model: 'text-embedding-004',
+              operation: 'embed_documents',
+            }
+          )
+        : null;
+
+    try {
+      const client = await this.ensureClient();
+      const result = await client.embedDocuments(texts);
+      const durationMs = Date.now() - startTime;
+
+      // End span with success
+      if (span && this.langfuseService) {
+        this.langfuseService.endSpan(
+          span,
+          {
+            vectors_generated: result.length,
+            dimensions: result[0]?.length || 0,
+            duration_ms: durationMs,
+            ms_per_document:
+              texts.length > 0 ? Math.round(durationMs / texts.length) : 0,
+          },
+          'success'
+        );
+      }
+
+      this.logger.debug(
+        `[embedDocuments] Generated ${result.length} embeddings (${
+          result[0]?.length || 0
+        } dims) ` +
+          `in ${durationMs}ms (${texts.length} docs, ${totalChars} chars)`
+      );
+
+      return result;
+    } catch (error) {
+      const durationMs = Date.now() - startTime;
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      // End span with error
+      if (span && this.langfuseService) {
+        this.langfuseService.endSpan(
+          span,
+          {
+            error: errorMessage,
+            duration_ms: durationMs,
+            attempted_documents: texts.length,
+          },
+          'error',
+          errorMessage
+        );
+      }
+
+      this.logger.error(
+        `[embedDocuments] Failed after ${durationMs}ms for ${texts.length} docs: ${errorMessage}`
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new embedding job trace for standalone embedding operations.
+   * Use this when generating embeddings outside of an extraction job context.
+   *
+   * @param jobId - Unique identifier for the embedding job
+   * @param metadata - Additional metadata for the trace
+   * @returns Trace ID or null if Langfuse is not enabled
+   */
+  createEmbeddingJobTrace(
+    jobId: string,
+    metadata?: Record<string, any>
+  ): string | null {
+    if (!this.langfuseService) {
+      return null;
+    }
+
+    return this.langfuseService.createJobTrace(jobId, {
+      name: `Embedding Job ${jobId}`,
+      ...metadata,
+    });
+  }
+
+  /**
+   * Finalize an embedding job trace.
+   *
+   * @param traceId - The trace ID to finalize
+   * @param status - Success or error status
+   * @param output - Output data to attach to the trace
+   */
+  async finalizeEmbeddingJobTrace(
+    traceId: string,
+    status: 'success' | 'error',
+    output?: Record<string, any>
+  ): Promise<void> {
+    if (!this.langfuseService) {
+      return;
+    }
+
+    await this.langfuseService.finalizeTrace(traceId, status, output);
   }
 }

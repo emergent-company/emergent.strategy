@@ -16,6 +16,7 @@ import { DatabaseService } from '../../common/database/database.service';
 import { AppConfigService } from '../../common/config/config.service';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 import { Chunk } from '../../entities/chunk.entity';
+import { LangfuseService } from '../langfuse/langfuse.service';
 
 /**
  * ChunkEmbeddingWorkerService
@@ -50,7 +51,9 @@ export class ChunkEmbeddingWorkerService
     private readonly config?: AppConfigService,
     @Optional()
     @Inject(EmbeddingsService)
-    private readonly embeddings?: EmbeddingsService
+    private readonly embeddings?: EmbeddingsService,
+    @Optional()
+    private readonly langfuseService?: LangfuseService
   ) {}
 
   onModuleInit() {
@@ -159,7 +162,23 @@ export class ChunkEmbeddingWorkerService
     this.logger.debug(`Processing ${batch.length} chunk embedding jobs`);
 
     for (const job of batch) {
+      const startTime = Date.now();
+
+      // Create a trace for this chunk embedding job
+      const traceId = this.langfuseService?.createJobTrace(job.id, {
+        name: `Chunk Embedding ${job.id}`,
+        chunk_id: job.chunk_id,
+        job_type: 'chunk_embedding',
+      });
+
       try {
+        // Create span for fetching chunk
+        const fetchSpan = traceId
+          ? this.langfuseService?.createSpan(traceId, 'fetch_chunk', {
+              chunk_id: job.chunk_id,
+            })
+          : null;
+
         // Fetch chunk text
         const chunk = await this.chunkRepo.findOne({
           where: { id: job.chunk_id },
@@ -167,34 +186,124 @@ export class ChunkEmbeddingWorkerService
         });
 
         if (!chunk) {
+          if (fetchSpan) {
+            this.langfuseService?.endSpan(
+              fetchSpan,
+              { error: 'chunk_missing' },
+              'error'
+            );
+          }
           await this.jobs.markFailed(job.id, new Error('chunk_missing'), 5);
+          if (traceId) {
+            await this.langfuseService?.finalizeTrace(traceId, 'error', {
+              error: 'chunk_missing',
+            });
+          }
           this.processedCount++;
           this.failureCount++;
           continue;
         }
 
         if (!chunk.text?.trim()) {
+          if (fetchSpan) {
+            this.langfuseService?.endSpan(
+              fetchSpan,
+              { error: 'chunk_empty' },
+              'error'
+            );
+          }
           await this.jobs.markFailed(job.id, new Error('chunk_empty'), 5);
+          if (traceId) {
+            await this.langfuseService?.finalizeTrace(traceId, 'error', {
+              error: 'chunk_empty',
+            });
+          }
           this.processedCount++;
           this.failureCount++;
           continue;
         }
 
+        const textLength = chunk.text.length;
+
+        if (fetchSpan) {
+          this.langfuseService?.endSpan(
+            fetchSpan,
+            {
+              text_length: textLength,
+              text_preview: chunk.text.slice(0, 200),
+            },
+            'success'
+          );
+        }
+
+        // Create span for embedding generation
+        const embedSpan = traceId
+          ? this.langfuseService?.createSpan(
+              traceId,
+              'generate_embedding',
+              {
+                text_length: textLength,
+                provider: 'vertex',
+              },
+              {
+                model: 'text-embedding-004',
+                operation: 'chunk_embedding',
+              }
+            )
+          : null;
+
+        const embeddingStartTime = Date.now();
+
         // Generate embedding
         const embeddings = await this.embeddings.embedDocuments([chunk.text]);
+        const embeddingDurationMs = Date.now() - embeddingStartTime;
 
         if (!embeddings.length || !embeddings[0]?.length) {
+          if (embedSpan) {
+            this.langfuseService?.endSpan(
+              embedSpan,
+              {
+                error: 'embedding_generation_failed',
+                duration_ms: embeddingDurationMs,
+              },
+              'error'
+            );
+          }
           await this.jobs.markFailed(
             job.id,
             new Error('embedding_generation_failed'),
             60
           );
+          if (traceId) {
+            await this.langfuseService?.finalizeTrace(traceId, 'error', {
+              error: 'embedding_generation_failed',
+            });
+          }
           this.processedCount++;
           this.failureCount++;
           continue;
         }
 
         const embedding = embeddings[0];
+
+        if (embedSpan) {
+          this.langfuseService?.endSpan(
+            embedSpan,
+            {
+              dimensions: embedding.length,
+              duration_ms: embeddingDurationMs,
+            },
+            'success'
+          );
+        }
+
+        // Create span for database update
+        const updateSpan = traceId
+          ? this.langfuseService?.createSpan(traceId, 'update_embedding', {
+              chunk_id: chunk.id,
+              dimensions: embedding.length,
+            })
+          : null;
 
         // Update chunk with embedding using raw SQL (vector type)
         const vecLiteral =
@@ -209,18 +318,49 @@ export class ChunkEmbeddingWorkerService
           [chunk.id, vecLiteral]
         );
 
+        if (updateSpan) {
+          this.langfuseService?.endSpan(
+            updateSpan,
+            { success: true },
+            'success'
+          );
+        }
+
         await this.jobs.markCompleted(job.id);
+
+        const totalDurationMs = Date.now() - startTime;
+
+        // Finalize trace with success
+        if (traceId) {
+          await this.langfuseService?.finalizeTrace(traceId, 'success', {
+            chunk_id: chunk.id,
+            text_length: textLength,
+            embedding_dimensions: embedding.length,
+            duration_ms: totalDurationMs,
+          });
+        }
+
         this.processedCount++;
         this.successCount++;
 
         this.logger.debug(
-          `Generated embedding for chunk ${chunk.id} (${embedding.length} dimensions)`
+          `Generated embedding for chunk ${chunk.id}: ` +
+            `${embedding.length} dims, ${textLength} chars, ${totalDurationMs}ms`
         );
       } catch (err) {
+        const totalDurationMs = Date.now() - startTime;
+        const errorMessage = err instanceof Error ? err.message : String(err);
+
+        // Finalize trace with error
+        if (traceId) {
+          await this.langfuseService?.finalizeTrace(traceId, 'error', {
+            error: errorMessage,
+            duration_ms: totalDurationMs,
+          });
+        }
+
         this.logger.warn(
-          `Failed to process chunk embedding job ${job.id}: ${
-            (err as Error).message
-          }`
+          `Failed to process chunk embedding job ${job.id}: ${errorMessage}`
         );
         await this.jobs.markFailed(job.id, err as Error);
         this.processedCount++;

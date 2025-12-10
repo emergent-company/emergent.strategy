@@ -79,9 +79,16 @@ describe('TypeRegistryService', () => {
       createQueryBuilder: vi.fn(),
     };
 
-    // Create mock DataSource (declare outside for accessibility)
+    // Create mock DataSource - needs to handle both org lookup and main queries
     mockDataSource = {
-      query: mockDb.query, // Share the same query mock for consistency
+      query: vi.fn().mockImplementation((sql: string, params: any[]) => {
+        // Handle org lookup query
+        if (sql.includes('SELECT organization_id FROM kb.projects')) {
+          return Promise.resolve([{ organization_id: mockOrgId }]);
+        }
+        // Default to mockDb.query for other queries
+        return mockDb.query(sql, params);
+      }),
       createQueryRunner: vi.fn(),
     };
 
@@ -135,11 +142,7 @@ describe('TypeRegistryService', () => {
 
       mockDb.query.mockResolvedValue(mockTypes);
 
-      const result = await service.getProjectTypes(
-        mockProjectId,
-        mockOrgId,
-        {}
-      );
+      const result = await service.getProjectTypes(mockProjectId, {});
 
       expect(result).toHaveLength(2);
       expect(result[0].type).toBe('Application');
@@ -153,7 +156,7 @@ describe('TypeRegistryService', () => {
     it('should filter by enabled types only', async () => {
       mockDb.query.mockResolvedValue([mockTypeRow]);
 
-      await service.getProjectTypes(mockProjectId, mockOrgId, {
+      await service.getProjectTypes(mockProjectId, {
         enabled_only: true,
       });
 
@@ -166,7 +169,7 @@ describe('TypeRegistryService', () => {
     it('should filter by source type', async () => {
       mockDb.query.mockResolvedValue([mockTypeRow]);
 
-      await service.getProjectTypes(mockProjectId, mockOrgId, {
+      await service.getProjectTypes(mockProjectId, {
         source: 'custom',
       });
 
@@ -186,11 +189,7 @@ describe('TypeRegistryService', () => {
       };
       mockDb.query.mockResolvedValue([mockWithCounts]);
 
-      const result = await service.getTypeByName(
-        mockProjectId,
-        mockOrgId,
-        'Application'
-      );
+      const result = await service.getTypeByName(mockProjectId, 'Application');
 
       expect(result.type).toBe('Application');
       expect(result.object_count).toBe('5');
@@ -204,7 +203,7 @@ describe('TypeRegistryService', () => {
       mockDb.query.mockResolvedValue([]);
 
       await expect(
-        service.getTypeByName(mockProjectId, mockOrgId, 'NonExistent')
+        service.getTypeByName(mockProjectId, 'NonExistent')
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -320,7 +319,6 @@ describe('TypeRegistryService', () => {
 
       const result = await service.updateType(
         mockProjectId,
-        mockOrgId,
         'Application',
         updateDto
       );
@@ -342,7 +340,7 @@ describe('TypeRegistryService', () => {
       } as any);
 
       await expect(
-        service.updateType(mockProjectId, mockOrgId, 'Application', updateDto)
+        service.updateType(mockProjectId, 'Application', updateDto)
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -355,7 +353,7 @@ describe('TypeRegistryService', () => {
       const toggleDto: UpdateObjectTypeDto = { enabled: false };
 
       await expect(
-        service.updateType(mockProjectId, mockOrgId, 'Application', toggleDto)
+        service.updateType(mockProjectId, 'Application', toggleDto)
       ).resolves.toBeDefined();
     });
 
@@ -365,7 +363,7 @@ describe('TypeRegistryService', () => {
       );
 
       await expect(
-        service.updateType(mockProjectId, mockOrgId, 'NonExistent', updateDto)
+        service.updateType(mockProjectId, 'NonExistent', updateDto)
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -379,7 +377,7 @@ describe('TypeRegistryService', () => {
       } as any);
       mockRepository.delete.mockResolvedValue({ affected: 1, raw: [] });
 
-      await service.deleteType(mockProjectId, mockOrgId, 'Application');
+      await service.deleteType(mockProjectId, 'Application');
 
       expect(mockRepository.delete).toHaveBeenCalledWith({
         projectId: mockProjectId,
@@ -394,7 +392,7 @@ describe('TypeRegistryService', () => {
       } as any);
 
       await expect(
-        service.deleteType(mockProjectId, mockOrgId, 'Application')
+        service.deleteType(mockProjectId, 'Application')
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -406,7 +404,7 @@ describe('TypeRegistryService', () => {
       } as any);
 
       await expect(
-        service.deleteType(mockProjectId, mockOrgId, 'Application')
+        service.deleteType(mockProjectId, 'Application')
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -426,7 +424,6 @@ describe('TypeRegistryService', () => {
 
       const result = await service.validateObjectData(
         mockProjectId,
-        mockOrgId,
         validateDto
       );
 
@@ -447,7 +444,6 @@ describe('TypeRegistryService', () => {
 
       const result = await service.validateObjectData(
         mockProjectId,
-        mockOrgId,
         invalidDto
       );
 
@@ -463,7 +459,7 @@ describe('TypeRegistryService', () => {
       } as any);
 
       await expect(
-        service.validateObjectData(mockProjectId, mockOrgId, validateDto)
+        service.validateObjectData(mockProjectId, validateDto)
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -475,7 +471,6 @@ describe('TypeRegistryService', () => {
 
       const result = await service.validateObjectData(
         mockProjectId,
-        mockOrgId,
         validateDto
       );
 
@@ -487,11 +482,7 @@ describe('TypeRegistryService', () => {
     it('should return JSON Schema for a type', async () => {
       vi.spyOn(service, 'getTypeByName').mockResolvedValue(mockTypeRow as any);
 
-      const schema = await service.getTypeSchema(
-        mockProjectId,
-        mockOrgId,
-        'Application'
-      );
+      const schema = await service.getTypeSchema(mockProjectId, 'Application');
 
       expect(schema).toEqual({
         type: mockTypeRow.type,
@@ -514,7 +505,6 @@ describe('TypeRegistryService', () => {
 
       const result = await service.toggleType(
         mockProjectId,
-        mockOrgId,
         'Application',
         true
       );
@@ -533,7 +523,6 @@ describe('TypeRegistryService', () => {
 
       const result = await service.toggleType(
         mockProjectId,
-        mockOrgId,
         'Application',
         false
       );
@@ -556,7 +545,7 @@ describe('TypeRegistryService', () => {
 
       mockDb.query.mockResolvedValue([mockStats]);
 
-      const result = await service.getTypeStatistics(mockProjectId, mockOrgId);
+      const result = await service.getTypeStatistics(mockProjectId);
 
       expect(result.total_types).toBe(10);
       expect(result.enabled_types).toBe(8);

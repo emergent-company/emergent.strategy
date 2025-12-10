@@ -217,4 +217,24 @@ export class NotificationsController {
     await this.notificationsService.unsnooze(id, userId);
     return { success: true };
   }
+
+  @Post(':id/resolve')
+  @ApiOperation({
+    summary: 'Resolve an actionable notification (accept or reject)',
+    description:
+      'Used for notifications that require user action (e.g., merge suggestions). Once resolved, the notification no longer counts toward pending limits.',
+  })
+  @ApiParam({ name: 'id', description: 'Notification ID' })
+  @ApiOkResponse({ description: 'Notification resolved' })
+  @ApiStandardErrors()
+  @Scopes('notifications:write')
+  async resolve(
+    @Req() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { status: 'accepted' | 'rejected' }
+  ) {
+    const userId = req.user?.id;
+    await this.notificationsService.resolve(id, userId, body.status);
+    return { success: true };
+  }
 }

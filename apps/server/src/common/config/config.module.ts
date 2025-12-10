@@ -58,6 +58,35 @@ import { EnvVariables, validate } from './config.schema';
     // eslint-disable-next-line no-console
     console.log('[config] Loaded env files (in order):', loaded.join(', '));
   }
+
+  // Resolve relative GOOGLE_APPLICATION_CREDENTIALS paths to absolute
+  // This fixes issues when running CLI scripts from monorepo root where
+  // the .env file contains paths relative to apps/server/
+  const gcpCreds = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (gcpCreds && !path.isAbsolute(gcpCreds)) {
+    // Try to resolve relative to monorepo root first
+    const fromRoot = path.resolve(cwd, gcpCreds);
+    // Also try from apps/server (where the .env file likely lives)
+    const fromAppServer = path.resolve(cwd, 'apps', 'server', gcpCreds);
+
+    if (fs.existsSync(fromRoot)) {
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = fromRoot;
+      console.log(
+        `[config] Resolved GOOGLE_APPLICATION_CREDENTIALS to: ${fromRoot}`
+      );
+    } else if (fs.existsSync(fromAppServer)) {
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = fromAppServer;
+      console.log(
+        `[config] Resolved GOOGLE_APPLICATION_CREDENTIALS to: ${fromAppServer}`
+      );
+    } else {
+      console.warn(
+        `[config] Warning: GOOGLE_APPLICATION_CREDENTIALS path not found: ${gcpCreds}`
+      );
+      console.warn(`[config]   Tried: ${fromRoot}`);
+      console.warn(`[config]   Tried: ${fromAppServer}`);
+    }
+  }
 })();
 
 const envProvider = {

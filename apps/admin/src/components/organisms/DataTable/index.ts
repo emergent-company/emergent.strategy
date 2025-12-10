@@ -4,12 +4,14 @@
 
 export { DataTable } from './DataTable';
 export type {
-    TableDataItem,
-    ColumnDef,
-    FilterConfig,
-    FilterOption,
-    BulkAction,
-    RowAction,
-    DataTableProps,
-    SortConfig,
+  TableDataItem,
+  ColumnDef,
+  FilterConfig,
+  FilterOption,
+  BulkAction,
+  RowAction,
+  DataTableProps,
+  SortConfig,
+  SelectionMode,
+  SelectionContext,
 } from './types';

@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Set credentials
-const credPath = path.resolve(__dirname, '..', 'spec-server-dev-vertex-ai.json');
+const credPath = path.resolve(__dirname, '..', '..', 'spec-server-dev-vertex-ai.json');
 process.env.GOOGLE_APPLICATION_CREDENTIALS = credPath;
 
 // Configuration

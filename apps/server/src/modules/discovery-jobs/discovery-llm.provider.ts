@@ -51,7 +51,7 @@ export class DiscoveryLLMProvider {
         },
         location: location,
         temperature: 0, // Deterministic for discovery
-        maxOutputTokens: 65536, // Set to maximum to avoid truncation (was 8192)
+        maxOutputTokens: 65535, // Set to maximum (exclusive limit is 65536)
       });
 
       this.logger.log(`Discovery Vertex AI initialized: model=${modelName}`);

@@ -156,6 +156,25 @@ export class AppConfigService {
     return this.env.VERTEX_AI_MODEL;
   }
 
+  // --- Google AI Studio (API Key auth) ---
+  get googleApiKey(): string | undefined {
+    return this.env.GOOGLE_API_KEY;
+  }
+  get googleAiModel(): string {
+    return this.env.GOOGLE_AI_MODEL || 'gemini-2.5-flash';
+  }
+  get googleAiStudioEnabled(): boolean {
+    return !!this.env.GOOGLE_API_KEY;
+  }
+
+  get extractionMethod(): 'responseSchema' | 'function_calling' {
+    const method = this.env.EXTRACTION_METHOD;
+    if (method === 'function_calling') {
+      return 'function_calling';
+    }
+    return 'responseSchema'; // default
+  }
+
   // --- Extraction Worker Behavior ---
   get extractionWorkerEnabled() {
     // Enable if Vertex AI is configured
@@ -201,6 +220,30 @@ export class AppConfigService {
 
   get extractionChunkOverlap() {
     return this.env.EXTRACTION_CHUNK_OVERLAP || 2000;
+  }
+
+  /**
+   * Extraction pipeline mode:
+   * - 'single_pass' (default): Use existing LangChainGeminiProvider
+   * - 'langgraph': Use new LangGraph multi-node pipeline
+   */
+  get extractionPipelineMode(): 'single_pass' | 'langgraph' {
+    const mode = this.env.EXTRACTION_PIPELINE_MODE || 'single_pass';
+    return mode === 'langgraph' ? 'langgraph' : 'single_pass';
+  }
+
+  /**
+   * Maximum retry attempts for LangGraph orphan recovery loop
+   */
+  get langgraphMaxRetries(): number {
+    return this.env.LANGGRAPH_MAX_RETRIES || 3;
+  }
+
+  /**
+   * Maximum percentage of orphan entities before triggering retry (0.0-1.0)
+   */
+  get langgraphOrphanThreshold(): number {
+    return this.env.LANGGRAPH_ORPHAN_THRESHOLD || 0.1;
   }
 
   get llmCallTimeoutMs() {
@@ -271,5 +314,23 @@ export class AppConfigService {
 
   get langfuseFlushInterval(): number | undefined {
     return this.env.LANGFUSE_FLUSH_INTERVAL;
+  }
+
+  // --- LangFuse Prompt Management ---
+
+  /**
+   * Cache TTL for Langfuse prompts in seconds.
+   * Defaults to 60 seconds. Set to 0 to disable caching.
+   */
+  get langfusePromptCacheTtl(): number {
+    return this.env.LANGFUSE_PROMPT_CACHE_TTL ?? 60;
+  }
+
+  /**
+   * Default label to use when fetching prompts from Langfuse.
+   * Typically 'production' for prod environments, 'staging' or 'latest' for dev.
+   */
+  get langfusePromptLabel(): string {
+    return this.env.LANGFUSE_PROMPT_LABEL ?? 'production';
   }
 }

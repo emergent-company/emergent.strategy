@@ -105,7 +105,6 @@ describe('GraphService - Type Registry Validation Integration', () => {
 
       expect(mockTypeRegistry.validateObjectData).toHaveBeenCalledWith(
         mockProjectId,
-        mockOrgId,
         {
           type: 'Application',
           properties: validCreateDto.properties,
@@ -272,7 +271,6 @@ describe('GraphService - Type Registry Validation Integration', () => {
 
       expect(mockTypeRegistry.validateObjectData).toHaveBeenCalledWith(
         mockProjectId,
-        mockOrgId,
         {
           type: 'Application',
           properties: {

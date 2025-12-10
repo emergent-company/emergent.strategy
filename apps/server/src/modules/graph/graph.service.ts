@@ -5,6 +5,7 @@ import {
   Inject,
   Optional,
   Logger,
+  forwardRef,
 } from '@nestjs/common';
 import { createHash } from 'crypto';
 import {
@@ -43,6 +44,7 @@ import { evaluatePredicates } from './predicate-evaluator';
 import { buildTemporalFilterClause } from './temporal-filter.util';
 import { pruneGraphResult, FieldStrategy } from './utils/field-pruning.util';
 import { GraphVectorSearchService } from './graph-vector-search.service';
+import { TasksService } from '../tasks/tasks.service';
 
 type GraphTenantContext = {
   orgId?: string | null;
@@ -131,7 +133,10 @@ export class GraphService {
     private readonly config?: AppConfigService,
     @Optional()
     @Inject(GraphVectorSearchService)
-    private readonly vectorSearch?: GraphVectorSearchService
+    private readonly vectorSearch?: GraphVectorSearchService,
+    @Optional()
+    @Inject(forwardRef(() => TasksService))
+    private readonly tasksService?: TasksService
   ) {}
 
   private sortObject(value: any): any {
@@ -396,10 +401,13 @@ export class GraphService {
               [`obj|${project_id}|${type}|${key}`]
             );
             // Head = max(version) for (project_id,type,key)
+            // Check for existing non-deleted object with same key
+            // IMPORTANT: Must filter by deleted_at IS NULL to allow re-creating soft-deleted entities
             const existing = await client.query<GraphObjectRow>(
               `SELECT id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, created_at
                          FROM kb.graph_objects
                          WHERE project_id IS NOT DISTINCT FROM $1 AND branch_id IS NOT DISTINCT FROM $2 AND type=$3 AND KEY=$4
+                           AND deleted_at IS NULL
                          ORDER BY version DESC
                          LIMIT 1`,
               [project_id, branch_id, type, key]
@@ -423,8 +431,8 @@ export class GraphService {
           // string as a later parameter ($10) that is explicitly text.
           const ftsVectorSql = `to_tsvector('simple', coalesce($1,'') || ' ' || coalesce($2,'') || ' ' || coalesce($9,'') )`;
           const row = await client.query<GraphObjectRow>(
-            `INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, project_id, branch_id, change_summary, content_hash, fts, embedding, embedding_updated_at)
-                     VALUES ($1,$2,$10,$3,$4,1,gen_random_uuid(),$5,$6,$7,$8, ${ftsVectorSql}, NULL, NULL)
+            `INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, project_id, branch_id, change_summary, content_hash, fts, embedding_updated_at)
+                     VALUES ($1,$2,$10,$3,$4,1,gen_random_uuid(),$5,$6,$7,$8, ${ftsVectorSql}, NULL)
                      RETURNING id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
             [
               type,
@@ -752,8 +760,8 @@ export class GraphService {
         // IMPORTANT: Keep serialized properties text parameter separate from JSONB properties to avoid type inference conflicts.
         const ftsVectorSql = `to_tsvector('simple', coalesce($12,'') || ' ' || coalesce($13,'') || ' ' || coalesce($14,'') )`;
         const inserted = await client.query<GraphObjectRow>(
-          `INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, supersedes_id, project_id, branch_id, deleted_at, change_summary, content_hash, fts, embedding, embedding_updated_at)
-                     VALUES ($1,$2,$15,$3,$4,$5,$6,$7,$8,$9,NULL,$10,$11, ${ftsVectorSql}, NULL, NULL)
+          `INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, supersedes_id, project_id, branch_id, deleted_at, change_summary, content_hash, fts, embedding_updated_at)
+                     VALUES ($1,$2,$15,$3,$4,$5,$6,$7,$8,$9,NULL,$10,$11, ${ftsVectorSql}, NULL)
                      RETURNING id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
           [
             current.type,
@@ -1165,24 +1173,36 @@ export class GraphService {
           'SELECT pg_advisory_xact_lock(hashtext($1)::bigint)',
           [`obj|${current.canonical_id}`]
         );
+        // Get the head version (most recent by created_at to handle duplicate versions)
         const head = await client.query<GraphObjectRow>(
-          `SELECT * FROM kb.graph_objects WHERE canonical_id=$1 ORDER BY version DESC LIMIT 1`,
+          `SELECT * FROM kb.graph_objects WHERE canonical_id=$1 ORDER BY version DESC, created_at DESC LIMIT 1`,
           [current.canonical_id]
         );
         if (!head.rowCount) throw new NotFoundException('object_not_found');
         if (head.rows[0].deleted_at)
           throw new BadRequestException('already_deleted');
+        // Get the true maximum version to ensure we create a unique new version
+        const maxVersionRes = await client.query<{ max_version: number }>(
+          `SELECT COALESCE(MAX(version), 0) as max_version FROM kb.graph_objects WHERE canonical_id=$1`,
+          [current.canonical_id]
+        );
+        const newVersion = maxVersionRes.rows[0].max_version + 1;
+        // Mark current head version as superseded by setting deleted_at
+        await client.query(
+          `UPDATE kb.graph_objects SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL`,
+          [head.rows[0].id]
+        );
         const ftsVectorSql = `to_tsvector('simple', coalesce($9,'') || ' ' || coalesce($10,'') || ' ' || coalesce($11,'') )`;
         const tombstone = await client.query<GraphObjectRow>(
-          `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, project_id, deleted_at, fts, embedding, embedding_updated_at)
-                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_TIMESTAMP, ${ftsVectorSql}, NULL, NULL)
+          `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, supersedes_id, project_id, deleted_at, fts, embedding_updated_at)
+                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_TIMESTAMP, ${ftsVectorSql}, NULL)
                      RETURNING id, project_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, fts, created_at`,
           [
             head.rows[0].type,
             head.rows[0].key,
             head.rows[0].properties,
             head.rows[0].labels,
-            head.rows[0].version + 1,
+            newVersion,
             head.rows[0].canonical_id,
             head.rows[0].id,
             (head.rows[0] as any).project_id ?? null,
@@ -1192,6 +1212,20 @@ export class GraphService {
           ]
         );
         await client.query('COMMIT');
+
+        // Cancel any pending merge tasks that reference this object
+        // Use canonical_id since tasks reference the logical object, not specific versions
+        if (this.tasksService) {
+          const canonicalId = tombstone.rows[0].canonical_id;
+          this.tasksService
+            .cancelTasksForDeletedObject(canonicalId)
+            .catch((err) => {
+              this.logger.warn(
+                `Failed to cancel tasks for deleted object ${canonicalId}: ${err.message}`
+              );
+            });
+        }
+
         return tombstone.rows[0];
       } catch (e) {
         try {
@@ -1225,19 +1259,26 @@ export class GraphService {
           'SELECT pg_advisory_xact_lock(hashtext($1)::bigint)',
           [`obj|${canonicalId}`]
         );
+        // Get head version (most recent by created_at to handle duplicate versions)
         const head = await client.query<GraphObjectRow>(
-          `SELECT * FROM kb.graph_objects WHERE canonical_id=$1 ORDER BY version DESC LIMIT 1`,
+          `SELECT * FROM kb.graph_objects WHERE canonical_id=$1 ORDER BY version DESC, created_at DESC LIMIT 1`,
           [canonicalId]
         );
         if (!head.rowCount) throw new NotFoundException('object_not_found');
         if (!head.rows[0].deleted_at)
           throw new BadRequestException('not_deleted');
         const prevLive = await client.query<GraphObjectRow>(
-          `SELECT * FROM kb.graph_objects WHERE canonical_id=$1 AND deleted_at IS NULL ORDER BY version DESC LIMIT 1`,
+          `SELECT * FROM kb.graph_objects WHERE canonical_id=$1 AND deleted_at IS NULL ORDER BY version DESC, created_at DESC LIMIT 1`,
           [canonicalId]
         );
         if (!prevLive.rowCount)
           throw new BadRequestException('no_prior_live_version');
+        // Get the true maximum version to ensure we create a unique new version
+        const maxVersionRes = await client.query<{ max_version: number }>(
+          `SELECT COALESCE(MAX(version), 0) as max_version FROM kb.graph_objects WHERE canonical_id=$1`,
+          [canonicalId]
+        );
+        const newVersion = maxVersionRes.rows[0].max_version + 1;
         // Mark previous live version as superseded to prevent unique constraint violations
         await client.query(
           `UPDATE kb.graph_objects SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL`,
@@ -1247,15 +1288,15 @@ export class GraphService {
         // FTS parameters use positions at end of array (after branch_id)
         const ftsVectorSql = `to_tsvector('simple', coalesce($9,'') || ' ' || coalesce($10,'') || ' ' || coalesce($11,'') )`;
         const restored = await client.query<GraphObjectRow>(
-          `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, project_id, branch_id, deleted_at, fts, embedding, embedding_updated_at)
-                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NULL, ${ftsVectorSql}, NULL, NULL)
+          `INSERT INTO kb.graph_objects(type, key, properties, labels, version, canonical_id, project_id, branch_id, deleted_at, fts, embedding_updated_at)
+                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NULL, ${ftsVectorSql}, NULL)
                      RETURNING id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, deleted_at, fts, created_at`,
           [
             prevLive.rows[0].type,
             prevLive.rows[0].key,
             prevLive.rows[0].properties,
             prevLive.rows[0].labels,
-            head.rows[0].version + 1,
+            newVersion,
             canonicalId,
             (prevLive.rows[0] as any).project_id ?? null,
             (prevLive.rows[0] as any).branch_id ?? null,
@@ -1517,12 +1558,14 @@ export class GraphService {
             `branch_id IS NOT DISTINCT FROM $${headParams.length}`
           );
         }
-        // CRITICAL: Always exclude deleted rows BEFORE DISTINCT ON
-        // Otherwise, if the highest version is deleted but a lower version is not,
-        // DISTINCT ON picks the deleted one, and the outer WHERE deleted_at IS NULL
-        // removes it, making the non-deleted version invisible.
-        headFilters.push('o.deleted_at IS NULL');
-        const headWhere = 'WHERE ' + headFilters.join(' AND ');
+        // CRITICAL: Do NOT exclude deleted rows before DISTINCT ON!
+        // The correct pattern is: get the true head (highest version, even if deleted)
+        // then filter out tombstones in the outer query.
+        // If we filter deleted_at IS NULL here, tombstones are excluded, and older
+        // non-deleted versions resurface, making the object appear still visible.
+        // See docs/graph-versioning.md (head-first then filter).
+        const headWhere =
+          headFilters.length > 0 ? 'WHERE ' + headFilters.join(' AND ') : '';
         const baseHeadCte = `SELECT DISTINCT ON (o.canonical_id) 
                                  o.id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, 
                                  o.version, o.type, o.key, o.status, o.properties, o.labels, 
@@ -1661,11 +1704,13 @@ export class GraphService {
         const res = await this.db.query<GraphObjectRow>(sql, outerParams);
         let next_cursor: string | undefined;
         let rows = res.rows;
-        if (rows.length > limit) {
+        const hasMore = rows.length > limit;
+        if (hasMore) {
           rows = rows.slice(0, limit);
         }
-        if (rows.length) {
-          // Cursor always reflects the created_at of the last row in the returned ordering.
+        if (hasMore && rows.length) {
+          // Only set cursor when there are more results to fetch
+          // Cursor reflects the created_at of the last row in the returned ordering.
           next_cursor = new Date(
             rows[rows.length - 1].created_at as any
           ).toISOString();
@@ -1839,9 +1884,10 @@ export class GraphService {
           idx++;
           filters.push(`h.branch_id IS NOT DISTINCT FROM $${idx}`);
         }
-        // Head selection restricted to FTS matches first, then filter deleted heads; rank computed on head row's fts vector.
-        // CRITICAL: Exclude deleted rows BEFORE DISTINCT ON to ensure we pick the highest non-deleted version.
-        // Otherwise, if the highest version is deleted but a lower version matches FTS, the object becomes invisible.
+        // Head selection restricted to FTS matches first, then filter deleted heads in outer query.
+        // CRITICAL: Do NOT exclude deleted rows before DISTINCT ON!
+        // If we filter deleted_at IS NULL here, a deleted object's older version could resurface.
+        // The outer WHERE h.deleted_at IS NULL handles tombstone filtering correctly.
         const sql = `WITH heads AS (
               SELECT DISTINCT ON (o.canonical_id) o.id, o.project_id, o.branch_id, o.canonical_id, o.supersedes_id, o.version, o.type, o.key, o.status, o.properties, o.labels, o.deleted_at, o.created_at, o.fts, o.embedding_v2, o.embedding_updated_at,
                 (SELECT COUNT(DISTINCT r.canonical_id)::int 
@@ -1850,7 +1896,6 @@ export class GraphService {
                  AND r.deleted_at IS NULL) as relationship_count
               FROM kb.graph_objects o
               WHERE (o.fts @@ websearch_to_tsquery('simple', $1) OR o.id::text ILIKE '%' || $1 || '%')
-                AND o.deleted_at IS NULL
               ORDER BY o.canonical_id, o.version DESC
           )
           SELECT *, (ts_rank(fts, websearch_to_tsquery('simple', $1)) + (CASE WHEN id::text ILIKE '%' || $1 || '%' THEN 1.0 ELSE 0.0 END)) AS rank
@@ -2125,10 +2170,12 @@ export class GraphService {
       const res = await this.db.query<GraphRelationshipRow>(sql, outerParams);
       let rows = res.rows;
       let next_cursor: string | undefined;
-      if (rows.length > limit) {
+      const hasMore = rows.length > limit;
+      if (hasMore) {
         rows = rows.slice(0, limit);
       }
-      if (rows.length) {
+      if (hasMore && rows.length) {
+        // Only set cursor when there are more results to fetch
         next_cursor = new Date(
           rows[rows.length - 1].created_at as any
         ).toISOString();

@@ -64,6 +64,15 @@ export function setupTestEnvironment() {
     process.env.INTEGRATION_ENCRYPTION_KEY = 'test-key-32-characters-long-!!';
   }
 
+  // Auth module requires ZITADEL_DOMAIN even in test mode
+  // Set a placeholder value if not provided (actual auth is bypassed via AUTH_TEST_STATIC_TOKENS)
+  if (!process.env.ZITADEL_DOMAIN) {
+    process.env.ZITADEL_DOMAIN = 'test.zitadel.local';
+  }
+  if (!process.env.ZITADEL_API_URL) {
+    process.env.ZITADEL_API_URL = 'http://test.zitadel.local';
+  }
+
   console.log(
     `✅ Test environment configured: ${process.env.POSTGRES_USER}@${process.env.POSTGRES_HOST}:${process.env.POSTGRES_PORT}/${process.env.POSTGRES_DB}`
   );
