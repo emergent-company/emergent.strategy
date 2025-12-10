@@ -11,7 +11,7 @@ const data = [
   {
     title: 'Strategic Planning in 3 Days',
     description:
-      'Scaffold complete strategy frameworks with OKRs, RATs, and Work Packages—vs 3 weeks manual',
+      'Scaffold complete strategy with OKRs, RATs, and Key Results—vs 3 weeks manual',
     iconClass: 'bg-secondary/10 text-secondary',
     icon: 'lucide--rocket',
   },
@@ -25,14 +25,14 @@ const data = [
   {
     title: 'New PMs Onboard in 3 Days',
     description:
-      'Queryable product bible replaces 50 scattered Google Docs—from 2-3 weeks to days',
+      'Queryable strategy graph replaces 50 scattered Google Docs—from 2-3 weeks to days',
     iconClass: 'bg-info/10 text-info',
     icon: 'lucide--user-plus',
   },
   {
     title: 'Discover Hidden Blockers',
     description:
-      'Agents flag unvalidated assumptions blocking work packages before they become problems',
+      'Agents flag unvalidated assumptions blocking Key Results before they become problems',
     iconClass: 'bg-warning/10 text-warning',
     icon: 'lucide--alert-triangle',
   },
@@ -79,12 +79,13 @@ export const Benefits = () => {
             <div className="bg-accent/80 h-4 w-0.5 -translate-x-1.5 rounded-full opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
           </div>
           <p className="mt-2 text-2xl font-semibold max-lg:text-center sm:text-3xl">
-            Why Build on emergent.product
+            Greater Than the Sum of Its Parts
           </p>
           <div className="mt-2 flex max-lg:justify-center max-lg:text-center">
             <p className="text-base-content/80 max-w-lg">
-              Transform product strategy from scattered documents to living
-              intelligence that learns and adapts
+              When simple building blocks combine through clear rules, the
+              output is exponentially greater than the input. Here's what
+              emerges.
             </p>
           </div>
         </div>
