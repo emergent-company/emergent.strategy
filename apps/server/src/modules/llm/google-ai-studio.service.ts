@@ -107,7 +107,7 @@ export class GoogleAIStudioService implements OnModuleInit {
       model = this.defaultModel,
       temperature = 0.1,
       maxOutputTokens = 65535,
-      timeoutMs = 120000,
+      timeoutMs = 180000, // 3 minutes - based on xlarge performance testing
     } = config;
 
     // Timing diagnostics
@@ -333,7 +333,7 @@ export class GoogleAIStudioService implements OnModuleInit {
       model = this.defaultModel,
       temperature = 0.1,
       maxOutputTokens = 65535,
-      timeoutMs = 120000,
+      timeoutMs = 180000, // 3 minutes - based on xlarge performance testing
       functionName,
       forceCall = true,
     } = config;

@@ -112,7 +112,7 @@ function batchChunks(chunks: string[], maxBatchSize: number): string[] {
 export function createEntityExtractorNode(config: EntityExtractorNodeConfig) {
   const {
     geminiService,
-    timeoutMs = 120000,
+    timeoutMs = 180000, // 3 minutes - based on xlarge performance testing
     batchSizeChars = DEFAULT_BATCH_SIZE_CHARS,
     langfuseService = null,
     promptProvider = null,
@@ -227,10 +227,12 @@ export function createEntityExtractorNode(config: EntityExtractorNodeConfig) {
       typeof prompt === 'string'
         ? prompt.length
         : JSON.stringify(prompt).length;
+    // Get effective timeout from state (per-job) or fall back to config default
+    const effectiveTimeoutMs = state.timeout_ms || timeoutMs;
     logger.debug(
       `[EntityExtractor] Batch ${
         batchIndex + 1
-      } prompt length: ${promptLength} chars, timeout: ${timeoutMs}ms`
+      } prompt length: ${promptLength} chars, timeout: ${effectiveTimeoutMs}ms`
     );
 
     // Create tracing context for Langfuse
@@ -272,7 +274,7 @@ export function createEntityExtractorNode(config: EntityExtractorNodeConfig) {
           promptString,
           entityExtractionFunction,
           {
-            timeoutMs,
+            timeoutMs: effectiveTimeoutMs,
             functionName: 'extract_entities',
             forceCall: true,
           },
@@ -282,7 +284,12 @@ export function createEntityExtractorNode(config: EntityExtractorNodeConfig) {
         // Use responseSchema method (default)
         result = await geminiService.generateStructuredOutput<{
           entities: LLMEntity[];
-        }>(promptString, entityOutputSchema, { timeoutMs }, tracingContext);
+        }>(
+          promptString,
+          entityOutputSchema,
+          { timeoutMs: effectiveTimeoutMs },
+          tracingContext
+        );
       }
 
       if (!result.success) {
@@ -332,6 +339,9 @@ export function createEntityExtractorNode(config: EntityExtractorNodeConfig) {
     const allowedTypes =
       state.allowed_types || Object.keys(state.object_schemas);
 
+    // Get effective batch size from state (per-job) or fall back to config default
+    const effectiveBatchSizeChars = state.batch_size_chars || batchSizeChars;
+
     // Determine text batches to process
     // Priority: 1. document_chunks from state, 2. fall back to original_text
     let textBatches: string[];
@@ -339,18 +349,18 @@ export function createEntityExtractorNode(config: EntityExtractorNodeConfig) {
 
     if (hasChunks) {
       // Batch the chunks together up to the size limit
-      textBatches = batchChunks(state.document_chunks, batchSizeChars);
+      textBatches = batchChunks(state.document_chunks, effectiveBatchSizeChars);
       logger.log(
-        `[EntityExtractor] Using ${state.document_chunks.length} chunks -> ${textBatches.length} batches (max ${batchSizeChars} chars each)`
+        `[EntityExtractor] Using ${state.document_chunks.length} chunks -> ${textBatches.length} batches (max ${effectiveBatchSizeChars} chars each)`
       );
     } else if (state.original_text) {
       // Fall back to original_text - check if it needs to be batched
-      if (state.original_text.length > batchSizeChars) {
+      if (state.original_text.length > effectiveBatchSizeChars) {
         // Simple split by approximate size (not ideal, but works as fallback)
         const text = state.original_text;
         textBatches = [];
-        for (let i = 0; i < text.length; i += batchSizeChars) {
-          textBatches.push(text.slice(i, i + batchSizeChars));
+        for (let i = 0; i < text.length; i += effectiveBatchSizeChars) {
+          textBatches.push(text.slice(i, i + effectiveBatchSizeChars));
         }
         logger.log(
           `[EntityExtractor] Original text too large (${text.length} chars), split into ${textBatches.length} batches`

@@ -197,6 +197,18 @@ export interface ExtractionOptions {
    * If not provided, falls back to server default from EXTRACTION_METHOD env var.
    */
   extractionMethod?: 'responseSchema' | 'function_calling';
+
+  /**
+   * Per-LLM-call timeout in milliseconds.
+   * If not provided, falls back to server default (180000ms = 3 minutes).
+   */
+  timeoutMs?: number;
+
+  /**
+   * Maximum batch size in characters for chunking document text.
+   * If not provided, falls back to server default (30000 chars).
+   */
+  batchSizeChars?: number;
 }
 
 /**

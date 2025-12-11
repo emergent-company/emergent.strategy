@@ -60,6 +60,47 @@ export class ChunkingConfigDto {
   overlap?: number;
 }
 
+/**
+ * Configuration for LLM extraction at the project level.
+ * These settings control how the LLM processes documents during extraction.
+ */
+export class ExtractionConfigDto {
+  @ApiProperty({
+    example: 30000,
+    description:
+      'Chunk size for LLM extraction in characters (5000-100000). Smaller chunks reduce variability but increase processing time.',
+    required: false,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(5000)
+  @Max(100000)
+  chunkSize?: number;
+
+  @ApiProperty({
+    example: 'function_calling',
+    description:
+      'Extraction method to use. function_calling is more reliable with Vertex AI.',
+    enum: ['function_calling', 'responseSchema'],
+    required: false,
+  })
+  @IsOptional()
+  @IsIn(['function_calling', 'responseSchema'])
+  method?: 'function_calling' | 'responseSchema';
+
+  @ApiProperty({
+    example: 180,
+    description:
+      'Per-LLM-call timeout in seconds (60-600). Increase for very large documents.',
+    required: false,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(60)
+  @Max(600)
+  timeoutSeconds?: number;
+}
+
 export class ProjectDto {
   @ApiProperty({ example: 'proj_1' })
   id!: string;
@@ -116,6 +157,18 @@ export class ProjectDto {
     required: false,
   })
   allow_parallel_extraction?: boolean;
+
+  @ApiProperty({
+    example: {
+      chunkSize: 30000,
+      method: 'function_calling',
+      timeoutSeconds: 180,
+    },
+    description:
+      'LLM extraction configuration for this project. Controls chunk size, extraction method, and timeouts.',
+    required: false,
+  })
+  extraction_config?: ExtractionConfigDto | null;
 }
 
 export class CreateProjectDto {
@@ -219,4 +272,19 @@ export class UpdateProjectDto {
   @IsOptional()
   @IsBoolean()
   allow_parallel_extraction?: boolean;
+
+  @ApiProperty({
+    example: {
+      chunkSize: 30000,
+      method: 'function_calling',
+      timeoutSeconds: 180,
+    },
+    description:
+      'LLM extraction configuration. Controls chunk size (5000-100000 chars), extraction method (function_calling or responseSchema), and per-call timeout (60-600 seconds).',
+    required: false,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ExtractionConfigDto)
+  extraction_config?: ExtractionConfigDto | null;
 }

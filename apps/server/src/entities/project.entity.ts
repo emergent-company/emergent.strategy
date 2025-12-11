@@ -56,4 +56,14 @@ export class Project {
     default: false,
   })
   allowParallelExtraction: boolean;
+
+  @Column({ name: 'extraction_config', type: 'jsonb', nullable: true })
+  extractionConfig: {
+    /** Chunk size for LLM extraction in characters (default: 30000) */
+    chunkSize?: number;
+    /** Extraction method: 'function_calling' or 'responseSchema' (default: 'function_calling') */
+    method?: 'function_calling' | 'responseSchema';
+    /** Per-LLM-call timeout in seconds (default: 180) */
+    timeoutSeconds?: number;
+  } | null;
 }

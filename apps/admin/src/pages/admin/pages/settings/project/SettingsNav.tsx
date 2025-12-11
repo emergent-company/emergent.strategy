@@ -18,6 +18,11 @@ const navItems: NavItem[] = [
     icon: 'lucide--sparkles',
   },
   {
+    path: '/admin/settings/project/llm-settings',
+    label: 'LLM Settings',
+    icon: 'lucide--cpu',
+  },
+  {
     path: '/admin/settings/project/chunking',
     label: 'Document Processing',
     icon: 'lucide--scissors',

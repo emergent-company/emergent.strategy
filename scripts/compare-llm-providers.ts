@@ -30,9 +30,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Parse CLI arguments
+type InputSize = 'small' | 'medium' | 'large' | 'xlarge' | 'xxlarge';
+
 interface CLIOptions {
   provider: 'google' | 'vertex' | 'all';
   method: 'response' | 'function' | 'all';
+  size: InputSize | 'all';
+  runs: number;
   splitOnly: boolean;
   combinedOnly: boolean;
   help: boolean;
@@ -43,6 +47,8 @@ function parseArgs(): CLIOptions {
   const options: CLIOptions = {
     provider: 'all',
     method: 'all',
+    size: 'medium', // Default to medium (current behavior)
+    runs: 3, // Default to 3 measured runs
     splitOnly: false,
     combinedOnly: false,
     help: false,
@@ -71,6 +77,30 @@ function parseArgs(): CLIOptions {
         );
         process.exit(1);
       }
+    } else if (arg.startsWith('--size=')) {
+      const value = arg.split('=')[1];
+      if (
+        value === 'small' ||
+        value === 'medium' ||
+        value === 'large' ||
+        value === 'xlarge' ||
+        value === 'xxlarge' ||
+        value === 'all'
+      ) {
+        options.size = value;
+      } else {
+        console.error(
+          `Invalid size: ${value}. Use small, medium, large, xlarge, xxlarge, or all.`
+        );
+        process.exit(1);
+      }
+    } else if (arg.startsWith('--runs=')) {
+      const value = parseInt(arg.split('=')[1], 10);
+      if (isNaN(value) || value < 1 || value > 10) {
+        console.error(`Invalid runs: ${arg.split('=')[1]}. Use 1-10.`);
+        process.exit(1);
+      }
+      options.runs = value;
     } else if (arg === '--split-only') {
       options.splitOnly = true;
     } else if (arg === '--combined-only') {
@@ -100,9 +130,18 @@ Usage:
 Options:
   --provider=google|vertex|all    Provider to test (default: all)
   --method=response|function|all  Method to test (default: all)
+  --size=small|medium|large|xlarge|xxlarge|all  Input data size (default: medium)
+  --runs=1-10                     Number of measured runs (default: 3)
   --split-only                    Only run split extraction tests (2-step)
   --combined-only                 Only run combined extraction tests (1-step)
   --help                          Show this help message
+
+Input Sizes:
+  small   I John ch 1-2 (~5k chars) - quick baseline
+  medium  I John full (~8k chars) - default, balanced test
+  large   Ruth full (~13k chars) - moderate stress test
+  xlarge  Genesis ch 1-10 (~31k chars) - push limits
+  xxlarge Genesis ch 1-20 (~62k chars) - stress test limits
 
 Examples:
   # Test only Google AI Studio with function calling
@@ -111,8 +150,14 @@ Examples:
   # Test only Vertex AI with split extraction
   npx tsx scripts/compare-llm-providers.ts --provider=vertex --split-only
 
-  # Test only responseSchema method on all providers
-  npx tsx scripts/compare-llm-providers.ts --method=response
+  # Test all sizes with Vertex AI split extraction
+  npx tsx scripts/compare-llm-providers.ts --provider=vertex --split-only --size=all
+
+  # Test only large size
+  npx tsx scripts/compare-llm-providers.ts --size=large
+
+  # Quick single-run test for xxlarge
+  npx tsx scripts/compare-llm-providers.ts --provider=vertex --split-only --size=xxlarge --runs=1
 
   # Test everything (default)
   npx tsx scripts/compare-llm-providers.ts
@@ -144,28 +189,95 @@ import { Langfuse, LangfuseGenerationClient } from 'langfuse-node';
 import { readFileSync } from 'fs';
 import { randomUUID } from 'crypto';
 
-// Load I John chapters 1-3 for testing (subset to avoid timeouts)
+// ============================================================================
+// INPUT SIZE CONFIGURATIONS
+// ============================================================================
+
+interface InputSizeConfig {
+  name: InputSize;
+  label: string;
+  description: string;
+  getText: () => string;
+}
+
+// Load Bible texts
 const I_JOHN_PATH = resolve(__dirname, '../test-data/bible/books/62_I_John.md');
-const FULL_I_JOHN_TEXT = readFileSync(I_JOHN_PATH, 'utf-8');
-
-// Extract only chapters 1-3 (more manageable size)
-const chapterMatch = FULL_I_JOHN_TEXT.match(
-  /# I John[\s\S]*?(?=## Chapter 4|$)/
+const RUTH_PATH = resolve(__dirname, '../test-data/bible/books/08_Ruth.md');
+const GENESIS_PATH = resolve(
+  __dirname,
+  '../test-data/bible/books/01_Genesis.md'
 );
-const I_JOHN_CHAPTERS_1_3 = chapterMatch
-  ? chapterMatch[0].trim()
-  : FULL_I_JOHN_TEXT.substring(0, 5000);
 
-// Test prompt - extraction from chapters 1-3
-const TEST_PROMPT = `Extract all entities and relationships from this Biblical text (I John chapters 1-3):
+const FULL_I_JOHN_TEXT = readFileSync(I_JOHN_PATH, 'utf-8');
+const FULL_RUTH_TEXT = readFileSync(RUTH_PATH, 'utf-8');
+const FULL_GENESIS_TEXT = readFileSync(GENESIS_PATH, 'utf-8');
 
-${I_JOHN_CHAPTERS_1_3}
+// Extract I John chapters 1-2 for small size
+function getIJohnChapters1to2(): string {
+  const match = FULL_I_JOHN_TEXT.match(/# I John[\s\S]*?(?=## Chapter 3|$)/);
+  return match ? match[0].trim() : FULL_I_JOHN_TEXT.substring(0, 4000);
+}
+
+// Extract Genesis chapters 1-10 for xlarge size
+function getGenesisChapters1to10(): string {
+  const match = FULL_GENESIS_TEXT.match(/# Genesis[\s\S]*?(?=## Chapter 11|$)/);
+  return match ? match[0].trim() : FULL_GENESIS_TEXT.substring(0, 25000);
+}
+
+// Extract Genesis chapters 1-20 for xxlarge size
+function getGenesisChapters1to20(): string {
+  const match = FULL_GENESIS_TEXT.match(/# Genesis[\s\S]*?(?=## Chapter 21|$)/);
+  return match ? match[0].trim() : FULL_GENESIS_TEXT.substring(0, 65000);
+}
+
+const INPUT_SIZE_CONFIGS: Record<InputSize, InputSizeConfig> = {
+  small: {
+    name: 'small',
+    label: 'I John 1-2',
+    description: 'I John chapters 1-2',
+    getText: getIJohnChapters1to2,
+  },
+  medium: {
+    name: 'medium',
+    label: 'I John full',
+    description: 'I John full (5 chapters)',
+    getText: () => FULL_I_JOHN_TEXT,
+  },
+  large: {
+    name: 'large',
+    label: 'Ruth full',
+    description: 'Ruth full (4 chapters)',
+    getText: () => FULL_RUTH_TEXT,
+  },
+  xlarge: {
+    name: 'xlarge',
+    label: 'Genesis 1-10',
+    description: 'Genesis chapters 1-10',
+    getText: getGenesisChapters1to10,
+  },
+  xxlarge: {
+    name: 'xxlarge',
+    label: 'Genesis 1-20',
+    description: 'Genesis chapters 1-20',
+    getText: getGenesisChapters1to20,
+  },
+};
+
+// Build test prompt for a given text
+function buildTestPrompt(text: string, description: string): string {
+  return `Extract all entities and relationships from this Biblical text (${description}):
+
+${text}
 
 Extract:
 1. All named entities (people, divine beings, concepts, groups, places)
 2. All relationships between entities (who relates to whom and how)
 3. Key theological themes mentioned
 4. Be thorough`;
+}
+
+// Default TEST_PROMPT for backwards compatibility (medium size)
+const TEST_PROMPT = buildTestPrompt(FULL_I_JOHN_TEXT, 'I John full');
 
 // Schema for structured output - COMBINED (entities + relationships in one call)
 const EXTRACTION_SCHEMA = {
@@ -300,6 +412,8 @@ interface TestResult {
   run: number;
   provider: string;
   method: string;
+  size: InputSize;
+  inputChars: number;
   durationMs: number;
   success: boolean;
   entityCount?: number;
@@ -315,11 +429,25 @@ interface TestResult {
 }
 
 // Configuration
-const REQUEST_TIMEOUT_MS = 120000; // 120 seconds per step (increased for split extraction)
+const REQUEST_TIMEOUT_MS = 300000; // 5 minutes per step (for large extractions)
 const MAX_OUTPUT_TOKENS = 65535; // Max for Gemini 2.5
 const MODEL = 'gemini-2.5-flash';
-const NUM_RUNS = 3; // Reduced from 10 for faster iteration
+const NUM_RUNS = cliOptions.runs; // Configurable via --runs=N (default: 3)
 const NUM_WARMUP = 1; // Single warmup run
+
+/**
+ * Format milliseconds as seconds with 1 decimal place
+ */
+function formatSeconds(ms: number): string {
+  return (ms / 1000).toFixed(1) + 's';
+}
+
+/**
+ * Format milliseconds as seconds for table cell (right-padded to 6 chars)
+ */
+function formatSecondsCell(ms: number): string {
+  return formatSeconds(ms).padStart(6);
+}
 
 // Langfuse client
 let langfuse: Langfuse | null = null;
@@ -467,10 +595,13 @@ async function runTest(
   provider: string,
   method: 'responseSchema' | 'function_calling',
   run: number,
+  sizeConfig: InputSizeConfig,
   isWarmup: boolean = false
 ): Promise<TestResult> {
   const startTime = Date.now();
   const generation = createGeneration(provider, method, run, isWarmup);
+  const inputText = sizeConfig.getText();
+  const testPrompt = buildTestPrompt(inputText, sizeConfig.description);
 
   try {
     let entityCount = 0;
@@ -484,7 +615,7 @@ async function runTest(
       const response = await withTimeout(
         ai.models.generateContent({
           model: MODEL,
-          contents: TEST_PROMPT,
+          contents: testPrompt,
           config: {
             responseMimeType: 'application/json',
             responseSchema: EXTRACTION_SCHEMA,
@@ -511,7 +642,7 @@ async function runTest(
       const response = await withTimeout(
         ai.models.generateContent({
           model: MODEL,
-          contents: TEST_PROMPT,
+          contents: testPrompt,
           config: {
             temperature: 0.1,
             maxOutputTokens: MAX_OUTPUT_TOKENS,
@@ -548,6 +679,8 @@ async function runTest(
       run,
       provider,
       method,
+      size: sizeConfig.name,
+      inputChars: inputText.length,
       durationMs: Date.now() - startTime,
       success: true,
       entityCount,
@@ -565,6 +698,8 @@ async function runTest(
       run,
       provider,
       method,
+      size: sizeConfig.name,
+      inputChars: inputText.length,
       durationMs: Date.now() - startTime,
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -655,12 +790,14 @@ async function runSplitExtractionTest(
   provider: string,
   method: 'responseSchema' | 'function_calling',
   run: number,
+  sizeConfig: InputSizeConfig,
   isWarmup: boolean = false,
   entityOnly: boolean = false // For warmup, only run entity step
 ): Promise<TestResult> {
   const startTime = Date.now();
   const methodName = `split_${method}`;
   const generation = createGeneration(provider, methodName, run, isWarmup);
+  const inputText = sizeConfig.getText();
 
   try {
     let entityCount = 0;
@@ -672,7 +809,7 @@ async function runSplitExtractionTest(
     let relationshipStepMs = 0;
 
     // STEP 1: Extract entities
-    const entityPrompt = buildEntityPrompt(I_JOHN_CHAPTERS_1_3);
+    const entityPrompt = buildEntityPrompt(inputText);
     const entityStepStart = Date.now();
 
     let extractedEntities: Array<{
@@ -771,6 +908,8 @@ async function runSplitExtractionTest(
         run,
         provider,
         method: methodName,
+        size: sizeConfig.name,
+        inputChars: inputText.length,
         durationMs: Date.now() - startTime,
         success: true,
         entityCount,
@@ -791,7 +930,7 @@ async function runSplitExtractionTest(
     }
 
     const relationshipPrompt = buildRelationshipPrompt(
-      I_JOHN_CHAPTERS_1_3,
+      inputText,
       extractedEntities
     );
     const relationshipStepStart = Date.now();
@@ -863,6 +1002,8 @@ async function runSplitExtractionTest(
       run,
       provider,
       method: methodName,
+      size: sizeConfig.name,
+      inputChars: inputText.length,
       durationMs: Date.now() - startTime,
       success: true,
       entityCount,
@@ -881,6 +1022,8 @@ async function runSplitExtractionTest(
       run,
       provider,
       method: methodName,
+      size: sizeConfig.name,
+      inputChars: inputText.length,
       durationMs: Date.now() - startTime,
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -945,6 +1088,7 @@ async function runTestVariant(
   ai: GoogleGenAI,
   provider: string,
   method: 'responseSchema' | 'function_calling',
+  sizeConfig: InputSizeConfig,
   results: TestResult[]
 ): Promise<boolean> {
   console.log(`   Method: ${method}`);
@@ -953,11 +1097,13 @@ async function runTestVariant(
   let warmupFailures = 0;
   for (let i = 1; i <= NUM_WARMUP; i++) {
     process.stdout.write(`   Warmup ${i}/${NUM_WARMUP}... `);
-    const result = await runTest(ai, provider, method, 0, true);
+    const result = await runTest(ai, provider, method, 0, sizeConfig, true);
 
     if (result.success) {
       console.log(
-        `✅ ${result.durationMs}ms (warmup, ${result.entityCount} entities)`
+        `✅ ${formatSeconds(result.durationMs)} (warmup, ${
+          result.entityCount
+        } entities)`
       );
       warmupFailures = 0; // Reset on success
     } else {
@@ -978,12 +1124,16 @@ async function runTestVariant(
   // Measured runs
   for (let i = 1; i <= NUM_RUNS; i++) {
     process.stdout.write(`   Run ${i}/${NUM_RUNS}... `);
-    const result = await runTest(ai, provider, method, i, false);
+    const result = await runTest(ai, provider, method, i, sizeConfig, false);
     results.push(result);
 
     if (result.success) {
       console.log(
-        `✅ ${result.durationMs}ms (${result.entityCount} entities, ${result.relationshipCount} rels, ${result.totalTokens} tokens)`
+        `✅ ${formatSeconds(result.durationMs)} (${
+          result.entityCount
+        } entities, ${result.relationshipCount} rels, ${
+          result.totalTokens
+        } tokens)`
       );
     } else {
       console.log(`❌ ${result.error}`);
@@ -1002,6 +1152,7 @@ async function runSplitTestVariant(
   ai: GoogleGenAI,
   provider: string,
   method: 'responseSchema' | 'function_calling',
+  sizeConfig: InputSizeConfig,
   results: TestResult[]
 ): Promise<boolean> {
   const methodName = `split_${method}`;
@@ -1016,13 +1167,16 @@ async function runSplitTestVariant(
       provider,
       method,
       0,
+      sizeConfig,
       true,
       true // entity only
     );
 
     if (result.success) {
       console.log(
-        `✅ ${result.durationMs}ms (warmup, ${result.entityCount} entities)`
+        `✅ ${formatSeconds(result.durationMs)} (warmup, ${
+          result.entityCount
+        } entities)`
       );
       warmupFailures = 0;
     } else {
@@ -1047,6 +1201,7 @@ async function runSplitTestVariant(
       provider,
       method,
       i,
+      sizeConfig,
       false,
       false // full extraction
     );
@@ -1054,7 +1209,9 @@ async function runSplitTestVariant(
 
     if (result.success) {
       console.log(
-        `✅ ${result.durationMs}ms total (entity: ${result.entityStepMs}ms, rel: ${result.relationshipStepMs}ms) ` +
+        `✅ ${formatSeconds(result.durationMs)} total (entity: ${formatSeconds(
+          result.entityStepMs || 0
+        )}, rel: ${formatSeconds(result.relationshipStepMs || 0)}) ` +
           `(${result.entityCount} entities, ${result.relationshipCount} rels, ${result.totalTokens} tokens)`
       );
     } else {
@@ -1064,6 +1221,16 @@ async function runSplitTestVariant(
 
   console.log('');
   return true;
+}
+
+/**
+ * Get the list of sizes to run based on CLI options
+ */
+function getSizesToRun(): InputSize[] {
+  if (cliOptions.size === 'all') {
+    return ['small', 'medium', 'large', 'xlarge', 'xxlarge'];
+  }
+  return [cliOptions.size];
 }
 
 async function main() {
@@ -1082,6 +1249,7 @@ async function main() {
     cliOptions.method === 'all' || cliOptions.method === 'function';
   const runCombined = !cliOptions.splitOnly;
   const runSplit = !cliOptions.combinedOnly;
+  const sizesToRun = getSizesToRun();
 
   console.log(
     '╔════════════════════════════════════════════════════════════════╗'
@@ -1099,19 +1267,28 @@ async function main() {
   sessionTraceId = createSessionTrace();
   console.log('');
 
+  // Show size configurations
+  console.log(`Input Sizes to Test:`);
+  for (const size of sizesToRun) {
+    const config = INPUT_SIZE_CONFIGS[size];
+    const textLength = config.getText().length;
+    console.log(`  ${size}: ${config.description} (~${textLength} chars)`);
+  }
+  console.log('');
+
   console.log(`Configuration:`);
   console.log(`  Model: ${MODEL}`);
   console.log(
     `  Warmup runs: ${NUM_WARMUP} (abort variant if 2nd warmup fails)`
   );
   console.log(`  Measured runs: ${NUM_RUNS}`);
-  console.log(`  Request timeout: ${REQUEST_TIMEOUT_MS}ms`);
+  console.log(`  Request timeout: ${formatSeconds(REQUEST_TIMEOUT_MS)}`);
   console.log(`  Max output tokens: ${MAX_OUTPUT_TOKENS}`);
-  console.log(`  Input: Full I John (5 chapters, ${TEST_PROMPT.length} chars)`);
   console.log('');
   console.log(`Filters:`);
   console.log(`  Providers: ${cliOptions.provider}`);
   console.log(`  Methods: ${cliOptions.method}`);
+  console.log(`  Sizes: ${cliOptions.size}`);
   console.log(
     `  Test types: ${
       cliOptions.splitOnly
@@ -1125,124 +1302,154 @@ async function main() {
 
   const results: TestResult[] = [];
 
-  // Test Google AI Studio
-  if (runGoogle && googleApiKey) {
-    console.log('🔵 Testing Google AI Studio (API Key)...');
+  // Run tests for each size
+  for (const size of sizesToRun) {
+    const sizeConfig = INPUT_SIZE_CONFIGS[size];
+    const textLength = sizeConfig.getText().length;
+    console.log(
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+    );
+    console.log(
+      `📏 INPUT SIZE: ${size.toUpperCase()} - ${sizeConfig.description}`
+    );
+    console.log(`   Characters: ~${textLength}`);
+    console.log(
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+    );
     console.log('');
 
-    const googleAI = new GoogleGenAI({ apiKey: googleApiKey });
+    // Test Google AI Studio
+    if (runGoogle && googleApiKey) {
+      console.log('🔵 Testing Google AI Studio (API Key)...');
+      console.log('');
 
-    // Combined extraction tests
-    if (runCombined) {
-      if (runResponseSchema) {
-        await runTestVariant(
-          googleAI,
-          'google-ai-studio',
-          'responseSchema',
-          results
-        );
+      const googleAI = new GoogleGenAI({ apiKey: googleApiKey });
+
+      // Combined extraction tests
+      if (runCombined) {
+        if (runResponseSchema) {
+          await runTestVariant(
+            googleAI,
+            'google-ai-studio',
+            'responseSchema',
+            sizeConfig,
+            results
+          );
+        }
+        if (runFunctionCalling) {
+          await runTestVariant(
+            googleAI,
+            'google-ai-studio',
+            'function_calling',
+            sizeConfig,
+            results
+          );
+        }
       }
-      if (runFunctionCalling) {
-        await runTestVariant(
-          googleAI,
-          'google-ai-studio',
-          'function_calling',
-          results
-        );
+
+      // Split extraction tests
+      if (runSplit) {
+        if (runResponseSchema) {
+          await runSplitTestVariant(
+            googleAI,
+            'google-ai-studio',
+            'responseSchema',
+            sizeConfig,
+            results
+          );
+        }
+        if (runFunctionCalling) {
+          await runSplitTestVariant(
+            googleAI,
+            'google-ai-studio',
+            'function_calling',
+            sizeConfig,
+            results
+          );
+        }
       }
+    } else if (runGoogle && !googleApiKey) {
+      console.log('⚠️  Skipping Google AI Studio - GOOGLE_API_KEY not set');
+      console.log('');
     }
 
-    // Split extraction tests
-    if (runSplit) {
-      if (runResponseSchema) {
-        await runSplitTestVariant(
-          googleAI,
-          'google-ai-studio',
-          'responseSchema',
-          results
-        );
+    // Test Vertex AI
+    if (runVertex && gcpProjectId) {
+      console.log('🟢 Testing Vertex AI (Service Account)...');
+      console.log(`   Project: ${gcpProjectId}`);
+      console.log(`   Location: ${vertexLocation}`);
+      console.log('');
+
+      // Read service account credentials
+      const credentials = JSON.parse(readFileSync(serviceAccountPath, 'utf-8'));
+
+      const vertexAI = new GoogleGenAI({
+        vertexai: true,
+        project: gcpProjectId,
+        location: vertexLocation,
+        googleAuthOptions: {
+          credentials,
+        },
+      });
+
+      // Combined extraction tests
+      if (runCombined) {
+        if (runResponseSchema) {
+          await runTestVariant(
+            vertexAI,
+            'vertex-ai',
+            'responseSchema',
+            sizeConfig,
+            results
+          );
+        }
+        if (runFunctionCalling) {
+          await runTestVariant(
+            vertexAI,
+            'vertex-ai',
+            'function_calling',
+            sizeConfig,
+            results
+          );
+        }
       }
-      if (runFunctionCalling) {
-        await runSplitTestVariant(
-          googleAI,
-          'google-ai-studio',
-          'function_calling',
-          results
-        );
+
+      // Split extraction tests
+      if (runSplit) {
+        if (runResponseSchema) {
+          await runSplitTestVariant(
+            vertexAI,
+            'vertex-ai',
+            'responseSchema',
+            sizeConfig,
+            results
+          );
+        }
+        if (runFunctionCalling) {
+          await runSplitTestVariant(
+            vertexAI,
+            'vertex-ai',
+            'function_calling',
+            sizeConfig,
+            results
+          );
+        }
       }
+    } else if (runVertex && !gcpProjectId) {
+      console.log('⚠️  Skipping Vertex AI - GCP_PROJECT_ID not set');
+      console.log('');
     }
-  } else if (runGoogle && !googleApiKey) {
-    console.log('⚠️  Skipping Google AI Studio - GOOGLE_API_KEY not set');
-    console.log('');
-  }
-
-  // Test Vertex AI
-  if (runVertex && gcpProjectId) {
-    console.log('🟢 Testing Vertex AI (Service Account)...');
-    console.log(`   Project: ${gcpProjectId}`);
-    console.log(`   Location: ${vertexLocation}`);
-    console.log('');
-
-    // Read service account credentials
-    const credentials = JSON.parse(readFileSync(serviceAccountPath, 'utf-8'));
-
-    const vertexAI = new GoogleGenAI({
-      vertexai: true,
-      project: gcpProjectId,
-      location: vertexLocation,
-      googleAuthOptions: {
-        credentials,
-      },
-    });
-
-    // Combined extraction tests
-    if (runCombined) {
-      if (runResponseSchema) {
-        await runTestVariant(vertexAI, 'vertex-ai', 'responseSchema', results);
-      }
-      if (runFunctionCalling) {
-        await runTestVariant(
-          vertexAI,
-          'vertex-ai',
-          'function_calling',
-          results
-        );
-      }
-    }
-
-    // Split extraction tests
-    if (runSplit) {
-      if (runResponseSchema) {
-        await runSplitTestVariant(
-          vertexAI,
-          'vertex-ai',
-          'responseSchema',
-          results
-        );
-      }
-      if (runFunctionCalling) {
-        await runSplitTestVariant(
-          vertexAI,
-          'vertex-ai',
-          'function_calling',
-          results
-        );
-      }
-    }
-  } else if (runVertex && !gcpProjectId) {
-    console.log('⚠️  Skipping Vertex AI - GCP_PROJECT_ID not set');
-    console.log('');
   }
 
   // Print summary
   console.log(
-    '╔════════════════════════════════════════════════════════════════════════════════════════════╗'
+    '╔════════════════════════════════════════════════════════════════════════════════════════════════════════════╗'
   );
   console.log(
-    '║                                       SUMMARY                                              ║'
+    '║                                              SUMMARY                                                       ║'
   );
   console.log(
-    '╚════════════════════════════════════════════════════════════════════════════════════════════╝'
+    '╚════════════════════════════════════════════════════════════════════════════════════════════════════════════╝'
   );
   console.log('');
 
@@ -1254,54 +1461,76 @@ async function main() {
     'split_function_calling',
   ];
 
-  console.log(
-    '┌───────────────────┬───────────────────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐'
-  );
-  console.log(
-    '│ Provider          │ Method                │ Min     │ Max     │ Avg     │ Median  │ StdDev  │ Success │'
-  );
-  console.log(
-    '├───────────────────┼───────────────────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤'
-  );
+  // Get unique sizes from results
+  const testedSizes = [...new Set(results.map((r) => r.size))] as InputSize[];
 
-  for (const provider of providers) {
-    for (const method of methods) {
-      const filtered = results.filter(
-        (r) => r.provider === provider && r.method === method
-      );
-      if (filtered.length === 0) continue;
+  // Performance summary by size
+  for (const size of testedSizes) {
+    const sizeConfig = INPUT_SIZE_CONFIGS[size];
+    const sizeResults = results.filter((r) => r.size === size);
 
-      const stats = calculateStats(filtered);
-      console.log(
-        `│ ${provider.padEnd(17)} │ ${method.padEnd(21)} │ ${String(
-          stats.min
-        ).padStart(5)}ms │ ${String(stats.max).padStart(5)}ms │ ${String(
-          stats.avg
-        ).padStart(5)}ms │ ${String(stats.median).padStart(5)}ms │ ${String(
-          stats.stdDev
-        ).padStart(5)}ms │ ${String(stats.successRate).padStart(5)}%  │`
-      );
+    console.log(
+      `📏 ${size.toUpperCase()} (${sizeConfig.description}, ~${
+        sizeResults[0]?.inputChars || 0
+      } chars)`
+    );
+    console.log(
+      '┌───────────────────┬───────────────────────┬────────┬────────┬────────┬────────┬────────┬─────────┐'
+    );
+    console.log(
+      '│ Provider          │ Method                │ Min    │ Max    │ Avg    │ Median │ StdDev │ Success │'
+    );
+    console.log(
+      '├───────────────────┼───────────────────────┼────────┼────────┼────────┼────────┼────────┼─────────┤'
+    );
+
+    for (const provider of providers) {
+      for (const method of methods) {
+        const filtered = sizeResults.filter(
+          (r) => r.provider === provider && r.method === method
+        );
+        if (filtered.length === 0) continue;
+
+        const stats = calculateStats(filtered);
+        console.log(
+          `│ ${provider.padEnd(17)} │ ${method.padEnd(
+            21
+          )} │ ${formatSecondsCell(stats.min)} │ ${formatSecondsCell(
+            stats.max
+          )} │ ${formatSecondsCell(stats.avg)} │ ${formatSecondsCell(
+            stats.median
+          )} │ ${formatSecondsCell(stats.stdDev)} │ ${String(
+            stats.successRate
+          ).padStart(5)}%  │`
+        );
+      }
     }
+
+    console.log(
+      '└───────────────────┴───────────────────────┴────────┴────────┴────────┴────────┴────────┴─────────┘'
+    );
+    console.log('');
   }
 
-  console.log(
-    '└───────────────────┴───────────────────────┴─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘'
-  );
-  console.log('');
+  // Token usage summary by size
+  console.log('Token Usage (averages by size):');
+  for (const size of testedSizes) {
+    const sizeConfig = INPUT_SIZE_CONFIGS[size];
+    const sizeResults = results.filter((r) => r.size === size);
+    console.log(`  ${size.toUpperCase()} (${sizeConfig.description}):`);
 
-  // Token usage summary
-  console.log('Token Usage (averages):');
-  for (const provider of providers) {
-    for (const method of methods) {
-      const filtered = results.filter(
-        (r) => r.provider === provider && r.method === method
-      );
-      if (filtered.length === 0) continue;
+    for (const provider of providers) {
+      for (const method of methods) {
+        const filtered = sizeResults.filter(
+          (r) => r.provider === provider && r.method === method
+        );
+        if (filtered.length === 0) continue;
 
-      const stats = calculateStats(filtered);
-      console.log(
-        `  ${provider}/${method}: ${stats.avgPromptTokens} prompt, ${stats.avgCompletionTokens} completion`
-      );
+        const stats = calculateStats(filtered);
+        console.log(
+          `    ${provider}/${method}: ${stats.avgPromptTokens} prompt, ${stats.avgCompletionTokens} completion`
+        );
+      }
     }
   }
   console.log('');
@@ -1310,70 +1539,88 @@ async function main() {
   const hasSplitResults = results.some((r) => r.method.startsWith('split_'));
 
   if (hasSplitResults) {
-    console.log('Split Extraction Step Breakdown:');
-    console.log(
-      '┌───────────────────┬───────────────────────┬──────────────────────────────┬──────────────────────────────┬─────────────┐'
-    );
-    console.log(
-      '│ Provider          │ Method                │ Entity Step (avg/min/max)    │ Relationship Step (avg/min/max) │ % of Total  │'
-    );
-    console.log(
-      '├───────────────────┼───────────────────────┼──────────────────────────────┼──────────────────────────────┼─────────────┤'
-    );
+    console.log('Split Extraction Step Breakdown (by size):');
 
-    for (const provider of providers) {
-      for (const method of ['split_responseSchema', 'split_function_calling']) {
-        const filtered = results.filter(
-          (r) => r.provider === provider && r.method === method && r.success
-        );
-        if (filtered.length === 0) continue;
+    for (const size of testedSizes) {
+      const sizeConfig = INPUT_SIZE_CONFIGS[size];
+      const sizeResults = results.filter((r) => r.size === size);
+      const sizeSplitResults = sizeResults.filter((r) =>
+        r.method.startsWith('split_')
+      );
 
-        // Entity step stats
-        const entityTimes = filtered.map((r) => r.entityStepMs || 0);
-        const avgEntityStep = Math.round(
-          entityTimes.reduce((a, b) => a + b, 0) / entityTimes.length
-        );
-        const minEntityStep = Math.min(...entityTimes);
-        const maxEntityStep = Math.max(...entityTimes);
+      if (sizeSplitResults.length === 0) continue;
 
-        // Relationship step stats
-        const relTimes = filtered.map((r) => r.relationshipStepMs || 0);
-        const avgRelStep = Math.round(
-          relTimes.reduce((a, b) => a + b, 0) / relTimes.length
-        );
-        const minRelStep = Math.min(...relTimes);
-        const maxRelStep = Math.max(...relTimes);
+      console.log(`  ${size.toUpperCase()} (${sizeConfig.description}):`);
+      console.log(
+        '  ┌───────────────────┬───────────────────────┬──────────────────────────────┬──────────────────────────────┬─────────────┐'
+      );
+      console.log(
+        '  │ Provider          │ Method                │ Entity Step (avg/min/max)    │ Relationship Step (avg/min/max) │ % of Total  │'
+      );
+      console.log(
+        '  ├───────────────────┼───────────────────────┼──────────────────────────────┼──────────────────────────────┼─────────────┤'
+      );
 
-        // Total and percentages
-        const avgTotal = Math.round(
-          filtered.reduce((a, r) => a + r.durationMs, 0) / filtered.length
-        );
-        const entityPct =
-          avgTotal > 0 ? Math.round((avgEntityStep / avgTotal) * 100) : 0;
-        const relPct =
-          avgTotal > 0 ? Math.round((avgRelStep / avgTotal) * 100) : 0;
+      for (const provider of providers) {
+        for (const method of [
+          'split_responseSchema',
+          'split_function_calling',
+        ]) {
+          const filtered = sizeResults.filter(
+            (r) => r.provider === provider && r.method === method && r.success
+          );
+          if (filtered.length === 0) continue;
 
-        // Format step times with min/max
-        const entityStr = `${(avgEntityStep / 1000).toFixed(1)}s (${(
-          minEntityStep / 1000
-        ).toFixed(1)}-${(maxEntityStep / 1000).toFixed(1)})`;
-        const relStr = `${(avgRelStep / 1000).toFixed(1)}s (${(
-          minRelStep / 1000
-        ).toFixed(1)}-${(maxRelStep / 1000).toFixed(1)})`;
-        const pctStr = `E:${entityPct}% R:${relPct}%`;
+          // Entity step stats
+          const entityTimes = filtered.map((r) => r.entityStepMs || 0);
+          const avgEntityStep = Math.round(
+            entityTimes.reduce((a, b) => a + b, 0) / entityTimes.length
+          );
+          const minEntityStep = Math.min(...entityTimes);
+          const maxEntityStep = Math.max(...entityTimes);
 
-        console.log(
-          `│ ${provider.padEnd(17)} │ ${method.padEnd(21)} │ ${entityStr.padEnd(
-            28
-          )} │ ${relStr.padEnd(28)} │ ${pctStr.padEnd(11)} │`
-        );
+          // Relationship step stats
+          const relTimes = filtered.map((r) => r.relationshipStepMs || 0);
+          const avgRelStep = Math.round(
+            relTimes.reduce((a, b) => a + b, 0) / relTimes.length
+          );
+          const minRelStep = Math.min(...relTimes);
+          const maxRelStep = Math.max(...relTimes);
+
+          // Total and percentages
+          const avgTotal = Math.round(
+            filtered.reduce((a, r) => a + r.durationMs, 0) / filtered.length
+          );
+          const entityPct =
+            avgTotal > 0 ? Math.round((avgEntityStep / avgTotal) * 100) : 0;
+          const relPct =
+            avgTotal > 0 ? Math.round((avgRelStep / avgTotal) * 100) : 0;
+
+          // Format step times with min/max
+          const entityStr = `${(avgEntityStep / 1000).toFixed(1)}s (${(
+            minEntityStep / 1000
+          ).toFixed(1)}-${(maxEntityStep / 1000).toFixed(1)})`;
+          const relStr = `${(avgRelStep / 1000).toFixed(1)}s (${(
+            minRelStep / 1000
+          ).toFixed(1)}-${(maxRelStep / 1000).toFixed(1)})`;
+          const pctStr = `E:${entityPct}% R:${relPct}%`;
+
+          console.log(
+            `  │ ${provider.padEnd(17)} │ ${method.padEnd(
+              21
+            )} │ ${entityStr.padEnd(28)} │ ${relStr.padEnd(
+              28
+            )} │ ${pctStr.padEnd(11)} │`
+          );
+        }
       }
+
+      console.log(
+        '  └───────────────────┴───────────────────────┴──────────────────────────────┴──────────────────────────────┴─────────────┘'
+      );
+      console.log('');
     }
 
-    console.log(
-      '└───────────────────┴───────────────────────┴──────────────────────────────┴──────────────────────────────┴─────────────┘'
-    );
-    console.log('');
     console.log(
       '  Legend: E = Entity extraction step, R = Relationship extraction step'
     );
@@ -1383,57 +1630,117 @@ async function main() {
     console.log('');
   }
 
-  // Extraction quality summary (entities/relationships)
-  console.log('Extraction Output (averages):');
-  console.log(
-    '┌───────────────────┬───────────────────────┬─────────────────┬─────────────────┬─────────────┐'
-  );
-  console.log(
-    '│ Provider          │ Method                │ Entities        │ Relationships   │ Ratio (R/E) │'
-  );
-  console.log(
-    '├───────────────────┼───────────────────────┼─────────────────┼─────────────────┼─────────────┤'
-  );
+  // Extraction quality summary (entities/relationships) by size
+  console.log('Extraction Output (averages by size):');
 
-  for (const provider of providers) {
-    for (const method of methods) {
-      const filtered = results.filter(
-        (r) => r.provider === provider && r.method === method && r.success
-      );
-      if (filtered.length === 0) continue;
+  for (const size of testedSizes) {
+    const sizeConfig = INPUT_SIZE_CONFIGS[size];
+    const sizeResults = results.filter((r) => r.size === size);
 
-      const entityCounts = filtered.map((r) => r.entityCount || 0);
-      const relCounts = filtered.map((r) => r.relationshipCount || 0);
+    console.log(`  ${size.toUpperCase()} (${sizeConfig.description}):`);
+    console.log(
+      '  ┌───────────────────┬───────────────────────┬─────────────────┬─────────────────┬─────────────┐'
+    );
+    console.log(
+      '  │ Provider          │ Method                │ Entities        │ Relationships   │ Ratio (R/E) │'
+    );
+    console.log(
+      '  ├───────────────────┼───────────────────────┼─────────────────┼─────────────────┼─────────────┤'
+    );
 
-      const avgEntities = Math.round(
-        entityCounts.reduce((a, b) => a + b, 0) / entityCounts.length
-      );
-      const minEntities = Math.min(...entityCounts);
-      const maxEntities = Math.max(...entityCounts);
+    for (const provider of providers) {
+      for (const method of methods) {
+        const filtered = sizeResults.filter(
+          (r) => r.provider === provider && r.method === method && r.success
+        );
+        if (filtered.length === 0) continue;
 
-      const avgRels = Math.round(
-        relCounts.reduce((a, b) => a + b, 0) / relCounts.length
-      );
-      const minRels = Math.min(...relCounts);
-      const maxRels = Math.max(...relCounts);
+        const entityCounts = filtered.map((r) => r.entityCount || 0);
+        const relCounts = filtered.map((r) => r.relationshipCount || 0);
 
-      const ratio = avgEntities > 0 ? (avgRels / avgEntities).toFixed(1) : '0';
+        const avgEntities = Math.round(
+          entityCounts.reduce((a, b) => a + b, 0) / entityCounts.length
+        );
+        const minEntities = Math.min(...entityCounts);
+        const maxEntities = Math.max(...entityCounts);
 
-      const entityStr = `${avgEntities} (${minEntities}-${maxEntities})`;
-      const relStr = `${avgRels} (${minRels}-${maxRels})`;
+        const avgRels = Math.round(
+          relCounts.reduce((a, b) => a + b, 0) / relCounts.length
+        );
+        const minRels = Math.min(...relCounts);
+        const maxRels = Math.max(...relCounts);
 
-      console.log(
-        `│ ${provider.padEnd(17)} │ ${method.padEnd(21)} │ ${entityStr.padEnd(
-          15
-        )} │ ${relStr.padEnd(15)} │ ${ratio.padStart(11)} │`
-      );
+        const ratio =
+          avgEntities > 0 ? (avgRels / avgEntities).toFixed(1) : '0';
+
+        const entityStr = `${avgEntities} (${minEntities}-${maxEntities})`;
+        const relStr = `${avgRels} (${minRels}-${maxRels})`;
+
+        console.log(
+          `  │ ${provider.padEnd(17)} │ ${method.padEnd(
+            21
+          )} │ ${entityStr.padEnd(15)} │ ${relStr.padEnd(
+            15
+          )} │ ${ratio.padStart(11)} │`
+        );
+      }
     }
+
+    console.log(
+      '  └───────────────────┴───────────────────────┴─────────────────┴─────────────────┴─────────────┘'
+    );
+    console.log('');
   }
 
-  console.log(
-    '└───────────────────┴───────────────────────┴─────────────────┴─────────────────┴─────────────┘'
-  );
-  console.log('');
+  // Cross-size comparison summary
+  if (testedSizes.length > 1) {
+    console.log('Cross-Size Comparison (avg time):');
+    console.log(
+      '┌───────────────────┬───────────────────────┬─────────┬─────────┬─────────┬─────────┐'
+    );
+    const sizeHeaders = testedSizes.map((s) => s.padStart(7)).join(' │ ');
+    console.log(
+      `│ Provider          │ Method                │ ${sizeHeaders} │`
+    );
+    console.log(
+      '├───────────────────┼───────────────────────┼─────────┼─────────┼─────────┼─────────┤'
+    );
+
+    for (const provider of providers) {
+      for (const method of methods) {
+        const hasAnyData = testedSizes.some((size) =>
+          results.some(
+            (r) =>
+              r.provider === provider && r.method === method && r.size === size
+          )
+        );
+        if (!hasAnyData) continue;
+
+        const sizeData = testedSizes
+          .map((size) => {
+            const filtered = results.filter(
+              (r) =>
+                r.provider === provider &&
+                r.method === method &&
+                r.size === size
+            );
+            if (filtered.length === 0) return '      -';
+            const stats = calculateStats(filtered);
+            return formatSecondsCell(stats.avg);
+          })
+          .join(' │ ');
+
+        console.log(
+          `│ ${provider.padEnd(17)} │ ${method.padEnd(21)} │ ${sizeData} │`
+        );
+      }
+    }
+
+    console.log(
+      '└───────────────────┴───────────────────────┴─────────┴─────────┴─────────┴─────────┘'
+    );
+    console.log('');
+  }
 
   // Finalize Langfuse trace
   if (langfuse && sessionTraceId) {
@@ -1441,13 +1748,20 @@ async function main() {
       langfuse.trace({
         id: sessionTraceId,
         output: {
-          summary: providers.flatMap((p) =>
-            methods.map((m) => {
-              const filtered = results.filter(
-                (r) => r.provider === p && r.method === m
-              );
-              return { provider: p, method: m, ...calculateStats(filtered) };
-            })
+          summary: testedSizes.flatMap((size) =>
+            providers.flatMap((p) =>
+              methods.map((m) => {
+                const filtered = results.filter(
+                  (r) => r.provider === p && r.method === m && r.size === size
+                );
+                return {
+                  size,
+                  provider: p,
+                  method: m,
+                  ...calculateStats(filtered),
+                };
+              })
+            )
           ),
         },
         tags: ['completed'],
