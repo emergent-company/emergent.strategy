@@ -83,8 +83,11 @@ strategy:
       reason over. Competitors own pieces; we own the connection.
     
     vs_competitors:
+      # --------------------------------------------------------------------------
+      # ENTERPRISE / WELL-FUNDED COMPETITORS
+      # --------------------------------------------------------------------------
       - competitor: "Glean"
-        their_strength: "Deep enterprise integrations, significant funding"
+        their_strength: "Deep enterprise integrations, significant funding ($200M+)"
         our_angle: "We're developer-friendly and API-first; they're enterprise-sales-first"
         wedge: "Technical teams who want control and transparency, not black boxes"
       
@@ -93,21 +96,206 @@ strategy:
         our_angle: "Cross-platform knowledge graph; AI agent infrastructure"
         wedge: "Teams with knowledge outside Notion; developer workflows"
       
-      - competitor: "DIY RAG (LangChain + VectorDB)"
-        their_strength: "Maximum flexibility, open source"
-        our_angle: "Faster time-to-value; better extraction; managed service"
-        wedge: "Teams who want results without building infrastructure"
-      
       - competitor: "Microsoft Copilot / SharePoint"
         their_strength: "Bundled with M365, ecosystem lock-in"
         our_angle: "Cross-platform, developer control, open ecosystem"
         wedge: "Teams not locked into Microsoft; want best-of-breed"
+      
+      # --------------------------------------------------------------------------
+      # CONSUMER BENCHMARK (The comparison everyone makes)
+      # --------------------------------------------------------------------------
+      - competitor: "Google NotebookLM"
+        their_strength: "Polished consumer UX, free tier, audio synthesis, Google's AI infrastructure"
+        our_angle: |
+          NotebookLM is magic but opaque. Emergent is "NotebookLM with the hood open"—
+          same underlying mechanics (chunking, vectorization, knowledge graph, RAG) but
+          configurable and self-hostable. We expose what NotebookLM hides.
+        wedge: "Teams who need: self-hosting, API access, custom entity types, integrations, multi-tenancy"
+        key_differences:
+          - aspect: "Source ingestion"
+            notebooklm: "Manual upload only"
+            emergent: "Integrations (ClickUp, GDrive) + API + uploads"
+          - aspect: "Knowledge graph"
+            notebooklm: "Hidden, auto-generated, no control"
+            emergent: "Configurable entity types, extraction rules, KB Purpose"
+          - aspect: "API access"
+            notebooklm: "None"
+            emergent: "Full REST/GraphQL API + MCP for AI agents"
+          - aspect: "Hosting"
+            notebooklm: "Google Cloud only"
+            emergent: "Self-hostable (Docker, K8s) or managed"
+          - aspect: "Multi-tenancy"
+            notebooklm: "Personal notebooks"
+            emergent: "Org → Project hierarchy, team collaboration"
+          - aspect: "Embedding model"
+            notebooklm: "Google's fixed model"
+            emergent: "Configurable (Vertex AI, OpenAI, local)"
+      
+      # --------------------------------------------------------------------------
+      # OPEN-SOURCE ALTERNATIVES
+      # --------------------------------------------------------------------------
+      - competitor: "Dify.ai"
+        their_strength: "Open-source LLM app platform, visual workflow builder, active community"
+        our_angle: "We include knowledge graph extraction; Dify is workflow-focused RAG"
+        wedge: "Teams who want structured knowledge (entities, relationships), not just document chat"
+        category: "open-source"
+      
+      - competitor: "Danswer"
+        their_strength: "Enterprise Q&A, good integrations (Slack, Confluence), self-hostable"
+        our_angle: "Knowledge graph + configurable extraction; Danswer is flat document search"
+        wedge: "Teams who need structured knowledge discovery, not just Q&A"
+        category: "open-source"
+      
+      - competitor: "Quivr"
+        their_strength: "'Second brain' positioning, consumer-friendly, self-hostable"
+        our_angle: "Enterprise multi-tenancy, API-first, knowledge graph"
+        wedge: "Teams, not individuals; API integration needs"
+        category: "open-source"
+      
+      - competitor: "PrivateGPT / LocalGPT"
+        their_strength: "Fully offline/private, simple to run"
+        our_angle: "Multi-tenant, integrations, knowledge graph, managed service option"
+        wedge: "Teams with scale needs beyond single-user local deployment"
+        category: "open-source"
+      
+      # --------------------------------------------------------------------------
+      # KNOWLEDGE GRAPH LIBRARIES (Build vs. Buy)
+      # --------------------------------------------------------------------------
+      - competitor: "Microsoft GraphRAG"
+        their_strength: "Graph-based RAG approach, open-source, Microsoft backing"
+        our_angle: "Productized GraphRAG as a service—you don't have to build around the library"
+        wedge: "Teams who want results without becoming GraphRAG infrastructure experts"
+        category: "library"
+      
+      - competitor: "LightRAG"
+        their_strength: "Lightweight alternative to GraphRAG, easier to run"
+        our_angle: "Full platform vs. library; we handle infra, auth, UI, API"
+        wedge: "Same as GraphRAG—want a product, not a science project"
+        category: "library"
+      
+      - competitor: "DIY RAG (LangChain + VectorDB)"
+        their_strength: "Maximum flexibility, open source, large community"
+        our_angle: "Faster time-to-value; better extraction; managed service"
+        wedge: "Teams who want results without building infrastructure"
+        category: "library"
+    
+    # --------------------------------------------------------------------------
+    # COMPETITIVE POSITIONING SUMMARY
+    # --------------------------------------------------------------------------
+    competitive_positioning_summary:
+      category_definition: |
+        Emergent defines a new category: "AI Knowledge Infrastructure"—the layer
+        between raw documents and AI applications that makes organizational 
+        knowledge machine-readable and AI-accessible.
+      
+      positioning_options:
+        - frame: "Self-hosted NotebookLM"
+          description: "Same magic, but you control the infrastructure and configuration"
+          audience: "Teams comparing to NotebookLM but needing enterprise features"
+        
+        - frame: "GraphRAG as a Service"
+          description: "Microsoft's GraphRAG approach, productized and ready to use"
+          audience: "Teams aware of GraphRAG but don't want to build infrastructure"
+        
+        - frame: "The Context Layer for AI Agents"
+          description: "The infrastructure that makes AI assistants understand your organization"
+          audience: "Teams using Cursor, Claude, Copilot and frustrated by context blindness"
+      
+      unique_combination: |
+        Most alternatives are either:
+        - Full platforms WITHOUT knowledge graphs (Dify, Danswer, Quivr)
+        - Knowledge graph libraries WITHOUT platform (GraphRAG, LightRAG)
+        
+        Emergent is unique in combining:
+        1. Knowledge Graph + RAG (productized GraphRAG approach)
+        2. Configurable extraction (KB Purpose, entity types)
+        3. Enterprise platform (multi-tenant, auth, API)
+        4. Ecosystem integration (part of larger Emergent toolchain)
     
     barriers_to_entry:
       - "Knowledge graph + extraction quality requires deep AI/ML expertise"
       - "MCP ecosystem is early; implementation know-how creates advantage"
       - "EPF methodology creates network effects as adoption grows"
       - "Multi-tenant architecture from day 1 is hard to retrofit"
+  
+  # ============================================================================
+  # ECOSYSTEM DIFFERENTIATION
+  # ============================================================================
+  # What makes Emergent unique beyond just the Core product
+  
+  ecosystem_differentiation:
+    summary: |
+      Emergent Core doesn't exist in isolation—it's the engine of a larger ecosystem
+      of interconnected products and methodologies. This ecosystem creates compounding
+      value: EPF structures strategy, OpenSpec structures specifications, Core makes
+      both searchable and AI-accessible, and Tools connect everything to external systems.
+    
+    ecosystem_components:
+      - component: "Emergent Core"
+        role: "The knowledge engine"
+        standalone_value: "Document ingestion, semantic search, AI chat, knowledge graph"
+        ecosystem_value: "Powers all other products; accumulates organizational intelligence"
+      
+      - component: "EPF (Emergent Product Framework)"
+        role: "Strategy methodology"
+        standalone_value: "Structured product development phases, schema-driven planning"
+        ecosystem_value: "Strategy artifacts feed into Core; AI reasons over product strategy"
+      
+      - component: "OpenSpec"
+        role: "Specification framework"
+        standalone_value: "AI-assisted technical specifications and proposals"
+        ecosystem_value: "Specs stored in Core; traceable from strategy to implementation"
+      
+      - component: "Emergent Tools"
+        role: "Integration layer"
+        standalone_value: "CLI access, MCP server, integration adapters"
+        ecosystem_value: "Bridges Core to external AI agents and third-party systems"
+    
+    ecosystem_synergies:
+      - synergy: "Strategy → Knowledge → Code traceability"
+        how: "EPF artifacts in Core + OpenSpec proposals = audit trail from 'why' to 'what' to 'how'"
+        unique_to_us: "No competitor connects product strategy to knowledge infrastructure"
+      
+      - synergy: "AI agents understand product intent"
+        how: "MCP server exposes EPF strategy + Core knowledge to AI coding assistants"
+        unique_to_us: "AI helpers know not just code, but business goals and architecture decisions"
+      
+      - synergy: "Methodology creates lock-in without lock-in"
+        how: "Teams adopt EPF patterns → artifacts accumulate in Core → switching cost is knowledge loss"
+        unique_to_us: "Value accrues through methodology adoption, not proprietary formats"
+      
+      - synergy: "Recursive improvement"
+        how: "Emergent builds Emergent—dogfooding compounds product quality"
+        unique_to_us: "We experience every user pain point ourselves"
+    
+    vs_point_solutions: |
+      Most competitors solve ONE problem:
+      - NotebookLM: Document chat (consumer)
+      - Glean: Enterprise search
+      - LangChain: RAG framework
+      - Notion AI: Workspace AI assistant
+      
+      Emergent offers an integrated TOOLCHAIN:
+      - Methodology (EPF) + Specifications (OpenSpec) + Knowledge Engine (Core) + Integrations (Tools)
+      - Each works independently but compounds when combined
+      - External AI tools (Cursor, Claude) become part of the ecosystem via MCP
+    
+    ecosystem_expansion_vectors:
+      - vector: "Vertical integrations"
+        description: "Domain-specific EPF templates (legal, healthcare, finance)"
+        value_add: "Pre-built entity types, extraction rules, compliance patterns"
+      
+      - vector: "Horizontal integrations"
+        description: "More source connectors (Notion, Linear, GitHub, Jira)"
+        value_add: "Knowledge flows from more tools into unified graph"
+      
+      - vector: "AI agent ecosystem"
+        description: "Deeper MCP capabilities, more AI provider integrations"
+        value_add: "Emergent context available in any AI tool the team uses"
+      
+      - vector: "Developer platform"
+        description: "SDK, plugin system, marketplace for templates/integrations"
+        value_add: "Community extends platform; network effects accelerate"
   
   # ============================================================================
   # VALUE CREATION MODEL
@@ -367,6 +555,22 @@ strategy:
 # ============================================================================
 
 change_log:
+  - date: "2025-12-11"
+    changed_by: "AI Agent + Nikolai"
+    sections_updated:
+      - "competitive_moat.vs_competitors - Expanded with NotebookLM, open-source alternatives"
+      - "competitive_moat.competitive_positioning_summary - NEW: category positioning options"
+      - "ecosystem_differentiation - NEW: ecosystem as competitive advantage"
+    reason: |
+      Market analysis revealed Emergent Core shares conceptual model with NotebookLM 
+      (same underlying mechanics: chunking, vectorization, knowledge graph, RAG) but 
+      differentiates through configurability, self-hosting, and ecosystem integration.
+      Added comprehensive competitive landscape including open-source alternatives 
+      (Dify, Danswer, Quivr, GraphRAG) and ecosystem differentiation story.
+    consistency_validated:
+      - "product_portfolio.yaml - ecosystem components match product lines"
+      - "02_strategy_foundations.yaml - value prop consistent with new positioning"
+  
   - date: "2025-12-11"
     changed_by: "AI Agent + Nikolai"
     sections_updated:

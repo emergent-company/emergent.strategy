@@ -1,6 +1,26 @@
-# Emergent Product Framework (EPF) Repository - v1.10.1
+# Emergent Product Framework (EPF) Repository - v1.11.0
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
+
+## What's New in v1.11.0
+
+* **Enhanced Strategy Formula Schema:** Major expansion of `strategy_formula_schema.json` to support richer strategic documentation:
+  - **Competitive Advantages**: Now supports structured objects with `name`, `description`, `defensibility`, and `evidence` fields (in addition to simple strings)
+  - **Competitor Analysis**: New `vs_competitors` array with detailed competitor-by-competitor analysis including `their_strength`, `our_angle`, `wedge`, and `key_differences`
+  - **Competitive Positioning Summary**: New section for summarizing positioning options and unique combinations
+  - **Ecosystem Differentiation**: New top-level section for documenting ecosystem components, synergies, and expansion vectors
+  - **Success Metrics**: New section with `leading_indicators` and `lagging_indicators` for measuring strategy success
+  - **Enhanced Risk Tracking**: Risks now support `likelihood`, `impact`, and `monitoring` fields
+  - **Validation Fields**: New `confidence_rationale` and `next_validation_needed` fields
+  - **Change Log**: Top-level `change_log` array for tracking document evolution
+  - **Flexible Fields**: Most array fields now support both simple strings and structured objects using `oneOf`
+* **Backward Compatible**: All existing strategy formula documents remain valid
+
+### Migration from v1.10.1
+
+1. **No action required** if your strategy formulas use simple string arrays
+2. **Optional enhancement**: Expand your `advantages`, `constraints`, `risks`, etc. to use the richer object format
+3. **Update _meta.yaml:** Set `epf_version: "1.11.0"`
 
 ## What's New in v1.10.1
 

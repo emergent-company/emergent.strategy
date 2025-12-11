@@ -1,6 +1,6 @@
 #!/bin/bash
 # EPF Health Check Script
-# Version: 1.10.1
+# Version: 1.11.0
 #
 # This script performs comprehensive validation of the EPF framework,
 # including version consistency, YAML parsing, schema validation, and
@@ -378,7 +378,7 @@ check_instances() {
 main() {
     echo ""
     echo "╔══════════════════════════════════════════════════════════════════╗"
-    echo "║              EPF Health Check Script v1.10.1                     ║"
+    echo "║              EPF Health Check Script v1.11.0                     ║"
     echo "╚══════════════════════════════════════════════════════════════════╝"
     echo ""
     
