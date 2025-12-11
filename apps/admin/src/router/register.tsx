@@ -98,6 +98,12 @@ const dashboardRoutes: IRoutesProps[] = [
     ),
   },
   {
+    path: '/admin/settings/project/llm-settings',
+    element: cw(
+      lazy(() => import('@/pages/admin/pages/settings/project/llm-settings'))
+    ),
+  },
+  {
     path: '/admin/settings/project/chunking',
     element: cw(
       lazy(() => import('@/pages/admin/pages/settings/project/chunking'))

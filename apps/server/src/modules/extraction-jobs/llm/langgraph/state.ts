@@ -246,6 +246,24 @@ export const ExtractionGraphState = Annotation.Root({
     default: () => 'responseSchema',
   }),
 
+  /**
+   * Per-LLM-call timeout in milliseconds.
+   * Default: 180000 (3 minutes) based on xlarge performance testing.
+   */
+  timeout_ms: Annotation<number>({
+    reducer: (_, next) => next,
+    default: () => 180000,
+  }),
+
+  /**
+   * Maximum batch size in characters for chunking document text.
+   * Default: 30000 (30KB) - this is the chunk size for extraction.
+   */
+  batch_size_chars: Annotation<number>({
+    reducer: (_, next) => next,
+    default: () => 30000,
+  }),
+
   // --- Internal Processing State ---
 
   /** Document category determined by router */

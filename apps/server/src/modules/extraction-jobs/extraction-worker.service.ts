@@ -158,6 +158,31 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Get project-level extraction configuration.
+   * Returns the extractionConfig from the project, or null if not set.
+   */
+  private async getProjectExtractionConfig(projectId: string): Promise<{
+    chunkSize?: number;
+    method?: 'function_calling' | 'responseSchema';
+    timeoutSeconds?: number;
+  } | null> {
+    try {
+      const result = await this.db.query<{ extraction_config: any }>(
+        'SELECT extraction_config FROM kb.projects WHERE id = $1',
+        [projectId]
+      );
+      return result.rows[0]?.extraction_config ?? null;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to fetch extraction config for project ${projectId}: ${toErrorMessage(
+          error
+        )}`
+      );
+      return null;
+    }
+  }
+
   async onModuleInit() {
     // Only start if extraction worker is enabled and DB is online
     if (!this.db.isOnline()) {
@@ -856,6 +881,11 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       // Track LLM call timing for detailed logs
       const llmCallStartTime = Date.now();
 
+      // Load project-level extraction config for timeout/chunk size settings
+      const projectExtractionConfig = await this.getProjectExtractionConfig(
+        job.project_id
+      );
+
       // Create queued log entry for LLM call
       const llmLogId = await this.extractionLogger.logStep({
         extractionJobId: job.id,
@@ -878,11 +908,21 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       });
 
       try {
-        // Get extraction method from job config or use server default
-        const extractionMethod = job.extraction_config?.extraction_method as
+        // Get extraction settings from job config (overrides) or project config (defaults)
+        // Priority: job.extraction_config > projectExtractionConfig > server defaults
+        const extractionMethod = (job.extraction_config?.extraction_method ||
+          projectExtractionConfig?.method) as
           | 'responseSchema'
           | 'function_calling'
           | undefined;
+
+        // Convert project timeout from seconds to milliseconds
+        const timeoutMs = projectExtractionConfig?.timeoutSeconds
+          ? projectExtractionConfig.timeoutSeconds * 1000
+          : undefined;
+
+        // Get batch size from project config (chunkSize is in chars)
+        const batchSizeChars = projectExtractionConfig?.chunkSize;
 
         const result = await llmProvider.extractEntities(
           documentContent,
@@ -894,7 +934,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             availableTags,
             existingEntities: [], // Empty - deduplication via merge suggestions
             documentChunks,
-            extractionMethod, // Pass per-job extraction method override
+            extractionMethod, // Pass per-job or project extraction method override
+            timeoutMs, // Pass per-project timeout (converted from seconds to ms)
+            batchSizeChars, // Pass per-project chunk size
             context: {
               jobId: job.id,
               projectId: job.project_id,

@@ -149,7 +149,7 @@ export class EnvVariables {
 
   @IsNumber()
   @IsOptional()
-  EXTRACTION_CHUNK_SIZE?: number; // Maximum characters per chunk (default: 100000 for Gemini 2.5 Flash)
+  EXTRACTION_CHUNK_SIZE?: number; // Maximum characters per chunk (default: 30000 based on perf testing)
 
   @IsNumber()
   @IsOptional()
@@ -284,7 +284,7 @@ export function validate(config: Record<string, unknown>): EnvVariables {
       }
       return FALLBACK_EXTRACTION_TEMPLATE_PACK_ID;
     })(),
-    EXTRACTION_CHUNK_SIZE: process.env.EXTRACTION_CHUNK_SIZE || '100000',
+    EXTRACTION_CHUNK_SIZE: process.env.EXTRACTION_CHUNK_SIZE || '30000', // 30K chars based on perf testing
     EXTRACTION_CHUNK_OVERLAP: process.env.EXTRACTION_CHUNK_OVERLAP || '2000',
     EXTRACTION_PIPELINE_MODE:
       process.env.EXTRACTION_PIPELINE_MODE || 'single_pass',
