@@ -237,7 +237,7 @@ export function createRelationshipBuilderNode(
 ) {
   const {
     geminiService,
-    timeoutMs = 120000,
+    timeoutMs = 180000, // 3 minutes - relationship extraction takes longer than entity extraction
     langfuseService = null,
     promptProvider = null,
     extractionMethod = 'responseSchema',
@@ -411,6 +411,9 @@ export function createRelationshipBuilderNode(
         }
       : undefined;
 
+    // Get effective timeout from state (per-job) or fall back to config default
+    const effectiveTimeoutMs = state.timeout_ms || timeoutMs;
+
     try {
       logger.debug(
         `[RelationshipBuilder] Calling native Gemini SDK (${effectiveMethod})...`
@@ -429,7 +432,7 @@ export function createRelationshipBuilderNode(
           promptString,
           relationshipExtractionFunction,
           {
-            timeoutMs,
+            timeoutMs: effectiveTimeoutMs,
             maxOutputTokens: 65535,
             functionName: 'build_relationships',
             forceCall: true,
@@ -443,7 +446,7 @@ export function createRelationshipBuilderNode(
         }>(
           promptString,
           relationshipOutputSchema,
-          { timeoutMs, maxOutputTokens: 65535 },
+          { timeoutMs: effectiveTimeoutMs, maxOutputTokens: 65535 },
           tracingContext
         );
       }

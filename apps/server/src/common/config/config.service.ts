@@ -169,10 +169,12 @@ export class AppConfigService {
 
   get extractionMethod(): 'responseSchema' | 'function_calling' {
     const method = this.env.EXTRACTION_METHOD;
-    if (method === 'function_calling') {
-      return 'function_calling';
+    if (method === 'responseSchema') {
+      return 'responseSchema';
     }
-    return 'responseSchema'; // default
+    // Default to function_calling - better performance with Vertex AI based on testing
+    // See docs/testing/LLM_PROVIDER_COMPARISON.md for benchmarks
+    return 'function_calling';
   }
 
   // --- Extraction Worker Behavior ---
@@ -215,7 +217,9 @@ export class AppConfigService {
   }
 
   get extractionChunkSize() {
-    return this.env.EXTRACTION_CHUNK_SIZE || 100000;
+    // Default 30K chars - based on performance testing showing high variability at larger sizes
+    // See docs/testing/LLM_PROVIDER_COMPARISON.md for benchmarks
+    return this.env.EXTRACTION_CHUNK_SIZE || 30000;
   }
 
   get extractionChunkOverlap() {

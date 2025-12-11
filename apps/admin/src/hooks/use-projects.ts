@@ -26,6 +26,11 @@ export type Project = {
     minChunkSize?: number;
   };
   allow_parallel_extraction?: boolean;
+  extraction_config?: {
+    chunkSize?: number;
+    method?: 'function_calling' | 'responseSchema';
+    timeoutSeconds?: number;
+  };
 };
 
 type CreateProjectPayload = {

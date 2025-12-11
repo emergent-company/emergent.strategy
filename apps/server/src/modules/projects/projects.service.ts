@@ -85,6 +85,7 @@ export class ProjectsService {
       auto_extract_config: project.autoExtractConfig,
       chunking_config: project.chunkingConfig ?? undefined,
       allow_parallel_extraction: project.allowParallelExtraction,
+      extraction_config: project.extractionConfig ?? undefined,
     };
   }
 
@@ -210,6 +211,7 @@ export class ProjectsService {
       auto_extract_config?: any;
       chunking_config?: any;
       allow_parallel_extraction?: boolean;
+      extraction_config?: any;
     }
   ): Promise<ProjectDto | null> {
     // Validate UUID shape
@@ -249,6 +251,9 @@ export class ProjectsService {
     if (updates.allow_parallel_extraction !== undefined) {
       project.allowParallelExtraction = updates.allow_parallel_extraction;
     }
+    if (updates.extraction_config !== undefined) {
+      project.extractionConfig = updates.extraction_config;
+    }
 
     const savedProject = await this.projectRepo.save(project);
 
@@ -262,6 +267,7 @@ export class ProjectsService {
       auto_extract_config: savedProject.autoExtractConfig,
       chunking_config: savedProject.chunkingConfig ?? undefined,
       allow_parallel_extraction: savedProject.allowParallelExtraction,
+      extraction_config: savedProject.extractionConfig ?? undefined,
     };
   }
 
