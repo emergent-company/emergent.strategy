@@ -33,20 +33,21 @@ const CHUNKING_STRATEGIES = [
   },
 ] as const;
 
-// Chunking presets based on use case
+// Chunking presets based on use case - aligned with LLM extraction batch sizes (1:4 ratio)
 const CHUNKING_PRESETS = [
   {
     id: 'precise',
     label: 'Precise',
-    description: 'Small chunks for fine-grained Q&A and precise retrieval',
+    description: 'Smaller chunks for fine-grained Q&A and precise retrieval',
     icon: 'lucide--target',
     color: 'primary',
     config: {
       strategy: 'sentence' as const,
-      maxChunkSize: 800,
-      minChunkSize: 100,
+      maxChunkSize: 3750,
+      minChunkSize: 1500,
     },
-    tokens: '~200 tokens per chunk',
+    tokens: '~940 tokens per chunk',
+    llmAlignment: 'Conservative (15K)',
   },
   {
     id: 'balanced',
@@ -56,10 +57,11 @@ const CHUNKING_PRESETS = [
     color: 'success',
     config: {
       strategy: 'sentence' as const,
-      maxChunkSize: 1500,
-      minChunkSize: 150,
+      maxChunkSize: 7500,
+      minChunkSize: 3000,
     },
-    tokens: '~375 tokens per chunk',
+    tokens: '~1,875 tokens per chunk',
+    llmAlignment: 'Balanced (30K)',
   },
   {
     id: 'comprehensive',
@@ -69,18 +71,82 @@ const CHUNKING_PRESETS = [
     color: 'warning',
     config: {
       strategy: 'paragraph' as const,
-      maxChunkSize: 4000,
-      minChunkSize: 300,
+      maxChunkSize: 15000,
+      minChunkSize: 6000,
     },
-    tokens: '~1000 tokens per chunk',
+    tokens: '~3,750 tokens per chunk',
+    llmAlignment: 'Aggressive (60K)',
   },
 ] as const;
 
-// Default configuration
+// Default configuration - aligned with Balanced LLM preset (30K)
 const DEFAULT_CONFIG = {
-  strategy: 'character' as 'character' | 'sentence' | 'paragraph',
-  maxChunkSize: 1200,
-  minChunkSize: 100,
+  strategy: 'sentence' as 'character' | 'sentence' | 'paragraph',
+  maxChunkSize: 7500,
+  minChunkSize: 3000,
+};
+
+// Default LLM chunk size when no project config exists
+const DEFAULT_LLM_CHUNK_SIZE = 30000;
+
+// Alignment ratio: Document max chunk = LLM batch size / 4
+const LLM_TO_DOC_RATIO = 4;
+// Min chunk = LLM batch size / 10
+const LLM_TO_MIN_DOC_RATIO = 10;
+
+// Calculate suggested document chunk sizes from LLM chunk size
+function calculateSuggestedChunks(llmChunkSize: number): {
+  maxChunkSize: number;
+  minChunkSize: number;
+} {
+  return {
+    maxChunkSize: Math.round(llmChunkSize / LLM_TO_DOC_RATIO),
+    minChunkSize: Math.round(llmChunkSize / LLM_TO_MIN_DOC_RATIO),
+  };
+}
+
+// Alignment status thresholds
+type AlignmentStatus = 'aligned' | 'warning' | 'misaligned';
+
+function getAlignmentStatus(
+  currentMax: number,
+  suggestedMax: number
+): AlignmentStatus {
+  const ratio = currentMax / suggestedMax;
+  // Within 20% = aligned
+  if (ratio >= 0.8 && ratio <= 1.2) return 'aligned';
+  // Within 2x = warning
+  if (ratio >= 0.5 && ratio <= 2.0) return 'warning';
+  // More than 2x off = misaligned
+  return 'misaligned';
+}
+
+// Alignment status configuration
+const alignmentConfig: Record<
+  AlignmentStatus,
+  { icon: string; color: string; label: string; message: string }
+> = {
+  aligned: {
+    icon: 'lucide--check-circle',
+    color: 'success',
+    label: 'Aligned',
+    message:
+      'Document chunk sizes are well-aligned with LLM extraction settings.',
+  },
+  warning: {
+    icon: 'lucide--alert-triangle',
+    color: 'warning',
+    label: 'Slightly Off',
+    message:
+      'Document chunks are somewhat misaligned with LLM settings. Consider adjusting for optimal performance.',
+  },
+  misaligned: {
+    icon: 'lucide--alert-circle',
+    color: 'error',
+    label: 'Misaligned',
+    message:
+      'Document chunks are significantly misaligned with LLM settings. This may impact extraction quality.',
+  },
 };
 
 export default function ProjectChunkingSettingsPage() {
@@ -204,6 +270,23 @@ export default function ProjectChunkingSettingsPage() {
     );
   };
 
+  // Compute LLM alignment values
+  const llmChunkSize =
+    (project?.extraction_config as { chunkSize?: number } | undefined)
+      ?.chunkSize ?? DEFAULT_LLM_CHUNK_SIZE;
+  const suggested = calculateSuggestedChunks(llmChunkSize);
+  const alignmentStatus = getAlignmentStatus(
+    maxChunkSize,
+    suggested.maxChunkSize
+  );
+  const alignment = alignmentConfig[alignmentStatus];
+
+  // Apply suggested values
+  const handleApplySuggested = () => {
+    setMaxChunkSize(suggested.maxChunkSize);
+    setMinChunkSize(suggested.minChunkSize);
+  };
+
   if (!config.activeProjectId) {
     return (
       <div className="mx-auto container">
@@ -322,6 +405,9 @@ export default function ProjectChunkingSettingsPage() {
                       >
                         {preset.tokens}
                       </div>
+                      <div className="mt-1 text-xs text-base-content/50">
+                        LLM: {preset.llmAlignment}
+                      </div>
                       {isActive && (
                         <div className="flex items-center gap-1 mt-2 text-success text-xs">
                           <Icon icon="lucide--check" className="size-3" />
@@ -331,6 +417,107 @@ export default function ProjectChunkingSettingsPage() {
                     </button>
                   );
                 })}
+              </div>
+            </div>
+          </div>
+
+          {/* LLM Alignment Status */}
+          <div
+            className={`card border bg-base-100 ${
+              alignmentStatus === 'aligned'
+                ? 'border-success/50'
+                : alignmentStatus === 'warning'
+                ? 'border-warning/50'
+                : 'border-error/50'
+            }`}
+          >
+            <div className="card-body">
+              <h3 className="flex items-center gap-2 mb-4 font-semibold">
+                <Icon icon="lucide--link" className="size-5" />
+                LLM Alignment
+                <span className={`badge badge-sm badge-${alignment.color}`}>
+                  {alignment.label}
+                </span>
+              </h3>
+
+              <div className="flex items-start gap-3 mb-4">
+                <Icon
+                  icon={alignment.icon}
+                  className={`size-5 mt-0.5 text-${alignment.color}`}
+                />
+                <div className="flex-1">
+                  <p className="text-sm text-base-content/70">
+                    {alignment.message}
+                  </p>
+                </div>
+              </div>
+
+              <div className="gap-4 grid md:grid-cols-3 mb-4">
+                {/* Current LLM Setting */}
+                <div className="bg-base-200 p-3 rounded-lg">
+                  <div className="mb-1 text-xs text-base-content/60">
+                    LLM Batch Size
+                  </div>
+                  <div className="font-mono font-semibold">
+                    {llmChunkSize.toLocaleString()} chars
+                  </div>
+                  <div className="text-xs text-base-content/50">
+                    ~{Math.round(llmChunkSize / 4).toLocaleString()} tokens
+                  </div>
+                </div>
+
+                {/* Suggested Max Chunk */}
+                <div className="bg-base-200 p-3 rounded-lg">
+                  <div className="mb-1 text-xs text-base-content/60">
+                    Suggested Max Chunk
+                  </div>
+                  <div className="font-mono font-semibold">
+                    {suggested.maxChunkSize.toLocaleString()} chars
+                  </div>
+                  <div className="text-xs text-base-content/50">
+                    Current: {maxChunkSize.toLocaleString()}
+                  </div>
+                </div>
+
+                {/* Suggested Min Chunk */}
+                <div className="bg-base-200 p-3 rounded-lg">
+                  <div className="mb-1 text-xs text-base-content/60">
+                    Suggested Min Chunk
+                  </div>
+                  <div className="font-mono font-semibold">
+                    {suggested.minChunkSize.toLocaleString()} chars
+                  </div>
+                  <div className="text-xs text-base-content/50">
+                    Current: {minChunkSize.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Apply Suggested Button */}
+              {alignmentStatus !== 'aligned' && (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline btn-primary"
+                  onClick={handleApplySuggested}
+                >
+                  <Icon icon="lucide--wand-2" className="size-4" />
+                  Apply Suggested Values
+                </button>
+              )}
+
+              <div className="mt-3 text-xs text-base-content/50">
+                <Icon
+                  icon="lucide--info"
+                  className="inline-block mr-1 size-3"
+                />
+                For optimal extraction, document max chunk should be ~1/4 of LLM
+                batch size.{' '}
+                <a
+                  href="/admin/settings/project/llm-settings"
+                  className="link link-primary"
+                >
+                  Adjust LLM Settings
+                </a>
               </div>
             </div>
           </div>
@@ -416,11 +603,11 @@ export default function ProjectChunkingSettingsPage() {
                       )
                     }
                     min={100}
-                    max={10000}
+                    max={25000}
                   />
                   <label className="label">
                     <span className="label-text-alt text-base-content/60">
-                      Recommended: 800-2000 characters
+                      Recommended: 3,750-15,000 characters (aligned with LLM)
                     </span>
                   </label>
                 </div>
@@ -445,11 +632,11 @@ export default function ProjectChunkingSettingsPage() {
                       )
                     }
                     min={10}
-                    max={1000}
+                    max={10000}
                   />
                   <label className="label">
                     <span className="label-text-alt text-base-content/60">
-                      Prevents very small chunks
+                      Recommended: 1,500-6,000 characters (aligned with LLM)
                     </span>
                   </label>
                 </div>
