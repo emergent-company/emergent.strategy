@@ -14,10 +14,21 @@ extraction_tests/
 │   ├── prompts.ts         # Prompts and schemas
 │   ├── stats.ts           # Statistics utilities
 │   ├── logger.ts          # Pretty printing
-│   └── runner.ts          # Test runner with multi-run averaging
+│   ├── runner.ts          # Test runner with multi-run averaging
+│   ├── tracing.ts         # Langfuse tracing utilities
+│   └── verification/      # 3-tier verification cascade
+│       ├── index.ts       # Main exports
+│       ├── types.ts       # Type definitions
+│       ├── exact-match.ts # Tier 1: Levenshtein fuzzy match
+│       ├── nli-verifier.ts # Tier 2: NLI semantic entailment
+│       ├── llm-judge.ts   # Tier 3: LLM-based verification
+│       └── cascade.ts     # Cascade orchestrator
 ├── tests/                  # Refactored test scripts
 │   ├── json-prompting.test.ts    # JSON prompting method
-│   └── function-calling.test.ts  # Function calling method
+│   ├── function-calling.test.ts  # Function calling method
+│   └── verification/             # Verification tests
+│       ├── exact-match.test.ts   # Tier 1 tests
+│       └── cascade.test.ts       # Full cascade tests
 ├── run-all.ts             # Unified test runner
 ├── README.md              # This file
 └── *.ts                   # Legacy test scripts (see below)
@@ -223,6 +234,93 @@ Extraction Test Suite
     Std Dev: ±46ms
 
   Avg entities: 3.3
+```
+
+## Verification Cascade
+
+The verification library provides a 3-tier cascade for validating extracted entities against source text:
+
+### Tiers
+
+| Tier | Method                          | Cost              | Use Case               |
+| ---- | ------------------------------- | ----------------- | ---------------------- |
+| 1    | Exact/Fuzzy Match (Levenshtein) | $0                | Verbatim text matching |
+| 2    | NLI (DeBERTa-v3-small)          | ~$0 (self-hosted) | Semantic entailment    |
+| 3    | LLM Judge (Gemini)              | ~$0.001/entity    | Complex reasoning      |
+
+### Quick Usage
+
+```typescript
+import { verifyClaim, verifyEntitiesBatch } from './lib/verification';
+
+// Verify a single entity
+const result = await verifyClaim('John Smith', documentText, {
+  entityType: 'person',
+  properties: { title: 'CEO', company: 'Acme Corp' },
+});
+
+console.log(result.entityVerified); // true/false
+console.log(result.entityVerificationTier); // 1, 2, or 3
+console.log(result.entityConfidence); // 0-1
+
+// Batch verification
+const batchResult = await verifyEntitiesBatch({
+  sourceText: documentText,
+  entities: [
+    { id: '1', name: 'John Smith', type: 'person' },
+    { id: '2', name: 'Acme Corp', type: 'organization' },
+  ],
+});
+
+console.log(batchResult.summary); // { verified: 2, rejected: 0, ... }
+```
+
+### Running Verification Tests
+
+```bash
+# Test Tier 1 (Exact Match)
+npx ts-node scripts/extraction_tests/tests/verification/exact-match.test.ts
+
+# Test Full Cascade
+npx ts-node scripts/extraction_tests/tests/verification/cascade.test.ts
+```
+
+### NLI Service (Tier 2)
+
+The NLI service is a self-hosted Python FastAPI service using DeBERTa-v3-small.
+
+**Setup (in emergent-infra repo):**
+
+```bash
+cd /path/to/emergent-infra/nli-verifier
+docker compose up --build
+```
+
+**Endpoints:**
+
+- `GET /health` - Health check
+- `POST /predict` - Single prediction
+- `POST /predict/batch` - Batch predictions
+
+See `emergent-infra/nli-verifier/README.md` for full documentation.
+
+### Configuration
+
+```typescript
+import { DEFAULT_VERIFICATION_CONFIG } from './lib/verification';
+
+// All configurable thresholds:
+const config = {
+  exactMatchThreshold: 0.95, // Tier 1 Levenshtein threshold
+  nliEndpoint: 'http://localhost:8080/predict',
+  nliEntailmentThreshold: 0.9, // Score for "verified"
+  nliContradictionThreshold: 0.7, // Score for "rejected"
+  nliUncertaintyRange: [0.4, 0.6], // Escalate to Tier 3
+  nliTimeoutMs: 5000,
+  llmJudgeModel: 'gemini-2.0-flash-lite',
+  verifyProperties: true,
+  maxPropertiesPerEntity: 20,
+};
 ```
 
 ## Key Learnings
