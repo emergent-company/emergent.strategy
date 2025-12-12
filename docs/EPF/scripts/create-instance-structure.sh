@@ -86,8 +86,6 @@ for dir in \
     fi
 done
 
-done
-
 if [ ${#ADDED_DIRS[@]} -gt 0 ]; then
     echo "✅ Added directories:"
     for dir in "${ADDED_DIRS[@]}"; do
