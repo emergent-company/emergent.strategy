@@ -1,15 +1,28 @@
 #!/bin/bash
 # Script to create complete EPF instance directory structure
-# Usage: ./scripts/create-instance-structure.sh <product-name>
+# Usage: ./scripts/create-instance-structure.sh [--update] <product-name>
 
 set -e
 
-PRODUCT_NAME="$1"
+UPDATE_MODE=false
+
+# Parse arguments
+if [ "$1" = "--update" ]; then
+    UPDATE_MODE=true
+    PRODUCT_NAME="$2"
+else
+    PRODUCT_NAME="$1"
+fi
 
 if [ -z "$PRODUCT_NAME" ]; then
     echo "Error: Product name required"
-    echo "Usage: ./scripts/create-instance-structure.sh <product-name>"
-    echo "Example: ./scripts/create-instance-structure.sh my-product"
+    echo "Usage: ./scripts/create-instance-structure.sh [--update] <product-name>"
+    echo ""
+    echo "Options:"
+    echo "  --update    Update existing instance (only add missing folders)"
+    echo ""
+    echo "Example (new): ./scripts/create-instance-structure.sh my-product"
+    echo "Example (update): ./scripts/create-instance-structure.sh --update my-product"
     exit 1
 fi
 
@@ -23,29 +36,75 @@ fi
 INSTANCE_ROOT="docs/EPF/_instances/$PRODUCT_NAME"
 
 if [ -d "$INSTANCE_ROOT" ]; then
-    echo "Warning: Instance directory already exists at $INSTANCE_ROOT"
-    read -p "Continue and create missing folders? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 0
+    if [ "$UPDATE_MODE" = true ]; then
+        echo "Update mode: Adding missing folders to existing instance at $INSTANCE_ROOT"
+    else
+        echo "Warning: Instance directory already exists at $INSTANCE_ROOT"
+        read -p "Continue and create missing folders? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 0
+        fi
+    fi
+else
+    if [ "$UPDATE_MODE" = true ]; then
+        echo "Error: --update flag used but instance does not exist at $INSTANCE_ROOT"
+        echo "Use without --update to create a new instance"
+        exit 1
     fi
 fi
 
-echo "Creating EPF instance structure for: $PRODUCT_NAME"
+if [ "$UPDATE_MODE" = true ]; then
+    echo "Updating EPF instance structure for: $PRODUCT_NAME"
+else
+    echo "Creating EPF instance structure for: $PRODUCT_NAME"
+fi
 echo "Location: $INSTANCE_ROOT"
 echo ""
 
-# Create complete directory structure
-mkdir -p "$INSTANCE_ROOT/READY"
-mkdir -p "$INSTANCE_ROOT/FIRE/feature_definitions"
-mkdir -p "$INSTANCE_ROOT/FIRE/value_models"
-mkdir -p "$INSTANCE_ROOT/FIRE/workflows"
-mkdir -p "$INSTANCE_ROOT/AIM"
-mkdir -p "$INSTANCE_ROOT/ad-hoc-artifacts"
-mkdir -p "$INSTANCE_ROOT/context-sheets"
-mkdir -p "$INSTANCE_ROOT/cycles"
+# Track what was added
+ADDED_DIRS=()
+SKIPPED_DIRS=()
 
-echo "✅ Created directory structure:"
+# Create complete directory structure
+for dir in \
+    "READY" \
+    "FIRE" \
+    "FIRE/feature_definitions" \
+    "FIRE/value_models" \
+    "FIRE/workflows" \
+    "AIM" \
+    "ad-hoc-artifacts" \
+    "context-sheets" \
+    "cycles"; do
+    
+    if [ ! -d "$INSTANCE_ROOT/$dir" ]; then
+        mkdir -p "$INSTANCE_ROOT/$dir"
+        ADDED_DIRS+=("$dir")
+    else
+        SKIPPED_DIRS+=("$dir")
+    fi
+done
+
+done
+
+if [ ${#ADDED_DIRS[@]} -gt 0 ]; then
+    echo "✅ Added directories:"
+    for dir in "${ADDED_DIRS[@]}"; do
+        echo "   + $dir"
+    done
+    echo ""
+fi
+
+if [ ${#SKIPPED_DIRS[@]} -gt 0 ] && [ "$UPDATE_MODE" = true ]; then
+    echo "ℹ️  Skipped existing directories:"
+    for dir in "${SKIPPED_DIRS[@]}"; do
+        echo "   ✓ $dir (already exists)"
+    done
+    echo ""
+fi
+
+echo "Directory structure:"
 echo "   $INSTANCE_ROOT/"
 echo "   ├── READY/"
 echo "   ├── FIRE/"
@@ -86,6 +145,10 @@ status: "active"
 # Update this metadata as your instance evolves
 EOF
     echo "✅ Created _meta.yaml"
+else
+    if [ "$UPDATE_MODE" = true ]; then
+        echo "ℹ️  Skipped _meta.yaml (already exists)"
+    fi
 fi
 
 # Create basic README if it doesn't exist
@@ -128,18 +191,39 @@ $PRODUCT_NAME/
 See the main EPF documentation at \`docs/EPF/README.md\` for detailed guidance.
 EOF
     echo "✅ Created README.md"
+else
+    if [ "$UPDATE_MODE" = true ]; then
+        echo "ℹ️  Skipped README.md (already exists)"
+    fi
 fi
 
 echo ""
-echo "🎉 Instance structure created successfully!"
+if [ "$UPDATE_MODE" = true ]; then
+    if [ ${#ADDED_DIRS[@]} -gt 0 ]; then
+        echo "🎉 Instance updated successfully! Added ${#ADDED_DIRS[@]} missing folder(s)."
+    else
+        echo "✅ Instance already complete - no folders needed to be added."
+    fi
+else
+    echo "🎉 Instance structure created successfully!"
+fi
 echo ""
-echo "Next steps:"
-echo "1. Copy READY phase templates:"
-echo "   cp docs/EPF/phases/READY/*.yaml $INSTANCE_ROOT/READY/"
-echo ""
-echo "2. Customize the templates with your product information"
-echo ""
-echo "3. Commit the structure:"
-echo "   git add $INSTANCE_ROOT"
-echo "   git commit -m 'EPF: Initialize $PRODUCT_NAME instance structure'"
-echo ""
+
+if [ ${#ADDED_DIRS[@]} -gt 0 ]; then
+    echo "Next steps:"
+    if [ "$UPDATE_MODE" = false ]; then
+        echo "1. Copy READY phase templates:"
+        echo "   cp docs/EPF/phases/READY/*.yaml $INSTANCE_ROOT/READY/"
+        echo ""
+        echo "2. Customize the templates with your product information"
+        echo ""
+    fi
+    echo "Commit the changes:"
+    echo "   git add $INSTANCE_ROOT"
+    if [ "$UPDATE_MODE" = true ]; then
+        echo "   git commit -m 'EPF: Update $PRODUCT_NAME instance with missing folders'"
+    else
+        echo "   git commit -m 'EPF: Initialize $PRODUCT_NAME instance structure'"
+    fi
+    echo ""
+fi
