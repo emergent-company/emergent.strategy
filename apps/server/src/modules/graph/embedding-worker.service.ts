@@ -146,8 +146,10 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
       const startTime = Date.now();
 
       // Create a trace for this embedding job
+      // Use short object_id (last 12 chars) for readability, full ID in metadata
+      const shortObjectId = job.object_id.split('-').pop() || job.object_id;
       const traceId = this.langfuseService?.createJobTrace(job.id, {
-        name: `Graph Object Embedding ${job.id}`,
+        name: `Graph Object Embedding ${shortObjectId}`,
         object_id: job.object_id,
         job_type: 'graph_object_embedding',
       });
@@ -189,18 +191,21 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
           );
         }
 
-        // Create span for embedding generation
-        const embedSpan = traceId
-          ? this.langfuseService?.createSpan(
+        // Create embedding generation observation (supports token/cost tracking)
+        const embedGeneration = traceId
+          ? this.langfuseService?.createEmbeddingGeneration(
               traceId,
               'generate_embedding',
               {
                 text_length: textLength,
+                text_preview: text.slice(0, 500),
                 provider: this.provider ? 'vertex' : 'dummy_sha256',
               },
+              this.provider ? 'text-embedding-004' : 'dummy-sha256',
               {
-                model: 'text-embedding-004',
                 operation: 'graph_object_embedding',
+                object_id: obj.id,
+                object_type: obj.type,
               }
             )
           : null;
@@ -208,16 +213,25 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
         const embeddingStartTime = Date.now();
         const embeddingProvider =
           this.provider || new DummySha256EmbeddingProvider();
-        const embedding = await embeddingProvider.generate(text);
+        const embeddingResult = await embeddingProvider.generate(text);
         const embeddingDurationMs = Date.now() - embeddingStartTime;
 
-        if (embedSpan) {
-          this.langfuseService?.endSpan(
-            embedSpan,
+        // Update embedding generation with output and usage
+        if (embedGeneration) {
+          this.langfuseService?.updateEmbeddingGeneration(
+            embedGeneration,
             {
-              dimensions: embedding.length,
+              dimensions: embeddingResult.embedding.length,
               duration_ms: embeddingDurationMs,
+              model: embeddingResult.model,
             },
+            embeddingResult.usage
+              ? {
+                  input: embeddingResult.usage.promptTokens,
+                  total: embeddingResult.usage.totalTokens,
+                }
+              : undefined,
+            embeddingResult.model,
             'success'
           );
         }
@@ -226,7 +240,7 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
         const updateSpan = traceId
           ? this.langfuseService?.createSpan(traceId, 'update_embedding', {
               object_id: obj.id,
-              dimensions: embedding.length,
+              dimensions: embeddingResult.embedding.length,
             })
           : null;
 
@@ -236,7 +250,7 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
         await this.graphObjectRepo.update(
           { id: obj.id },
           {
-            embeddingV2: embedding,
+            embeddingV2: embeddingResult.embedding,
             embeddingUpdatedAt: new Date(),
           }
         );
@@ -259,14 +273,16 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
             object_id: obj.id,
             object_type: obj.type,
             text_length: textLength,
-            embedding_dimensions: embedding.length,
+            embedding_dimensions: embeddingResult.embedding.length,
+            model: embeddingResult.model,
+            usage: embeddingResult.usage,
             duration_ms: totalDurationMs,
           });
         }
 
         this.logger.debug(
           `Generated embedding for graph object ${obj.id} (${obj.type}): ` +
-            `${embedding.length} dims, ${textLength} chars, ${totalDurationMs}ms`
+            `${embeddingResult.embedding.length} dims, ${textLength} chars, ${totalDurationMs}ms`
         );
 
         this.processedCount++;
