@@ -18,6 +18,15 @@ import {
   LangfuseChatMessage,
 } from './prompts/types';
 
+/**
+ * Extract the last segment of a UUID for shorter display names.
+ * e.g., "9aaeeea9-094b-4e6a-aebb-def588b8be1a" -> "def588b8be1a"
+ */
+function getShortId(fullId: string): string {
+  const parts = fullId.split('-');
+  return parts.length > 0 ? parts[parts.length - 1] : fullId;
+}
+
 @Injectable()
 export class LangfuseService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(LangfuseService.name);
@@ -83,12 +92,26 @@ export class LangfuseService implements OnModuleInit, OnModuleDestroy {
     if (!this.langfuse) return null;
 
     const envLabel = environment ?? process.env.NODE_ENV ?? 'default';
+    const shortId = getShortId(jobId);
+
+    // Build trace name: use short ID for readability if name contains full jobId
+    let traceName = metadata?.name || `Job ${shortId}`;
+    if (metadata?.name && metadata.name.includes(jobId)) {
+      // Replace full ID with short ID in the name
+      traceName = metadata.name.replace(jobId, shortId);
+    }
+
+    // Merge full jobId into metadata for reference
+    const enrichedMetadata = {
+      ...metadata,
+      jobId, // Always include full job ID in metadata
+    };
 
     try {
       const trace = this.langfuse.trace({
         id: jobId, // Use job ID as trace ID for easy correlation
-        name: metadata?.name || `Job ${jobId}`,
-        metadata,
+        name: traceName,
+        metadata: enrichedMetadata,
         tags: ['background-job'],
         timestamp: new Date(),
         environment: envLabel,
@@ -203,6 +226,139 @@ export class LangfuseService implements OnModuleInit, OnModuleDestroy {
         error
       );
       return null;
+    }
+  }
+
+  /**
+   * Create an embedding generation observation with usage tracking.
+   * This uses the 'generation' observation type which supports token/cost tracking.
+   *
+   * Note: While Langfuse has a newer 'embedding' observation type, the Node.js SDK v3
+   * doesn't support it yet. Using 'generation' with proper usage fields achieves
+   * the same token/cost tracking functionality.
+   *
+   * @param traceId - The trace ID to attach this observation to
+   * @param name - Name of the embedding operation
+   * @param input - Input text being embedded
+   * @param model - The embedding model name (e.g., 'text-embedding-004')
+   * @param metadata - Optional metadata
+   * @param parentObservationId - Optional parent observation ID for nesting
+   */
+  createEmbeddingGeneration(
+    traceId: string,
+    name: string,
+    input: any,
+    model?: string,
+    metadata?: Record<string, any>,
+    parentObservationId?: string
+  ): LangfuseGenerationClient | null {
+    if (!this.langfuse) {
+      this.logger.debug(
+        `[createEmbeddingGeneration] Langfuse not initialized, skipping for ${name}`
+      );
+      return null;
+    }
+
+    try {
+      const parentInfo = parentObservationId
+        ? ` (parent: ${parentObservationId})`
+        : '';
+      this.logger.log(
+        `[createEmbeddingGeneration] Creating embedding generation "${name}" for trace ${traceId}${parentInfo}`
+      );
+
+      const generation = this.langfuse.generation({
+        traceId,
+        name,
+        input,
+        model,
+        metadata: {
+          ...metadata,
+          observation_type: 'embedding', // Mark as embedding for semantic clarity
+        },
+        startTime: new Date(),
+        parentObservationId: parentObservationId ?? undefined,
+      });
+
+      this.logger.log(
+        `[createEmbeddingGeneration] Created generation with id: ${generation.id}`
+      );
+      return generation;
+    } catch (error) {
+      this.logger.error(
+        `Failed to create embedding generation for trace ${traceId}`,
+        error
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Update an embedding generation with output and usage data.
+   *
+   * @param generation - The generation client to update
+   * @param output - Output from the embedding (e.g., embedding dimensions)
+   * @param usage - Token usage details (uses usageDetails format for flexibility)
+   * @param model - The model used (if not set during creation)
+   * @param status - Status of the generation
+   * @param statusMessage - Optional status message
+   */
+  updateEmbeddingGeneration(
+    generation: LangfuseGenerationClient | null,
+    output: any,
+    usage?: {
+      input?: number; // Input tokens (prompt tokens)
+      total?: number; // Total tokens
+    },
+    model?: string,
+    status: 'success' | 'error' = 'success',
+    statusMessage?: string
+  ): void {
+    if (!generation || !this.langfuse) {
+      this.logger.debug(
+        `[updateEmbeddingGeneration] No generation or Langfuse not initialized, skipping update`
+      );
+      return;
+    }
+
+    try {
+      this.logger.log(
+        `[updateEmbeddingGeneration] Updating generation ${
+          generation.id
+        } with status: ${status}, usage: ${JSON.stringify(usage)}`
+      );
+
+      // Use usageDetails format for newer Langfuse versions
+      // Keys: 'input' for input tokens, 'total' for total tokens
+      // Build object with only defined values to satisfy type requirements
+      let usageDetails: { [key: string]: number } | undefined;
+      if (usage) {
+        usageDetails = {};
+        if (usage.input !== undefined) {
+          usageDetails.input = usage.input;
+        }
+        if (usage.total !== undefined) {
+          usageDetails.total = usage.total;
+        } else if (usage.input !== undefined) {
+          // Default total to input if not specified (embeddings typically only have input tokens)
+          usageDetails.total = usage.input;
+        }
+      }
+
+      generation.update({
+        output,
+        usageDetails,
+        model,
+        endTime: new Date(),
+        level: status === 'error' ? 'ERROR' : undefined,
+        statusMessage,
+      });
+
+      this.logger.log(
+        `[updateEmbeddingGeneration] Successfully updated generation ${generation.id}`
+      );
+    } catch (error) {
+      this.logger.error('Failed to update embedding generation', error);
     }
   }
 
