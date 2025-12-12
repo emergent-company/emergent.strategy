@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
 import { useAuth } from '@/contexts/useAuth';
 import { useApi } from '@/hooks/use-api';
 import { useConfig } from '@/contexts/config';
 import { useToast } from '@/hooks/use-toast';
+import { useDataUpdates } from '@/contexts/data-updates';
 import {
   ExtractionConfigModal,
   type ExtractionConfig,
@@ -248,6 +249,50 @@ export default function DocumentsPage() {
     config.activeProjectId,
   ]);
 
+  // Refresh documents function for real-time updates (silent refresh without loading state)
+  const refreshDocuments = useCallback(async () => {
+    if (!config.activeOrgId || !config.activeProjectId) return;
+
+    try {
+      const t = getAccessToken();
+      const json = await fetchJson<
+        | DocumentRow[]
+        | { documents: DocumentRow[]; total?: number }
+        | { documents: DocumentRow[] }
+      >(`${apiBase}/api/documents?_t=${Date.now()}`, {
+        headers: t ? { ...buildHeaders({ json: false }) } : {},
+        json: false,
+      });
+      const docsList = Array.isArray(json) ? json : json.documents;
+      const total =
+        !Array.isArray(json) && 'total' in json ? json.total : docsList.length;
+
+      const docs = docsList.map(normalize);
+      setData(docs);
+      setTotalCount(total || docs.length);
+    } catch (e: unknown) {
+      console.error('[Documents] Failed to refresh:', e);
+    }
+  }, [
+    apiBase,
+    getAccessToken,
+    buildHeaders,
+    fetchJson,
+    config.activeOrgId,
+    config.activeProjectId,
+  ]);
+
+  // Subscribe to real-time document updates
+  useDataUpdates(
+    'document:*',
+    (event) => {
+      console.debug('[Documents] Real-time event:', event.type, event.id);
+      // Refresh on any document change (created, updated, deleted)
+      void refreshDocuments();
+    },
+    [refreshDocuments]
+  );
+
   const acceptedMimeTypes = useMemo(
     () => [
       'application/pdf',
@@ -277,6 +322,13 @@ export default function DocumentsPage() {
     setSelectedDocumentForMetadata(document);
     setIsMetadataModalOpen(true);
   };
+
+  // Memoized callback to close extraction modal
+  const handleExtractionModalClose = useCallback(() => {
+    setIsExtractionModalOpen(false);
+    setSelectedDocumentForExtraction(null);
+    setSelectedDocumentsForBatchExtraction([]);
+  }, []);
 
   // Handle extraction confirmation
   const handleExtractionConfirm = async (
@@ -370,6 +422,86 @@ export default function DocumentsPage() {
     setSelectedDocumentsForBatchExtraction(selectedItems);
     setSelectedDocumentForExtraction(null);
     setTimeout(() => setIsExtractionModalOpen(true), 0);
+  };
+
+  // Handle bulk recreate chunks
+  const handleBulkRecreateChunks = async (
+    selectedIds: string[],
+    selectedItems: DocumentRow[]
+  ) => {
+    if (!selectedItems.length) return;
+
+    const totalDocs = selectedItems.length;
+    let successCount = 0;
+    let failCount = 0;
+    const failedDocs: string[] = [];
+
+    showToast({
+      message: `Recreating chunks for ${totalDocs} document${
+        totalDocs !== 1 ? 's' : ''
+      }...`,
+      variant: 'info',
+      duration: 3000,
+    });
+
+    for (const doc of selectedItems) {
+      try {
+        await documentsClient.recreateChunks(doc.id);
+        successCount++;
+      } catch (err) {
+        console.error(`Failed to recreate chunks for ${doc.filename}:`, err);
+        failCount++;
+        failedDocs.push(doc.filename || doc.id);
+      }
+    }
+
+    // Show summary
+    if (failCount === 0) {
+      showToast({
+        message: `Queued embedding jobs for ${successCount} document${
+          successCount !== 1 ? 's' : ''
+        }. Embeddings will be generated in the background.`,
+        variant: 'success',
+        duration: 5000,
+      });
+    } else if (successCount === 0) {
+      showToast({
+        message: `Failed to recreate chunks for all ${failCount} document${
+          failCount !== 1 ? 's' : ''
+        }`,
+        variant: 'error',
+        duration: 8000,
+      });
+    } else {
+      showToast({
+        message: `Queued embeddings for ${successCount} document${
+          successCount !== 1 ? 's' : ''
+        }, but ${failCount} failed. Failed: ${failedDocs
+          .slice(0, 3)
+          .join(', ')}${failedDocs.length > 3 ? '...' : ''}`,
+        variant: 'warning',
+        duration: 10000,
+      });
+    }
+
+    // Refresh the documents list to show updated chunk counts
+    try {
+      const t = getAccessToken();
+      const json = await fetchJson<
+        DocumentRow[] | { documents: DocumentRow[]; total?: number }
+      >(`${apiBase}/api/documents`, {
+        headers: t ? { ...buildHeaders({ json: false }) } : {},
+        json: false,
+      });
+      const docsList = Array.isArray(json) ? json : json.documents;
+      const total =
+        !Array.isArray(json) && 'total' in json ? json.total : docsList.length;
+      const docs = docsList.map(normalize);
+      setData(docs);
+      setTotalCount(total || docs.length);
+    } catch (err) {
+      console.error('Failed to refresh documents:', err);
+    }
   };
 
   // Handle batch extraction confirmation
@@ -494,7 +626,7 @@ export default function DocumentsPage() {
     try {
       const result = await documentsClient.recreateChunks(doc.id);
       showToast({
-        message: `Chunks recreated: ${result.summary.oldChunks} → ${result.summary.newChunks} (${result.summary.strategy})`,
+        message: `Chunks recreated: ${result.summary.oldChunks} → ${result.summary.newChunks}. Embeddings generating...`,
         variant: 'success',
         duration: 5000,
       });
@@ -1296,10 +1428,15 @@ export default function DocumentsPage() {
                     : hasNone
                     ? 'lucide--clock'
                     : 'lucide--loader-circle';
+                  // Pulse animation for pending (orange) or in-progress states
+                  const pulseClass = !isComplete ? 'animate-pulse' : '';
 
                   return (
                     <div className="flex items-center gap-2">
-                      <Icon icon={icon} className={`size-4 ${iconColor}`} />
+                      <Icon
+                        icon={icon}
+                        className={`size-4 ${iconColor} ${pulseClass}`}
+                      />
                       <span className="text-sm text-base-content/70">
                         {embedded}/{total}
                       </span>
@@ -1425,6 +1562,14 @@ export default function DocumentsPage() {
                 onAction: handleBulkExtract,
               },
               {
+                key: 'recreate-chunks',
+                label: 'Recreate Chunks',
+                icon: 'lucide--refresh-cw',
+                variant: 'secondary',
+                style: 'outline',
+                onAction: handleBulkRecreateChunks,
+              },
+              {
                 key: 'delete',
                 label: 'Delete',
                 icon: 'lucide--trash-2',
@@ -1454,11 +1599,7 @@ export default function DocumentsPage() {
       {/* Extraction Configuration Modal */}
       <ExtractionConfigModal
         isOpen={isExtractionModalOpen}
-        onClose={() => {
-          setIsExtractionModalOpen(false);
-          setSelectedDocumentForExtraction(null);
-          setSelectedDocumentsForBatchExtraction([]);
-        }}
+        onClose={handleExtractionModalClose}
         onConfirm={
           selectedDocumentsForBatchExtraction.length > 0
             ? handleBatchExtractionConfirm
