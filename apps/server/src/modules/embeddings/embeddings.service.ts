@@ -5,9 +5,33 @@ import { LangfuseService } from '../langfuse/langfuse.service';
 // Embedding vector dimension (Gemini text-embedding-004)
 export const EMBEDDING_DIMENSION = 768;
 
+/**
+ * Result from embedding generation, includes usage data when available.
+ */
+export interface EmbeddingResultWithUsage {
+  embedding: number[];
+  usage?: {
+    promptTokens: number;
+    totalTokens: number;
+  };
+}
+
+export interface EmbeddingBatchResultWithUsage {
+  embeddings: number[][];
+  usage?: {
+    promptTokens: number;
+    totalTokens: number;
+  };
+}
+
 type EmbeddingClient = {
   embedQuery(text: string): Promise<number[]>;
   embedDocuments(texts: string[]): Promise<number[][]>;
+  // Extended methods that return usage data
+  embedQueryWithUsage?(text: string): Promise<EmbeddingResultWithUsage>;
+  embedDocumentsWithUsage?(
+    texts: string[]
+  ): Promise<EmbeddingBatchResultWithUsage>;
 };
 
 /**
@@ -120,6 +144,13 @@ export class EmbeddingsService {
     };
 
     const embedDocuments = async (texts: string[]): Promise<number[][]> => {
+      const result = await embedDocumentsWithUsage(texts);
+      return result.embeddings;
+    };
+
+    const embedDocumentsWithUsage = async (
+      texts: string[]
+    ): Promise<EmbeddingBatchResultWithUsage> => {
       // Batch process all texts
       const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:predict`;
 
@@ -157,16 +188,33 @@ export class EmbeddingsService {
         throw new Error('No predictions returned from Vertex AI');
       }
 
-      return data.predictions.map((prediction: any) => {
+      const embeddings = data.predictions.map((prediction: any) => {
         const values = prediction.embeddings?.values || prediction.values || [];
         if (!Array.isArray(values) || values.length === 0) {
           throw new Error('Invalid embedding values in prediction');
         }
         return values as number[];
       });
+
+      // Extract token usage from predictions
+      // Vertex AI returns token_count in predictions[i].embeddings.statistics.token_count
+      let totalTokens = 0;
+      for (const prediction of data.predictions) {
+        const tokenCount = prediction.embeddings?.statistics?.token_count;
+        if (typeof tokenCount === 'number') {
+          totalTokens += tokenCount;
+        }
+      }
+
+      const usage: { promptTokens: number; totalTokens: number } | undefined =
+        totalTokens > 0
+          ? { promptTokens: totalTokens, totalTokens }
+          : undefined;
+
+      return { embeddings, usage };
     };
 
-    return { embedQuery, embedDocuments };
+    return { embedQuery, embedDocuments, embedDocumentsWithUsage };
   }
 
   private async createGenerativeAIClient(): Promise<EmbeddingClient> {
@@ -347,6 +395,63 @@ export class EmbeddingsService {
 
       this.logger.error(
         `[embedDocuments] Failed after ${durationMs}ms for ${texts.length} docs: ${errorMessage}`
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Generate embeddings for multiple documents in batch, returning usage data.
+   * This is used by the chunk embedding worker for Langfuse token tracking.
+   *
+   * @param texts - Array of texts to embed
+   * @returns Embeddings array and usage data (if available from provider)
+   */
+  async embedDocumentsWithUsage(
+    texts: string[]
+  ): Promise<EmbeddingBatchResultWithUsage> {
+    const startTime = Date.now();
+
+    try {
+      const client = await this.ensureClient();
+
+      // Use the extended method if available (Vertex AI), otherwise fall back
+      if (client.embedDocumentsWithUsage) {
+        const result = await client.embedDocumentsWithUsage(texts);
+        const durationMs = Date.now() - startTime;
+
+        this.logger.debug(
+          `[embedDocumentsWithUsage] Generated ${
+            result.embeddings.length
+          } embeddings (${result.embeddings[0]?.length || 0} dims) ` +
+            `in ${durationMs}ms (${texts.length} docs), tokens: ${
+              result.usage?.promptTokens ?? 'N/A'
+            }`
+        );
+
+        return result;
+      } else {
+        // Fallback for clients without usage support (e.g., Generative AI)
+        const embeddings = await client.embedDocuments(texts);
+        const durationMs = Date.now() - startTime;
+
+        this.logger.debug(
+          `[embedDocumentsWithUsage] Generated ${
+            embeddings.length
+          } embeddings (${
+            embeddings[0]?.length || 0
+          } dims) in ${durationMs}ms (${texts.length} docs), usage: N/A`
+        );
+
+        return { embeddings, usage: undefined };
+      }
+    } catch (error) {
+      const durationMs = Date.now() - startTime;
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      this.logger.error(
+        `[embedDocumentsWithUsage] Failed after ${durationMs}ms for ${texts.length} docs: ${errorMessage}`
       );
       throw error;
     }
