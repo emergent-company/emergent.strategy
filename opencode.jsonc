@@ -5,14 +5,14 @@
     //   "type": "remote",
     //   "url": "http://127.0.0.1:3845/mcp"
     // },
-    "playwright": {
-      "type": "local",
-      "command": [
-        "npx",
-        "@playwright/mcp@latest",
-        "--timeout-action=10000"
-      ]
-    },
+    // "playwright": {
+    //   "type": "local",
+    //   "command": [
+    //     "npx",
+    //     "@playwright/mcp@latest",
+    //     "--timeout-action=10000"
+    //   ]
+    // },
     "postgres": {
       "type": "local",
       "command": [
