@@ -61,7 +61,7 @@ export function buildEntityExtractionPrompt(
   objectSchemas: Record<string, any>,
   allowedTypes?: string[],
   existingEntities?: ExistingEntityContext[],
-  extractionMethod: ExtractionMethod = 'responseSchema'
+  extractionMethod: ExtractionMethod = 'function_calling'
 ): string {
   const typesToExtract = allowedTypes || Object.keys(objectSchemas);
 

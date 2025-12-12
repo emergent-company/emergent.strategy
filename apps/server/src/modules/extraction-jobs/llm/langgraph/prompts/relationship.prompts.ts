@@ -138,7 +138,7 @@ export function buildRelationshipPrompt(
   documentChunks: string[],
   existingEntities?: ExistingEntityContext[],
   orphanTempIds?: string[],
-  extractionMethod: ExtractionMethod = 'responseSchema'
+  extractionMethod: ExtractionMethod = 'function_calling'
 ): string {
   // Combine chunks respecting semantic boundaries
   const {
@@ -307,7 +307,7 @@ export function buildRelationshipRetryPrompt(
   orphanTempIds: string[],
   retryCount: number,
   feedback: string,
-  extractionMethod: ExtractionMethod = 'responseSchema'
+  extractionMethod: ExtractionMethod = 'function_calling'
 ): string {
   // Combine chunks respecting semantic boundaries (same limit as main prompt)
   const {

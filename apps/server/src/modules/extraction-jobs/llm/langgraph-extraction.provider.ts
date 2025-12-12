@@ -123,7 +123,7 @@ export class LangGraphExtractionProvider implements ILLMProvider, OnModuleInit {
       // Note: Document router removed - we now use general schema-driven extraction
       const entityExtractor = createEntityExtractorNode({
         geminiService: this.geminiService,
-        timeoutMs: 180000, // 3 minutes - based on xlarge performance testing
+        timeoutMs: 600000, // 10 minutes - increased for large document extraction
         langfuseService: this.langfuseService,
         promptProvider: this.promptProvider,
         extractionMethod,
@@ -137,7 +137,7 @@ export class LangGraphExtractionProvider implements ILLMProvider, OnModuleInit {
 
       const relationshipBuilder = createRelationshipBuilderNode({
         geminiService: this.geminiService,
-        timeoutMs: 180000, // 3 minutes - relationship step can take longer than entity
+        timeoutMs: 600000, // 10 minutes - increased for large document extraction
         langfuseService: this.langfuseService,
         promptProvider: this.promptProvider,
         extractionMethod,

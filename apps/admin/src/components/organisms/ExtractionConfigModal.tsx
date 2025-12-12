@@ -4,7 +4,7 @@
  * Modal for configuring and triggering manual extraction from a document
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { Icon } from '@/components/atoms/Icon';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
@@ -42,7 +42,7 @@ interface EntityType {
   description: string;
 }
 
-export function ExtractionConfigModal({
+function ExtractionConfigModalComponent({
   isOpen,
   onClose,
   onConfirm,
@@ -64,7 +64,7 @@ export function ExtractionConfigModal({
     auto_accept_threshold: 0.9,
     entity_linking_strategy: 'fuzzy',
     duplicate_strategy: 'skip',
-    extraction_method: 'responseSchema',
+    extraction_method: 'function_calling',
     require_review: false,
     send_notification: true,
   });
@@ -153,13 +153,6 @@ export function ExtractionConfigModal({
       onClose();
     }
   };
-
-  console.log(
-    'ExtractionConfigModal rendering - isOpen:',
-    isOpen,
-    'documentName:',
-    documentName
-  );
 
   return (
     <dialog ref={dialogRef} className="modal" onClose={handleClose}>
@@ -717,3 +710,6 @@ export function ExtractionConfigModal({
     </dialog>
   );
 }
+
+// Memoize to prevent unnecessary re-renders when parent updates
+export const ExtractionConfigModal = memo(ExtractionConfigModalComponent);

@@ -112,11 +112,11 @@ function batchChunks(chunks: string[], maxBatchSize: number): string[] {
 export function createEntityExtractorNode(config: EntityExtractorNodeConfig) {
   const {
     geminiService,
-    timeoutMs = 180000, // 3 minutes - based on xlarge performance testing
+    timeoutMs = 600000, // 10 minutes - increased for large document extraction
     batchSizeChars = DEFAULT_BATCH_SIZE_CHARS,
     langfuseService = null,
     promptProvider = null,
-    extractionMethod = 'responseSchema',
+    extractionMethod = 'function_calling',
   } = config;
 
   // Convert Zod schema to Google Schema for structured output
