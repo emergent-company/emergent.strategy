@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/useAuth';
 import { useApi } from '@/hooks/use-api';
 import { useConfig } from '@/contexts/config';
+import { useDataUpdates } from '@/contexts/data-updates';
 import { Icon } from '@/components/atoms/Icon';
 
 interface ChunkData {
@@ -72,6 +73,34 @@ export default function ChunksPage() {
     config.activeProjectId,
     config.activeOrgId,
   ]);
+
+  // Refresh chunks function for real-time updates (silent refresh without loading state)
+  const refreshChunks = useCallback(async () => {
+    try {
+      const t = getAccessToken();
+      const json = await fetchJson<ChunkData[]>(
+        `${apiBase}/api/chunks?_t=${Date.now()}`,
+        {
+          headers: t ? { ...buildHeaders({ json: false }) } : {},
+          json: false,
+        }
+      );
+      setData(Array.isArray(json) ? json : []);
+    } catch (e: any) {
+      console.error('[Chunks] Failed to refresh:', e);
+    }
+  }, [apiBase, getAccessToken, buildHeaders, fetchJson]);
+
+  // Subscribe to real-time chunk updates (embedding completion, etc.)
+  useDataUpdates(
+    'chunk:*',
+    (event) => {
+      console.debug('[Chunks] Real-time event:', event.type, event.id);
+      // Refresh on any chunk change
+      void refreshChunks();
+    },
+    [refreshChunks]
+  );
 
   // Group chunks by document
   const documentGroups = useMemo(() => {
@@ -200,10 +229,9 @@ export default function ChunksPage() {
               {documentGroups.map((doc) => {
                 const isExpanded = expandedDocs.has(doc.documentId);
                 return (
-                  <>
+                  <Fragment key={doc.documentId}>
                     {/* Document Row */}
                     <tr
-                      key={doc.documentId}
                       className="hover cursor-pointer font-medium"
                       onClick={() => toggleDocument(doc.documentId)}
                     >
@@ -259,7 +287,7 @@ export default function ChunksPage() {
                           </td>
                         </tr>
                       ))}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>
