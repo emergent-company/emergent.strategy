@@ -4,20 +4,15 @@
  * Responsibility: Presentational application footer shell.
  * No data fetching or side-effects; year computed at render time only.
  */
-import React from 'react';
+import { SystemStatusDropdown } from '@/components/molecules/SystemStatusDropdown';
 
 export interface FooterProps {
   className?: string;
   /** Override year for testing or historical rendering */
   yearOverride?: number;
-  statusMessage?: string;
 }
 
-export const Footer: React.FC<FooterProps> = ({
-  className,
-  yearOverride,
-  statusMessage,
-}) => {
+export const Footer: React.FC<FooterProps> = ({ className, yearOverride }) => {
   const year = yearOverride ?? new Date().getFullYear();
   return (
     <div
@@ -27,15 +22,7 @@ export const Footer: React.FC<FooterProps> = ({
       }`}
       data-testid="app-footer"
     >
-      <div className="flex items-center gap-2.5 bg-base-100 hover:bg-base-200 shadow-xs px-2.5 py-1 border border-base-300 rounded-full transition-colors cursor-pointer">
-        <span
-          className="status status-success"
-          aria-label="System Status: OK"
-        />
-        <p className="text-sm text-base-content/80">
-          {statusMessage || 'System running smoothly'}
-        </p>
-      </div>
+      <SystemStatusDropdown />
       <span className="text-sm text-base-content/80">
         © {year} Emergent. All rights reserved
       </span>
