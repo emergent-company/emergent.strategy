@@ -16,6 +16,7 @@ import { Type } from 'class-transformer';
 /**
  * Configuration for document chunking at the project level.
  * These settings are used as defaults when ingesting documents.
+ * Chunk sizes are aligned with LLM extraction batch sizes (1:4 ratio).
  */
 export class ChunkingConfigDto {
   @ApiProperty({
@@ -27,25 +28,27 @@ export class ChunkingConfigDto {
   strategy: 'character' | 'sentence' | 'paragraph';
 
   @ApiProperty({
-    example: 1200,
-    description: 'Maximum chunk size in characters (100-10000)',
+    example: 7500,
+    description:
+      'Maximum chunk size in characters (100-25000). Recommended: 3,750-15,000 aligned with LLM batch size.',
     required: false,
   })
   @IsOptional()
   @IsInt()
   @Min(100)
-  @Max(10000)
+  @Max(25000)
   maxChunkSize?: number;
 
   @ApiProperty({
-    example: 100,
-    description: 'Minimum chunk size in characters (10-1000)',
+    example: 3000,
+    description:
+      'Minimum chunk size in characters (10-10000). Recommended: 1,500-6,000 aligned with LLM batch size.',
     required: false,
   })
   @IsOptional()
   @IsInt()
   @Min(10)
-  @Max(1000)
+  @Max(10000)
   minChunkSize?: number;
 
   @ApiProperty({
@@ -140,12 +143,12 @@ export class ProjectDto {
   @ApiProperty({
     example: {
       strategy: 'sentence',
-      maxChunkSize: 1200,
-      minChunkSize: 100,
+      maxChunkSize: 7500,
+      minChunkSize: 3000,
       overlap: 200,
     },
     description:
-      'Default document chunking configuration for this project. Used when ingesting documents without explicit chunking options.',
+      'Default document chunking configuration for this project. Used when ingesting documents without explicit chunking options. Aligned with LLM extraction batch size (1:4 ratio).',
     required: false,
   })
   chunking_config?: ChunkingConfigDto | null;
@@ -250,12 +253,12 @@ export class UpdateProjectDto {
   @ApiProperty({
     example: {
       strategy: 'sentence',
-      maxChunkSize: 1200,
-      minChunkSize: 100,
+      maxChunkSize: 7500,
+      minChunkSize: 3000,
       overlap: 200,
     },
     description:
-      'Default document chunking configuration. Strategy options: character (fixed boundaries), sentence (preserves sentences), paragraph (preserves paragraphs/sections).',
+      'Default document chunking configuration. Strategy options: character (fixed boundaries), sentence (preserves sentences), paragraph (preserves paragraphs/sections). Chunk sizes should align with LLM extraction batch size (1:4 ratio).',
     required: false,
   })
   @IsOptional()
