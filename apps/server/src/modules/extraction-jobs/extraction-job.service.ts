@@ -3,6 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Optional,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -17,6 +19,7 @@ import {
   ExtractionJobStatus,
 } from './dto/extraction-job.dto';
 import { ObjectExtractionJob } from '../../entities/object-extraction-job.entity';
+import { EventsService } from '../events/events.service';
 
 interface ExtractionJobSchemaInfo {
   orgColumn?: 'organization_id';
@@ -52,7 +55,10 @@ export class ExtractionJobService {
     private readonly extractionJobRepository: Repository<ObjectExtractionJob>,
     private readonly dataSource: DataSource,
     private readonly db: DatabaseService,
-    private readonly config: AppConfigService
+    private readonly config: AppConfigService,
+    @Optional()
+    @Inject(EventsService)
+    private readonly eventsService?: EventsService
   ) {}
 
   /**
@@ -729,12 +735,29 @@ export class ExtractionJobService {
 
     params.push(jobId);
 
-    await this.db.query(
+    const result = await this.db.query<{ id: string; project_id: string }>(
       `UPDATE kb.object_extraction_jobs
              SET ${assignments.join(', ')}
-             WHERE id = $${idx}`,
+             WHERE id = $${idx}
+             RETURNING id, project_id`,
       params
     );
+
+    // Emit real-time event for extraction job completion
+    if (this.eventsService && result.rows[0]?.project_id) {
+      this.eventsService.emitUpdated(
+        'extraction_job',
+        jobId,
+        result.rows[0].project_id,
+        {
+          status:
+            finalStatus === 'requires_review' ? 'requires_review' : 'completed',
+          successfulItems: results.successful_items,
+          totalItems: results.total_items,
+          createdObjectsCount: results.created_objects?.length ?? 0,
+        }
+      );
+    }
 
     if (finalStatus === 'requires_review') {
       this.logger.log(
@@ -792,12 +815,26 @@ export class ExtractionJobService {
 
     params.push(jobId);
 
-    await this.db.query(
+    const result = await this.db.query<{ id: string; project_id: string }>(
       `UPDATE kb.object_extraction_jobs
              SET ${assignments.join(', ')}
-             WHERE id = $${idx}`,
+             WHERE id = $${idx}
+             RETURNING id, project_id`,
       params
     );
+
+    // Emit real-time event for extraction job failure
+    if (this.eventsService && result.rows[0]?.project_id) {
+      this.eventsService.emitUpdated(
+        'extraction_job',
+        jobId,
+        result.rows[0].project_id,
+        {
+          status: 'failed',
+          errorMessage,
+        }
+      );
+    }
 
     this.logger.error(`Job ${jobId} marked as failed: ${errorMessage}`);
   }
