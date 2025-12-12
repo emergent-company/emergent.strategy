@@ -3,6 +3,8 @@ import {
   BadRequestException,
   NotFoundException,
   Logger,
+  Optional,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -15,6 +17,7 @@ import { Chunk } from '../../entities/chunk.entity';
 import { Project } from '../../entities/project.entity';
 import { ChunkerService } from '../../common/utils/chunker.service';
 import { ChunkEmbeddingJobsService } from '../chunks/chunk-embedding-jobs.service';
+import { EventsService } from '../events/events.service';
 
 interface DocumentRow {
   id: string;
@@ -51,7 +54,10 @@ export class DocumentsService {
     private readonly db: DatabaseService,
     private readonly chunker: ChunkerService,
     private readonly chunkEmbeddingJobs: ChunkEmbeddingJobsService,
-    private readonly config: AppConfigService
+    private readonly config: AppConfigService,
+    @Optional()
+    @Inject(EventsService)
+    private readonly eventsService?: EventsService
   ) {}
 
   async list(
@@ -263,6 +269,19 @@ export class DocumentsService {
       }
     }
 
+    // Emit real-time event for document creation
+    if (this.eventsService && savedDoc.projectId) {
+      this.eventsService.emitCreated(
+        'document',
+        savedDoc.id,
+        savedDoc.projectId,
+        {
+          filename: savedDoc.filename,
+          contentLength: savedDoc.content?.length,
+        }
+      );
+    }
+
     return {
       id: savedDoc.id,
       orgId: undefined, // Will be derived from project
@@ -291,9 +310,22 @@ export class DocumentsService {
   }
 
   async delete(id: string): Promise<boolean> {
+    // Fetch document to get projectId for event emission
+    const doc = await this.documentRepository.findOne({
+      where: { id },
+      select: ['id', 'projectId'],
+    });
+
     // Chunks will be deleted automatically via CASCADE (defined in entity relation)
     const result = await this.documentRepository.delete(id);
-    return (result.affected ?? 0) > 0;
+    const deleted = (result.affected ?? 0) > 0;
+
+    // Emit real-time event for document deletion
+    if (deleted && this.eventsService && doc?.projectId) {
+      this.eventsService.emitDeleted('document', id, doc.projectId);
+    }
+
+    return deleted;
   }
 
   /**
