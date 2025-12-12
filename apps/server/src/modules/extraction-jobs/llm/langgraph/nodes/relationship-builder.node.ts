@@ -237,10 +237,10 @@ export function createRelationshipBuilderNode(
 ) {
   const {
     geminiService,
-    timeoutMs = 180000, // 3 minutes - relationship extraction takes longer than entity extraction
+    timeoutMs = 600000, // 10 minutes - increased for large document extraction
     langfuseService = null,
     promptProvider = null,
-    extractionMethod = 'responseSchema',
+    extractionMethod = 'function_calling',
   } = config;
 
   // Convert Zod schema to Google Schema for structured output
