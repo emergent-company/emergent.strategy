@@ -828,11 +828,34 @@ _instances/*
 **Template:** A template is provided at `.gitignore.product-template` for reference.
 
 **Initializing a New Product Instance:**
+
+**Option 1: Quick Init (creates instance folder and .gitignore)**
 ```bash
 ./docs/EPF/scripts/sync-repos.sh init {product-name}
 # Creates _instances/{product-name}/ folder structure
 # Creates product-specific .gitignore automatically
 ```
+
+**Option 2: Complete Structure Setup (creates all EPF folders)**
+```bash
+./docs/EPF/scripts/create-instance-structure.sh {product-name}
+# Creates complete folder structure:
+#   - READY/ (strategy phase)
+#   - FIRE/ (execution phase with feature_definitions/, value_models/, workflows/)
+#   - AIM/ (learning phase)
+#   - ad-hoc-artifacts/ (non-authoritative documents)
+#   - context-sheets/ (additional context)
+#   - cycles/ (archived cycles)
+# Copies templates and adds .gitkeep files
+# Generates _meta.yaml and README.md
+# Shows structure diagram and next steps
+```
+
+**Recommended Workflow:**
+1. Use `sync-repos.sh init` to create the instance folder and .gitignore
+2. Use `create-instance-structure.sh` to build the complete directory structure
+3. Copy strategy templates from `phases/READY/` to your instance
+4. Start filling in your strategy documents
 
 #### Sync Status Check
 
@@ -909,6 +932,7 @@ git log --oneline -20 git@github.com:eyedea-io/epf.git main
 | **Push EPF changes** | `./docs/EPF/scripts/sync-repos.sh push` (excludes _instances/) |
 | **Initial setup** | `git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squash` |
 | **Init new product** | `./docs/EPF/scripts/sync-repos.sh init {product-name}` |
+| **Create full structure** | `./docs/EPF/scripts/create-instance-structure.sh {product-name}` |
 | **Check sync status** | `./docs/EPF/scripts/sync-repos.sh check` |
 | **Check status** | `git status` then `pwd` to confirm location |
 

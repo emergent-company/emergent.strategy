@@ -12,14 +12,34 @@ Product-specific instances live in their respective product repositories:
 
 ## Creating a new instance
 
-When you add EPF to a new product repository via git subtree, create your instance folder:
+When you add EPF to a new product repository via git subtree, create your instance folder with the complete directory structure:
 
 ```bash
 # In your product repo, after adding EPF subtree:
-mkdir -p docs/EPF/_instances/your-product-name
+cd docs/EPF/_instances
+
+# Create instance root
+mkdir -p your-product-name
+
+# Create complete phase-based structure
+mkdir -p your-product-name/READY
+mkdir -p your-product-name/FIRE/feature_definitions
+mkdir -p your-product-name/FIRE/value_models
+mkdir -p your-product-name/FIRE/workflows
+mkdir -p your-product-name/AIM
+mkdir -p your-product-name/ad-hoc-artifacts
+mkdir -p your-product-name/context-sheets
+mkdir -p your-product-name/cycles
 ```
 
-Then copy and customize the template files from the `phases/` directory.
+**Why create all folders upfront?**
+- Provides clear visual navigation of EPF structure
+- Shows what's missing vs. what's complete
+- Prevents confusion about where artifacts belong
+- Makes the phase-based workflow immediately visible
+- Empty folders signal "this needs content" rather than "where does this go?"
+
+Then copy and customize the template files from the `phases/READY/` directory to populate your `READY/` folder.
 
 See MAINTENANCE.md for detailed instructions.
 
