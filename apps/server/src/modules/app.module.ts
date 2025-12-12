@@ -36,6 +36,7 @@ import { ChatSdkModule } from './chat-sdk/chat-sdk.module';
 import { LangfuseModule } from './langfuse/langfuse.module';
 import { UserActivityModule } from './user-activity/user-activity.module';
 import { AgentsModule } from './agents/agents.module';
+import { EventsModule } from './events/events.module';
 import { AppConfigService } from '../common/config/config.service';
 import { entities } from '../entities';
 
@@ -99,6 +100,7 @@ import { entities } from '../entities';
     LangfuseModule,
     UserActivityModule,
     AgentsModule,
+    EventsModule,
     DatabaseModule,
   ],
 })
