@@ -350,6 +350,7 @@ check_instances() {
     log_section "Instance Validation"
     
     local EPF_ROOT="$1"
+    local instances_need_migration=0
     
     for instance_dir in "$EPF_ROOT"/_instances/*/; do
         [ -d "$instance_dir" ] || continue
@@ -369,7 +370,54 @@ check_instances() {
         else
             log_warning "  Missing _meta.yaml"
         fi
+        
+        # Check for required folder structure (READY, FIRE, AIM, ad-hoc-artifacts)
+        local missing_folders=()
+        
+        [ ! -d "$instance_dir/READY" ] && missing_folders+=("READY")
+        [ ! -d "$instance_dir/FIRE" ] && missing_folders+=("FIRE")
+        [ ! -d "$instance_dir/AIM" ] && missing_folders+=("AIM")
+        [ ! -d "$instance_dir/ad-hoc-artifacts" ] && missing_folders+=("ad-hoc-artifacts")
+        
+        if [ ${#missing_folders[@]} -gt 0 ]; then
+            log_warning "  Missing folders: ${missing_folders[*]}"
+            instances_need_migration=$((instances_need_migration + 1))
+        else
+            log_pass "  All required folders present (READY, FIRE, AIM, ad-hoc-artifacts)"
+        fi
+        
+        # Check FIRE subfolders if FIRE exists
+        if [ -d "$instance_dir/FIRE" ]; then
+            local missing_fire_folders=()
+            [ ! -d "$instance_dir/FIRE/feature_definitions" ] && missing_fire_folders+=("feature_definitions")
+            [ ! -d "$instance_dir/FIRE/value_models" ] && missing_fire_folders+=("value_models")
+            [ ! -d "$instance_dir/FIRE/workflows" ] && missing_fire_folders+=("workflows")
+            
+            if [ ${#missing_fire_folders[@]} -gt 0 ]; then
+                log_warning "  Missing FIRE subfolders: ${missing_fire_folders[*]}"
+            fi
+        fi
     done
+    
+    # Provide migration guidance if needed
+    if [ $instances_need_migration -gt 0 ]; then
+        echo ""
+        log_info "━━━ INSTANCE MIGRATION NEEDED ━━━"
+        echo ""
+        echo "  $instances_need_migration instance(s) missing complete folder structure."
+        echo ""
+        echo "  To migrate an existing instance to the complete structure:"
+        echo "  1. Review current instance content and back up if needed"
+        echo "  2. Run: ./docs/EPF/scripts/create-instance-structure.sh --update <instance-name>"
+        echo "  3. Or manually create missing folders:"
+        echo "     mkdir -p docs/EPF/_instances/<name>/{READY,AIM,ad-hoc-artifacts,context-sheets,cycles}"
+        echo "     mkdir -p docs/EPF/_instances/<name>/FIRE/{feature_definitions,value_models,workflows}"
+        echo "     touch docs/EPF/_instances/<name>/FIRE/.gitkeep"  
+        echo "     touch docs/EPF/_instances/<name>/AIM/.gitkeep"
+        echo ""
+        echo "  See: docs/EPF/MAINTENANCE.md#instance-structure-migration"
+        echo ""
+    fi
 }
 
 # =============================================================================
