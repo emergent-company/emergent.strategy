@@ -7,7 +7,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import {
   ChunkEmbeddingJobsService,
   ChunkEmbeddingJobRow,
@@ -17,6 +17,7 @@ import { AppConfigService } from '../../common/config/config.service';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 import { Chunk } from '../../entities/chunk.entity';
 import { LangfuseService } from '../langfuse/langfuse.service';
+import { EventsService } from '../events/events.service';
 
 /**
  * ChunkEmbeddingWorkerService
@@ -53,7 +54,10 @@ export class ChunkEmbeddingWorkerService
     @Inject(EmbeddingsService)
     private readonly embeddings?: EmbeddingsService,
     @Optional()
-    private readonly langfuseService?: LangfuseService
+    private readonly langfuseService?: LangfuseService,
+    @Optional()
+    @Inject(EventsService)
+    private readonly eventsService?: EventsService
   ) {}
 
   onModuleInit() {
@@ -179,10 +183,11 @@ export class ChunkEmbeddingWorkerService
             })
           : null;
 
-        // Fetch chunk text
+        // Fetch chunk text and document for projectId
         const chunk = await this.chunkRepo.findOne({
           where: { id: job.chunk_id },
-          select: ['id', 'text'],
+          select: ['id', 'text', 'documentId'],
+          relations: ['document'],
         });
 
         if (!chunk) {
@@ -236,36 +241,45 @@ export class ChunkEmbeddingWorkerService
           );
         }
 
-        // Create span for embedding generation
-        const embedSpan = traceId
-          ? this.langfuseService?.createSpan(
+        // Create embedding generation observation (supports token/cost tracking)
+        const embedGeneration = traceId
+          ? this.langfuseService?.createEmbeddingGeneration(
               traceId,
               'generate_embedding',
               {
                 text_length: textLength,
+                text_preview: chunk.text.slice(0, 500),
                 provider: 'vertex',
               },
+              'text-embedding-004',
               {
-                model: 'text-embedding-004',
                 operation: 'chunk_embedding',
+                chunk_id: chunk.id,
               }
             )
           : null;
 
         const embeddingStartTime = Date.now();
 
-        // Generate embedding
-        const embeddings = await this.embeddings.embedDocuments([chunk.text]);
+        // Generate embedding with usage data
+        const embeddingResult = await this.embeddings.embedDocumentsWithUsage([
+          chunk.text,
+        ]);
         const embeddingDurationMs = Date.now() - embeddingStartTime;
 
-        if (!embeddings.length || !embeddings[0]?.length) {
-          if (embedSpan) {
-            this.langfuseService?.endSpan(
-              embedSpan,
+        if (
+          !embeddingResult.embeddings.length ||
+          !embeddingResult.embeddings[0]?.length
+        ) {
+          if (embedGeneration) {
+            this.langfuseService?.updateEmbeddingGeneration(
+              embedGeneration,
               {
                 error: 'embedding_generation_failed',
                 duration_ms: embeddingDurationMs,
               },
+              undefined,
+              'text-embedding-004',
               'error'
             );
           }
@@ -284,15 +298,23 @@ export class ChunkEmbeddingWorkerService
           continue;
         }
 
-        const embedding = embeddings[0];
+        const embedding = embeddingResult.embeddings[0];
 
-        if (embedSpan) {
-          this.langfuseService?.endSpan(
-            embedSpan,
+        // Update embedding generation with output and usage
+        if (embedGeneration) {
+          this.langfuseService?.updateEmbeddingGeneration(
+            embedGeneration,
             {
               dimensions: embedding.length,
               duration_ms: embeddingDurationMs,
             },
+            embeddingResult.usage
+              ? {
+                  input: embeddingResult.usage.promptTokens,
+                  total: embeddingResult.usage.totalTokens,
+                }
+              : undefined,
+            'text-embedding-004',
             'success'
           );
         }
@@ -327,6 +349,49 @@ export class ChunkEmbeddingWorkerService
         }
 
         await this.jobs.markCompleted(job.id);
+
+        // Emit real-time event for chunk embedding completion
+        if (this.eventsService && chunk.document?.projectId) {
+          this.eventsService.emitUpdated(
+            'chunk',
+            chunk.id,
+            chunk.document.projectId,
+            {
+              hasEmbedding: true,
+              embeddingDimensions: embedding.length,
+            }
+          );
+
+          // Check if all chunks for this document now have embeddings
+          // If so, emit a document:updated event so the documents table refreshes
+          try {
+            const chunksWithoutEmbedding = await this.chunkRepo.count({
+              where: {
+                documentId: chunk.documentId,
+                embedding: IsNull(),
+              },
+            });
+
+            if (chunksWithoutEmbedding === 0) {
+              this.logger.debug(
+                `All chunks for document ${chunk.documentId} now have embeddings, emitting document update`
+              );
+              this.eventsService.emitUpdated(
+                'document',
+                chunk.documentId,
+                chunk.document.projectId,
+                {
+                  allChunksEmbedded: true,
+                }
+              );
+            }
+          } catch (checkErr) {
+            // Non-critical - just log and continue
+            this.logger.warn(
+              `Failed to check document embedding completion: ${checkErr}`
+            );
+          }
+        }
 
         const totalDurationMs = Date.now() - startTime;
 

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { VertexAI } from '@google-cloud/vertexai';
-import { EmbeddingProvider } from './embedding.provider';
+import { EmbeddingProvider, EmbeddingResult } from './embedding.provider';
 import { AppConfigService } from '../../common/config/config.service';
 
 /**
@@ -75,7 +75,9 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
     }
   }
 
-  async generate(text: string): Promise<number[]> {
+  async generate(text: string): Promise<EmbeddingResult> {
+    const model = 'text-embedding-004';
+
     if (!this.config.embeddingsEnabled) {
       throw new Error('embeddings_disabled');
     }
@@ -91,7 +93,6 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
       return this.deterministicStub(text, 'vertex:uninitialized:');
     }
 
-    const model = 'text-embedding-004';
     const projectId = process.env.GCP_PROJECT_ID;
     const location = process.env.VERTEX_AI_LOCATION;
 
@@ -137,16 +138,30 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
       }
 
       const data = await response.json();
-      const values =
-        data.predictions?.[0]?.embeddings?.values ||
-        data.predictions?.[0]?.values;
+      const prediction = data.predictions?.[0];
+      const values = prediction?.embeddings?.values || prediction?.values;
 
       if (!Array.isArray(values) || values.length === 0) {
         throw new Error('No embedding values returned from Vertex AI');
       }
 
-      // Return as number array for pgvector compatibility
-      return values as number[];
+      // Extract token count from response if available
+      // Vertex AI embedding response includes statistics
+      const statistics =
+        prediction?.embeddings?.statistics || prediction?.statistics;
+      const tokenCount = statistics?.token_count || statistics?.tokenCount;
+
+      // Return as EmbeddingResult with usage info
+      return {
+        embedding: values as number[],
+        model,
+        usage: tokenCount
+          ? {
+              promptTokens: tokenCount,
+              totalTokens: tokenCount,
+            }
+          : undefined,
+      };
     } catch (err) {
       // Fallback path: log once per process to reduce noise
       if (!this.loggedFallback) {
@@ -164,7 +179,7 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
   private async deterministicStub(
     text: string,
     prefix: string
-  ): Promise<number[]> {
+  ): Promise<EmbeddingResult> {
     const crypto = await import('crypto');
     const hash = crypto
       .createHash('sha256')
@@ -176,6 +191,10 @@ export class GoogleVertexEmbeddingProvider implements EmbeddingProvider {
       // Normalize to [-1, 1] range like real embeddings
       out.push((hash[i % hash.length] / 255) * 2 - 1);
     }
-    return out;
+    return {
+      embedding: out,
+      model: 'deterministic-stub',
+      // No usage info for fallback
+    };
   }
 }
