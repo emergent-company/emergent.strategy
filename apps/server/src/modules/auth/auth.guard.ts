@@ -19,6 +19,29 @@ export class AuthGuard implements CanActivate {
 
     console.log('[AuthGuard] Request to:', path);
 
+    // Support token in query param for SSE endpoints (EventSource API cannot set headers)
+    const queryToken = req.query?.token as string | undefined;
+    if (queryToken && path.includes('/events/stream')) {
+      console.log('[AuthGuard] Using token from query param for SSE endpoint');
+      const user = await this.auth.validateToken(queryToken);
+      if (!user) {
+        console.log('[AuthGuard] Query token validation failed');
+        throw new UnauthorizedException({
+          error: {
+            code: 'invalid_token',
+            message: 'Invalid or expired access token',
+          },
+        });
+      }
+      console.log('[AuthGuard] User validated from query token:', {
+        id: user.id,
+        email: user.email,
+        scopes: user.scopes?.slice(0, 3),
+      });
+      req.user = user;
+      return true;
+    }
+
     // 1. Missing header entirely
     if (!headerRaw) {
       console.log('[AuthGuard] Missing Authorization header');
