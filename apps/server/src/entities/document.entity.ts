@@ -46,14 +46,6 @@ export class Document {
   @Column({ name: 'parent_document_id', type: 'uuid', nullable: true })
   parentDocumentId!: string | null;
 
-  @Column({
-    name: 'chunk_status',
-    type: 'varchar',
-    length: 20,
-    default: 'pending',
-  })
-  chunkStatus!: 'pending' | 'processing' | 'completed' | 'failed';
-
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 
