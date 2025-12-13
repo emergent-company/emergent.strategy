@@ -26,6 +26,7 @@ import type {
 import { TemplatePackService } from '../template-packs/template-pack.service';
 import { MonitoringLoggerService } from '../monitoring/monitoring-logger.service';
 import { LangfuseService } from '../langfuse/langfuse.service';
+import { VerificationService } from '../verification/verification.service';
 import type { LangfuseSpanClient } from 'langfuse-node';
 import {
   ChunkerService,
@@ -121,7 +122,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly chunkerService: ChunkerService,
     private readonly embeddingsService: EmbeddingsService,
     private readonly vectorSearchService: GraphVectorSearchService,
-    private readonly extractionContextService: ExtractionContextService
+    private readonly extractionContextService: ExtractionContextService,
+    private readonly verificationService: VerificationService
   ) {}
 
   /**
@@ -161,18 +163,34 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
   /**
    * Get project-level extraction configuration.
    * Returns the extractionConfig from the project, or null if not set.
+   * Also includes entity_similarity_threshold from auto_extract_config.
    */
   private async getProjectExtractionConfig(projectId: string): Promise<{
     chunkSize?: number;
     method?: 'function_calling' | 'responseSchema';
     timeoutSeconds?: number;
+    entitySimilarityThreshold?: number;
   } | null> {
     try {
-      const result = await this.db.query<{ extraction_config: any }>(
-        'SELECT extraction_config FROM kb.projects WHERE id = $1',
+      const result = await this.db.query<{
+        extraction_config: any;
+        auto_extract_config: any;
+      }>(
+        'SELECT extraction_config, auto_extract_config FROM kb.projects WHERE id = $1',
         [projectId]
       );
-      return result.rows[0]?.extraction_config ?? null;
+      const row = result.rows[0];
+      if (!row) return null;
+
+      // Merge extraction_config with entity_similarity_threshold from auto_extract_config
+      const config = row.extraction_config ?? {};
+      const autoExtractConfig = row.auto_extract_config ?? {};
+
+      return {
+        ...config,
+        entitySimilarityThreshold:
+          autoExtractConfig.entity_similarity_threshold,
+      };
     } catch (error) {
       this.logger.warn(
         `Failed to fetch extraction config for project ${projectId}: ${toErrorMessage(
@@ -423,12 +441,13 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     const organizationId = await this.getOrganizationId(job);
 
     // Get confidence thresholds early
-    // - minThreshold: Below this, entities are rejected (server default: 0%)
-    // - reviewThreshold/draftThreshold: Between min and auto, entities are "draft" status
+    // - minThreshold: Below this, entities are rejected
+    // - reviewThreshold: Between min and auto, entities are "draft" status (needs review)
     // - autoThreshold: At or above this, entities are "accepted" status
     //
-    // The UI's confidence_threshold is the "draft threshold" (what the user considers minimum quality)
-    // The UI's auto_accept_threshold is the threshold for auto-accepting as final
+    // IMPORTANT: The UI's confidence_threshold serves as BOTH the minimum rejection threshold
+    // AND the review threshold. Entities below this are REJECTED, not just marked for review.
+    // The UI's auto_accept_threshold is the threshold for auto-accepting as final.
     const minThresholdFromConfig =
       job.extraction_config?.min_threshold !== undefined;
     const draftThresholdFromConfig =
@@ -436,9 +455,14 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     const autoThresholdFromConfig =
       job.extraction_config?.auto_accept_threshold !== undefined;
 
-    // Minimum threshold for rejection (server default: 0%, rarely overridden)
+    // Minimum threshold for rejection:
+    // 1. Use explicit min_threshold if provided
+    // 2. Otherwise, use confidence_threshold from job config (user's expectation is this rejects low-confidence)
+    // 3. Fall back to server default (EXTRACTION_CONFIDENCE_THRESHOLD_MIN)
     const minThreshold = minThresholdFromConfig
       ? job.extraction_config.min_threshold
+      : draftThresholdFromConfig
+      ? job.extraction_config.confidence_threshold
       : this.config.extractionConfidenceThresholdMin;
 
     // Draft threshold - entities below this get extra review marking
@@ -453,12 +477,15 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       : this.config.extractionConfidenceThresholdAuto;
 
     // Build thresholds object for debug info
+    // Note: min threshold can come from explicit min_threshold OR confidence_threshold
+    const minSourceIsJobConfig =
+      minThresholdFromConfig || draftThresholdFromConfig;
     const thresholdsInfo = {
       min: minThreshold,
       review: reviewThreshold,
       autoAccept: autoThreshold,
       source: {
-        min: (minThresholdFromConfig ? 'job_config' : 'server_default') as
+        min: (minSourceIsJobConfig ? 'job_config' : 'server_default') as
           | 'job_config'
           | 'server_default',
         review: (draftThresholdFromConfig ? 'job_config' : 'server_default') as
@@ -484,12 +511,17 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     );
 
     // Create LangFuse trace
-    const traceId = this.langfuseService.createJobTrace(job.id, {
-      name: `Extraction Job ${job.id}`,
-      source_type: job.source_type,
-      project_id: job.project_id,
-      organization_id: organizationId,
-    });
+    const traceId = this.langfuseService.createJobTrace(
+      job.id,
+      {
+        name: `Extraction Job ${job.id}`,
+        source_type: job.source_type,
+        project_id: job.project_id,
+        organization_id: organizationId,
+      },
+      undefined, // environment (use default)
+      'extraction' // traceType for filtering
+    );
 
     // Log to monitoring system
     await this.monitoringLogger.logProcessEvent({
@@ -924,6 +956,10 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         // Get batch size from project config (chunkSize is in chars)
         const batchSizeChars = projectExtractionConfig?.chunkSize;
 
+        // Get entity similarity threshold from project config
+        const similarityThreshold =
+          projectExtractionConfig?.entitySimilarityThreshold;
+
         const result = await llmProvider.extractEntities(
           documentContent,
           extractionPrompt,
@@ -937,6 +973,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             extractionMethod, // Pass per-job or project extraction method override
             timeoutMs, // Pass per-project timeout (converted from seconds to ms)
             batchSizeChars, // Pass per-project chunk size
+            similarityThreshold, // Pass per-project entity similarity threshold
             context: {
               jobId: job.id,
               projectId: job.project_id,
@@ -1052,6 +1089,90 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
       if (!extractionResult) {
         throw new Error('LLM extraction produced no result');
+      }
+
+      // 5.5 Verify extracted entities against source text (3-tier cascade)
+      // When using LangGraph pipeline, verification is already done in the pipeline nodes,
+      // so we skip the separate verification step and use the pre-computed confidence.
+      const isLangGraphPipeline =
+        this.llmFactory.getPipelineMode() === 'langgraph';
+      const verificationEnabled = this.config.extractionVerificationEnabled;
+      const verificationResults = new Map<
+        string,
+        { verified: boolean; confidence: number; tier: number }
+      >();
+
+      // Only run separate verification for single_pass pipeline
+      if (
+        !isLangGraphPipeline &&
+        verificationEnabled &&
+        extractionResult.entities.length > 0
+      ) {
+        const verifyStep = beginTimelineStep('verification', {
+          entity_count: extractionResult.entities.length,
+        });
+
+        try {
+          // Check verification service health
+          const health = await this.verificationService.checkHealth();
+          this.logger.log(
+            `Verification health: ${health.message} (T1: ${health.tier1Available}, T2: ${health.tier2Available}, T3: ${health.tier3Available})`
+          );
+
+          // Run batch verification
+          const verifyRequest = {
+            sourceText: documentContent,
+            entities: extractionResult.entities.map((e) => ({
+              id: e.name, // Use name as ID for now
+              name: e.name,
+              type: e.type_name,
+              properties: e.properties as Record<
+                string,
+                string | number | boolean | null | undefined
+              >,
+            })),
+            jobId: job.id,
+          };
+
+          const verifyResponse = await this.verificationService.verifyBatch(
+            verifyRequest
+          );
+
+          // Build lookup map for verification results
+          for (const result of verifyResponse.results) {
+            verificationResults.set(result.entityName.toLowerCase().trim(), {
+              verified: result.entityVerified,
+              confidence: result.overallConfidence,
+              tier: result.entityVerificationTier,
+            });
+          }
+
+          this.logger.log(
+            `Verification complete: ${verifyResponse.summary.verified} verified, ` +
+              `${verifyResponse.summary.rejected} rejected, ${verifyResponse.summary.uncertain} uncertain ` +
+              `(${verifyResponse.processingTimeMs}ms)`
+          );
+
+          verifyStep('success', {
+            message: `Verified ${extractionResult.entities.length} entities`,
+            metadata: {
+              verified: verifyResponse.summary.verified,
+              rejected: verifyResponse.summary.rejected,
+              uncertain: verifyResponse.summary.uncertain,
+              tier_usage: verifyResponse.summary.tierUsage,
+              processing_time_ms: verifyResponse.processingTimeMs,
+            },
+          });
+        } catch (verifyError) {
+          this.logger.warn(
+            `Verification failed, continuing without verification: ${toErrorMessage(
+              verifyError
+            )}`
+          );
+          verifyStep('warning', {
+            message: `Verification failed: ${toErrorMessage(verifyError)}`,
+          });
+        }
       }
 
       const totalEntities = extractionResult.entities.length;
@@ -1201,19 +1322,76 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
           'skipped';
 
         try {
-          // Calculate confidence score using multi-factor algorithm
-          const calculatedConfidence =
-            this.confidenceScorer.calculateConfidence(entity, allowedTypes);
+          // Calculate confidence score
+          // For LangGraph pipeline: use the pre-computed verification confidence
+          // For single_pass pipeline: use multi-factor algorithm + verification adjustment
+          let finalConfidence: number;
 
-          // Use calculated confidence (overrides LLM-provided confidence if present)
-          const finalConfidence = calculatedConfidence;
+          if (isLangGraphPipeline && entity.confidence !== undefined) {
+            // LangGraph pipeline already computed verification-weighted confidence:
+            // 40% name + 30% description + 30% properties
+            finalConfidence = entity.confidence;
+            this.logger.debug(
+              `Entity ${
+                entity.name
+              }: using LangGraph verification confidence=${finalConfidence.toFixed(
+                3
+              )} ` + `(status: ${entity.verification_status || 'N/A'})`
+            );
+          } else {
+            // Single_pass pipeline: use multi-factor algorithm
+            const calculatedConfidence =
+              this.confidenceScorer.calculateConfidence(entity, allowedTypes);
 
-          this.logger.debug(
-            `Entity ${
-              entity.name
-            }: calculated confidence=${finalConfidence.toFixed(3)} ` +
-              `(LLM: ${entity.confidence?.toFixed(3) || 'N/A'})`
-          );
+            // Check verification results if available (single_pass only)
+            const normalizedEntityName = entity.name.toLowerCase().trim();
+            const verificationResult =
+              verificationResults.get(normalizedEntityName);
+
+            // Apply verification adjustment to confidence
+            // - Verified entities get a confidence boost (up to 10%)
+            // - Rejected by verification get a penalty (up to 30%)
+            // - Uncertain entities keep original confidence
+            let verificationAdjustment = 0;
+            if (verificationResult) {
+              if (verificationResult.verified) {
+                // Boost confidence based on verification confidence (max 10%)
+                verificationAdjustment = Math.min(
+                  0.1,
+                  verificationResult.confidence * 0.1
+                );
+                this.logger.debug(
+                  `Entity "${entity.name}" verified (Tier ${
+                    verificationResult.tier
+                  }): +${(verificationAdjustment * 100).toFixed(1)}%`
+                );
+              } else if (verificationResult.confidence < 0.3) {
+                // Penalize low-confidence verification failures (max 30%)
+                verificationAdjustment = -Math.min(
+                  0.3,
+                  (0.3 - verificationResult.confidence) * 0.5
+                );
+                this.logger.debug(
+                  `Entity "${entity.name}" verification failed (Tier ${
+                    verificationResult.tier
+                  }): ${(verificationAdjustment * 100).toFixed(1)}%`
+                );
+              }
+            }
+
+            // Apply verification adjustment and clamp to [0, 1]
+            finalConfidence = Math.max(
+              0,
+              Math.min(1, calculatedConfidence + verificationAdjustment)
+            );
+
+            this.logger.debug(
+              `Entity ${
+                entity.name
+              }: calculated confidence=${finalConfidence.toFixed(3)} ` +
+                `(LLM: ${entity.confidence?.toFixed(3) || 'N/A'})`
+            );
+          }
 
           // Apply quality thresholds
           const qualityDecision = this.applyQualityThresholds(
@@ -1318,312 +1496,78 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             const status =
               finalConfidence >= autoThreshold ? 'accepted' : 'draft';
 
-            // Generate a valid key if business_key is missing
-            // graph_objects.key is NOT NULL so we must provide a value
-            const objectKey =
-              entity.business_key ||
-              this.generateKeyFromName(entity.name, entity.type_name);
+            // NOTE: We no longer generate or check for duplicate keys.
+            // The `key` column is nullable and non-unique.
+            // Deduplication is handled by a separate merge process.
+            // The `id` (auto-generated UUID) is the unique identifier.
 
             // Track object creation start time
             const objectCreationStartTime = Date.now();
 
-            try {
-              const graphObject = await this.graphService.createObject({
-                org_id: organizationId ?? undefined,
-                project_id: job.project_id,
-                type: entity.type_name,
-                key: objectKey,
-                status: status, // NEW: Set status based on confidence threshold
-                properties: {
-                  name: entity.name,
-                  description: entity.description,
-                  ...entity.properties,
-                  _extraction_confidence: finalConfidence,
-                  _extraction_llm_confidence: entity.confidence,
-                  _extraction_source: job.source_type,
-                  _extraction_source_id: job.source_id,
-                  _extraction_job_id: job.id,
-                },
-                labels,
-              });
+            const graphObject = await this.graphService.createObject({
+              org_id: organizationId ?? undefined,
+              project_id: job.project_id,
+              type: entity.type_name,
+              key: undefined, // Key is no longer required - deduplication handled separately
+              status: status,
+              properties: {
+                name: entity.name,
+                description: entity.description,
+                ...entity.properties,
+                _extraction_confidence: finalConfidence,
+                _extraction_llm_confidence: entity.confidence,
+                _extraction_source: job.source_type,
+                _extraction_source_id: job.source_id,
+                _extraction_job_id: job.id,
+              },
+              labels,
+            });
 
-              createdObjectIds.push(graphObject.id);
+            createdObjectIds.push(graphObject.id);
 
-              // Add to batchEntityMap for relationship resolution
-              addToBatchEntityMap(entity.name, graphObject.id);
+            // Add to batchEntityMap for relationship resolution
+            addToBatchEntityMap(entity.name, graphObject.id);
 
-              if (qualityDecision === 'review') {
-                reviewRequiredObjectIds.push(graphObject.id);
-              }
-
-              // Log successful object creation (combined input + output)
-              await this.extractionLogger.logStep({
-                extractionJobId: job.id,
-                stepIndex: this.stepCounter++,
-                operationType: 'object_creation',
-                operationName: 'create_graph_object',
-                status: 'completed',
-                inputData: {
-                  entity_type: entity.type_name,
-                  entity_name: entity.name,
-                  entity_key: objectKey,
-                  entity_description: entity.description,
-                  entity_properties: entity.properties,
-                  confidence: finalConfidence,
-                  quality_decision: qualityDecision,
-                },
-                outputData: {
-                  object_id: graphObject.id,
-                  entity_name: entity.name,
-                  entity_type: entity.type_name,
-                  quality_decision: qualityDecision,
-                  requires_review: qualityDecision === 'review',
-                },
-                durationMs: Date.now() - objectCreationStartTime,
-                metadata: {
-                  project_id: job.project_id,
-                  confidence: finalConfidence,
-                },
-              });
-
-              this.logger.debug(
-                `Created object ${graphObject.id}: ${entity.type_name} - ${entity.name} ` +
-                  `(confidence: ${finalConfidence.toFixed(
-                    3
-                  )}, decision: ${qualityDecision})`
-              );
-              outcome = 'created';
-            } catch (createError) {
-              // Handle duplicate key error gracefully
-              const err =
-                createError instanceof Error
-                  ? createError
-                  : new Error(String(createError));
-
-              if (err.message === 'object_key_exists') {
-                // Duplicate key detected - apply deduplication strategy
-                const duplicateStrategy =
-                  job.extraction_config?.duplicate_strategy || 'skip';
-
-                this.logger.debug(
-                  `Duplicate key detected for ${entity.type_name} "${entity.name}" (key: ${objectKey}). ` +
-                    `Strategy: ${duplicateStrategy}`
-                );
-
-                if (duplicateStrategy === 'skip') {
-                  // Skip creation - object already exists
-                  // Look up existing object ID to add to batchEntityMap
-                  try {
-                    const existingLookup = await this.db.runWithTenantContext(
-                      job.project_id,
-                      async () => {
-                        return this.db.query<{ id: string }>(
-                          `SELECT id FROM kb.graph_objects
-                           WHERE project_id = $1
-                             AND branch_id IS NULL
-                             AND type = $2
-                             AND key = $3
-                             AND deleted_at IS NULL
-                           ORDER BY version DESC
-                           LIMIT 1`,
-                          [job.project_id, entity.type_name, objectKey]
-                        );
-                      }
-                    );
-                    if (
-                      existingLookup.rowCount &&
-                      existingLookup.rowCount > 0
-                    ) {
-                      addToBatchEntityMap(
-                        entity.name,
-                        existingLookup.rows[0].id
-                      );
-                    }
-                  } catch {
-                    // Ignore lookup errors - relationship resolution will fall back
-                  }
-
-                  await this.extractionLogger.logStep({
-                    extractionJobId: job.id,
-                    stepIndex: this.stepCounter++,
-                    operationType: 'object_creation',
-                    operationName: 'create_graph_object',
-                    status: 'skipped',
-                    inputData: {
-                      entity_type: entity.type_name,
-                      entity_name: entity.name,
-                      entity_key: objectKey,
-                    },
-                    outputData: {
-                      action: 'skipped',
-                      reason: 'duplicate_key',
-                      duplicate_strategy: duplicateStrategy,
-                    },
-                    durationMs: Date.now() - objectCreationStartTime,
-                  });
-
-                  this.logger.debug(
-                    `Skipped duplicate object: ${entity.type_name} - ${entity.name} (key: ${objectKey})`
-                  );
-                  outcome = 'skipped';
-                } else if (duplicateStrategy === 'merge') {
-                  // Merge strategy: Find existing object and update with new properties
-                  try {
-                    // Find the existing object by key
-                    const existingResult = await this.db.runWithTenantContext(
-                      job.project_id,
-                      async () => {
-                        return this.db.query<{
-                          id: string;
-                          properties: Record<string, any>;
-                          labels: string[];
-                          version: number;
-                        }>(
-                          `SELECT id, properties, labels, version
-                                                     FROM kb.graph_objects
-                                                     WHERE project_id = $1 
-                                                       AND branch_id IS NULL 
-                                                       AND type = $2 
-                                                       AND key = $3
-                                                       AND deleted_at IS NULL
-                                                     ORDER BY version DESC
-                                                     LIMIT 1`,
-                          [job.project_id, entity.type_name, objectKey]
-                        );
-                      }
-                    );
-
-                    if (existingResult.rowCount === 0) {
-                      throw new Error(
-                        'Object not found after duplicate detection'
-                      );
-                    }
-
-                    const existingObject = existingResult.rows[0];
-                    const existingProps = existingObject.properties || {};
-
-                    // Merge properties: new properties override existing, but preserve extraction metadata
-                    const mergedProperties = {
-                      ...existingProps,
-                      ...entity.properties,
-                      name: entity.name, // Update name
-                      description:
-                        entity.description || existingProps.description,
-                      // Update confidence if new is higher
-                      _extraction_confidence: Math.max(
-                        existingProps._extraction_confidence || 0,
-                        finalConfidence
-                      ),
-                      _extraction_llm_confidence: Math.max(
-                        existingProps._extraction_llm_confidence || 0,
-                        entity.confidence || 0
-                      ),
-                      // Track multiple extraction sources
-                      _extraction_sources: [
-                        ...(Array.isArray(existingProps._extraction_sources)
-                          ? existingProps._extraction_sources
-                          : existingProps._extraction_source
-                          ? [existingProps._extraction_source]
-                          : []),
-                        job.source_type,
-                      ],
-                      _extraction_source_ids: [
-                        ...(Array.isArray(existingProps._extraction_source_ids)
-                          ? existingProps._extraction_source_ids
-                          : existingProps._extraction_source_id
-                          ? [existingProps._extraction_source_id]
-                          : []),
-                        job.source_id,
-                      ],
-                      _extraction_job_ids: [
-                        ...(Array.isArray(existingProps._extraction_job_ids)
-                          ? existingProps._extraction_job_ids
-                          : existingProps._extraction_job_id
-                          ? [existingProps._extraction_job_id]
-                          : []),
-                        job.id,
-                      ],
-                      _last_extraction_at: new Date().toISOString(),
-                    };
-
-                    // Merge labels
-                    const mergedLabels = Array.from(
-                      new Set([...(existingObject.labels || []), ...labels])
-                    );
-
-                    // Update the existing object using patchObject
-                    const updatedObject = await this.graphService.patchObject(
-                      existingObject.id,
-                      {
-                        properties: mergedProperties,
-                        labels: mergedLabels,
-                      }
-                    );
-
-                    // Log successful merge
-                    await this.extractionLogger.logStep({
-                      extractionJobId: job.id,
-                      stepIndex: this.stepCounter++,
-                      operationType: 'object_creation',
-                      operationName: 'create_graph_object',
-                      status: 'completed',
-                      inputData: {
-                        entity_type: entity.type_name,
-                        entity_name: entity.name,
-                        entity_key: objectKey,
-                        entity_properties: entity.properties,
-                        confidence: finalConfidence,
-                      },
-                      outputData: {
-                        action: 'merged',
-                        object_id: updatedObject.id,
-                        existing_version: existingObject.version,
-                        new_version: updatedObject.version,
-                        properties_added: Object.keys(entity.properties || {})
-                          .length,
-                        duplicate_strategy: duplicateStrategy,
-                      },
-                      durationMs: Date.now() - objectCreationStartTime,
-                      metadata: {
-                        project_id: job.project_id,
-                        confidence_before: existingProps._extraction_confidence,
-                        confidence_after:
-                          mergedProperties._extraction_confidence,
-                      },
-                    });
-
-                    this.logger.debug(
-                      `Merged entity into existing object ${updatedObject.id}: ${entity.type_name} - ${entity.name} ` +
-                        `(v${existingObject.version} → v${
-                          updatedObject.version
-                        }, confidence: ${finalConfidence.toFixed(3)})`
-                    );
-
-                    // Add to batchEntityMap for relationship resolution
-                    addToBatchEntityMap(entity.name, updatedObject.id);
-
-                    outcome = 'merged';
-                  } catch (mergeError) {
-                    const mergeErr =
-                      mergeError instanceof Error
-                        ? mergeError
-                        : new Error(String(mergeError));
-                    this.logger.error(
-                      `Failed to merge duplicate object for ${entity.type_name} "${entity.name}": ${mergeErr.message}`,
-                      mergeErr.stack
-                    );
-                    // Fall back to skipping on merge failure
-                    outcome = 'skipped';
-                  }
-                } else {
-                  // Unknown strategy - throw error
-                  throw createError;
-                }
-              } else {
-                // Not a duplicate error - re-throw
-                throw createError;
-              }
+            if (qualityDecision === 'review') {
+              reviewRequiredObjectIds.push(graphObject.id);
             }
+
+            // Log successful object creation (combined input + output)
+            await this.extractionLogger.logStep({
+              extractionJobId: job.id,
+              stepIndex: this.stepCounter++,
+              operationType: 'object_creation',
+              operationName: 'create_graph_object',
+              status: 'completed',
+              inputData: {
+                entity_type: entity.type_name,
+                entity_name: entity.name,
+                entity_description: entity.description,
+                entity_properties: entity.properties,
+                confidence: finalConfidence,
+                quality_decision: qualityDecision,
+              },
+              outputData: {
+                object_id: graphObject.id,
+                entity_name: entity.name,
+                entity_type: entity.type_name,
+                quality_decision: qualityDecision,
+                requires_review: qualityDecision === 'review',
+              },
+              durationMs: Date.now() - objectCreationStartTime,
+              metadata: {
+                project_id: job.project_id,
+                confidence: finalConfidence,
+              },
+            });
+
+            this.logger.debug(
+              `Created object ${graphObject.id}: ${entity.type_name} - ${entity.name} ` +
+                `(confidence: ${finalConfidence.toFixed(
+                  3
+                )}, decision: ${qualityDecision})`
+            );
+            outcome = 'created';
           }
         } catch (error) {
           outcome = 'failed';
@@ -1655,9 +1599,6 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             metadata: {
               entity_name: entity.name,
               entity_type: entity.type_name,
-              entity_key:
-                entity.business_key ||
-                this.generateKeyFromName(entity.name, entity.type_name),
               entity_properties: entity.properties,
               entity_description: entity.description,
             },

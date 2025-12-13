@@ -630,14 +630,28 @@ export class ExtractionJobService {
    * Mark job as running (idempotent)
    */
   async markRunning(jobId: string): Promise<void> {
-    await this.db.query(
+    const result = await this.db.query<{ id: string; project_id: string }>(
       `UPDATE kb.object_extraction_jobs
              SET status = $1,
                  started_at = COALESCE(started_at, NOW()),
                  updated_at = NOW()
-             WHERE id = $2`,
+             WHERE id = $2
+             RETURNING id, project_id`,
       [ExtractionJobStatus.RUNNING, jobId]
     );
+
+    // Emit real-time event for extraction job started
+    if (this.eventsService && result.rows[0]?.project_id) {
+      this.eventsService.emitUpdated(
+        'extraction_job',
+        jobId,
+        result.rows[0].project_id,
+        {
+          status: 'running',
+        }
+      );
+    }
+
     this.logger.debug(`Marked job ${jobId} as running`);
   }
 
@@ -866,12 +880,27 @@ export class ExtractionJobService {
 
     assignments.push('updated_at = NOW()');
 
-    await this.db.query(
+    const result = await this.db.query<{ id: string; project_id: string }>(
       `UPDATE kb.object_extraction_jobs
              SET ${assignments.join(', ')}
-             WHERE id = $${idx}`,
+             WHERE id = $${idx}
+             RETURNING id, project_id`,
       [...params, jobId]
     );
+
+    // Emit real-time event for extraction job progress
+    if (this.eventsService && result.rows[0]?.project_id) {
+      this.eventsService.emitUpdated(
+        'extraction_job',
+        jobId,
+        result.rows[0].project_id,
+        {
+          status: 'running',
+          processedItems: processed,
+          totalItems: total,
+        }
+      );
+    }
   }
 
   /**

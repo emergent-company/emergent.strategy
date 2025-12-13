@@ -236,11 +236,16 @@ async function main() {
   // Create a Langfuse trace for this analysis run
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const runId = `ruth-analysis-${timestamp}`;
-  const traceId = langfuse.createJobTrace(runId, {
-    name: 'Ruth Ch1 Relationship Analysis',
-    documentLength: documentText.length,
-    expectedRelationships: expectedRelationships.length,
-  });
+  const traceId = langfuse.createJobTrace(
+    runId,
+    {
+      name: 'Ruth Ch1 Relationship Analysis',
+      documentLength: documentText.length,
+      expectedRelationships: expectedRelationships.length,
+    },
+    undefined, // environment (use default)
+    'cli-analysis' // traceType for filtering
+  );
   console.log(`\nLangfuse trace: ${traceId || 'disabled'}\n`);
 
   // Use latest prompt version
