@@ -44,18 +44,29 @@
         "http://127.0.0.1:9222"
       ]
     },
-    "local-logs": {
+    "logs": {
       "command": "npx",
-      "args": ["-y", "local-logs-mcp-server"],
+      "args": ["tsx", "tools/logs-mcp/src/index.ts"],
       "env": {
-        "LOGS_DIR": "./apps/logs",
-        "LOG_EXTENSIONS": ".log"
+        "LOGS_DIR": "./logs"
       }
-    }
     },
     "langfuse-docs": {
       "type": "http",
       "url": "https://langfuse.com/api/mcp"
+    },
+    "langfuse": {
+      "command": "npx",
+      "args": ["tsx", "tools/langfuse-mcp/src/index.ts"],
+      "env": {
+        "LANGFUSE_HOST": "${LANGFUSE_HOST}",
+        "LANGFUSE_PUBLIC_KEY": "${LANGFUSE_PUBLIC_KEY}",
+        "LANGFUSE_SECRET_KEY": "${LANGFUSE_SECRET_KEY}"
+      }
+    },
+    "workspace": {
+      "command": "npx",
+      "args": ["tsx", "tools/workspace-mcp/src/index.ts"]
     }
   }
 }
