@@ -8,14 +8,36 @@
 /**
  * Prompt names for the extraction pipeline.
  * Each name corresponds to a prompt configured in Langfuse.
+ *
+ * Method-specific prompts:
+ * - *-json: For json_freeform extraction method
+ * - *-fn: For function_calling extraction method
+ * - *-retry-partial: Prepended to main prompt on retry attempts
  */
 export const EXTRACTION_PROMPT_NAMES = {
-  /** Main entity extraction prompt */
+  /** @deprecated Use method-specific prompts instead */
   ENTITY_EXTRACTOR: 'entity-extractor',
-  /** Retry prompt for entity extraction with feedback */
+  /** @deprecated Use method-specific prompts instead */
   ENTITY_EXTRACTOR_RETRY: 'entity-extractor-retry',
-  /** Relationship building between entities */
+  /** @deprecated Use method-specific prompts instead */
   RELATIONSHIP_BUILDER: 'relationship-builder',
+
+  // Method-specific entity extraction prompts
+  /** Entity extraction for json_freeform method */
+  ENTITY_EXTRACTOR_JSON: 'entity-extractor-json',
+  /** Entity extraction for function_calling method */
+  ENTITY_EXTRACTOR_FN: 'entity-extractor-fn',
+  /** Retry partial - prepended to main prompt on retry */
+  ENTITY_EXTRACTOR_RETRY_PARTIAL: 'entity-extractor-retry-partial',
+
+  // Method-specific relationship building prompts
+  /** Relationship building for json_freeform method */
+  RELATIONSHIP_BUILDER_JSON: 'relationship-builder-json',
+  /** Relationship building for function_calling method */
+  RELATIONSHIP_BUILDER_FN: 'relationship-builder-fn',
+  /** Retry partial - prepended to main prompt on retry */
+  RELATIONSHIP_BUILDER_RETRY_PARTIAL: 'relationship-builder-retry-partial',
+
   /** Entity identity resolution and deduplication */
   IDENTITY_RESOLVER: 'identity-resolver',
   /** Quality auditing of extracted graph */
@@ -44,6 +66,38 @@ export interface EntityExtractorRetryVariables
   orphanFeedback: string;
   /** Previous extraction result as JSON */
   previousResult: string;
+}
+
+/**
+ * Variables for entity extractor retry partial prompt
+ */
+export interface EntityExtractorRetryPartialVariables {
+  /** Current retry attempt number */
+  retryCount: string;
+  /** Number of entities found so far */
+  currentEntityCount: string;
+  /** Feedback from previous attempt */
+  feedback: string;
+  /** Previously extracted entities as formatted list */
+  previousEntities: string;
+}
+
+/**
+ * Variables for relationship builder retry partial prompt
+ */
+export interface RelationshipBuilderRetryPartialVariables {
+  /** Current retry attempt number */
+  retryCount: string;
+  /** Number of orphan entities */
+  orphanCount: string;
+  /** Formatted list of orphan entities */
+  orphanList: string;
+  /** Number of relationships found so far */
+  currentRelationshipCount: string;
+  /** Formatted list of current relationships */
+  currentRelationships: string;
+  /** Feedback from previous attempt */
+  feedback: string;
 }
 
 export interface RelationshipBuilderVariables {

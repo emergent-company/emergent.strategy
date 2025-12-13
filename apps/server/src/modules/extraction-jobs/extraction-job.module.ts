@@ -26,6 +26,7 @@ import { AuthModule } from '../auth/auth.module';
 import { MonitoringModule } from '../monitoring/monitoring.module';
 import { LangfuseModule } from '../langfuse/langfuse.module';
 import { LlmModule } from '../llm/llm.module';
+import { VerificationModule } from '../verification/verification.module';
 import { GraphObject } from '../../entities/graph-object.entity';
 import { ObjectExtractionJob } from '../../entities/object-extraction-job.entity';
 import { GraphEmbeddingJob } from '../../entities/graph-embedding-job.entity';
@@ -70,6 +71,7 @@ import { ObjectExtractionLog } from '../../entities/object-extraction-log.entity
     MonitoringModule,
     LangfuseModule,
     LlmModule,
+    VerificationModule,
   ],
   providers: [
     // LLM providers must be initialized before services that depend on them

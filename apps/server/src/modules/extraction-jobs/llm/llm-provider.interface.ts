@@ -48,6 +48,15 @@ export interface ExtractedEntity {
    * Used to bypass entity linking search and directly use the known UUID.
    */
   existing_entity_id?: string;
+
+  /**
+   * Verification status from the verification cascade (LangGraph pipeline only).
+   * - 'verified': confidence >= auto_accept_threshold
+   * - 'needs_review': confidence >= confidence_threshold but < auto_accept_threshold
+   * - 'rejected': confidence < confidence_threshold
+   * - 'pending': not yet verified
+   */
+  verification_status?: 'verified' | 'needs_review' | 'rejected' | 'pending';
 }
 
 /**
@@ -82,6 +91,15 @@ export interface ExtractedRelationship {
 
   /** Confidence score 0.0-1.0 indicating extraction quality */
   confidence?: number;
+
+  /**
+   * Verification status from the verification cascade (LangGraph pipeline only).
+   * - 'verified': confidence >= auto_accept_threshold
+   * - 'needs_review': confidence >= confidence_threshold but < auto_accept_threshold
+   * - 'rejected': confidence < confidence_threshold
+   * - 'pending': not yet verified
+   */
+  verification_status?: 'verified' | 'needs_review' | 'rejected' | 'pending';
 }
 
 /**
@@ -209,6 +227,33 @@ export interface ExtractionOptions {
    * If not provided, falls back to server default (30000 chars).
    */
   batchSizeChars?: number;
+
+  /**
+   * Similarity threshold for entity identity resolution (0.0-1.0).
+   * Higher values require closer name matches to link entities together.
+   * If not provided, falls back to project default or 0.7.
+   */
+  similarityThreshold?: number;
+
+  // --- Verification Options ---
+
+  /**
+   * Enable/disable verification cascade for extracted entities and relationships.
+   * If not provided, falls back to server default (EXTRACTION_VERIFICATION_ENABLED).
+   */
+  verificationEnabled?: boolean;
+
+  /**
+   * Confidence threshold (0.0-1.0) below which entities/relationships are marked needs_review.
+   * If not provided, falls back to server default (EXTRACTION_CONFIDENCE_THRESHOLD_REVIEW = 0.7).
+   */
+  confidenceThreshold?: number;
+
+  /**
+   * Auto-accept threshold (0.0-1.0) above which entities/relationships are auto-verified.
+   * If not provided, falls back to server default (EXTRACTION_CONFIDENCE_THRESHOLD_AUTO = 0.9).
+   */
+  autoAcceptThreshold?: number;
 }
 
 /**

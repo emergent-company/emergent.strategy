@@ -904,7 +904,8 @@ async function main() {
         notFound: groundTruthVerification.notFound,
       },
     },
-    'test' // Environment
+    'test', // Environment
+    'cli-benchmark' // traceType for filtering
   );
   console.log(`\nLangfuse trace: ${traceId || 'disabled'} (environment: test)`);
 

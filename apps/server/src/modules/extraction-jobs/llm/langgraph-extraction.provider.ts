@@ -2,18 +2,18 @@
  * LangGraph Extraction Provider
  *
  * Implements ILLMProvider using a LangGraph-based multi-step pipeline.
- * This provider runs a 4-node graph for improved relationship extraction:
+ * This provider runs a 4-node graph for entity extraction with verification:
  *
- *   Entity_Extractor → Identity_Resolver → Relationship_Builder → Quality_Auditor
- *         ↑______|                                      ↑__________________|
- *    (retry if 0 entities)                              (retry loop if needed)
+ *   Entity_Extractor → Relationship_Builder → Entity_Verification → Relationship_Verification
+ *         ↑______|
+ *    (retry if 0 entities)
  *
  * Key features:
  * - Parallel service: Coexists with LangChainGeminiProvider
  * - Feature flag: Controlled by EXTRACTION_PIPELINE_MODE env var
  * - Entity retry: Retries entity extraction up to 2x if 0 entities returned
- * - Relationship retry: Quality auditor can trigger relationship rebuilding
- * - Identity resolution: Links extracted entities to existing ones
+ * - Verification cascade: 3-tier verification (exact match, NLI, LLM judge)
+ * - Confidence scoring: Weighted average (40% name, 30% description, 30% properties)
  * - Schema-driven: Works with any document type based on provided schemas
  */
 
@@ -38,17 +38,14 @@ import {
 } from './llm-provider.interface';
 import {
   ExtractionGraphState,
-  ExtractionGraphStateType,
   InternalEntity,
   InternalRelationship,
 } from './langgraph/state';
 import { createEntityExtractorNode } from './langgraph/nodes/entity-extractor.node';
-import { createIdentityResolverNode } from './langgraph/nodes/identity-resolver.node';
 import { createRelationshipBuilderNode } from './langgraph/nodes/relationship-builder.node';
-import {
-  createQualityAuditorNode,
-  qualityAuditRouter,
-} from './langgraph/nodes/quality-auditor.node';
+import { createEntityVerificationNode } from './langgraph/nodes/entity-verification.node';
+import { createRelationshipVerificationNode } from './langgraph/nodes/relationship-verification.node';
+import { VerificationService } from '../../verification/verification.service';
 
 /**
  * Router function for entity extraction retry decision
@@ -92,7 +89,9 @@ export class LangGraphExtractionProvider implements ILLMProvider, OnModuleInit {
     private readonly geminiService: NativeGeminiService,
     @Optional()
     @Inject(ExtractionPromptProvider)
-    private readonly promptProvider: ExtractionPromptProvider | null
+    private readonly promptProvider: ExtractionPromptProvider | null,
+    @Inject(VerificationService)
+    private readonly verificationService: VerificationService
   ) {
     // Note: initialization moved to onModuleInit() to ensure NativeGeminiService
     // is fully initialized before we check isAvailable()
@@ -129,12 +128,6 @@ export class LangGraphExtractionProvider implements ILLMProvider, OnModuleInit {
         extractionMethod,
       });
 
-      const identityResolver = createIdentityResolverNode({
-        similarityThreshold: 0.85,
-        fuzzyMatch: true,
-        langfuseService: this.langfuseService,
-      });
-
       const relationshipBuilder = createRelationshipBuilderNode({
         geminiService: this.geminiService,
         timeoutMs: 600000, // 10 minutes - increased for large document extraction
@@ -143,34 +136,37 @@ export class LangGraphExtractionProvider implements ILLMProvider, OnModuleInit {
         extractionMethod,
       });
 
-      const qualityAuditor = createQualityAuditorNode({
-        maxOrphanRate: 0.2,
-        minRelationshipDensity: 0.5,
-        minEntitiesForDensityCheck: 3,
+      // Create verification nodes with 5-minute timeout
+      const entityVerification = createEntityVerificationNode({
+        verificationService: this.verificationService,
         langfuseService: this.langfuseService,
+        timeoutMs: 300000, // 5 minutes
+      });
+
+      const relationshipVerification = createRelationshipVerificationNode({
+        verificationService: this.verificationService,
+        langfuseService: this.langfuseService,
+        timeoutMs: 300000, // 5 minutes
       });
 
       // Build the graph - 4 nodes with entity extraction retry loop
+      // Flow: entity_extractor → relationship_builder → entity_verification → relationship_verification
       const graph = new StateGraph(ExtractionGraphState)
         // Add nodes
         .addNode('entity_extractor', entityExtractor)
-        .addNode('identity_resolver', identityResolver)
         .addNode('relationship_builder', relationshipBuilder)
-        .addNode('quality_auditor', qualityAuditor)
+        .addNode('entity_verification', entityVerification)
+        .addNode('relationship_verification', relationshipVerification)
         // Define edges - start directly with entity extraction
         .addEdge(START, 'entity_extractor')
         // Conditional edge: retry entity extraction if 0 entities or error
         .addConditionalEdges('entity_extractor', entityExtractionRouter, {
           retry: 'entity_extractor',
-          continue: 'identity_resolver',
+          continue: 'relationship_builder',
         })
-        .addEdge('identity_resolver', 'relationship_builder')
-        .addEdge('relationship_builder', 'quality_auditor')
-        // Conditional edge from quality_auditor: retry or finish
-        .addConditionalEdges('quality_auditor', qualityAuditRouter, {
-          retry: 'relationship_builder',
-          finish: END,
-        });
+        .addEdge('relationship_builder', 'entity_verification')
+        .addEdge('entity_verification', 'relationship_verification')
+        .addEdge('relationship_verification', END);
 
       // Compile the graph
       this.compiledGraph = graph.compile();
@@ -258,6 +254,20 @@ export class LangGraphExtractionProvider implements ILLMProvider, OnModuleInit {
         // Pass timeout and batch size from options or use defaults from state
         timeout_ms: options.timeoutMs, // Will use state default (180000) if undefined
         batch_size_chars: options.batchSizeChars, // Will use state default (30000) if undefined
+        // Pass similarity threshold from options or use state default (0.7)
+        similarity_threshold: options.similarityThreshold,
+        // Verification configuration - options override config defaults
+        verification_config: {
+          enabled:
+            options.verificationEnabled ??
+            this.config.extractionVerificationEnabled,
+          confidence_threshold:
+            options.confidenceThreshold ??
+            this.config.extractionConfidenceThresholdReview,
+          auto_accept_threshold:
+            options.autoAcceptThreshold ??
+            this.config.extractionConfidenceThresholdAuto,
+        },
       };
 
       // Log chunk info
@@ -321,14 +331,20 @@ export class LangGraphExtractionProvider implements ILLMProvider, OnModuleInit {
     startTime: number
   ): ExtractionResult {
     // Transform internal entities to ExtractedEntity format
+    // Include verification fields from the verification nodes
     const entities: ExtractedEntity[] = state.extracted_entities.map(
       (entity: InternalEntity) => ({
         type_name: entity.type,
         name: entity.name,
         description: entity.description || '', // Default to empty string
-        business_key: entity.name, // Use name as business key
+        // NOTE: business_key is no longer set - key column is nullable
+        // Deduplication is handled by a separate merge process
         properties: entity.properties || {},
+        // Verification fields from entity-verification node
         confidence: entity.confidence,
+        verification_status: entity.verification_status,
+        action: entity.action,
+        existing_entity_id: entity.existing_entity_id,
       })
     );
 
@@ -367,7 +383,9 @@ export class LangGraphExtractionProvider implements ILLMProvider, OnModuleInit {
           },
           relationship_type: rel.type,
           description: rel.description,
+          // Verification fields from relationship-verification node
           confidence: rel.confidence,
+          verification_status: rel.verification_status,
         };
       });
 
@@ -383,11 +401,11 @@ export class LangGraphExtractionProvider implements ILLMProvider, OnModuleInit {
       raw_response: {
         pipeline: 'langgraph',
         retry_count: state.retry_count,
-        quality_passed: state.quality_check_passed,
-        orphan_count: state.orphan_entities.length,
         node_responses: state.node_responses,
         feedback_log: state.feedback_log,
         total_duration_ms: Date.now() - startTime,
+        // Include verification summary
+        verification_summary: state.verification_summary,
       },
     };
   }
@@ -395,18 +413,24 @@ export class LangGraphExtractionProvider implements ILLMProvider, OnModuleInit {
 
 /**
  * Factory function to create a simple graph for testing
- * Uses heuristic router and simple identity resolver
  */
 export function createTestLangGraphProvider(
   config: AppConfigService,
   langfuseService: LangfuseService,
   geminiService: NativeGeminiService,
-  promptProvider?: ExtractionPromptProvider | null
+  promptProvider?: ExtractionPromptProvider | null,
+  verificationService?: VerificationService
 ): LangGraphExtractionProvider {
+  if (!verificationService) {
+    throw new Error(
+      'VerificationService is required for LangGraphExtractionProvider'
+    );
+  }
   return new LangGraphExtractionProvider(
     config,
     langfuseService,
     geminiService,
-    promptProvider ?? null
+    promptProvider ?? null,
+    verificationService
   );
 }

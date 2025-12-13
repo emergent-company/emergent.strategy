@@ -4,6 +4,9 @@
  * Defines the tool schemas that will be passed to bindTools() for
  * structured extraction. The LLM calls these tools and we intercept
  * the tool_calls from the response.
+ *
+ * NOTE: Confidence scores are NOT extracted by the LLM - they are
+ * calculated by the cascade system post-extraction.
  */
 
 import { z } from 'zod';
@@ -26,11 +29,6 @@ export const ExtractEntitySchema = z.object({
     .describe(
       'Additional properties as key-value pairs based on the entity type schema'
     ),
-  confidence: z
-    .number()
-    .min(0)
-    .max(1)
-    .describe('Confidence score from 0.0 to 1.0 indicating extraction quality'),
 });
 
 /**
@@ -67,12 +65,6 @@ export const ExtractRelationshipSchema = z.object({
     .string()
     .optional()
     .describe('Optional description of this specific relationship instance'),
-  confidence: z
-    .number()
-    .min(0)
-    .max(1)
-    .optional()
-    .describe('Confidence score from 0.0 to 1.0'),
 });
 
 /**
