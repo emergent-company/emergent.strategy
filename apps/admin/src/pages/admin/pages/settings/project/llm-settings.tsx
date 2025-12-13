@@ -11,18 +11,26 @@ import { SettingsNav } from './SettingsNav';
 // Extraction method options
 const EXTRACTION_METHODS = [
   {
+    value: 'json_freeform',
+    label: 'JSON Freeform',
+    description:
+      'Best property extraction. Uses JSON mode without schema enforcement - model follows prompt instructions.',
+    icon: 'lucide--file-json',
+    recommended: true,
+  },
+  {
     value: 'function_calling',
     label: 'Function Calling',
     description:
-      'Uses function calling API for structured extraction. More reliable with Vertex AI.',
+      'Uses function calling API with schema enforcement. Faster but may skip optional properties.',
     icon: 'lucide--function-square',
-    recommended: true,
+    recommended: false,
   },
   {
     value: 'responseSchema',
     label: 'Response Schema',
     description:
-      'Uses response schema for extraction. May be faster but less reliable with some providers.',
+      'Uses response schema with strict validation. Fastest but may skip optional properties.',
     icon: 'lucide--braces',
     recommended: false,
   },
@@ -62,7 +70,10 @@ const CHUNK_SIZE_PRESETS = [
 // Default configuration (matches server defaults)
 const DEFAULT_CONFIG = {
   chunkSize: 30000,
-  method: 'function_calling' as 'function_calling' | 'responseSchema',
+  method: 'json_freeform' as
+    | 'json_freeform'
+    | 'function_calling'
+    | 'responseSchema',
   timeoutSeconds: 180,
 };
 
@@ -78,9 +89,9 @@ export default function ProjectLLMSettingsPage() {
 
   // Form state
   const [chunkSize, setChunkSize] = useState(DEFAULT_CONFIG.chunkSize);
-  const [method, setMethod] = useState<'function_calling' | 'responseSchema'>(
-    DEFAULT_CONFIG.method
-  );
+  const [method, setMethod] = useState<
+    'json_freeform' | 'function_calling' | 'responseSchema'
+  >(DEFAULT_CONFIG.method);
   const [timeoutSeconds, setTimeoutSeconds] = useState(
     DEFAULT_CONFIG.timeoutSeconds
   );

@@ -155,6 +155,14 @@ export class EnvVariables {
   @IsOptional()
   EXTRACTION_CHUNK_OVERLAP?: number; // Overlap between chunks in characters (default: 2000)
 
+  @IsBoolean()
+  @IsOptional()
+  EXTRACTION_VERIFICATION_ENABLED?: boolean; // 3-tier verification cascade (default: true, set false to disable)
+
+  @IsString()
+  @IsOptional()
+  EXTRACTION_NLI_ENDPOINT?: string; // NLI service endpoint (default: http://localhost:8090/predict)
+
   @IsString()
   @IsOptional()
   EXTRACTION_PIPELINE_MODE?: string; // 'single_pass' (default) | 'langgraph'

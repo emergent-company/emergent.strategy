@@ -9,6 +9,7 @@ import { Icon } from '@/components/atoms/Icon';
 import { GraphObject } from '../ObjectBrowser/ObjectBrowser';
 import { RelationshipGraph, TreeRelationshipGraph } from '../RelationshipGraph';
 import { useApi } from '@/hooks/use-api';
+import { useDataUpdates } from '@/contexts/data-updates';
 import type {
   ObjectVersion,
   ObjectHistoryResponse,
@@ -87,10 +88,10 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
   const [generatingEmbedding, setGeneratingEmbedding] = useState(false);
   const [embeddingMessage, setEmbeddingMessage] = useState<string | null>(null);
   const [embeddingJobStatus, setEmbeddingJobStatus] = useState<{
-    status: 'pending' | 'processing';
-    id: string;
+    status: 'pending' | 'processing' | 'failed';
+    id?: string;
+    error?: string;
   } | null>(null);
-  const embeddingPollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sync dialog open state
   useEffect(() => {
@@ -386,7 +387,7 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
     }
   }, [object, fetchJson, apiBase]);
 
-  // Function to check embedding job status
+  // Function to check embedding job status (one-time check on modal open)
   const checkEmbeddingJobStatus = useCallback(async () => {
     if (!object) return;
 
@@ -413,33 +414,60 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
     }
   }, [object, fetchJson, apiBase]);
 
-  // Poll for embedding job status when modal is open and no embedding exists
+  // Subscribe to real-time embedding status updates via SSE
+  useDataUpdates(
+    object ? `graph_object:${object.id}` : 'graph_object:_none_',
+    (event) => {
+      if (event.type === 'entity.updated' && event.data) {
+        const {
+          embeddingStatus,
+          embeddingError,
+          hasEmbedding,
+          embeddingJobId,
+        } = event.data as {
+          embeddingStatus?: 'processing' | 'completed' | 'failed';
+          embeddingError?: string;
+          hasEmbedding?: boolean;
+          embeddingJobId?: string;
+        };
+
+        if (embeddingStatus === 'processing') {
+          // Embedding job started processing
+          setEmbeddingJobStatus({
+            status: 'processing',
+            id: embeddingJobId,
+          });
+        } else if (embeddingStatus === 'completed' || hasEmbedding) {
+          // Embedding completed successfully
+          setEmbeddingJobStatus(null);
+          setEmbeddingMessage('Embedding generation completed successfully!');
+          setTimeout(() => setEmbeddingMessage(null), 5000);
+        } else if (embeddingStatus === 'failed') {
+          // Embedding failed
+          setEmbeddingJobStatus({
+            status: 'failed',
+            error: embeddingError,
+          });
+          setEmbeddingMessage(
+            `Embedding generation failed: ${embeddingError || 'Unknown error'}`
+          );
+          setTimeout(() => setEmbeddingMessage(null), 5000);
+        }
+      }
+    },
+    [object?.id]
+  );
+
+  // Initial embedding job status check when modal opens (one-time, no polling)
   useEffect(() => {
     if (!isOpen || !object || object.embedding) {
-      // Clear polling if modal closed, no object, or embedding exists
-      if (embeddingPollIntervalRef.current) {
-        clearInterval(embeddingPollIntervalRef.current);
-        embeddingPollIntervalRef.current = null;
-      }
+      // Clear status if modal closed, no object, or embedding exists
       setEmbeddingJobStatus(null);
       return;
     }
 
-    // Check immediately on mount
+    // Check immediately on mount (one-time check)
     checkEmbeddingJobStatus();
-
-    // Then poll every 3 seconds
-    embeddingPollIntervalRef.current = setInterval(
-      checkEmbeddingJobStatus,
-      3000
-    );
-
-    return () => {
-      if (embeddingPollIntervalRef.current) {
-        clearInterval(embeddingPollIntervalRef.current);
-        embeddingPollIntervalRef.current = null;
-      }
-    };
   }, [isOpen, object, checkEmbeddingJobStatus]);
 
   // Load data when modal opens
