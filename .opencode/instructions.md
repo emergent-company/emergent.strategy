@@ -9,38 +9,107 @@ This document provides instructions for interacting with the workspace, includin
 
 ## 1. Logging
 
-Logs are browsed using the **local-logs MCP server**. AI assistants can query logs directly using natural language.
+Logs are browsed using the **logs MCP server**. AI assistants can query logs directly using natural language.
 
-### Log File Locations
+### Log File Structure
 
-Log files are stored in the `apps/logs/` directory.
+Log files are stored in the root `logs/` directory, organized by service:
 
-- **Application logs:** `apps/logs/<serviceId>/out.log` (stdout) and `apps/logs/<serviceId>/error.log` (stderr)
-- **Dependency logs:** `apps/logs/dependencies/<id>/out.log` and `apps/logs/dependencies/<id>/error.log`
+```
+logs/
+├── server/
+│   ├── server.log          # Main server log (INFO+)
+│   ├── server.error.log    # Server errors only
+│   ├── server.debug.log    # Debug/verbose output (dev only)
+│   ├── server.http.log     # HTTP request/response logs
+│   ├── server.out.log      # Process stdout (from workspace-cli)
+│   └── server.error.log    # Process stderr (from workspace-cli)
+├── admin/
+│   ├── admin.out.log       # Vite stdout (from workspace-cli)
+│   ├── admin.error.log     # Vite stderr (from workspace-cli)
+│   ├── admin.http.log      # HTTP proxy logs (from vite.config.ts)
+│   └── admin.client.log    # Browser client logs (via /api/logs/client)
+```
 
 ### Available MCP Tools for Logs
 
-The `local-logs` MCP server provides these tools:
+The `logs` MCP server provides these tools:
 
-| Tool                | Description                 | Example                                  |
-| ------------------- | --------------------------- | ---------------------------------------- |
-| `get_log_files`     | List available log files    | "What log files are available?"          |
-| `tail_log`          | Get last N lines from a log | "Show last 50 lines from server/out.log" |
-| `get_errors`        | Get recent error entries    | "Are there any errors?"                  |
-| `get_server_status` | Server status from logs     | "What's the server status?"              |
-| `search_logs`       | Search for text patterns    | "Search logs for 'database connection'"  |
+**Core Tools:**
+
+| Tool             | Description                         | Example                                     |
+| ---------------- | ----------------------------------- | ------------------------------------------- |
+| `list_log_files` | List available log files with sizes | "What log files are available?"             |
+| `tail_log`       | Get last N lines from a log file    | "Show last 50 lines from server/server.log" |
+| `search_logs`    | Search for text patterns            | "Search logs for 'database connection'"     |
+| `get_errors`     | Get recent error entries            | "Are there any errors?"                     |
+
+**Service Aliases (convenience tools):**
+
+| Tool               | Description               | Files Tailed                                                           |
+| ------------------ | ------------------------- | ---------------------------------------------------------------------- |
+| `tail_server_logs` | Tail backend server logs  | server/server.log, server/server.error.log                             |
+| `tail_admin_logs`  | Tail frontend admin logs  | admin/admin.out.log, admin/admin.error.log, admin/admin.client.log     |
+| `tail_app_logs`    | Tail main application log | server/server.log                                                      |
+| `tail_debug_logs`  | Tail debug output         | server/server.debug.log                                                |
+| `tail_error_logs`  | Tail all error logs       | server/server.error.log, admin/admin.error.log, admin/admin.client.log |
+| `tail_http_logs`   | Tail HTTP traffic logs    | server/server.http.log, admin/admin.http.log                           |
 
 ### Example Log Queries
 
-- "Check my server logs"
-- "Are there any errors in the logs?"
-- "Show me the last 100 lines from admin/error.log"
-- "Search logs for 'TypeError'"
-- "What log files are available?"
+- "Check my server logs" (uses `tail_server_logs`)
+- "Are there any errors in the logs?" (uses `get_errors`)
+- "Show me the last 100 lines from server/server.log" (uses `tail_log`)
+- "Search logs for 'TypeError'" (uses `search_logs`)
+- "What log files are available?" (uses `list_log_files`)
+- "Show me the admin frontend logs" (uses `tail_admin_logs`)
+- "Show me HTTP traffic" (uses `tail_http_logs`)
 
 ## 2. Process Management
 
-Services are managed using PID-based process management through the workspace CLI.
+Services are managed using PID-based process management through the workspace CLI or the **Workspace MCP server**.
+
+### Hot Reload (Default Behavior)
+
+**Both the server and admin apps have hot reload enabled by default.** In most cases, you do NOT need to manually restart services:
+
+- **Server (NestJS)**: Automatically recompiles and restarts when `.ts` files change
+- **Admin (Vite)**: Instant HMR (Hot Module Replacement) for frontend changes
+
+**When hot reload is sufficient:**
+
+- Editing existing TypeScript files
+- Modifying React components
+- Changing styles or templates
+- Updating configuration values in existing config files
+
+**When you MUST restart:**
+
+- Adding new NestJS modules or providers (dependency injection changes)
+- Modifying `app.module.ts` imports
+- Changing environment variables (requires restart to pick up new values)
+- After `npm install` or `pnpm install` (new dependencies)
+- If hot reload fails or the app gets into a bad state
+
+### Restarting Services
+
+**IMPORTANT:** Do NOT manually run build commands like `nx run server:build`. The workspace CLI handles building and running services correctly.
+
+**Using Workspace MCP (Recommended):**
+
+Ask the AI assistant:
+
+- "Restart the server" → Uses `workspace_health_check` then restarts if needed
+- "Restart all services"
+- "Check if services are running"
+
+**Using CLI commands:**
+
+- **Restart all services:**
+
+  ```bash
+  nx run workspace-cli:workspace:restart
+  ```
 
 - **Start all services:**
 
@@ -54,16 +123,19 @@ Services are managed using PID-based process management through the workspace CL
   nx run workspace-cli:workspace:stop
   ```
 
-- **Restart all services:**
-
-  ```bash
-  nx run workspace-cli:workspace:restart
-  ```
-
 - **Check status:**
   ```bash
   nx run workspace-cli:workspace:status
   ```
+
+### Common Mistakes to Avoid
+
+| Wrong                                    | Right                                         |
+| ---------------------------------------- | --------------------------------------------- |
+| `nx run server:build` then manually run  | `nx run workspace-cli:workspace:restart`      |
+| `cd /root/emergent && npm run start:dev` | Use workspace CLI - it manages logs and PIDs  |
+| Killing processes with `kill -9`         | `nx run workspace-cli:workspace:stop`         |
+| Running `nx serve server` directly       | Use workspace CLI for consistent log handling |
 
 ## 3. Running Scripts and Tests
 
@@ -187,7 +259,10 @@ The workspace has several MCP (Model Context Protocol) servers configured for en
 - **gh_grep** - GitHub code search across public repositories
 - **react-daisyui Docs** - React DaisyUI component documentation
 - **Chrome DevTools** - Browser debugging, performance profiling, network inspection, and DOM manipulation via Chrome DevTools Protocol (development/testing use only)
-- **local-logs** - Log file browsing with tailing, search, and error tracking
+- **logs** - Log file browsing with tailing, search, and error tracking
+- **Langfuse** - Browse AI coding assistant traces from Langfuse (list traces, get trace details, list sessions)
+- **Langfuse Docs** - Official Langfuse documentation via MCP
+- **Workspace** - Workspace health monitoring, Docker container logs, and environment configuration
 
 ### Using Chrome DevTools MCP
 
@@ -323,7 +398,188 @@ AI:
 - Only use in development - never with production credentials or sensitive data
 - The browser stays open until manually closed or script is interrupted (Ctrl+C)
 
-## 7. Bug Reports and Improvement Suggestions
+### Using Langfuse MCP
+
+The Langfuse MCP server allows AI assistants to browse traces from AI coding sessions (OpenCode, Cursor, etc.). This is useful for debugging AI interactions, analyzing conversation patterns, and reviewing costs.
+
+**Available Tools:**
+
+| Tool            | Description                | Example                            |
+| --------------- | -------------------------- | ---------------------------------- |
+| `list_traces`   | List traces with filtering | "Show recent traces from OpenCode" |
+| `get_trace`     | Get full trace details     | "Get details for trace abc123"     |
+| `list_sessions` | List sessions              | "What sessions are available?"     |
+
+**Filtering Options for `list_traces`:**
+
+- `name` - Filter by trace name (e.g., "opencode", "cursor")
+- `userId` - Filter by user ID
+- `sessionId` - Filter by session ID
+- `tags` - Filter by tags array
+- `fromTimestamp` / `toTimestamp` - Filter by time range (ISO 8601)
+- `limit` - Number of results (default: 10, max: 100)
+- `page` - Page number for pagination
+
+**Example Queries:**
+
+- "List recent AI coding traces"
+- "Show traces from the last hour"
+- "Get details for trace ID xyz"
+- "What sessions have been recorded?"
+- "Show traces tagged with 'debug'"
+
+**Configuration:**
+
+Requires environment variables:
+
+- `LANGFUSE_HOST` - Langfuse API host (e.g., `https://cloud.langfuse.com`)
+- `LANGFUSE_PUBLIC_KEY` - Public API key
+- `LANGFUSE_SECRET_KEY` - Secret API key
+
+### Langfuse Trace Types
+
+All background job traces are tagged with a `traceType` for easy filtering in the Langfuse UI. The trace type is added both as a tag and in the metadata.
+
+**Available Trace Types:**
+
+| Trace Type        | Description                                           | Source                                                 |
+| ----------------- | ----------------------------------------------------- | ------------------------------------------------------ |
+| `extraction`      | Entity/relationship extraction jobs                   | `extraction-worker.service.ts`                         |
+| `embedding`       | Graph object embedding jobs                           | `embedding-worker.service.ts`, `embeddings.service.ts` |
+| `chunk-embedding` | Document chunk embedding jobs                         | `chunk-embedding-worker.service.ts`                    |
+| `agent-{role}`    | Scheduled agent runs (e.g., `agent-merge-suggestion`) | `agent-scheduler.service.ts`                           |
+| `cli-benchmark`   | CLI benchmark/comparison tools                        | `compare-*.cli.ts`                                     |
+| `cli-analysis`    | CLI analysis tools                                    | `analyze-*.cli.ts`                                     |
+
+**Filtering in Langfuse:**
+
+1. **By Tag**: In the Langfuse UI, filter traces by tag (e.g., `extraction`, `embedding`)
+2. **By Metadata**: Query traces where `metadata.traceType = 'extraction'`
+
+**Example Queries:**
+
+- "Show me all extraction traces" → Filter by tag `extraction`
+- "Show embedding job traces from the last hour" → Filter by tag `embedding` + time range
+- "Show agent runs" → Filter by tag containing `agent-`
+
+**Adding New Trace Types:**
+
+When creating new background jobs that use Langfuse tracing, pass the `traceType` parameter to `createJobTrace()`:
+
+```typescript
+const traceId = this.langfuseService.createJobTrace(
+  jobId,
+  { name: 'My Job', ...metadata },
+  undefined, // environment (use default)
+  'my-trace-type' // traceType for filtering
+);
+```
+
+### Using Workspace MCP
+
+The Workspace MCP server provides health monitoring and Docker container log querying for the development environment.
+
+**Available Tools:**
+
+| Tool              | Description                             | Example                         |
+| ----------------- | --------------------------------------- | ------------------------------- |
+| `get_status`      | Comprehensive workspace health overview | "What's the workspace status?"  |
+| `list_services`   | List configured application services    | "What services are configured?" |
+| `health_check`    | Check specific service or dependency    | "Is postgres healthy?"          |
+| `get_config`      | View environment configuration          | "Show me the workspace config"  |
+| `docker_logs`     | Query Docker container logs             | "Show postgres logs"            |
+| `list_containers` | List running Docker containers          | "What containers are running?"  |
+
+**`health_check` Targets:**
+
+- Services: `admin`, `server`
+- Dependencies: `postgres`, `zitadel`, `vertex`, `langfuse`, `langsmith`
+
+**`docker_logs` Parameters:**
+
+| Parameter   | Description                                | Example         |
+| ----------- | ------------------------------------------ | --------------- |
+| `container` | Container name or alias (required)         | `"postgres"`    |
+| `lines`     | Number of lines to retrieve (default: 100) | `50`            |
+| `since`     | Show logs since timestamp                  | `"10m"`, `"1h"` |
+| `grep`      | Filter logs by pattern (case-insensitive)  | `"error"`       |
+
+**Container Aliases:**
+
+| Alias             | Container Name             |
+| ----------------- | -------------------------- |
+| `postgres`        | emergent-postgres          |
+| `zitadel`         | zitadel-zitadel-1          |
+| `langfuse`        | langfuse-langfuse-web-1    |
+| `langfuse-worker` | langfuse-langfuse-worker-1 |
+| `redis`           | langfuse-redis-1           |
+| `clickhouse`      | langfuse-clickhouse-1      |
+| `minio`           | langfuse-minio-1           |
+| `nli-verifier`    | nli-verifier               |
+
+**Example Queries:**
+
+- "What's the workspace health status?"
+- "Is the database running?"
+- "Show me the last 50 lines of postgres logs"
+- "Search zitadel logs for errors in the last hour"
+- "What Docker containers are running?"
+- "Show langfuse logs filtered by 'trace'"
+
+**Environment Loading:**
+
+The workspace MCP loads environment variables from multiple sources (later overrides earlier):
+
+1. `emergent-infra/postgres/.env` - PostgreSQL credentials
+2. `emergent-infra/zitadel/.env` and `.env.local` - Zitadel auth config
+3. `emergent-infra/langfuse/.env` - Langfuse observability config
+4. Workspace root `.env` and `.env.local` - Application overrides
+
+Use `get_config` to see which env files were loaded and their values (secrets masked by default).
+
+## 7. Database Queries
+
+When using the Postgres MCP server to query the database, **always consult the schema context first** to avoid trial-and-error queries.
+
+### Before Querying
+
+1. **Read the schema context:** `docs/database/schema-context.md`
+2. **Use schema-qualified table names:** Always prefix with schema (e.g., `kb.documents`, not `documents`)
+3. **Check column names:** The schema context lists common columns and naming conventions
+
+### Common Mistakes to Avoid
+
+| Wrong                                         | Correct                                               |
+| --------------------------------------------- | ----------------------------------------------------- |
+| `SELECT * FROM extraction_jobs`               | `SELECT * FROM kb.object_extraction_jobs`             |
+| `SELECT * FROM documents`                     | `SELECT * FROM kb.documents`                          |
+| `SELECT * FROM users`                         | `SELECT * FROM core.user_profiles`                    |
+| `SELECT error FROM kb.object_extraction_jobs` | `SELECT error_message FROM kb.object_extraction_jobs` |
+
+### Database Schemas
+
+- **`kb`** - Knowledge base data (documents, objects, relationships, jobs, chat)
+- **`core`** - User management (profiles, emails)
+- **`public`** - PostgreSQL extensions (pgvector)
+
+### Quick Reference
+
+For extraction job debugging:
+
+```sql
+-- Get job status
+SELECT id, status, error_message, created_at, completed_at
+FROM kb.object_extraction_jobs WHERE id = '<uuid>';
+
+-- Get job logs
+SELECT step_index, operation_type, status, message
+FROM kb.object_extraction_logs WHERE extraction_job_id = '<uuid>'
+ORDER BY step_index;
+```
+
+See `docs/database/schema-context.md` for complete table listings and query patterns.
+
+## 8. Bug Reports and Improvement Suggestions
 
 The workspace provides structured documentation for bugs and improvements to help track issues and enhancement ideas systematically.
 

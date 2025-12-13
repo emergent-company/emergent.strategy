@@ -141,13 +141,27 @@
   - Show relationship type and target object
   - Visual indicator for add vs remove
 
-- [ ] 5.6 Integrate into `ObjectDetailModal`
+- [ ] 5.6 Refactor `ObjectDetailModal` to two-column layout
 
-  - Add "Refine" tab or slide-out panel
-  - Load existing conversation on open
-  - Show chat UI with context sidebar
+  - Expand modal width (max-w-6xl or max-w-7xl)
+  - Left column: existing tabs (Properties, Relationships, System, History)
+  - Right column: refinement chat (always visible)
+  - Independent scrolling for each column
+  - Tab switching on left does not affect chat on right
 
-- [ ] 5.7 Implement polling for shared chat updates
+- [ ] 5.7 Add responsive behavior for smaller screens
+
+  - Stack columns vertically below breakpoint (< 1024px)
+  - Or provide toggle to switch between details and chat
+  - Ensure usability on tablet-sized screens
+
+- [ ] 5.8 Implement object data refresh after suggestion acceptance
+
+  - Refresh left column data when suggestion is applied
+  - Preserve current tab selection
+  - Show immediate feedback of applied changes
+
+- [ ] 5.9 Implement polling for shared chat updates
   - Poll every 5 seconds for new messages
   - Merge new messages without duplicate
   - Show "new message" indicator

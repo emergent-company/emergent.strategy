@@ -176,7 +176,61 @@ interface RefinementContext {
 
 **Why full related object details**: User clarified they want complete context for all related objects to enable LLM to make informed suggestions.
 
-### Decision 5: Shared Chat with Optimistic UI
+### Decision 5: Two-Column Layout with Independent Navigation
+
+**What**: Expand `ObjectDetailModal` to a two-column layout: left column for object details (existing tabs), right column for refinement chat. Both columns operate independently.
+
+**Layout**:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Object: My Requirement                                    [×]      │
+├────────────────────────────────────┬────────────────────────────────┤
+│  [Properties] [Relations] [System] │  Refinement Chat               │
+│  [History]                         │                                │
+├────────────────────────────────────┼────────────────────────────────│
+│                                    │  ┌──────────────────────────┐  │
+│  Name: My Requirement              │  │ User: Make the           │  │
+│  Type: Requirement                 │  │ description shorter      │  │
+│  Description: This is a long...    │  └──────────────────────────┘  │
+│                                    │  ┌──────────────────────────┐  │
+│  Properties:                       │  │ AI: Here's a suggestion: │  │
+│  • priority: high                  │  │ ┌────────────────────┐   │  │
+│  • status: draft                   │  │ │ description:       │   │  │
+│                                    │  │ │ - "This is a long  │   │  │
+│  (scrollable)                      │  │ │   description..."  │   │  │
+│                                    │  │ │ + "Shorter desc."  │   │  │
+│                                    │  │ └────────────────────┘   │  │
+│                                    │  │ [Accept] [Reject]        │  │
+│                                    │  └──────────────────────────┘  │
+│                                    │                                │
+│                                    │  ┌──────────────────────────┐  │
+│                                    │  │ Type your message...     │  │
+│                                    │  └──────────────────────────┘  │
+└────────────────────────────────────┴────────────────────────────────┘
+```
+
+**Implementation**:
+
+- Modal width expands (e.g., `max-w-6xl` or `max-w-7xl`)
+- Left column: existing tabs (properties, relationships, system, history) - independent scroll
+- Right column: refinement chat - independent scroll
+- User can switch tabs on left while chat remains visible on right
+- Responsive: stack vertically on small screens, or hide chat behind toggle
+
+**Why**:
+
+- User explicitly requested ability to browse details and chat independently
+- Seeing object details while chatting provides better context for refinement
+- No need for separate tab or slide-out - chat is always accessible
+
+**Alternatives considered**:
+
+- Chat as separate tab: Rejected - can't see details while chatting
+- Slide-out panel: Rejected - obscures content, less integrated
+- Separate modal: Rejected - loses context, poor UX
+
+### Decision 6: Shared Chat with Optimistic UI
 
 **What**: Single refinement chat per object, visible to all project users, with optimistic UI updates.
 
@@ -192,7 +246,7 @@ interface RefinementContext {
 - Real-time WebSocket: Deferred - adds complexity, polling sufficient for MVP
 - Per-user private chats: Rejected - user wants shared context
 
-### Decision 6: Audit Trail via Message Metadata
+### Decision 7: Audit Trail via Message Metadata
 
 **What**: Store applied changes in chat message metadata.
 
