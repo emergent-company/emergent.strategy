@@ -169,11 +169,16 @@ export class ChunkEmbeddingWorkerService
       const startTime = Date.now();
 
       // Create a trace for this chunk embedding job
-      const traceId = this.langfuseService?.createJobTrace(job.id, {
-        name: `Chunk Embedding ${job.id}`,
-        chunk_id: job.chunk_id,
-        job_type: 'chunk_embedding',
-      });
+      const traceId = this.langfuseService?.createJobTrace(
+        job.id,
+        {
+          name: `Chunk Embedding ${job.id}`,
+          chunk_id: job.chunk_id,
+          job_type: 'chunk_embedding',
+        },
+        undefined, // environment (use default)
+        'chunk-embedding' // traceType for filtering
+      );
 
       try {
         // Create span for fetching chunk

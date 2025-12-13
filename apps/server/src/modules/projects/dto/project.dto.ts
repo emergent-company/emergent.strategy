@@ -81,15 +81,15 @@ export class ExtractionConfigDto {
   chunkSize?: number;
 
   @ApiProperty({
-    example: 'function_calling',
+    example: 'json_freeform',
     description:
-      'Extraction method to use. function_calling is more reliable with Vertex AI.',
-    enum: ['function_calling', 'responseSchema'],
+      'Extraction method to use. json_freeform provides best property extraction, function_calling is more reliable with Vertex AI.',
+    enum: ['json_freeform', 'function_calling', 'responseSchema'],
     required: false,
   })
   @IsOptional()
-  @IsIn(['function_calling', 'responseSchema'])
-  method?: 'function_calling' | 'responseSchema';
+  @IsIn(['json_freeform', 'function_calling', 'responseSchema'])
+  method?: 'json_freeform' | 'function_calling' | 'responseSchema';
 
   @ApiProperty({
     example: 180,
@@ -131,7 +131,6 @@ export class ProjectDto {
     example: {
       enabled_types: ['Requirement', 'Decision', 'Feature'],
       min_confidence: 0.7,
-      duplicate_strategy: 'skip',
       require_review: true,
       notify_on_complete: true,
       notification_channels: ['inbox'],
@@ -237,13 +236,12 @@ export class UpdateProjectDto {
     example: {
       enabled_types: ['Requirement', 'Decision', 'Feature'],
       min_confidence: 0.7,
-      duplicate_strategy: 'skip',
       require_review: true,
       notify_on_complete: true,
       notification_channels: ['inbox'],
     },
     description:
-      'Configuration for automatic extraction (enabled_types, min_confidence, duplicate_strategy, require_review, notify_on_complete, notification_channels)',
+      'Configuration for automatic extraction (enabled_types, min_confidence, require_review, notify_on_complete, notification_channels)',
     required: false,
   })
   @IsOptional()

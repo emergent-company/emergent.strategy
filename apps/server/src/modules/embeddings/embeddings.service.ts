@@ -473,10 +473,15 @@ export class EmbeddingsService {
       return null;
     }
 
-    return this.langfuseService.createJobTrace(jobId, {
-      name: `Embedding Job ${jobId}`,
-      ...metadata,
-    });
+    return this.langfuseService.createJobTrace(
+      jobId,
+      {
+        name: `Embedding Job ${jobId}`,
+        ...metadata,
+      },
+      undefined, // environment (use default)
+      'embedding' // traceType for filtering
+    );
   }
 
   /**
