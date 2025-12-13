@@ -4,12 +4,15 @@
  * CODE-BASED node (no LLM) that resolves temp_ids to UUIDs.
  *
  * For each extracted entity:
- * 1. Check if it matches an existing entity in the project (by name similarity)
+ * 1. Check if it matches an existing entity in the project (by vector embedding similarity)
  * 2. If match found: map temp_id → existing UUID
  * 3. If no match: generate new UUID and map temp_id → new UUID
  *
  * This enables the RelationshipBuilder to create relationships between
  * new entities and existing ones in the knowledge graph.
+ *
+ * Similarity is calculated using cosine similarity between vector embeddings
+ * of entity text (name + description).
  */
 
 import { Logger } from '@nestjs/common';
@@ -22,6 +25,7 @@ import {
 import type { ExistingEntityContext } from '../../llm-provider.interface';
 import { LangfuseService } from '../../../../langfuse/langfuse.service';
 import { createNodeSpan } from '../tracing';
+import { EmbeddingProvider } from '../../../../graph/embedding.provider';
 
 const logger = new Logger('IdentityResolverNode');
 
@@ -31,91 +35,106 @@ const logger = new Logger('IdentityResolverNode');
 export interface IdentityResolverConfig {
   /** Minimum similarity score to consider a match (0.0-1.0) */
   similarityThreshold?: number;
-  /** Whether to use fuzzy matching */
+  /** Whether to use fuzzy matching (now uses vector embeddings) */
   fuzzyMatch?: boolean;
   /** Optional LangfuseService for tracing */
   langfuseService?: LangfuseService | null;
+  /** Embedding provider for vector similarity (required for embedding-based matching) */
+  embeddingProvider?: EmbeddingProvider | null;
 }
 
 /**
- * Calculate normalized similarity between two strings
- *
- * Uses a combination of:
- * - Exact match (case-insensitive)
- * - Levenshtein distance
- * - Token overlap (for multi-word names)
+ * Build entity text for embedding: "name: description"
+ * This captures both the identity (name) and semantic context (description)
  */
-function calculateSimilarity(str1: string, str2: string): number {
-  const s1 = str1.toLowerCase().trim();
-  const s2 = str2.toLowerCase().trim();
+function buildEntityText(name: string, description?: string): string {
+  if (description && description.trim()) {
+    return `${name}: ${description.trim()}`;
+  }
+  return name;
+}
 
-  // Exact match
-  if (s1 === s2) return 1.0;
-
-  // Empty string check
-  if (s1.length === 0 || s2.length === 0) return 0.0;
-
-  // Token overlap for multi-word names
-  const tokens1 = new Set(s1.split(/\s+/));
-  const tokens2 = new Set(s2.split(/\s+/));
-
-  if (tokens1.size > 1 || tokens2.size > 1) {
-    const intersection = new Set([...tokens1].filter((t) => tokens2.has(t)));
-    const union = new Set([...tokens1, ...tokens2]);
-    const jaccardSimilarity = intersection.size / union.size;
-
-    // If high token overlap, boost the score
-    if (jaccardSimilarity > 0.5) {
-      return 0.7 + jaccardSimilarity * 0.3;
-    }
+/**
+ * Calculate cosine similarity between two vectors
+ * Returns value between -1 and 1, where 1 is identical
+ */
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) {
+    throw new Error(`Vector dimension mismatch: ${a.length} vs ${b.length}`);
   }
 
-  // Levenshtein distance for short strings
-  const maxLen = Math.max(s1.length, s2.length);
-  const distance = levenshteinDistance(s1, s2);
-  const similarity = 1 - distance / maxLen;
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
 
-  return similarity;
-}
-
-/**
- * Compute Levenshtein distance between two strings
- */
-function levenshteinDistance(str1: string, str2: string): number {
-  const m = str1.length;
-  const n = str2.length;
-
-  // Create distance matrix
-  const dp: number[][] = Array(m + 1)
-    .fill(null)
-    .map(() => Array(n + 1).fill(0));
-
-  // Initialize base cases
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-
-  // Fill the matrix
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (str1[i - 1] === str2[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1];
-      } else {
-        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-      }
-    }
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
   }
 
-  return dp[m][n];
+  const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
+  if (magnitude === 0) return 0;
+
+  return dotProduct / magnitude;
 }
 
 /**
- * Find the best matching existing entity for a given extracted entity
+ * Cache for embeddings to avoid redundant API calls within the same run
  */
-function findBestMatch(
+interface EmbeddingCache {
+  [text: string]: number[];
+}
+
+/**
+ * Generate embeddings for all entities (extracted and existing)
+ * Uses batching and caching for efficiency
+ */
+async function generateEmbeddings(
+  embeddingProvider: EmbeddingProvider,
+  extractedEntities: InternalEntity[],
+  existingEntities: ExistingEntityContext[]
+): Promise<{
+  extractedEmbeddings: Map<string, number[]>;
+  existingEmbeddings: Map<string, number[]>;
+}> {
+  const cache: EmbeddingCache = {};
+  const extractedEmbeddings = new Map<string, number[]>();
+  const existingEmbeddings = new Map<string, number[]>();
+
+  // Generate embeddings for extracted entities
+  for (const entity of extractedEntities) {
+    const text = buildEntityText(entity.name, entity.description);
+    if (!cache[text]) {
+      const result = await embeddingProvider.generate(text);
+      cache[text] = result.embedding;
+    }
+    extractedEmbeddings.set(entity.temp_id, cache[text]);
+  }
+
+  // Generate embeddings for existing entities
+  for (const entity of existingEntities) {
+    const text = buildEntityText(entity.name, entity.description);
+    if (!cache[text]) {
+      const result = await embeddingProvider.generate(text);
+      cache[text] = result.embedding;
+    }
+    existingEmbeddings.set(entity.id, cache[text]);
+  }
+
+  return { extractedEmbeddings, existingEmbeddings };
+}
+
+/**
+ * Find the best matching existing entity using vector embedding similarity
+ */
+function findBestMatchByEmbedding(
   entity: InternalEntity,
+  entityEmbedding: number[],
   existingEntities: ExistingEntityContext[],
+  existingEmbeddings: Map<string, number[]>,
   threshold: number
-): ExistingEntityContext | null {
+): { match: ExistingEntityContext | null; similarity: number } {
   let bestMatch: ExistingEntityContext | null = null;
   let bestScore = 0;
 
@@ -125,7 +144,13 @@ function findBestMatch(
       continue;
     }
 
-    const similarity = calculateSimilarity(entity.name, existing.name);
+    const existingEmbedding = existingEmbeddings.get(existing.id);
+    if (!existingEmbedding) {
+      logger.warn(`No embedding found for existing entity ${existing.id}`);
+      continue;
+    }
+
+    const similarity = cosineSimilarity(entityEmbedding, existingEmbedding);
 
     if (similarity > bestScore && similarity >= threshold) {
       bestScore = similarity;
@@ -137,35 +162,41 @@ function findBestMatch(
     logger.debug(
       `Matched "${entity.name}" → "${
         bestMatch.name
-      }" (score: ${bestScore.toFixed(2)})`
+      }" (cosine similarity: ${bestScore.toFixed(3)})`
     );
   }
 
-  return bestMatch;
+  return { match: bestMatch, similarity: bestScore };
 }
 
 /**
  * Create the identity resolver node function
  *
  * This is a CODE-BASED node (no LLM calls) that:
- * 1. Compares extracted entities against existing entities
- * 2. Maps temp_ids to UUIDs (existing or new)
+ * 1. Generates vector embeddings for all entities
+ * 2. Compares extracted entities against existing entities using cosine similarity
+ * 3. Maps temp_ids to UUIDs (existing or new)
  */
 export function createIdentityResolverNode(
   config: IdentityResolverConfig = {}
 ) {
   const {
-    similarityThreshold = 0.85,
+    similarityThreshold: configThreshold = 0.7,
     fuzzyMatch = true,
     langfuseService = null,
+    embeddingProvider = null,
   } = config;
 
   return async (
     state: typeof ExtractionGraphState.State
   ): Promise<Partial<ExtractionGraphStateType>> => {
     const startTime = Date.now();
+
+    // Use state threshold if provided, otherwise fall back to config
+    const similarityThreshold = state.similarity_threshold ?? configThreshold;
+
     logger.debug(
-      `Resolving identities for ${state.extracted_entities.length} entities`
+      `Resolving identities for ${state.extracted_entities.length} entities (threshold: ${similarityThreshold})`
     );
 
     // Prepare existing entities summary for tracing
@@ -189,6 +220,7 @@ export function createIdentityResolverNode(
           name: e.name,
           type: e.type,
         })),
+        matchingMethod: embeddingProvider ? 'vector_embedding' : 'disabled',
       },
       { similarityThreshold, fuzzyMatch }
     );
@@ -205,11 +237,62 @@ export function createIdentityResolverNode(
     let matchedCount = 0;
     let newCount = 0;
 
+    // Check if we should attempt matching
+    const shouldMatch =
+      fuzzyMatch &&
+      embeddingProvider &&
+      state.existing_entities.length > 0 &&
+      state.extracted_entities.length > 0;
+
+    let extractedEmbeddings: Map<string, number[]> | null = null;
+    let existingEmbeddings: Map<string, number[]> | null = null;
+
+    // Generate embeddings if we have an embedding provider and entities to match
+    if (shouldMatch) {
+      try {
+        logger.debug('Generating embeddings for entity matching...');
+        const embeddings = await generateEmbeddings(
+          embeddingProvider,
+          state.extracted_entities,
+          state.existing_entities
+        );
+        extractedEmbeddings = embeddings.extractedEmbeddings;
+        existingEmbeddings = embeddings.existingEmbeddings;
+        logger.debug(
+          `Generated ${extractedEmbeddings.size} extracted + ${existingEmbeddings.size} existing embeddings`
+        );
+      } catch (error) {
+        logger.warn(
+          `Failed to generate embeddings, will create new UUIDs for all entities: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
+    } else if (!embeddingProvider) {
+      logger.warn(
+        'No embedding provider configured - all entities will be treated as new'
+      );
+    }
+
     for (const entity of state.extracted_entities) {
-      // Try to find a matching existing entity
-      const match = fuzzyMatch
-        ? findBestMatch(entity, state.existing_entities, similarityThreshold)
-        : null;
+      let match: ExistingEntityContext | null = null;
+      let similarity = 0;
+
+      // Try to find a matching existing entity using vector embeddings
+      if (extractedEmbeddings && existingEmbeddings) {
+        const entityEmbedding = extractedEmbeddings.get(entity.temp_id);
+        if (entityEmbedding) {
+          const result = findBestMatchByEmbedding(
+            entity,
+            entityEmbedding,
+            state.existing_entities,
+            existingEmbeddings,
+            similarityThreshold
+          );
+          match = result.match;
+          similarity = result.similarity;
+        }
+      }
 
       if (match) {
         // Map temp_id to existing UUID
@@ -221,7 +304,7 @@ export function createIdentityResolverNode(
           tempId: entity.temp_id,
           matchedTo: { id: match.id, name: match.name },
           isNew: false,
-          similarity: calculateSimilarity(entity.name, match.name),
+          similarity,
         });
       } else {
         // Generate new UUID
@@ -240,7 +323,9 @@ export function createIdentityResolverNode(
 
     logger.log(
       `Identity resolution complete: ${matchedCount} matched, ${newCount} new, ` +
-        `${Date.now() - startTime}ms`
+        `${Date.now() - startTime}ms (method: ${
+          embeddingProvider ? 'vector_embedding' : 'none'
+        })`
     );
 
     // End tracing span with success including match details
@@ -249,6 +334,7 @@ export function createIdentityResolverNode(
       newCount,
       totalEntities: state.extracted_entities.length,
       matchDetails,
+      matchingMethod: embeddingProvider ? 'vector_embedding' : 'none',
     });
 
     return {
@@ -259,6 +345,7 @@ export function createIdentityResolverNode(
           new_count: newCount,
           total_entities: state.extracted_entities.length,
           similarity_threshold: similarityThreshold,
+          matching_method: embeddingProvider ? 'vector_embedding' : 'none',
           match_details: matchDetails,
           duration_ms: Date.now() - startTime,
         },

@@ -1,32 +1,47 @@
 /**
  * Entity Extraction Prompts
  *
- * Simplified, schema-driven prompts for extracting entities.
- * The prompts match the simplified LLMEntitySchema (name, type, description only).
- * Complex properties are NOT extracted by the LLM - they're handled in post-processing.
+ * Schema-driven prompts for extracting entities with their type-specific properties.
+ * The prompts guide the LLM to extract name, type, description, and properties.
  */
 
 import { InternalEntity } from '../state';
 import { ExistingEntityContext } from '../../llm-provider.interface';
 
 /** Extraction method type */
-export type ExtractionMethod = 'responseSchema' | 'function_calling';
+export type ExtractionMethod =
+  | 'responseSchema'
+  | 'function_calling'
+  | 'json_freeform';
 
 /**
- * Base system prompt for entity extraction - simplified for performance
+ * Base system prompt for entity extraction - includes property extraction
  */
 export const ENTITY_EXTRACTOR_SYSTEM_PROMPT = `You are an expert knowledge graph builder. Extract entities from the document.
 
-For EACH entity, provide:
-1. name: Clear, descriptive name of the entity
-2. type: Entity type from the allowed list
-3. description: Brief description of what this entity represents
+For EACH entity, you MUST provide these four fields:
+1. name: Clear, descriptive name of the entity (REQUIRED, top-level field)
+2. type: Entity type from the allowed list (REQUIRED, top-level field)
+3. description: Brief description of what this entity represents (top-level field)
+4. properties: An object containing type-specific attributes (CRITICAL - see below)
+
+CRITICAL INSTRUCTIONS FOR PROPERTIES:
+- The "properties" field is an object that MUST contain type-specific attributes extracted from the document
+- For Person entities: include role, occupation, title, father, mother, tribe, age, significance, etc.
+- For Location entities: include region, country, location_type, significance, etc.
+- For Event entities: include date, location, participants, outcome, etc.
+- For Organization entities: include type, purpose, members, location, etc.
+- NEVER return an empty properties object {} if there is ANY relevant information in the document
+- Extract ALL attributes mentioned or implied in the text for each entity
+- The properties object should NOT contain name, type, or description - those are top-level fields
 
 RULES:
 - Extract ALL entities that match the allowed types
 - Be thorough - don't miss important entities
 - Use consistent naming
-- Keep descriptions concise but informative`;
+- Keep descriptions concise but informative
+- Only include properties that are explicitly mentioned or clearly implied in the document
+- Do NOT guess or fabricate property values`;
 
 /**
  * System prompt extension for context-aware extraction
@@ -45,41 +60,70 @@ CONTEXT-AWARE EXTRACTION RULES:
 - When action is "enrich" or "reference", also provide "existing_entity_id" with the UUID from the existing entity`;
 
 /**
- * Build a simplified entity extraction prompt
+ * Build a schema-driven entity extraction prompt
  *
- * This prompt matches the simplified LLMEntitySchema (name, type, description only).
- * It lists allowed types with brief descriptions but does NOT include complex property schemas.
+ * This prompt includes type-specific property schemas so the LLM knows
+ * what properties to look for when extracting each entity type.
  *
  * @param documentText - The document text to extract entities from
  * @param objectSchemas - Schema definitions for allowed entity types
  * @param allowedTypes - Optional subset of types to extract
  * @param existingEntities - Optional existing entities for context-aware extraction
- * @param extractionMethod - The extraction method being used ('responseSchema' or 'function_calling')
+ * @param extractionMethod - The extraction method being used
  */
 export function buildEntityExtractionPrompt(
   documentText: string,
   objectSchemas: Record<string, any>,
   allowedTypes?: string[],
   existingEntities?: ExistingEntityContext[],
-  extractionMethod: ExtractionMethod = 'function_calling'
+  extractionMethod: ExtractionMethod = 'json_freeform'
 ): string {
   const typesToExtract = allowedTypes || Object.keys(objectSchemas);
 
   let prompt = `${ENTITY_EXTRACTOR_SYSTEM_PROMPT}
 
-## Allowed Entity Types
+## Entity Types and Their Properties
 
 Extract ONLY these types: ${typesToExtract.join(', ')}
 
 `;
 
-  // Add brief type descriptions (no complex property schemas)
+  // Fields that are top-level in the entity structure, NOT in properties
+  const TOP_LEVEL_FIELDS = ['name', 'description', 'type'];
+
+  // Add type descriptions WITH property schemas
   for (const typeName of typesToExtract) {
     const schema = objectSchemas[typeName];
-    if (schema?.description) {
-      prompt += `- **${typeName}**: ${schema.description}\n`;
+    if (schema) {
+      prompt += `### ${typeName}\n`;
+      if (schema.description) {
+        prompt += `${schema.description}\n`;
+      }
+
+      // Include property definitions if available (excluding top-level fields)
+      if (schema.properties && Object.keys(schema.properties).length > 0) {
+        const additionalProps = Object.entries(
+          schema.properties as Record<string, any>
+        ).filter(
+          ([propName]) =>
+            !TOP_LEVEL_FIELDS.includes(propName) && !propName.startsWith('_')
+        );
+
+        if (additionalProps.length > 0) {
+          prompt += `**Additional Properties** (stored in \`properties\` object):\n`;
+          for (const [propName, propDef] of additionalProps) {
+            const propType = propDef.type || 'string';
+            const propDesc = propDef.description || '';
+            const required = schema.required?.includes(propName)
+              ? ' (required)'
+              : '';
+            prompt += `- \`${propName}\` (${propType})${required}: ${propDesc}\n`;
+          }
+        }
+      }
+      prompt += '\n';
     } else {
-      prompt += `- **${typeName}**\n`;
+      prompt += `### ${typeName}\n\n`;
     }
   }
 
@@ -144,25 +188,64 @@ ${documentText}
 
   // Add method-specific output instructions
   if (extractionMethod === 'function_calling') {
-    // Function calling method - schema is defined by the function, no JSON examples needed
+    // Function calling method - schema is defined by the function, include JSON example for clarity
     if (hasExistingEntities) {
       prompt += `## Instructions
 
 Call the extract_entities function with the entities you find. For each entity:
-- name: Entity name (use exact names from existing entities when matching)
-- type: One of the allowed types above
-- description: Brief description (optional)
+- name: Entity name (REQUIRED top-level field, use exact names from existing entities when matching)
+- type: One of the allowed types above (REQUIRED top-level field)
+- description: Brief description (top-level field)
+- properties: Object with type-specific attributes (CRITICAL - must not be empty if attributes exist)
 - action: "create" (new entity), "enrich" (update existing), or "reference" (just a reference)
 - existing_entity_id: UUID of existing entity when action is "enrich" or "reference"
+
+CRITICAL: The "properties" object MUST contain type-specific attributes extracted from the document.
+- For Person: include role, occupation, father, mother, tribe, age, significance, etc.
+- For Location: include region, country, location_type, significance, etc.
+- For Event: include date, location, participants, outcome, etc.
+- NEVER return empty properties {} if the document mentions ANY attributes for the entity.
+
+Example of what each entity should look like:
+{
+  "name": "Moses",
+  "type": "Person",
+  "description": "Leader who brought the Israelites out of Egypt",
+  "properties": {
+    "role": "prophet and leader",
+    "tribe": "Levi",
+    "significance": "Received the Ten Commandments"
+  },
+  "action": "create"
+}
 
 Extract all entities now by calling the extract_entities function.`;
     } else {
       prompt += `## Instructions
 
 Call the extract_entities function with the entities you find. For each entity:
-- name: Entity name
-- type: One of the allowed types above
-- description: Brief description (optional)
+- name: Entity name (REQUIRED top-level field)
+- type: One of the allowed types above (REQUIRED top-level field)
+- description: Brief description (top-level field)
+- properties: Object with type-specific attributes (CRITICAL - must not be empty if attributes exist)
+
+CRITICAL: The "properties" object MUST contain type-specific attributes extracted from the document.
+- For Person: include role, occupation, father, mother, tribe, age, significance, etc.
+- For Location: include region, country, location_type, significance, etc.
+- For Event: include date, location, participants, outcome, etc.
+- NEVER return empty properties {} if the document mentions ANY attributes for the entity.
+
+Example of what each entity should look like:
+{
+  "name": "Moses",
+  "type": "Person",
+  "description": "Leader who brought the Israelites out of Egypt",
+  "properties": {
+    "role": "prophet and leader",
+    "tribe": "Levi",
+    "significance": "Received the Ten Commandments"
+  }
+}
 
 Extract all entities now by calling the extract_entities function.`;
     }
@@ -171,44 +254,111 @@ Extract all entities now by calling the extract_entities function.`;
     if (hasExistingEntities) {
       prompt += `## Output Format
 
-Return a JSON object with an "entities" array. Each entity must have:
-- name (string): Entity name
-- type (string): One of the allowed types above
-- description (string, optional): Brief description
+You MUST return a JSON object with an "entities" key containing an array of entities.
+
+DO NOT return a bare array. DO NOT use "result" as the key. The key MUST be "entities".
+
+Each entity in the array must have:
+- name (string): Entity name (top-level, NOT in properties)
+- type (string): One of the allowed types above (top-level, NOT in properties)
+- description (string, optional): Brief description (top-level, NOT in properties)
+- properties (object, optional): Type-specific attributes found in the document (e.g., role, tribe, location)
 - action (string, optional): "create" (new entity), "enrich" (update existing), or "reference" (just a reference)
 - existing_entity_id (string, optional): UUID of existing entity when action is "enrich" or "reference"
 
-Example with context-aware extraction:
+IMPORTANT: The "properties" object contains ONLY type-specific attributes - NOT name, type, or description.
+
+CORRECT output format with context-aware extraction:
 \`\`\`json
 {
   "entities": [
-    {"name": "John", "type": "Person", "description": "Author of the letter", "action": "create"},
-    {"name": "Jerusalem", "type": "Place", "description": "Holy city mentioned in the text", "action": "enrich", "existing_entity_id": "abc-123-uuid"},
-    {"name": "Paul", "type": "Person", "action": "reference", "existing_entity_id": "def-456-uuid"}
+    {
+      "name": "John the Apostle",
+      "type": "Person",
+      "description": "One of the twelve apostles, author of the Gospel of John",
+      "properties": {
+        "role": "apostle",
+        "occupation": "fisherman",
+        "father": "Zebedee",
+        "significance": "Wrote the Gospel of John and three epistles"
+      },
+      "action": "create"
+    },
+    {
+      "name": "Jerusalem",
+      "type": "Place",
+      "description": "Holy city and center of Jewish worship",
+      "properties": {
+        "region": "Judea",
+        "significance": "Capital of Israel, location of the Temple"
+      },
+      "action": "enrich",
+      "existing_entity_id": "abc-123-uuid"
+    },
+    {
+      "name": "Paul",
+      "type": "Person",
+      "action": "reference",
+      "existing_entity_id": "def-456-uuid"
+    }
   ]
 }
 \`\`\`
 
-Extract all entities now.`;
+WRONG output formats (DO NOT USE):
+- \`[...]\` (bare array without "entities" key)
+- \`{"result": [...]}\` (wrong key name)
+- \`{"data": [...]}\` (wrong key name)
+
+Extract all entities now. Remember: return {"entities": [...]} format.`;
     } else {
       prompt += `## Output Format
 
-Return a JSON object with an "entities" array. Each entity must have:
-- name (string): Entity name
-- type (string): One of the allowed types above
-- description (string, optional): Brief description
+You MUST return a JSON object with an "entities" key containing an array of entities.
 
-Example:
+DO NOT return a bare array. DO NOT use "result" as the key. The key MUST be "entities".
+
+Each entity in the array must have:
+- name (string): Entity name (top-level, NOT in properties)
+- type (string): One of the allowed types above (top-level, NOT in properties)
+- description (string, optional): Brief description (top-level, NOT in properties)
+- properties (object, optional): Type-specific attributes found in the document (e.g., role, tribe, location)
+
+IMPORTANT: The "properties" object contains ONLY type-specific attributes - NOT name, type, or description.
+
+CORRECT output format:
 \`\`\`json
 {
   "entities": [
-    {"name": "John", "type": "Person", "description": "Author of the letter"},
-    {"name": "Jerusalem", "type": "Place", "description": "Holy city"}
+    {
+      "name": "John the Apostle",
+      "type": "Person",
+      "description": "One of the twelve apostles, author of the Gospel of John",
+      "properties": {
+        "role": "apostle",
+        "occupation": "fisherman",
+        "father": "Zebedee"
+      }
+    },
+    {
+      "name": "Jerusalem",
+      "type": "Place",
+      "description": "Holy city and center of Jewish worship",
+      "properties": {
+        "region": "Judea",
+        "significance": "Capital of Israel, location of the Temple"
+      }
+    }
   ]
 }
 \`\`\`
 
-Extract all entities now.`;
+WRONG output formats (DO NOT USE):
+- \`[...]\` (bare array without "entities" key)
+- \`{"result": [...]}\` (wrong key name)
+- \`{"data": [...]}\` (wrong key name)
+
+Extract all entities now. Remember: return {"entities": [...]} format.`;
     }
   }
 
@@ -298,4 +448,51 @@ Common issues to check:
 `;
 
   return retryContext + basePrompt;
+}
+
+/**
+ * Build a retry partial for entity extraction.
+ *
+ * This is a header that gets prepended to the main prompt on retry attempts.
+ * It provides context about the retry without duplicating the entire prompt.
+ *
+ * @param retryCount - Current retry attempt number
+ * @param currentEntityCount - Number of entities found so far
+ * @param feedback - Feedback from previous attempt
+ * @param previousEntities - Previously extracted entities for reference
+ */
+export function buildEntityRetryPartial(
+  retryCount: number,
+  currentEntityCount: number,
+  feedback: string,
+  previousEntities: InternalEntity[]
+): string {
+  const entitiesList = previousEntities
+    .slice(0, 20)
+    .map((e) => `- ${e.name} [${e.type}]`)
+    .join('\n');
+
+  const moreCount =
+    previousEntities.length > 20 ? previousEntities.length - 20 : 0;
+  const moreNote = moreCount > 0 ? `\n... and ${moreCount} more` : '';
+
+  return `## RETRY ATTEMPT ${retryCount}: Additional Entities Needed
+
+The previous extraction found ${currentEntityCount} entities, but some may be missing.
+
+### Feedback from Previous Attempt
+${feedback}
+
+### Previously Extracted Entities
+${entitiesList}${moreNote}
+
+### IMPORTANT
+- Look for entities that may have been overlooked
+- Check for implicit entities (groups, places mentioned in passing)
+- Ensure ALL named individuals are captured
+- Verify relationships mention entities that should exist
+
+---
+
+`;
 }

@@ -45,8 +45,14 @@ import { createNodeSpan } from '../tracing';
 
 const logger = new Logger('RelationshipBuilderNode');
 
+/** Maximum number of entities to process in a single batch */
+const MAX_ENTITIES_PER_BATCH = 5;
+
 /** Extraction method type */
-export type ExtractionMethod = 'responseSchema' | 'function_calling';
+export type ExtractionMethod =
+  | 'responseSchema'
+  | 'function_calling'
+  | 'json_freeform';
 
 /**
  * Mapping of inverse relationship types.
@@ -222,7 +228,7 @@ export interface RelationshipBuilderNodeConfig {
   langfuseService?: LangfuseService | null;
   /** Optional prompt provider for Langfuse prompt management */
   promptProvider?: ExtractionPromptProvider | null;
-  /** Extraction method: 'responseSchema' (default) or 'function_calling' */
+  /** Extraction method: 'json_freeform' (default), 'responseSchema', or 'function_calling' */
   extractionMethod?: ExtractionMethod;
 }
 
@@ -240,7 +246,7 @@ export function createRelationshipBuilderNode(
     timeoutMs = 600000, // 10 minutes - increased for large document extraction
     langfuseService = null,
     promptProvider = null,
-    extractionMethod = 'function_calling',
+    extractionMethod = 'json_freeform', // Default to json_freeform for best property population
   } = config;
 
   // Convert Zod schema to Google Schema for structured output
@@ -314,58 +320,19 @@ export function createRelationshipBuilderNode(
     // Define this early so it can be used for prompt building
     const effectiveMethod = state.extraction_method || extractionMethod;
 
-    // Build the appropriate prompt based on whether this is a retry
-    let promptResult: PromptResult;
+    // Get effective timeout from state (per-job) or fall back to config default
+    const effectiveTimeoutMs = state.timeout_ms || timeoutMs;
 
-    if (isRetry && state.orphan_entities.length > 0) {
-      // Use retry prompt focused on orphans (local only - too dynamic for Langfuse)
-      promptResult = {
-        prompt: buildRelationshipRetryPrompt(
-          state.extracted_entities,
-          state.final_relationships,
-          state.document_chunks,
-          state.orphan_entities,
-          state.retry_count,
-          state.feedback_log.slice(-3).join('\n'),
-          effectiveMethod
-        ),
-        fromLangfuse: false,
-      };
-    } else if (promptProvider) {
-      // Use prompt provider with Langfuse support
-      // Note: Langfuse prompts don't support method-specific variants yet
-      promptResult = await promptProvider.getRelationshipBuilderPrompt(
-        state.document_chunks,
-        state.extracted_entities,
-        state.relationship_schemas,
-        state.existing_entities,
-        state.orphan_entities,
-        // Pass prompt label from state for experiment prompt selection
-        state.prompt_label ? { label: state.prompt_label } : undefined
-      );
-    } else {
-      // Direct fallback to local prompt with extraction method
-      promptResult = {
-        prompt: buildRelationshipPrompt(
-          state.extracted_entities,
-          state.relationship_schemas,
-          state.document_chunks,
-          state.existing_entities,
-          state.orphan_entities,
-          effectiveMethod
-        ),
-        fromLangfuse: false,
-      };
-    }
+    // Determine if we need batching (more than MAX_ENTITIES_PER_BATCH entities)
+    const allEntities = state.extracted_entities;
+    const needsBatching = allEntities.length > MAX_ENTITIES_PER_BATCH;
+    const batchCount = needsBatching
+      ? Math.ceil(allEntities.length / MAX_ENTITIES_PER_BATCH)
+      : 1;
 
-    const prompt = promptResult.prompt;
-
-    // Log prompt source for debugging
-    if (promptResult.fromLangfuse) {
-      logger.debug(
-        `Using Langfuse prompt v${promptResult.version} [${
-          promptResult.labels?.join(', ') || 'no labels'
-        }]`
+    if (needsBatching) {
+      logger.log(
+        `[RelationshipBuilder] Processing ${allEntities.length} entities in ${batchCount} batches (max ${MAX_ENTITIES_PER_BATCH} per batch)`
       );
     }
 
@@ -386,98 +353,217 @@ export function createRelationshipBuilderNode(
           type: e.type,
         })),
         existingRelationshipCount: state.final_relationships.length,
-        promptSource: promptResult.fromLangfuse ? 'langfuse' : 'local',
-        promptVersion: promptResult.version,
-        promptLabels: promptResult.labels,
         method: effectiveMethodLabel,
         extractionMethod: effectiveMethod,
+        batchCount,
+        needsBatching,
       },
       {}
     );
 
-    // Create tracing context for Langfuse
-    const tracingContext: TracingContext | undefined = state.trace_id
-      ? {
-          traceId: state.trace_id,
-          parentObservationId: span.getSpanId() || state.parent_observation_id,
-          generationName: 'build_relationships_llm',
-          metadata: {
-            promptSource: promptResult.fromLangfuse ? 'langfuse' : 'local',
-            promptVersion: promptResult.version,
-            isRetry,
-            entityCount: state.extracted_entities.length,
-            extractionMethod: effectiveMethod,
-          },
-        }
-      : undefined;
-
-    // Get effective timeout from state (per-job) or fall back to config default
-    const effectiveTimeoutMs = state.timeout_ms || timeoutMs;
-
     try {
-      logger.debug(
-        `[RelationshipBuilder] Calling native Gemini SDK (${effectiveMethod})...`
-      );
+      // Accumulate all relationships from all batches
+      let allRawRelationships: InternalRelationship[] = [];
+      let totalInvalidRefs = 0;
+      let totalDurationMs = 0;
 
-      const promptString =
-        typeof prompt === 'string' ? prompt : JSON.stringify(prompt);
-
-      let result;
-
-      if (effectiveMethod === 'function_calling') {
-        // Use function calling method
-        result = await geminiService.generateWithFunctionCall<{
-          relationships: InternalRelationship[];
-        }>(
-          promptString,
-          relationshipExtractionFunction,
-          {
-            timeoutMs: effectiveTimeoutMs,
-            maxOutputTokens: 65535,
-            functionName: 'build_relationships',
-            forceCall: true,
-          },
-          tracingContext
+      // Process entities in batches
+      for (let batchIndex = 0; batchIndex < batchCount; batchIndex++) {
+        const batchStart = batchIndex * MAX_ENTITIES_PER_BATCH;
+        const batchEnd = Math.min(
+          batchStart + MAX_ENTITIES_PER_BATCH,
+          allEntities.length
         );
-      } else {
-        // Use responseSchema method (default)
-        result = await geminiService.generateStructuredOutput<{
-          relationships: InternalRelationship[];
-        }>(
-          promptString,
-          relationshipOutputSchema,
-          { timeoutMs: effectiveTimeoutMs, maxOutputTokens: 65535 },
-          tracingContext
+        const batchEntities = allEntities.slice(batchStart, batchEnd);
+
+        if (needsBatching) {
+          logger.log(
+            `[RelationshipBuilder] Processing batch ${
+              batchIndex + 1
+            }/${batchCount} ` +
+              `(entities ${batchStart + 1}-${batchEnd} of ${
+                allEntities.length
+              })`
+          );
+        }
+
+        // Build the appropriate prompt based on whether this is a retry
+        // For batching, we pass the batch entities but keep full document context
+        let promptResult: PromptResult;
+
+        if (isRetry && state.orphan_entities.length > 0) {
+          // Use retry prompt focused on orphans (local only - too dynamic for Langfuse)
+          // For retry, only include orphans that are in this batch
+          const batchTempIds = new Set(batchEntities.map((e) => e.temp_id));
+          const batchOrphans = state.orphan_entities.filter((orphanTempId) =>
+            batchTempIds.has(orphanTempId)
+          );
+          promptResult = {
+            prompt: buildRelationshipRetryPrompt(
+              batchEntities,
+              state.final_relationships,
+              state.document_chunks,
+              batchOrphans,
+              state.retry_count,
+              state.feedback_log.slice(-3).join('\n'),
+              effectiveMethod
+            ),
+            fromLangfuse: false,
+          };
+        } else if (promptProvider) {
+          // Use prompt provider with Langfuse support
+          // Pass extraction method so the prompt includes the correct output instruction
+          const batchTempIds = new Set(batchEntities.map((e) => e.temp_id));
+          promptResult = await promptProvider.getRelationshipBuilderPrompt(
+            state.document_chunks,
+            batchEntities, // Only batch entities
+            state.relationship_schemas,
+            state.existing_entities,
+            state.orphan_entities.filter((orphanTempId) =>
+              batchTempIds.has(orphanTempId)
+            ),
+            // Pass prompt label from state for experiment prompt selection
+            state.prompt_label ? { label: state.prompt_label } : undefined,
+            effectiveMethod
+          );
+        } else {
+          // Direct fallback to local prompt with extraction method
+          const batchTempIds = new Set(batchEntities.map((e) => e.temp_id));
+          promptResult = {
+            prompt: buildRelationshipPrompt(
+              batchEntities, // Only batch entities
+              state.relationship_schemas,
+              state.document_chunks,
+              state.existing_entities,
+              state.orphan_entities.filter((orphanTempId) =>
+                batchTempIds.has(orphanTempId)
+              ),
+              effectiveMethod
+            ),
+            fromLangfuse: false,
+          };
+        }
+
+        const prompt = promptResult.prompt;
+
+        // Log prompt source for debugging (only on first batch)
+        if (batchIndex === 0 && promptResult.fromLangfuse) {
+          logger.debug(
+            `Using Langfuse prompt v${promptResult.version} [${
+              promptResult.labels?.join(', ') || 'no labels'
+            }]`
+          );
+        }
+
+        // Create tracing context for this batch
+        const batchTracingContext: TracingContext | undefined = state.trace_id
+          ? {
+              traceId: state.trace_id,
+              parentObservationId:
+                span.getSpanId() || state.parent_observation_id,
+              generationName: needsBatching
+                ? `build_relationships_batch_${batchIndex + 1}`
+                : 'build_relationships_llm',
+              metadata: {
+                promptSource: promptResult.fromLangfuse ? 'langfuse' : 'local',
+                promptVersion: promptResult.version,
+                isRetry,
+                entityCount: batchEntities.length,
+                extractionMethod: effectiveMethod,
+                batchIndex: batchIndex + 1,
+                batchCount,
+              },
+            }
+          : undefined;
+
+        logger.debug(
+          `[RelationshipBuilder] Calling native Gemini SDK (${effectiveMethod}) for batch ${
+            batchIndex + 1
+          }...`
         );
-      }
 
-      if (!result.success) {
-        throw new Error(result.error || 'Unknown error from Gemini SDK');
-      }
+        const promptString =
+          typeof prompt === 'string' ? prompt : JSON.stringify(prompt);
 
-      const rawRelationships = result.data?.relationships || [];
+        let result;
+
+        if (effectiveMethod === 'function_calling') {
+          // Use function calling method
+          result = await geminiService.generateWithFunctionCall<{
+            relationships: InternalRelationship[];
+          }>(
+            promptString,
+            relationshipExtractionFunction,
+            {
+              timeoutMs: effectiveTimeoutMs,
+              maxOutputTokens: 65535,
+              functionName: 'build_relationships',
+              forceCall: true,
+            },
+            batchTracingContext
+          );
+        } else if (effectiveMethod === 'json_freeform') {
+          // Use JSON freeform method (best for property population)
+          result = await geminiService.generateJsonFreeform<{
+            relationships: InternalRelationship[];
+          }>(
+            promptString,
+            { timeoutMs: effectiveTimeoutMs, maxOutputTokens: 65535 },
+            batchTracingContext
+          );
+        } else {
+          // Use responseSchema method
+          result = await geminiService.generateStructuredOutput<{
+            relationships: InternalRelationship[];
+          }>(
+            promptString,
+            relationshipOutputSchema,
+            { timeoutMs: effectiveTimeoutMs, maxOutputTokens: 65535 },
+            batchTracingContext
+          );
+        }
+
+        if (!result.success) {
+          throw new Error(
+            result.error ||
+              `Unknown error from Gemini SDK (batch ${batchIndex + 1})`
+          );
+        }
+
+        const batchRelationships = result.data?.relationships || [];
+        totalDurationMs += result.durationMs || 0;
+
+        logger.log(
+          `[RelationshipBuilder] Batch ${batchIndex + 1}/${batchCount}: ` +
+            `Received ${batchRelationships.length} relationships in ${result.durationMs}ms`
+        );
+
+        // Validate references for this batch
+        const validTempIds = new Set(allEntities.map((e) => e.temp_id));
+        const existingIds = new Set(state.existing_entities.map((e) => e.id));
+
+        const { valid, invalid } = validateRelationshipRefs(
+          batchRelationships,
+          validTempIds,
+          existingIds
+        );
+
+        if (invalid.length > 0) {
+          logger.warn(
+            `Batch ${batchIndex + 1}: ${
+              invalid.length
+            } relationships had invalid references and were filtered out`
+          );
+          totalInvalidRefs += invalid.length;
+        }
+
+        // Accumulate valid relationships
+        allRawRelationships = [...allRawRelationships, ...valid];
+      }
 
       logger.log(
-        `[RelationshipBuilder] Received ${rawRelationships.length} relationships in ${result.durationMs}ms (method: ${effectiveMethod})`
+        `[RelationshipBuilder] All batches complete: ${allRawRelationships.length} total relationships in ${totalDurationMs}ms`
       );
-
-      // Validate that all references point to valid temp_ids or existing UUIDs
-      const validTempIds = new Set(
-        state.extracted_entities.map((e) => e.temp_id)
-      );
-      const existingIds = new Set(state.existing_entities.map((e) => e.id));
-
-      const { valid, invalid } = validateRelationshipRefs(
-        rawRelationships,
-        validTempIds,
-        existingIds
-      );
-
-      if (invalid.length > 0) {
-        logger.warn(
-          `${invalid.length} relationships had invalid references and were filtered out`
-        );
-      }
 
       // Validate type constraints from relationship schemas
       // Build entity type map (temp_id -> type, UUID -> type)
@@ -490,7 +576,7 @@ export function createRelationshipBuilderNode(
       }
 
       const typeConstraintResult = validateRelationshipTypeConstraints(
-        valid,
+        allRawRelationships,
         entityTypeMap,
         state.relationship_schemas
       );
@@ -596,10 +682,11 @@ export function createRelationshipBuilderNode(
       span.end({
         relationshipCount: allRelationships.length,
         typeStats,
-        invalidRefsFiltered: invalid.length,
+        invalidRefsFiltered: totalInvalidRefs,
         deduplicated: dedupedCount,
         isRetry,
         extractionMethod: effectiveMethod,
+        batchCount,
       });
 
       return {
@@ -608,14 +695,13 @@ export function createRelationshipBuilderNode(
           relationship_builder: {
             relationship_count: allRelationships.length,
             type_stats: typeStats,
-            invalid_refs_filtered: invalid.length,
+            invalid_refs_filtered: totalInvalidRefs,
             deduplicated: dedupedCount,
             is_retry: isRetry,
             duration_ms: Date.now() - startTime,
             method: effectiveMethodLabel,
             extraction_method: effectiveMethod,
-            prompt_source: promptResult.fromLangfuse ? 'langfuse' : 'local',
-            prompt_version: promptResult.version,
+            batch_count: batchCount,
           },
         },
       };

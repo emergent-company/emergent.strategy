@@ -8,6 +8,10 @@
  * - Fetches prompts from Langfuse when available
  * - Falls back to local prompts when Langfuse is unavailable
  * - Supports dynamic variable injection via compile()
+ *
+ * Prompt Structure:
+ * - Method-specific prompts: entity-extractor-json, entity-extractor-fn, etc.
+ * - Retry partials: Prepended to main prompt on retry attempts
  */
 
 import {
@@ -27,13 +31,17 @@ import {
   ENTITY_EXTRACTOR_SYSTEM_PROMPT,
   buildEntityExtractionPrompt,
   buildEntityRetryPrompt,
+  buildEntityRetryPartial,
+  ExtractionMethod as EntityExtractionMethod,
 } from './entity.prompts';
 import {
   RELATIONSHIP_BUILDER_SYSTEM_PROMPT,
   buildRelationshipPrompt,
+  buildRelationshipRetryPartial,
   combineChunksForContext,
+  ExtractionMethod,
 } from './relationship.prompts';
-import { InternalEntity } from '../state';
+import { InternalEntity, InternalRelationship } from '../state';
 import type { ExistingEntityContext } from '../../llm-provider.interface';
 
 /**
@@ -91,24 +99,39 @@ export class ExtractionPromptProvider implements OnModuleInit {
    * Get the entity extractor prompt.
    *
    * Attempts to fetch from Langfuse first, falls back to local prompt building.
+   * Uses method-specific prompts for better output format control.
    *
    * For Langfuse prompts: Uses a template with {{documentText}}, {{schemaDefinitions}}, {{allowedTypes}}
    * For local fallback: Uses the buildEntityExtractionPrompt function
+   *
+   * @param documentText - The document text to extract entities from
+   * @param objectSchemas - Schema definitions for entity types
+   * @param allowedTypes - Optional subset of types to extract
+   * @param existingEntities - Optional existing entities for context-aware extraction
+   * @param options - Prompt fetch options
+   * @param extractionMethod - The extraction method being used (json_freeform or function_calling)
    */
   async getEntityExtractorPrompt(
     documentText: string,
     objectSchemas: Record<string, any>,
     allowedTypes?: string[],
     existingEntities?: ExistingEntityContext[],
-    options?: PromptFetchOptions
+    options?: PromptFetchOptions,
+    extractionMethod: EntityExtractionMethod = 'json_freeform'
   ): Promise<PromptResult> {
     const typesToExtract = allowedTypes || Object.keys(objectSchemas);
+
+    // Determine which prompt to use based on extraction method
+    const promptName =
+      extractionMethod === 'function_calling'
+        ? EXTRACTION_PROMPT_NAMES.ENTITY_EXTRACTOR_FN
+        : EXTRACTION_PROMPT_NAMES.ENTITY_EXTRACTOR_JSON;
 
     // Try Langfuse first
     if (this.isLangfuseAvailable()) {
       try {
         const langfusePrompt = await this.langfuseService!.getTextPrompt(
-          EXTRACTION_PROMPT_NAMES.ENTITY_EXTRACTOR,
+          promptName,
           options
         );
 
@@ -117,28 +140,35 @@ export class ExtractionPromptProvider implements OnModuleInit {
           const existingEntitiesContext =
             this.formatExistingEntitiesForPrompt(existingEntities);
 
-          // v3+ prompts don't need schemaDefinitions - withStructuredOutput provides the schema
-          // Only compile with documentText and allowedTypes
+          // Format schema definitions - LLM needs to know what properties each type has
+          // Note: withStructuredOutput only provides OUTPUT schema (response format),
+          // NOT the entity type definitions (what a Person is, what properties it has)
+          const schemaDefinitions = this.formatSchemaDefinitions(
+            objectSchemas,
+            typesToExtract
+          );
+
           this.logger.debug(
             `[getEntityExtractorPrompt] documentText length: ${
               documentText.length
             }, allowedTypes: ${typesToExtract.join(', ')}, prompt version: ${
               langfusePrompt.version
-            }, existingEntities: ${existingEntities?.length || 0}`
+            }, existingEntities: ${
+              existingEntities?.length || 0
+            }, schemaDefinitions length: ${schemaDefinitions.length}`
           );
 
           const compiled = this.langfuseService!.compilePrompt(langfusePrompt, {
             documentText,
             allowedTypes: typesToExtract.join(', '),
-            // Keep schemaDefinitions for backward compatibility with v1/v2 prompts
-            // but v3+ prompts don't use it
-            schemaDefinitions: '',
+            // Schema definitions tell the LLM what properties each entity type should have
+            schemaDefinitions,
             // Add existing entities context for context-aware extraction
             existingEntitiesContext,
           }) as string;
 
           this.logger.debug(
-            `Using Langfuse prompt "${EXTRACTION_PROMPT_NAMES.ENTITY_EXTRACTOR}" v${langfusePrompt.version}, compiled length: ${compiled.length}`
+            `Using Langfuse prompt "${promptName}" v${langfusePrompt.version}, compiled length: ${compiled.length}`
           );
 
           if (compiled.length === 0) {
@@ -158,7 +188,7 @@ export class ExtractionPromptProvider implements OnModuleInit {
         }
       } catch (error) {
         this.logger.warn(
-          `Failed to fetch Langfuse prompt "${EXTRACTION_PROMPT_NAMES.ENTITY_EXTRACTOR}", using fallback`,
+          `Failed to fetch Langfuse prompt "${promptName}", using fallback`,
           error
         );
       }
@@ -166,7 +196,7 @@ export class ExtractionPromptProvider implements OnModuleInit {
 
     // Fallback to local prompt
     this.logger.debug(
-      `Using local entity extractor prompt with ${
+      `Using local entity extractor prompt (${extractionMethod}) with ${
         existingEntities?.length || 0
       } existing entities`
     );
@@ -175,7 +205,8 @@ export class ExtractionPromptProvider implements OnModuleInit {
         documentText,
         objectSchemas,
         allowedTypes,
-        existingEntities
+        existingEntities,
+        extractionMethod
       ),
       fromLangfuse: false,
     };
@@ -210,6 +241,7 @@ export class ExtractionPromptProvider implements OnModuleInit {
    *
    * Attempts to fetch from Langfuse first, falls back to local prompt building.
    * Uses semantic chunks for document context to avoid mid-text truncation.
+   * Uses method-specific prompts for better output format control.
    *
    * @param documentChunks - Semantically chunked document text (required)
    * @param entities - Extracted entities to build relationships between
@@ -217,6 +249,7 @@ export class ExtractionPromptProvider implements OnModuleInit {
    * @param existingEntities - Existing entities from project for reference
    * @param orphanTempIds - Entity temp_ids that need relationships
    * @param options - Prompt fetch options (e.g., label for A/B testing)
+   * @param extractionMethod - The extraction method being used
    * @throws Error if documentChunks is empty or contains oversized chunks
    */
   async getRelationshipBuilderPrompt(
@@ -225,13 +258,20 @@ export class ExtractionPromptProvider implements OnModuleInit {
     relationshipSchemas: Record<string, any>,
     existingEntities?: ExistingEntityContext[],
     orphanTempIds?: string[],
-    options?: PromptFetchOptions
+    options?: PromptFetchOptions,
+    extractionMethod: ExtractionMethod = 'json_freeform'
   ): Promise<PromptResult> {
+    // Determine which prompt to use based on extraction method
+    const promptName =
+      extractionMethod === 'function_calling'
+        ? EXTRACTION_PROMPT_NAMES.RELATIONSHIP_BUILDER_FN
+        : EXTRACTION_PROMPT_NAMES.RELATIONSHIP_BUILDER_JSON;
+
     // Try Langfuse first
     if (this.isLangfuseAvailable()) {
       try {
         const langfusePrompt = await this.langfuseService!.getTextPrompt(
-          EXTRACTION_PROMPT_NAMES.RELATIONSHIP_BUILDER,
+          promptName,
           options
         );
 
@@ -240,17 +280,18 @@ export class ExtractionPromptProvider implements OnModuleInit {
           const { text: documentContext } =
             combineChunksForContext(documentChunks);
 
-          // Format entities for the template
-          const entitiesJson = JSON.stringify(
-            entities.map((e) => ({
-              temp_id: e.temp_id,
-              type: e.type,
-              name: e.name,
-              description: e.description?.slice(0, 200),
-            })),
-            null,
-            2
-          );
+          // Format entities as clean bullet list (not JSON)
+          const entitiesList = entities
+            .map((e) => {
+              let line = `- **${e.temp_id}** [${e.type}]: ${e.name}`;
+              if (e.description) {
+                line += `\n  Description: ${e.description.slice(0, 200)}${
+                  e.description.length > 200 ? '...' : ''
+                }`;
+              }
+              return line;
+            })
+            .join('\n');
 
           // Format relationship types
           const relationshipTypes =
@@ -258,12 +299,12 @@ export class ExtractionPromptProvider implements OnModuleInit {
 
           const compiled = this.langfuseService!.compilePrompt(langfusePrompt, {
             documentText: documentContext,
-            entities: entitiesJson,
+            entities: entitiesList,
             relationshipTypes,
           }) as string;
 
           this.logger.debug(
-            `Using Langfuse prompt "${EXTRACTION_PROMPT_NAMES.RELATIONSHIP_BUILDER}" v${langfusePrompt.version}`
+            `Using Langfuse prompt "${promptName}" v${langfusePrompt.version} with ${extractionMethod} method`
           );
 
           return {
@@ -276,21 +317,24 @@ export class ExtractionPromptProvider implements OnModuleInit {
         }
       } catch (error) {
         this.logger.warn(
-          `Failed to fetch Langfuse prompt "${EXTRACTION_PROMPT_NAMES.RELATIONSHIP_BUILDER}", using fallback`,
+          `Failed to fetch Langfuse prompt "${promptName}", using fallback`,
           error
         );
       }
     }
 
     // Fallback to local prompt
-    this.logger.debug('Using local relationship builder prompt');
+    this.logger.debug(
+      `Using local relationship builder prompt (${extractionMethod})`
+    );
     return {
       prompt: buildRelationshipPrompt(
         entities,
         relationshipSchemas,
         documentChunks,
         existingEntities,
-        orphanTempIds
+        orphanTempIds,
+        extractionMethod
       ),
       fromLangfuse: false,
     };
@@ -330,11 +374,19 @@ export class ExtractionPromptProvider implements OnModuleInit {
   /**
    * Format schema definitions into a string for prompt injection.
    * Includes property definitions and example entity structures.
+   *
+   * IMPORTANT: The entity structure has top-level fields (name, type, description)
+   * and a `properties` object for type-specific attributes.
+   * - name, description are ALWAYS top-level (not in properties)
+   * - type-specific attributes (role, tribe, etc.) go in properties
    */
   private formatSchemaDefinitions(
     objectSchemas: Record<string, any>,
     typesToExtract: string[]
   ): string {
+    // Fields that are top-level in the entity structure, NOT in properties
+    const TOP_LEVEL_FIELDS = ['name', 'description', 'type'];
+
     let result = '';
 
     for (const typeName of typesToExtract) {
@@ -355,84 +407,94 @@ export class ExtractionPromptProvider implements OnModuleInit {
         const requiredList = schema.schema?.required || schema.required || [];
 
         if (propsSource) {
-          result += `**Properties** (* = required):\n`;
-          const propEntries = Object.entries(
+          // Filter out top-level fields and metadata fields - these go in properties object
+          const additionalPropEntries = Object.entries(
             propsSource as Record<string, any>
-          ).filter(([name]) => !name.startsWith('_'));
+          ).filter(
+            ([propName]) =>
+              !TOP_LEVEL_FIELDS.includes(propName) && !propName.startsWith('_')
+          );
 
-          for (const [name, propSchema] of propEntries) {
-            const prop = propSchema as Record<string, any>;
-            const required = requiredList.includes(name) ? '*' : '';
-            let propLine = `  - ${name}${required}`;
+          if (additionalPropEntries.length > 0) {
+            result += `**Additional Properties** (stored in \`properties\` object):\n`;
 
-            if (prop.type) {
-              propLine += ` (${prop.type})`;
+            for (const [propName, propSchema] of additionalPropEntries) {
+              const prop = propSchema as Record<string, any>;
+              const required = requiredList.includes(propName) ? '*' : '';
+              let propLine = `  - ${propName}${required}`;
+
+              if (prop.type) {
+                propLine += ` (${prop.type})`;
+              }
+
+              if (prop.enum && Array.isArray(prop.enum)) {
+                propLine += `: one of [${prop.enum
+                  .map((v: string) => `"${v}"`)
+                  .join(', ')}]`;
+              } else if (prop.description) {
+                propLine += `: ${prop.description}`;
+              }
+
+              result += propLine + '\n';
             }
+            result += '\n';
 
-            if (prop.enum && Array.isArray(prop.enum)) {
-              propLine += `: one of [${prop.enum
-                .map((v: string) => `"${v}"`)
-                .join(', ')}]`;
-            } else if (prop.description) {
-              propLine += `: ${prop.description}`;
-            }
-
-            result += propLine + '\n';
-          }
-          result += '\n';
-
-          // Add examples if available from schema
-          if (
-            schema.examples &&
-            Array.isArray(schema.examples) &&
-            schema.examples.length > 0
-          ) {
-            result += `**Example ${typeName} entity with properties:**\n`;
-            result +=
-              '```json\n' +
-              JSON.stringify(schema.examples[0], null, 2) +
-              '\n```\n';
-          } else {
-            // Generate synthetic example showing expected properties structure
+            // Generate synthetic example showing correct structure
+            // Use more realistic example values based on property descriptions
             const exampleProps: Record<string, any> = {};
             let propIndex = 0;
 
-            for (const [name, propSchema] of propEntries) {
+            for (const [propName, propSchema] of additionalPropEntries) {
               const prop = propSchema as Record<string, any>;
-              // Include required properties and first few optional ones
-              if (requiredList.includes(name) || propIndex < 3) {
+              // Include first few properties as examples
+              if (propIndex < 3) {
                 if (
                   prop.enum &&
                   Array.isArray(prop.enum) &&
                   prop.enum.length > 0
                 ) {
-                  exampleProps[name] = prop.enum[0];
+                  exampleProps[propName] = prop.enum[0];
                 } else if (prop.type === 'integer' || prop.type === 'number') {
-                  exampleProps[name] = 1;
+                  exampleProps[propName] = 1;
                 } else if (prop.type === 'boolean') {
-                  exampleProps[name] = true;
+                  exampleProps[propName] = true;
+                } else if (prop.type === 'array') {
+                  // Generate contextual array example
+                  exampleProps[propName] = ['value1', 'value2'];
                 } else {
-                  exampleProps[name] = `<${name} value>`;
+                  // Generate more meaningful example values based on property name
+                  exampleProps[propName] = this.generateExampleValue(
+                    propName,
+                    prop.description
+                  );
                 }
               }
               propIndex++;
             }
 
-            if (Object.keys(exampleProps).length > 0) {
-              const syntheticExample = {
-                temp_id: `${typeName.toLowerCase()}_example`,
-                name: `Example ${typeName}`,
-                type: typeName,
-                description: `Description of this ${typeName}`,
-                properties: exampleProps,
-                confidence: 0.9,
-              };
-              result += `**Example ${typeName} entity structure:**\n`;
-              result +=
-                '```json\n' +
-                JSON.stringify(syntheticExample, null, 2) +
-                '\n```\n';
-            }
+            // Show example with correct structure: name/description top-level, others in properties
+            // NO temp_id - that's generated internally, not by LLM
+            const syntheticExample = {
+              name: this.generateExampleName(typeName),
+              type: typeName,
+              description: `Brief description of this ${typeName.toLowerCase()}`,
+              properties: exampleProps,
+            };
+            result += `**Example ${typeName} entity:**\n`;
+            result +=
+              '```json\n' +
+              JSON.stringify(syntheticExample, null, 2) +
+              '\n```\n';
+          } else {
+            // No additional properties, just show basic structure
+            const basicExample = {
+              name: `Example ${typeName} Name`,
+              type: typeName,
+              description: `Brief description of this ${typeName}`,
+            };
+            result += `**Example ${typeName} entity:**\n`;
+            result +=
+              '```json\n' + JSON.stringify(basicExample, null, 2) + '\n```\n';
           }
         }
         result += '\n';
@@ -523,5 +585,53 @@ These entities already exist. Use their exact names if the document references t
     }
 
     return result;
+  }
+
+  /**
+   * Generate a realistic example name for an entity type
+   */
+  private generateExampleName(typeName: string): string {
+    const examples: Record<string, string> = {
+      Person: 'John the Baptist',
+      Place: 'Jerusalem',
+      Event: 'The Last Supper',
+      Group: 'Pharisees',
+      Book: 'Genesis',
+      Quote: 'In the beginning...',
+      Covenant: 'Abrahamic Covenant',
+      Prophecy: 'Coming of the Messiah',
+      Miracle: 'Healing of the blind man',
+      Angel: 'Gabriel',
+      Object: 'Ark of the Covenant',
+    };
+    return examples[typeName] || `Example ${typeName}`;
+  }
+
+  /**
+   * Generate a realistic example value for a property
+   */
+  private generateExampleValue(propName: string, description?: string): string {
+    // Common property examples
+    const examples: Record<string, string> = {
+      role: 'prophet',
+      tribe: 'Tribe of Judah',
+      father: 'Abraham',
+      mother: 'Sarah',
+      occupation: 'fisherman',
+      significance: 'Key figure in early Christianity',
+      birth_location: 'Bethlehem',
+      death_location: 'Jerusalem',
+      region: 'Galilee',
+      country: 'Israel',
+      author: 'Moses',
+      testament: 'Old Testament',
+      category: 'Wisdom',
+      speaker: 'Jesus',
+      context: 'During the Sermon on the Mount',
+      leader: 'Moses',
+      type: 'city',
+      location: 'Mount Sinai',
+    };
+    return examples[propName] || `example ${propName}`;
   }
 }
