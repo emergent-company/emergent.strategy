@@ -394,28 +394,10 @@ export class GraphService {
           }
 
           await client.query('BEGIN');
-          if (key) {
-            // Transaction-scoped advisory lock to serialize creation by logical identity
-            await client.query(
-              'SELECT pg_advisory_xact_lock(hashtext($1)::bigint)',
-              [`obj|${project_id}|${type}|${key}`]
-            );
-            // Head = max(version) for (project_id,type,key)
-            // Check for existing non-deleted object with same key
-            // IMPORTANT: Must filter by deleted_at IS NULL to allow re-creating soft-deleted entities
-            const existing = await client.query<GraphObjectRow>(
-              `SELECT id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, properties, labels, created_at
-                         FROM kb.graph_objects
-                         WHERE project_id IS NOT DISTINCT FROM $1 AND branch_id IS NOT DISTINCT FROM $2 AND type=$3 AND KEY=$4
-                           AND deleted_at IS NULL
-                         ORDER BY version DESC
-                         LIMIT 1`,
-              [project_id, branch_id, type, key]
-            );
-            if (existing.rowCount) {
-              throw new BadRequestException('object_key_exists');
-            }
-          }
+          // NOTE: We no longer check for duplicate keys here.
+          // The `key` column is now nullable and non-unique.
+          // Deduplication is handled by a separate merge process.
+          // The `id` (auto-generated UUID) is the unique identifier.
           // Deduplicate labels (prevent duplicates on insert)
           const dedupedLabels = Array.from(new Set(labels));
           // Compute content hash using new utility (returns Buffer, convert to base64)
