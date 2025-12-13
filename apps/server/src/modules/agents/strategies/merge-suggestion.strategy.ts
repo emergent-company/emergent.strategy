@@ -275,11 +275,15 @@ export class MergeSuggestionStrategy implements AgentStrategy, OnModuleInit {
 
     const similarityPercent = Math.round((1 - similarity) * 100);
 
+    // Get display names for objects (prefer key, fallback to properties.name, then type+id)
+    const sourceDisplayName = this.getObjectDisplayName(sourceObj);
+    const targetDisplayName = this.getObjectDisplayName(targetObj);
+
     // Create the Task (project-scoped, shared)
     const task = await this.tasksService.create({
       projectId: sourceObj.projectId,
       title: 'Potential Duplicate Objects Found',
-      description: `Objects "${sourceObj.key}" and "${targetObj.key}" are ${similarityPercent}% similar and may be duplicates.`,
+      description: `Objects "${sourceDisplayName}" and "${targetDisplayName}" are ${similarityPercent}% similar and may be duplicates.`,
       type: 'merge_suggestion',
       sourceType: TaskSourceType.AGENT,
       sourceId: agentId,
@@ -287,8 +291,8 @@ export class MergeSuggestionStrategy implements AgentStrategy, OnModuleInit {
         pairKey,
         sourceId,
         targetId,
-        sourceKey: sourceObj.key,
-        targetKey: targetObj.key,
+        sourceKey: sourceDisplayName,
+        targetKey: targetDisplayName,
         sourceType: sourceObj.type,
         targetType: targetObj.type,
         similarity,
@@ -309,13 +313,13 @@ export class MergeSuggestionStrategy implements AgentStrategy, OnModuleInit {
         category: 'agent',
         importance: 'important',
         title: 'Potential Duplicate Objects Found',
-        message: `Objects "${sourceObj.key}" and "${targetObj.key}" are ${similarityPercent}% similar and may be duplicates.`,
+        message: `Objects "${sourceDisplayName}" and "${targetDisplayName}" are ${similarityPercent}% similar and may be duplicates.`,
         details: {
           taskId: task.id,
           sourceId,
           targetId,
-          sourceKey: sourceObj.key,
-          targetKey: targetObj.key,
+          sourceKey: sourceDisplayName,
+          targetKey: targetDisplayName,
           similarityPercent,
         },
         source_type: 'agent',
@@ -353,5 +357,26 @@ export class MergeSuggestionStrategy implements AgentStrategy, OnModuleInit {
     );
 
     return result.map((r: { user_id: string }) => r.user_id);
+  }
+
+  /**
+   * Get a display name for an object, with fallback chain:
+   * 1. key (if not null/empty)
+   * 2. properties.name (if exists)
+   * 3. type + short ID as fallback
+   */
+  private getObjectDisplayName(obj: GraphObject): string {
+    if (obj.key) {
+      return obj.key;
+    }
+
+    const propsName = obj.properties?.name;
+    if (propsName && typeof propsName === 'string') {
+      return propsName;
+    }
+
+    // Fallback to type + short ID
+    const shortId = obj.id.substring(0, 8);
+    return `${obj.type}:${shortId}`;
   }
 }

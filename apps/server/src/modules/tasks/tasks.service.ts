@@ -425,11 +425,56 @@ export class TasksService {
   /**
    * Count pending tasks of a specific type (across all projects)
    * Used by agents to check limits
+   *
+   * For merge_suggestion tasks, filters out tasks where source or target
+   * objects have been deleted.
    */
   async countPendingByType(type: string): Promise<number> {
-    return this.taskRepo.count({
-      where: { type, status: 'pending' },
+    if (type !== 'merge_suggestion') {
+      // For non-merge tasks, simple count is sufficient
+      return this.taskRepo.count({
+        where: { type, status: 'pending' },
+      });
+    }
+
+    // For merge_suggestion tasks, we need to check if objects still exist
+    const pendingTasks = await this.taskRepo.find({
+      where: { type, status: 'pending' as TaskStatus },
     });
+
+    if (pendingTasks.length === 0) return 0;
+
+    // Collect all object IDs
+    const objectIds: string[] = [];
+    for (const task of pendingTasks) {
+      const metadata = task.metadata as {
+        sourceId?: string;
+        targetId?: string;
+      };
+      if (metadata?.sourceId) objectIds.push(metadata.sourceId);
+      if (metadata?.targetId) objectIds.push(metadata.targetId);
+    }
+
+    // Check which objects still exist
+    const existingIds = await this.getExistingObjectIds(objectIds);
+
+    // Count only tasks where both source and target exist
+    let validCount = 0;
+    for (const task of pendingTasks) {
+      const metadata = task.metadata as {
+        sourceId?: string;
+        targetId?: string;
+      };
+      const sourceExists =
+        !metadata?.sourceId || existingIds.has(metadata.sourceId);
+      const targetExists =
+        !metadata?.targetId || existingIds.has(metadata.targetId);
+      if (sourceExists && targetExists) {
+        validCount++;
+      }
+    }
+
+    return validCount;
   }
 
   /**

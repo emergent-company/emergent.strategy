@@ -169,13 +169,19 @@ export class AgentSchedulerService implements OnModuleInit, OnModuleDestroy {
     const run = await this.agentService.startRun(id);
 
     // Create Langfuse trace for this agent run
-    const traceId = this.langfuseService?.createJobTrace(run.id, {
-      name: `Agent: ${name}`,
-      agentId: id,
-      agentRole: role,
-      agentName: name,
-      cronSchedule: freshAgent.cronSchedule,
-    });
+    // Use agent role as trace type for filtering (e.g., 'merge-suggestion')
+    const traceId = this.langfuseService?.createJobTrace(
+      run.id,
+      {
+        name: `Agent: ${name}`,
+        agentId: id,
+        agentRole: role,
+        agentName: name,
+        cronSchedule: freshAgent.cronSchedule,
+      },
+      undefined, // environment (use default)
+      `agent-${role}` // traceType for filtering (e.g., 'agent-merge-suggestion')
+    );
 
     const context: AgentExecutionContext = {
       agent: freshAgent,

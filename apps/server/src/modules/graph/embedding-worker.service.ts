@@ -20,6 +20,7 @@ import {
 } from './embedding.provider';
 import { GraphObject } from '../../entities/graph-object.entity';
 import { LangfuseService } from '../langfuse/langfuse.service';
+import { EventsService } from '../events/events.service';
 
 /**
  * EmbeddingWorkerService
@@ -56,7 +57,10 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
     @Inject('EMBEDDING_PROVIDER')
     private readonly provider?: EmbeddingProvider,
     @Optional()
-    private readonly langfuseService?: LangfuseService
+    private readonly langfuseService?: LangfuseService,
+    @Optional()
+    @Inject(EventsService)
+    private readonly eventsService?: EventsService
   ) {}
 
   onModuleInit() {
@@ -148,11 +152,19 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
       // Create a trace for this embedding job
       // Use short object_id (last 12 chars) for readability, full ID in metadata
       const shortObjectId = job.object_id.split('-').pop() || job.object_id;
-      const traceId = this.langfuseService?.createJobTrace(job.id, {
-        name: `Graph Object Embedding ${shortObjectId}`,
-        object_id: job.object_id,
-        job_type: 'graph_object_embedding',
-      });
+      const traceId = this.langfuseService?.createJobTrace(
+        job.id,
+        {
+          name: `Graph Object Embedding ${shortObjectId}`,
+          object_id: job.object_id,
+          job_type: 'graph_object_embedding',
+        },
+        undefined, // environment (use default)
+        'embedding' // traceType for filtering
+      );
+
+      // Track projectId for error event emission
+      let projectId: string | null = null;
 
       try {
         // Use TypeORM to fetch graph object
@@ -169,6 +181,22 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
             });
           }
           continue;
+        }
+
+        // Store projectId for error event emission
+        projectId = obj.projectId;
+
+        // Emit real-time event: embedding job started processing
+        if (this.eventsService && obj.projectId) {
+          this.eventsService.emitUpdated(
+            'graph_object',
+            obj.id,
+            obj.projectId,
+            {
+              embeddingStatus: 'processing',
+              embeddingJobId: job.id,
+            }
+          );
         }
 
         // Create span for text extraction
@@ -265,6 +293,20 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
 
         await this.jobs.markCompleted(job.id);
 
+        // Emit real-time event: embedding completed successfully
+        if (this.eventsService && obj.projectId) {
+          this.eventsService.emitUpdated(
+            'graph_object',
+            obj.id,
+            obj.projectId,
+            {
+              embeddingStatus: 'completed',
+              hasEmbedding: true,
+              embeddingDimensions: embeddingResult.embedding.length,
+            }
+          );
+        }
+
         const totalDurationMs = Date.now() - startTime;
 
         // Finalize trace with success
@@ -297,6 +339,20 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
             error: errorMessage,
             duration_ms: totalDurationMs,
           });
+        }
+
+        // Emit real-time event: embedding failed
+        // Only emit if we have projectId (i.e., object was found)
+        if (this.eventsService && projectId) {
+          this.eventsService.emitUpdated(
+            'graph_object',
+            job.object_id,
+            projectId,
+            {
+              embeddingStatus: 'failed',
+              embeddingError: errorMessage,
+            }
+          );
         }
 
         await this.jobs.markFailed(job.id, err as Error);

@@ -97,6 +97,7 @@ import { GraphObject } from '../../entities/graph-object.entity';
     ProductVersionService,
     TagService,
     ObjectMergeService,
+    'EMBEDDING_PROVIDER',
   ],
 })
 export class GraphModule {}
