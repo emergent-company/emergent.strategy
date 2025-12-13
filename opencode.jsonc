@@ -15,9 +15,7 @@
     // },
     "postgres": {
       "type": "local",
-      "command": [
-        "./scripts/mcp-postgres-wrapper.sh"
-      ]
+      "command": ["./scripts/mcp-postgres-wrapper.sh"]
     },
     "context7": {
       "type": "local",
@@ -49,11 +47,7 @@
     },
     "daisyui-blueprint": {
       "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "daisyui-blueprint@latest"
-      ],
+      "command": ["npx", "-y", "daisyui-blueprint@latest"],
       "environment": {
         "LICENSE": "19B37-Q9DO7-1YBUL-SUX2D-VHYR4",
         "EMAIL": "maciej@kucharz.net"
@@ -62,6 +56,18 @@
     "langfuse-docs": {
       "type": "remote",
       "url": "https://langfuse.com/api/mcp"
+    },
+    "langfuse": {
+      "type": "local",
+      "command": ["./scripts/mcp-langfuse-wrapper.sh"]
+    },
+    "logs": {
+      "type": "local",
+      "command": ["npx", "tsx", "tools/logs-mcp/src/index.ts"]
+    },
+    "workspace": {
+      "type": "local",
+      "command": ["npx", "tsx", "tools/workspace-mcp/src/index.ts"]
     }
     // ,
     // "nx-mcp": {
@@ -69,9 +75,7 @@
     //   "args": ["nx-mcp@latest"]
     // }
   },
-  "instructions": [
-    ".opencode/instructions.md"
-  ],
+  "instructions": [".opencode/instructions.md"],
   "tools": {
     "todowrite": true,
     "webfetch": true
