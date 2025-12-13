@@ -31,14 +31,17 @@ export interface ProcessStatus {
   readonly uptime?: number; // milliseconds
 }
 
-async function ensureLogDirectory(): Promise<void> {
-  await mkdir(LOG_DIR, { recursive: true });
+async function ensureLogDirectory(serviceDir: string): Promise<void> {
+  await mkdir(serviceDir, { recursive: true });
 }
 
 function getLogFilePaths(name: string) {
+  // Each service gets its own subdirectory: logs/{service}/
+  const serviceDir = path.join(LOG_DIR, name);
   return {
-    out: path.join(LOG_DIR, `${name}.out.log`),
-    error: path.join(LOG_DIR, `${name}.error.log`),
+    dir: serviceDir,
+    out: path.join(serviceDir, `${name}.out.log`),
+    error: path.join(serviceDir, `${name}.error.log`),
   };
 }
 
@@ -61,9 +64,10 @@ export async function startProcess(
     await deleteMetadata(name);
   }
 
-  await ensureLogDirectory();
-
   const logFiles = getLogFilePaths(name);
+
+  // Ensure service log directory exists
+  await ensureLogDirectory(logFiles.dir);
 
   // Open log files
   const outFd = await open(logFiles.out, 'a');
@@ -100,7 +104,10 @@ export async function startProcess(
       cwd,
       env,
       startedAt: new Date().toISOString(),
-      logFiles,
+      logFiles: {
+        out: logFiles.out,
+        error: logFiles.error,
+      },
     });
 
     // Detach the child process so it continues running after parent exits
@@ -148,12 +155,12 @@ export async function stopProcess(
     // Kill the entire process group (negative PID kills the process group)
     // This ensures child processes spawned by npm/shell are also terminated
     const signal = force ? 'SIGKILL' : 'SIGTERM';
-    
+
     try {
       // Try to kill process group first (negative pid)
       process.kill(-pid, signal);
     } catch (pgError) {
-      // If process group kill fails (e.g., not a process group leader), 
+      // If process group kill fails (e.g., not a process group leader),
       // fall back to killing just the process
       process.kill(pid, signal);
     }
