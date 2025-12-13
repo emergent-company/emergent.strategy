@@ -54,6 +54,22 @@ The system SHALL support chat conversations scoped to a specific object for refi
 - **THEN** the system SHALL enforce uniqueness on `object_id`
 - **AND** attempts to create a second conversation SHALL return the existing one
 
+#### Scenario: Persist all messages to database
+
+- **WHEN** a user sends a message in the refinement chat
+- **THEN** the system SHALL save the user message to `chat_messages` table
+- **AND** the system SHALL save the assistant response to `chat_messages` table after streaming completes
+- **AND** each message SHALL include role, content, timestamp, and user attribution
+- **AND** messages SHALL be persisted before returning success to the client
+
+#### Scenario: Load full message history on open
+
+- **WHEN** a user opens the refinement chat for an object
+- **THEN** the system SHALL load all messages from `chat_messages` for that conversation
+- **AND** messages SHALL be displayed in chronological order
+- **AND** the chat SHALL scroll to the most recent message
+- **AND** applied/rejected status for suggestions SHALL be visible in historical messages
+
 ### Requirement: Rich Context Assembly
 
 The system SHALL assemble comprehensive context for the LLM including object details, relationships, and source chunks.
@@ -201,6 +217,47 @@ The system SHALL provide shared access to refinement conversations for all proje
 - **THEN** the system SHALL show which user sent each message
 - **AND** the system SHALL show which user accepted/rejected each suggestion
 - **AND** the current user's messages SHALL be visually distinguished
+
+### Requirement: Two-Column Modal Layout
+
+The system SHALL display the refinement chat alongside object details in a two-column layout within the ObjectDetailModal.
+
+#### Scenario: Modal opens with two-column layout
+
+- **WHEN** a user opens the ObjectDetailModal
+- **THEN** the modal SHALL display two columns side-by-side
+- **AND** the left column SHALL contain the existing tabs (Properties, Relationships, System, History)
+- **AND** the right column SHALL contain the refinement chat
+- **AND** the modal width SHALL expand to accommodate both columns (e.g., max-w-6xl)
+
+#### Scenario: Independent scrolling and navigation
+
+- **WHEN** the user is viewing the ObjectDetailModal
+- **THEN** the left column (details) SHALL scroll independently from the right column (chat)
+- **AND** switching tabs on the left SHALL NOT affect the chat on the right
+- **AND** scrolling chat messages SHALL NOT affect the details view
+
+#### Scenario: User browses details while chatting
+
+- **WHEN** a user is in the middle of a refinement conversation
+- **AND** the user switches to the Relationships tab
+- **THEN** the chat SHALL remain visible and maintain scroll position
+- **AND** the user SHALL be able to continue typing in the chat input
+- **AND** pending suggestions SHALL remain visible
+
+#### Scenario: Responsive layout on small screens
+
+- **WHEN** the viewport is below the responsive breakpoint (e.g., < 1024px)
+- **THEN** the layout SHALL stack vertically or provide a toggle
+- **AND** the user SHALL be able to access both details and chat
+- **AND** the experience SHALL remain functional on tablet-sized screens
+
+#### Scenario: Object details update after accepting suggestion
+
+- **WHEN** a user accepts a refinement suggestion in the chat
+- **THEN** the left column SHALL refresh to show the updated object data
+- **AND** the refresh SHALL preserve the current tab selection
+- **AND** the user SHALL see the change reflected immediately
 
 ### Requirement: AI SDK Chat Integration
 
