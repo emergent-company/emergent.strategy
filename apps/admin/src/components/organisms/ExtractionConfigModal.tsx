@@ -15,10 +15,8 @@ export interface ExtractionConfig {
   confidence_threshold: number;
   /** Auto-accept threshold - entities at or above this are marked 'accepted', below are 'draft' (default: 90%) */
   auto_accept_threshold: number;
-  entity_linking_strategy: 'strict' | 'fuzzy' | 'none';
-  duplicate_strategy?: 'skip' | 'merge';
-  /** LLM extraction method - responseSchema uses structured output, function_calling uses tool calls */
-  extraction_method?: 'responseSchema' | 'function_calling';
+  /** LLM extraction method - json_freeform for best property extraction, responseSchema/function_calling for speed */
+  extraction_method?: 'json_freeform' | 'responseSchema' | 'function_calling';
   require_review: boolean;
   send_notification: boolean;
 }
@@ -62,9 +60,7 @@ function ExtractionConfigModalComponent({
     entity_types: [],
     confidence_threshold: 0.7,
     auto_accept_threshold: 0.9,
-    entity_linking_strategy: 'fuzzy',
-    duplicate_strategy: 'skip',
-    extraction_method: 'function_calling',
+    extraction_method: 'json_freeform',
     require_review: false,
     send_notification: true,
   });
@@ -247,16 +243,16 @@ function ExtractionConfigModalComponent({
             {/* Visual Zone Indicator */}
             <div className="mb-4">
               <div className="flex h-8 rounded-lg overflow-hidden border border-base-300">
-                {/* Needs Review Zone (0 to draft threshold) */}
+                {/* Rejected Zone (0 to minimum threshold) */}
                 <div
-                  className="bg-warning/30 flex items-center justify-center text-xs font-medium text-warning-content/70 border-r border-base-300"
+                  className="bg-error/30 flex items-center justify-center text-xs font-medium text-error-content/70 border-r border-base-300"
                   style={{ width: `${config.confidence_threshold * 100}%` }}
                 >
                   {config.confidence_threshold >= 0.15 && (
-                    <span className="truncate px-1">Needs Review</span>
+                    <span className="truncate px-1">Rejected</span>
                   )}
                 </div>
-                {/* Draft Zone (draft threshold to auto-accept) */}
+                {/* Draft Zone (minimum threshold to auto-accept) */}
                 <div
                   className="bg-info/30 flex items-center justify-center text-xs font-medium text-info-content/70 border-r border-base-300"
                   style={{
@@ -288,14 +284,14 @@ function ExtractionConfigModalComponent({
               </div>
             </div>
 
-            {/* Draft Threshold Slider */}
+            {/* Minimum Confidence Threshold Slider */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm bg-warning/50" />
-                <span className="label-text">Review Threshold</span>
+                <div className="w-3 h-3 rounded-sm bg-error/50" />
+                <span className="label-text">Minimum Confidence</span>
                 <div
                   className="tooltip tooltip-right"
-                  data-tip="Entities below this confidence will be marked for extra review"
+                  data-tip="Entities below this confidence will be rejected and not created"
                 >
                   <Icon
                     icon="lucide--info"
@@ -315,11 +311,11 @@ function ExtractionConfigModalComponent({
                       confidence_threshold: parseInt(e.target.value) / 100,
                     }))
                   }
-                  className="range range-warning range-sm flex-1"
+                  className="range range-error range-sm flex-1"
                   step="5"
                   disabled={isLoading}
                 />
-                <span className="text-sm font-bold text-warning min-w-[3.5rem] text-right">
+                <span className="text-sm font-bold text-error min-w-[3.5rem] text-right">
                   {(config.confidence_threshold * 100).toFixed(0)}%
                 </span>
               </div>
@@ -366,10 +362,10 @@ function ExtractionConfigModalComponent({
             <div className="mt-4 p-3 bg-base-200 rounded-lg text-xs text-base-content/70">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-sm bg-warning/30 border border-warning/50" />
+                  <div className="w-3 h-3 rounded-sm bg-error/30 border border-error/50" />
                   <span>
-                    &lt;{(config.confidence_threshold * 100).toFixed(0)}%: Needs
-                    Review
+                    &lt;{(config.confidence_threshold * 100).toFixed(0)}%:
+                    Rejected
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -390,153 +386,6 @@ function ExtractionConfigModalComponent({
             </div>
           </div>
 
-          {/* Entity Linking and Duplicate Handling - Side by Side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            {/* Entity Linking Strategy */}
-            <div>
-              <label className="mb-3 label">
-                <span className="font-semibold label-text">
-                  Entity Linking Strategy
-                </span>
-              </label>
-              <div className="w-full join join-vertical">
-                <label className="flex items-start gap-3 hover:bg-base-200 p-3 border border-base-300 cursor-pointer join-item">
-                  <input
-                    type="radio"
-                    name="linking-strategy"
-                    className="mt-0.5 radio radio-primary"
-                    checked={config.entity_linking_strategy === 'strict'}
-                    onChange={() =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        entity_linking_strategy: 'strict',
-                      }))
-                    }
-                    disabled={isLoading}
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium">Strict</div>
-                    <div className="text-xs text-base-content/60">
-                      Only link entities with exact matches
-                    </div>
-                  </div>
-                </label>
-                <label className="flex items-start gap-3 hover:bg-base-200 p-3 border border-base-300 cursor-pointer join-item">
-                  <input
-                    type="radio"
-                    name="linking-strategy"
-                    className="mt-0.5 radio radio-primary"
-                    checked={config.entity_linking_strategy === 'fuzzy'}
-                    onChange={() =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        entity_linking_strategy: 'fuzzy',
-                      }))
-                    }
-                    disabled={isLoading}
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium">Fuzzy (Recommended)</div>
-                    <div className="text-xs text-base-content/60">
-                      Link entities with similar names and context
-                    </div>
-                  </div>
-                </label>
-                <label className="flex items-start gap-3 hover:bg-base-200 p-3 border border-base-300 cursor-pointer join-item">
-                  <input
-                    type="radio"
-                    name="linking-strategy"
-                    className="mt-0.5 radio radio-primary"
-                    checked={config.entity_linking_strategy === 'none'}
-                    onChange={() =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        entity_linking_strategy: 'none',
-                      }))
-                    }
-                    disabled={isLoading}
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium">None</div>
-                    <div className="text-xs text-base-content/60">
-                      Create all entities as new (no linking)
-                    </div>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            {/* Duplicate Handling Strategy */}
-            <div>
-              <label className="mb-3 label">
-                <span className="font-semibold label-text">
-                  Duplicate Handling Strategy
-                </span>
-              </label>
-              <div className="w-full join join-vertical">
-                <label className="flex items-start gap-3 hover:bg-base-200 p-3 border border-base-300 cursor-pointer join-item">
-                  <input
-                    type="radio"
-                    name="duplicate-strategy"
-                    className="mt-0.5 radio radio-primary"
-                    checked={config.duplicate_strategy === 'skip'}
-                    onChange={() =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        duplicate_strategy: 'skip',
-                      }))
-                    }
-                    disabled={isLoading}
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium">Skip (Default)</div>
-                    <div className="text-xs text-base-content/60">
-                      Skip duplicate entities - faster, prevents duplicates
-                    </div>
-                  </div>
-                </label>
-                <label className="flex items-start gap-3 hover:bg-base-200 p-3 border border-base-300 cursor-pointer join-item">
-                  <input
-                    type="radio"
-                    name="duplicate-strategy"
-                    className="mt-0.5 radio radio-primary"
-                    checked={config.duplicate_strategy === 'merge'}
-                    onChange={() =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        duplicate_strategy: 'merge',
-                      }))
-                    }
-                    disabled={isLoading}
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium">Merge (Recommended)</div>
-                    <div className="text-xs text-base-content/60">
-                      Merge new data into existing entities - enriches over time
-                    </div>
-                  </div>
-                </label>
-              </div>
-              <div className="mt-2 text-xs text-base-content/60">
-                <Icon
-                  icon="lucide--info"
-                  className="inline-block mr-1 size-3"
-                />
-                {config.duplicate_strategy === 'merge' ? (
-                  <>
-                    Updates existing entities with new properties and increases
-                    confidence scores
-                  </>
-                ) : (
-                  <>
-                    Prevents duplicate entities by skipping ones that already
-                    exist
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
           {/* Extraction Method (Advanced) */}
           <div className="mb-6">
             <label className="mb-3 label">
@@ -546,6 +395,33 @@ function ExtractionConfigModalComponent({
               <span className="badge badge-ghost badge-sm ml-2">Advanced</span>
             </label>
             <div className="w-full join join-vertical">
+              <label className="flex items-start gap-3 hover:bg-base-200 p-3 border border-base-300 cursor-pointer join-item">
+                <input
+                  type="radio"
+                  name="extraction-method"
+                  className="mt-0.5 radio radio-primary"
+                  checked={config.extraction_method === 'json_freeform'}
+                  onChange={() =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      extraction_method: 'json_freeform',
+                    }))
+                  }
+                  disabled={isLoading}
+                />
+                <div className="flex-1">
+                  <div className="font-medium">
+                    JSON Freeform (Recommended)
+                    <span className="badge badge-success badge-sm ml-2">
+                      Best Quality
+                    </span>
+                  </div>
+                  <div className="text-xs text-base-content/60">
+                    Uses JSON mode without schema enforcement - extracts all
+                    properties including optional ones
+                  </div>
+                </div>
+              </label>
               <label className="flex items-start gap-3 hover:bg-base-200 p-3 border border-base-300 cursor-pointer join-item">
                 <input
                   type="radio"
@@ -561,9 +437,10 @@ function ExtractionConfigModalComponent({
                   disabled={isLoading}
                 />
                 <div className="flex-1">
-                  <div className="font-medium">Response Schema (Default)</div>
+                  <div className="font-medium">Response Schema</div>
                   <div className="text-xs text-base-content/60">
-                    Uses Gemini's structured output with JSON schema validation
+                    Uses Gemini's structured output with schema validation -
+                    faster but may skip optional properties
                   </div>
                 </div>
               </label>
@@ -576,7 +453,7 @@ function ExtractionConfigModalComponent({
                   onChange={() =>
                     setConfig((prev) => ({
                       ...prev,
-                      extraction_method: 'function_calling',
+                      extraction_method: 'json_freeform',
                     }))
                   }
                   disabled={isLoading}
@@ -584,23 +461,28 @@ function ExtractionConfigModalComponent({
                 <div className="flex-1">
                   <div className="font-medium">Function Calling</div>
                   <div className="text-xs text-base-content/60">
-                    Uses Gemini's function/tool calling API - may have different
-                    latency characteristics
+                    Uses Gemini's function/tool calling API - faster but may
+                    skip optional properties
                   </div>
                 </div>
               </label>
             </div>
             <div className="mt-2 text-xs text-base-content/60">
               <Icon icon="lucide--info" className="inline-block mr-1 size-3" />
-              {config.extraction_method === 'function_calling' ? (
+              {config.extraction_method === 'json_freeform' ? (
                 <>
-                  Function calling uses tool declarations - useful for debugging
-                  timeout issues
+                  JSON Freeform produces the most complete extractions with all
+                  properties populated
+                </>
+              ) : config.extraction_method === 'function_calling' ? (
+                <>
+                  Function calling uses tool declarations - faster but schema
+                  enforcement may skip optional properties
                 </>
               ) : (
                 <>
-                  Response schema enforces strict JSON output format directly in
-                  the model response
+                  Response schema enforces strict JSON output - fastest but may
+                  skip optional properties
                 </>
               )}
             </div>

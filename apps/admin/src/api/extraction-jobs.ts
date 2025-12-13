@@ -64,7 +64,6 @@ export interface CreateExtractionJobPayload {
     target_types?: string[];
     auto_create_types?: boolean;
     confidence_threshold?: number;
-    entity_linking_strategy?: 'strict' | 'fuzzy' | 'none';
     require_review?: boolean;
     notify_on_completion?: boolean;
     [key: string]: any;

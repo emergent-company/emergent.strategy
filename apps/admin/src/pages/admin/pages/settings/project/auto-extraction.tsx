@@ -27,10 +27,10 @@ const NOTIFICATION_CHANNELS = [
 const DEFAULT_CONFIG = {
   enabled_types: ['Requirement', 'Decision', 'Feature', 'Task'],
   min_confidence: 0.7,
-  duplicate_strategy: 'skip' as 'skip' | 'merge',
   require_review: true,
   notify_on_complete: true,
   notification_channels: ['inbox'],
+  entity_similarity_threshold: 0.7,
 };
 
 export default function ProjectAutoExtractionSettingsPage() {
@@ -57,9 +57,6 @@ export default function ProjectAutoExtractionSettingsPage() {
   const [minConfidence, setMinConfidence] = useState(
     DEFAULT_CONFIG.min_confidence
   );
-  const [duplicateStrategy, setDuplicateStrategy] = useState<'skip' | 'merge'>(
-    DEFAULT_CONFIG.duplicate_strategy
-  );
   const [requireReview, setRequireReview] = useState(
     DEFAULT_CONFIG.require_review
   );
@@ -68,6 +65,11 @@ export default function ProjectAutoExtractionSettingsPage() {
   );
   const [notificationChannels, setNotificationChannels] = useState<string[]>(
     DEFAULT_CONFIG.notification_channels
+  );
+
+  // Entity similarity threshold for matching existing entities
+  const [entitySimilarityThreshold, setEntitySimilarityThreshold] = useState(
+    DEFAULT_CONFIG.entity_similarity_threshold
   );
 
   // Discovery Wizard state
@@ -134,9 +136,6 @@ export default function ProjectAutoExtractionSettingsPage() {
       setMinConfidence(
         extractConfig.min_confidence ?? DEFAULT_CONFIG.min_confidence
       );
-      setDuplicateStrategy(
-        extractConfig.duplicate_strategy || DEFAULT_CONFIG.duplicate_strategy
-      );
       setRequireReview(
         extractConfig.require_review ?? DEFAULT_CONFIG.require_review
       );
@@ -146,6 +145,10 @@ export default function ProjectAutoExtractionSettingsPage() {
       setNotificationChannels(
         extractConfig.notification_channels ||
           DEFAULT_CONFIG.notification_channels
+      );
+      setEntitySimilarityThreshold(
+        extractConfig.entity_similarity_threshold ??
+          DEFAULT_CONFIG.entity_similarity_threshold
       );
 
       // Load parallel extraction setting
@@ -184,10 +187,10 @@ export default function ProjectAutoExtractionSettingsPage() {
             auto_extract_config: {
               enabled_types: enabledTypes,
               min_confidence: minConfidence,
-              duplicate_strategy: duplicateStrategy,
               require_review: requireReview,
               notify_on_complete: notifyOnComplete,
               notification_channels: notificationChannels,
+              entity_similarity_threshold: entitySimilarityThreshold,
             },
             allow_parallel_extraction: allowParallelExtraction,
           },
@@ -215,10 +218,10 @@ export default function ProjectAutoExtractionSettingsPage() {
     setAutoExtractEnabled(false);
     setEnabledTypes(DEFAULT_CONFIG.enabled_types);
     setMinConfidence(DEFAULT_CONFIG.min_confidence);
-    setDuplicateStrategy(DEFAULT_CONFIG.duplicate_strategy);
     setRequireReview(DEFAULT_CONFIG.require_review);
     setNotifyOnComplete(DEFAULT_CONFIG.notify_on_complete);
     setNotificationChannels(DEFAULT_CONFIG.notification_channels);
+    setEntitySimilarityThreshold(DEFAULT_CONFIG.entity_similarity_threshold);
     setAllowParallelExtraction(false);
   };
 
@@ -251,9 +254,6 @@ export default function ProjectAutoExtractionSettingsPage() {
         ) ||
       minConfidence !==
         (currentConfig.min_confidence ?? DEFAULT_CONFIG.min_confidence) ||
-      duplicateStrategy !==
-        (currentConfig.duplicate_strategy ||
-          DEFAULT_CONFIG.duplicate_strategy) ||
       requireReview !==
         (currentConfig.require_review ?? DEFAULT_CONFIG.require_review) ||
       notifyOnComplete !==
@@ -264,6 +264,9 @@ export default function ProjectAutoExtractionSettingsPage() {
           currentConfig.notification_channels ||
             DEFAULT_CONFIG.notification_channels
         ) ||
+      entitySimilarityThreshold !==
+        (currentConfig.entity_similarity_threshold ??
+          DEFAULT_CONFIG.entity_similarity_threshold) ||
       allowParallelExtraction !== (project.allow_parallel_extraction || false)
     );
   };
@@ -533,68 +536,46 @@ export default function ProjectAutoExtractionSettingsPage() {
                 </div>
               </div>
 
-              {/* Duplicate Handling Strategy */}
+              {/* Entity Similarity Threshold */}
               <div className="bg-base-100 border border-base-300 card">
                 <div className="card-body">
                   <h3 className="flex items-center gap-2 mb-4 font-semibold">
-                    <Icon icon="lucide--copy" className="size-5" />
-                    Duplicate Handling Strategy
+                    <Icon icon="lucide--git-merge" className="size-5" />
+                    Entity Similarity Threshold
                   </h3>
                   <p className="mb-4 text-sm text-base-content/70">
-                    Choose how to handle entities that have already been
-                    extracted from other documents
+                    Minimum similarity score (0.0 - 1.0) required when matching
+                    extracted entities against existing ones. Higher values
+                    require closer matches to link entities together.
                   </p>
-                  <div className="space-y-3">
-                    <label className="flex items-start gap-3 p-4 border border-base-300 hover:border-base-400 rounded-lg transition-colors cursor-pointer">
-                      <input
-                        type="radio"
-                        name="duplicate-strategy"
-                        className="mt-0.5 radio radio-primary"
-                        checked={duplicateStrategy === 'skip'}
-                        onChange={() => setDuplicateStrategy('skip')}
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium">Skip Duplicates</div>
-                        <div className="mt-1 text-sm text-base-content/70">
-                          Skip duplicate entities - faster, prevents duplicates
-                          (default)
-                        </div>
-                      </div>
-                    </label>
-                    <label className="flex items-start gap-3 p-4 border border-base-300 hover:border-base-400 rounded-lg transition-colors cursor-pointer">
-                      <input
-                        type="radio"
-                        name="duplicate-strategy"
-                        className="mt-0.5 radio radio-primary"
-                        checked={duplicateStrategy === 'merge'}
-                        onChange={() => setDuplicateStrategy('merge')}
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium">Merge into Existing</div>
-                        <div className="mt-1 text-sm text-base-content/70">
-                          Merge new data into existing entities - enriches over
-                          time, tracks all sources
-                        </div>
-                      </div>
-                    </label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      className="flex-1 range range-primary"
+                      value={entitySimilarityThreshold}
+                      onChange={(e) =>
+                        setEntitySimilarityThreshold(parseFloat(e.target.value))
+                      }
+                    />
+                    <div className="bg-base-200 px-4 py-2 rounded min-w-[4rem] font-mono text-lg text-center">
+                      {entitySimilarityThreshold.toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="flex justify-between mt-2 text-xs text-base-content/60">
+                    <span>More matches (0.0)</span>
+                    <span>Stricter matching (1.0)</span>
                   </div>
                   <div className="bg-base-200 mt-3 p-3 rounded-lg text-sm">
                     <Icon
                       icon="lucide--info"
                       className="inline-block mr-1 size-4 text-info"
                     />
-                    {duplicateStrategy === 'merge' ? (
-                      <>
-                        Updates existing entities with new properties and
-                        increases confidence scores. Entities get richer as more
-                        documents are processed.
-                      </>
-                    ) : (
-                      <>
-                        Prevents duplicate entities by skipping ones that
-                        already exist. Faster for bulk imports.
-                      </>
-                    )}
+                    Lower values will match more entities together (e.g.,
+                    &quot;John Smith&quot; might match &quot;J. Smith&quot;).
+                    Higher values require closer name matches. Default is 0.7.
                   </div>
                 </div>
               </div>

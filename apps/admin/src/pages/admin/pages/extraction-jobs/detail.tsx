@@ -4,7 +4,7 @@
  * Shows detailed information about a single extraction job
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
 import { ExtractionJobStatusBadge } from '@/components/molecules/ExtractionJobStatusBadge';
@@ -12,10 +12,12 @@ import { DebugInfoPanel } from '@/components/molecules/DebugInfoPanel';
 import { ExtractionLogsModal } from '@/components/organisms/ExtractionLogsModal';
 import { useApi } from '@/hooks/use-api';
 import { useConfig } from '@/contexts/config';
+import { useDataUpdates } from '@/contexts/data-updates';
 import {
   createExtractionJobsClient,
   type ExtractionJob,
 } from '@/api/extraction-jobs';
+import type { EntityEvent } from '@/types/realtime-events';
 
 export function ExtractionJobDetailPage() {
   const { jobId } = useParams<{ jobId: string }>();
@@ -71,40 +73,40 @@ export function ExtractionJobDetailPage() {
     fetchJob();
   }, [jobId, config.activeProjectId, apiBase, fetchJson]);
 
-  // Polling effect (separate from initial load)
-  useEffect(() => {
-    // Only poll if we have a job and it's in a state that needs polling
-    if (!job || !jobId || !config.activeProjectId) {
-      return;
-    }
+  // SSE subscription for real-time updates (replaces polling)
+  // Handler to refetch job when SSE event arrives
+  const handleJobUpdate = useCallback(
+    async (event: EntityEvent) => {
+      if (!jobId || !config.activeProjectId) return;
 
-    if (job.status !== 'running' && job.status !== 'queued') {
-      return;
-    }
+      // Only handle updates for our specific job
+      if (event.id !== jobId) return;
 
-    const client = createExtractionJobsClient(
-      apiBase,
-      fetchJson,
-      config.activeProjectId
-    );
+      console.debug('[ExtractionJobDetail] SSE event received:', event);
 
-    const pollJob = async () => {
+      const client = createExtractionJobsClient(
+        apiBase,
+        fetchJson,
+        config.activeProjectId
+      );
+
       try {
         const jobData = await client.getJob(jobId);
         setJob(jobData);
       } catch (err) {
-        console.error('Failed to poll job details:', err);
-        // Don't set error state on poll failures to avoid disrupting UI
+        console.error('Failed to fetch job after SSE update:', err);
+        // Don't set error state on refetch failures to avoid disrupting UI
       }
-    };
+    },
+    [jobId, config.activeProjectId, apiBase, fetchJson]
+  );
 
-    // Start polling
-    const pollInterval = setInterval(pollJob, 5000);
-
-    return () => {
-      clearInterval(pollInterval);
-    };
-  }, [job?.status, jobId, config.activeProjectId, apiBase, fetchJson]);
+  // Subscribe to SSE events for this extraction job
+  useDataUpdates(
+    jobId ? `extraction_job:${jobId}` : 'extraction_job:*',
+    handleJobUpdate,
+    [handleJobUpdate]
+  );
 
   // Cancel job
   const handleCancel = async () => {
