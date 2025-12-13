@@ -23,13 +23,25 @@ export const EntityActionSchema = z.enum(['create', 'enrich', 'reference']);
 export type EntityAction = z.infer<typeof EntityActionSchema>;
 
 /**
+ * Verification status for entities and relationships.
+ * Set by the verification nodes based on confidence thresholds.
+ */
+export const VerificationStatusSchema = z.enum([
+  'pending', // Not yet verified
+  'verified', // Confidence >= auto_accept_threshold
+  'needs_review', // Confidence >= confidence_threshold but < auto_accept_threshold
+  'rejected', // Confidence < confidence_threshold
+]);
+export type VerificationStatus = z.infer<typeof VerificationStatusSchema>;
+
+/**
  * Simplified schema for LLM extraction output.
- * This schema is intentionally minimal to maximize LLM performance:
+ * This schema is optimized for LLM performance:
  * - No validators (minLength, min/max) that slow down function calling
- * - No nested objects (properties) that complicate the schema
  * - No temp_id (generated in post-processing)
+ * - Properties are extracted as key-value pairs based on type-specific schemas
  *
- * The LLM only needs to extract: name, type, description, and optionally action
+ * The LLM extracts: name, type, description, properties, and optionally action
  */
 export const LLMEntitySchema = z.object({
   /** Human-readable name of the entity */
@@ -38,6 +50,12 @@ export const LLMEntitySchema = z.object({
   type: z.string(),
   /** Description of the entity (optional) */
   description: z.string().optional(),
+  /**
+   * Type-specific properties extracted from the document.
+   * Keys and expected values depend on the entity type schema.
+   * Example: { "author": "John Smith", "publication_date": "2024-01-15" }
+   */
+  properties: z.record(z.any()).optional(),
   /**
    * Action to take for this entity (optional, defaults to 'create'):
    * - 'create': New entity not found in existing context
@@ -55,6 +73,17 @@ export const LLMEntitySchema = z.object({
 export type LLMEntity = z.infer<typeof LLMEntitySchema>;
 
 /**
+ * Verification tier indicating which method was used.
+ */
+export const VerificationTierSchema = z.enum([
+  'exact_match', // Tier 1: Exact string match
+  'nli', // Tier 2: DeBERTa NLI model
+  'llm_judge', // Tier 3: Gemini LLM judge
+  'not_verified', // Verification was skipped or not applicable
+]);
+export type VerificationTier = z.infer<typeof VerificationTierSchema>;
+
+/**
  * Schema for an extracted entity with internal processing fields.
  * This is used after LLM extraction for internal pipeline processing.
  * temp_id is generated in post-processing, not by the LLM.
@@ -68,10 +97,8 @@ export const InternalEntitySchema = z.object({
   type: z.string(),
   /** Description of the entity */
   description: z.string().optional(),
-  /** Additional properties as key-value pairs (populated from schema defaults) */
+  /** Type-specific properties extracted from the document */
   properties: z.record(z.any()).optional(),
-  /** Optional confidence score from extraction (0.0-1.0) */
-  confidence: z.number().optional(),
   /**
    * Action determined by LLM based on existing entity context:
    * - 'create': New entity (default)
@@ -84,6 +111,27 @@ export const InternalEntitySchema = z.object({
    * Used to bypass entity linking search and directly use the known UUID.
    */
   existing_entity_id: z.string().optional(),
+
+  // --- Verification fields (set by entity-verification node) ---
+
+  /**
+   * Weighted confidence score (0.0-1.0) from verification.
+   * Calculated as: 40% name + 30% description + 30% properties
+   */
+  confidence: z.number().min(0).max(1).optional(),
+  /**
+   * Verification status based on confidence thresholds.
+   * Set by the entity-verification node.
+   */
+  verification_status: VerificationStatusSchema.optional(),
+  /**
+   * Which verification tier was primarily used.
+   */
+  verification_tier: VerificationTierSchema.optional(),
+  /**
+   * Human-readable reason for the verification decision.
+   */
+  verification_reason: z.string().optional(),
 });
 
 export type InternalEntity = z.infer<typeof InternalEntitySchema>;
@@ -102,8 +150,27 @@ export const InternalRelationshipSchema = z.object({
   type: z.string(),
   /** Optional description of the relationship */
   description: z.string().optional(),
-  /** Optional confidence score (0.0-1.0) */
-  confidence: z.number().optional(),
+
+  // --- Verification fields (set by relationship-verification node) ---
+
+  /**
+   * Confidence score (0.0-1.0) from verification.
+   * Calculated as: 70% existence+type + 30% description
+   */
+  confidence: z.number().min(0).max(1).optional(),
+  /**
+   * Verification status based on confidence thresholds.
+   * Set by the relationship-verification node.
+   */
+  verification_status: VerificationStatusSchema.optional(),
+  /**
+   * Which verification tier was primarily used.
+   */
+  verification_tier: VerificationTierSchema.optional(),
+  /**
+   * Human-readable reason for the verification decision.
+   */
+  verification_reason: z.string().optional(),
 });
 
 export type InternalRelationship = z.infer<typeof InternalRelationshipSchema>;
@@ -238,12 +305,18 @@ export const ExtractionGraphState = Annotation.Root({
 
   /**
    * LLM extraction method to use.
-   * - 'responseSchema': Uses Gemini's structured output with JSON schema (default)
+   * - 'responseSchema': Uses Gemini's structured output with JSON schema (most reliable structure)
    * - 'function_calling': Uses Gemini's function/tool calling API
+   * - 'json_freeform': Uses JSON mode without schema (best for property population)
+   *
+   * Default is 'json_freeform' because testing shows it produces 100% property population
+   * vs 0% for function_calling and responseSchema with Gemini Flash Lite.
    */
-  extraction_method: Annotation<'responseSchema' | 'function_calling'>({
+  extraction_method: Annotation<
+    'responseSchema' | 'function_calling' | 'json_freeform'
+  >({
     reducer: (_, next) => next,
-    default: () => 'responseSchema',
+    default: () => 'json_freeform',
   }),
 
   /**
@@ -262,6 +335,35 @@ export const ExtractionGraphState = Annotation.Root({
   batch_size_chars: Annotation<number>({
     reducer: (_, next) => next,
     default: () => 30000,
+  }),
+
+  /**
+   * Similarity threshold for entity identity resolution (0.0-1.0).
+   * Higher values require closer name matches to link entities together.
+   * Default: 0.7 (configurable per-project via auto_extract_config.entity_similarity_threshold)
+   */
+  similarity_threshold: Annotation<number>({
+    reducer: (_, next) => next,
+    default: () => 0.7,
+  }),
+
+  // --- Verification Configuration ---
+
+  /**
+   * Configuration for the verification cascade.
+   * Set at graph initialization from options or config defaults.
+   */
+  verification_config: Annotation<{
+    enabled: boolean;
+    confidence_threshold: number;
+    auto_accept_threshold: number;
+  }>({
+    reducer: (_, next) => next,
+    default: () => ({
+      enabled: true,
+      confidence_threshold: 0.7,
+      auto_accept_threshold: 0.9,
+    }),
   }),
 
   // --- Internal Processing State ---
@@ -288,6 +390,30 @@ export const ExtractionGraphState = Annotation.Root({
   final_relationships: Annotation<InternalRelationship[]>({
     reducer: (_, next) => next,
     default: () => [],
+  }),
+
+  /**
+   * Summary of verification results from the verification nodes.
+   * Populated by entity-verification and relationship-verification nodes.
+   */
+  verification_summary: Annotation<
+    | {
+        entities_verified: number;
+        entities_accepted: number;
+        entities_needs_review: number;
+        entities_rejected: number;
+        relationships_verified: number;
+        relationships_accepted: number;
+        relationships_needs_review: number;
+        relationships_rejected: number;
+        avg_entity_confidence: number;
+        avg_relationship_confidence: number;
+        verification_tiers_used: Record<string, number>;
+      }
+    | undefined
+  >({
+    reducer: (prev, next) => (next ? { ...prev, ...next } : prev),
+    default: () => undefined,
   }),
 
   // --- Control Flow State ---

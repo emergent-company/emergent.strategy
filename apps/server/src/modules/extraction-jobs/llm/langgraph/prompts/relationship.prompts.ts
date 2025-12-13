@@ -9,7 +9,10 @@ import { InternalEntity, InternalRelationship } from '../state';
 import type { ExistingEntityContext } from '../../llm-provider.interface';
 
 /** Extraction method type */
-export type ExtractionMethod = 'responseSchema' | 'function_calling';
+export type ExtractionMethod =
+  | 'responseSchema'
+  | 'function_calling'
+  | 'json_freeform';
 
 // =============================================================================
 // Constants for Document Context
@@ -93,7 +96,6 @@ For EACH relationship you find:
 2. Identify the target entity (by temp_id)
 3. Choose a relationship type from the "Available Relationship Types" section below
 4. Provide a description of this specific relationship instance
-5. Assign a confidence score (0.0-1.0)
 
 ## CRITICAL RULES
 
@@ -128,7 +130,7 @@ For EACH relationship you find:
  * @param documentChunks - Semantically chunked document text (required)
  * @param existingEntities - Existing entities from project for reference
  * @param orphanTempIds - Entity temp_ids that need relationships (for retry focus)
- * @param extractionMethod - The extraction method being used ('responseSchema' or 'function_calling')
+ * @param extractionMethod - The extraction method being used
  * @returns Complete prompt string for relationship extraction
  * @throws Error if documentChunks is empty or contains oversized chunks
  */
@@ -138,7 +140,7 @@ export function buildRelationshipPrompt(
   documentChunks: string[],
   existingEntities?: ExistingEntityContext[],
   orphanTempIds?: string[],
-  extractionMethod: ExtractionMethod = 'function_calling'
+  extractionMethod: ExtractionMethod = 'json_freeform'
 ): string {
   // Combine chunks respecting semantic boundaries
   const {
@@ -268,7 +270,6 @@ Create relationships between the entities. For each relationship provide:
 - target_ref: temp_id of target entity (or UUID if referencing existing entity)
 - type: One of the types from "Available Relationship Types" above
 - description: Specific details about this relationship instance
-- confidence: How confident you are (0.0-1.0)
 
 IMPORTANT: For family/group actions mentioned in text, create relationships for ALL members involved.
 
@@ -280,7 +281,20 @@ GOAL: ZERO ORPHANS - every entity should have at least one relationship.
   if (extractionMethod === 'function_calling') {
     prompt += `Call the build_relationships function with all the relationships you identify.`;
   } else {
-    prompt += `Return relationships as a JSON object with a "relationships" array.`;
+    prompt += `## REQUIRED OUTPUT FORMAT
+
+You MUST return a JSON object with a "relationships" array:
+
+\`\`\`json
+{"relationships": [{"source_ref": "...", "target_ref": "...", "type": "...", "description": "..."}]}
+\`\`\`
+
+WRONG output formats (DO NOT USE):
+- \`[...]\` (raw array without wrapper)
+- \`{"result": [...]}\` (wrong key name)
+- \`{"data": [...]}\` (wrong key name)
+
+Remember: return \`{"relationships": [...]}\` format exactly.`;
   }
 
   return prompt;
@@ -296,7 +310,7 @@ GOAL: ZERO ORPHANS - every entity should have at least one relationship.
  * @param orphanTempIds - Entity temp_ids that have no relationships
  * @param retryCount - Current retry attempt number
  * @param feedback - Feedback from previous attempt
- * @param extractionMethod - The extraction method being used ('responseSchema' or 'function_calling')
+ * @param extractionMethod - The extraction method being used
  * @returns Complete retry prompt string
  * @throws Error if documentChunks is empty or contains oversized chunks
  */
@@ -307,7 +321,7 @@ export function buildRelationshipRetryPrompt(
   orphanTempIds: string[],
   retryCount: number,
   feedback: string,
-  extractionMethod: ExtractionMethod = 'function_calling'
+  extractionMethod: ExtractionMethod = 'json_freeform'
 ): string {
   // Combine chunks respecting semantic boundaries (same limit as main prompt)
   const {
@@ -332,7 +346,22 @@ export function buildRelationshipRetryPrompt(
   const outputInstruction =
     extractionMethod === 'function_calling'
       ? 'Call the build_relationships function with ONLY NEW relationships that connect the orphan entities.'
-      : 'Return ONLY NEW relationships that connect the orphan entities. Use JSON array format.';
+      : `Return ONLY NEW relationships that connect the orphan entities.
+
+## REQUIRED OUTPUT FORMAT
+
+You MUST return a JSON object with a "relationships" array:
+
+\`\`\`json
+{"relationships": [{"source_ref": "...", "target_ref": "...", "type": "...", "description": "..."}]}
+\`\`\`
+
+WRONG output formats (DO NOT USE):
+- \`[...]\` (raw array without wrapper)
+- \`{"result": [...]}\` (wrong key name)
+- \`{"data": [...]}\` (wrong key name)
+
+Remember: return \`{"relationships": [...]}\` format exactly.`;
 
   return `## Retry ${retryCount}: Fix Orphan Entities
 
@@ -463,4 +492,68 @@ export function validateRelationshipTypeConstraints(
   }
 
   return { valid, invalid };
+}
+
+/**
+ * Build a retry partial for relationship building.
+ *
+ * This is a header that gets prepended to the main prompt on retry attempts.
+ * It provides context about orphan entities without duplicating the entire prompt.
+ *
+ * @param retryCount - Current retry attempt number
+ * @param orphanTempIds - Entity temp_ids that have no relationships
+ * @param entities - All extracted entities (for looking up orphan names)
+ * @param currentRelationships - Relationships found so far
+ * @param feedback - Feedback from previous attempt
+ */
+export function buildRelationshipRetryPartial(
+  retryCount: number,
+  orphanTempIds: string[],
+  entities: InternalEntity[],
+  currentRelationships: InternalRelationship[],
+  feedback: string
+): string {
+  const orphanList = orphanTempIds
+    .map((id) => {
+      const entity = entities.find((e) => e.temp_id === id);
+      return entity ? `- ${id}: ${entity.name} [${entity.type}]` : `- ${id}`;
+    })
+    .join('\n');
+
+  const relationshipsList = currentRelationships
+    .slice(0, 20)
+    .map((r) => `- ${r.source_ref} --[${r.type}]--> ${r.target_ref}`)
+    .join('\n');
+
+  const moreCount =
+    currentRelationships.length > 20 ? currentRelationships.length - 20 : 0;
+  const moreNote = moreCount > 0 ? `\n... and ${moreCount} more` : '';
+
+  return `## RETRY ATTEMPT ${retryCount}: Fix Orphan Entities
+
+CRITICAL: The following ${orphanTempIds.length} entities have NO relationships and are ORPHANS:
+
+${orphanList}
+
+These entities are mentioned in the document but are not connected to the knowledge graph.
+This is a problem because orphan entities cannot be discovered through graph traversal.
+
+### Current Relationships (${currentRelationships.length} total)
+${relationshipsList}${moreNote}
+
+### Feedback
+${feedback}
+
+### Your Task
+Find relationships that connect the ORPHAN entities to the rest of the graph.
+
+Think about:
+1. Re-read the entity descriptions - they often mention other entities
+2. Consider indirect relationships (A relates to B through shared context)
+3. Use general relationship types like RELATED_TO or MENTIONED_IN if specific types don't fit
+4. Look at the document again for implicit connections
+
+---
+
+`;
 }
