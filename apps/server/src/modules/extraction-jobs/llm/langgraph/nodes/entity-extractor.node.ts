@@ -51,7 +51,10 @@ const logger = new Logger('EntityExtractorNode');
 const DEFAULT_BATCH_SIZE_CHARS = 20000; // 20KB per batch
 
 /** Extraction method type */
-export type ExtractionMethod = 'responseSchema' | 'function_calling';
+export type ExtractionMethod =
+  | 'responseSchema'
+  | 'function_calling'
+  | 'json_freeform';
 
 /**
  * Node configuration
@@ -116,12 +119,21 @@ export function createEntityExtractorNode(config: EntityExtractorNodeConfig) {
     batchSizeChars = DEFAULT_BATCH_SIZE_CHARS,
     langfuseService = null,
     promptProvider = null,
-    extractionMethod = 'function_calling',
+    extractionMethod = 'json_freeform', // Default to json_freeform for best property population
   } = config;
 
   // Convert Zod schema to Google Schema for structured output
   const entityOutputSchema = geminiService.zodToGoogleSchema(
     EntityExtractorOutputSchema
+  );
+
+  // Debug log the generated schema to verify it includes additionalProperties for z.record()
+  logger.debug(
+    `[EntityExtractor] Generated Google Schema: ${JSON.stringify(
+      entityOutputSchema,
+      null,
+      2
+    )}`
   );
 
   // Create function declaration for function calling method
@@ -181,15 +193,15 @@ export function createEntityExtractorNode(config: EntityExtractorNodeConfig) {
         } for batch ${batchIndex + 1}`
       );
     } else if (promptProvider) {
-      // Use prompt provider with Langfuse support
-      // Note: Langfuse prompts don't support method-specific variants yet
+      // Use prompt provider with Langfuse support (method-specific prompts)
       promptResult = await promptProvider.getEntityExtractorPrompt(
         text,
         objectSchemas,
         allowedTypes,
         existingEntities,
         // Pass prompt label from state for experiment prompt selection
-        state.prompt_label ? { label: state.prompt_label } : undefined
+        state.prompt_label ? { label: state.prompt_label } : undefined,
+        effectiveMethod
       );
     } else {
       // Direct fallback to local prompt with existing entities and extraction method
@@ -280,8 +292,14 @@ export function createEntityExtractorNode(config: EntityExtractorNodeConfig) {
           },
           tracingContext
         );
+      } else if (effectiveMethod === 'json_freeform') {
+        // Use JSON freeform method (best for property population)
+        // No schema enforcement - model follows prompt instructions
+        result = await geminiService.generateJsonFreeform<{
+          entities: LLMEntity[];
+        }>(promptString, { timeoutMs: effectiveTimeoutMs }, tracingContext);
       } else {
-        // Use responseSchema method (default)
+        // Use responseSchema method
         result = await geminiService.generateStructuredOutput<{
           entities: LLMEntity[];
         }>(
@@ -456,7 +474,7 @@ export function createEntityExtractorNode(config: EntityExtractorNodeConfig) {
           name: rawEntity.name.trim(),
           type: rawEntity.type.trim(),
           description: rawEntity.description?.trim() || undefined,
-          properties: {}, // Empty properties - schema validation happens in graph service
+          properties: rawEntity.properties || {}, // Pass through properties from LLM
           // Pass through context-aware extraction fields from LLM
           action: rawEntity.action,
           existing_entity_id: rawEntity.existing_entity_id,
