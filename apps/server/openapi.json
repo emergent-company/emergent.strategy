@@ -11579,6 +11579,42 @@
           }
         ]
       }
+    },
+    "/logs/client": {
+      "post": {
+        "operationId": "submitLogs",
+        "summary": "Submit browser client logs",
+        "description": "Receives batched console logs from browser clients for server-side storage. Used for debugging client-side errors.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientLogsRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logs received successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "ok": true,
+                    "written": 5
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Logs"
+        ]
+      }
     }
   },
   "info": {
@@ -11728,7 +11764,6 @@
                 "Feature"
               ],
               "min_confidence": 0.7,
-              "duplicate_strategy": "skip",
               "require_review": true,
               "notify_on_complete": true,
               "notification_channels": [
@@ -11818,14 +11853,13 @@
                 "Feature"
               ],
               "min_confidence": 0.7,
-              "duplicate_strategy": "skip",
               "require_review": true,
               "notify_on_complete": true,
               "notification_channels": [
                 "inbox"
               ]
             },
-            "description": "Configuration for automatic extraction (enabled_types, min_confidence, duplicate_strategy, require_review, notify_on_complete, notification_channels)"
+            "description": "Configuration for automatic extraction (enabled_types, min_confidence, require_review, notify_on_complete, notification_channels)"
           },
           "chunking_config": {
             "type": "object",
@@ -15492,6 +15526,65 @@
         "required": [
           "objects",
           "documents"
+        ]
+      },
+      "ClientLogEntryDto": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "description": "ISO timestamp when log was created"
+          },
+          "level": {
+            "type": "string",
+            "description": "Log level",
+            "enum": [
+              "error",
+              "warn",
+              "info",
+              "debug"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "Log message"
+          },
+          "stack": {
+            "type": "string",
+            "description": "Stack trace if available"
+          },
+          "url": {
+            "type": "string",
+            "description": "Browser URL where log was captured"
+          },
+          "userAgent": {
+            "type": "string",
+            "description": "User agent string"
+          },
+          "extra": {
+            "type": "object",
+            "description": "Additional metadata"
+          }
+        },
+        "required": [
+          "timestamp",
+          "level",
+          "message"
+        ]
+      },
+      "ClientLogsRequestDto": {
+        "type": "object",
+        "properties": {
+          "logs": {
+            "description": "Array of log entries from browser",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientLogEntryDto"
+            }
+          }
+        },
+        "required": [
+          "logs"
         ]
       }
     }

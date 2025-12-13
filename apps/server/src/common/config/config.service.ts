@@ -227,6 +227,26 @@ export class AppConfigService {
   }
 
   /**
+   * Enable 3-tier verification cascade for extracted entities.
+   * Enabled by default. Set EXTRACTION_VERIFICATION_ENABLED=false to disable.
+   * When enabled, entities are verified against source text using:
+   * - Tier 1: Exact/Fuzzy Match (Levenshtein)
+   * - Tier 2: NLI Entailment (DeBERTa) - requires NLI service at EXTRACTION_NLI_ENDPOINT
+   * - Tier 3: LLM Judge (Gemini) - fallback for uncertain cases
+   */
+  get extractionVerificationEnabled(): boolean {
+    return this.env.EXTRACTION_VERIFICATION_ENABLED !== false;
+  }
+
+  /**
+   * NLI service endpoint for Tier 2 verification
+   * Default: http://localhost:8090/predict
+   */
+  get extractionNliEndpoint(): string {
+    return this.env.EXTRACTION_NLI_ENDPOINT || 'http://localhost:8090/predict';
+  }
+
+  /**
    * Extraction pipeline mode:
    * - 'single_pass' (default): Use existing LangChainGeminiProvider
    * - 'langgraph': Use new LangGraph multi-node pipeline

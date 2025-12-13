@@ -15,10 +15,10 @@ export type Project = {
   auto_extract_config?: {
     enabled_types?: string[];
     min_confidence?: number;
-    duplicate_strategy?: 'skip' | 'merge';
     require_review?: boolean;
     notify_on_complete?: boolean;
     notification_channels?: string[];
+    entity_similarity_threshold?: number;
   };
   chunking_config?: {
     strategy?: 'character' | 'sentence' | 'paragraph';
