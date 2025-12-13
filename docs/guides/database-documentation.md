@@ -6,6 +6,11 @@ This guide explains how to maintain and generate database schema documentation u
 
 The Spec Server project uses dbdocs to generate human-readable documentation from the PostgreSQL database schema. The documentation is maintained as a DBML file at `docs/database/schema.dbml` and can be viewed locally using the dbdocs CLI.
 
+### Related Documentation
+
+- **`docs/database/schema.dbml`** - Complete DBML schema definition
+- **`docs/database/schema-context.md`** - AI-friendly schema summary for quick reference (see [Schema Context for AI](#schema-context-for-ai))
+
 ## Prerequisites
 
 The dbdocs CLI tool is installed globally:
@@ -212,3 +217,42 @@ If the generated DBML is empty:
 - [DBML Documentation](https://dbml.dbdiagram.io/docs/)
 - [dbdocs CLI Reference](https://dbdocs.io/docs)
 - [Project Migrations](../technical/DATABASE_MIGRATIONS.md)
+
+## Schema Context for AI
+
+The `docs/database/schema-context.md` file provides a concise schema summary optimized for AI coding assistants. This helps avoid trial-and-error database queries by providing:
+
+- Quick reference table of common tables with schema-qualified names
+- Database schema overview (kb, core, public)
+- Common query patterns
+- Column naming conventions
+
+### When to Update Schema Context
+
+Update `schema-context.md` when:
+
+1. Adding new tables
+2. Renaming tables or schemas
+3. Adding commonly-queried columns
+4. Changing table purposes
+
+### Update Workflow
+
+After creating or applying a migration:
+
+```bash
+# 1. Apply migration
+npm run db:migrate
+
+# 2. Regenerate DBML
+npm run db:docs:generate
+
+# 3. Update schema context (manual)
+#    Edit docs/database/schema-context.md to reflect changes
+#    Update the "Last Updated" timestamp
+
+# 4. Validate DBML
+npm run db:docs:validate
+```
+
+The schema context is intentionally concise - it's not a complete schema reference (that's `schema.dbml`), but a quick-lookup tool for AI assistants performing database queries.
