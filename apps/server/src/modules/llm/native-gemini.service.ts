@@ -92,6 +92,8 @@ export interface LLMResult<T> {
     completionTokens?: number;
     totalTokens?: number;
   };
+  /** Raw response text (for debugging) */
+  rawResponse?: string;
 }
 
 @Injectable()
@@ -501,8 +503,28 @@ export class NativeGeminiService implements OnModuleInit {
       timing.apiCallMs = Date.now() - apiCallStart;
       const parseStart = Date.now();
 
+      // Debug: Log raw response structure
+      this.logger.debug(
+        `[${
+          tracing?.generationName || `function_call_${functionName}`
+        }] Raw response: ` +
+          `functionCalls=${response.functionCalls?.length || 0}, ` +
+          `text=${response.text ? `${response.text.length} chars` : 'none'}, ` +
+          `finishReason=${response.candidates?.[0]?.finishReason || 'unknown'}`
+      );
+
       const functionCalls = response.functionCalls;
       if (!functionCalls || functionCalls.length === 0) {
+        // Log more details when no function calls
+        this.logger.error(
+          `[${
+            tracing?.generationName || `function_call_${functionName}`
+          }] No function calls! ` +
+            `Response text: ${response.text?.substring(0, 500) || 'empty'}, ` +
+            `Candidates: ${JSON.stringify(
+              response.candidates?.[0]?.content || {}
+            )}`
+        );
         throw new Error('No function calls in response');
       }
 
@@ -510,6 +532,14 @@ export class NativeGeminiService implements OnModuleInit {
       if (!targetCall || !targetCall.args) {
         throw new Error(`Function ${functionName} not called`);
       }
+
+      // Debug: Log the actual args received
+      const argsPreview = JSON.stringify(targetCall.args).substring(0, 500);
+      this.logger.debug(
+        `[${
+          tracing?.generationName || `function_call_${functionName}`
+        }] Function args preview: ${argsPreview}...`
+      );
 
       const data = targetCall.args as T;
 
@@ -604,6 +634,273 @@ export class NativeGeminiService implements OnModuleInit {
   }
 
   /**
+   * Generate JSON output without schema enforcement (freeform JSON)
+   *
+   * This method uses responseMimeType: 'application/json' WITHOUT a responseSchema,
+   * allowing the model to follow prompt instructions rather than being constrained
+   * by schema enforcement. This produces better property population for entity
+   * extraction because the model isn't minimizing output to fit schema constraints.
+   *
+   * IMPORTANT: Since there's no schema validation, the response may have:
+   * - Different structure than expected
+   * - Missing required fields
+   * - JSON syntax errors (handled with retry)
+   *
+   * @param prompt - The prompt to send to the model
+   * @param config - Optional configuration
+   * @param tracing - Optional tracing context for Langfuse
+   * @returns Parsed result (caller must handle type validation)
+   */
+  async generateJsonFreeform<T>(
+    prompt: string,
+    config: StructuredOutputConfig = {},
+    tracing?: TracingContext
+  ): Promise<LLMResult<T>> {
+    const startTime = Date.now();
+    const {
+      model = this.defaultModel,
+      temperature = 0.1,
+      maxOutputTokens = 65535,
+      timeoutMs = 180000,
+    } = config;
+
+    // Timing diagnostics
+    const timing = {
+      setupMs: 0,
+      apiCallMs: 0,
+      parseMs: 0,
+      totalMs: 0,
+    };
+
+    if (!this.ai) {
+      return {
+        success: false,
+        error: 'NativeGeminiService not initialized',
+        durationMs: Date.now() - startTime,
+      };
+    }
+
+    // Provider info for diagnostics
+    const providerInfo = {
+      provider: 'vertex-ai',
+      projectId: this.projectId,
+      location: this.location,
+      model,
+      method: 'json_freeform',
+    };
+
+    // Create Langfuse generation if tracing is enabled
+    const generation = tracing?.traceId
+      ? this.langfuseService.createObservation(
+          tracing.traceId,
+          tracing.generationName || 'json_freeform',
+          { prompt },
+          {
+            ...tracing.metadata,
+            ...providerInfo,
+            promptLength: prompt.length,
+            timeoutMs,
+            temperature,
+            maxOutputTokens,
+          },
+          tracing.parentObservationId
+        )
+      : null;
+
+    timing.setupMs = Date.now() - startTime;
+    const apiCallStart = Date.now();
+
+    try {
+      const response = await this.withTimeout(
+        this.ai.models.generateContent({
+          model,
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            // NO responseSchema - let the model follow prompt instructions
+            temperature,
+            maxOutputTokens,
+          },
+        }),
+        timeoutMs
+      );
+
+      timing.apiCallMs = Date.now() - apiCallStart;
+      const parseStart = Date.now();
+
+      const text = response.text?.trim();
+      if (!text) {
+        throw new Error('Empty response from model');
+      }
+
+      // Check for truncation
+      const finishReason = response.candidates?.[0]?.finishReason;
+      const finishReasonStr = String(finishReason || '').toUpperCase();
+
+      if (
+        finishReasonStr === 'MAX_TOKENS' ||
+        finishReason === FinishReason.MAX_TOKENS
+      ) {
+        this.logger.warn(
+          `[json_freeform] Response truncated due to MAX_TOKENS limit (${maxOutputTokens}).`
+        );
+        throw new Error(
+          `Response truncated at ${text.length} chars due to MAX_TOKENS limit.`
+        );
+      }
+
+      // Check for safety blocks
+      if (
+        finishReasonStr === 'SAFETY' ||
+        finishReason === FinishReason.SAFETY
+      ) {
+        throw new Error(
+          `Response blocked due to safety filters: ${JSON.stringify(
+            response.candidates?.[0]?.safetyRatings || {}
+          )}`
+        );
+      }
+
+      // Parse JSON with error handling
+      let parsed: T;
+      try {
+        parsed = JSON.parse(text) as T;
+      } catch (parseError) {
+        // Try to clean up common JSON issues
+        const cleanedText = this.cleanJsonResponse(text);
+        try {
+          parsed = JSON.parse(cleanedText) as T;
+          this.logger.debug(
+            '[json_freeform] Recovered from JSON parsing error after cleanup'
+          );
+        } catch {
+          // If cleanup didn't help, throw original error with context
+          throw new Error(
+            `JSON parsing failed: ${
+              parseError instanceof Error
+                ? parseError.message
+                : String(parseError)
+            }. ` + `Response preview: ${text.substring(0, 200)}...`
+          );
+        }
+      }
+
+      timing.parseMs = Date.now() - parseStart;
+      timing.totalMs = Date.now() - startTime;
+
+      this.logger.debug(
+        `[${tracing?.generationName || 'json_freeform'}] Timing: ` +
+          `setup=${timing.setupMs}ms, api=${timing.apiCallMs}ms, parse=${timing.parseMs}ms, total=${timing.totalMs}ms`
+      );
+
+      // Update Langfuse generation
+      if (generation) {
+        this.langfuseService.updateObservation(
+          generation,
+          {
+            result: parsed,
+            _diagnostics: {
+              timing,
+              finishReason: finishReasonStr,
+              responseLength: text.length,
+              provider: providerInfo,
+            },
+          },
+          {
+            promptTokens: response.usageMetadata?.promptTokenCount,
+            completionTokens: response.usageMetadata?.candidatesTokenCount,
+            totalTokens: response.usageMetadata?.totalTokenCount,
+          },
+          model,
+          'success'
+        );
+      }
+
+      return {
+        success: true,
+        data: parsed,
+        durationMs: timing.totalMs,
+        rawResponse: text,
+        usage: {
+          promptTokens: response.usageMetadata?.promptTokenCount,
+          completionTokens: response.usageMetadata?.candidatesTokenCount,
+          totalTokens: response.usageMetadata?.totalTokenCount,
+        },
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      timing.apiCallMs = Date.now() - apiCallStart;
+      timing.totalMs = Date.now() - startTime;
+
+      const isTimeout = errorMessage.includes('Timeout');
+      const isJsonError =
+        errorMessage.includes('JSON') ||
+        errorMessage.includes('Unexpected') ||
+        errorMessage.includes('Unterminated');
+
+      this.logger.error(
+        `[${
+          tracing?.generationName || 'json_freeform'
+        }] Failed: ${errorMessage} | ` +
+          `Timing: total=${timing.totalMs}ms` +
+          (isTimeout ? ' [TIMEOUT]' : '') +
+          (isJsonError ? ' [JSON_ERROR]' : '')
+      );
+
+      if (generation) {
+        this.langfuseService.updateObservation(
+          generation,
+          {
+            error: errorMessage,
+            _diagnostics: {
+              timing,
+              isTimeout,
+              isJsonError,
+              provider: providerInfo,
+            },
+          },
+          undefined,
+          model,
+          'error',
+          errorMessage
+        );
+      }
+
+      return {
+        success: false,
+        error: errorMessage,
+        durationMs: timing.totalMs,
+      };
+    }
+  }
+
+  /**
+   * Clean up common JSON response issues
+   * Handles: markdown code blocks, trailing commas, etc.
+   */
+  private cleanJsonResponse(text: string): string {
+    let cleaned = text.trim();
+
+    // Remove markdown code blocks
+    if (cleaned.startsWith('```json')) {
+      cleaned = cleaned.slice(7);
+    } else if (cleaned.startsWith('```')) {
+      cleaned = cleaned.slice(3);
+    }
+    if (cleaned.endsWith('```')) {
+      cleaned = cleaned.slice(0, -3);
+    }
+    cleaned = cleaned.trim();
+
+    // Remove trailing commas before ] or }
+    cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+
+    return cleaned;
+  }
+
+  /**
    * Convert a Zod schema to a Google Schema for use with responseSchema
    *
    * This handles common Zod types and converts them to the Google Schema format.
@@ -629,11 +926,144 @@ export class NativeGeminiService implements OnModuleInit {
     description: string,
     parametersSchema: z.ZodType
   ): FunctionDeclaration {
+    // Use parametersJsonSchema instead of parameters to support additionalProperties
+    // The Google SDK's Schema interface doesn't have additionalProperties,
+    // but parametersJsonSchema accepts raw JSON Schema which does support it
+    const jsonSchema = this.zodToJsonSchema(parametersSchema);
+
+    // Log the generated function declaration schema (using log level to ensure visibility)
+    this.logger.log(
+      `[createFunctionDeclaration] Function "${name}" JSON schema: ${JSON.stringify(
+        jsonSchema,
+        null,
+        2
+      )}`
+    );
+
     return {
       name,
       description,
-      parameters: this.zodToGoogleSchema(parametersSchema),
+      parametersJsonSchema: jsonSchema,
     };
+  }
+
+  /**
+   * Convert Zod schema to standard JSON Schema (supports additionalProperties)
+   */
+  zodToJsonSchema(zodType: z.ZodType): Record<string, unknown> {
+    return this.convertZodToJsonSchema(zodType);
+  }
+
+  /**
+   * Recursively convert Zod type to JSON Schema format
+   */
+  private convertZodToJsonSchema(zodType: z.ZodType): Record<string, unknown> {
+    // Handle ZodOptional - unwrap and mark as nullable
+    if (zodType instanceof z.ZodOptional) {
+      const innerSchema = this.convertZodToJsonSchema(zodType._def.innerType);
+      return { ...innerSchema, nullable: true };
+    }
+
+    // Handle ZodNullable
+    if (zodType instanceof z.ZodNullable) {
+      const innerSchema = this.convertZodToJsonSchema(zodType._def.innerType);
+      return { ...innerSchema, nullable: true };
+    }
+
+    // Handle ZodString
+    if (zodType instanceof z.ZodString) {
+      return {
+        type: 'string',
+        description: zodType.description,
+      };
+    }
+
+    // Handle ZodNumber
+    if (zodType instanceof z.ZodNumber) {
+      return {
+        type: 'number',
+        description: zodType.description,
+      };
+    }
+
+    // Handle ZodBoolean
+    if (zodType instanceof z.ZodBoolean) {
+      return {
+        type: 'boolean',
+        description: zodType.description,
+      };
+    }
+
+    // Handle ZodArray
+    if (zodType instanceof z.ZodArray) {
+      return {
+        type: 'array',
+        items: this.convertZodToJsonSchema(zodType._def.type),
+        description: zodType.description,
+      };
+    }
+
+    // Handle ZodObject
+    if (zodType instanceof z.ZodObject) {
+      const shape = zodType._def.shape();
+      const properties: Record<string, unknown> = {};
+      const required: string[] = [];
+
+      for (const [key, value] of Object.entries(shape)) {
+        properties[key] = this.convertZodToJsonSchema(value as z.ZodType);
+
+        // Check if the field is required (not optional)
+        if (!(value instanceof z.ZodOptional)) {
+          required.push(key);
+        }
+      }
+
+      return {
+        type: 'object',
+        properties,
+        required: required.length > 0 ? required : undefined,
+        description: zodType.description,
+      };
+    }
+
+    // Handle ZodEnum
+    if (zodType instanceof z.ZodEnum) {
+      return {
+        type: 'string',
+        enum: zodType._def.values,
+        description: zodType.description,
+      };
+    }
+
+    // Handle ZodRecord - THIS IS THE KEY FIX
+    // Use additionalProperties which is supported in standard JSON Schema
+    if (zodType instanceof z.ZodRecord) {
+      const valueType = zodType._def.valueType;
+      // For z.any(), allow any type of value
+      const valueSchema =
+        valueType instanceof z.ZodAny
+          ? {} // Empty schema means "any type allowed"
+          : this.convertZodToJsonSchema(valueType);
+
+      return {
+        type: 'object',
+        additionalProperties: valueSchema,
+        description: zodType.description,
+      };
+    }
+
+    // Handle ZodAny - in JSON Schema, empty object means "any"
+    if (zodType instanceof z.ZodAny) {
+      return {
+        description: zodType.description,
+      };
+    }
+
+    // Default fallback
+    this.logger.warn(
+      `[zodToJsonSchema] Unknown Zod type: ${zodType.constructor.name}, defaulting to string`
+    );
+    return { type: 'string' };
   }
 
   // ==========================================================================
@@ -739,12 +1169,19 @@ export class NativeGeminiService implements OnModuleInit {
       };
     }
 
-    // Handle ZodRecord (as object with no defined properties)
+    // Handle ZodRecord (as object with dynamic properties using additionalProperties)
     if (zodType instanceof z.ZodRecord) {
+      // Get the value type of the record and convert it
+      const valueType = zodType._def.valueType;
+      const valueSchema = this.convertZodType(valueType);
+
+      // Google's schema uses additionalProperties for dynamic key-value maps
+      // This tells Gemini that the object can have arbitrary keys with values of the specified type
       return {
         type: Type.OBJECT,
+        additionalProperties: valueSchema,
         description: zodType.description,
-      };
+      } as GoogleSchema;
     }
 
     // Handle ZodAny

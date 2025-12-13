@@ -83,11 +83,13 @@ export class LangfuseService implements OnModuleInit, OnModuleDestroy {
    * @param jobId - Unique job identifier (used as trace ID)
    * @param metadata - Optional metadata to attach to the trace
    * @param environment - Optional environment label (e.g., 'test', 'production'). Defaults to NODE_ENV or 'default'.
+   * @param traceType - Optional trace type for filtering (e.g., 'extraction', 'embedding', 'merge-suggestion')
    */
   createJobTrace(
     jobId: string,
     metadata?: Record<string, any>,
-    environment?: string
+    environment?: string,
+    traceType?: string
   ): string | null {
     if (!this.langfuse) return null;
 
@@ -105,14 +107,21 @@ export class LangfuseService implements OnModuleInit, OnModuleDestroy {
     const enrichedMetadata = {
       ...metadata,
       jobId, // Always include full job ID in metadata
+      ...(traceType && { traceType }), // Include traceType in metadata for querying
     };
+
+    // Build tags array: always include 'background-job', add traceType if provided
+    const tags = ['background-job'];
+    if (traceType) {
+      tags.push(traceType);
+    }
 
     try {
       const trace = this.langfuse.trace({
         id: jobId, // Use job ID as trace ID for easy correlation
         name: traceName,
         metadata: enrichedMetadata,
-        tags: ['background-job'],
+        tags,
         timestamp: new Date(),
         environment: envLabel,
       });

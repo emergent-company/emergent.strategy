@@ -700,7 +700,7 @@ ${jsonSchemaStr}
           type_name: typeName,
           name: this.extractName(entity, typeName),
           description: this.extractDescription(entity),
-          business_key: this.extractBusinessKey(entity),
+          // NOTE: business_key is no longer set - key column is nullable
           properties: this.extractProperties(entity),
           confidence: entity.confidence || 0.8, // Default if not provided
         })
@@ -1569,9 +1569,9 @@ ${documentContent}
               type_name: args.type_name,
               name: args.name,
               description: args.description,
-              business_key: args.name, // Use name as business key
+              // NOTE: business_key is no longer set - key column is nullable
               properties: args.properties || {},
-              confidence: args.confidence,
+              // Note: confidence is no longer extracted by LLM - calculated by cascade system
             });
           } else if (toolCall.name === 'extract_relationship') {
             const args = toolCall.args as ExtractedRelationshipToolCall;
@@ -1586,7 +1586,7 @@ ${documentContent}
               },
               relationship_type: args.relationship_type,
               description: args.description,
-              confidence: args.confidence,
+              // Note: confidence is no longer extracted by LLM - calculated by cascade system
             });
           }
         }

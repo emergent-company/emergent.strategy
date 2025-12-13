@@ -250,13 +250,18 @@ async function main() {
   // Create a Langfuse trace for this analysis run
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const runId = `langextract-ruth-${timestamp}`;
-  const traceId = langfuse.createJobTrace(runId, {
-    name: 'LangExtract Ruth Ch1 Entity Extraction',
-    library: 'langextract',
-    model: 'gemini-2.5-flash',
-    documentLength: documentText.length,
-    expectedEntities: expectedEntities.length,
-  });
+  const traceId = langfuse.createJobTrace(
+    runId,
+    {
+      name: 'LangExtract Ruth Ch1 Entity Extraction',
+      library: 'langextract',
+      model: 'gemini-2.5-flash',
+      documentLength: documentText.length,
+      expectedEntities: expectedEntities.length,
+    },
+    undefined, // environment (use default)
+    'cli-benchmark' // traceType for filtering
+  );
   console.log(`\nLangfuse trace: ${traceId || 'disabled'}\n`);
 
   // Check for API key
