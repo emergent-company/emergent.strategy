@@ -7,6 +7,7 @@ export interface ExtractedEntity {
   type: string;
   description?: string;
   confidence?: number;
+  properties?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -21,6 +22,12 @@ export interface ExtractionResult {
     output?: number;
     total?: number;
   };
+  /** Number of entities with non-empty properties */
+  entitiesWithProperties?: number;
+  /** Total count of all properties across all entities */
+  totalPropertyCount?: number;
+  /** Raw response text (for debugging) */
+  rawResponse?: string;
 }
 
 export interface TestRunResult {
@@ -48,7 +55,12 @@ export interface TestSummary {
 export interface TestConfig {
   name: string;
   description: string;
-  method: 'json_prompting' | 'function_calling' | 'structured_output';
+  method:
+    | 'json_prompting'
+    | 'function_calling'
+    | 'structured_output'
+    | 'json_freeform'
+    | 'text_generation';
   run: () => Promise<ExtractionResult>;
 }
 
