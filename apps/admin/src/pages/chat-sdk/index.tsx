@@ -6,15 +6,53 @@ import type { UIMessage } from '@ai-sdk/react';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import { useConfig } from '@/contexts/config';
-import { useAccessTreeContext } from '@/contexts/access-tree';
 import {
   MessageList,
   ChatInput,
   ConversationList,
   KeyboardShortcutsModal,
   type Conversation,
+  type ActionTarget,
 } from '@/components/chat';
-import { SidebarProjectDropdown } from '@/components/organisms/SidebarProjectDropdown';
+import type {
+  RefinementSuggestion,
+  SuggestionStatus,
+} from '@/types/object-refinement';
+
+/**
+ * Parse suggestions from message content.
+ * Looks for ```suggestions [...] ``` blocks and parses the JSON.
+ * Transforms raw LLM output into RefinementSuggestion format expected by SuggestionCard.
+ */
+function parseSuggestionsFromContent(
+  content: string
+): RefinementSuggestion[] | undefined {
+  // Match ```suggestions ... ``` blocks
+  const suggestionsMatch = content.match(/```suggestions\s*([\s\S]*?)```/);
+  if (suggestionsMatch) {
+    try {
+      const parsed = JSON.parse(suggestionsMatch[1].trim());
+      if (Array.isArray(parsed)) {
+        // Transform raw LLM output into RefinementSuggestion format
+        // LLM outputs: { type, propertyKey, oldValue, newValue, explanation, ... }
+        // SuggestionCard expects: { index, type, explanation, status, details: { propertyKey, oldValue, newValue, ... } }
+        return parsed.map((s, index) => {
+          const { type, explanation, ...rest } = s;
+          return {
+            index,
+            type: type || 'property_change',
+            explanation: explanation || '',
+            status: s.status || 'pending',
+            details: rest, // Put propertyKey, oldValue, newValue, etc. into details
+          } as RefinementSuggestion;
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to parse suggestions:', e);
+    }
+  }
+  return undefined;
+}
 
 export default function ChatSdkPage() {
   const { id: urlConversationId } = useParams();
@@ -26,10 +64,27 @@ export default function ChatSdkPage() {
   >();
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
+  /** Action target for suggestion cards (populated when conversation has an associated object) */
+  const [actionTarget, setActionTarget] = useState<ActionTarget | undefined>();
+  /** Object version for optimistic concurrency when applying/rejecting suggestions */
+  const [objectVersion, setObjectVersion] = useState<number | null>(null);
+  /** Current object properties for detecting outdated suggestions */
+  const [objectProperties, setObjectProperties] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
+  /** Track suggestion statuses by messageId and suggestionIndex */
+  const [suggestionStatuses, setSuggestionStatuses] = useState<
+    Record<string, Record<number, SuggestionStatus>>
+  >({});
+  /** Track which suggestion is currently being processed */
+  const [loadingSuggestion, setLoadingSuggestion] = useState<{
+    messageId: string;
+    suggestionIndex: number;
+  } | null>(null);
   const { apiBase, buildHeaders } = useApi();
   const { showToast } = useToast();
-  const { config, setActiveProject, setActiveOrg } = useConfig();
-  const { refresh: refreshTree } = useAccessTreeContext();
+  const { config } = useConfig();
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasInitialized = useRef(false);
 
@@ -94,8 +149,12 @@ export default function ChatSdkPage() {
         headers: buildHeaders({ json: false }),
       });
       if (response.ok) {
-        const data = await response.json();
-        setConversations(data);
+        const data: Conversation[] = await response.json();
+        // Filter out empty conversations (e.g., refinement chats created but never used)
+        const nonEmptyConversations = data.filter(
+          (conv) => conv.messages && conv.messages.length > 0
+        );
+        setConversations(nonEmptyConversations);
       }
     } catch (err) {
       console.error('Failed to fetch conversations:', err);
@@ -109,6 +168,11 @@ export default function ChatSdkPage() {
 
       setActiveConversationId(conversationId);
       setIsLoadingConversation(true);
+      setActionTarget(undefined); // Reset action target when loading new conversation
+      setObjectVersion(null); // Reset object version when loading new conversation
+      setObjectProperties(null); // Reset object properties when loading new conversation
+      setSuggestionStatuses({}); // Reset suggestion statuses when loading new conversation
+      setLoadingSuggestion(null); // Reset loading state when loading new conversation
 
       try {
         // Fetch conversation messages from backend
@@ -140,12 +204,86 @@ export default function ChatSdkPage() {
           // Load messages into the chat
           setMessages(formattedMessages);
 
+          // Load suggestion statuses from message citations (backend stores them in citations.suggestionStatuses)
+          const loadedStatuses: Record<
+            string,
+            Record<number, 'pending' | 'accepted' | 'rejected'>
+          > = {};
+          for (const msg of data.messages) {
+            if (msg.citations?.suggestionStatuses) {
+              const messageStatuses: Record<
+                number,
+                'pending' | 'accepted' | 'rejected'
+              > = {};
+              for (const statusEntry of msg.citations.suggestionStatuses) {
+                if (
+                  typeof statusEntry.index === 'number' &&
+                  statusEntry.status
+                ) {
+                  messageStatuses[statusEntry.index] = statusEntry.status;
+                }
+              }
+              if (Object.keys(messageStatuses).length > 0) {
+                loadedStatuses[msg.id] = messageStatuses;
+              }
+            }
+          }
+          if (Object.keys(loadedStatuses).length > 0) {
+            console.log(
+              '[ChatSDK] Loaded suggestion statuses from backend:',
+              loadedStatuses
+            );
+            setSuggestionStatuses(loadedStatuses);
+          }
+
           // Load draft text if conversation has no messages
           if (data.messages.length === 0 && data.draftText) {
             console.log('[ChatSDK] Loading draft text:', data.draftText);
             setInput(data.draftText);
           } else {
             setInput('');
+          }
+
+          // If conversation has an associated object, fetch its details for ActionCard display
+          if (data.objectId) {
+            console.log('[ChatSDK] Conversation has objectId:', data.objectId);
+            try {
+              const objectResponse = await fetch(
+                `${apiBase}/api/graph/objects/${data.objectId}`,
+                {
+                  headers: buildHeaders({ json: false }),
+                }
+              );
+              if (objectResponse.ok) {
+                const objectData = await objectResponse.json();
+                const target: ActionTarget = {
+                  objectId: objectData.id,
+                  objectName:
+                    objectData.properties?.name || objectData.key || 'Unknown',
+                  objectType: objectData.type || 'Unknown',
+                };
+                console.log('[ChatSDK] Loaded action target:', target);
+                setActionTarget(target);
+                // Set object version for apply/reject functionality
+                if (typeof objectData.version === 'number') {
+                  setObjectVersion(objectData.version);
+                  console.log(
+                    '[ChatSDK] Loaded object version:',
+                    objectData.version
+                  );
+                }
+                // Store object properties for outdated detection
+                if (objectData.properties) {
+                  setObjectProperties(objectData.properties);
+                  console.log(
+                    '[ChatSDK] Loaded object properties for outdated detection'
+                  );
+                }
+              }
+            } catch (objErr) {
+              console.warn('[ChatSDK] Failed to load object details:', objErr);
+              // Don't fail the whole load if object fetch fails
+            }
           }
         } else {
           console.error('Failed to load conversation:', response.statusText);
@@ -160,7 +298,7 @@ export default function ChatSdkPage() {
   );
 
   const handleSelectConversation = (conv: Conversation) => {
-    navigate(`/chat-sdk/${conv.id}`);
+    navigate(`/admin/chat-sdk/${conv.id}`);
   };
 
   // Initialize: Load conversations. If no ID in URL, find most recent and navigate.
@@ -191,7 +329,9 @@ export default function ChatSdkPage() {
               '[ChatSDK] No ID in URL, redirecting to most recent:',
               mostRecentConvo.id
             );
-            navigate(`/chat-sdk/${mostRecentConvo.id}`, { replace: true });
+            navigate(`/admin/chat-sdk/${mostRecentConvo.id}`, {
+              replace: true,
+            });
           } else {
             // No conversations exist - create one
             console.log(
@@ -217,7 +357,7 @@ export default function ChatSdkPage() {
                 newConvo.id
               );
               // Update URL to the new conversation
-              navigate(`/chat-sdk/${newConvo.id}`, { replace: true });
+              navigate(`/admin/chat-sdk/${newConvo.id}`, { replace: true });
               await fetchConversations();
             }
           }
@@ -335,6 +475,181 @@ export default function ChatSdkPage() {
     // TODO: Send feedback to analytics
   }, []);
 
+  /**
+   * Apply a suggestion to the object.
+   * Updates the object with the suggested change and refreshes the object version.
+   */
+  const handleApplySuggestion = useCallback(
+    async (messageId: string, suggestionIndex: number) => {
+      if (!actionTarget?.objectId || objectVersion === null) {
+        showToast({
+          message: 'Cannot apply suggestion: no object context',
+          variant: 'error',
+          duration: 3000,
+        });
+        return;
+      }
+
+      console.log('[ChatSDK] Applying suggestion:', {
+        messageId,
+        suggestionIndex,
+        objectId: actionTarget.objectId,
+        expectedVersion: objectVersion,
+      });
+
+      // Set loading state
+      setLoadingSuggestion({ messageId, suggestionIndex });
+
+      try {
+        const response = await fetch(
+          `${apiBase}/api/objects/${actionTarget.objectId}/refinement-chat/apply`,
+          {
+            method: 'POST',
+            headers: buildHeaders({ json: true }),
+            body: JSON.stringify({
+              messageId,
+              suggestionIndex,
+              expectedVersion: objectVersion,
+            }),
+          }
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+          showToast({
+            message: 'Suggestion applied successfully',
+            variant: 'success',
+            duration: 2000,
+          });
+
+          // Update suggestion status in local state
+          setSuggestionStatuses((prev) => ({
+            ...prev,
+            [messageId]: {
+              ...prev[messageId],
+              [suggestionIndex]: 'accepted',
+            },
+          }));
+
+          // Update object version for subsequent apply/reject calls
+          if (typeof result.newVersion === 'number') {
+            setObjectVersion(result.newVersion);
+          }
+
+          // Refresh object properties so other suggestions can detect if they're now outdated
+          try {
+            const objectResponse = await fetch(
+              `${apiBase}/api/graph/objects/${actionTarget.objectId}`,
+              {
+                headers: buildHeaders({ json: false }),
+              }
+            );
+            if (objectResponse.ok) {
+              const objectData = await objectResponse.json();
+              if (objectData.properties) {
+                setObjectProperties(objectData.properties);
+                console.log('[ChatSDK] Updated object properties after apply');
+              }
+            }
+          } catch (objErr) {
+            console.warn(
+              '[ChatSDK] Failed to refresh object properties:',
+              objErr
+            );
+          }
+        } else {
+          showToast({
+            message: result.error || 'Failed to apply suggestion',
+            variant: 'error',
+            duration: 3000,
+          });
+        }
+      } catch (err) {
+        console.error('[ChatSDK] Apply suggestion error:', err);
+        showToast({
+          message: 'Failed to apply suggestion',
+          variant: 'error',
+          duration: 3000,
+        });
+      } finally {
+        // Clear loading state
+        setLoadingSuggestion(null);
+      }
+    },
+    [actionTarget, objectVersion, apiBase, buildHeaders, showToast]
+  );
+
+  /**
+   * Reject a suggestion.
+   * Marks the suggestion as rejected without applying changes.
+   */
+  const handleRejectSuggestion = useCallback(
+    async (messageId: string, suggestionIndex: number) => {
+      if (!actionTarget?.objectId) {
+        showToast({
+          message: 'Cannot reject suggestion: no object context',
+          variant: 'error',
+          duration: 3000,
+        });
+        return;
+      }
+
+      console.log('[ChatSDK] Rejecting suggestion:', {
+        messageId,
+        suggestionIndex,
+        objectId: actionTarget.objectId,
+      });
+
+      try {
+        const response = await fetch(
+          `${apiBase}/api/objects/${actionTarget.objectId}/refinement-chat/reject`,
+          {
+            method: 'POST',
+            headers: buildHeaders({ json: true }),
+            body: JSON.stringify({
+              messageId,
+              suggestionIndex,
+            }),
+          }
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+          showToast({
+            message: 'Suggestion rejected',
+            variant: 'info',
+            duration: 2000,
+          });
+
+          // Update suggestion status in local state
+          setSuggestionStatuses((prev) => ({
+            ...prev,
+            [messageId]: {
+              ...prev[messageId],
+              [suggestionIndex]: 'rejected',
+            },
+          }));
+        } else {
+          showToast({
+            message: result.error || 'Failed to reject suggestion',
+            variant: 'error',
+            duration: 3000,
+          });
+        }
+      } catch (err) {
+        console.error('[ChatSDK] Reject suggestion error:', err);
+        showToast({
+          message: 'Failed to reject suggestion',
+          variant: 'error',
+          duration: 3000,
+        });
+      }
+    },
+    [actionTarget, apiBase, buildHeaders, showToast]
+  );
+
   const handleNewChat = async () => {
     console.log('[ChatSDK] Creating new conversation');
 
@@ -365,7 +680,7 @@ export default function ChatSdkPage() {
         '[ChatSDK] New conversation created, navigating to:',
         data.id
       );
-      navigate(`/chat-sdk/${data.id}`);
+      navigate(`/admin/chat-sdk/${data.id}`);
     } catch (err) {
       console.error('[ChatSDK] Failed to create conversation:', err);
       showToast({
@@ -390,7 +705,7 @@ export default function ChatSdkPage() {
       if (response.ok) {
         fetchConversations();
         if (activeConversationId === convId) {
-          navigate('/chat-sdk');
+          navigate('/admin/chat-sdk');
         }
       }
     } catch (err) {
@@ -398,29 +713,69 @@ export default function ChatSdkPage() {
     }
   };
 
+  // Get suggestions from message content for rendering SuggestionCards
+  const getSuggestions = useCallback(
+    (messageId: string): RefinementSuggestion[] | undefined => {
+      const message = messages.find((m) => m.id === messageId);
+      if (!message || message.role !== 'assistant') return undefined;
+
+      // Extract text content from message parts
+      const textContent = message.parts
+        ?.filter((part) => part.type === 'text')
+        .map((part) => ('text' in part ? part.text : ''))
+        .join('');
+
+      if (!textContent) return undefined;
+
+      const suggestions = parseSuggestionsFromContent(textContent);
+      if (!suggestions) return undefined;
+
+      // Merge locally tracked statuses and detect outdated suggestions
+      const messageStatuses = suggestionStatuses[messageId];
+      return suggestions.map((s, idx) => {
+        // First apply any stored status
+        const storedStatus = messageStatuses?.[idx];
+        let status: SuggestionStatus = storedStatus || s.status;
+
+        // Check if pending suggestion is outdated (oldValue doesn't match current)
+        if (status === 'pending' && objectProperties) {
+          const details = s.details as {
+            propertyKey?: string;
+            oldValue?: unknown;
+          };
+          if (details.propertyKey) {
+            const currentValue = objectProperties[details.propertyKey];
+            // Compare using JSON.stringify for deep equality
+            const isOutdated =
+              JSON.stringify(currentValue) !== JSON.stringify(details.oldValue);
+            if (isOutdated) {
+              status = 'outdated';
+              console.log(
+                `[ChatSDK] Suggestion ${idx} is outdated: ${details.propertyKey} changed from`,
+                details.oldValue,
+                'to',
+                currentValue
+              );
+            }
+          }
+        }
+
+        return {
+          ...s,
+          status,
+        };
+      });
+    },
+    [messages, suggestionStatuses, objectProperties]
+  );
+
   return (
-    <div className="drawer drawer-open h-screen">
+    <div className="drawer drawer-open h-full">
       <input id="chat-drawer" type="checkbox" className="drawer-toggle" />
 
       {/* Main Content - Fixed layout with scrollable message area */}
-      <div className="drawer-content flex flex-col h-screen overflow-hidden">
+      <div className="drawer-content flex flex-col h-full overflow-hidden">
         <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full h-full overflow-hidden">
-          {/* Header - Fixed at top */}
-          <div className="flex-none p-4 border-b bg-base-100">
-            <h1 className="text-2xl font-bold">Chat SDK (Vercel AI SDK v5)</h1>
-            <p className="text-sm text-base-content/60">
-              Powered by Vercel AI SDK + LangGraph + Vertex AI
-            </p>
-            {!config.activeProjectId && (
-              <div className="mt-2 text-sm text-warning flex items-center gap-2">
-                <span className="iconify lucide--alert-triangle"></span>
-                <span>
-                  No project selected - RAG search will not be available
-                </span>
-              </div>
-            )}
-          </div>
-
           {/* Message List - Scrollable middle section */}
           {isLoadingConversation ? (
             <div className="flex-1 flex items-center justify-center overflow-hidden">
@@ -434,19 +789,24 @@ export default function ChatSdkPage() {
                 onThumbsUp={handleThumbsUp}
                 onThumbsDown={handleThumbsDown}
                 isStreaming={status === 'streaming'}
+                getSuggestions={getSuggestions}
+                actionTarget={actionTarget}
+                onApplySuggestion={handleApplySuggestion}
+                onRejectSuggestion={handleRejectSuggestion}
+                loadingSuggestion={loadingSuggestion}
               />
             </div>
           )}
 
           {/* Error Display - Above input */}
           {error && (
-            <div className="flex-none mx-4 mb-2 p-4 bg-error/10 border border-error/40 text-error rounded-lg">
+            <div className="shrink-0 mx-4 mb-2 p-4 bg-error/10 border border-error/40 text-error rounded-lg">
               <strong>Error:</strong> {error.message || 'An error occurred'}
             </div>
           )}
 
           {/* Chat Input - Fixed at bottom */}
-          <div className="flex-none">
+          <div className="shrink-0">
             <ChatInput
               value={input}
               onChange={setInput}
@@ -470,14 +830,8 @@ export default function ChatSdkPage() {
         </div>
       </div>
 
-      {/* Keyboard Shortcuts Modal */}
-      <KeyboardShortcutsModal
-        isOpen={isKeyboardShortcutsOpen}
-        onClose={() => setIsKeyboardShortcutsOpen(false)}
-      />
-
       {/* Sidebar - Fixed height with internal scrolling */}
-      <div className="drawer-side h-screen">
+      <div className="drawer-side h-full">
         <label
           htmlFor="chat-drawer"
           aria-label="close sidebar"
@@ -489,44 +843,6 @@ export default function ChatSdkPage() {
           onSelect={handleSelectConversation}
           onDelete={handleDeleteConversation}
           onNew={handleNewChat}
-          header={
-            <div className="space-y-2">
-              <h3 className="text-xs font-semibold text-base-content/60 uppercase tracking-wide">
-                Active Project
-              </h3>
-              <SidebarProjectDropdown
-                activeProjectId={config.activeProjectId}
-                activeProjectName={config.activeProjectName}
-                onSelectProject={(
-                  projectId: string,
-                  projectName: string,
-                  orgId: string,
-                  orgName: string
-                ) => {
-                  // Always set org first to ensure proper context
-                  if (orgId !== config.activeOrgId) {
-                    setActiveOrg(orgId, orgName);
-                  }
-                  setActiveProject(projectId, projectName);
-                }}
-                onAddOrganization={() => {
-                  showToast({
-                    message:
-                      'Please use the admin layout to create organizations',
-                    variant: 'info',
-                    duration: 3000,
-                  });
-                }}
-                onAddProject={() => {
-                  showToast({
-                    message: 'Please use the admin layout to create projects',
-                    variant: 'info',
-                    duration: 3000,
-                  });
-                }}
-              />
-            </div>
-          }
         />
       </div>
 

@@ -6,6 +6,7 @@ import { DatabaseService } from '../../common/database/database.service';
 import { AppConfigService } from '../../common/config/config.service';
 import { MessageDto } from './dto/chat-sdk-request.dto';
 import { createChatSearchTool } from './tools/chat-search.tool';
+import { createWebSearchTool } from './tools/web-search.tool';
 import { TypeRegistryService } from '../type-registry/type-registry.service';
 import { GraphService } from '../graph/graph.service';
 import { createGetDatabaseSchemaTool } from './tools/schema.tool';
@@ -149,6 +150,10 @@ export class ChatSdkService {
         });
         tools.push(queryTool);
 
+        // Web Search Tool (DuckDuckGo - no API key required)
+        const webSearchTool = createWebSearchTool();
+        tools.push(webSearchTool);
+
         // Fetch schema summary for system prompt
         try {
           const types = await this.typeRegistryService.getProjectTypes(
@@ -173,16 +178,23 @@ export class ChatSdkService {
               })
               .join('\n');
 
-            systemMessage = `You are a helpful AI assistant with access to a knowledge graph database.
+            systemMessage = `You are a helpful AI assistant with access to a knowledge graph database and the internet.
 The database contains the following object types:
 ${schemaSummary}
 
 You have tools to:
-1. Search broadly (search_knowledge_base)
+1. Search the knowledge base broadly (search_knowledge_base)
 2. Query specific objects with filters (query_graph_objects)
 3. Inspect detailed schema definitions (get_database_schema)
+4. Search the web for external information (search_web)
 
 When asked to find objects, prefer 'query_graph_objects' for specific criteria (status, type, etc.) and 'search_knowledge_base' for general information.
+
+Use 'search_web' when:
+- The user asks about current events, news, or recent developments
+- The knowledge base doesn't have the information
+- The user asks about external documentation, APIs, or third-party tools
+- The user explicitly asks to search the internet
 
 # Instructions: Finding Related Objects (No SQL)
 
