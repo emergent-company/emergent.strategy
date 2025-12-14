@@ -69,7 +69,7 @@ export const Footer = () => {
             <p className="font-medium">Resources</p>
             <div className="flex flex-col space-y-1.5 mt-5 text-base-content/80 *:hover:text-base-content *:cursor-pointer">
               <Link to="/admin/documents">Documents</Link>
-              <Link to="/admin/chat">AI Chat</Link>
+              <Link to="/admin/chat-sdk">Chat</Link>
               <Link to="#">Documentation</Link>
               <Link to="#">Help Center</Link>
               <Link to="#">Support</Link>
