@@ -7,6 +7,33 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { format, isToday, isYesterday, differenceInHours } from 'date-fns';
 import { UrlBadge } from './UrlBadge';
 import { ObjectCard } from './ObjectCard';
+import { SuggestionCard } from './SuggestionCard';
+import { ActionCard, type ActionTarget } from './ActionCard';
+import type { RefinementSuggestion } from '@/types/object-refinement';
+
+/**
+ * Strip suggestion JSON blocks from message content.
+ * The LLM sometimes outputs suggestions in ```suggestions ... ``` or ```json ... ``` blocks
+ * which should be parsed separately, not displayed as raw JSON.
+ */
+function stripSuggestionsFromContent(content: string): string {
+  return (
+    content
+      // Remove ```suggestions ... ``` blocks
+      .replace(/```suggestions\s*\n[\s\S]*?\n```/g, '')
+      // Remove JSON blocks that look like suggestion arrays
+      .replace(
+        /```json\s*\n\s*\[\s*\{[\s\S]*?"type"\s*:\s*"(property_change|rename|relationship_add|relationship_remove)"[\s\S]*?\]\s*\n```/g,
+        ''
+      )
+      // Remove standalone JSON arrays that look like tool results
+      .replace(
+        /^\s*\[\s*\{[\s\S]*?"(key|id|name|type)"[\s\S]*?\}\s*\]\s*$/gm,
+        ''
+      )
+      .trim()
+  );
+}
 
 interface MessageBubbleProps {
   message: UIMessage;
@@ -16,6 +43,16 @@ interface MessageBubbleProps {
   onThumbsDown?: () => void;
   showActions?: boolean;
   createdAt?: Date | string;
+  /** Optional suggestions to render within assistant messages */
+  suggestions?: RefinementSuggestion[];
+  /** Optional target object for ActionCard display (shows object context in suggestions) */
+  actionTarget?: ActionTarget;
+  /** Callback when a suggestion is applied */
+  onApplySuggestion?: (suggestionIndex: number) => void;
+  /** Callback when a suggestion is rejected */
+  onRejectSuggestion?: (suggestionIndex: number) => void;
+  /** Index of the suggestion currently being processed (for loading state) */
+  loadingSuggestionIndex?: number;
 }
 
 /**
@@ -40,6 +77,11 @@ export const MessageBubble = memo(
     onThumbsDown,
     showActions = true,
     createdAt,
+    suggestions,
+    actionTarget,
+    onApplySuggestion,
+    onRejectSuggestion,
+    loadingSuggestionIndex,
   }: MessageBubbleProps) {
     const isAssistant = message.role === 'assistant';
 
@@ -65,7 +107,12 @@ export const MessageBubble = memo(
         .replace(/\[\[([^|\]]+)\]\]/g, '[$1]($1)');
     };
 
-    const textContent = processContent(getTextContent());
+    const rawContent = processContent(getTextContent());
+    // Strip suggestion blocks for assistant messages to avoid showing raw JSON
+    const textContent =
+      message.role === 'assistant'
+        ? stripSuggestionsFromContent(rawContent)
+        : rawContent;
 
     // Format timestamp with new algorithm:
     // - Less than 5 hours ago: "X hours ago"
@@ -181,6 +228,47 @@ export const MessageBubble = memo(
             </ReactMarkdown>
           </div>
 
+          {/* Suggestions - Use ActionCard when target is provided, otherwise SuggestionCard */}
+          {suggestions && suggestions.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {suggestions.map((suggestion, idx) =>
+                actionTarget ? (
+                  <ActionCard
+                    key={idx}
+                    suggestion={suggestion}
+                    target={actionTarget}
+                    onApply={
+                      onApplySuggestion
+                        ? () => onApplySuggestion(idx)
+                        : undefined
+                    }
+                    onReject={
+                      onRejectSuggestion
+                        ? () => onRejectSuggestion(idx)
+                        : undefined
+                    }
+                    isLoading={loadingSuggestionIndex === idx}
+                  />
+                ) : (
+                  <SuggestionCard
+                    key={idx}
+                    suggestion={suggestion}
+                    onApply={
+                      onApplySuggestion
+                        ? () => onApplySuggestion(idx)
+                        : undefined
+                    }
+                    onReject={
+                      onRejectSuggestion
+                        ? () => onRejectSuggestion(idx)
+                        : undefined
+                    }
+                  />
+                )
+              )}
+            </div>
+          )}
+
           {/* Action Toolbar - Appears on Hover */}
           {showActions && (
             <div className="border-base-300 bg-base-100 absolute end-2 -bottom-8 z-10 flex scale-90 items-center gap-1.5 rounded-full border px-3 py-2 opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100">
@@ -247,7 +335,12 @@ export const MessageBubble = memo(
         prevProps.onCopy === nextProps.onCopy &&
         prevProps.onRegenerate === nextProps.onRegenerate &&
         prevProps.onThumbsUp === nextProps.onThumbsUp &&
-        prevProps.onThumbsDown === nextProps.onThumbsDown
+        prevProps.onThumbsDown === nextProps.onThumbsDown &&
+        prevProps.suggestions === nextProps.suggestions &&
+        prevProps.actionTarget === nextProps.actionTarget &&
+        prevProps.onApplySuggestion === nextProps.onApplySuggestion &&
+        prevProps.onRejectSuggestion === nextProps.onRejectSuggestion &&
+        prevProps.loadingSuggestionIndex === nextProps.loadingSuggestionIndex
       );
     }
 
@@ -259,7 +352,10 @@ export const MessageBubble = memo(
       // Check parts if they exist (shallow comparison of array reference)
       prevProps.message.parts === nextProps.message.parts &&
       prevProps.createdAt === nextProps.createdAt &&
-      prevProps.showActions === nextProps.showActions
+      prevProps.showActions === nextProps.showActions &&
+      prevProps.suggestions === nextProps.suggestions &&
+      prevProps.actionTarget === nextProps.actionTarget &&
+      prevProps.loadingSuggestionIndex === nextProps.loadingSuggestionIndex
     );
   }
 );

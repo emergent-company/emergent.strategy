@@ -11615,6 +11615,254 @@
           "Logs"
         ]
       }
+    },
+    "/objects/{objectId}/refinement-chat": {
+      "get": {
+        "operationId": "getOrCreateConversation",
+        "summary": "Get or create refinement conversation for an object",
+        "description": "Returns the existing refinement conversation for the object, or creates a new one if none exists.",
+        "parameters": [
+          {
+            "name": "objectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refinement conversation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefinementConversationDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Object not found"
+          }
+        },
+        "tags": [
+          "Object Refinement"
+        ]
+      },
+      "post": {
+        "operationId": "sendMessage",
+        "summary": "Send a message to refinement chat",
+        "description": "Sends a user message and streams the AI response with refinement suggestions.",
+        "parameters": [
+          {
+            "name": "objectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefinementMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Streaming response with AI suggestions",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/RefinementStreamMetaEvent"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefinementStreamTokenEvent"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefinementStreamSuggestionsEvent"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefinementStreamErrorEvent"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefinementStreamDoneEvent"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Object not found"
+          }
+        },
+        "tags": [
+          "Object Refinement"
+        ]
+      }
+    },
+    "/objects/{objectId}/refinement-chat/apply": {
+      "post": {
+        "operationId": "applySuggestion",
+        "summary": "Apply a suggestion to the object",
+        "description": "Applies a specific suggestion from an assistant message to modify the object.",
+        "parameters": [
+          {
+            "name": "objectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplySuggestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result of applying the suggestion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplySuggestionResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or version conflict"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Object or suggestion not found"
+          }
+        },
+        "tags": [
+          "Object Refinement"
+        ]
+      }
+    },
+    "/objects/{objectId}/refinement-chat/reject": {
+      "post": {
+        "operationId": "rejectSuggestion",
+        "summary": "Reject a suggestion",
+        "description": "Marks a suggestion as rejected with an optional reason.",
+        "parameters": [
+          {
+            "name": "objectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectSuggestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Suggestion rejected successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Suggestion not found"
+          }
+        },
+        "tags": [
+          "Object Refinement"
+        ]
+      }
+    },
+    "/objects/{objectId}/refinement-chat/messages": {
+      "get": {
+        "operationId": "getMessages",
+        "summary": "Get messages for refinement conversation",
+        "description": "Returns all messages in the refinement conversation for an object.",
+        "parameters": [
+          {
+            "name": "objectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of messages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RefinementChatMessageDto"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Conversation not found"
+          }
+        },
+        "tags": [
+          "Object Refinement"
+        ]
+      }
     }
   },
   "info": {
@@ -15585,6 +15833,194 @@
         },
         "required": [
           "logs"
+        ]
+      },
+      "RefinementStreamMetaEvent": {
+        "type": "object",
+        "properties": {}
+      },
+      "RefinementStreamTokenEvent": {
+        "type": "object",
+        "properties": {}
+      },
+      "RefinementStreamSuggestionsEvent": {
+        "type": "object",
+        "properties": {}
+      },
+      "RefinementStreamErrorEvent": {
+        "type": "object",
+        "properties": {}
+      },
+      "RefinementStreamDoneEvent": {
+        "type": "object",
+        "properties": {}
+      },
+      "RefinementConversationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Conversation ID"
+          },
+          "objectId": {
+            "type": "string",
+            "description": "Object ID this conversation is for"
+          },
+          "title": {
+            "type": "string",
+            "description": "Conversation title"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the conversation was created"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the conversation was last updated"
+          },
+          "messageCount": {
+            "type": "number",
+            "description": "Number of messages in the conversation"
+          }
+        },
+        "required": [
+          "id",
+          "objectId",
+          "title",
+          "createdAt",
+          "updatedAt",
+          "messageCount"
+        ]
+      },
+      "RefinementMessageDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "The message content from the user"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "ApplySuggestionDto": {
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string",
+            "description": "The message ID containing the suggestion"
+          },
+          "suggestionIndex": {
+            "type": "number",
+            "description": "Index of the suggestion in the message"
+          },
+          "expectedVersion": {
+            "type": "number",
+            "description": "Current object version for optimistic locking"
+          }
+        },
+        "required": [
+          "messageId",
+          "suggestionIndex",
+          "expectedVersion"
+        ]
+      },
+      "ApplySuggestionResultDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the suggestion was successfully applied"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message if failed"
+          },
+          "newVersion": {
+            "type": "number",
+            "description": "New version number after applying"
+          },
+          "affectedId": {
+            "type": "string",
+            "description": "ID of the affected entity"
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "RejectSuggestionDto": {
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string",
+            "description": "The message ID containing the suggestion"
+          },
+          "suggestionIndex": {
+            "type": "number",
+            "description": "Index of the suggestion in the message"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Optional reason for rejection"
+          }
+        },
+        "required": [
+          "messageId",
+          "suggestionIndex"
+        ]
+      },
+      "RefinementChatMessageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Message ID"
+          },
+          "role": {
+            "type": "string",
+            "description": "Role of the message sender",
+            "enum": [
+              "user",
+              "assistant"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "description": "Message content"
+          },
+          "userId": {
+            "type": "string",
+            "description": "User ID who sent the message (for user messages)"
+          },
+          "userName": {
+            "type": "string",
+            "description": "Display name of the user"
+          },
+          "suggestions": {
+            "description": "Suggestions in this message (for assistant messages)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the message was created"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "content",
+          "userId",
+          "userName",
+          "suggestions",
+          "createdAt"
         ]
       }
     }

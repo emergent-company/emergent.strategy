@@ -4,6 +4,8 @@ import 'simplebar-react/dist/simplebar.min.css';
 import type { UIMessage } from '@ai-sdk/react';
 import { format } from 'date-fns';
 import { MessageBubble } from './MessageBubble';
+import type { ActionTarget } from './ActionCard';
+import type { RefinementSuggestion } from '@/types/object-refinement';
 
 /**
  * Check if two dates are on the same calendar day
@@ -41,6 +43,16 @@ interface MessageListProps {
   onThumbsDown?: () => void;
   emptyState?: React.ReactNode;
   isStreaming?: boolean;
+  /** Function to get suggestions for a message by its ID */
+  getSuggestions?: (messageId: string) => RefinementSuggestion[] | undefined;
+  /** Optional target object for ActionCard display in suggestions */
+  actionTarget?: ActionTarget;
+  /** Callback when a suggestion is applied */
+  onApplySuggestion?: (messageId: string, suggestionIndex: number) => void;
+  /** Callback when a suggestion is rejected */
+  onRejectSuggestion?: (messageId: string, suggestionIndex: number) => void;
+  /** Currently loading suggestion (messageId and suggestionIndex) */
+  loadingSuggestion?: { messageId: string; suggestionIndex: number } | null;
 }
 
 /**
@@ -61,6 +73,11 @@ export const MessageList = memo(function MessageList({
   onThumbsDown,
   emptyState,
   isStreaming = false,
+  getSuggestions,
+  actionTarget,
+  onApplySuggestion,
+  onRejectSuggestion,
+  loadingSuggestion,
 }: MessageListProps) {
   const scrollRef = useRef<any>(null);
   const contentEndRef = useRef<HTMLDivElement>(null);
@@ -147,6 +164,29 @@ export const MessageList = memo(function MessageList({
                       }
                       onThumbsDown={
                         message.role === 'assistant' ? onThumbsDown : undefined
+                      }
+                      suggestions={
+                        message.role === 'assistant' && getSuggestions
+                          ? getSuggestions(message.id)
+                          : undefined
+                      }
+                      actionTarget={
+                        message.role === 'assistant' ? actionTarget : undefined
+                      }
+                      onApplySuggestion={
+                        message.role === 'assistant' && onApplySuggestion
+                          ? (idx) => onApplySuggestion(message.id, idx)
+                          : undefined
+                      }
+                      onRejectSuggestion={
+                        message.role === 'assistant' && onRejectSuggestion
+                          ? (idx) => onRejectSuggestion(message.id, idx)
+                          : undefined
+                      }
+                      loadingSuggestionIndex={
+                        loadingSuggestion?.messageId === message.id
+                          ? loadingSuggestion.suggestionIndex
+                          : undefined
                       }
                     />
                   </Fragment>
