@@ -143,8 +143,11 @@ export class LangChainGeminiProvider implements ILLMProvider {
     try {
       // Note: We use responseMimeType for JSON output instead of withStructuredOutput()
       // because withStructuredOutput() causes timeouts with Vertex AI Gemini models.
+      // NOTE: We explicitly set apiKey to undefined to prevent LangChain from
+      // using GOOGLE_API_KEY env var. Vertex AI requires OAuth (ADC), not API keys.
       this.model = new ChatVertexAI({
         model: modelName,
+        apiKey: '', // Empty string bypasses GOOGLE_API_KEY env var, forces ADC auth
         authOptions: {
           projectId: projectId,
         },
@@ -157,6 +160,7 @@ export class LangChainGeminiProvider implements ILLMProvider {
       // Create a second model instance for tool calling (no responseMimeType)
       this.toolModel = new ChatVertexAI({
         model: modelName,
+        apiKey: '', // Empty string bypasses GOOGLE_API_KEY env var, forces ADC auth
         authOptions: {
           projectId: projectId,
         },

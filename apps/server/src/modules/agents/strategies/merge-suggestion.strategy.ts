@@ -77,6 +77,7 @@ export class MergeSuggestionStrategy implements AgentStrategy, OnModuleInit {
     let suggestionsCreated = 0;
     let suggestionsUpdated = 0;
     let suggestionsSkippedDueToLimit = 0;
+    const seenPairs = new Set<string>(); // Track pairs to avoid double-counting A→B and B→A
 
     try {
       // Get current pending count to track against limit
@@ -139,6 +140,15 @@ export class MergeSuggestionStrategy implements AgentStrategy, OnModuleInit {
         );
 
         for (const candidate of candidates) {
+          // Normalize pair order to avoid counting A→B and B→A separately
+          const [id1, id2] = [obj.id, candidate.id].sort();
+          const pairKey = `${id1}:${id2}`;
+
+          if (seenPairs.has(pairKey)) {
+            continue; // Already counted this pair from the other direction
+          }
+          seenPairs.add(pairKey);
+
           similarPairsFound++;
 
           // Check if we've hit the pending limit before creating new suggestions
@@ -206,17 +216,26 @@ export class MergeSuggestionStrategy implements AgentStrategy, OnModuleInit {
 
   /**
    * Get objects to scan for similarities
-   * Prioritizes objects that haven't been scanned recently
+   * Uses HEAD version logic - only scans the latest version of each object
+   * where the HEAD is not deleted and has an embedding
    */
   private async getObjectsToScan(limit: number): Promise<GraphObject[]> {
-    // Get objects with embeddings, ordered by last update
-    return this.graphObjectRepo
-      .createQueryBuilder('o')
-      .where('o.embedding_v2 IS NOT NULL')
-      .andWhere('o.deleted_at IS NULL')
-      .orderBy('o.updated_at', 'DESC')
-      .limit(limit)
-      .getMany();
+    // Use raw SQL to get HEAD (latest version) of each object
+    // This matches the UI's versioning logic - only HEAD versions are visible
+    const result = await this.dataSource.query<GraphObject[]>(
+      `WITH heads AS (
+        SELECT DISTINCT ON (canonical_id) *
+        FROM kb.graph_objects
+        ORDER BY canonical_id, version DESC
+      )
+      SELECT * FROM heads
+      WHERE deleted_at IS NULL
+        AND embedding_v2 IS NOT NULL
+      ORDER BY updated_at DESC
+      LIMIT $1`,
+      [limit]
+    );
+    return result;
   }
 
   /**
