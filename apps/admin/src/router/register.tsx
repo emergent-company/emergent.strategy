@@ -12,14 +12,9 @@ const cw = (Component: LazyExoticComponent<() => JSX.Element>) => <Component />;
 // Admin App routes (canonical)
 const dashboardRoutes: IRoutesProps[] = [
   { path: '/admin', element: <Navigate to="/admin/apps/documents" replace /> },
-  { path: '/admin/chat', element: <Navigate to="/admin/apps/chat" replace /> },
   {
-    path: '/admin/apps/chat',
-    element: cw(lazy(() => import('@/pages/admin/chat/home'))),
-  },
-  {
-    path: '/admin/apps/chat/c/:id?',
-    element: cw(lazy(() => import('@/pages/admin/chat/conversation'))),
+    path: '/admin/chat-sdk/:id?',
+    element: cw(lazy(() => import('@/pages/chat-sdk'))),
   },
   {
     path: '/admin/apps/documents',
@@ -176,11 +171,6 @@ const otherRoutes: IRoutesProps[] = [
   {
     path: '/product-framework',
     element: cw(lazy(() => import('@/pages/product-framework'))),
-  },
-  { path: '/chat', element: cw(lazy(() => import('@/pages/chat'))) },
-  {
-    path: '/chat-sdk/:id?',
-    element: cw(lazy(() => import('@/pages/chat-sdk'))),
   },
   { path: '*', element: cw(lazy(() => import('@/pages/not-found'))) },
 ];
