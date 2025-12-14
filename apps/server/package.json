@@ -45,6 +45,7 @@
   "dependencies": {
     "@ai-sdk/langchain": "^1.0.104",
     "@google-cloud/vertexai": "^1.10.0",
+    "@langchain/community": "^1.1.0",
     "@langchain/core": "^1.1.0",
     "@langchain/google-genai": "^2.0.0",
     "@langchain/google-vertexai": "^1.0.4",
@@ -68,6 +69,7 @@
     "class-validator": "^0.14.2",
     "cron": "^4.3.5",
     "dotenv": "^16.4.5",
+    "duck-duck-scrape": "^2.2.7",
     "html-to-text": "^9.0.5",
     "jose": "^6.1.0",
     "js-yaml": "^4.1.0",
