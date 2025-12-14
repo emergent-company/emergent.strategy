@@ -1,0 +1,30 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "langfuse-mcp",
+  "projectType": "library",
+  "sourceRoot": "tools/langfuse-mcp/src",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run build",
+        "cwd": "tools/langfuse-mcp"
+      },
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run lint",
+        "cwd": "tools/langfuse-mcp"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsx tools/langfuse-mcp/src/index.ts"
+      }
+    }
+  },
+  "tags": ["scope:tools", "type:mcp"]
+}
