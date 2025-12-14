@@ -38,6 +38,7 @@ import { UserActivityModule } from './user-activity/user-activity.module';
 import { AgentsModule } from './agents/agents.module';
 import { EventsModule } from './events/events.module';
 import { ClientLogsModule } from './client-logs/client-logs.module';
+import { ObjectRefinementModule } from './object-refinement/object-refinement.module';
 import { AppConfigService } from '../common/config/config.service';
 import { entities } from '../entities';
 
@@ -103,6 +104,7 @@ import { entities } from '../entities';
     AgentsModule,
     EventsModule,
     ClientLogsModule,
+    ObjectRefinementModule,
     DatabaseModule,
   ],
 })

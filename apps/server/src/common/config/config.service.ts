@@ -1,5 +1,30 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { readFileSync } from 'fs';
+import { homedir } from 'os';
+import { join } from 'path';
 import { EnvVariables } from './config.schema';
+
+/**
+ * Attempt to read the GCP project ID from gcloud's default configuration.
+ * This allows Vertex AI to work without explicitly setting GCP_PROJECT_ID
+ * when the user has authenticated via `gcloud auth application-default login`.
+ */
+function getGcpProjectFromGcloudConfig(): string | undefined {
+  try {
+    const configPath = join(
+      homedir(),
+      '.config',
+      'gcloud',
+      'configurations',
+      'config_default'
+    );
+    const content = readFileSync(configPath, 'utf-8');
+    const match = content.match(/^project\s*=\s*(.+)$/m);
+    return match?.[1]?.trim();
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Configuration service that provides access to environment variables and database settings.
@@ -24,12 +49,12 @@ export class AppConfigService {
         this.env.POSTGRES_HOST,
         'EMBEDDING_PROVIDER=',
         process.env.EMBEDDING_PROVIDER || 'unset',
-        'GCP_PROJECT_ID=',
+        'GCP_PROJECT_ID (env)=',
         this.env.GCP_PROJECT_ID || 'unset',
-        'computed chatModelEnabled=',
-        !!this.env.GCP_PROJECT_ID &&
-          (process.env.CHAT_MODEL_ENABLED === 'true' ||
-            process.env.CHAT_MODEL_ENABLED === '1')
+        'GCP_PROJECT_ID (resolved)=',
+        this.gcpProjectId || 'unset',
+        'chatModelEnabled=',
+        this.chatModelEnabled
       );
     }
   }
@@ -98,10 +123,30 @@ export class AppConfigService {
   }
 
   /**
-   * Chat model is enabled if CHAT_MODEL_ENABLED is true AND we have Vertex AI configured
+   * Chat model is enabled by default when we have a GCP project configured.
+   * The project can come from GCP_PROJECT_ID env var or gcloud's default config.
+   * Set CHAT_MODEL_ENABLED=false to explicitly disable.
    */
   get chatModelEnabled() {
-    return !!this.env.GCP_PROJECT_ID && !!this.env.CHAT_MODEL_ENABLED;
+    // Allow explicit disable
+    if (process.env.CHAT_MODEL_ENABLED === 'false') {
+      return false;
+    }
+    // Enable if we have a GCP project (from env or gcloud config)
+    return !!this.gcpProjectId;
+  }
+
+  /**
+   * Get the GCP project ID, first from env var, then from gcloud config.
+   * This is cached after first access for performance.
+   */
+  private _gcpProjectId: string | undefined | null = null;
+  get gcpProjectId(): string | undefined {
+    if (this._gcpProjectId === null) {
+      this._gcpProjectId =
+        this.env.GCP_PROJECT_ID || getGcpProjectFromGcloudConfig();
+    }
+    return this._gcpProjectId || undefined;
   }
 
   /**
@@ -147,7 +192,7 @@ export class AppConfigService {
 
   // --- Extraction Worker (Vertex AI) ---
   get vertexAiProjectId() {
-    return this.env.GCP_PROJECT_ID;
+    return this.gcpProjectId;
   }
   get vertexAiLocation() {
     return this.env.VERTEX_AI_LOCATION;

@@ -102,8 +102,11 @@ export class LangGraphService implements OnModuleInit {
 
     try {
       // Initialize Vertex AI model (uses Application Default Credentials)
+      // NOTE: We explicitly set apiKey to undefined to prevent LangChain from
+      // using GOOGLE_API_KEY env var. Vertex AI requires OAuth (ADC), not API keys.
       this.model = new ChatVertexAI({
         model: modelName,
+        apiKey: '', // Empty string bypasses GOOGLE_API_KEY env var, forces ADC auth
         authOptions: {
           projectId: projectId,
         },
