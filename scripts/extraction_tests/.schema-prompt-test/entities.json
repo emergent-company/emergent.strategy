@@ -1,0 +1,316 @@
+[
+  {
+    "name": "God",
+    "type": "Person",
+    "description": "The divine creator of the heavens and the earth.",
+    "properties": {
+      "aliases": [],
+      "role": "Creator",
+      "occupation": null,
+      "tribe": null,
+      "father": null,
+      "mother": null,
+      "birth_location": null,
+      "death_location": null,
+      "significance": "The supreme being who created the heavens and the earth and all living things, demonstrating omnipotence and sovereignty."
+    }
+  },
+  {
+    "name": "Spirit of God",
+    "type": "Person",
+    "description": "The divine presence of God, active during creation.",
+    "properties": {
+      "aliases": [],
+      "role": "Divine Presence",
+      "occupation": null,
+      "tribe": null,
+      "father": null,
+      "mother": null,
+      "birth_location": null,
+      "death_location": null,
+      "significance": "The active force of God present during creation, hovering over the primordial waters, signifying divine involvement."
+    }
+  },
+  {
+    "name": "Heavens (Primordial)",
+    "type": "Place",
+    "description": "The initial, undifferentiated celestial realm created by God.",
+    "properties": {
+      "alternate_names": [],
+      "place_type": "Cosmic Realm",
+      "region": "Cosmic",
+      "significance": "One of the two primary realms created by God in the beginning, representing the celestial sphere."
+    }
+  },
+  {
+    "name": "Earth (Primordial)",
+    "type": "Place",
+    "description": "The initial state of the planet, described as without form and void.",
+    "properties": {
+      "alternate_names": [],
+      "place_type": "Planet",
+      "region": "Cosmic",
+      "significance": "The initial, unformed state of the planet before God's creative acts, serving as the canvas for creation."
+    }
+  },
+  {
+    "name": "Deep",
+    "type": "Place",
+    "description": "The primordial abyss or vast body of water.",
+    "properties": {
+      "alternate_names": [],
+      "place_type": "Primordial Waters",
+      "region": "Primordial Earth",
+      "significance": "The dark, formless abyss over which the Spirit of God hovered, representing the chaotic state before order."
+    }
+  },
+  {
+    "name": "Darkness",
+    "type": "Place",
+    "description": "The state of absence of light covering the primordial deep.",
+    "properties": {
+      "alternate_names": [],
+      "place_type": "Conceptual State",
+      "region": "Primordial Earth",
+      "significance": "The condition of the primordial earth before the creation of light, which God separated from light."
+    }
+  },
+  {
+    "name": "Expanse",
+    "type": "Place",
+    "description": "The firmament or sky created to separate the waters above from the waters below.",
+    "properties": {
+      "alternate_names": [
+        "Firmament",
+        "Sky"
+      ],
+      "place_type": "Atmosphere",
+      "region": "Primordial Earth",
+      "significance": "The space created by God on the second day to establish a clear division between celestial and terrestrial waters."
+    }
+  },
+  {
+    "name": "Heaven (Sky)",
+    "type": "Place",
+    "description": "The expanse above the earth, named by God on the second day.",
+    "properties": {
+      "alternate_names": [],
+      "place_type": "Atmosphere",
+      "region": "Earth",
+      "significance": "The realm above the earth where birds fly and celestial bodies are later placed, providing a visible sky."
+    }
+  },
+  {
+    "name": "Dry Land",
+    "type": "Place",
+    "description": "The landmasses that emerged from the gathered waters on the third day.",
+    "properties": {
+      "alternate_names": [
+        "Earth"
+      ],
+      "place_type": "Continent",
+      "region": "Earth",
+      "significance": "The solid ground that appeared after the waters were gathered, named Earth by God, providing a habitat for life."
+    }
+  },
+  {
+    "name": "Seas",
+    "type": "Place",
+    "description": "The gathered bodies of water, named by God on the third day.",
+    "properties": {
+      "alternate_names": [],
+      "place_type": "Ocean",
+      "region": "Earth",
+      "significance": "The large bodies of water gathered together, named Seas by God, which would later teem with aquatic life."
+    }
+  },
+  {
+    "name": "Sun",
+    "type": "Place",
+    "description": "The greater light created on the fourth day to rule the day.",
+    "properties": {
+      "alternate_names": [
+        "Greater Light"
+      ],
+      "place_type": "Celestial Body",
+      "region": "Heavens (Sky)",
+      "significance": "The primary light source for the day, created to rule over it and provide light and warmth to the earth."
+    }
+  },
+  {
+    "name": "Moon",
+    "type": "Place",
+    "description": "The lesser light created on the fourth day to rule the night.",
+    "properties": {
+      "alternate_names": [
+        "Lesser Light"
+      ],
+      "place_type": "Celestial Body",
+      "region": "Heavens (Sky)",
+      "significance": "The secondary light source for the night, created to rule over it and provide light during darkness."
+    }
+  },
+  {
+    "name": "Stars",
+    "type": "Place",
+    "description": "Celestial bodies created alongside the sun and moon on the fourth day.",
+    "properties": {
+      "alternate_names": [],
+      "place_type": "Celestial Body",
+      "region": "Heavens (Sky)",
+      "significance": "Lesser lights set in the expanse of the heavens, contributing to the cosmic order and providing light."
+    }
+  },
+  {
+    "name": "Creation of the Universe",
+    "type": "Event",
+    "description": "The overarching act of God bringing the heavens and the earth into existence.",
+    "properties": {
+      "event_type": "Creation",
+      "location": "Cosmic",
+      "participants": [
+        "God",
+        "Spirit of God"
+      ],
+      "theological_significance": "The foundational act demonstrating God's omnipotence and sovereignty as the sole creator of all existence, establishing the cosmos."
+    }
+  },
+  {
+    "name": "First Day of Creation",
+    "type": "Event",
+    "description": "God creates light and separates it from darkness, establishing day and night.",
+    "properties": {
+      "event_type": "Creation Day",
+      "location": "Primordial Earth",
+      "participants": [
+        "God"
+      ],
+      "theological_significance": "Marks the beginning of time and the introduction of light into the primordial darkness, bringing order from chaos."
+    }
+  },
+  {
+    "name": "Second Day of Creation",
+    "type": "Event",
+    "description": "God creates the expanse (firmament) to separate the waters.",
+    "properties": {
+      "event_type": "Creation Day",
+      "location": "Primordial Earth",
+      "participants": [
+        "God"
+      ],
+      "theological_significance": "Establishes the separation between the waters above and the waters below, forming the sky and creating a habitable atmosphere."
+    }
+  },
+  {
+    "name": "Third Day of Creation",
+    "type": "Event",
+    "description": "God gathers the waters, reveals dry land, and creates vegetation.",
+    "properties": {
+      "event_type": "Creation Day",
+      "location": "Primordial Earth",
+      "participants": [
+        "God"
+      ],
+      "theological_significance": "Forms the habitable earth and introduces plant life, providing sustenance and beauty to the world."
+    }
+  },
+  {
+    "name": "Fourth Day of Creation",
+    "type": "Event",
+    "description": "God creates the sun, moon, and stars to govern day and night and mark seasons.",
+    "properties": {
+      "event_type": "Creation Day",
+      "location": "Heavens (Sky)",
+      "participants": [
+        "God"
+      ],
+      "theological_significance": "Establishes celestial bodies for signs, seasons, days, and years, and to give light, demonstrating God's ordering of time and space."
+    }
+  },
+  {
+    "name": "Fifth Day of Creation",
+    "type": "Event",
+    "description": "God creates aquatic life and birds, filling the waters and the sky with living creatures.",
+    "properties": {
+      "event_type": "Creation Day",
+      "location": "Waters, Heavens (Sky)",
+      "participants": [
+        "God"
+      ],
+      "theological_significance": "Fills the waters and the sky with diverse living creatures, blessing them to be fruitful and multiply, showcasing God's abundance."
+    }
+  },
+  {
+    "name": "Sixth Day of Creation",
+    "type": "Event",
+    "description": "God creates land animals and humanity in His own image.",
+    "properties": {
+      "event_type": "Creation Day",
+      "location": "Earth",
+      "participants": [
+        "God"
+      ],
+      "theological_significance": "Culminates creation with the making of land animals and humanity in God's image, granting them dominion and signifying humanity's unique place."
+    }
+  },
+  {
+    "name": "Sea Creatures",
+    "type": "Group",
+    "description": "All living creatures that swarm in the waters, created on the fifth day.",
+    "properties": {
+      "group_type": "Animal Kingdom",
+      "region": "Seas",
+      "founder": "God"
+    }
+  },
+  {
+    "name": "Birds",
+    "type": "Group",
+    "description": "All winged creatures that fly above the earth, created on the fifth day.",
+    "properties": {
+      "group_type": "Animal Kingdom",
+      "region": "Heavens (Sky)",
+      "founder": "God"
+    }
+  },
+  {
+    "name": "Livestock",
+    "type": "Group",
+    "description": "Domesticated animals created on the sixth day.",
+    "properties": {
+      "group_type": "Animal Kingdom",
+      "region": "Earth",
+      "founder": "God"
+    }
+  },
+  {
+    "name": "Creeping Things",
+    "type": "Group",
+    "description": "Small animals that move along the ground, created on the sixth day.",
+    "properties": {
+      "group_type": "Animal Kingdom",
+      "region": "Earth",
+      "founder": "God"
+    }
+  },
+  {
+    "name": "Beasts of the Earth",
+    "type": "Group",
+    "description": "Wild animals created on the sixth day.",
+    "properties": {
+      "group_type": "Animal Kingdom",
+      "region": "Earth",
+      "founder": "God"
+    }
+  },
+  {
+    "name": "Humanity",
+    "type": "Group",
+    "description": "Male and female, created in God's image on the sixth day.",
+    "properties": {
+      "group_type": "Species",
+      "region": "Earth",
+      "founder": "God"
+    }
+  }
+]

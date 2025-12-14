@@ -745,6 +745,14 @@ const relationshipTypes = [
     inverseLabel: 'Contains',
     fromTypes: ['Person', 'Place', 'Event', 'Group', 'Object', 'Angel'],
     toTypes: ['Book'],
+    semanticHints: [
+      'mentioned in',
+      'found in',
+      'referenced in',
+      'occurs in',
+      'is in',
+      'features in',
+    ],
   },
   {
     type: 'LOCATED_IN',
@@ -753,6 +761,15 @@ const relationshipTypes = [
     inverseLabel: 'Contains',
     fromTypes: ['Place'],
     toTypes: ['Place'],
+    semanticHints: [
+      'within',
+      'inside',
+      'part of',
+      'in the region of',
+      'in the land of',
+      'near',
+      'beside',
+    ],
   },
   {
     type: 'PARENT_OF',
@@ -761,6 +778,16 @@ const relationshipTypes = [
     inverseLabel: 'Child Of',
     fromTypes: ['Person'],
     toTypes: ['Person'],
+    semanticHints: [
+      'father of',
+      'mother of',
+      'begat',
+      'fathered',
+      'bore',
+      'gave birth to',
+      'sired',
+      'progenitor of',
+    ],
   },
   {
     type: 'CHILD_OF',
@@ -769,6 +796,15 @@ const relationshipTypes = [
     inverseLabel: 'Parent Of',
     fromTypes: ['Person'],
     toTypes: ['Person'],
+    semanticHints: [
+      'son of',
+      'daughter of',
+      'offspring of',
+      'born to',
+      'begotten by',
+      'descended from',
+      'child of',
+    ],
   },
   {
     type: 'BORN_IN',
@@ -777,6 +813,13 @@ const relationshipTypes = [
     inverseLabel: 'Birthplace Of',
     fromTypes: ['Person'],
     toTypes: ['Place'],
+    semanticHints: [
+      'birthplace',
+      'native of',
+      'came from',
+      'originated from',
+      'from',
+    ],
   },
   {
     type: 'DIED_IN',
@@ -785,6 +828,13 @@ const relationshipTypes = [
     inverseLabel: 'Death Place Of',
     fromTypes: ['Person'],
     toTypes: ['Place'],
+    semanticHints: [
+      'death place',
+      'perished in',
+      'fell in',
+      'buried in',
+      'resting place',
+    ],
   },
   {
     type: 'TRAVELS_TO',
@@ -793,6 +843,16 @@ const relationshipTypes = [
     inverseLabel: 'Visited By',
     fromTypes: ['Person', 'Group'],
     toTypes: ['Place'],
+    semanticHints: [
+      'went to',
+      'journeyed to',
+      'visited',
+      'arrived at',
+      'came to',
+      'departed to',
+      'fled to',
+      'sojourned in',
+    ],
   },
   {
     type: 'OCCURS_IN',
@@ -801,6 +861,14 @@ const relationshipTypes = [
     inverseLabel: 'Location Of',
     fromTypes: ['Event', 'Miracle'],
     toTypes: ['Place'],
+    semanticHints: [
+      'happened in',
+      'took place in',
+      'at',
+      'location of',
+      'site of',
+      'scene of',
+    ],
   },
   {
     type: 'PARTICIPATES_IN',
@@ -809,6 +877,14 @@ const relationshipTypes = [
     inverseLabel: 'Had Participant',
     fromTypes: ['Person', 'Group', 'Angel'],
     toTypes: ['Event'],
+    semanticHints: [
+      'involved in',
+      'took part in',
+      'was present at',
+      'joined',
+      'attended',
+      'engaged in',
+    ],
   },
   {
     type: 'MEMBER_OF',
@@ -817,6 +893,14 @@ const relationshipTypes = [
     inverseLabel: 'Has Member',
     fromTypes: ['Person'],
     toTypes: ['Group'],
+    semanticHints: [
+      'belongs to',
+      'part of',
+      'one of the',
+      'among the',
+      'in the tribe of',
+      'of the house of',
+    ],
   },
   {
     type: 'LEADER_OF',
@@ -825,6 +909,17 @@ const relationshipTypes = [
     inverseLabel: 'Led By',
     fromTypes: ['Person'],
     toTypes: ['Group'],
+    semanticHints: [
+      'king of',
+      'ruler of',
+      'chief of',
+      'head of',
+      'captain of',
+      'prince of',
+      'judge of',
+      'governor of',
+      'commanded',
+    ],
   },
   {
     type: 'FULFILLS',
@@ -833,6 +928,14 @@ const relationshipTypes = [
     inverseLabel: 'Fulfilled By',
     fromTypes: ['Event', 'Person'],
     toTypes: ['Prophecy'],
+    semanticHints: [
+      'fulfilled',
+      'accomplished',
+      'came to pass',
+      'as foretold',
+      'according to the word',
+      'as prophesied',
+    ],
   },
   {
     type: 'MAKES_COVENANT',
@@ -841,6 +944,14 @@ const relationshipTypes = [
     inverseLabel: 'Covenant By',
     fromTypes: ['Person', 'Group'],
     toTypes: ['Covenant'],
+    semanticHints: [
+      'entered covenant',
+      'established covenant',
+      'swore oath',
+      'made promise',
+      'bound by',
+      'agreed to',
+    ],
   },
   {
     type: 'PERFORMS_MIRACLE',
@@ -849,6 +960,15 @@ const relationshipTypes = [
     inverseLabel: 'Performed By',
     fromTypes: ['Person', 'Angel'],
     toTypes: ['Miracle'],
+    semanticHints: [
+      'did miracle',
+      'worked wonder',
+      'performed sign',
+      'showed power',
+      'healed',
+      'raised',
+      'cast out',
+    ],
   },
   {
     type: 'WITNESSES',
@@ -857,6 +977,14 @@ const relationshipTypes = [
     inverseLabel: 'Witnessed By',
     fromTypes: ['Person', 'Group'],
     toTypes: ['Miracle', 'Event'],
+    semanticHints: [
+      'saw',
+      'beheld',
+      'observed',
+      'was present at',
+      'testified to',
+      'looked upon',
+    ],
   },
   {
     type: 'OWNS',
@@ -865,6 +993,14 @@ const relationshipTypes = [
     inverseLabel: 'Owned By',
     fromTypes: ['Person', 'Group'],
     toTypes: ['Object'],
+    semanticHints: [
+      'possesses',
+      'has',
+      'holds',
+      'keeper of',
+      'guardian of',
+      'master of',
+    ],
   },
   {
     type: 'DESCENDED_FROM',
@@ -873,6 +1009,16 @@ const relationshipTypes = [
     inverseLabel: 'Ancestor Of',
     fromTypes: ['Person', 'Group'],
     toTypes: ['Person', 'Group'],
+    semanticHints: [
+      'lineage of',
+      'offspring of',
+      'seed of',
+      'house of',
+      'tribe of',
+      'clan of',
+      'generations of',
+      'genealogy',
+    ],
   },
   {
     type: 'PROPHESIED_BY',
@@ -881,6 +1027,14 @@ const relationshipTypes = [
     inverseLabel: 'Prophesied',
     fromTypes: ['Prophecy'],
     toTypes: ['Person'],
+    semanticHints: [
+      'spoken by',
+      'declared by',
+      'foretold by',
+      'revealed through',
+      'word of',
+      'oracle of',
+    ],
   },
   {
     type: 'SPEAKS',
@@ -889,6 +1043,16 @@ const relationshipTypes = [
     inverseLabel: 'Spoken By',
     fromTypes: ['Person', 'Angel'],
     toTypes: ['Quote'],
+    semanticHints: [
+      'said',
+      'declared',
+      'proclaimed',
+      'uttered',
+      'answered',
+      'cried out',
+      'commanded',
+      'words of',
+    ],
   },
   // NEW RELATIONSHIP TYPES for migrating embedded references
   {
@@ -899,6 +1063,14 @@ const relationshipTypes = [
     inverseLabel: 'Party To',
     fromTypes: ['Covenant', 'Agreement', 'Contract'],
     toTypes: ['Person', 'Group', 'Angel'],
+    semanticHints: [
+      'between',
+      'with',
+      'involving',
+      'party to',
+      'signatory',
+      'bound to',
+    ],
   },
   {
     type: 'HAS_PARTICIPANT',
@@ -907,6 +1079,13 @@ const relationshipTypes = [
     inverseLabel: 'Participant In',
     fromTypes: ['Event', 'Meeting', 'Activity', 'Gathering'],
     toTypes: ['Person', 'Group', 'Angel'],
+    semanticHints: [
+      'involved',
+      'attended by',
+      'included',
+      'with',
+      'among those present',
+    ],
   },
   {
     type: 'HAS_WITNESS',
@@ -915,6 +1094,13 @@ const relationshipTypes = [
     inverseLabel: 'Witnessed',
     fromTypes: ['Event', 'Miracle', 'Covenant', 'Testimony', 'Sign'],
     toTypes: ['Person', 'Group', 'Angel'],
+    semanticHints: [
+      'seen by',
+      'observed by',
+      'testified by',
+      'in presence of',
+      'before',
+    ],
   },
   {
     type: 'PERFORMED_BY',
@@ -923,6 +1109,13 @@ const relationshipTypes = [
     inverseLabel: 'Performed',
     fromTypes: ['Miracle', 'Event', 'Action', 'Sign', 'Wonder'],
     toTypes: ['Person', 'Angel'],
+    semanticHints: [
+      'done by',
+      'executed by',
+      'carried out by',
+      'through',
+      'by the hand of',
+    ],
   },
 ];
 
@@ -981,6 +1174,7 @@ async function upsertBibleTemplatePack(client: PoolClient): Promise<void> {
       toTypes: rel.toTypes,
       label: rel.label,
       inverseLabel: rel.inverseLabel,
+      semanticHints: rel.semanticHints,
     };
 
     // Add UI config for relationships
