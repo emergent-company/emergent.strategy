@@ -58,8 +58,11 @@ export function createDocumentRouterNode(config: DocumentRouterNodeConfig) {
   } = config;
 
   // Create model with JSON response mode
+  // NOTE: We explicitly set apiKey to undefined to prevent LangChain from
+  // using GOOGLE_API_KEY env var. Vertex AI requires OAuth (ADC), not API keys.
   const model = new ChatVertexAI({
     model: modelName,
+    apiKey: '', // Empty string bypasses GOOGLE_API_KEY env var, forces ADC auth
     authOptions: { projectId },
     location,
     temperature: 0.1,

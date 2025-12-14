@@ -1313,7 +1313,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         }
       };
 
-      const graphStep = beginTimelineStep('graph_upsert', {
+      const graphStep = beginTimelineStep('create_entities', {
         strategy,
       });
 
@@ -1629,6 +1629,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
         source_not_resolved: 0,
         target_not_resolved: 0,
         duplicate: 0,
+        rejected_verification: 0,
       };
       // Detailed per-relationship results for tracing
       const relationshipDetails: Array<{
@@ -1702,6 +1703,32 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
                   rel.target.name || rel.target.id
                 }" not found in batch or database`,
                 source_id: sourceId,
+              });
+              continue;
+            }
+
+            // Check verification status for LangGraph pipeline
+            // Skip rejected relationships (confidence below threshold)
+            if (rel.verification_status === 'rejected') {
+              this.logger.debug(
+                `[Relationship] Skipping rejected relationship: ${rel.relationship_type} ` +
+                  `(${rel.source.name || rel.source.id} → ${
+                    rel.target.name || rel.target.id
+                  }) ` +
+                  `confidence=${rel.confidence?.toFixed(3) || 'N/A'}`
+              );
+              relationshipsSkipped++;
+              relationshipSkipReasons.rejected_verification++;
+              relationshipDetails.push({
+                type: rel.relationship_type,
+                source: rel.source.name || rel.source.id || 'unknown',
+                target: rel.target.name || rel.target.id || 'unknown',
+                status: 'skipped',
+                reason: `rejected_verification: confidence ${(
+                  (rel.confidence || 0) * 100
+                ).toFixed(1)}% below threshold`,
+                source_id: sourceId,
+                target_id: targetId,
               });
               continue;
             }

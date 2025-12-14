@@ -573,6 +573,8 @@ export class VerificationService {
    * 1. Existence: Are these two entities mentioned together in a way that implies a relationship?
    * 2. Type: Is the relationship type correct for their connection?
    * 3. Description: Is the description accurate? (optional)
+   *
+   * @param schema Optional relationship schema from template pack with semantic hints
    */
   async verifyRelationship(
     sourceName: string,
@@ -580,7 +582,15 @@ export class VerificationService {
     relationshipType: string,
     sourceText: string,
     description?: string,
-    config: VerificationConfig = DEFAULT_VERIFICATION_CONFIG
+    config: VerificationConfig = DEFAULT_VERIFICATION_CONFIG,
+    schema?: {
+      description?: string;
+      label?: string;
+      inverseLabel?: string;
+      fromTypes?: string[];
+      toTypes?: string[];
+      semanticHints?: string[];
+    }
   ): Promise<RelationshipVerificationResult> {
     const result: RelationshipVerificationResult = {
       sourceName,
@@ -664,7 +674,8 @@ export class VerificationService {
 
       if (nliAvailable) {
         const typeHypothesis = `${sourceName} ${this.relationshipTypeToText(
-          relationshipType
+          relationshipType,
+          schema
         )} ${targetName}`;
         const typeResult = await this.nliVerifier.verifyHypothesis(
           typeHypothesis,
@@ -690,7 +701,8 @@ export class VerificationService {
           targetName,
           relationshipType,
           sourceText,
-          config
+          config,
+          schema
         );
         result.typeVerified = tier3Result.verified;
         result.typeConfidence = tier3Result.confidence;
@@ -742,30 +754,24 @@ export class VerificationService {
   }
 
   /**
-   * Convert relationship type to natural language for NLI verification
+   * Convert relationship type to natural language for NLI verification.
+   * Uses schema information if provided, otherwise falls back to simple conversion.
    */
-  private relationshipTypeToText(relationshipType: string): string {
-    const mappings: Record<string, string> = {
-      WORKS_FOR: 'works for',
-      EMPLOYED_BY: 'is employed by',
-      LOCATED_IN: 'is located in',
-      PART_OF: 'is part of',
-      CONTAINS: 'contains',
-      PARENT_OF: 'is the parent of',
-      CHILD_OF: 'is the child of',
-      CREATED_BY: 'was created by',
-      OWNS: 'owns',
-      BELONGS_TO: 'belongs to',
-      RELATED_TO: 'is related to',
-      MENTIONS: 'mentions',
-      REFERENCES: 'references',
-      MANAGES: 'manages',
-      REPORTS_TO: 'reports to',
-    };
+  private relationshipTypeToText(
+    relationshipType: string,
+    schema?: { description?: string; label?: string }
+  ): string {
+    // If schema has a label, use it (e.g., "Parent Of" -> "is parent of")
+    if (schema?.label) {
+      const label = schema.label.toLowerCase();
+      // Convert label to verb phrase if needed
+      if (!label.startsWith('is ') && !label.includes(' of')) {
+        return `is ${label}`;
+      }
+      return label;
+    }
 
-    return (
-      mappings[relationshipType] ||
-      relationshipType.toLowerCase().replace(/_/g, ' ')
-    );
+    // Fallback: convert SNAKE_CASE to "snake case"
+    return relationshipType.toLowerCase().replace(/_/g, ' ');
   }
 }

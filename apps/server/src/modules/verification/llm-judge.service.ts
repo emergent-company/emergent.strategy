@@ -108,7 +108,7 @@ Respond in this exact JSON format:
   "explanation": "Brief explanation of your decision"
 }`;
 
-const RELATIONSHIP_TYPE_PROMPT = `You are a verification judge. Your task is to determine if the relationship type between two entities is correct.
+const RELATIONSHIP_TYPE_PROMPT = `You are a verification judge. Your task is to determine if the relationship type between two entities is semantically correct based on the source text.
 
 <source_text>
 {SOURCE_TEXT}
@@ -118,12 +118,14 @@ const RELATIONSHIP_TYPE_PROMPT = `You are a verification judge. Your task is to 
 Source: {SOURCE_NAME}
 Target: {TARGET_NAME}
 Relationship Type: {RELATIONSHIP_TYPE}
+{SCHEMA_CONTEXT}
 </relationship>
 
 Instructions:
-1. Check if the relationship type "{RELATIONSHIP_TYPE}" correctly describes how {SOURCE_NAME} relates to {TARGET_NAME}
-2. Consider synonyms and equivalent relationship types
-3. The relationship should be clearly supported by the source text
+1. Check if the relationship type correctly describes how the source entity relates to the target entity
+2. The relationship can be EXPLICITLY stated OR IMPLICITLY supported by the text
+3. Accept equivalent expressions, synonyms, and contextually appropriate variations
+4. Consider the schema description and valid entity types when evaluating
 
 Respond in this exact JSON format:
 {
@@ -592,7 +594,15 @@ Respond with a JSON array in this exact format:
     targetName: string,
     relationshipType: string,
     sourceText: string,
-    config: Pick<VerificationConfig, 'llmJudgeModel'>
+    config: Pick<VerificationConfig, 'llmJudgeModel'>,
+    schema?: {
+      description?: string;
+      label?: string;
+      inverseLabel?: string;
+      fromTypes?: string[];
+      toTypes?: string[];
+      semanticHints?: string[];
+    }
   ): Promise<LLMJudgeResult> {
     if (!this.client) {
       return {
@@ -603,13 +613,43 @@ Respond with a JSON array in this exact format:
     }
 
     try {
+      // Build schema context if available
+      let schemaContext = '';
+      if (schema) {
+        const parts: string[] = [];
+        if (schema.description) {
+          parts.push(`Description: ${schema.description}`);
+        }
+        if (schema.label) {
+          parts.push(`Label: "${schema.label}"`);
+        }
+        if (schema.inverseLabel) {
+          parts.push(`Inverse: "${schema.inverseLabel}"`);
+        }
+        if (schema.fromTypes?.length) {
+          parts.push(`Valid source types: ${schema.fromTypes.join(', ')}`);
+        }
+        if (schema.toTypes?.length) {
+          parts.push(`Valid target types: ${schema.toTypes.join(', ')}`);
+        }
+        if (schema.semanticHints?.length) {
+          parts.push(
+            `Semantic equivalents: ${schema.semanticHints.join(', ')}`
+          );
+        }
+        if (parts.length > 0) {
+          schemaContext = parts.join('\n');
+        }
+      }
+
       const prompt = RELATIONSHIP_TYPE_PROMPT.replace(
         '{SOURCE_TEXT}',
         this.truncateForLLM(sourceText)
       )
         .replace('{SOURCE_NAME}', sourceName)
         .replace('{TARGET_NAME}', targetName)
-        .replace('{RELATIONSHIP_TYPE}', relationshipType);
+        .replace('{RELATIONSHIP_TYPE}', relationshipType)
+        .replace('{SCHEMA_CONTEXT}', schemaContext ? `\n${schemaContext}` : '');
 
       const result = await this.client.models.generateContent({
         model: config.llmJudgeModel,
