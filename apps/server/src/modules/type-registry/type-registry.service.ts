@@ -15,6 +15,7 @@ import {
   ListObjectTypesQueryDto,
   ValidateObjectDataDto,
   ValidationResult,
+  RelationshipTypeInfo,
 } from './dto/type-registry.dto';
 import { ProjectTypeRegistryRow } from '../template-packs/template-pack.types';
 
@@ -161,7 +162,81 @@ export class TypeRegistryService {
       throw new NotFoundException(`Type not found: ${typeName}`);
     }
 
-    return result[0];
+    const typeEntry = result[0];
+
+    // Fetch relationship info from template packs
+    const relationships = await this.getRelationshipsForType(
+      projectId,
+      typeName
+    );
+    typeEntry.outgoing_relationships = relationships.outgoing;
+    typeEntry.incoming_relationships = relationships.incoming;
+
+    return typeEntry;
+  }
+
+  /**
+   * Get relationships for a specific object type from active template packs
+   */
+  private async getRelationshipsForType(
+    projectId: string,
+    typeName: string
+  ): Promise<{
+    outgoing: RelationshipTypeInfo[];
+    incoming: RelationshipTypeInfo[];
+  }> {
+    // Get all active template packs for this project with their relationship schemas
+    const packsResult = await this.dataSource.query(
+      `SELECT tp.relationship_type_schemas
+       FROM kb.project_template_packs ptp
+       JOIN kb.graph_template_packs tp ON ptp.template_pack_id = tp.id
+       WHERE ptp.project_id = $1 AND ptp.active = true`,
+      [projectId]
+    );
+
+    const outgoing: RelationshipTypeInfo[] = [];
+    const incoming: RelationshipTypeInfo[] = [];
+
+    for (const row of packsResult) {
+      const relationshipSchemas = row.relationship_type_schemas || {};
+
+      for (const [relType, schema] of Object.entries(relationshipSchemas) as [
+        string,
+        any
+      ][]) {
+        const sourceTypes = schema.fromTypes || schema.sourceTypes || [];
+        const targetTypes = schema.toTypes || schema.targetTypes || [];
+
+        // Check if this type is a source (outgoing relationships)
+        if (sourceTypes.includes(typeName)) {
+          // Avoid duplicates
+          if (!outgoing.find((r) => r.type === relType)) {
+            outgoing.push({
+              type: relType,
+              label: schema.label,
+              description: schema.description,
+              target_types: targetTypes,
+            });
+          }
+        }
+
+        // Check if this type is a target (incoming relationships)
+        if (targetTypes.includes(typeName)) {
+          // Avoid duplicates
+          if (!incoming.find((r) => r.type === relType)) {
+            incoming.push({
+              type: relType,
+              label: schema.label,
+              inverse_label: schema.inverseLabel,
+              description: schema.description,
+              source_types: sourceTypes,
+            });
+          }
+        }
+      }
+    }
+
+    return { outgoing, incoming };
   }
 
   /**
