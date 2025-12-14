@@ -93,6 +93,24 @@ export interface TypeRegistryEntryDto {
   object_count?: number;
   created_at: string;
   updated_at: string;
+  /** Outgoing relationships this type can have (as source) */
+  outgoing_relationships?: RelationshipTypeInfo[];
+  /** Incoming relationships this type can have (as target) */
+  incoming_relationships?: RelationshipTypeInfo[];
+}
+
+/**
+ * Relationship type info for display
+ */
+export interface RelationshipTypeInfo {
+  type: string;
+  label?: string;
+  inverse_label?: string;
+  description?: string;
+  /** For outgoing: types this relationship can connect to */
+  target_types?: string[];
+  /** For incoming: types this relationship can come from */
+  source_types?: string[];
 }
 
 /**
