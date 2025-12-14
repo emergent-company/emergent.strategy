@@ -48,7 +48,10 @@ export class GraphVectorSearchService {
     startParamIndex: number,
     excludeId?: { placeholder: string }
   ): { clause: string; params: any[]; nextIndex: number } {
-    const filters: string[] = ['embedding_v2 IS NOT NULL'];
+    const filters: string[] = [
+      'embedding_v2 IS NOT NULL',
+      'deleted_at IS NULL',
+    ];
     const params: any[] = [];
     let paramIndex = startParamIndex;
     if (excludeId) {

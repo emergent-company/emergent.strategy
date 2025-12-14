@@ -64,8 +64,11 @@ export class McpToolSelectorService {
     private readonly dataSource: DataSource
   ) {
     // Initialize lightweight LLM for fast tool selection
+    // NOTE: We explicitly set apiKey to undefined to prevent LangChain from
+    // using GOOGLE_API_KEY env var. Vertex AI requires OAuth (ADC), not API keys.
     this.llm = new ChatVertexAI({
       model: this.config.vertexAiModel || 'gemini-1.5-flash-002',
+      apiKey: '', // Empty string bypasses GOOGLE_API_KEY env var, forces ADC auth
       temperature: 0.1, // Low temperature for consistent tool selection
       maxOutputTokens: 500, // Small response needed
     });
@@ -134,10 +137,8 @@ export class McpToolSelectorService {
     projectId: string
   ): Promise<EntityTypeInfo[]> {
     try {
-      const types = await this.db.runWithTenantContext(
-        projectId,
-        async () => {
-          const result = await this.dataSource.query(`
+      const types = await this.db.runWithTenantContext(projectId, async () => {
+        const result = await this.dataSource.query(`
                     SELECT 
                         tr.type_name as name,
                         tr.description,
@@ -148,9 +149,8 @@ export class McpToolSelectorService {
                     GROUP BY tr.type_name, tr.description
                     ORDER BY tr.type_name
                 `);
-          return result;
-        }
-      );
+        return result;
+      });
 
       return types.map((t: any) => ({
         name: t.name,
