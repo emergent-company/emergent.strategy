@@ -46,7 +46,88 @@ import { createNodeSpan } from '../tracing';
 const logger = new Logger('RelationshipBuilderNode');
 
 /** Maximum number of entities to process in a single batch */
-const MAX_ENTITIES_PER_BATCH = 5;
+const MAX_ENTITIES_PER_BATCH = 3;
+
+/** Maximum number of chunks to include per batch to avoid token overflow */
+const MAX_CHUNKS_PER_BATCH = 3;
+
+/**
+ * Find document chunks that are relevant to a batch of entities.
+ * Uses entity name matching to identify which chunks mention which entities.
+ *
+ * @param batchEntities - Entities in this batch
+ * @param allEntities - All entities (for cross-reference context)
+ * @param documentChunks - All document chunks
+ * @returns Array of chunk indices that are relevant to this batch
+ */
+function findRelevantChunkIndices(
+  batchEntities: { name: string; temp_id: string }[],
+  allEntities: { name: string; temp_id: string }[],
+  documentChunks: string[]
+): number[] {
+  const relevantIndices = new Set<number>();
+
+  // For each entity in the batch, find chunks that mention it
+  for (const entity of batchEntities) {
+    const entityNameLower = entity.name.toLowerCase();
+    // Also try partial name matching for multi-word names
+    const nameParts = entityNameLower.split(/\s+/).filter((p) => p.length > 2);
+
+    for (let i = 0; i < documentChunks.length; i++) {
+      const chunkLower = documentChunks[i].toLowerCase();
+
+      // Check if chunk contains the full entity name
+      if (chunkLower.includes(entityNameLower)) {
+        relevantIndices.add(i);
+        continue;
+      }
+
+      // For multi-word names, check if all significant parts appear
+      if (nameParts.length > 1) {
+        const allPartsFound = nameParts.every((part) =>
+          chunkLower.includes(part)
+        );
+        if (allPartsFound) {
+          relevantIndices.add(i);
+        }
+      }
+    }
+  }
+
+  // If no relevant chunks found, return first chunk as fallback
+  if (relevantIndices.size === 0 && documentChunks.length > 0) {
+    relevantIndices.add(0);
+  }
+
+  return Array.from(relevantIndices).sort((a, b) => a - b);
+}
+
+/**
+ * Get relevant chunks for a batch, limited to avoid token overflow.
+ *
+ * @param batchEntities - Entities in this batch
+ * @param allEntities - All entities
+ * @param documentChunks - All document chunks
+ * @param maxChunks - Maximum number of chunks to return
+ * @returns Relevant chunks (limited)
+ */
+function getRelevantChunksForBatch(
+  batchEntities: { name: string; temp_id: string }[],
+  allEntities: { name: string; temp_id: string }[],
+  documentChunks: string[],
+  maxChunks: number = MAX_CHUNKS_PER_BATCH
+): string[] {
+  const relevantIndices = findRelevantChunkIndices(
+    batchEntities,
+    allEntities,
+    documentChunks
+  );
+
+  // Limit to maxChunks
+  const limitedIndices = relevantIndices.slice(0, maxChunks);
+
+  return limitedIndices.map((i) => documentChunks[i]);
+}
 
 /** Extraction method type */
 export type ExtractionMethod =
@@ -316,6 +397,88 @@ export function createRelationshipBuilderNode(
       };
     }
 
+    // Check if relationships were already built per-batch by entity-extractor
+    // This is the new per-batch relationship building approach that avoids token overflow
+    if (state.final_relationships.length > 0 && !isRetry) {
+      logger.log(
+        `[RelationshipBuilder] Using ${state.final_relationships.length} relationships ` +
+          `already built per-batch by entity-extractor - skipping LLM calls`
+      );
+
+      // Still apply normalization and deduplication to ensure consistency
+      const entityMap = new Map<string, string>(
+        state.extracted_entities.map((e) => [e.temp_id, e.name])
+      );
+      for (const entity of state.existing_entities) {
+        entityMap.set(entity.id, entity.name);
+      }
+
+      // Normalize inverse relationships (e.g., CHILD_OF -> PARENT_OF with swapped refs)
+      const normalizedRelationships = normalizeInverseRelationships(
+        state.final_relationships
+      );
+
+      // Deduplicate inverse and symmetric relationships
+      const beforeDedup = normalizedRelationships.length;
+      const dedupedRelationships = deduplicateRelationships(
+        normalizedRelationships,
+        entityMap
+      );
+      const dedupedCount = beforeDedup - dedupedRelationships.length;
+
+      if (dedupedCount > 0) {
+        logger.log(
+          `[RelationshipBuilder] Deduplicated ${dedupedCount} inverse/symmetric relationships ` +
+            `(${beforeDedup} -> ${dedupedRelationships.length})`
+        );
+      }
+
+      // Get relationship type statistics
+      const typeStats: Record<string, number> = {};
+      for (const rel of dedupedRelationships) {
+        typeStats[rel.type] = (typeStats[rel.type] || 0) + 1;
+      }
+
+      // Create span for bypass case
+      const span = createNodeSpan(
+        langfuseService,
+        state,
+        'relationship_builder',
+        {
+          entityCount: state.extracted_entities.length,
+          reason: 'per_batch_relationships_exist',
+          inputRelationshipCount: state.final_relationships.length,
+        },
+        {}
+      );
+      span.end({
+        reason: 'per_batch_relationships_exist',
+        relationshipCount: dedupedRelationships.length,
+        deduplicated: dedupedCount,
+        typeStats,
+      });
+
+      logger.log(
+        `[RelationshipBuilder] Bypass complete: ${dedupedRelationships.length} relationships ` +
+          `in ${Date.now() - startTime}ms. Types: ${Object.entries(typeStats)
+            .map(([t, c]) => `${t}:${c}`)
+            .join(', ')}`
+      );
+
+      return {
+        final_relationships: dedupedRelationships,
+        node_responses: {
+          relationship_builder: {
+            relationship_count: dedupedRelationships.length,
+            type_stats: typeStats,
+            deduplicated: dedupedCount,
+            reason: 'per_batch_relationships_exist',
+            duration_ms: Date.now() - startTime,
+          },
+        },
+      };
+    }
+
     // Get effective method from state (per-job override) or fall back to config
     // Define this early so it can be used for prompt building
     const effectiveMethod = state.extraction_method || extractionMethod;
@@ -387,8 +550,26 @@ export function createRelationshipBuilderNode(
           );
         }
 
+        // Get relevant chunks for this batch to avoid token overflow
+        // When batching, only pass chunks that mention entities in this batch
+        const batchChunks = needsBatching
+          ? getRelevantChunksForBatch(
+              batchEntities,
+              allEntities,
+              state.document_chunks
+            )
+          : state.document_chunks;
+
+        if (needsBatching) {
+          logger.debug(
+            `[RelationshipBuilder] Batch ${batchIndex + 1}: Using ${
+              batchChunks.length
+            } relevant chunks (of ${state.document_chunks.length} total)`
+          );
+        }
+
         // Build the appropriate prompt based on whether this is a retry
-        // For batching, we pass the batch entities but keep full document context
+        // For batching, we pass the batch entities AND batch chunks (not full document)
         let promptResult: PromptResult;
 
         if (isRetry && state.orphan_entities.length > 0) {
@@ -402,7 +583,7 @@ export function createRelationshipBuilderNode(
             prompt: buildRelationshipRetryPrompt(
               batchEntities,
               state.final_relationships,
-              state.document_chunks,
+              batchChunks, // Use batch-specific chunks
               batchOrphans,
               state.retry_count,
               state.feedback_log.slice(-3).join('\n'),
@@ -415,7 +596,7 @@ export function createRelationshipBuilderNode(
           // Pass extraction method so the prompt includes the correct output instruction
           const batchTempIds = new Set(batchEntities.map((e) => e.temp_id));
           promptResult = await promptProvider.getRelationshipBuilderPrompt(
-            state.document_chunks,
+            batchChunks, // Use batch-specific chunks
             batchEntities, // Only batch entities
             state.relationship_schemas,
             state.existing_entities,
@@ -433,7 +614,7 @@ export function createRelationshipBuilderNode(
             prompt: buildRelationshipPrompt(
               batchEntities, // Only batch entities
               state.relationship_schemas,
-              state.document_chunks,
+              batchChunks, // Use batch-specific chunks
               state.existing_entities,
               state.orphan_entities.filter((orphanTempId) =>
                 batchTempIds.has(orphanTempId)
@@ -469,6 +650,8 @@ export function createRelationshipBuilderNode(
                 promptVersion: promptResult.version,
                 isRetry,
                 entityCount: batchEntities.length,
+                chunkCount: batchChunks.length,
+                totalChunks: state.document_chunks.length,
                 extractionMethod: effectiveMethod,
                 batchIndex: batchIndex + 1,
                 batchCount,

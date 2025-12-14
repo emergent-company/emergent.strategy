@@ -7,9 +7,9 @@
  * - Tier 3: LLM Judge (Gemini) - Final arbiter for uncertain cases
  *
  * Confidence Weighting:
- * - 40% name verification
- * - 30% description verification
- * - 30% property verification
+ * - 80% name verification (primary identifier, most reliable signal)
+ * - 15% description verification
+ * - 5% property verification
  *
  * Verification Status:
  * - verified: confidence >= auto_accept_threshold (default 0.9)
@@ -76,18 +76,22 @@ function statusToEnum(
 
 /**
  * Calculate weighted entity confidence score
- * - 40% name
- * - 30% description
- * - 30% properties
+ * - 80% name
+ * - 15% description
+ * - 5% properties
+ *
+ * Name is heavily weighted because entity names are the primary identifier
+ * and most reliable signal from extraction. Description and properties
+ * provide supporting evidence but are often generated or incomplete.
  */
 function calculateEntityConfidence(
   nameConfidence: number,
   descriptionConfidence: number | undefined,
   propertyConfidence: number | undefined
 ): number {
-  const nameWeight = 0.4;
-  const descWeight = 0.3;
-  const propWeight = 0.3;
+  const nameWeight = 0.8;
+  const descWeight = 0.15;
+  const propWeight = 0.05;
 
   // If description is missing, redistribute weight to name and properties
   if (descriptionConfidence === undefined && propertyConfidence === undefined) {
@@ -95,13 +99,13 @@ function calculateEntityConfidence(
   }
 
   if (descriptionConfidence === undefined) {
-    // Redistribute description weight: 57% name, 43% properties
-    return nameConfidence * 0.57 + (propertyConfidence || 0) * 0.43;
+    // Redistribute description weight proportionally: 94% name (0.8/0.85), 6% properties (0.05/0.85)
+    return nameConfidence * 0.94 + (propertyConfidence || 0) * 0.06;
   }
 
   if (propertyConfidence === undefined) {
-    // Redistribute property weight: 57% name, 43% description
-    return nameConfidence * 0.57 + descriptionConfidence * 0.43;
+    // Redistribute property weight proportionally: 84% name (0.8/0.95), 16% description (0.15/0.95)
+    return nameConfidence * 0.84 + descriptionConfidence * 0.16;
   }
 
   return (
@@ -151,6 +155,7 @@ export function createEntityVerificationNode(
         spanHelper.end({
           status: 'skipped',
           reason: 'Verification disabled',
+          entity_count: entitiesWithStatus.length,
           duration_ms: Date.now() - startTime,
         });
 
@@ -336,16 +341,32 @@ export function createEntityVerificationNode(
         verification_tiers_used: tierUsage,
       };
 
-      spanHelper.end({
-        status: 'success',
-        entities_verified: verifiedEntities.length,
-        entities_accepted: acceptedCount,
-        entities_needs_review: needsReviewCount,
-        entities_rejected: rejectedCount,
-        avg_confidence: avgConfidence,
+      // Build detailed output for Langfuse span
+      const spanOutput = {
+        summary: {
+          total_entities: verifiedEntities.length,
+          verified: acceptedCount,
+          needs_review: needsReviewCount,
+          rejected: rejectedCount,
+          avg_confidence: `${(avgConfidence * 100).toFixed(1)}%`,
+        },
+        thresholds: {
+          confidence_threshold: `${(confidence_threshold * 100).toFixed(0)}%`,
+          auto_accept_threshold: `${(auto_accept_threshold * 100).toFixed(0)}%`,
+        },
         tier_usage: tierUsage,
+        entities: verifiedEntities.map((e) => ({
+          name: e.name,
+          type: e.type,
+          status: e.verification_status,
+          confidence: `${((e.confidence || 0) * 100).toFixed(1)}%`,
+          tier: e.verification_tier,
+          reason: e.verification_reason,
+        })),
         duration_ms: Date.now() - startTime,
-      });
+      };
+
+      spanHelper.end(spanOutput);
 
       return {
         extracted_entities: verifiedEntities,

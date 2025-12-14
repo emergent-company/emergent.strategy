@@ -125,6 +125,7 @@ export function createRelationshipVerificationNode(
         spanHelper.end({
           status: 'skipped',
           reason: 'Verification disabled',
+          relationship_count: relationshipsWithStatus.length,
           duration_ms: Date.now() - startTime,
         });
 
@@ -184,13 +185,21 @@ export function createRelationshipVerificationNode(
           state.extracted_entities
         );
 
+        // Get relationship schema from template pack if available
+        const relationshipSchema =
+          state.relationship_schemas?.[relationship.type];
+
         // Verify relationship through the cascade
+        // Note: verificationService.verifyRelationship uses DEFAULT_VERIFICATION_CONFIG
+        // and we pass the schema separately for prompt enrichment
         const relResult = await verificationService.verifyRelationship(
           sourceName,
           targetName,
           relationship.type,
           sourceText,
-          relationship.description
+          relationship.description,
+          undefined, // use default config
+          relationshipSchema
         );
 
         // Use overall confidence from verification result
@@ -292,16 +301,33 @@ export function createRelationshipVerificationNode(
         },
       };
 
-      spanHelper.end({
-        status: 'success',
-        relationships_verified: verifiedRelationships.length,
-        relationships_accepted: acceptedCount,
-        relationships_needs_review: needsReviewCount,
-        relationships_rejected: rejectedCount,
-        avg_confidence: avgConfidence,
+      // Build detailed output for Langfuse span
+      const spanOutput = {
+        summary: {
+          total_relationships: verifiedRelationships.length,
+          verified: acceptedCount,
+          needs_review: needsReviewCount,
+          rejected: rejectedCount,
+          avg_confidence: `${(avgConfidence * 100).toFixed(1)}%`,
+        },
+        thresholds: {
+          confidence_threshold: `${(confidence_threshold * 100).toFixed(0)}%`,
+          auto_accept_threshold: `${(auto_accept_threshold * 100).toFixed(0)}%`,
+        },
         tier_usage: tierUsage,
+        relationships: verifiedRelationships.map((r) => ({
+          type: r.type,
+          source: getEntityNameByTempId(r.source_ref, state.extracted_entities),
+          target: getEntityNameByTempId(r.target_ref, state.extracted_entities),
+          status: r.verification_status,
+          confidence: `${((r.confidence || 0) * 100).toFixed(1)}%`,
+          tier: r.verification_tier,
+          reason: r.verification_reason,
+        })),
         duration_ms: Date.now() - startTime,
-      });
+      };
+
+      spanHelper.end(spanOutput);
 
       return {
         final_relationships: verifiedRelationships,
