@@ -223,8 +223,8 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
               Objects
             </Sidebar.MenuItem>
             <Sidebar.MenuItem
-              id="admin-chat"
-              url="/admin/apps/chat"
+              id="admin-chat-sdk"
+              url="/admin/chat-sdk"
               icon="lucide--message-square"
             >
               Chat
