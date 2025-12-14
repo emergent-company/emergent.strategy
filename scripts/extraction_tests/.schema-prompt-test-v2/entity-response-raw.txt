@@ -1,0 +1,1415 @@
+{
+  "entities": [
+    {
+      "name": "God",
+      "type": "Person",
+      "description": "The supreme being, creator of the universe.",
+      "properties": {
+        "role": "Creator",
+        "significance": "The divine being who created the heavens and the earth, and all living things. He interacts directly with humanity and establishes covenants."
+      }
+    },
+    {
+      "name": "Spirit of God",
+      "type": "Person",
+      "description": "The divine spirit, part of God, present during creation.",
+      "properties": {
+        "significance": "Hovered over the waters during creation, indicating divine presence and power."
+      }
+    },
+    {
+      "name": "Heavens",
+      "type": "Place",
+      "description": "The sky or firmament, created by God.",
+      "properties": {
+        "place_type": "Celestial realm",
+        "significance": "Created by God on the first and second days; contains the sun, moon, and stars."
+      }
+    },
+    {
+      "name": "Earth",
+      "type": "Place",
+      "description": "The planet on which humanity lives, created by God.",
+      "properties": {
+        "place_type": "Planet",
+        "significance": "The primary dwelling place for humanity and all living creatures, created by God."
+      }
+    },
+    {
+      "name": "Creation of the World",
+      "type": "Event",
+      "description": "God's act of bringing the heavens and the earth and all life into existence over six days.",
+      "properties": {
+        "event_type": "Creation",
+        "location": "Heavens and Earth",
+        "participants": ["God", "Spirit of God"],
+        "theological_significance": "The foundational act of God demonstrating His power and sovereignty as the sole Creator."
+      }
+    },
+    {
+      "name": "Creation of Light",
+      "type": "Event",
+      "description": "God's command 'Let there be light' on the first day of creation.",
+      "properties": {
+        "event_type": "Creation",
+        "location": "Earth",
+        "participants": ["God"],
+        "theological_significance": "The first creative act, establishing the cycle of day and night."
+      }
+    },
+    {
+      "name": "Day (period of light)",
+      "type": "Place",
+      "description": "The period of light, separated from darkness.",
+      "properties": {
+        "place_type": "Conceptual",
+        "significance": "Named by God, representing the period of light."
+      }
+    },
+    {
+      "name": "Night (period of darkness)",
+      "type": "Place",
+      "description": "The period of darkness, separated from light.",
+      "properties": {
+        "place_type": "Conceptual",
+        "significance": "Named by God, representing the period of darkness."
+      }
+    },
+    {
+      "name": "Creation of the Expanse",
+      "type": "Event",
+      "description": "God's creation of the firmament to separate the waters above from the waters below on the second day.",
+      "properties": {
+        "event_type": "Creation",
+        "location": "Heavens",
+        "participants": ["God"],
+        "theological_significance": "Established the sky and atmosphere, separating celestial and terrestrial waters."
+      }
+    },
+    {
+      "name": "Separation of Land and Seas",
+      "type": "Event",
+      "description": "God gathering the waters into one place and causing dry land to appear on the third day.",
+      "properties": {
+        "event_type": "Creation",
+        "location": "Earth",
+        "participants": ["God"],
+        "theological_significance": "Formed the continents and oceans, making the earth habitable."
+      }
+    },
+    {
+      "name": "Creation of Vegetation",
+      "type": "Event",
+      "description": "God causing the earth to sprout plants and fruit trees on the third day.",
+      "properties": {
+        "event_type": "Creation",
+        "location": "Earth",
+        "participants": ["God"],
+        "theological_significance": "Provided food and sustenance for all living creatures."
+      }
+    },
+    {
+      "name": "Creation of Celestial Lights",
+      "type": "Event",
+      "description": "God creating the sun, moon, and stars to give light, mark seasons, days, and years on the fourth day.",
+      "properties": {
+        "event_type": "Creation",
+        "location": "Heavens",
+        "participants": ["God"],
+        "theological_significance": "Established the cosmic order, providing light and marking time."
+      }
+    },
+    {
+      "name": "Creation of Sea and Air Creatures",
+      "type": "Event",
+      "description": "God creating great sea creatures and every winged bird on the fifth day.",
+      "properties": {
+        "event_type": "Creation",
+        "location": "Waters, Heavens",
+        "participants": ["God"],
+        "theological_significance": "Filled the waters and skies with diverse forms of life."
+      }
+    },
+    {
+      "name": "Creation of Land Animals",
+      "type": "Event",
+      "description": "God creating livestock, creeping things, and beasts of the earth on the sixth day.",
+      "properties": {
+        "event_type": "Creation",
+        "location": "Earth",
+        "participants": ["God"],
+        "theological_significance": "Populated the dry land with various animal species."
+      }
+    },
+    {
+      "name": "Creation of Man",
+      "type": "Event",
+      "description": "God creating humanity, male and female, in His own image on the sixth day.",
+      "properties": {
+        "event_type": "Creation",
+        "location": "Earth",
+        "participants": ["God", "Adam", "Eve"],
+        "theological_significance": "The pinnacle of creation, establishing humanity's unique relationship with God and dominion over the earth."
+      }
+    },
+    {
+      "name": "God's Rest on the Seventh Day",
+      "type": "Event",
+      "description": "God finishing His work and resting on the seventh day, blessing and making it holy.",
+      "properties": {
+        "event_type": "Divine Act",
+        "theological_significance": "Established the pattern of rest and sanctified the seventh day as holy."
+      }
+    },
+    {
+      "name": "Formation of Adam",
+      "type": "Event",
+      "description": "The Lord God forming man from the dust of the ground and breathing into him the breath of life.",
+      "properties": {
+        "event_type": "Creation",
+        "location": "Earth",
+        "participants": ["God", "Adam"],
+        "theological_significance": "The direct creation of the first man, highlighting his connection to the earth and divine life."
+      }
+    },
+    {
+      "name": "Adam",
+      "type": "Person",
+      "description": "The first man created by God.",
+      "properties": {
+        "spouse": "Eve",
+        "children": ["Cain", "Abel", "Seth"],
+        "age_at_death": 930,
+        "significance": "The first human being, created in God's image, from whom all humanity descends. He was placed in the Garden of Eden."
+      }
+    },
+    {
+      "name": "Planting of the Garden of Eden",
+      "type": "Event",
+      "description": "The Lord God planting a garden in Eden and placing the man there.",
+      "properties": {
+        "event_type": "Creation",
+        "location": "Garden of Eden",
+        "participants": ["God"],
+        "theological_significance": "Provided a perfect dwelling place for humanity, filled with sustenance and beauty."
+      }
+    },
+    {
+      "name": "Garden of Eden",
+      "type": "Place",
+      "description": "A special garden planted by the Lord God in Eden, where Adam and Eve lived.",
+      "properties": {
+        "place_type": "Garden",
+        "region": "Eden",
+        "significance": "The paradise created by God for Adam and Eve, containing the Tree of Life and the Tree of the Knowledge of Good and Evil."
+      }
+    },
+    {
+      "name": "Eden",
+      "type": "Place",
+      "description": "A region in the east where God planted a garden.",
+      "properties": {
+        "place_type": "Region",
+        "significance": "The general region where the Garden of Eden was located."
+      }
+    },
+    {
+      "name": "Tree of Life",
+      "type": "Place",
+      "description": "A tree in the Garden of Eden that granted eternal life.",
+      "properties": {
+        "place_type": "Tree",
+        "region": "Garden of Eden",
+        "significance": "Its fruit would grant eternal life; access was guarded after the Fall."
+      }
+    },
+    {
+      "name": "Tree of the Knowledge of Good and Evil",
+      "type": "Place",
+      "description": "A tree in the Garden of Eden from which Adam and Eve were forbidden to eat.",
+      "properties": {
+        "place_type": "Tree",
+        "region": "Garden of Eden",
+        "significance": "Eating its fruit led to humanity's fall and the knowledge of good and evil."
+      }
+    },
+    {
+      "name": "Pishon",
+      "type": "Place",
+      "description": "One of the four rivers flowing from Eden.",
+      "properties": {
+        "place_type": "River",
+        "region": "Eden",
+        "significance": "One of the four rivers that flowed out of Eden, encircling the land of Havilah."
+      }
+    },
+    {
+      "name": "Havilah (land)",
+      "type": "Place",
+      "description": "A land rich in gold, bdellium, and onyx stone, encircled by the Pishon river.",
+      "properties": {
+        "place_type": "Land",
+        "significance": "A land known for its precious resources, encircled by the Pishon river."
+      }
+    },
+    {
+      "name": "Gihon",
+      "type": "Place",
+      "description": "One of the four rivers flowing from Eden, encircling the land of Cush.",
+      "properties": {
+        "place_type": "River",
+        "region": "Eden",
+        "significance": "One of the four rivers that flowed out of Eden, encircling the land of Cush."
+      }
+    },
+    {
+      "name": "Cush (land)",
+      "type": "Place",
+      "description": "A land encircled by the Gihon river.",
+      "properties": {
+        "place_type": "Land",
+        "significance": "A land encircled by the Gihon river, distinct from the person Cush."
+      }
+    },
+    {
+      "name": "Tigris",
+      "type": "Place",
+      "description": "One of the four rivers flowing from Eden, flowing east of Assyria.",
+      "properties": {
+        "place_type": "River",
+        "region": "Eden",
+        "significance": "One of the four rivers that flowed out of Eden, identifiable with the modern Tigris river."
+      }
+    },
+    {
+      "name": "Assyria",
+      "type": "Place",
+      "description": "A region east of the Tigris river.",
+      "properties": {
+        "place_type": "Region",
+        "significance": "A historical region mentioned in relation to the Tigris river."
+      }
+    },
+    {
+      "name": "Euphrates",
+      "type": "Place",
+      "description": "One of the four rivers flowing from Eden.",
+      "properties": {
+        "place_type": "River",
+        "region": "Eden",
+        "significance": "One of the four rivers that flowed out of Eden, identifiable with the modern Euphrates river."
+      }
+    },
+    {
+      "name": "Commandment Regarding the Tree of Knowledge",
+      "type": "Event",
+      "description": "God's command to Adam not to eat from the tree of the knowledge of good and evil.",
+      "properties": {
+        "event_type": "Divine Command",
+        "location": "Garden of Eden",
+        "participants": ["God", "Adam"],
+        "theological_significance": "Established a moral boundary and a test of obedience for humanity."
+      }
+    },
+    {
+      "name": "Naming of Animals",
+      "type": "Event",
+      "description": "Adam giving names to all the livestock, birds, and beasts of the field.",
+      "properties": {
+        "event_type": "Human Act",
+        "location": "Garden of Eden",
+        "participants": ["Adam"],
+        "theological_significance": "Demonstrated Adam's dominion and intelligence, and his unique role in creation."
+      }
+    },
+    {
+      "name": "Creation of Eve",
+      "type": "Event",
+      "description": "The Lord God forming a woman from Adam's rib to be his helper.",
+      "properties": {
+        "event_type": "Creation",
+        "location": "Garden of Eden",
+        "participants": ["God", "Adam", "Eve"],
+        "theological_significance": "Established the institution of marriage and the complementary nature of male and female."
+      }
+    },
+    {
+      "name": "Eve",
+      "type": "Person",
+      "description": "The first woman, created from Adam's rib.",
+      "properties": {
+        "spouse": "Adam",
+        "children": ["Cain", "Abel", "Seth"],
+        "significance": "The first woman, mother of all living. She was deceived by the serpent and ate from the tree of knowledge."
+      }
+    },
+    {
+      "name": "Serpent",
+      "type": "Person",
+      "description": "A crafty creature that deceived Eve in the Garden of Eden.",
+      "properties": {
+        "significance": "The instrument of temptation in the Garden of Eden, leading to humanity's fall."
+      }
+    },
+    {
+      "name": "The Fall of Man",
+      "type": "Event",
+      "description": "Eve and Adam eating from the Tree of the Knowledge of Good and Evil after being deceived by the serpent.",
+      "properties": {
+        "event_type": "Disobedience",
+        "location": "Garden of Eden",
+        "participants": ["Adam", "Eve", "Serpent"],
+        "theological_significance": "The pivotal event leading to humanity's sin, separation from God, and the introduction of death and suffering into the world."
+      }
+    },
+    {
+      "name": "Consequences of the Fall",
+      "type": "Event",
+      "description": "God pronouncing curses upon the serpent, Eve, and Adam after their disobedience.",
+      "properties": {
+        "event_type": "Divine Judgment",
+        "location": "Garden of Eden",
+        "participants": ["God", "Serpent", "Eve", "Adam"],
+        "theological_significance": "Established the consequences of sin, including enmity, pain in childbirth, toil, and mortality."
+      }
+    },
+    {
+      "name": "Expulsion from Eden",
+      "type": "Event",
+      "description": "God sending Adam and Eve out of the Garden of Eden and guarding the way to the Tree of Life.",
+      "properties": {
+        "event_type": "Divine Judgment",
+        "location": "Garden of Eden",
+        "participants": ["God", "Adam", "Eve", "Cherubim"],
+        "theological_significance": "Prevented humanity from living forever in a fallen state and marked the end of paradise."
+      }
+    },
+    {
+      "name": "Cherubim",
+      "type": "Group",
+      "description": "Angelic beings placed at the east of the Garden of Eden to guard the way to the Tree of Life.",
+      "properties": {
+        "group_type": "Angelic Beings",
+        "description": "Guardians of the Tree of Life after Adam and Eve's expulsion."
+      }
+    },
+    {
+      "name": "Cain",
+      "type": "Person",
+      "description": "The first son of Adam and Eve, who murdered his brother Abel.",
+      "properties": {
+        "father": "Adam",
+        "mother": "Eve",
+        "children": ["Enoch"],
+        "occupation": "Worker of the ground",
+        "significance": "The first murderer, whose offering was rejected by God. He was cursed to be a fugitive and wanderer."
+      }
+    },
+    {
+      "name": "Abel",
+      "type": "Person",
+      "description": "The second son of Adam and Eve, a shepherd, murdered by his brother Cain.",
+      "properties": {
+        "father": "Adam",
+        "mother": "Eve",
+        "occupation": "Keeper of sheep",
+        "significance": "His offering was accepted by God, leading to his murder by his jealous brother Cain."
+      }
+    },
+    {
+      "name": "Cain Murders Abel",
+      "type": "Event",
+      "description": "Cain killing his brother Abel in a field due to jealousy over God's acceptance of Abel's offering.",
+      "properties": {
+        "event_type": "Murder",
+        "location": "Field",
+        "participants": ["Cain", "Abel"],
+        "theological_significance": "The first murder in human history, demonstrating the destructive power of sin and jealousy."
+      }
+    },
+    {
+      "name": "Cain's Curse and Mark",
+      "type": "Event",
+      "description": "God cursing Cain for murdering Abel and placing a mark on him for protection.",
+      "properties": {
+        "event_type": "Divine Judgment",
+        "participants": ["God", "Cain"],
+        "theological_significance": "God's judgment on murder, but also His mercy in protecting Cain's life."
+      }
+    },
+    {
+      "name": "Nod",
+      "type": "Place",
+      "description": "The land east of Eden where Cain settled after being cursed.",
+      "properties": {
+        "place_type": "Land",
+        "region": "East of Eden",
+        "significance": "The land where Cain settled after his banishment from God's presence."
+      }
+    },
+    {
+      "name": "Enoch (son of Cain)",
+      "type": "Person",
+      "description": "Son of Cain, after whom Cain named a city.",
+      "properties": {
+        "father": "Cain",
+        "children": ["Irad"],
+        "significance": "The first city builder mentioned in the Bible, named a city after his son."
+      }
+    },
+    {
+      "name": "Irad",
+      "type": "Person",
+      "description": "Son of Enoch (son of Cain).",
+      "properties": {
+        "father": "Enoch",
+        "children": ["Mehujael"]
+      }
+    },
+    {
+      "name": "Mehujael",
+      "type": "Person",
+      "description": "Son of Irad.",
+      "properties": {
+        "father": "Irad",
+        "children": ["Methushael"]
+      }
+    },
+    {
+      "name": "Methushael",
+      "type": "Person",
+      "description": "Son of Mehujael.",
+      "properties": {
+        "father": "Mehujael",
+        "children": ["Lamech"]
+      }
+    },
+    {
+      "name": "Lamech (descendant of Cain)",
+      "type": "Person",
+      "description": "A descendant of Cain, known for taking two wives and boasting of vengeance.",
+      "properties": {
+        "father": "Methushael",
+        "spouse": "Adah, Zillah",
+        "children": ["Jabal", "Jubal", "Tubal-cain", "Naamah"],
+        "significance": "Known for his polygamy and a violent boast, indicating the increasing wickedness of humanity."
+      }
+    },
+    {
+      "name": "Adah",
+      "type": "Person",
+      "description": "One of Lamech's wives.",
+      "properties": {
+        "spouse": "Lamech",
+        "children": ["Jabal", "Jubal"]
+      }
+    },
+    {
+      "name": "Zillah",
+      "type": "Person",
+      "description": "One of Lamech's wives.",
+      "properties": {
+        "spouse": "Lamech",
+        "children": ["Tubal-cain", "Naamah"]
+      }
+    },
+    {
+      "name": "Jabal",
+      "type": "Person",
+      "description": "Son of Lamech and Adah, ancestor of those who dwell in tents and have livestock.",
+      "properties": {
+        "father": "Lamech",
+        "mother": "Adah",
+        "occupation": "Herder",
+        "significance": "The father of those who dwell in tents and have livestock."
+      }
+    },
+    {
+      "name": "Jubal",
+      "type": "Person",
+      "description": "Son of Lamech and Adah, ancestor of musicians.",
+      "properties": {
+        "father": "Lamech",
+        "mother": "Adah",
+        "occupation": "Musician",
+        "significance": "The father of all those who play the lyre and pipe."
+      }
+    },
+    {
+      "name": "Tubal-cain",
+      "type": "Person",
+      "description": "Son of Lamech and Zillah, a forger of bronze and iron instruments.",
+      "properties": {
+        "father": "Lamech",
+        "mother": "Zillah",
+        "occupation": "Blacksmith",
+        "significance": "The forger of all instruments of bronze and iron."
+      }
+    },
+    {
+      "name": "Naamah",
+      "type": "Person",
+      "description": "Daughter of Lamech and Zillah, sister of Tubal-cain.",
+      "properties": {
+        "father": "Lamech",
+        "mother": "Zillah",
+        "significance": "Mentioned as the sister of Tubal-cain."
+      }
+    },
+    {
+      "name": "Seth",
+      "type": "Person",
+      "description": "The third son of Adam and Eve, born after Abel's death.",
+      "properties": {
+        "father": "Adam",
+        "mother": "Eve",
+        "children": ["Enosh"],
+        "age_at_death": 912,
+        "significance": "Appointed by God as another offspring instead of Abel, through whom the line of humanity calling on the Lord continued."
+      }
+    },
+    {
+      "name": "Enosh (son of Seth)",
+      "type": "Person",
+      "description": "Son of Seth, during whose time people began to call upon the name of the Lord.",
+      "properties": {
+        "father": "Seth",
+        "children": ["Kenan"],
+        "age_at_death": 905,
+        "significance": "During his time, people began to call upon the name of the Lord."
+      }
+    },
+    {
+      "name": "Beginning to Call on the Lord",
+      "type": "Event",
+      "description": "During the time of Enosh, people began to call upon the name of the Lord.",
+      "properties": {
+        "event_type": "Religious Practice",
+        "participants": ["People", "Enosh"],
+        "theological_significance": "Marks an early period of communal worship and recognition of God."
+      }
+    },
+    {
+      "name": "Kenan",
+      "type": "Person",
+      "description": "Son of Enosh.",
+      "properties": {
+        "father": "Enosh",
+        "children": ["Mahalalel"],
+        "age_at_death": 910
+      }
+    },
+    {
+      "name": "Mahalalel",
+      "type": "Person",
+      "description": "Son of Kenan.",
+      "properties": {
+        "father": "Kenan",
+        "children": ["Jared"],
+        "age_at_death": 895
+      }
+    },
+    {
+      "name": "Jared",
+      "type": "Person",
+      "description": "Son of Mahalalel.",
+      "properties": {
+        "father": "Mahalalel",
+        "children": ["Enoch"],
+        "age_at_death": 962
+      }
+    },
+    {
+      "name": "Enoch (son of Jared)",
+      "type": "Person",
+      "description": "Son of Jared, who walked with God and was taken by God without dying.",
+      "properties": {
+        "father": "Jared",
+        "children": ["Methuselah"],
+        "age_at_death": 365,
+        "significance": "Walked with God and was taken by God, not experiencing death."
+      }
+    },
+    {
+      "name": "Enoch Taken by God",
+      "type": "Event",
+      "description": "Enoch walking with God and being taken by Him, not experiencing death.",
+      "properties": {
+        "event_type": "Divine Act",
+        "participants": ["Enoch", "God"],
+        "theological_significance": "A unique event demonstrating God's favor and the possibility of escaping death through close communion with Him."
+      }
+    },
+    {
+      "name": "Methuselah",
+      "type": "Person",
+      "description": "Son of Enoch, known for being the longest-lived person in the Bible.",
+      "properties": {
+        "father": "Enoch",
+        "children": ["Lamech"],
+        "age_at_death": 969,
+        "significance": "The oldest person recorded in the Bible."
+      }
+    },
+    {
+      "name": "Lamech (son of Methuselah)",
+      "type": "Person",
+      "description": "Son of Methuselah, father of Noah.",
+      "properties": {
+        "father": "Methuselah",
+        "children": ["Noah"],
+        "age_at_death": 777,
+        "significance": "Named his son Noah, prophesying relief from the cursed ground."
+      }
+    },
+    {
+      "name": "Noah",
+      "type": "Person",
+      "description": "Son of Lamech, a righteous man chosen by God to build the ark and survive the Great Flood.",
+      "properties": {
+        "father": "Lamech",
+        "children": ["Shem", "Ham", "Japheth"],
+        "age_at_death": 950,
+        "significance": "A righteous man who found favor with God and was chosen to preserve humanity and animal life during the Great Flood."
+      }
+    },
+    {
+      "name": "Shem",
+      "type": "Person",
+      "description": "One of Noah's three sons, an ancestor of many nations, including the Hebrews.",
+      "properties": {
+        "father": "Noah",
+        "significance": "One of the three sons of Noah, through whom the lineage of Abraham and Israel would later come. Blessed by Noah."
+      }
+    },
+    {
+      "name": "Ham",
+      "type": "Person",
+      "description": "One of Noah's three sons, father of Canaan, whose descendants settled in Africa and parts of the Middle East.",
+      "properties": {
+        "father": "Noah",
+        "children": ["Cush", "Egypt", "Put", "Canaan"],
+        "significance": "One of the three sons of Noah, whose son Canaan was cursed by Noah."
+      }
+    },
+    {
+      "name": "Japheth",
+      "type": "Person",
+      "description": "One of Noah's three sons, an ancestor of many nations, often associated with European peoples.",
+      "properties": {
+        "father": "Noah",
+        "children": ["Gomer", "Magog", "Madai", "Javan", "Tubal", "Meshech", "Tiras"],
+        "significance": "One of the three sons of Noah, blessed by Noah to be enlarged and dwell in the tents of Shem."
+      }
+    },
+    {
+      "name": "Sons of God",
+      "type": "Group",
+      "description": "A group mentioned in Genesis 6, who took daughters of man as wives.",
+      "properties": {
+        "group_type": "Supernatural Beings",
+        "description": "A mysterious group, possibly divine beings or a righteous lineage, who intermarried with human women."
+      }
+    },
+    {
+      "name": "Daughters of Man",
+      "type": "Group",
+      "description": "Human women, who were taken as wives by the sons of God.",
+      "properties": {
+        "group_type": "Humanity",
+        "description": "The female population of humanity before the flood."
+      }
+    },
+    {
+      "name": "Nephilim",
+      "type": "Group",
+      "description": "Mighty men of old, men of renown, born from the union of the sons of God and daughters of man.",
+      "properties": {
+        "group_type": "Giants",
+        "description": "A race of powerful individuals, possibly giants, who existed before and after the flood."
+      }
+    },
+    {
+      "name": "The Great Flood",
+      "type": "Event",
+      "description": "God sending a global flood to destroy all living things on earth due to humanity's wickedness, saving only Noah and his family in the ark.",
+      "properties": {
+        "event_type": "Divine Judgment",
+        "location": "Earth",
+        "participants": ["God", "Noah", "Noah's family", "Animals"],
+        "theological_significance": "God's judgment on widespread human wickedness, demonstrating His justice and His commitment to preserving a righteous remnant."
+      }
+    },
+    {
+      "name": "Ark",
+      "type": "Place",
+      "description": "A large vessel built by Noah at God's command to save his family and animals from the Great Flood.",
+      "properties": {
+        "place_type": "Structure",
+        "significance": "The vessel that preserved life during the Great Flood."
+      }
+    },
+    {
+      "name": "Noah's wife",
+      "type": "Person",
+      "description": "The wife of Noah, who entered the ark with him and their sons.",
+      "properties": {
+        "spouse": "Noah",
+        "children": ["Shem", "Ham", "Japheth"],
+        "significance": "Survived the Great Flood with her family in the ark."
+      }
+    },
+    {
+      "name": "Sons' wives of Noah",
+      "type": "Group",
+      "description": "The three wives of Noah's sons (Shem, Ham, and Japheth) who entered the ark.",
+      "properties": {
+        "group_type": "Family",
+        "description": "The wives of Noah's sons, who survived the Great Flood in the ark."
+      }
+    },
+    {
+      "name": "Mountains of Ararat",
+      "type": "Place",
+      "description": "The mountains where Noah's ark came to rest after the Great Flood.",
+      "properties": {
+        "place_type": "Mountain Range",
+        "significance": "The location where Noah's ark landed after the Great Flood."
+      }
+    },
+    {
+      "name": "Altar (Noah's)",
+      "type": "Place",
+      "description": "An altar built by Noah after leaving the ark to offer burnt offerings to the Lord.",
+      "properties": {
+        "place_type": "Structure",
+        "significance": "The first altar built after the flood, signifying worship and thanksgiving to God."
+      }
+    },
+    {
+      "name": "Noah's Covenant",
+      "type": "Event",
+      "description": "God establishing a covenant with Noah and all living creatures, promising never again to destroy the earth by flood.",
+      "properties": {
+        "event_type": "Covenant",
+        "participants": ["God", "Noah", "All living creatures"],
+        "theological_significance": "A universal covenant of preservation, marked by the rainbow as a sign of God's faithfulness."
+      }
+    },
+    {
+      "name": "Rainbow",
+      "type": "Place",
+      "description": "A sign of God's covenant with Noah, promising never to destroy the earth by flood again.",
+      "properties": {
+        "place_type": "Celestial Phenomenon",
+        "significance": "The sign of God's everlasting covenant with all flesh, promising no more global floods."
+      }
+    },
+    {
+      "name": "Canaan",
+      "type": "Person",
+      "description": "Son of Ham, cursed by Noah.",
+      "properties": {
+        "father": "Ham",
+        "significance": "Cursed by Noah to be a servant to his brothers, becoming the progenitor of the Canaanite peoples."
+      }
+    },
+    {
+      "name": "Noah's Curse on Canaan",
+      "type": "Event",
+      "description": "Noah cursing Canaan to be a servant to his brothers after Ham dishonored him.",
+      "properties": {
+        "event_type": "Curse",
+        "participants": ["Noah", "Ham", "Canaan"],
+        "theological_significance": "A consequence of Ham's disrespect, impacting the future of Canaan's descendants."
+      }
+    },
+    {
+      "name": "Noah's Blessing on Shem and Japheth",
+      "type": "Event",
+      "description": "Noah blessing Shem and Japheth for honoring him.",
+      "properties": {
+        "event_type": "Blessing",
+        "participants": ["Noah", "Shem", "Japheth"],
+        "theological_significance": "A prophetic blessing that foretold the future roles and relationships of their descendants."
+      }
+    },
+    {
+      "name": "Gomer",
+      "type": "Person",
+      "description": "Son of Japheth.",
+      "properties": {
+        "father": "Japheth",
+        "children": ["Ashkenaz", "Riphath", "Togarmah"]
+      }
+    },
+    {
+      "name": "Magog",
+      "type": "Person",
+      "description": "Son of Japheth.",
+      "properties": {
+        "father": "Japheth"
+      }
+    },
+    {
+      "name": "Madai",
+      "type": "Person",
+      "description": "Son of Japheth.",
+      "properties": {
+        "father": "Japheth"
+      }
+    },
+    {
+      "name": "Javan",
+      "type": "Person",
+      "description": "Son of Japheth.",
+      "properties": {
+        "father": "Japheth",
+        "children": ["Elishah", "Tarshish", "Kittim", "Dodanim"]
+      }
+    },
+    {
+      "name": "Tubal",
+      "type": "Person",
+      "description": "Son of Japheth.",
+      "properties": {
+        "father": "Japheth"
+      }
+    },
+    {
+      "name": "Meshech",
+      "type": "Person",
+      "description": "Son of Japheth.",
+      "properties": {
+        "father": "Japheth"
+      }
+    },
+    {
+      "name": "Tiras",
+      "type": "Person",
+      "description": "Son of Japheth.",
+      "properties": {
+        "father": "Japheth"
+      }
+    },
+    {
+      "name": "Ashkenaz",
+      "type": "Person",
+      "description": "Son of Gomer.",
+      "properties": {
+        "father": "Gomer"
+      }
+    },
+    {
+      "name": "Riphath",
+      "type": "Person",
+      "description": "Son of Gomer.",
+      "properties": {
+        "father": "Gomer"
+      }
+    },
+    {
+      "name": "Togarmah",
+      "type": "Person",
+      "description": "Son of Gomer.",
+      "properties": {
+        "father": "Gomer"
+      }
+    },
+    {
+      "name": "Elishah",
+      "type": "Person",
+      "description": "Son of Javan.",
+      "properties": {
+        "father": "Javan"
+      }
+    },
+    {
+      "name": "Tarshish",
+      "type": "Person",
+      "description": "Son of Javan.",
+      "properties": {
+        "father": "Javan"
+      }
+    },
+    {
+      "name": "Kittim",
+      "type": "Person",
+      "description": "Son of Javan.",
+      "properties": {
+        "father": "Javan"
+      }
+    },
+    {
+      "name": "Dodanim",
+      "type": "Person",
+      "description": "Son of Javan.",
+      "properties": {
+        "father": "Javan"
+      }
+    },
+    {
+      "name": "Coastland peoples",
+      "type": "Group",
+      "description": "Descendants of Japheth who spread into various lands.",
+      "properties": {
+        "group_type": "Nations",
+        "founder": "Japheth",
+        "description": "The peoples who spread into the coastlands, originating from Japheth's sons."
+      }
+    },
+    {
+      "name": "Cush (person)",
+      "type": "Person",
+      "description": "Son of Ham.",
+      "properties": {
+        "father": "Ham",
+        "children": ["Seba", "Havilah", "Sabtah", "Raamah", "Sabteca", "Nimrod"]
+      }
+    },
+    {
+      "name": "Egypt (person)",
+      "type": "Person",
+      "description": "Son of Ham.",
+      "properties": {
+        "father": "Ham",
+        "children": ["Ludim", "Anamim", "Lehabim", "Naphtuhim", "Pathrusim", "Casluhim", "Caphtorim"]
+      }
+    },
+    {
+      "name": "Put",
+      "type": "Person",
+      "description": "Son of Ham.",
+      "properties": {
+        "father": "Ham"
+      }
+    },
+    {
+      "name": "Seba",
+      "type": "Person",
+      "description": "Son of Cush.",
+      "properties": {
+        "father": "Cush"
+      }
+    },
+    {
+      "name": "Havilah (person)",
+      "type": "Person",
+      "description": "Son of Cush.",
+      "properties": {
+        "father": "Cush"
+      }
+    },
+    {
+      "name": "Sabtah",
+      "type": "Person",
+      "description": "Son of Cush.",
+      "properties": {
+        "father": "Cush"
+      }
+    },
+    {
+      "name": "Raamah",
+      "type": "Person",
+      "description": "Son of Cush.",
+      "properties": {
+        "father": "Cush",
+        "children": ["Sheba", "Dedan"]
+      }
+    },
+    {
+      "name": "Sabteca",
+      "type": "Person",
+      "description": "Son of Cush.",
+      "properties": {
+        "father": "Cush"
+      }
+    },
+    {
+      "name": "Sheba",
+      "type": "Person",
+      "description": "Son of Raamah.",
+      "properties": {
+        "father": "Raamah"
+      }
+    },
+    {
+      "name": "Dedan",
+      "type": "Person",
+      "description": "Son of Raamah.",
+      "properties": {
+        "father": "Raamah"
+      }
+    },
+    {
+      "name": "Nimrod",
+      "type": "Person",
+      "description": "Son of Cush, a mighty hunter and the first mighty man on earth, founder of a kingdom.",
+      "properties": {
+        "father": "Cush",
+        "role": "King",
+        "occupation": "Mighty hunter",
+        "significance": "The first mighty man on earth, a powerful hunter and founder of early cities and kingdoms like Babel and Nineveh."
+      }
+    },
+    {
+      "name": "Babel",
+      "type": "Place",
+      "description": "A city in the land of Shinar, part of Nimrod's kingdom.",
+      "properties": {
+        "place_type": "City",
+        "region": "Shinar",
+        "significance": "One of the cities in Nimrod's kingdom, later known for the Tower of Babel."
+      }
+    },
+    {
+      "name": "Erech",
+      "type": "Place",
+      "description": "A city in the land of Shinar, part of Nimrod's kingdom.",
+      "properties": {
+        "place_type": "City",
+        "region": "Shinar",
+        "significance": "One of the cities in Nimrod's kingdom."
+      }
+    },
+    {
+      "name": "Accad",
+      "type": "Place",
+      "description": "A city in the land of Shinar, part of Nimrod's kingdom.",
+      "properties": {
+        "place_type": "City",
+        "region": "Shinar",
+        "significance": "One of the cities in Nimrod's kingdom."
+      }
+    },
+    {
+      "name": "Calneh",
+      "type": "Place",
+      "description": "A city in the land of Shinar, part of Nimrod's kingdom.",
+      "properties": {
+        "place_type": "City",
+        "region": "Shinar",
+        "significance": "One of the cities in Nimrod's kingdom."
+      }
+    },
+    {
+      "name": "Shinar",
+      "type": "Place",
+      "description": "A land where Nimrod's kingdom began, containing cities like Babel, Erech, Accad, and Calneh.",
+      "properties": {
+        "place_type": "Land",
+        "significance": "The region where Nimrod established the beginning of his kingdom."
+      }
+    },
+    {
+      "name": "Nineveh",
+      "type": "Place",
+      "description": "A city built by Nimrod in Assyria.",
+      "properties": {
+        "place_type": "City",
+        "region": "Assyria",
+        "significance": "A great city built by Nimrod, later the capital of Assyria."
+      }
+    },
+    {
+      "name": "Rehoboth-Ir",
+      "type": "Place",
+      "description": "A city built by Nimrod in Assyria.",
+      "properties": {
+        "place_type": "City",
+        "region": "Assyria",
+        "significance": "A city built by Nimrod."
+      }
+    },
+    {
+      "name": "Calah",
+      "type": "Place",
+      "description": "A city built by Nimrod in Assyria.",
+      "properties": {
+        "place_type": "City",
+        "region": "Assyria",
+        "significance": "A city built by Nimrod."
+      }
+    },
+    {
+      "name": "Resen",
+      "type": "Place",
+      "description": "A great city between Nineveh and Calah, built by Nimrod.",
+      "properties": {
+        "place_type": "City",
+        "region": "Assyria",
+        "significance": "A great city built by Nimrod, located between Nineveh and Calah."
+      }
+    },
+    {
+      "name": "Ludim",
+      "type": "Person",
+      "description": "Son of Egypt.",
+      "properties": {
+        "father": "Egypt"
+      }
+    },
+    {
+      "name": "Anamim",
+      "type": "Person",
+      "description": "Son of Egypt.",
+      "properties": {
+        "father": "Egypt"
+      }
+    },
+    {
+      "name": "Lehabim",
+      "type": "Person",
+      "description": "Son of Egypt.",
+      "properties": {
+        "father": "Egypt"
+      }
+    },
+    {
+      "name": "Naphtuhim",
+      "type": "Person",
+      "description": "Son of Egypt.",
+      "properties": {
+        "father": "Egypt"
+      }
+    },
+    {
+      "name": "Pathrusim",
+      "type": "Person",
+      "description": "Son of Egypt.",
+      "properties": {
+        "father": "Egypt"
+      }
+    },
+    {
+      "name": "Casluhim",
+      "type": "Person",
+      "description": "Son of Egypt, from whom the Philistines came.",
+      "properties": {
+        "father": "Egypt"
+      }
+    },
+    {
+      "name": "Philistines",
+      "type": "Group",
+      "description": "A people descended from Casluhim, son of Egypt.",
+      "properties": {
+        "group_type": "Nation",
+        "founder": "Casluhim",
+        "description": "A people group who originated from Casluhim, a descendant of Ham."
+      }
+    },
+    {
+      "name": "Caphtorim",
+      "type": "Person",
+      "description": "Son of Egypt.",
+      "properties": {
+        "father": "Egypt"
+      }
+    },
+    {
+      "name": "Sidon",
+      "type": "Person",
+      "description": "Firstborn son of Canaan.",
+      "properties": {
+        "father": "Canaan"
+      }
+    },
+    {
+      "name": "Heth",
+      "type": "Person",
+      "description": "Son of Canaan.",
+      "properties": {
+        "father": "Canaan"
+      }
+    },
+    {
+      "name": "Jebusites",
+      "type": "Group",
+      "description": "A people group descended from Canaan.",
+      "properties": {
+        "group_type": "Nation",
+        "founder": "Canaan",
+        "region": "Canaan",
+        "description": "One of the Canaanite tribes."
+      }
+    },
+    {
+      "name": "Amorites",
+      "type": "Group",
+      "description": "A people group descended from Canaan.",
+      "properties": {
+        "group_type": "Nation",
+        "founder": "Canaan",
+        "region": "Canaan",
+        "description": "One of the Canaanite tribes."
+      }
+    },
+    {
+      "name": "Girgashites",
+      "type": "Group",
+      "description": "A people group descended from Canaan.",
+      "properties": {
+        "group_type": "Nation",
+        "founder": "Canaan",
+        "region": "Canaan",
+        "description": "One of the Canaanite tribes."
+      }
+    },
+    {
+      "name": "Hivites",
+      "type": "Group",
+      "description": "A people group descended from Canaan.",
+      "properties": {
+        "group_type": "Nation",
+        "founder": "Canaan",
+        "region": "Canaan",
+        "description": "One of the Canaanite tribes."
+      }
+    },
+    {
+      "name": "Arkites",
+      "type": "Group",
+      "description": "A people group descended from Canaan.",
+      "properties": {
+        "group_type": "Nation",
+        "founder": "Canaan",
+        "region": "Canaan",
+        "description": "One of the Canaanite tribes."
+      }
+    },
+    {
+      "name": "Sinites",
+      "type": "Group",
+      "description": "A people group descended from Canaan.",
+      "properties": {
+        "group_type": "Nation",
+        "founder": "Canaan",
+        "region": "Canaan",
+        "description": "One of the Canaanite tribes."
+      }
+    },
+    {
+      "name": "Arvadites",
+      "type": "Group",
+      "description": "A people group descended from Canaan.",
+      "properties": {
+        "group_type": "Nation",
+        "founder": "Canaan",
+        "region": "Canaan",
+        "description": "One of the Canaanite tribes."
+      }
+    },
+    {
+      "name": "Zemarites",
+      "type": "Group",
+      "description": "A people group descended from Canaan.",
+      "properties": {
+        "group_type": "Nation",
+        "founder": "Canaan",
+        "region": "Canaan",
+        "description": "One of the Canaanite tribes."
+      }
+    },
+    {
+      "name": "Hamathites",
+      "type": "Group",
+      "description": "A people group descended from Canaan.",
+      "properties": {
+        "group_type": "Nation",
+        "founder": "Canaan",
+        "region": "Canaan",
+        "description": "One of the Canaanite tribes."
+      }
+    },
+    {
+      "name": "Canaanites",
+      "type": "Group",
+      "description": "The collective peoples descended from Canaan, son of Ham.",
+      "properties": {
+        "group_type": "Nation",
+        "founder": "Canaan",
+        "region": "Canaan",
+        "description": "The collective term for the various tribes descended from Canaan, inhabiting the land of Canaan."
+      }
+    },
+    {
+      "name": "Gerar",
+      "type": "Place",
+      "description": "A city marking the extent of Canaanite territory.",
+      "properties": {
+        "place_type": "City",
+        "region": "Canaan",
+        "significance": "A city defining the boundary of Canaanite territory."
+      }
+    },
+    {
+      "name": "Gaza",
+      "type": "Place",
+      "description": "A city marking the extent of Canaanite territory.",
+      "properties": {
+        "place_type": "City",
+        "region": "Canaan",
+        "significance": "A city defining the boundary of Canaanite territory."
+      }
+    },
+    {
+      "name": "Sodom",
+      "type": "Place",
+      "description": "A city marking the extent of Canaanite territory.",
+      "properties": {
+        "place_type": "City",
+        "region": "Canaan",
+        "significance": "A city defining the boundary of Canaanite territory, later destroyed by God."
+      }
+    },
+    {
+      "name": "Gomorrah",
+      "type": "Place",
+      "description": "A city marking the extent of Canaanite territory.",
+      "properties": {
+        "place_type": "City",
+        "region": "Canaan",
+        "significance": "A city defining the boundary of Canaanite territory, later destroyed by God."
+      }
+    },
+    {
+      "name": "Admah",
+      "type": "Place",
+      "description": "A city marking the extent of Canaanite territory.",
+      "properties": {
+        "place_type": "City",
+        "region": "Canaan",
+        "significance": "A city defining the boundary of Canaanite territory."
+      }
+    },
+    {
+      "name": "Zeboiim",
+      "type": "Place",
+      "description": "A city marking the extent of Canaanite territory.",
+      "properties": {
+        "place_type": "City",
+        "region": "Canaan",
+        "significance": "A city defining the boundary of Canaanite territory."
+      }
+    },
+    {
+      "name": "Lasha",
+      "type": "Place",
+      "description": "A city marking the extent of Canaanite territory.",
+      "properties": {
+        "place_type": "City",
+        "region": "Canaan",
+        "significance": "A city defining the boundary of Canaanite territory."
+      }
+    },
+    {
+      "name": "Eber",
+      "type": "Person",
+      "description": "Ancestor of Shem's children, from whom the Hebrews are thought to derive their name.",
+      "properties": {
+        "significance": "The father of all the children of Eber, an ancestor in the line of Shem."
+      }
+    }
+  ]
+}
