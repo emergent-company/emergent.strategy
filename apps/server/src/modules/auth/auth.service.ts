@@ -32,6 +32,9 @@ export const MOCK_SCOPES = {
   chunksRead: 'chunks:read',
   chatUse: 'chat:use',
   chatAdmin: 'chat:admin',
+  // Graph scopes
+  graphRead: 'graph:read',
+  graphWrite: 'graph:write',
   // Graph search prototype scopes
   graphSearchRead: 'graph:search:read',
   graphSearchDebug: 'graph:search:debug',
@@ -49,6 +52,9 @@ export const MOCK_SCOPES = {
   // User activity scopes
   userActivityRead: 'user-activity:read',
   userActivityWrite: 'user-activity:write',
+  // Task scopes
+  tasksRead: 'tasks:read',
+  tasksWrite: 'tasks:write',
 };
 
 @Injectable()

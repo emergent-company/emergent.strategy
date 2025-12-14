@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AppConfigService } from '../../common/config/config.service';
 import { ChatVertexAI } from '@langchain/google-vertexai';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ProjectsService } from '../projects/projects.service';
 
 // NOTE: We reuse embeddings client initialization trick for simplicity; for a full model we'd use a proper text generation client.
@@ -372,8 +373,11 @@ Your markdown formatted answer:`;
         );
       }
       // Use Vertex AI with gemini-2.5-pro model
+      // NOTE: We explicitly set apiKey to undefined to prevent LangChain from
+      // using GOOGLE_API_KEY env var. Vertex AI requires OAuth (ADC), not API keys.
       const model = new ChatVertexAI({
         model: this.config.vertexAiModel,
+        apiKey: '', // Empty string bypasses GOOGLE_API_KEY env var, forces ADC auth
         authOptions: {
           projectId: this.config.vertexAiProjectId,
         },
