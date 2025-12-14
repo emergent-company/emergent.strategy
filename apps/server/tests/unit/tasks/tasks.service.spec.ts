@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TasksService } from '../../../src/modules/tasks/tasks.service';
 import { Task } from '../../../src/entities/task.entity';
@@ -44,28 +45,33 @@ describe('TasksService', () => {
     resolvedBy: 'user-123',
   };
 
+  // Helper to create a complete mock QueryBuilder
+  const createMockQueryBuilder = (overrides: Record<string, unknown> = {}) => ({
+    where: vi.fn().mockReturnThis(),
+    andWhere: vi.fn().mockReturnThis(),
+    orderBy: vi.fn().mockReturnThis(),
+    skip: vi.fn().mockReturnThis(),
+    take: vi.fn().mockReturnThis(),
+    getCount: vi.fn().mockResolvedValue(0),
+    getMany: vi.fn().mockResolvedValue([]),
+    select: vi.fn().mockReturnThis(),
+    getRawOne: vi.fn().mockResolvedValue({
+      pending: '0',
+      pending_other: '0',
+      accepted: '0',
+      rejected: '0',
+      cancelled: '0',
+    }),
+    ...overrides,
+  });
+
   const mockTaskRepo = {
     create: vi.fn((data) => ({ id: 'new-task-id', ...data })),
     save: vi.fn((entity) => Promise.resolve(entity)),
     findOne: vi.fn(),
     find: vi.fn(),
     count: vi.fn(),
-    createQueryBuilder: vi.fn(() => ({
-      where: vi.fn().mockReturnThis(),
-      andWhere: vi.fn().mockReturnThis(),
-      orderBy: vi.fn().mockReturnThis(),
-      skip: vi.fn().mockReturnThis(),
-      take: vi.fn().mockReturnThis(),
-      getCount: vi.fn().mockResolvedValue(0),
-      getMany: vi.fn().mockResolvedValue([]),
-      select: vi.fn().mockReturnThis(),
-      getRawOne: vi.fn().mockResolvedValue({
-        pending: '0',
-        accepted: '0',
-        rejected: '0',
-        cancelled: '0',
-      }),
-    })),
+    createQueryBuilder: vi.fn(() => createMockQueryBuilder()),
   };
 
   const mockUserProfileRepo = {
@@ -80,6 +86,10 @@ describe('TasksService', () => {
     mergeObjects: vi.fn(),
   };
 
+  const mockDataSource = {
+    query: vi.fn().mockResolvedValue([]),
+  };
+
   beforeEach(async () => {
     // Clear mock call history but preserve implementations
     vi.resetAllMocks();
@@ -92,6 +102,7 @@ describe('TasksService', () => {
     mockTaskRepo.save.mockImplementation((entity) => Promise.resolve(entity));
     mockUserProfileRepo.find.mockResolvedValue([]);
     mockUserEmailRepo.find.mockResolvedValue([]);
+    mockDataSource.query.mockResolvedValue([]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -112,14 +123,19 @@ describe('TasksService', () => {
           provide: ObjectMergeService,
           useValue: mockObjectMergeService,
         },
+        {
+          provide: DataSource,
+          useValue: mockDataSource,
+        },
       ],
     }).compile();
 
     service = module.get<TasksService>(TasksService);
 
-    // WORKAROUND: NestJS DI doesn't properly inject ObjectMergeService in test context
-    // Manually assign the mock to ensure it's available
+    // WORKAROUND: NestJS DI doesn't properly inject some services in test context
+    // Manually assign the mocks to ensure they're available
     (service as any).objectMergeService = mockObjectMergeService;
+    (service as any).dataSource = mockDataSource;
   });
 
   describe('create', () => {
@@ -354,16 +370,17 @@ describe('TasksService', () => {
         { ...mockPendingTask, id: 'task-2' },
       ] as Task[];
 
-      const mockQb = {
-        where: vi.fn().mockReturnThis(),
-        andWhere: vi.fn().mockReturnThis(),
-        orderBy: vi.fn().mockReturnThis(),
-        skip: vi.fn().mockReturnThis(),
-        take: vi.fn().mockReturnThis(),
+      const mockQb = createMockQueryBuilder({
         getCount: vi.fn().mockResolvedValue(2),
         getMany: vi.fn().mockResolvedValue(tasks),
-      };
+      });
       mockTaskRepo.createQueryBuilder.mockReturnValue(mockQb);
+
+      // Mock dataSource.query to return that all referenced objects exist
+      mockDataSource.query.mockResolvedValue([
+        { id: 'source-obj-1' },
+        { id: 'target-obj-1' },
+      ]);
 
       const result = await service.getForProject('project-1', {
         page: 1,
@@ -377,16 +394,9 @@ describe('TasksService', () => {
     });
 
     it('should filter by status', async () => {
-      const mockQb = {
-        where: vi.fn().mockReturnThis(),
-        andWhere: vi.fn().mockReturnThis(),
-        orderBy: vi.fn().mockReturnThis(),
-        skip: vi.fn().mockReturnThis(),
-        take: vi.fn().mockReturnThis(),
-        getCount: vi.fn().mockResolvedValue(0),
-        getMany: vi.fn().mockResolvedValue([]),
-      };
+      const mockQb = createMockQueryBuilder();
       mockTaskRepo.createQueryBuilder.mockReturnValue(mockQb);
+      mockDataSource.query.mockResolvedValue([]);
 
       await service.getForProject('project-1', { status: TaskStatus.PENDING });
 
@@ -398,17 +408,17 @@ describe('TasksService', () => {
 
   describe('getCounts', () => {
     it('should return task counts by status', async () => {
-      const mockQb = {
-        select: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
+      const mockQb = createMockQueryBuilder({
         getRawOne: vi.fn().mockResolvedValue({
-          pending: '5',
+          pending_other: '5',
           accepted: '10',
           rejected: '2',
           cancelled: '1',
         }),
-      };
+      });
       mockTaskRepo.createQueryBuilder.mockReturnValue(mockQb);
+      // Mock find for pending merge_suggestion tasks
+      mockTaskRepo.find.mockResolvedValue([]);
 
       const result = await service.getCounts('project-1');
 
@@ -421,11 +431,9 @@ describe('TasksService', () => {
 
   describe('countPending', () => {
     it('should count pending tasks for a project', async () => {
-      const mockQb = {
-        where: vi.fn().mockReturnThis(),
-        andWhere: vi.fn().mockReturnThis(),
+      const mockQb = createMockQueryBuilder({
         getCount: vi.fn().mockResolvedValue(7),
-      };
+      });
       mockTaskRepo.createQueryBuilder.mockReturnValue(mockQb);
 
       const result = await service.countPending('project-1');
@@ -434,11 +442,9 @@ describe('TasksService', () => {
     });
 
     it('should filter by type when provided', async () => {
-      const mockQb = {
-        where: vi.fn().mockReturnThis(),
-        andWhere: vi.fn().mockReturnThis(),
+      const mockQb = createMockQueryBuilder({
         getCount: vi.fn().mockResolvedValue(3),
-      };
+      });
       mockTaskRepo.createQueryBuilder.mockReturnValue(mockQb);
 
       await service.countPending('project-1', 'merge_suggestion');
@@ -450,14 +456,131 @@ describe('TasksService', () => {
   });
 
   describe('countPendingByType', () => {
-    it('should count pending tasks by type across all projects', async () => {
+    it('should use simple count for non-merge_suggestion types', async () => {
       mockTaskRepo.count.mockResolvedValue(15);
 
-      const result = await service.countPendingByType('merge_suggestion');
+      const result = await service.countPendingByType('other_type');
 
       expect(result).toBe(15);
       expect(mockTaskRepo.count).toHaveBeenCalledWith({
-        where: { type: 'merge_suggestion', status: 'pending' },
+        where: { type: 'other_type', status: 'pending' },
+      });
+    });
+
+    describe('for merge_suggestion type', () => {
+      it('should return 0 when no pending tasks exist', async () => {
+        mockTaskRepo.find.mockResolvedValue([]);
+
+        const result = await service.countPendingByType('merge_suggestion');
+
+        expect(result).toBe(0);
+        expect(mockTaskRepo.find).toHaveBeenCalledWith({
+          where: { type: 'merge_suggestion', status: 'pending' },
+        });
+      });
+
+      it('should count only tasks where both source and target objects exist', async () => {
+        const tasksWithObjects = [
+          {
+            id: 'task-1',
+            type: 'merge_suggestion',
+            status: 'pending',
+            metadata: { sourceId: 'obj-1', targetId: 'obj-2' },
+          },
+          {
+            id: 'task-2',
+            type: 'merge_suggestion',
+            status: 'pending',
+            metadata: { sourceId: 'obj-3', targetId: 'obj-4' },
+          },
+          {
+            id: 'task-3',
+            type: 'merge_suggestion',
+            status: 'pending',
+            metadata: { sourceId: 'obj-5', targetId: 'obj-6' },
+          },
+        ] as unknown as Task[];
+
+        mockTaskRepo.find.mockResolvedValue(tasksWithObjects);
+
+        // Only obj-1, obj-2, obj-3 exist (obj-4, obj-5, obj-6 are deleted)
+        mockDataSource.query.mockResolvedValue([
+          { id: 'obj-1' },
+          { id: 'obj-2' },
+          { id: 'obj-3' },
+        ]);
+
+        const result = await service.countPendingByType('merge_suggestion');
+
+        // task-1: both exist -> count
+        // task-2: source exists, target deleted -> don't count
+        // task-3: both deleted -> don't count
+        expect(result).toBe(1);
+      });
+
+      it('should count task when source is missing but target exists', async () => {
+        const tasks = [
+          {
+            id: 'task-1',
+            type: 'merge_suggestion',
+            status: 'pending',
+            metadata: { sourceId: 'deleted-obj', targetId: 'existing-obj' },
+          },
+        ] as unknown as Task[];
+
+        mockTaskRepo.find.mockResolvedValue(tasks);
+        mockDataSource.query.mockResolvedValue([{ id: 'existing-obj' }]);
+
+        const result = await service.countPendingByType('merge_suggestion');
+
+        expect(result).toBe(0); // Source doesn't exist, so not counted
+      });
+
+      it('should count task when target is missing but source exists', async () => {
+        const tasks = [
+          {
+            id: 'task-1',
+            type: 'merge_suggestion',
+            status: 'pending',
+            metadata: { sourceId: 'existing-obj', targetId: 'deleted-obj' },
+          },
+        ] as unknown as Task[];
+
+        mockTaskRepo.find.mockResolvedValue(tasks);
+        mockDataSource.query.mockResolvedValue([{ id: 'existing-obj' }]);
+
+        const result = await service.countPendingByType('merge_suggestion');
+
+        expect(result).toBe(0); // Target doesn't exist, so not counted
+      });
+
+      it('should handle tasks with missing metadata gracefully', async () => {
+        const tasks = [
+          {
+            id: 'task-1',
+            type: 'merge_suggestion',
+            status: 'pending',
+            metadata: {},
+          },
+          {
+            id: 'task-2',
+            type: 'merge_suggestion',
+            status: 'pending',
+            metadata: { sourceId: 'obj-1', targetId: 'obj-2' },
+          },
+        ] as unknown as Task[];
+
+        mockTaskRepo.find.mockResolvedValue(tasks);
+        mockDataSource.query.mockResolvedValue([
+          { id: 'obj-1' },
+          { id: 'obj-2' },
+        ]);
+
+        const result = await service.countPendingByType('merge_suggestion');
+
+        // task-1 has no metadata, sourceId and targetId are undefined -> treated as "exists" (fallback)
+        // task-2 has both objects existing
+        expect(result).toBe(2);
       });
     });
   });

@@ -68,6 +68,16 @@
     "workspace": {
       "type": "local",
       "command": ["npx", "tsx", "tools/workspace-mcp/src/index.ts"]
+    },
+    "api-client": {
+      "type": "local",
+      "command": ["npx", "tsx", "tools/api-client-mcp/src/index.ts"],
+      // NOTE: Using static tokens because Zitadel doesn't have password grant enabled.
+      // To use real user auth, enable password grant in Zitadel OAuth app settings.
+      // Static token users don't have org/project memberships - they see empty data.
+      "environment": {
+        "USE_STATIC_TOKEN": "true"
+      }
     }
     // ,
     // "nx-mcp": {
