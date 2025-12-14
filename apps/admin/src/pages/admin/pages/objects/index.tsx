@@ -834,6 +834,52 @@ export default function ObjectsPage() {
     }
   };
 
+  // Handle object updates from refinement chat
+  const handleObjectUpdated = useCallback(
+    async (objectId: string) => {
+      console.log('[handleObjectUpdated] Called with objectId:', objectId);
+      if (!config.activeProjectId) {
+        console.log('[handleObjectUpdated] No activeProjectId, returning');
+        return;
+      }
+
+      try {
+        // Fetch the updated object
+        console.log('[handleObjectUpdated] Fetching updated object...');
+        const response = await fetchJson<GraphObjectResponse>(
+          `${apiBase}/api/graph/objects/${objectId}`
+        );
+        const updatedObj = transformObject(response);
+        console.log(
+          '[handleObjectUpdated] Got updated object:',
+          updatedObj.name,
+          'properties:',
+          updatedObj.properties
+        );
+
+        // Update in the list
+        setObjects((prev) =>
+          prev.map((obj) => (obj.id === objectId ? updatedObj : obj))
+        );
+
+        // Update selected object if it's the same
+        console.log(
+          '[handleObjectUpdated] selectedObject?.id:',
+          selectedObject?.id,
+          'objectId:',
+          objectId
+        );
+        if (selectedObject?.id === objectId) {
+          console.log('[handleObjectUpdated] Updating selectedObject');
+          setSelectedObject(updatedObj);
+        }
+      } catch (err) {
+        console.error('Failed to refresh object after update:', err);
+      }
+    },
+    [config.activeProjectId, apiBase, fetchJson, selectedObject?.id]
+  );
+
   const handleBulkSelect = (selectedIds: string[]) => {
     console.log('Selected objects:', selectedIds);
   };
@@ -1268,6 +1314,7 @@ export default function ObjectsPage() {
         onClose={handleModalClose}
         onDelete={handleDelete}
         onAccept={handleAcceptObject}
+        onObjectUpdated={handleObjectUpdated}
       />
     </div>
   );

@@ -36,6 +36,7 @@ export { AuditLog } from './audit-log.entity';
 export { ClickUpImportLog } from './clickup-import-log.entity';
 export { ClickUpSyncState } from './clickup-sync-state.entity';
 export { ObjectExtractionLog } from './object-extraction-log.entity';
+export { ObjectChunk } from './object-chunk.entity';
 export { Integration } from './integration.entity';
 export { UserRecentItem } from './user-recent-item.entity';
 export { Agent } from './agent.entity';
@@ -78,6 +79,7 @@ import { AuditLog } from './audit-log.entity';
 import { ClickUpImportLog } from './clickup-import-log.entity';
 import { ClickUpSyncState } from './clickup-sync-state.entity';
 import { ObjectExtractionLog } from './object-extraction-log.entity';
+import { ObjectChunk } from './object-chunk.entity';
 import { Integration } from './integration.entity';
 import { UserRecentItem } from './user-recent-item.entity';
 import { Agent } from './agent.entity';
@@ -119,6 +121,7 @@ export const entities = [
   ClickUpImportLog,
   ClickUpSyncState,
   ObjectExtractionLog,
+  ObjectChunk,
   Integration,
   UserRecentItem,
   // Core Schema
