@@ -3051,13 +3051,26 @@ paths:
   /graph/objects/{id}:
     get:
       operationId: get
-      summary: Get latest version of a graph object
+      summary: Get a graph object by ID
+      description: >-
+        Returns the object with the given ID. Use resolveHead=true to resolve to
+        the HEAD version when the ID refers to an old version in the version
+        chain.
       parameters:
         - name: id
           required: true
           in: path
           schema:
             type: string
+        - name: resolveHead
+          required: false
+          in: query
+          description: >-
+            If true, resolves to the HEAD version (latest) when the ID refers to
+            an older version. Useful when you have a stale ID but need the
+            current version.
+          schema:
+            type: boolean
       responses:
         '200':
           description: ''
@@ -4455,6 +4468,61 @@ paths:
                     message: Unexpected error
       tags: *ref_14
       security: *ref_15
+  /tasks/{id}/merge-suggestion:
+    get:
+      operationId: getMergeSuggestion
+      summary: Get LLM-powered merge suggestion for a merge_suggestion task
+      description: >-
+        Generates an AI-powered suggestion for how to merge two similar objects.
+        Only applicable to tasks of type "merge_suggestion".
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Task ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Merge suggestion with property-level recommendations
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_14
+      security: *ref_15
   /tasks/{id}/resolve:
     post:
       operationId: resolve
@@ -5219,6 +5287,84 @@ paths:
                     message: Unexpected error
       tags: *ref_16
       security: *ref_17
+  /chat-ui/conversations:
+    get:
+      operationId: getConversations
+      parameters: []
+      responses:
+        '200':
+          description: List user conversations
+      tags: &ref_18
+        - Chat UI
+  /chat-ui/conversations/{id}:
+    get:
+      operationId: getConversation
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Get conversation details
+      tags: *ref_18
+    patch:
+      operationId: updateConversation
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Update conversation title
+      tags: *ref_18
+    delete:
+      operationId: deleteConversation
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Delete conversation
+      tags: *ref_18
+  /chat-ui/conversations/{id}/draft:
+    patch:
+      operationId: updateConversationDraft
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Update conversation draft text
+      tags: *ref_18
+  /chat-ui:
+    post:
+      operationId: chat
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequestDto'
+      responses:
+        '200':
+          description: Streaming chat response
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-sent events stream
+      tags: *ref_18
   /monitoring/extraction-jobs:
     get:
       operationId: listExtractionJobs
@@ -5282,9 +5428,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourceListResponseDto'
-      tags: &ref_18
+      tags: &ref_19
         - monitoring
-      security: &ref_19
+      security: &ref_20
         - bearer: []
   /monitoring/extraction-jobs/{id}:
     get:
@@ -5305,8 +5451,8 @@ paths:
                 $ref: '#/components/schemas/ResourceDetailResponseDto'
         '404':
           description: Job not found
-      tags: *ref_18
-      security: *ref_19
+      tags: *ref_19
+      security: *ref_20
   /monitoring/extraction-jobs/{id}/logs:
     get:
       operationId: getExtractionJobLogs
@@ -5358,8 +5504,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LogEntryDto'
-      tags: *ref_18
-      security: *ref_19
+      tags: *ref_19
+      security: *ref_20
   /monitoring/extraction-jobs/{id}/llm-calls:
     get:
       operationId: getExtractionJobLLMCalls
@@ -5379,8 +5525,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LLMCallDto'
-      tags: *ref_18
-      security: *ref_19
+      tags: *ref_19
+      security: *ref_20
   /chat/conversations:
     get:
       operationId: listConversations
@@ -5431,7 +5577,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_20
+      tags: &ref_21
         - Chat
     post:
       operationId: createConversation
@@ -5455,7 +5601,7 @@ paths:
                   error:
                     code: bad-request
                     message: message required
-      tags: *ref_20
+      tags: *ref_21
   /chat/{id}:
     get:
       operationId: getConversation
@@ -5513,7 +5659,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_20
+      tags: *ref_21
     patch:
       operationId: rename
       parameters:
@@ -5550,7 +5696,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_20
+      tags: *ref_21
     delete:
       operationId: delete
       parameters:
@@ -5577,7 +5723,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_20
+      tags: *ref_21
   /chat/{id}/stream:
     get:
       operationId: streamGet
@@ -5648,7 +5794,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_20
+      tags: *ref_21
   /chat/stream:
     post:
       operationId: streamPost
@@ -5746,7 +5892,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_20
+      tags: *ref_21
   /invites/with-user:
     post:
       operationId: createWithUser
@@ -5941,9 +6087,9 @@ paths:
           description: Available integrations retrieved successfully
         '401':
           description: Unauthorized
-      tags: &ref_21
+      tags: &ref_22
         - Integrations
-      security: &ref_22
+      security: &ref_23
         - bearer: []
   /integrations:
     get:
@@ -5956,8 +6102,8 @@ paths:
           description: Integrations retrieved successfully
         '401':
           description: Unauthorized
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
     post:
       operationId: createIntegration
       summary: Create integration
@@ -5978,8 +6124,8 @@ paths:
           description: Unauthorized
         '409':
           description: Integration already exists for this project
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /integrations/{name}:
     get:
       operationId: getIntegration
@@ -5999,8 +6145,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
     put:
       operationId: updateIntegration
       summary: Update integration
@@ -6027,8 +6173,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
     delete:
       operationId: deleteIntegration
       summary: Delete integration
@@ -6047,8 +6193,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /integrations/{name}/public:
     get:
       operationId: getPublicIntegrationInfo
@@ -6068,8 +6214,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /integrations/{name}/test:
     post:
       operationId: testConnection
@@ -6089,8 +6235,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /integrations/{name}/sync/stream:
     get:
       operationId: triggerSyncStream
@@ -6106,8 +6252,8 @@ paths:
       responses:
         '200':
           description: SSE stream started
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /integrations/{name}/sync:
     post:
       operationId: triggerSync
@@ -6129,8 +6275,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /integrations/clickup/structure:
     get:
       operationId: getClickUpWorkspaceStructure
@@ -6146,8 +6292,8 @@ paths:
           description: Unauthorized
         '404':
           description: ClickUp integration not found or not configured
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /integrations/clickup/spaces/{spaceId}:
     get:
       operationId: getClickUpSpace
@@ -6165,8 +6311,8 @@ paths:
           description: Space details retrieved successfully
         '404':
           description: ClickUp integration not found or space not found
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /integrations/clickup/folders/{folderId}:
     get:
       operationId: getClickUpFolder
@@ -6184,8 +6330,8 @@ paths:
           description: Folder details retrieved successfully
         '404':
           description: ClickUp integration not found or folder not found
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /mcp/schema/version:
     get:
       operationId: getSchemaVersion
@@ -6222,9 +6368,9 @@ paths:
                     details:
                       missing:
                         - schema:read
-      tags: &ref_23
+      tags: &ref_24
         - MCP
-      security: &ref_24
+      security: &ref_25
         - bearer: []
   /mcp/schema/changelog:
     get:
@@ -6272,8 +6418,8 @@ paths:
                     details:
                       missing:
                         - schema:read
-      tags: *ref_23
-      security: *ref_24
+      tags: *ref_24
+      security: *ref_25
   /mcp/rpc:
     post:
       operationId: handleRpc
@@ -6441,9 +6587,9 @@ paths:
                   $ref: '#/components/schemas/OrgWithProjectsDto'
         '401':
           description: Unauthorized
-      tags: &ref_25
+      tags: &ref_26
         - user
-      security: &ref_26
+      security: &ref_27
         - bearer: []
   /user/delete-account:
     post:
@@ -6483,8 +6629,8 @@ paths:
                     type: number
         '401':
           description: Unauthorized
-      tags: *ref_25
-      security: *ref_26
+      tags: *ref_26
+      security: *ref_27
   /user/test-cleanup:
     post:
       operationId: testCleanup
@@ -6495,86 +6641,8 @@ paths:
           description: Test data cleaned up successfully
         '403':
           description: Forbidden - not a test environment or test user
-      tags: *ref_25
-      security: *ref_26
-  /chat-ui/conversations:
-    get:
-      operationId: getConversations
-      parameters: []
-      responses:
-        '200':
-          description: List user conversations
-      tags: &ref_27
-        - Chat UI
-  /chat-ui/conversations/{id}:
-    get:
-      operationId: getConversation
-      parameters:
-        - name: id
-          required: true
-          in: path
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Get conversation details
-      tags: *ref_27
-    patch:
-      operationId: updateConversation
-      parameters:
-        - name: id
-          required: true
-          in: path
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Update conversation title
-      tags: *ref_27
-    delete:
-      operationId: deleteConversation
-      parameters:
-        - name: id
-          required: true
-          in: path
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Delete conversation
-      tags: *ref_27
-  /chat-ui/conversations/{id}/draft:
-    patch:
-      operationId: updateConversationDraft
-      parameters:
-        - name: id
-          required: true
-          in: path
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Update conversation draft text
-      tags: *ref_27
-  /chat-ui:
-    post:
-      operationId: chat
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ChatRequestDto'
-      responses:
-        '200':
-          description: Streaming chat response
-          content:
-            text/event-stream:
-              schema:
-                type: string
-                description: Server-sent events stream
-      tags: *ref_27
+      tags: *ref_26
+      security: *ref_27
   /chat-sdk/conversations:
     post:
       operationId: createConversation
@@ -9231,6 +9299,9 @@ components:
           description: ISO 8601 datetime string for snooze until time
       required:
         - until
+    ChatRequestDto:
+      type: object
+      properties: {}
     ExtractionJobResourceDto:
       type: object
       properties:
@@ -9423,28 +9494,6 @@ components:
         - resource
         - recentLogs
         - llmCalls
-    ChatRequestDto:
-      type: object
-      properties:
-        messages:
-          type: array
-          description: Array of chat messages
-          items:
-            type: object
-            properties:
-              role:
-                type: string
-                enum:
-                  - user
-                  - assistant
-                  - system
-              content:
-                type: string
-        conversationId:
-          type: string
-          description: Conversation ID for maintaining state
-      required:
-        - messages
     CitationDto:
       type: object
       properties: {}

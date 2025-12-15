@@ -4933,7 +4933,8 @@
     "/graph/objects/{id}": {
       "get": {
         "operationId": "get",
-        "summary": "Get latest version of a graph object",
+        "summary": "Get a graph object by ID",
+        "description": "Returns the object with the given ID. Use resolveHead=true to resolve to the HEAD version when the ID refers to an old version in the version chain.",
         "parameters": [
           {
             "name": "id",
@@ -4941,6 +4942,15 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "resolveHead",
+            "required": false,
+            "in": "query",
+            "description": "If true, resolves to the HEAD version (latest) when the ID refers to an older version. Useful when you have a stale ID but need the current version.",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -7084,6 +7094,97 @@
         ]
       }
     },
+    "/tasks/{id}/merge-suggestion": {
+      "get": {
+        "operationId": "getMergeSuggestion",
+        "summary": "Get LLM-powered merge suggestion for a merge_suggestion task",
+        "description": "Generates an AI-powered suggestion for how to merge two similar objects. Only applicable to tasks of type \"merge_suggestion\".",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Task ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merge suggestion with property-level recommendations"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/tasks/{id}/resolve": {
       "post": {
         "operationId": "resolve",
@@ -8379,6 +8480,140 @@
           {
             "bearer": []
           }
+        ]
+      }
+    },
+    "/chat-ui/conversations": {
+      "get": {
+        "operationId": "getConversations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List user conversations"
+          }
+        },
+        "tags": [
+          "Chat UI"
+        ]
+      }
+    },
+    "/chat-ui/conversations/{id}": {
+      "get": {
+        "operationId": "getConversation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get conversation details"
+          }
+        },
+        "tags": [
+          "Chat UI"
+        ]
+      },
+      "patch": {
+        "operationId": "updateConversation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update conversation title"
+          }
+        },
+        "tags": [
+          "Chat UI"
+        ]
+      },
+      "delete": {
+        "operationId": "deleteConversation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delete conversation"
+          }
+        },
+        "tags": [
+          "Chat UI"
+        ]
+      }
+    },
+    "/chat-ui/conversations/{id}/draft": {
+      "patch": {
+        "operationId": "updateConversationDraft",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update conversation draft text"
+          }
+        },
+        "tags": [
+          "Chat UI"
+        ]
+      }
+    },
+    "/chat-ui": {
+      "post": {
+        "operationId": "chat",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Streaming chat response",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "Server-sent events stream"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Chat UI"
         ]
       }
     },
@@ -10386,140 +10621,6 @@
           {
             "bearer": []
           }
-        ]
-      }
-    },
-    "/chat-ui/conversations": {
-      "get": {
-        "operationId": "getConversations",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "List user conversations"
-          }
-        },
-        "tags": [
-          "Chat UI"
-        ]
-      }
-    },
-    "/chat-ui/conversations/{id}": {
-      "get": {
-        "operationId": "getConversation",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Get conversation details"
-          }
-        },
-        "tags": [
-          "Chat UI"
-        ]
-      },
-      "patch": {
-        "operationId": "updateConversation",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Update conversation title"
-          }
-        },
-        "tags": [
-          "Chat UI"
-        ]
-      },
-      "delete": {
-        "operationId": "deleteConversation",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Delete conversation"
-          }
-        },
-        "tags": [
-          "Chat UI"
-        ]
-      }
-    },
-    "/chat-ui/conversations/{id}/draft": {
-      "patch": {
-        "operationId": "updateConversationDraft",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Update conversation draft text"
-          }
-        },
-        "tags": [
-          "Chat UI"
-        ]
-      }
-    },
-    "/chat-ui": {
-      "post": {
-        "operationId": "chat",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChatRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Streaming chat response",
-            "content": {
-              "text/event-stream": {
-                "schema": {
-                  "type": "string",
-                  "description": "Server-sent events stream"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Chat UI"
         ]
       }
     },
@@ -14168,6 +14269,10 @@
           "until"
         ]
       },
+      "ChatRequestDto": {
+        "type": "object",
+        "properties": {}
+      },
       "ExtractionJobResourceDto": {
         "type": "object",
         "properties": {
@@ -14423,38 +14528,6 @@
           "resource",
           "recentLogs",
           "llmCalls"
-        ]
-      },
-      "ChatRequestDto": {
-        "type": "object",
-        "properties": {
-          "messages": {
-            "type": "array",
-            "description": "Array of chat messages",
-            "items": {
-              "type": "object",
-              "properties": {
-                "role": {
-                  "type": "string",
-                  "enum": [
-                    "user",
-                    "assistant",
-                    "system"
-                  ]
-                },
-                "content": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "conversationId": {
-            "type": "string",
-            "description": "Conversation ID for maintaining state"
-          }
-        },
-        "required": [
-          "messages"
         ]
       },
       "CitationDto": {
