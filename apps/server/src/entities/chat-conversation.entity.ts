@@ -15,7 +15,7 @@ import { Project } from './project.entity';
 import { GraphObject } from './graph-object.entity';
 
 @Entity({ schema: 'kb', name: 'chat_conversations' })
-@Index(['objectId'], { unique: true, where: 'object_id IS NOT NULL' })
+@Index(['canonicalId'], { unique: true, where: 'canonical_id IS NOT NULL' })
 export class ChatConversation {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -38,10 +38,19 @@ export class ChatConversation {
   /**
    * Optional reference to a graph object for object-scoped refinement chats.
    * When set, this conversation is a shared refinement chat for the object.
-   * The unique partial index ensures only one conversation per object.
+   * @deprecated Use canonicalId instead for object refinement chats
    */
   @Column({ name: 'object_id', type: 'uuid', nullable: true })
   objectId: string | null;
+
+  /**
+   * Canonical ID of the graph object for object-scoped refinement chats.
+   * This persists across object versions (patches create new version IDs but
+   * keep the same canonical ID). The unique partial index ensures only one
+   * conversation per canonical object.
+   */
+  @Column({ name: 'canonical_id', type: 'uuid', nullable: true })
+  canonicalId: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
