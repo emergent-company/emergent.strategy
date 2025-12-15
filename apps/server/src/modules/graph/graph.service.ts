@@ -479,11 +479,23 @@ export class GraphService {
     );
   }
 
+  /**
+   * Get a graph object by ID.
+   *
+   * @param id The object ID (can be any version ID)
+   * @param ctx Tenant context for RLS
+   * @param options.resolveHead If true, returns the HEAD (latest) version when the ID
+   *   refers to an older version in the version chain. This is useful when you have
+   *   a stale reference (e.g., from a conversation) but need the current version
+   *   to perform operations like patch.
+   */
   async getObject(
     id: string,
-    ctx?: GraphTenantContext
+    ctx?: GraphTenantContext,
+    options?: { resolveHead?: boolean }
   ): Promise<GraphObjectDto> {
     return this.runWithRequestContext(ctx, undefined, undefined, async () => {
+      // First, get the object by exact ID
       const res = await this.db.query<
         GraphObjectRow & { revision_count: number; relationship_count: number }
       >(
@@ -502,7 +514,43 @@ export class GraphService {
         [id]
       );
       if (!res.rowCount) throw new NotFoundException('object_not_found');
-      return res.rows[0];
+
+      const obj = res.rows[0];
+
+      // If resolveHead is requested, check if this is the HEAD version
+      // and fetch HEAD if not
+      if (options?.resolveHead && obj.canonical_id) {
+        // Query for the HEAD version (highest version number)
+        const headRes = await this.db.query<
+          GraphObjectRow & {
+            revision_count: number;
+            relationship_count: number;
+          }
+        >(
+          `SELECT 
+                      o.id, o.project_id, o.canonical_id, o.supersedes_id, o.version, 
+                      o.type, o.key, o.properties, o.labels, o.deleted_at, o.created_at,
+                      o.embedding_v2, o.embedding_updated_at,
+                      COALESCE(rc.revision_count, 1) as revision_count,
+                      (SELECT COUNT(DISTINCT r.canonical_id)::int 
+                       FROM kb.graph_relationships r 
+                       WHERE (r.src_id = o.id OR r.dst_id = o.id) 
+                       AND r.deleted_at IS NULL) as relationship_count
+                   FROM kb.graph_objects o
+                   LEFT JOIN kb.graph_object_revision_counts rc ON rc.canonical_id = o.canonical_id
+                   WHERE o.canonical_id = $1
+                   ORDER BY o.version DESC
+                   LIMIT 1`,
+          [obj.canonical_id]
+        );
+
+        if (headRes.rowCount && headRes.rows[0].id !== obj.id) {
+          // Return the HEAD version instead
+          return headRes.rows[0];
+        }
+      }
+
+      return obj;
     });
   }
 
