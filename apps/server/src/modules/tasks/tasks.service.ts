@@ -201,8 +201,19 @@ export class TasksService {
 
     const qb = this.taskRepo
       .createQueryBuilder('t')
-      .where('t.projectId = :projectId', { projectId })
-      .orderBy('t.createdAt', 'DESC');
+      .where('t.projectId = :projectId', { projectId });
+
+    // For merge_suggestion tasks, order by similarity (highest first)
+    // Otherwise, order by creation date (newest first)
+    if (type === 'merge_suggestion') {
+      // Use COALESCE to handle cases where similarityPercent might not exist
+      qb.orderBy(
+        `COALESCE((t.metadata->>'similarityPercent')::numeric, 0)`,
+        'DESC'
+      ).addOrderBy('t.createdAt', 'DESC');
+    } else {
+      qb.orderBy('t.createdAt', 'DESC');
+    }
 
     if (status) {
       qb.andWhere('t.status = :status', { status });
