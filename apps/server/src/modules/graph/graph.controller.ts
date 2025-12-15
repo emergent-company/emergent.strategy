@@ -264,11 +264,30 @@ export class GraphObjectsController {
 
   @Get('objects/:id')
   @Scopes('graph:read')
-  @ApiOperation({ summary: 'Get latest version of a graph object' })
+  @ApiOperation({
+    summary: 'Get a graph object by ID',
+    description:
+      'Returns the object with the given ID. Use resolveHead=true to resolve to the HEAD version when the ID refers to an old version in the version chain.',
+  })
+  @ApiQuery({
+    name: 'resolveHead',
+    required: false,
+    type: Boolean,
+    description:
+      'If true, resolves to the HEAD version (latest) when the ID refers to an older version. Useful when you have a stale ID but need the current version.',
+  })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404, description: 'Not found' })
-  get(@Param('id') id: string, @Req() req: any) {
-    return this.service.getObject(id, this.extractContext(req));
+  get(
+    @Param('id') id: string,
+    @Query('resolveHead') resolveHead?: string,
+    @Req() req?: any
+  ) {
+    const shouldResolveHead =
+      resolveHead === 'true' || resolveHead === '1' || resolveHead === 'yes';
+    return this.service.getObject(id, this.extractContext(req), {
+      resolveHead: shouldResolveHead,
+    });
   }
 
   @Patch('objects/:id')

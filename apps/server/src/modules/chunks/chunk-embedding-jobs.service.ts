@@ -203,6 +203,40 @@ export class ChunkEmbeddingJobsService {
   }
 
   /**
+   * Recover stale jobs that got stuck in 'processing' status.
+   *
+   * This can happen when the server is restarted while jobs are being processed.
+   * Jobs stuck in 'processing' for longer than the threshold are reset to 'pending'
+   * so the worker can pick them up again.
+   *
+   * @param staleThresholdMinutes Jobs stuck in processing longer than this are considered stale (default: 10)
+   * @returns Number of jobs recovered
+   */
+  async recoverStaleJobs(staleThresholdMinutes = 10): Promise<number> {
+    const result = await this.dataSource.query(
+      `UPDATE kb.chunk_embedding_jobs 
+       SET status = 'pending', 
+           started_at = NULL, 
+           scheduled_at = now(),
+           updated_at = now()
+       WHERE status = 'processing' 
+         AND started_at < now() - ($1 || ' minutes')::interval
+       RETURNING id`,
+      [staleThresholdMinutes.toString()]
+    );
+
+    const count = Array.isArray(result) ? result.length : 0;
+
+    if (count > 0) {
+      this.logger.warn(
+        `Recovered ${count} stale chunk embedding job(s) stuck in 'processing' for > ${staleThresholdMinutes} minutes`
+      );
+    }
+
+    return count;
+  }
+
+  /**
    * Get queue statistics.
    */
   async stats(): Promise<{
