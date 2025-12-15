@@ -88,7 +88,29 @@ export class ChunkEmbeddingWorkerService
       return;
     }
 
+    // Recover any jobs that got stuck in 'processing' from a previous server restart
+    this.recoverStaleJobsOnStartup();
+
     this.start();
+  }
+
+  /**
+   * Recover stale jobs on startup.
+   * Runs async in background so it doesn't block module init.
+   */
+  private async recoverStaleJobsOnStartup() {
+    try {
+      const recovered = await this.jobs.recoverStaleJobs();
+      if (recovered > 0) {
+        this.logger.log(
+          `Recovered ${recovered} stale chunk embedding job(s) on startup`
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Failed to recover stale jobs on startup: ${(err as Error).message}`
+      );
+    }
   }
 
   async onModuleDestroy() {
