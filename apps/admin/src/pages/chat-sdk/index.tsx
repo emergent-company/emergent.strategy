@@ -245,11 +245,13 @@ export default function ChatSdkPage() {
           }
 
           // If conversation has an associated object, fetch its details for ActionCard display
+          // Use resolveHead=true to get the HEAD version, since the conversation's objectId
+          // may reference an older version if suggestions have been applied
           if (data.objectId) {
             console.log('[ChatSDK] Conversation has objectId:', data.objectId);
             try {
               const objectResponse = await fetch(
-                `${apiBase}/api/graph/objects/${data.objectId}`,
+                `${apiBase}/api/graph/objects/${data.objectId}?resolveHead=true`,
                 {
                   headers: buildHeaders({ json: false }),
                 }
@@ -537,10 +539,28 @@ export default function ChatSdkPage() {
             setObjectVersion(result.newVersion);
           }
 
-          // Refresh object properties so other suggestions can detect if they're now outdated
+          // Update actionTarget with new object ID (patching creates a new version row)
+          // and refresh object properties so other suggestions can detect if they're outdated
+          const newObjectId = result.affectedId || actionTarget.objectId;
+          if (
+            result.affectedId &&
+            result.affectedId !== actionTarget.objectId
+          ) {
+            console.log(
+              '[ChatSDK] Object ID changed from',
+              actionTarget.objectId,
+              'to',
+              result.affectedId
+            );
+            setActionTarget((prev) =>
+              prev ? { ...prev, objectId: result.affectedId } : prev
+            );
+          }
+
+          // Fetch fresh object properties using the NEW object ID
           try {
             const objectResponse = await fetch(
-              `${apiBase}/api/graph/objects/${actionTarget.objectId}`,
+              `${apiBase}/api/graph/objects/${newObjectId}`,
               {
                 headers: buildHeaders({ json: false }),
               }
