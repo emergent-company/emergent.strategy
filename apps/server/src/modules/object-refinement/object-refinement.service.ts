@@ -61,6 +61,8 @@ export class ObjectRefinementService {
    * Get or create a refinement conversation for an object
    *
    * Each object has at most one active refinement conversation.
+   * Conversations are tied to the canonical ID (not version ID) so they
+   * persist across object patches/updates.
    * If none exists, creates a new one.
    */
   async getOrCreateConversation(
@@ -68,18 +70,24 @@ export class ObjectRefinementService {
     projectId: string,
     userId: string
   ): Promise<ObjectConversation> {
-    // Check object exists and get its name for the conversation title
-    // Use graphService.getObject() which properly handles tenant context and RLS
-    const object = await this.graphService.getObject(objectId, { projectId });
+    // Get the HEAD object with proper tenant context
+    // We use resolveHead: true to handle cases where objectId is a stale version ID
+    const object = await this.graphService.getObject(
+      objectId,
+      { projectId },
+      { resolveHead: true }
+    );
 
     if (!object) {
       throw new NotFoundException(`Object ${objectId} not found`);
     }
 
-    // Try to find existing conversation for this object
+    const canonicalId = object.canonical_id;
+
+    // Try to find existing conversation for this canonical object
     let conversation = await this.conversationRepository.findOne({
       where: {
-        objectId,
+        canonicalId,
         projectId,
       },
     });
@@ -94,7 +102,8 @@ export class ObjectRefinementService {
 
       conversation = this.conversationRepository.create({
         title,
-        objectId,
+        canonicalId,
+        objectId: object.id, // Store current version for reference (deprecated)
         projectId,
         ownerUserId: userId,
         isPrivate: false, // Refinement chats are shared by default
@@ -102,7 +111,7 @@ export class ObjectRefinementService {
 
       conversation = await this.conversationRepository.save(conversation);
       this.logger.log(
-        `Created refinement conversation ${conversation.id} for object ${objectId}`
+        `Created refinement conversation ${conversation.id} for canonical object ${canonicalId}`
       );
     }
 
@@ -113,7 +122,7 @@ export class ObjectRefinementService {
 
     return {
       id: conversation.id,
-      objectId: conversation.objectId!,
+      objectId: object.id, // Return current HEAD version ID
       title: conversation.title,
       createdAt: conversation.createdAt,
       updatedAt: conversation.updatedAt,
@@ -313,16 +322,22 @@ export class ObjectRefinementService {
       return { success: false, error: 'Suggestion already applied' };
     }
 
-    // Get current object version using graphService with proper tenant context
-    const currentObject = await this.graphService.getObject(objectId, {
-      projectId,
-    });
+    // Get current HEAD object version using graphService with proper tenant context.
+    // We use resolveHead: true because the objectId might be a stale version ID from
+    // when the conversation was created, but we need the current HEAD version to:
+    // 1. Compare expectedVersion against the actual current version
+    // 2. Apply patches to the correct version
+    const currentObject = await this.graphService.getObject(
+      objectId,
+      { projectId },
+      { resolveHead: true }
+    );
 
     if (!currentObject) {
       return { success: false, error: 'Object not found' };
     }
 
-    // Check version for optimistic locking
+    // Check version for optimistic locking against HEAD version
     if (currentObject.version !== expectedVersion) {
       return {
         success: false,
@@ -486,6 +501,9 @@ export class ObjectRefinementService {
     userId: string,
     projectId: string
   ): Promise<ApplySuggestionResult> {
+    // Resolve to HEAD version to handle stale object IDs from conversations
+    const headObjectId = await this.resolveHeadObjectId(objectId, projectId);
+
     const patchData = {
       properties: {
         [suggestion.propertyKey]: suggestion.newValue,
@@ -494,9 +512,13 @@ export class ObjectRefinementService {
       },
     };
 
-    const result = await this.graphService.patchObject(objectId, patchData, {
-      projectId,
-    });
+    const result = await this.graphService.patchObject(
+      headObjectId,
+      patchData,
+      {
+        projectId,
+      }
+    );
 
     return {
       success: true,
@@ -514,6 +536,9 @@ export class ObjectRefinementService {
     userId: string,
     projectId: string
   ): Promise<ApplySuggestionResult> {
+    // Resolve to HEAD version to handle stale object IDs from conversations
+    const headObjectId = await this.resolveHeadObjectId(objectId, projectId);
+
     const patchData = {
       properties: {
         name: suggestion.newName,
@@ -522,9 +547,13 @@ export class ObjectRefinementService {
       },
     };
 
-    const result = await this.graphService.patchObject(objectId, patchData, {
-      projectId,
-    });
+    const result = await this.graphService.patchObject(
+      headObjectId,
+      patchData,
+      {
+        projectId,
+      }
+    );
 
     return {
       success: true,
@@ -542,6 +571,9 @@ export class ObjectRefinementService {
     userId: string,
     projectId: string
   ): Promise<ApplySuggestionResult> {
+    // Resolve to HEAD version to handle stale object IDs from conversations
+    const headObjectId = await this.resolveHeadObjectId(objectId, projectId);
+
     // Get org_id from project (required for relationship creation)
     const projectResult = await this.db.query<{ organization_id: string }>(
       `SELECT organization_id FROM kb.projects WHERE id = $1`,
@@ -557,7 +589,7 @@ export class ObjectRefinementService {
     const result = await this.graphService.createRelationship(
       {
         type: suggestion.relationshipType,
-        src_id: objectId,
+        src_id: headObjectId,
         dst_id: suggestion.targetObjectId,
         properties: {
           ...suggestion.properties,
@@ -626,7 +658,12 @@ export class ObjectRefinementService {
   ): Promise<number | null> {
     if (projectId) {
       // Use graphService with proper tenant context when projectId is available
-      const object = await this.graphService.getObject(objectId, { projectId });
+      // Use resolveHead to always get the HEAD version
+      const object = await this.graphService.getObject(
+        objectId,
+        { projectId },
+        { resolveHead: true }
+      );
       return object?.version ?? null;
     }
 
@@ -641,5 +678,26 @@ export class ObjectRefinementService {
     });
 
     return object?.version ?? null;
+  }
+
+  /**
+   * Resolve an object ID to its HEAD version ID.
+   * This is necessary because conversations may store a stale object ID
+   * if suggestions have been applied since the conversation was created.
+   *
+   * @param objectId Any version ID for the object
+   * @param projectId Project context for RLS
+   * @returns The HEAD version's ID
+   */
+  private async resolveHeadObjectId(
+    objectId: string,
+    projectId: string
+  ): Promise<string> {
+    const headObject = await this.graphService.getObject(
+      objectId,
+      { projectId },
+      { resolveHead: true }
+    );
+    return headObject.id;
   }
 }
