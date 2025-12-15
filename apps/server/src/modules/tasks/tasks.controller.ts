@@ -26,6 +26,7 @@ import { TasksService } from './tasks.service';
 import { ResolveTaskDto, TaskStatus } from './dto/task.dto';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MergeSuggestionService } from './merge-suggestion.service';
 
 @ApiTags('Tasks')
 @Controller('tasks')
@@ -34,7 +35,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 export class TasksController {
   constructor(
     private readonly tasksService: TasksService,
-    private readonly notificationsService: NotificationsService
+    private readonly notificationsService: NotificationsService,
+    private readonly mergeSuggestionService: MergeSuggestionService
   ) {}
 
   @Get()
@@ -119,6 +121,65 @@ export class TasksController {
   async getTask(@Param('id', ParseUUIDPipe) id: string) {
     const task = await this.tasksService.findOne(id);
     return { success: true, data: task };
+  }
+
+  @Get(':id/merge-suggestion')
+  @ApiOperation({
+    summary: 'Get LLM-powered merge suggestion for a merge_suggestion task',
+    description:
+      'Generates an AI-powered suggestion for how to merge two similar objects. Only applicable to tasks of type "merge_suggestion".',
+  })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiOkResponse({
+    description: 'Merge suggestion with property-level recommendations',
+  })
+  @ApiStandardErrors()
+  @Scopes('tasks:read')
+  async getMergeSuggestion(@Param('id', ParseUUIDPipe) id: string) {
+    // Get the task to extract source/target IDs
+    const task = await this.tasksService.findOne(id);
+
+    if (task.type !== 'merge_suggestion') {
+      return {
+        success: false,
+        error: 'This endpoint is only available for merge_suggestion tasks',
+      };
+    }
+
+    const metadata = task.metadata as {
+      sourceId?: string;
+      targetId?: string;
+      similarityPercent?: number;
+    };
+
+    if (!metadata?.sourceId || !metadata?.targetId) {
+      return {
+        success: false,
+        error: 'Task metadata is missing required sourceId or targetId',
+      };
+    }
+
+    try {
+      const suggestion =
+        await this.mergeSuggestionService.generateMergeSuggestion(
+          metadata.sourceId,
+          metadata.targetId,
+          metadata.similarityPercent || 0
+        );
+
+      return {
+        success: true,
+        data: suggestion,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to generate merge suggestion',
+      };
+    }
   }
 
   @Post(':id/resolve')

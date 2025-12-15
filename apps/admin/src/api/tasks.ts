@@ -10,6 +10,7 @@ import {
   TaskFilter,
   ResolveTaskPayload,
   TasksResponse,
+  MergeSuggestionResult,
 } from '../types/task';
 
 /**
@@ -54,6 +55,11 @@ export interface TasksClient {
    * Cancel a task
    */
   cancelTask(taskId: string, reason?: string): Promise<Task>;
+
+  /**
+   * Get LLM-powered merge suggestion for a merge_suggestion task
+   */
+  getMergeSuggestion(taskId: string): Promise<MergeSuggestionResult | null>;
 }
 
 /**
@@ -134,6 +140,16 @@ export function createTasksClient(
         throw new Error(response.error || 'Failed to cancel task');
       }
       return response.data;
+    },
+
+    async getMergeSuggestion(taskId: string) {
+      const response = await fetchJson<TaskApiResponse<MergeSuggestionResult>>(
+        `${baseUrl}/${taskId}/merge-suggestion`
+      );
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to get merge suggestion');
+      }
+      return response.data || null;
     },
   };
 }

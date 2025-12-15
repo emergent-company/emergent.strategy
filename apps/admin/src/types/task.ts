@@ -61,3 +61,36 @@ export interface TasksResponse {
   page: number;
   limit: number;
 }
+
+/**
+ * LLM-powered merge suggestion types
+ */
+export interface PropertyMergeSuggestion {
+  /** Property key */
+  key: string;
+  /** Value from source object */
+  sourceValue: unknown;
+  /** Value from target object */
+  targetValue: unknown;
+  /** Suggested merged value */
+  suggestedValue: unknown;
+  /** Explanation of why this value was chosen */
+  explanation: string;
+  /** Whether the property values differ */
+  hasDifference: boolean;
+  /** Action taken: 'keep_source', 'keep_target', 'combine', 'new_value' */
+  action: 'keep_source' | 'keep_target' | 'combine' | 'new_value';
+}
+
+export interface MergeSuggestionResult {
+  /** Suggested merged properties */
+  suggestedProperties: Record<string, unknown>;
+  /** Per-property explanations and suggestions */
+  propertyMergeSuggestions: PropertyMergeSuggestion[];
+  /** Overall explanation of the merge suggestion */
+  overallExplanation: string;
+  /** Confidence score (0-1) in the merge suggestion */
+  confidence: number;
+  /** Any warnings or notes about the merge */
+  warnings: string[];
+}
