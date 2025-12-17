@@ -7,9 +7,12 @@ import {
   Body,
   UseGuards,
   Req,
+  Res,
   ParseUUIDPipe,
   DefaultValuePipe,
   ParseIntPipe,
+  HttpStatus,
+  Headers,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,14 +22,21 @@ import {
   ApiParam,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { Response as ExpressResponse } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
 import { Scopes } from '../auth/scopes.decorator';
 import { TasksService } from './tasks.service';
 import { ResolveTaskDto, TaskStatus } from './dto/task.dto';
+import {
+  MergeChatSendDto,
+  MergeChatApplyDto,
+  MergeChatRejectDto,
+} from './dto/merge-chat.dto';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MergeSuggestionService } from './merge-suggestion.service';
+import { MergeChatService } from './merge-chat.service';
 
 @ApiTags('Tasks')
 @Controller('tasks')
@@ -36,7 +46,8 @@ export class TasksController {
   constructor(
     private readonly tasksService: TasksService,
     private readonly notificationsService: NotificationsService,
-    private readonly mergeSuggestionService: MergeSuggestionService
+    private readonly mergeSuggestionService: MergeSuggestionService,
+    private readonly mergeChatService: MergeChatService
   ) {}
 
   @Get()
@@ -235,5 +246,156 @@ export class TasksController {
     const userId = req.user?.id;
     const task = await this.tasksService.cancel(id, userId, body.reason);
     return { success: true, data: task };
+  }
+
+  // =========================================================================
+  // MERGE CHAT ENDPOINTS
+  // =========================================================================
+
+  @Get(':id/merge-chat')
+  @ApiOperation({
+    summary: 'Get or create merge chat conversation for a task',
+    description:
+      'Loads an existing merge chat conversation or creates a new one for a merge_suggestion task.',
+  })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiOkResponse({ description: 'Merge chat conversation with messages' })
+  @ApiStandardErrors()
+  @Scopes('tasks:read')
+  async getMergeChat(
+    @Req() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-project-id') projectId: string
+  ) {
+    const userId = req.user?.id || null;
+    const result = await this.mergeChatService.loadOrCreateConversation(
+      id,
+      userId,
+      projectId
+    );
+    return result;
+  }
+
+  @Post(':id/merge-chat')
+  @ApiOperation({
+    summary: 'Send a message to the merge chat',
+    description:
+      'Sends a user message and streams the AI response for merge assistance.',
+  })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiOkResponse({
+    description: 'Server-sent events stream with AI response',
+    content: {
+      'text/event-stream': {
+        schema: {
+          type: 'string',
+          description: 'Server-sent events stream',
+        },
+      },
+    },
+  })
+  @ApiStandardErrors()
+  @Scopes('tasks:write')
+  async sendMergeChatMessage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: MergeChatSendDto,
+    @Headers('x-project-id') projectId: string,
+    @Req() req: any,
+    @Res() res: ExpressResponse
+  ): Promise<void> {
+    const userId = req.user?.id || null;
+
+    // First get or create the conversation
+    const { conversation } =
+      await this.mergeChatService.loadOrCreateConversation(
+        id,
+        userId,
+        projectId
+      );
+
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.status(HttpStatus.OK);
+
+    // Stream the response
+    await this.mergeChatService.streamChatResponse(
+      id,
+      conversation.id,
+      body.content,
+      body.sourceObjectId,
+      body.targetObjectId,
+      res
+    );
+  }
+
+  @Get(':id/merge-chat/messages')
+  @ApiOperation({
+    summary: 'Get messages for a merge chat conversation',
+    description: 'Returns messages for the merge chat (used for polling).',
+  })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiOkResponse({ description: 'Array of messages' })
+  @ApiStandardErrors()
+  @Scopes('tasks:read')
+  async getMergeChatMessages(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-project-id') projectId: string,
+    @Req() req: any
+  ) {
+    const userId = req.user?.id || null;
+    const { conversation, messages } =
+      await this.mergeChatService.loadOrCreateConversation(
+        id,
+        userId,
+        projectId
+      );
+    return messages;
+  }
+
+  @Post(':id/merge-chat/apply')
+  @ApiOperation({
+    summary: 'Apply a merge suggestion',
+    description:
+      'Accepts a merge suggestion, marking it as applied and updating the merge preview.',
+  })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiOkResponse({ description: 'Result of applying the suggestion' })
+  @ApiStandardErrors()
+  @Scopes('tasks:write')
+  async applyMergeSuggestion(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: MergeChatApplyDto
+  ) {
+    const result = await this.mergeChatService.applySuggestion(
+      id,
+      body.messageId,
+      body.suggestionIndex
+    );
+    return result;
+  }
+
+  @Post(':id/merge-chat/reject')
+  @ApiOperation({
+    summary: 'Reject a merge suggestion',
+    description: 'Rejects a merge suggestion with an optional reason.',
+  })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiOkResponse({ description: 'Result of rejecting the suggestion' })
+  @ApiStandardErrors()
+  @Scopes('tasks:write')
+  async rejectMergeSuggestion(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: MergeChatRejectDto
+  ) {
+    const result = await this.mergeChatService.rejectSuggestion(
+      id,
+      body.messageId,
+      body.suggestionIndex,
+      body.reason
+    );
+    return result;
   }
 }
