@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Task } from '../../entities/task.entity';
 import { UserProfile } from '../../entities/user-profile.entity';
 import { UserEmail } from '../../entities/user-email.entity';
+import { ChatConversation } from '../../entities/chat-conversation.entity';
+import { ChatMessage } from '../../entities/chat-message.entity';
 import { TasksService } from './tasks.service';
 import { TasksController } from './tasks.controller';
 import { AuthModule } from '../auth/auth.module';
@@ -12,10 +14,17 @@ import { DatabaseModule } from '../../common/database/database.module';
 import { ChatUiModule } from '../chat-ui/chat-ui.module';
 import { MergeSuggestionService } from './merge-suggestion.service';
 import { MergeSuggestionPromptBuilder } from './merge-suggestion-prompt-builder.service';
+import { MergeChatService } from './merge-chat.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Task, UserProfile, UserEmail]),
+    TypeOrmModule.forFeature([
+      Task,
+      UserProfile,
+      UserEmail,
+      ChatConversation,
+      ChatMessage,
+    ]),
     AuthModule,
     NotificationsModule, // For marking notifications as read when resolving tasks
     forwardRef(() => GraphModule), // For executing merge operations
@@ -27,7 +36,8 @@ import { MergeSuggestionPromptBuilder } from './merge-suggestion-prompt-builder.
     TasksService,
     MergeSuggestionService,
     MergeSuggestionPromptBuilder,
+    MergeChatService,
   ],
-  exports: [TasksService, MergeSuggestionService],
+  exports: [TasksService, MergeSuggestionService, MergeChatService],
 })
 export class TasksModule {}

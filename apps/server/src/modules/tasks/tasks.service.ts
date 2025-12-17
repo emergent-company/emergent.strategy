@@ -8,11 +8,13 @@ import { CreateTaskDto, TaskStatus } from './dto/task.dto';
 import { ObjectMergeService, MergeResult } from '../graph/object-merge.service';
 
 /**
- * Task with resolved user display info
+ * Task with resolved user display info and freshness status
  */
 export interface TaskWithUser extends Omit<Task, 'resolvedBy'> {
   resolvedBy: string | null;
   resolvedByName: string | null;
+  /** For merge_suggestion tasks: true if source/target versions are no longer HEAD */
+  isOutdated?: boolean;
 }
 
 /**
@@ -186,6 +188,107 @@ export class TasksService {
   }
 
   /**
+   * Get IDs of merge_suggestion tasks that are outdated.
+   * A task is outdated if either the source or target version is no longer HEAD
+   * (i.e., a newer version of the canonical object exists).
+   */
+  private async getOutdatedMergeSuggestionIds(
+    tasks: Task[]
+  ): Promise<Set<string>> {
+    const outdatedIds = new Set<string>();
+
+    // Collect canonical IDs and versions from merge_suggestion tasks
+    const taskVersionInfo: Array<{
+      taskId: string;
+      sourceCanonicalId?: string;
+      sourceVersion?: number;
+      targetCanonicalId?: string;
+      targetVersion?: number;
+    }> = [];
+
+    const canonicalIds: string[] = [];
+
+    for (const task of tasks) {
+      if (task.type !== 'merge_suggestion' || task.status !== 'pending') {
+        continue;
+      }
+
+      const metadata = task.metadata as {
+        sourceCanonicalId?: string;
+        sourceVersion?: number;
+        targetCanonicalId?: string;
+        targetVersion?: number;
+      };
+
+      // Only process tasks that have canonical ID and version metadata
+      if (
+        metadata?.sourceCanonicalId &&
+        metadata?.sourceVersion !== undefined &&
+        metadata?.targetCanonicalId &&
+        metadata?.targetVersion !== undefined
+      ) {
+        taskVersionInfo.push({
+          taskId: task.id,
+          sourceCanonicalId: metadata.sourceCanonicalId,
+          sourceVersion: metadata.sourceVersion,
+          targetCanonicalId: metadata.targetCanonicalId,
+          targetVersion: metadata.targetVersion,
+        });
+
+        if (!canonicalIds.includes(metadata.sourceCanonicalId)) {
+          canonicalIds.push(metadata.sourceCanonicalId);
+        }
+        if (!canonicalIds.includes(metadata.targetCanonicalId)) {
+          canonicalIds.push(metadata.targetCanonicalId);
+        }
+      }
+    }
+
+    if (taskVersionInfo.length === 0 || canonicalIds.length === 0) {
+      return outdatedIds;
+    }
+
+    // Query current HEAD versions for all canonical IDs
+    const headVersions = await this.dataSource.query(
+      `SELECT canonical_id, MAX(version) as head_version
+       FROM kb.graph_objects
+       WHERE canonical_id = ANY($1)
+         AND deleted_at IS NULL
+       GROUP BY canonical_id`,
+      [canonicalIds]
+    );
+
+    // Build a map of canonical_id -> head_version
+    const headVersionMap = new Map<string, number>();
+    for (const row of headVersions) {
+      headVersionMap.set(row.canonical_id, parseInt(row.head_version, 10));
+    }
+
+    // Check each task to see if its versions are still HEAD
+    for (const info of taskVersionInfo) {
+      const sourceHead = headVersionMap.get(info.sourceCanonicalId!);
+      const targetHead = headVersionMap.get(info.targetCanonicalId!);
+
+      // Task is outdated if:
+      // - Canonical ID no longer exists (deleted)
+      // - Stored version is less than current HEAD version
+      const sourceOutdated =
+        sourceHead === undefined || info.sourceVersion! < sourceHead;
+      const targetOutdated =
+        targetHead === undefined || info.targetVersion! < targetHead;
+
+      if (sourceOutdated || targetOutdated) {
+        outdatedIds.add(info.taskId);
+        this.logger.debug(
+          `Task ${info.taskId} is outdated: source=${info.sourceVersion}/${sourceHead}, target=${info.targetVersion}/${targetHead}`
+        );
+      }
+    }
+
+    return outdatedIds;
+  }
+
+  /**
    * Get tasks for a project with optional filtering
    */
   async getForProject(
@@ -232,18 +335,22 @@ export class TasksService {
     // Filter out merge_suggestion tasks where objects have been deleted
     tasks = await this.filterTasksWithDeletedObjects(tasks);
 
+    // Check which merge_suggestion tasks are outdated (versions no longer HEAD)
+    const outdatedTaskIds = await this.getOutdatedMergeSuggestionIds(tasks);
+
     // Get user display names for resolved tasks
     const resolvedByIds = tasks
       .map((t) => t.resolvedBy)
       .filter((id): id is string => id !== null);
     const userNames = await this.getUserDisplayNames(resolvedByIds);
 
-    // Transform tasks to include resolvedByName
+    // Transform tasks to include resolvedByName and isOutdated
     const tasksWithUsers: TaskWithUser[] = tasks.map((task) => ({
       ...task,
       resolvedByName: task.resolvedBy
         ? userNames.get(task.resolvedBy) || null
         : null,
+      isOutdated: outdatedTaskIds.has(task.id),
     }));
 
     return { tasks: tasksWithUsers, total };
