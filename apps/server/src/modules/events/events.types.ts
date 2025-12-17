@@ -62,8 +62,22 @@ export interface ConnectedEvent {
 }
 
 /**
+ * Health status included in heartbeat events
+ */
+export interface HealthStatus {
+  ok: boolean;
+  model: string | null;
+  db: 'up' | 'down';
+  embeddings: 'enabled' | 'disabled';
+  rls_policies_ok?: boolean;
+  rls_policy_count?: number;
+  rls_policy_hash?: string;
+}
+
+/**
  * Heartbeat event payload
  */
 export interface HeartbeatEvent {
   timestamp: string;
+  health?: HealthStatus;
 }
