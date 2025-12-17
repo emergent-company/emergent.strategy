@@ -7,16 +7,23 @@ import { AppConfigService } from '../../common/config/config.service';
 import { MessageDto } from './dto/chat-sdk-request.dto';
 import { createChatSearchTool } from './tools/chat-search.tool';
 import { createWebSearchTool } from './tools/web-search.tool';
+import { createBrowseUrlTool } from './tools/browse-url.tool';
 import { TypeRegistryService } from '../type-registry/type-registry.service';
 import { GraphService } from '../graph/graph.service';
 import { createGetDatabaseSchemaTool } from './tools/schema.tool';
 import { createObjectQueryTool } from './tools/object-query.tool';
+import { ALL_TOOL_NAMES } from './tool-definitions';
 
 export interface ChatSdkStreamOptions {
   messages: MessageDto[];
   conversationId?: string;
   userId?: string | null;
   projectId?: string;
+  /**
+   * Array of enabled tool names. If null/undefined, all tools are enabled.
+   * If empty array, no tools are enabled.
+   */
+  enabledTools?: string[] | null;
 }
 
 export interface ChatSdkStreamResult {
@@ -76,7 +83,8 @@ export class ChatSdkService {
   async streamChat(
     options: ChatSdkStreamOptions
   ): Promise<ChatSdkStreamResult> {
-    const { messages, conversationId, userId, projectId } = options;
+    const { messages, conversationId, userId, projectId, enabledTools } =
+      options;
 
     // Get the latest user message
     const latestMessage = messages[messages.length - 1];
@@ -114,11 +122,29 @@ export class ChatSdkService {
       messageContent
     );
 
+    // Determine which tools are enabled
+    // null/undefined = all tools enabled, empty array = no tools
+    const effectiveEnabledTools =
+      enabledTools === null || enabledTools === undefined
+        ? ALL_TOOL_NAMES
+        : enabledTools;
+
+    const isToolEnabled = (toolName: string) =>
+      effectiveEnabledTools.includes(toolName);
+
+    this.logger.log(
+      `Enabled tools: ${
+        effectiveEnabledTools.length === 0
+          ? 'none'
+          : effectiveEnabledTools.join(', ')
+      }`
+    );
+
     // Create tools and system prompt if projectId is provided
     let tools: any[] | undefined;
     let systemMessage: string | undefined;
 
-    if (projectId) {
+    if (projectId && effectiveEnabledTools.length > 0) {
       const orgId = await this.getOrganizationIdFromProject(projectId);
       if (orgId) {
         this.logger.log(
@@ -127,32 +153,51 @@ export class ChatSdkService {
         tools = [];
 
         // Search Tool
-        const searchTool = createChatSearchTool(this.unifiedSearchService, {
-          orgId,
-          projectId,
-          scopes: ['search:read', 'graph:search:read'],
-        });
-        tools.push(searchTool);
+        if (isToolEnabled('search_knowledge_base')) {
+          const searchTool = createChatSearchTool(this.unifiedSearchService, {
+            orgId,
+            projectId,
+            scopes: ['search:read', 'graph:search:read'],
+          });
+          tools.push(searchTool);
+        }
 
         // Schema Tool
-        const schemaTool = createGetDatabaseSchemaTool(
-          this.typeRegistryService,
-          {
-            projectId,
-          }
-        );
-        tools.push(schemaTool);
+        if (isToolEnabled('get_database_schema')) {
+          const schemaTool = createGetDatabaseSchemaTool(
+            this.typeRegistryService,
+            {
+              projectId,
+            }
+          );
+          tools.push(schemaTool);
+        }
 
         // Object Query Tool
-        const queryTool = createObjectQueryTool(this.graphService, {
-          projectId,
-          orgId,
-        });
-        tools.push(queryTool);
+        if (isToolEnabled('query_graph_objects')) {
+          const queryTool = createObjectQueryTool(this.graphService, {
+            projectId,
+            orgId,
+          });
+          tools.push(queryTool);
+        }
 
         // Web Search Tool (DuckDuckGo - no API key required)
-        const webSearchTool = createWebSearchTool();
-        tools.push(webSearchTool);
+        if (isToolEnabled('search_web')) {
+          const webSearchTool = createWebSearchTool();
+          tools.push(webSearchTool);
+        }
+
+        // Browse URL Tool (fetch and read web pages)
+        if (isToolEnabled('browse_url')) {
+          const browseUrlTool = createBrowseUrlTool();
+          tools.push(browseUrlTool);
+        }
+
+        // If no tools were created (all disabled), set tools to undefined
+        if (tools.length === 0) {
+          tools = undefined;
+        }
 
         // Fetch schema summary for system prompt
         try {
@@ -187,6 +232,7 @@ You have tools to:
 2. Query specific objects with filters (query_graph_objects)
 3. Inspect detailed schema definitions (get_database_schema)
 4. Search the web for external information (search_web)
+5. Read specific web pages (browse_url)
 
 When asked to find objects, prefer 'query_graph_objects' for specific criteria (status, type, etc.) and 'search_knowledge_base' for general information.
 
@@ -195,6 +241,11 @@ Use 'search_web' when:
 - The knowledge base doesn't have the information
 - The user asks about external documentation, APIs, or third-party tools
 - The user explicitly asks to search the internet
+
+Use 'browse_url' when:
+- The user provides a specific URL they want you to read or analyze
+- You need to verify or get full content from a search result
+- Reading documentation, articles, or blog posts at specific URLs
 
 # Instructions: Finding Related Objects (No SQL)
 

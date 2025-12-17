@@ -7,12 +7,18 @@ import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import { useConfig } from '@/contexts/config';
 import {
+  ObjectPreviewProvider,
+  useObjectPreview,
+} from '@/contexts/object-preview';
+import { ObjectPreviewDrawer } from '@/components/organisms/ObjectPreviewDrawer';
+import {
   MessageList,
   ChatInput,
   ConversationList,
   KeyboardShortcutsModal,
   type Conversation,
   type ActionTarget,
+  type ToolDefinition,
 } from '@/components/chat';
 import type {
   RefinementSuggestion,
@@ -54,7 +60,7 @@ function parseSuggestionsFromContent(
   return undefined;
 }
 
-export default function ChatSdkPage() {
+function ChatSdkPageContent() {
   const { id: urlConversationId } = useParams();
   const navigate = useNavigate();
   const [input, setInput] = useState('');
@@ -82,27 +88,38 @@ export default function ChatSdkPage() {
     messageId: string;
     suggestionIndex: number;
   } | null>(null);
+  /** Available tools fetched from API */
+  const [availableTools, setAvailableTools] = useState<ToolDefinition[]>([]);
+  /** Enabled tools for current conversation (null = all enabled) */
+  const [enabledTools, setEnabledTools] = useState<string[] | null>(null);
+  /** Pagination state for message loading */
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
+  const [oldestMessageId, setOldestMessageId] = useState<string | null>(null);
   const { apiBase, buildHeaders } = useApi();
   const { showToast } = useToast();
   const { config } = useConfig();
+  const { openPreview, closePreview } = useObjectPreview();
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasInitialized = useRef(false);
 
-  // Create transport with projectId and conversationId in body
+  // Create transport with projectId, conversationId, and enabledTools in body
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: '/api/chat-sdk',
         fetch: async (url, options) => {
-          // Add projectId and conversationId to the request body
+          // Add projectId, conversationId, and enabledTools to the request body
           const body = JSON.parse((options?.body as string) || '{}');
           body.projectId = config.activeProjectId;
           body.conversationId = activeConversationId; // Pass conversation ID to backend
+          body.enabledTools = enabledTools; // Pass enabled tools to backend
 
           console.log('[ChatSDK] Sending request with:', {
             projectId: body.projectId,
             conversationId: body.conversationId,
             messagesCount: body.messages?.length,
+            enabledTools: body.enabledTools,
           });
 
           return fetch(url, {
@@ -111,7 +128,7 @@ export default function ChatSdkPage() {
           });
         },
       }),
-    [config.activeProjectId, activeConversationId]
+    [config.activeProjectId, activeConversationId, enabledTools]
   );
 
   const { messages, sendMessage, status, error, stop, setMessages } = useChat({
@@ -161,6 +178,21 @@ export default function ChatSdkPage() {
     }
   }, [apiBase, buildHeaders]);
 
+  // Fetch available tools from server
+  const fetchAvailableTools = useCallback(async () => {
+    try {
+      const response = await fetch(`${apiBase}/api/chat-sdk/tools`, {
+        headers: buildHeaders({ json: false }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableTools(data.tools || []);
+      }
+    } catch (err) {
+      console.error('[ChatSDK] Failed to fetch available tools:', err);
+    }
+  }, [apiBase, buildHeaders]);
+
   const loadConversationMessages = useCallback(
     async (conversationId: string) => {
       // If we're already on this conversation and not loading, skip (optional optimization, but be careful with initial load)
@@ -173,21 +205,34 @@ export default function ChatSdkPage() {
       setObjectProperties(null); // Reset object properties when loading new conversation
       setSuggestionStatuses({}); // Reset suggestion statuses when loading new conversation
       setLoadingSuggestion(null); // Reset loading state when loading new conversation
+      setEnabledTools(null); // Reset enabled tools when loading new conversation
+      setHasMoreMessages(false); // Reset pagination state
+      setOldestMessageId(null);
+      closePreview(); // Close object preview drawer when switching conversations
 
       try {
-        // Fetch conversation messages from backend
-        const response = await fetch(
+        // Fetch conversation metadata (for objectId, enabledTools, draftText, etc.)
+        const metaResponse = await fetch(
           `${apiBase}/api/chat-ui/conversations/${conversationId}`,
           {
             headers: buildHeaders({ json: false }),
           }
         );
 
-        if (response.ok) {
-          const data = await response.json();
+        // Fetch paginated messages (load 2 pages worth = 100 messages initially)
+        const messagesResponse = await fetch(
+          `${apiBase}/api/chat-ui/conversations/${conversationId}/messages?limit=30`,
+          {
+            headers: buildHeaders({ json: false }),
+          }
+        );
+
+        if (metaResponse.ok && messagesResponse.ok) {
+          const metaData = await metaResponse.json();
+          const messagesData = await messagesResponse.json();
 
           // Transform backend messages to AI SDK UIMessage format
-          const formattedMessages: UIMessage[] = data.messages.map(
+          const formattedMessages: UIMessage[] = messagesData.messages.map(
             (msg: any) => ({
               id: msg.id,
               role: msg.role as 'user' | 'assistant',
@@ -204,12 +249,18 @@ export default function ChatSdkPage() {
           // Load messages into the chat
           setMessages(formattedMessages);
 
+          // Set pagination state
+          setHasMoreMessages(messagesData.hasMore);
+          if (messagesData.messages.length > 0) {
+            setOldestMessageId(messagesData.messages[0].id);
+          }
+
           // Load suggestion statuses from message citations (backend stores them in citations.suggestionStatuses)
           const loadedStatuses: Record<
             string,
             Record<number, 'pending' | 'accepted' | 'rejected'>
           > = {};
-          for (const msg of data.messages) {
+          for (const msg of messagesData.messages) {
             if (msg.citations?.suggestionStatuses) {
               const messageStatuses: Record<
                 number,
@@ -237,21 +288,33 @@ export default function ChatSdkPage() {
           }
 
           // Load draft text if conversation has no messages
-          if (data.messages.length === 0 && data.draftText) {
-            console.log('[ChatSDK] Loading draft text:', data.draftText);
-            setInput(data.draftText);
+          if (messagesData.messages.length === 0 && metaData.draftText) {
+            console.log('[ChatSDK] Loading draft text:', metaData.draftText);
+            setInput(metaData.draftText);
           } else {
             setInput('');
+          }
+
+          // Load enabled tools from conversation data
+          if (metaData.enabledTools !== undefined) {
+            console.log(
+              '[ChatSDK] Loading enabled tools:',
+              metaData.enabledTools
+            );
+            setEnabledTools(metaData.enabledTools);
           }
 
           // If conversation has an associated object, fetch its details for ActionCard display
           // Use resolveHead=true to get the HEAD version, since the conversation's objectId
           // may reference an older version if suggestions have been applied
-          if (data.objectId) {
-            console.log('[ChatSDK] Conversation has objectId:', data.objectId);
+          if (metaData.objectId) {
+            console.log(
+              '[ChatSDK] Conversation has objectId:',
+              metaData.objectId
+            );
             try {
               const objectResponse = await fetch(
-                `${apiBase}/api/graph/objects/${data.objectId}?resolveHead=true`,
+                `${apiBase}/api/graph/objects/${metaData.objectId}?resolveHead=true`,
                 {
                   headers: buildHeaders({ json: false }),
                 }
@@ -288,7 +351,10 @@ export default function ChatSdkPage() {
             }
           }
         } else {
-          console.error('Failed to load conversation:', response.statusText);
+          console.error(
+            'Failed to load conversation:',
+            metaResponse.statusText
+          );
         }
       } catch (err) {
         console.error('Failed to load conversation:', err);
@@ -296,8 +362,100 @@ export default function ChatSdkPage() {
         setIsLoadingConversation(false);
       }
     },
-    [apiBase, buildHeaders, setMessages]
+    [apiBase, buildHeaders, setMessages, closePreview]
   );
+
+  /**
+   * Load more (older) messages when user scrolls to top.
+   * Uses cursor-based pagination with beforeId.
+   */
+  const loadMoreMessages = useCallback(async () => {
+    if (
+      !activeConversationId ||
+      !oldestMessageId ||
+      isLoadingMoreMessages ||
+      !hasMoreMessages
+    ) {
+      return;
+    }
+
+    setIsLoadingMoreMessages(true);
+
+    try {
+      const response = await fetch(
+        `${apiBase}/api/chat-ui/conversations/${activeConversationId}/messages?limit=50&beforeId=${oldestMessageId}`,
+        {
+          headers: buildHeaders({ json: false }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+
+        if (data.messages.length > 0) {
+          // Transform backend messages to AI SDK UIMessage format
+          const olderMessages: UIMessage[] = data.messages.map((msg: any) => ({
+            id: msg.id,
+            role: msg.role as 'user' | 'assistant',
+            parts: [
+              {
+                type: 'text' as const,
+                text: msg.content,
+              },
+            ],
+            createdAt: msg.createdAt,
+          }));
+
+          // Prepend older messages to existing messages
+          setMessages((prev) => [...olderMessages, ...prev]);
+
+          // Update pagination state
+          setHasMoreMessages(data.hasMore);
+          setOldestMessageId(data.messages[0].id);
+
+          // Load suggestion statuses for older messages
+          const loadedStatuses: Record<
+            string,
+            Record<number, 'pending' | 'accepted' | 'rejected'>
+          > = {};
+          for (const msg of data.messages) {
+            if (msg.citations?.suggestionStatuses) {
+              const messageStatuses: Record<
+                number,
+                'pending' | 'accepted' | 'rejected'
+              > = {};
+              for (const statusEntry of msg.citations.suggestionStatuses) {
+                if (
+                  typeof statusEntry.index === 'number' &&
+                  statusEntry.status
+                ) {
+                  messageStatuses[statusEntry.index] = statusEntry.status;
+                }
+              }
+              if (Object.keys(messageStatuses).length > 0) {
+                loadedStatuses[msg.id] = messageStatuses;
+              }
+            }
+          }
+          if (Object.keys(loadedStatuses).length > 0) {
+            setSuggestionStatuses((prev) => ({ ...loadedStatuses, ...prev }));
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[ChatSDK] Failed to load more messages:', err);
+    } finally {
+      setIsLoadingMoreMessages(false);
+    }
+  }, [
+    activeConversationId,
+    oldestMessageId,
+    isLoadingMoreMessages,
+    hasMoreMessages,
+    apiBase,
+    buildHeaders,
+    setMessages,
+  ]);
 
   const handleSelectConversation = (conv: Conversation) => {
     navigate(`/admin/chat-sdk/${conv.id}`);
@@ -312,6 +470,8 @@ export default function ChatSdkPage() {
     hasInitialized.current = true;
 
     const initializeChat = async () => {
+      // Fetch available tools for the UI
+      await fetchAvailableTools();
       await fetchConversations();
 
       // If we already have an ID in the URL, the sync effect will handle loading.
@@ -733,6 +893,52 @@ export default function ChatSdkPage() {
     }
   };
 
+  // Handle tool toggle - update local state and persist to backend
+  const handleToolToggle = useCallback(
+    async (toolName: string, enabled: boolean) => {
+      if (!activeConversationId) return;
+
+      const allToolNames = availableTools.map((t) => t.name);
+      const currentEnabled = enabledTools ?? allToolNames;
+
+      let newEnabledTools: string[];
+      if (enabled) {
+        newEnabledTools = currentEnabled.includes(toolName)
+          ? currentEnabled
+          : [...currentEnabled, toolName];
+      } else {
+        newEnabledTools = currentEnabled.filter((t) => t !== toolName);
+      }
+
+      // If all tools enabled, set to null
+      const finalEnabledTools =
+        newEnabledTools.length === allToolNames.length &&
+        allToolNames.every((t) => newEnabledTools.includes(t))
+          ? null
+          : newEnabledTools;
+
+      // Update local state immediately for responsiveness
+      setEnabledTools(finalEnabledTools);
+
+      // Persist to backend
+      try {
+        await fetch(
+          `${apiBase}/api/chat-ui/conversations/${activeConversationId}/tools`,
+          {
+            method: 'PATCH',
+            headers: buildHeaders({ json: true }),
+            body: JSON.stringify({ enabledTools: finalEnabledTools }),
+          }
+        );
+      } catch (err) {
+        console.error('[ChatSDK] Failed to update enabled tools:', err);
+        // Revert on error
+        setEnabledTools(enabledTools);
+      }
+    },
+    [activeConversationId, availableTools, enabledTools, apiBase, buildHeaders]
+  );
+
   // Get suggestions from message content for rendering SuggestionCards
   const getSuggestions = useCallback(
     (messageId: string): RefinementSuggestion[] | undefined => {
@@ -790,11 +996,20 @@ export default function ChatSdkPage() {
   );
 
   return (
-    <div className="drawer drawer-open h-full">
-      <input id="chat-drawer" type="checkbox" className="drawer-toggle" />
+    <div className="flex h-full overflow-hidden">
+      {/* Left Sidebar - Conversation List */}
+      <div className="shrink-0 h-full border-r border-base-300">
+        <ConversationList
+          conversations={conversations}
+          activeId={activeConversationId}
+          onSelect={handleSelectConversation}
+          onDelete={handleDeleteConversation}
+          onNew={handleNewChat}
+        />
+      </div>
 
-      {/* Main Content - Fixed layout with scrollable message area */}
-      <div className="drawer-content flex flex-col h-full overflow-hidden">
+      {/* Main Content - Grows/shrinks based on preview drawer state */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
         <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full h-full overflow-hidden">
           {/* Message List - Scrollable middle section */}
           {isLoadingConversation ? (
@@ -814,6 +1029,10 @@ export default function ChatSdkPage() {
                 onApplySuggestion={handleApplySuggestion}
                 onRejectSuggestion={handleRejectSuggestion}
                 loadingSuggestion={loadingSuggestion}
+                onObjectClick={openPreview}
+                hasMoreMessages={hasMoreMessages}
+                isLoadingMoreMessages={isLoadingMoreMessages}
+                onLoadMoreMessages={loadMoreMessages}
               />
             </div>
           )}
@@ -845,26 +1064,16 @@ export default function ChatSdkPage() {
                 )
                 .reverse()}
               onShowKeyboardShortcuts={() => setIsKeyboardShortcutsOpen(true)}
+              tools={config.activeProjectId ? availableTools : []}
+              enabledTools={enabledTools}
+              onToolToggle={handleToolToggle}
             />
           </div>
         </div>
       </div>
 
-      {/* Sidebar - Fixed height with internal scrolling */}
-      <div className="drawer-side h-full">
-        <label
-          htmlFor="chat-drawer"
-          aria-label="close sidebar"
-          className="drawer-overlay"
-        ></label>
-        <ConversationList
-          conversations={conversations}
-          activeId={activeConversationId}
-          onSelect={handleSelectConversation}
-          onDelete={handleDeleteConversation}
-          onNew={handleNewChat}
-        />
-      </div>
+      {/* Right Preview Drawer - Push drawer that appears on right side */}
+      <ObjectPreviewDrawer />
 
       {/* Keyboard Shortcuts Modal */}
       <KeyboardShortcutsModal
@@ -872,5 +1081,16 @@ export default function ChatSdkPage() {
         onClose={() => setIsKeyboardShortcutsOpen(false)}
       />
     </div>
+  );
+}
+
+/**
+ * ChatSdkPage wrapper that provides the ObjectPreviewProvider context
+ */
+export default function ChatSdkPage() {
+  return (
+    <ObjectPreviewProvider>
+      <ChatSdkPageContent />
+    </ObjectPreviewProvider>
   );
 }
