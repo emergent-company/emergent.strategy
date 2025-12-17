@@ -52,6 +52,14 @@ export class ChatConversation {
   @Column({ name: 'canonical_id', type: 'uuid', nullable: true })
   canonicalId: string | null;
 
+  /**
+   * Array of enabled tool names for this conversation.
+   * NULL means all tools are enabled (default behavior).
+   * Empty array means no tools are enabled.
+   */
+  @Column({ name: 'enabled_tools', type: 'text', array: true, nullable: true })
+  enabledTools: string[] | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

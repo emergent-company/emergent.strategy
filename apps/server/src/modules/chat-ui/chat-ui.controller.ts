@@ -56,6 +56,22 @@ export class ChatUiController {
     return this.conversationService.getConversation(id);
   }
 
+  @Get('conversations/:id/messages')
+  @ApiOkResponse({ description: 'Get paginated conversation messages' })
+  async getConversationMessages(
+    @Param('id') id: string,
+    @Query('limit') limit?: string,
+    @Query('beforeId') beforeId?: string
+  ) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 50;
+    const safeLimit = isNaN(parsedLimit) ? 50 : Math.min(parsedLimit, 100); // Cap at 100
+
+    return this.conversationService.getConversationMessages(id, {
+      limit: safeLimit,
+      beforeId: beforeId || undefined,
+    });
+  }
+
   @Patch('conversations/:id')
   @ApiOkResponse({ description: 'Update conversation title' })
   async updateConversation(
@@ -72,6 +88,15 @@ export class ChatUiController {
     @Body('draftText') draftText: string
   ) {
     return this.conversationService.updateConversationDraft(id, draftText);
+  }
+
+  @Patch('conversations/:id/tools')
+  @ApiOkResponse({ description: 'Update conversation enabled tools' })
+  async updateConversationTools(
+    @Param('id') id: string,
+    @Body('enabledTools') enabledTools: string[] | null
+  ) {
+    return this.conversationService.updateEnabledTools(id, enabledTools);
   }
 
   @Delete('conversations/:id')
