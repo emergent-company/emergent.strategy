@@ -4,36 +4,13 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { format, isToday, isYesterday, differenceInHours } from 'date-fns';
 import { UrlBadge } from './UrlBadge';
 import { ObjectCard } from './ObjectCard';
 import { SuggestionCard } from './SuggestionCard';
 import { ActionCard, type ActionTarget } from './ActionCard';
+import { ToolCallList, type ToolCallInfo } from './ToolCallIndicator';
+import { stripSuggestionsFromContent, formatTimestamp } from './utils';
 import type { RefinementSuggestion } from '@/types/object-refinement';
-
-/**
- * Strip suggestion JSON blocks from message content.
- * The LLM sometimes outputs suggestions in ```suggestions ... ``` or ```json ... ``` blocks
- * which should be parsed separately, not displayed as raw JSON.
- */
-function stripSuggestionsFromContent(content: string): string {
-  return (
-    content
-      // Remove ```suggestions ... ``` blocks
-      .replace(/```suggestions\s*\n[\s\S]*?\n```/g, '')
-      // Remove JSON blocks that look like suggestion arrays
-      .replace(
-        /```json\s*\n\s*\[\s*\{[\s\S]*?"type"\s*:\s*"(property_change|rename|relationship_add|relationship_remove)"[\s\S]*?\]\s*\n```/g,
-        ''
-      )
-      // Remove standalone JSON arrays that look like tool results
-      .replace(
-        /^\s*\[\s*\{[\s\S]*?"(key|id|name|type)"[\s\S]*?\}\s*\]\s*$/gm,
-        ''
-      )
-      .trim()
-  );
-}
 
 interface MessageBubbleProps {
   message: UIMessage;
@@ -53,6 +30,8 @@ interface MessageBubbleProps {
   onRejectSuggestion?: (suggestionIndex: number) => void;
   /** Index of the suggestion currently being processed (for loading state) */
   loadingSuggestionIndex?: number;
+  /** Callback when an object card is clicked, passes the objectId */
+  onObjectClick?: (objectId: string) => void;
 }
 
 /**
@@ -82,6 +61,7 @@ export const MessageBubble = memo(
     onApplySuggestion,
     onRejectSuggestion,
     loadingSuggestionIndex,
+    onObjectClick,
   }: MessageBubbleProps) {
     const isAssistant = message.role === 'assistant';
 
@@ -93,6 +73,42 @@ export const MessageBubble = memo(
         .map((part) => ('text' in part ? part.text : ''))
         .join('');
     };
+
+    // Extract tool calls from message parts
+    // Tool parts have type like "tool-{toolName}" or "dynamic-tool"
+    const getToolCalls = (): ToolCallInfo[] => {
+      if (!message.parts) return [];
+      return message.parts
+        .filter((part) => {
+          // Check for tool-* types or dynamic-tool
+          return part.type.startsWith('tool-') || part.type === 'dynamic-tool';
+        })
+        .map((part) => {
+          const toolPart = part as {
+            type: string;
+            toolName?: string;
+            toolCallId: string;
+            state: 'partial-call' | 'call' | 'result';
+            args?: unknown;
+            result?: unknown;
+          };
+          // For tool-{name} types, extract the tool name from the type
+          const toolName =
+            toolPart.toolName ||
+            (toolPart.type.startsWith('tool-')
+              ? toolPart.type.replace('tool-', '')
+              : toolPart.type);
+          return {
+            toolName,
+            toolCallId: toolPart.toolCallId,
+            state: toolPart.state,
+            args: toolPart.args,
+            result: toolPart.result,
+          };
+        });
+    };
+
+    const toolCalls = getToolCalls();
 
     // Process content to convert specific graph syntax to markdown links
     // @[key] -> [key](key)
@@ -119,42 +135,7 @@ export const MessageBubble = memo(
     // - More than 5 hours but today: time only (e.g., "3:45 PM")
     // - Yesterday: time only (e.g., "3:45 PM")
     // - Before yesterday: full date and time (e.g., "Nov 20, 2025 3:45 PM")
-    const getFormattedTime = (): string => {
-      if (!createdAt) {
-        return 'just now';
-      }
-
-      try {
-        const date =
-          typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
-        const now = new Date();
-        const hoursAgo = differenceInHours(now, date);
-
-        // Less than 5 hours ago: show relative time
-        if (hoursAgo < 5) {
-          if (hoursAgo === 0) {
-            return 'just now';
-          } else if (hoursAgo === 1) {
-            return '1 hour ago';
-          } else {
-            return `${hoursAgo} hours ago`;
-          }
-        }
-
-        // Yesterday or today (but more than 5 hours ago): show time only
-        if (isToday(date) || isYesterday(date)) {
-          return format(date, 'h:mm a'); // "3:45 PM"
-        }
-
-        // Before yesterday: show full date and time
-        return format(date, 'MMM d, yyyy h:mm a'); // "Nov 20, 2025 3:45 PM"
-      } catch (error) {
-        console.error('Error formatting timestamp:', error);
-        return 'just now';
-      }
-    };
-
-    const formattedTime = getFormattedTime();
+    const formattedTime = createdAt ? formatTimestamp(createdAt) : 'just now';
 
     const handleCopy = () => {
       navigator.clipboard.writeText(textContent);
@@ -170,6 +151,9 @@ export const MessageBubble = memo(
 
         {/* Message Bubble */}
         <div className="chat-bubble bg-base-200 relative p-4">
+          {/* Tool Calls - Show what tools were used */}
+          {toolCalls.length > 0 && <ToolCallList toolCalls={toolCalls} />}
+
           {/* Render markdown with syntax highlighting for assistant */}
           <div className="prose prose-sm max-w-none prose-neutral dark:prose-invert">
             <ReactMarkdown
@@ -198,6 +182,7 @@ export const MessageBubble = memo(
                       <ObjectCard
                         objectKey={href.replace(/^obj:/, '')}
                         name={childText || href}
+                        onClick={onObjectClick}
                       />
                     );
                   }
@@ -340,7 +325,8 @@ export const MessageBubble = memo(
         prevProps.actionTarget === nextProps.actionTarget &&
         prevProps.onApplySuggestion === nextProps.onApplySuggestion &&
         prevProps.onRejectSuggestion === nextProps.onRejectSuggestion &&
-        prevProps.loadingSuggestionIndex === nextProps.loadingSuggestionIndex
+        prevProps.loadingSuggestionIndex === nextProps.loadingSuggestionIndex &&
+        prevProps.onObjectClick === nextProps.onObjectClick
       );
     }
 
@@ -355,7 +341,8 @@ export const MessageBubble = memo(
       prevProps.showActions === nextProps.showActions &&
       prevProps.suggestions === nextProps.suggestions &&
       prevProps.actionTarget === nextProps.actionTarget &&
-      prevProps.loadingSuggestionIndex === nextProps.loadingSuggestionIndex
+      prevProps.loadingSuggestionIndex === nextProps.loadingSuggestionIndex &&
+      prevProps.onObjectClick === nextProps.onObjectClick
     );
   }
 );

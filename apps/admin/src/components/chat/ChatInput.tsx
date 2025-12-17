@@ -1,4 +1,5 @@
 import { FormEvent, KeyboardEvent, useRef, useEffect } from 'react';
+import { ChatToolsDropdown, type ToolDefinition } from './ChatToolsDropdown';
 
 interface ChatInputProps {
   value: string;
@@ -10,6 +11,12 @@ interface ChatInputProps {
   isStreaming?: boolean;
   messageHistory?: string[];
   onShowKeyboardShortcuts?: () => void;
+  /** List of tools available to the chat agent (from API) */
+  tools?: ToolDefinition[];
+  /** Currently enabled tool names (null = all enabled) */
+  enabledTools?: string[] | null;
+  /** Called when a tool is toggled */
+  onToolToggle?: (toolName: string, enabled: boolean) => void;
 }
 
 /**
@@ -22,6 +29,7 @@ interface ChatInputProps {
  * - Disabled state during streaming
  * - Message history navigation
  * - Form-based submission
+ * - Auto-focus on mount and when re-enabled (e.g., after streaming ends)
  *
  * Keyboard Shortcuts:
  * - Enter: Send message
@@ -41,6 +49,9 @@ export function ChatInput({
   isStreaming = false,
   messageHistory = [],
   onShowKeyboardShortcuts,
+  tools = [],
+  enabledTools = null,
+  onToolToggle,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const historyIndexRef = useRef<number>(-1);
@@ -57,10 +68,12 @@ export function ChatInput({
     textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
   }, [value]);
 
-  // Focus input on mount
+  // Focus input on mount and when re-enabled (e.g., after streaming ends)
   useEffect(() => {
-    textareaRef.current?.focus();
-  }, []);
+    if (!disabled) {
+      textareaRef.current?.focus();
+    }
+  }, [disabled]);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -175,6 +188,15 @@ export function ChatInput({
         )}
 
         <div className="flex items-end gap-2 bg-base-200 rounded-lg p-3 shadow-sm border border-base-300">
+          {/* Tools Dropdown - Shows available tools with enable/disable checkboxes */}
+          {tools.length > 0 && onToolToggle && (
+            <ChatToolsDropdown
+              tools={tools}
+              enabledTools={enabledTools}
+              onToolToggle={onToolToggle}
+            />
+          )}
+
           {/* Attachment Button (placeholder for future file upload) */}
           <button
             className="btn btn-ghost btn-sm btn-circle"
