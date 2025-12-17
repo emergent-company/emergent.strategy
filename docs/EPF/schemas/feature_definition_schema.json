@@ -2,7 +2,8 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "feature_definition_schema.json",
   "title": "EPF Feature Definition Schema",
-  "description": "Schema for validating feature definition files that bridge EPF strategy to implementation tools. Follows lean documentation principles - git handles versioning. Supports rich value narratives, design guidance, and architecture patterns.",
+  "version": "2.0.0",
+  "description": "Schema for validating feature definition files that bridge EPF strategy to implementation tools. Follows lean documentation principles - git handles versioning. Supports rich value narratives, design guidance, and architecture patterns. Version 2.0: Enhanced with prescriptive quality constraints (exactly 4 personas, 3-paragraph narratives, top-level scenarios, required context fields, rich dependencies).",
   "type": "object",
   "required": ["id", "name", "slug", "status", "strategic_context", "definition"],
   "additionalProperties": false,
@@ -100,29 +101,34 @@
         },
         "value_propositions": {
           "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
           "items": {
             "type": "object",
-            "required": ["persona", "current_pain", "value_delivered"],
+            "required": ["persona", "current_situation", "transformation_moment", "emotional_resolution"],
             "properties": {
               "persona": {
                 "type": "string",
                 "description": "The user persona (e.g., 'Compliance Officer', 'Board Secretary', 'CFO')"
               },
-              "current_pain": {
+              "current_situation": {
                 "type": "string",
-                "description": "Rich narrative of the persona's current frustrations and pain points"
+                "minLength": 200,
+                "description": "Rich narrative paragraph (200+ chars) describing the persona's current frustrations and pain points. Must include: character name, specific metrics or time costs, concrete scenarios. Example: 'Sarah Martinez, Compliance Officer at TechFlow Inc., spends 15-20 hours per quarter manually compiling regulatory updates from 8 different sources...'"
               },
-              "value_delivered": {
+              "transformation_moment": {
                 "type": "string",
-                "description": "Rich narrative of how this feature transforms their experience"
+                "minLength": 200,
+                "description": "Rich narrative paragraph (200+ chars) describing the first concrete moment of value delivery. Must include: specific action, immediate benefit, measurable improvement. Example: 'On Monday morning, Sarah opens the Compliance Dashboard and sees all 8 regulatory sources automatically aggregated with AI-powered categorization...'"
               },
-              "emotional_outcome": {
+              "emotional_resolution": {
                 "type": "string",
-                "description": "The emotional state achieved (e.g., 'confidence replaces anxiety', 'clarity replaces confusion')"
+                "minLength": 200,
+                "description": "Rich narrative paragraph (200+ chars) describing the long-term emotional transformation and sustained value. Must include: emotional state change, new capabilities, strategic outcomes. Example: 'Three months later, Sarah has reclaimed 60 hours per quarter. The anxiety of missing critical updates has been replaced by confidence...'"
               }
             }
           },
-          "description": "Persona-specific value narratives that capture WHY this feature matters to each user type"
+          "description": "Exactly 4 persona-specific value narratives (WHY this feature matters). Each narrative uses 3-paragraph structure: current_situation → transformation_moment → emotional_resolution. This captures full user journey from pain to transformation to lasting value."
         },
         "architecture_patterns": {
           "type": "array",
@@ -202,63 +208,82 @@
               "description": {
                 "type": "string"
               },
-              "key_elements": {
+              "key_interactions": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "Key UI elements or components in this context"
-              },
-              "user_actions": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "Primary actions users can take in this context"
+                "minItems": 1,
+                "description": "Required: Key user interactions in this context (what users DO). Must have at least 1 interaction. Example: ['Click Add Document button', 'Drag and drop PDF file', 'Review extraction results']"
               },
               "data_displayed": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "Key data or information shown in this context"
+                "minItems": 1,
+                "description": "Required: Key data or information shown in this context (what users SEE). Must have at least 1 data element. Example: ['Document list with status', 'Extraction progress bar', 'Confidence scores per entity']"
               }
-            }
+            },
+            "required": ["id", "type", "name", "description", "key_interactions", "data_displayed"]
           },
           "description": "User-facing contexts (UI screens, emails, notifications, etc.)"
         },
         "scenarios": {
           "type": "array",
+          "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["id", "actor", "action", "outcome"],
+            "required": ["id", "name", "actor", "context", "trigger", "action", "outcome", "acceptance_criteria"],
             "properties": {
               "id": {
                 "type": "string",
                 "pattern": "^scn-[0-9]+$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 10,
+                "description": "Human-readable scenario name (e.g., 'Upload and Process Compliance Document')"
               },
               "jtbd_category": {
                 "type": "string",
                 "description": "The job-to-be-done category this scenario supports (for grouping related scenarios)"
               },
               "actor": {
-                "type": "string"
+                "type": "string",
+                "description": "Who performs this scenario (persona name or role)"
+              },
+              "context": {
+                "type": "string",
+                "minLength": 20,
+                "description": "Where and when this scenario occurs (situation, preconditions)"
+              },
+              "trigger": {
+                "type": "string",
+                "minLength": 10,
+                "description": "What initiates this scenario (event, user action, scheduled task)"
               },
               "action": {
-                "type": "string"
+                "type": "string",
+                "minLength": 20,
+                "description": "Step-by-step actions taken by the actor"
               },
               "outcome": {
-                "type": "string"
+                "type": "string",
+                "minLength": 20,
+                "description": "Expected result and value delivered"
               },
               "acceptance_criteria": {
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
+                },
+                "minItems": 1,
+                "description": "Testable conditions that must be true for scenario success"
               }
             }
           },
-          "description": "Key user scenarios (similar to user stories)"
+          "description": "Top-level scenarios array (MUST NOT be embedded in contexts). Key user scenarios following actor → context → trigger → action → outcome pattern. These should be concrete, testable flows that implement the job-to-be-done."
         },
         "external_integrations": {
           "type": "array",
@@ -307,23 +332,57 @@
     },
     "dependencies": {
       "type": "object",
-      "description": "Dependencies on other features",
+      "description": "Dependencies on other features - use rich objects with id, name, and reason to explain WHY dependencies exist",
       "properties": {
         "requires": {
           "type": "array",
           "items": {
-            "type": "string",
-            "pattern": "^fd-[0-9]+$"
+            "type": "object",
+            "required": ["id", "name", "reason"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^fd-[0-9]+$",
+                "description": "Feature definition ID (e.g., fd-001)"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 10,
+                "description": "Human-readable name of the required feature"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 30,
+                "description": "Explanation of WHY this dependency exists (30+ chars). Be specific about what capability is needed."
+              }
+            }
           },
-          "description": "Feature definitions this feature depends on"
+          "description": "Features that must exist before this one can be implemented. Each dependency includes id, name, and reason."
         },
         "enables": {
           "type": "array",
           "items": {
-            "type": "string",
-            "pattern": "^fd-[0-9]+$"
+            "type": "object",
+            "required": ["id", "name", "reason"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^fd-[0-9]+$",
+                "description": "Feature definition ID (e.g., fd-003)"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 10,
+                "description": "Human-readable name of the enabled feature"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 30,
+                "description": "Explanation of HOW this feature enables the other (30+ chars). Be specific about what capability is provided."
+              }
+            }
           },
-          "description": "Feature definitions that depend on this feature"
+          "description": "Features that become possible once this one exists. Each dependency includes id, name, and reason."
         }
       }
     },
