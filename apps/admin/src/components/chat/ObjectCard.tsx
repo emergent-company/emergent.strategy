@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Icon } from '@/components/atoms/Icon';
 import { useApi } from '@/hooks/use-api';
 
 interface ObjectCardProps {
@@ -6,13 +7,15 @@ interface ObjectCardProps {
   name?: string;
   type?: string;
   description?: string;
+  /** Called when user clicks the card. Passes the object ID (UUID) if available, otherwise objectKey */
+  onClick?: (objectId: string) => void;
 }
 
 interface GraphObject {
   id: string;
   key: string;
   type: string;
-  properties: Record<string, any>;
+  properties: Record<string, unknown>;
   labels?: string[];
 }
 
@@ -20,14 +23,29 @@ interface GraphObject {
 const objectCache = new Map<string, GraphObject | null>();
 const activeRequests = new Map<string, Promise<GraphObject | null>>();
 
+// Get icon for object type
+function getTypeIcon(type: string): string {
+  const typeIcons: Record<string, string> = {
+    person: 'lucide--user',
+    place: 'lucide--map-pin',
+    location: 'lucide--map-pin',
+    event: 'lucide--calendar',
+    organization: 'lucide--building-2',
+    document: 'lucide--file-text',
+    concept: 'lucide--lightbulb',
+    artifact: 'lucide--package',
+    default: 'lucide--box',
+  };
+  return typeIcons[type.toLowerCase()] || typeIcons.default;
+}
+
 /**
- * ObjectCard - A card component for displaying graph object references
+ * ObjectCard - A compact card component for displaying graph object references
  *
  * Features:
- * - Distinct styling from UrlBadge (secondary color scheme)
- * - Displays object key, name, and optional type/description
+ * - Compact design (~60px height) with icon, name, and type badge
  * - Fetches object data from backend
- * - Clickable (currently just visual)
+ * - Clickable with onClick callback passing objectId
  * - Caches results to prevent blinking/refetching
  * - Memoized to prevent unnecessary re-renders
  */
@@ -35,7 +53,7 @@ function ObjectCardBase({
   objectKey,
   name: initialName,
   type: initialType,
-  description: initialDescription,
+  onClick,
 }: ObjectCardProps) {
   const { fetchJson, apiBase } = useApi();
 
@@ -52,19 +70,14 @@ function ObjectCardBase({
 
   // Correct Data Mapping
   const nameToShow =
-    data?.properties?.name ||
+    (data?.properties?.name as string) ||
     data?.key ||
     initialName ||
     (isUuid ? 'Unknown Object' : objectKey);
 
   const typeToShow = data?.type || initialType || 'Object';
 
-  const descriptionToShow = data?.properties?.description || initialDescription;
-
-  const tagsToShow = data?.labels || [];
-
   const idToShow = data?.id || objectKey;
-  const keyToShow = data?.key || objectKey;
 
   useEffect(() => {
     // If we have data in cache, ensure state matches and stop
@@ -142,60 +155,52 @@ function ObjectCardBase({
     };
   }, [objectKey, fetchJson, apiBase, isUuid, data]);
 
+  const handleClick = () => {
+    if (onClick) {
+      // Pass the actual object ID (UUID) if we have it, otherwise the key
+      onClick(data?.id || objectKey);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="card bg-base-200 w-full max-w-md shadow-sm animate-pulse p-4 rounded-box my-2">
-        <div className="flex justify-between items-center mb-2">
-          <div className="h-5 bg-base-300 rounded w-1/2"></div>
-          <div className="h-5 bg-base-300 rounded w-16"></div>
-        </div>
-        <div className="h-4 bg-base-300 rounded w-3/4"></div>
+      <div className="inline-flex items-center gap-2 bg-base-200 px-3 py-2 rounded-lg border border-base-300 animate-pulse my-1">
+        <div className="size-5 bg-base-300 rounded" />
+        <div className="h-4 bg-base-300 rounded w-24" />
+        <div className="h-4 bg-base-300 rounded w-12" />
       </div>
     );
   }
 
   return (
-    <div
-      className="card bg-base-200 text-base-content shadow-sm hover:shadow-md transition-shadow duration-200 border border-base-300 rounded-box cursor-pointer w-full max-w-md my-2"
-      title={`ID: ${idToShow}\nKey: ${keyToShow}`}
-      onClick={() => {
-        // Eventually this could open a drawer or navigate
-        console.log('Clicked object', objectKey);
-      }}
+    <button
+      type="button"
+      className="inline-flex items-center gap-2 bg-base-200 hover:bg-base-300 px-3 py-2 rounded-lg border border-base-300 hover:border-primary/30 transition-all duration-200 cursor-pointer my-1 text-left group"
+      title={`Click to view details\nID: ${idToShow}`}
+      onClick={handleClick}
     >
-      <div className="card-body p-4 gap-2">
-        {/* Top Row: Name and Type */}
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="card-title text-base font-bold leading-tight break-words">
-            {nameToShow}
-          </h3>
-          <div className="badge badge-neutral badge-sm uppercase tracking-wider font-bold shrink-0">
-            {typeToShow}
-          </div>
-        </div>
+      {/* Type Icon */}
+      <Icon
+        icon={getTypeIcon(typeToShow)}
+        className="size-5 text-primary shrink-0"
+      />
 
-        {/* Middle: Description */}
-        {descriptionToShow && (
-          <p className="text-sm text-base-content/70 line-clamp-2 break-words">
-            {descriptionToShow}
-          </p>
-        )}
+      {/* Name */}
+      <span className="font-medium text-sm truncate max-w-[200px] group-hover:text-primary transition-colors">
+        {nameToShow}
+      </span>
 
-        {/* Bottom: Tags */}
-        {tagsToShow.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1">
-            {tagsToShow.map((tag, idx) => (
-              <span
-                key={`${tag}-${idx}`}
-                className="badge badge-ghost badge-xs border-base-content/10"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+      {/* Type Badge */}
+      <span className="badge badge-neutral badge-xs uppercase tracking-wider font-semibold shrink-0">
+        {typeToShow}
+      </span>
+
+      {/* Arrow indicator */}
+      <Icon
+        icon="lucide--chevron-right"
+        className="size-4 text-base-content/40 group-hover:text-primary/60 shrink-0 transition-colors"
+      />
+    </button>
   );
 }
 
