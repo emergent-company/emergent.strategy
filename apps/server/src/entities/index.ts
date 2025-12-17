@@ -5,7 +5,7 @@
  */
 
 // KB Schema Entities
-export { Document } from './document.entity';
+export { Document, DocumentSourceType } from './document.entity';
 export { Chunk } from './chunk.entity';
 export { ObjectExtractionJob } from './object-extraction-job.entity';
 export { GraphEmbeddingJob } from './graph-embedding-job.entity';
@@ -42,6 +42,12 @@ export { UserRecentItem } from './user-recent-item.entity';
 export { Agent } from './agent.entity';
 export { AgentRun } from './agent-run.entity';
 export { Task } from './task.entity';
+export {
+  ExternalSource,
+  ExternalSourceType,
+  SyncPolicy,
+  ExternalSourceStatus,
+} from './external-source.entity';
 
 // Core Schema Entities
 export { UserProfile } from './user-profile.entity';
@@ -87,6 +93,7 @@ import { AgentRun } from './agent-run.entity';
 import { Task } from './task.entity';
 import { UserProfile } from './user-profile.entity';
 import { UserEmail } from './user-email.entity';
+import { ExternalSource } from './external-source.entity';
 
 export const entities = [
   // KB Schema
@@ -124,6 +131,7 @@ export const entities = [
   ObjectChunk,
   Integration,
   UserRecentItem,
+  ExternalSource,
   // Core Schema
   UserProfile,
   UserEmail,
