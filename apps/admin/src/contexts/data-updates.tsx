@@ -17,6 +17,8 @@ import type {
   EntityEventHandler,
   SubscriptionPattern,
   ConnectedEvent,
+  HeartbeatEvent,
+  HealthStatus,
 } from '@/types/realtime-events';
 
 /**
@@ -75,6 +77,8 @@ export const DataUpdatesProvider: React.FC<{ children: React.ReactNode }> = ({
   const { config } = useConfig();
   const { getAccessToken, isAuthenticated } = useAuth();
   const [connectionId, setConnectionId] = useState<string | null>(null);
+  const [healthData, setHealthData] = useState<HealthStatus | null>(null);
+  const [lastHealthUpdate, setLastHealthUpdate] = useState<Date | null>(null);
   const subscriptionsRef = useRef<Map<symbol, Subscription>>(new Map());
 
   // Build SSE URL with project ID (token is sent in header now)
@@ -111,7 +115,12 @@ export const DataUpdatesProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       if (eventType === 'heartbeat') {
-        // Heartbeat - no action needed, SSE hook handles connection state
+        // Extract health data from heartbeat if present
+        const heartbeatEvent = parsed as HeartbeatEvent;
+        if (heartbeatEvent.health) {
+          setHealthData(heartbeatEvent.health);
+          setLastHealthUpdate(new Date());
+        }
         return;
       }
 
@@ -211,8 +220,17 @@ export const DataUpdatesProvider: React.FC<{ children: React.ReactNode }> = ({
       connectionId,
       subscribe,
       reconnect,
+      healthData,
+      lastHealthUpdate,
     }),
-    [connectionState, connectionId, subscribe, reconnect]
+    [
+      connectionState,
+      connectionId,
+      subscribe,
+      reconnect,
+      healthData,
+      lastHealthUpdate,
+    ]
   );
 
   return (

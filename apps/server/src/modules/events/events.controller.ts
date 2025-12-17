@@ -19,11 +19,13 @@ import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { AuthGuard } from '../auth/auth.guard';
 import { EventsService } from './events.service';
+import { HealthService } from '../health/health.service';
 import {
   EntityEvent,
   SSEConnection,
   ConnectedEvent,
   HeartbeatEvent,
+  HealthStatus,
 } from './events.types';
 
 /**
@@ -40,7 +42,10 @@ export class EventsController implements OnModuleDestroy {
   // Heartbeat interval in milliseconds (30 seconds)
   private readonly HEARTBEAT_INTERVAL_MS = 30000;
 
-  constructor(private readonly eventsService: EventsService) {
+  constructor(
+    private readonly eventsService: EventsService,
+    private readonly healthService: HealthService
+  ) {
     this.startHeartbeat();
   }
 
@@ -59,16 +64,29 @@ export class EventsController implements OnModuleDestroy {
 
   /**
    * Start the heartbeat interval to keep connections alive
+   * Heartbeats also include health status data
    */
   private startHeartbeat() {
     if (this.heartbeatInterval) return;
 
-    this.heartbeatInterval = setInterval(() => {
+    this.heartbeatInterval = setInterval(async () => {
       const now = new Date();
+
+      // Fetch health data once for all connections
+      let health: HealthStatus | undefined;
+      try {
+        const healthResult = await this.healthService.get();
+        health = healthResult as HealthStatus;
+      } catch (error) {
+        this.logger.warn('Failed to fetch health data for heartbeat', error);
+        // Continue without health data
+      }
+
       for (const [connectionId, connection] of this.connections) {
         try {
           const heartbeat: HeartbeatEvent = {
             timestamp: now.toISOString(),
+            health,
           };
           this.sendEvent(connection.response, 'heartbeat', heartbeat);
           connection.lastHeartbeat = now;
