@@ -513,6 +513,43 @@ export class TypeRegistryService {
   }
 
   /**
+   * Get the schema version for a specific type in a project.
+   * Used for automatic schema version tracking when creating objects.
+   *
+   * The schema version is the template pack version (e.g., "2.0.0").
+   * For custom types without a template pack, returns null.
+   *
+   * @param projectId - Project ID
+   * @param typeName - Type name to look up
+   * @returns Template pack version string, or null if type not found or has no pack
+   */
+  async getSchemaVersionForType(
+    projectId: string,
+    typeName: string
+  ): Promise<string | null> {
+    try {
+      const result = await this.dataSource.query(
+        `SELECT tp.version as schema_version
+        FROM kb.project_object_type_registry ptr
+        JOIN kb.graph_template_packs tp ON ptr.template_pack_id = tp.id
+        WHERE ptr.project_id = $1 AND ptr.type_name = $2 AND ptr.enabled = true`,
+        [projectId, typeName]
+      );
+
+      if (result.length === 0) {
+        return null;
+      }
+
+      return result[0].schema_version;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to get schema version for type ${typeName}: ${error}`
+      );
+      return null;
+    }
+  }
+
+  /**
    * Get type statistics for a project
    */
   async getTypeStatistics(projectId: string): Promise<{

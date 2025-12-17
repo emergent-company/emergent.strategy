@@ -351,6 +351,19 @@ export class GraphService {
               throw new NotFoundException('branch_not_found');
           }
 
+          // Get schema version from type registry (for schema migration tracking)
+          let schemaVersion: string | null = null;
+          if (project_id && this.typeRegistry) {
+            try {
+              schemaVersion = await this.typeRegistry.getSchemaVersionForType(
+                project_id,
+                type
+              );
+            } catch {
+              // Non-blocking: if we can't get schema version, continue without it
+            }
+          }
+
           // Schema validation (if schema exists for type)
           const validator = await this.schemaRegistry.getObjectValidator(
             project_id ?? null,
@@ -413,9 +426,9 @@ export class GraphService {
           // string as a later parameter ($10) that is explicitly text.
           const ftsVectorSql = `to_tsvector('simple', coalesce($1,'') || ' ' || coalesce($2,'') || ' ' || coalesce($9,'') )`;
           const row = await client.query<GraphObjectRow>(
-            `INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, project_id, branch_id, change_summary, content_hash, fts, embedding_updated_at)
-                     VALUES ($1,$2,$10,$3,$4,1,gen_random_uuid(),$5,$6,$7,$8, ${ftsVectorSql}, NULL)
-                     RETURNING id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
+            `INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, project_id, branch_id, change_summary, content_hash, fts, embedding_updated_at, schema_version)
+                     VALUES ($1,$2,$10,$3,$4,1,gen_random_uuid(),$5,$6,$7,$8, ${ftsVectorSql}, NULL, $11)
+                     RETURNING id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, change_summary, content_hash, fts, created_at, schema_version`,
             [
               type,
               key ?? null,
@@ -427,6 +440,7 @@ export class GraphService {
               hash,
               JSON.stringify(properties),
               status ?? null,
+              schemaVersion,
             ]
           );
           await client.query('COMMIT');
@@ -513,7 +527,40 @@ export class GraphService {
                  WHERE o.id=$1`,
         [id]
       );
-      if (!res.rowCount) throw new NotFoundException('object_not_found');
+
+      // If not found by ID, try by canonical_id (chat may store canonical_id references)
+      // This happens when chat stores object links using canonical_id but the original
+      // version row was deleted/migrated. Return the HEAD version of the canonical chain.
+      if (!res.rowCount) {
+        const canonicalRes = await this.db.query<
+          GraphObjectRow & {
+            revision_count: number;
+            relationship_count: number;
+          }
+        >(
+          `SELECT 
+                      o.id, o.project_id, o.canonical_id, o.supersedes_id, o.version, 
+                      o.type, o.key, o.properties, o.labels, o.deleted_at, o.created_at,
+                      o.embedding_v2, o.embedding_updated_at,
+                      COALESCE(rc.revision_count, 1) as revision_count,
+                      (SELECT COUNT(DISTINCT r.canonical_id)::int 
+                       FROM kb.graph_relationships r 
+                       WHERE (r.src_id = o.id OR r.dst_id = o.id) 
+                       AND r.deleted_at IS NULL) as relationship_count
+                   FROM kb.graph_objects o
+                   LEFT JOIN kb.graph_object_revision_counts rc ON rc.canonical_id = o.canonical_id
+                   WHERE o.canonical_id = $1
+                   ORDER BY o.version DESC
+                   LIMIT 1`,
+          [id]
+        );
+
+        if (canonicalRes.rowCount) {
+          return canonicalRes.rows[0];
+        }
+
+        throw new NotFoundException('object_not_found');
+      }
 
       const obj = res.rows[0];
 
@@ -790,9 +837,9 @@ export class GraphService {
         // IMPORTANT: Keep serialized properties text parameter separate from JSONB properties to avoid type inference conflicts.
         const ftsVectorSql = `to_tsvector('simple', coalesce($12,'') || ' ' || coalesce($13,'') || ' ' || coalesce($14,'') )`;
         const inserted = await client.query<GraphObjectRow>(
-          `INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, supersedes_id, project_id, branch_id, deleted_at, change_summary, content_hash, fts, embedding_updated_at)
-                     VALUES ($1,$2,$15,$3,$4,$5,$6,$7,$8,$9,NULL,$10,$11, ${ftsVectorSql}, NULL)
-                     RETURNING id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, change_summary, content_hash, fts, created_at`,
+          `INSERT INTO kb.graph_objects(type, key, status, properties, labels, version, canonical_id, supersedes_id, project_id, branch_id, deleted_at, change_summary, content_hash, fts, embedding_updated_at, schema_version)
+                     VALUES ($1,$2,$15,$3,$4,$5,$6,$7,$8,$9,NULL,$10,$11, ${ftsVectorSql}, NULL, $16)
+                     RETURNING id, project_id, branch_id, canonical_id, supersedes_id, version, type, key, status, properties, labels, deleted_at, change_summary, content_hash, fts, created_at, schema_version`,
           [
             current.type,
             current.key,
@@ -809,6 +856,7 @@ export class GraphService {
             JSON.stringify(nextProps),
             current.type,
             nextStatus ?? null,
+            current.schema_version ?? null, // Preserve schema_version from original object
           ]
         );
         await client.query('COMMIT');
