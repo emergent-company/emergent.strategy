@@ -8,9 +8,12 @@ import {
 } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { format, differenceInHours, isToday, isYesterday } from 'date-fns';
 import { Icon } from '@/components/atoms/Icon';
-import { SuggestionCard } from '@/components/chat';
+import {
+  SuggestionCard,
+  stripSuggestionsFromContent,
+  formatTimestamp,
+} from '@/components/chat';
 import { useObjectRefinementChat } from '@/hooks/use-object-refinement-chat';
 import type { RefinementMessage } from '@/types/object-refinement';
 
@@ -287,44 +290,6 @@ function MessageItem({
       <div className="chat-footer opacity-50 text-xs mt-1">{formattedTime}</div>
     </div>
   );
-}
-
-// --- Helper Functions ---
-
-/**
- * Strip suggestion JSON blocks from message content
- * The LLM outputs suggestions in ```suggestions ... ``` blocks which are parsed separately
- */
-function stripSuggestionsFromContent(content: string): string {
-  // Remove ```suggestions ... ``` blocks
-  return content
-    .replace(/```suggestions\s*\n[\s\S]*?\n```/g, '')
-    .replace(
-      /```json\s*\n\s*\[\s*\{[\s\S]*?"type"\s*:\s*"(property_change|rename|relationship_add|relationship_remove)"[\s\S]*?\]\s*\n```/g,
-      ''
-    )
-    .trim();
-}
-
-function formatTimestamp(createdAt: string): string {
-  try {
-    const date = new Date(createdAt);
-    const now = new Date();
-    const hoursAgo = differenceInHours(now, date);
-
-    if (hoursAgo < 1) {
-      return 'just now';
-    }
-    if (hoursAgo < 5) {
-      return hoursAgo === 1 ? '1 hour ago' : `${hoursAgo} hours ago`;
-    }
-    if (isToday(date) || isYesterday(date)) {
-      return format(date, 'h:mm a');
-    }
-    return format(date, 'MMM d, h:mm a');
-  } catch {
-    return 'just now';
-  }
 }
 
 export default ObjectRefinementChat;
