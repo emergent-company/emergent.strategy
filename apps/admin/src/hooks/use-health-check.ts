@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useDataUpdatesContext } from '@/contexts/data-updates';
 
 export interface HealthCheckResponse {
   ok: boolean;
@@ -13,54 +14,104 @@ export interface HealthCheckResponse {
 export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
 
 export interface UseHealthCheckOptions {
-  /** Polling interval in milliseconds (default: 30000 = 30 seconds) */
-  interval?: number;
-  /** Whether to start polling immediately (default: true) */
+  /**
+   * Fallback polling interval in milliseconds (default: 60000 = 60 seconds)
+   * HTTP polling only occurs when SSE is not connected or hasn't sent health data recently
+   */
+  fallbackInterval?: number;
+  /** Whether to enable health checking (default: true) */
   enabled?: boolean;
+  /**
+   * Maximum age of SSE health data before triggering HTTP fallback (default: 45000 = 45 seconds)
+   * This should be slightly longer than the SSE heartbeat interval (30 seconds)
+   */
+  maxHealthDataAge?: number;
 }
 
 export interface UseHealthCheckResult {
-  /** Current health data from the API */
+  /** Current health data from the API or SSE heartbeat */
   data: HealthCheckResponse | null;
   /** Overall health status derived from the response */
   status: HealthStatus;
-  /** Whether the health check is currently loading */
+  /** Whether the health check is currently loading (HTTP fetch only) */
   isLoading: boolean;
   /** Error if the health check failed */
   error: Error | null;
   /** Last successful check timestamp */
   lastChecked: Date | null;
-  /** Manually trigger a health check */
+  /** Manually trigger an HTTP health check */
   refetch: () => Promise<void>;
+  /** Whether health data is coming from SSE (true) or HTTP polling (false) */
+  isFromSSE: boolean;
 }
 
 /**
- * Hook to poll the backend health endpoint.
+ * Derive health status from health data and error state
+ */
+function deriveHealthStatus(
+  data: HealthCheckResponse | null,
+  error: Error | null
+): HealthStatus {
+  if (error) {
+    return 'unhealthy';
+  }
+  if (!data) {
+    return 'unknown';
+  }
+  if (!data.ok || data.db === 'down') {
+    return 'unhealthy';
+  }
+  if (data.rls_policies_ok === false) {
+    return 'degraded';
+  }
+  return 'healthy';
+}
+
+/**
+ * Hook for health status monitoring.
+ *
+ * Primarily uses health data delivered via SSE heartbeats (every 30 seconds).
+ * Falls back to HTTP polling when:
+ * - SSE connection is not established
+ * - SSE connection has errors
+ * - No health data received via SSE for longer than maxHealthDataAge
+ *
+ * This approach reduces unnecessary HTTP requests while ensuring
+ * health data is always available.
  *
  * @example
- * const { status, data, error, lastChecked, refetch } = useHealthCheck();
+ * const { status, data, error, lastChecked, refetch, isFromSSE } = useHealthCheck();
  *
  * @example
- * // Custom interval (every 10 seconds)
- * const { status } = useHealthCheck({ interval: 10000 });
- *
- * @example
- * // Disabled polling
+ * // Disable health checking
  * const { status, refetch } = useHealthCheck({ enabled: false });
  */
 export function useHealthCheck(
   options: UseHealthCheckOptions = {}
 ): UseHealthCheckResult {
-  const { interval = 30000, enabled = true } = options;
+  const {
+    fallbackInterval = 60000, // 60 seconds fallback polling
+    enabled = true,
+    maxHealthDataAge = 45000, // 45 seconds (SSE heartbeat is 30s)
+  } = options;
 
-  const [data, setData] = useState<HealthCheckResponse | null>(null);
+  // Get SSE health data from context
+  const {
+    connectionState,
+    healthData: sseHealthData,
+    lastHealthUpdate,
+  } = useDataUpdatesContext();
+
+  // Local state for HTTP fallback
+  const [httpData, setHttpData] = useState<HealthCheckResponse | null>(null);
+  const [httpLastChecked, setHttpLastChecked] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
-  const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
   const isMountedRef = useRef(true);
 
-  const checkHealth = useCallback(async () => {
+  // HTTP fallback fetch
+  const checkHealthViaHttp = useCallback(async () => {
     setIsLoading(true);
 
     try {
@@ -79,9 +130,9 @@ export function useHealthCheck(
       const healthData: HealthCheckResponse = await response.json();
 
       if (isMountedRef.current) {
-        setData(healthData);
+        setHttpData(healthData);
         setError(null);
-        setLastChecked(new Date());
+        setHttpLastChecked(new Date());
       }
     } catch (err) {
       if (isMountedRef.current) {
@@ -95,44 +146,69 @@ export function useHealthCheck(
     }
   }, []);
 
-  // Derive status from data and error
-  const status: HealthStatus = (() => {
-    if (error) {
-      return 'unhealthy';
-    }
-    if (!data) {
-      return 'unknown';
-    }
-    if (!data.ok || data.db === 'down') {
-      return 'unhealthy';
-    }
-    if (data.rls_policies_ok === false) {
-      return 'degraded';
-    }
-    return 'healthy';
-  })();
+  // Determine if we should use SSE data or need HTTP fallback
+  const sseDataIsStale = useCallback(() => {
+    if (!lastHealthUpdate) return true;
+    const age = Date.now() - lastHealthUpdate.getTime();
+    return age > maxHealthDataAge;
+  }, [lastHealthUpdate, maxHealthDataAge]);
 
-  // Initial fetch and polling
+  const shouldUseSseData =
+    connectionState === 'connected' && sseHealthData && !sseDataIsStale();
+
+  // Use SSE data when available, otherwise fall back to HTTP data
+  const data: HealthCheckResponse | null = shouldUseSseData
+    ? sseHealthData
+    : httpData;
+  const lastChecked: Date | null = shouldUseSseData
+    ? lastHealthUpdate
+    : httpLastChecked;
+
+  // Derive status
+  const status = deriveHealthStatus(data, error);
+
+  // Clear error when SSE data becomes available
+  useEffect(() => {
+    if (shouldUseSseData && error) {
+      setError(null);
+    }
+  }, [shouldUseSseData, error]);
+
+  // HTTP fallback polling - only when SSE is not providing health data
   useEffect(() => {
     isMountedRef.current = true;
 
-    if (enabled) {
-      // Initial fetch
-      checkHealth();
-
-      // Set up polling
-      const intervalId = setInterval(checkHealth, interval);
-
+    if (!enabled) {
       return () => {
         isMountedRef.current = false;
-        clearInterval(intervalId);
       };
     }
 
+    // Initial HTTP fetch if we don't have SSE data
+    if (!shouldUseSseData && !httpData) {
+      checkHealthViaHttp();
+    }
+
+    // Set up fallback polling - only runs when SSE data is not available
+    const intervalId = setInterval(() => {
+      // Only poll via HTTP if SSE data is stale or unavailable
+      if (!shouldUseSseData || sseDataIsStale()) {
+        checkHealthViaHttp();
+      }
+    }, fallbackInterval);
+
     return () => {
       isMountedRef.current = false;
+      clearInterval(intervalId);
     };
-  }, [enabled, interval, checkHealth]);
+  }, [
+    enabled,
+    fallbackInterval,
+    checkHealthViaHttp,
+    shouldUseSseData,
+    sseDataIsStale,
+    httpData,
+  ]);
 
   return {
     data,
@@ -140,7 +216,8 @@ export function useHealthCheck(
     isLoading,
     error,
     lastChecked,
-    refetch: checkHealth,
+    refetch: checkHealthViaHttp,
+    isFromSSE: shouldUseSseData ?? false,
   };
 }
 
