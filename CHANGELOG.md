@@ -4,6 +4,34 @@
 
 ### Added
 
+**Recent Items Page** (2025-12-15)
+
+New "Recent" page that displays recently accessed documents and objects, enabling quick access to frequently used items.
+
+**Features:**
+
+- **Dual-table layout**: Shows "Recent Objects" and "Recent Documents" in separate tables for clear organization
+- **Activity tracking**: Records document and object views with timestamps
+- **Relative time display**: Shows access times as "just now", "5 minutes ago", "yesterday", etc.
+- **Action badges**: Visual indicators showing whether items were "viewed" or "edited"
+- **Click-to-navigate**: Click any row to open the document or object detail view
+- **Empty states**: Friendly messaging when no recent activity exists
+
+**Technical Implementation:**
+
+- New `kb.user_recent_items` database table with upsert behavior (10 items per type per user/project)
+- `UserActivityModule` with fire-and-forget recording pattern (non-blocking)
+- New scopes: `user-activity:read` and `user-activity:write`
+- Frontend utility `formatRelativeTime` using native `Intl.RelativeTimeFormat`
+- Route: `/admin/recent` with sidebar navigation (clock icon)
+
+**API Endpoints:**
+
+- `POST /user-activity/record` - Record activity (fire-and-forget from document/object views)
+- `GET /user-activity/recent` - Get recent items with optional type filtering
+
+---
+
 **Optimized Entity Extraction (Map-Reduce + Semantic Chunking)** (2025-11-21)
 
 Refactored the entity extraction pipeline to use a highly parallelized LangGraph Map-Reduce architecture with Semantic Chunking.
