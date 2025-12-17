@@ -9,9 +9,10 @@
  *    - The entity linking service resolves names → canonical_id during extraction
  *    - This keeps LLM prompts intuitive while ensuring robust relationships
  *
- * 2. Schema Version Tracking
- *    - All entities now have `_schema_version: "2.0.0"` field
- *    - Enables migration tracking and dual-schema support
+ * 2. Schema Version Tracking (First-Class Column)
+ *    - Schema version is now tracked via `schema_version` column on graph_objects table
+ *    - The template pack's `version` field (e.g., "2.0.0") is automatically stored
+ *    - No need for `_schema_version` property in entity schemas
  *
  * 3. Enhanced Properties
  *    - Added `aliases`, `significance`, `source_references` to core entities
@@ -60,7 +61,7 @@ const pool = new Pool(getDbConfig());
 
 const templatePackName =
   process.env.BIBLE_TEMPLATE_PACK_NAME || 'Bible Knowledge Graph';
-const templatePackVersion = process.env.BIBLE_TEMPLATE_PACK_VERSION || '2.0.0';
+const templatePackVersion = process.env.BIBLE_TEMPLATE_PACK_VERSION || '2.1.0';
 
 const entityTypes = [
   {
@@ -122,11 +123,6 @@ const entityTypes = [
           items: { type: 'string' },
           description:
             'Biblical references where mentioned (e.g., ["Genesis 12", "Genesis 22"])',
-        },
-        _schema_version: {
-          type: 'string',
-          description: 'Schema version for migration tracking',
-          default: '2.0.0',
         },
       },
     },
@@ -218,11 +214,6 @@ IMPORTANT: Use entity NAMES (not IDs) for references. The system will automatica
           description:
             'Biblical references where mentioned (e.g., ["Ruth 1", "Matthew 2"])',
         },
-        _schema_version: {
-          type: 'string',
-          description: 'Schema version for migration tracking',
-          default: '2.0.0',
-        },
       },
     },
     extraction: {
@@ -304,11 +295,6 @@ IMPORTANT: Use entity NAMES for region/country references. The system will resol
           description:
             'Primary biblical reference (e.g., "Exodus 14", "Matthew 27")',
         },
-        _schema_version: {
-          type: 'string',
-          description: 'Schema version for migration tracking',
-          default: '3.0.0',
-        },
       },
     },
     extraction: {
@@ -382,11 +368,6 @@ IMPORTANT:
           type: 'integer',
           description: 'Total number of chapters in this book',
         },
-        _schema_version: {
-          type: 'string',
-          description: 'Schema version for migration tracking',
-          default: '2.0.0',
-        },
       },
     },
     extraction: {
@@ -449,11 +430,6 @@ Extract ONE Book entity per document based on the document title/heading.`,
             'proclamation',
           ],
           description: 'Type of quote',
-        },
-        _schema_version: {
-          type: 'string',
-          description: 'Schema version for migration tracking',
-          default: '2.0.0',
         },
       },
     },
@@ -531,11 +507,6 @@ IMPORTANT: Use entity NAMES for speaker and audience. System will resolve to can
           items: { type: 'string' },
           description: 'Biblical references where mentioned',
         },
-        _schema_version: {
-          type: 'string',
-          description: 'Schema version for migration tracking',
-          default: '2.0.0',
-        },
       },
     },
     extraction: {
@@ -590,11 +561,6 @@ IMPORTANT: Use entity NAMES for region, leader, founded_by. System will resolve 
           description:
             'Where the object is located - place name - will be linked to Place entity',
         },
-        _schema_version: {
-          type: 'string',
-          description: 'Schema version for migration tracking',
-          default: '2.0.0',
-        },
       },
     },
     extraction: {
@@ -618,11 +584,6 @@ IMPORTANT: Use entity NAMES for region, leader, founded_by. System will resolve 
         sign: {
           type: 'string',
           description: 'Physical sign or symbol of the covenant',
-        },
-        _schema_version: {
-          type: 'string',
-          description: 'Schema version for migration tracking',
-          default: '3.0.0',
         },
       },
     },
@@ -652,11 +613,6 @@ IMPORTANT: Use entity NAMES for region, leader, founded_by. System will resolve 
           type: 'string',
           description: 'Reference to where/how the prophecy was fulfilled',
         },
-        _schema_version: {
-          type: 'string',
-          description: 'Schema version for migration tracking',
-          default: '2.0.0',
-        },
       },
     },
     extraction: {
@@ -684,11 +640,6 @@ IMPORTANT: Use entity NAMES for region, leader, founded_by. System will resolve 
           type: 'string',
           description:
             'Where the miracle occurred - place name - will be linked to Place entity',
-        },
-        _schema_version: {
-          type: 'string',
-          description: 'Schema version for migration tracking',
-          default: '3.0.0',
         },
       },
     },
@@ -722,11 +673,6 @@ IMPORTANT: Use entity NAMES for region, leader, founded_by. System will resolve 
           type: 'array',
           items: { type: 'string' },
           description: 'When/where the angel appeared',
-        },
-        _schema_version: {
-          type: 'string',
-          description: 'Schema version for migration tracking',
-          default: '2.0.0',
         },
       },
     },
