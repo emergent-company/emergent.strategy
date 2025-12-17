@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   Logger,
   InternalServerErrorException,
@@ -19,6 +20,8 @@ import {
   CreateConversationDto,
   CreateConversationResponseDto,
 } from './dto/create-conversation.dto';
+import { ToolDefinitionsResponseDto } from './dto/tool-definitions.dto';
+import { TOOL_DEFINITIONS } from './tool-definitions';
 import { ChatSdkService } from './chat-sdk.service';
 import { toUIMessageStream } from '@ai-sdk/langchain';
 import {
@@ -59,6 +62,19 @@ export class ChatSdkController {
       title: conversation.title,
       createdAt: conversation.createdAt.toISOString(),
     };
+  }
+
+  /**
+   * Get available tool definitions for the chat UI.
+   * Returns tool metadata including name, description, icon, and grouping.
+   */
+  @Get('tools')
+  @ApiOkResponse({
+    description: 'List available chat tools with metadata',
+    type: ToolDefinitionsResponseDto,
+  })
+  getTools(): ToolDefinitionsResponseDto {
+    return { tools: TOOL_DEFINITIONS };
   }
 
   @Post()

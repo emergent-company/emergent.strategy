@@ -94,4 +94,16 @@ export class ChatSdkRequestDto {
   @IsOptional()
   @IsUUID()
   projectId?: string;
+
+  @ApiProperty({
+    description:
+      'Array of enabled tool names. If null, all tools are enabled (default). If empty array, no tools are enabled.',
+    required: false,
+    type: [String],
+    nullable: true,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  enabledTools?: string[] | null;
 }
