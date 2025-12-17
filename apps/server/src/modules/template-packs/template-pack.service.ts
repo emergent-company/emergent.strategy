@@ -178,6 +178,9 @@ export class TemplatePackService {
       queryBuilder.andWhere('pack.deprecated_at IS NULL');
     }
 
+    // Always exclude draft packs from the list (draft packs are for studio editing only)
+    queryBuilder.andWhere('pack.draft = false');
+
     if (query.search) {
       queryBuilder.andWhere(
         '(pack.name ILIKE :search OR pack.description ILIKE :search)',
@@ -643,10 +646,10 @@ export class TemplatePackService {
     // Derive org ID for tenant context (not used in query but available if needed)
     await this.getOrganizationIdFromProject(projectId);
 
-    // Get all template packs
+    // Get all non-draft, non-deprecated template packs
     const packsResult = await this.db.query<TemplatePackRow>(
       `SELECT * FROM kb.graph_template_packs 
-             WHERE deprecated_at IS NULL
+             WHERE deprecated_at IS NULL AND draft = false
              ORDER BY published_at DESC`
     );
 
