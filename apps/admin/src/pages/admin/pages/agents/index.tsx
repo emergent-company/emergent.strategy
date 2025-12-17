@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Icon } from '@/components/atoms/Icon';
 import { LoadingEffect } from '@/components';
+import { PageContainer } from '@/components/layouts';
 import { useApi } from '@/hooks/use-api';
 import {
   createAgentsClient,
@@ -507,7 +508,7 @@ export default function AgentsPage() {
   };
 
   return (
-    <div data-testid="page-agents" className="mx-auto max-w-5xl container">
+    <PageContainer maxWidth="5xl" testId="page-agents">
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-bold text-2xl">Agents</h1>
@@ -595,6 +596,6 @@ export default function AgentsPage() {
           </button>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

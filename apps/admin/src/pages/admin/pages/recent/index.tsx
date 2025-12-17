@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
 import { Icon } from '@/components/atoms/Icon';
+import { PageContainer } from '@/components/layouts';
 import {
   createUserActivityClient,
   type RecentItem,
@@ -84,17 +85,17 @@ export default function RecentItemsPage() {
 
   if (!config.activeProjectId) {
     return (
-      <div className="mx-auto container">
+      <PageContainer>
         <div className="alert alert-warning">
           <Icon icon="lucide--alert-triangle" className="size-5" />
           <span>Please select a project to view recent items</span>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div data-testid="page-recent" className="w-full px-4">
+    <PageContainer maxWidth="full" className="px-4" testId="page-recent">
       {/* Header */}
       <div className="mb-6 flex justify-between items-start">
         <div>
@@ -162,7 +163,7 @@ export default function RecentItemsPage() {
           onRowClick={handleDocumentClick}
         />
       </div>
-    </div>
+    </PageContainer>
   );
 }
 

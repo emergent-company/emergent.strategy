@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
 import { Icon } from '@/components/atoms/Icon';
+import { PageContainer } from '@/components/layouts';
 import type { Project } from '@/hooks/use-projects';
 import { SettingsNav } from './SettingsNav';
 
@@ -191,20 +192,17 @@ export default function ProjectLLMSettingsPage() {
 
   if (!config.activeProjectId) {
     return (
-      <div className="mx-auto container">
+      <PageContainer>
         <div className="alert alert-warning">
           <Icon icon="lucide--alert-triangle" className="size-5" />
           <span>Please select a project to configure LLM settings</span>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div
-      data-testid="page-settings-llm"
-      className="mx-auto max-w-4xl container"
-    >
+    <PageContainer maxWidth="4xl" testId="page-settings-llm">
       {/* Settings Navigation */}
       <SettingsNav />
 
@@ -532,6 +530,6 @@ export default function ProjectLLMSettingsPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

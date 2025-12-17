@@ -32,3 +32,6 @@ export * from './organisms/SidebarProjectDropdown';
 export * from './organisms/ProjectGate';
 export * from './organisms/OrgAndProjectGate';
 export * from './organisms/Modal/Modal';
+
+// Layouts
+export * from './layouts';
