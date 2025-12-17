@@ -110,16 +110,57 @@ const ErrorCode = {
  * **Authentication:** Bearer token via Authorization header
  * **Authorization:** Requires schema:read scope for schema tools
  */
+/**
+ * Session data stored per client token
+ */
+interface McpSession {
+  initialized: boolean;
+  projectId?: string;
+}
+
+/**
+ * Session data stored per client token
+ */
+interface McpSession {
+  initialized: boolean;
+  projectId?: string;
+}
+
 @Controller('mcp')
 @ApiTags('MCP Server (JSON-RPC 2.0)')
 @ApiBearerAuth()
 export class McpServerController {
-  private initialized = new Set<string>(); // Track initialized clients by token
+  private sessions = new Map<string, McpSession>(); // Track sessions by token
 
   constructor(
     private readonly schemaVersionService: SchemaVersionService,
     private readonly db: DatabaseService
   ) {}
+
+  /**
+   * Get or create session for a token
+   */
+  private getSession(token: string): McpSession {
+    if (!this.sessions.has(token)) {
+      this.sessions.set(token, { initialized: false });
+    }
+    return this.sessions.get(token)!;
+  }
+
+  /**
+   * Get project ID from session or request headers
+   * Priority: 1. Session (from initialize), 2. X-Project-Id header
+   */
+  private getProjectId(req: Request): string | undefined {
+    const token = this.extractToken(req);
+    if (token) {
+      const session = this.getSession(token);
+      if (session.projectId) {
+        return session.projectId;
+      }
+    }
+    return req.headers['x-project-id'] as string | undefined;
+  }
 
   @Post('rpc')
   @UseGuards(AuthGuard, ScopesGuard)
@@ -131,9 +172,15 @@ Model Context Protocol (MCP) server endpoint.
 
 **Protocol:** JSON-RPC 2.0
 **Methods:** initialize, tools/list, tools/call
-**Tools:** schema_version, schema_changelog, type_info
+**Tools:** schema_version, schema_changelog, type_info, list_entity_types, query_entities
 
-**Example Initialize Request:**
+**Project Context:**
+Project-specific tools (list_entity_types, query_entities) require a project ID.
+You can provide it either:
+1. In the initialize params: \`"project_id": "uuid"\`
+2. Via X-Project-Id header
+
+**Example Initialize Request (with project):**
 \`\`\`json
 {
   "jsonrpc": "2.0",
@@ -145,7 +192,8 @@ Model Context Protocol (MCP) server endpoint.
     "clientInfo": {
       "name": "example-client",
       "version": "1.0.0"
-    }
+    },
+    "project_id": "1e37ab78-f4af-4e61-9b71-5e263139525b"
   }
 }
 \`\`\`
@@ -318,10 +366,11 @@ Model Context Protocol (MCP) server endpoint.
     switch (notification.method) {
       case 'notifications/initialized':
         // Client signals it's ready after initialize
-        // Mark client as initialized
+        // Mark client as initialized (session already created in handleInitialize)
         const token = this.extractToken(req);
         if (token) {
-          this.initialized.add(token);
+          const session = this.getSession(token);
+          session.initialized = true;
         }
         break;
 
@@ -334,6 +383,7 @@ Model Context Protocol (MCP) server endpoint.
   /**
    * Handle initialize request
    * MCP lifecycle management - capability negotiation
+   * Accepts optional project_id to scope all subsequent calls
    */
   private async handleInitialize(params: any, req: Request): Promise<any> {
     // Validate required params
@@ -360,6 +410,20 @@ Model Context Protocol (MCP) server endpoint.
       };
     }
 
+    // Store session with optional project_id
+    const token = this.extractToken(req);
+    if (token) {
+      const session = this.getSession(token);
+      session.initialized = true;
+
+      // Store project_id if provided in params or header
+      if (params.project_id) {
+        session.projectId = params.project_id;
+      } else if (req.headers['x-project-id']) {
+        session.projectId = req.headers['x-project-id'] as string;
+      }
+    }
+
     return {
       protocolVersion: MCP_PROTOCOL_VERSION,
       capabilities: {
@@ -368,6 +432,13 @@ Model Context Protocol (MCP) server endpoint.
         },
       },
       serverInfo: SERVER_INFO,
+      // Include project context in response if set
+      ...(token &&
+        this.getSession(token).projectId && {
+          projectContext: {
+            projectId: this.getSession(token).projectId,
+          },
+        }),
     };
   }
 
@@ -378,7 +449,7 @@ Model Context Protocol (MCP) server endpoint.
   private async handleToolsList(req: Request): Promise<any> {
     // Check if client is initialized
     const token = this.extractToken(req);
-    if (!token || !this.initialized.has(token)) {
+    if (!token || !this.getSession(token).initialized) {
       throw {
         code: ErrorCode.INVALID_REQUEST,
         message: 'Client must call initialize before tools/list',
@@ -504,7 +575,7 @@ Model Context Protocol (MCP) server endpoint.
   private async handleToolsCall(params: any, req: Request): Promise<any> {
     // Check if client is initialized
     const token = this.extractToken(req);
-    if (!token || !this.initialized.has(token)) {
+    if (!token || !this.getSession(token).initialized) {
       throw {
         code: ErrorCode.INVALID_REQUEST,
         message: 'Client must call initialize before tools/call',
@@ -655,27 +726,34 @@ Model Context Protocol (MCP) server endpoint.
     // Check data:read scope
     this.checkScope(req, 'data:read');
 
-    const projectId = req.headers['x-project-id'] as string;
-    const orgId = req.headers['x-org-id'] as string;
+    const projectId = this.getProjectId(req);
+
+    if (!projectId) {
+      throw {
+        code: ErrorCode.INVALID_PARAMS,
+        message:
+          'Project ID is required. Provide project_id in initialize params or X-Project-Id header.',
+        data: {
+          hint: 'Call initialize with project_id parameter or set X-Project-Id header',
+        },
+      };
+    }
 
     // Query type registry for available types
-    const types = await this.db.runWithTenantContext(
-      projectId,
-      async () => {
-        const result = await this.db.query(`
+    const types = await this.db.runWithTenantContext(projectId, async () => {
+      const result = await this.db.query(`
                 SELECT 
-                    tr.type as name,
+                    tr.type_name as name,
                     tr.description,
                     COUNT(go.id) as instance_count
                 FROM kb.project_object_type_registry tr
-                LEFT JOIN kb.graph_objects go ON go.type = tr.type AND go.deleted_at IS NULL
+                LEFT JOIN kb.graph_objects go ON go.type = tr.type_name AND go.deleted_at IS NULL
                 WHERE tr.enabled = true
-                GROUP BY tr.type, tr.description
-                ORDER BY tr.type
+                GROUP BY tr.type_name, tr.description
+                ORDER BY tr.type_name
             `);
-        return result.rows;
-      }
-    );
+      return result.rows;
+    });
 
     const formattedTypes = types.map((t: any) => ({
       name: t.name,
@@ -689,6 +767,7 @@ Model Context Protocol (MCP) server endpoint.
           type: 'text',
           text: JSON.stringify(
             {
+              projectId,
               types: formattedTypes,
               total: formattedTypes.length,
             },
@@ -708,8 +787,18 @@ Model Context Protocol (MCP) server endpoint.
     // Check data:read scope
     this.checkScope(req, 'data:read');
 
-    const projectId = req.headers['x-project-id'] as string;
-    const orgId = req.headers['x-org-id'] as string;
+    const projectId = this.getProjectId(req);
+
+    if (!projectId) {
+      throw {
+        code: ErrorCode.INVALID_PARAMS,
+        message:
+          'Project ID is required. Provide project_id in initialize params or X-Project-Id header.',
+        data: {
+          hint: 'Call initialize with project_id parameter or set X-Project-Id header',
+        },
+      };
+    }
 
     // Validate and extract parameters
     const {
@@ -747,11 +836,9 @@ Model Context Protocol (MCP) server endpoint.
       : 'DESC';
 
     // Query entities
-    const entities = await this.db.runWithTenantContext(
-      projectId,
-      async () => {
-        const result = await this.db.query(
-          `
+    const entities = await this.db.runWithTenantContext(projectId, async () => {
+      const result = await this.db.query(
+        `
                 SELECT 
                     go.id,
                     go.key,
@@ -768,12 +855,11 @@ Model Context Protocol (MCP) server endpoint.
                 ORDER BY go.${safeSortBy} ${safeSortOrder}
                 LIMIT $2 OFFSET $3
             `,
-          [type_name, safeLimit, safeOffset]
-        );
+        [type_name, safeLimit, safeOffset]
+      );
 
-        return result.rows;
-      }
-    );
+      return result.rows;
+    });
 
     // Get total count
     const countResult = await this.db.runWithTenantContext(
@@ -809,6 +895,7 @@ Model Context Protocol (MCP) server endpoint.
           type: 'text',
           text: JSON.stringify(
             {
+              projectId,
               entities: formattedEntities,
               pagination: {
                 total: countResult,
