@@ -4,6 +4,8 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 
 /**
@@ -18,6 +20,8 @@ import {
  *
  * Template packs are GLOBAL resources shared across all organizations.
  * Use ProjectTemplatePack for project-specific installations.
+ *
+ * Version lineage is tracked via parent_version_id for template pack studio.
  */
 @Entity({ schema: 'kb', name: 'graph_template_packs' })
 export class GraphTemplatePack {
@@ -29,6 +33,24 @@ export class GraphTemplatePack {
 
   @Column({ type: 'text' })
   version: string;
+
+  /**
+   * Reference to the parent version for version lineage tracking.
+   * Used by Template Pack Studio for version history.
+   */
+  @Column({ type: 'uuid', nullable: true })
+  parent_version_id?: string;
+
+  @ManyToOne(() => GraphTemplatePack, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'parent_version_id' })
+  parentVersion?: GraphTemplatePack;
+
+  /**
+   * Draft flag for work-in-progress packs.
+   * Draft packs cannot be installed in projects until finalized.
+   */
+  @Column({ type: 'boolean', default: false })
+  draft: boolean;
 
   @Column({ type: 'text', nullable: true })
   description?: string;
