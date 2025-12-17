@@ -3,6 +3,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { EventsService } from './events.service';
 import { EventsController } from './events.controller';
 import { AuthModule } from '../auth/auth.module';
+import { HealthModule } from '../health/health.module';
 
 /**
  * Global events module for real-time entity updates.
@@ -33,6 +34,7 @@ import { AuthModule } from '../auth/auth.module';
       ignoreErrors: false,
     }),
     AuthModule,
+    HealthModule,
   ],
   controllers: [EventsController],
   providers: [EventsService],
