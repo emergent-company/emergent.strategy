@@ -52,12 +52,15 @@ export function MergeChat({
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Track if we've already sent the initial auto-prompt (to prevent double-send)
+  const hasSentInitialPrompt = useRef(false);
 
   const {
     messages,
     isLoading,
     isStreaming,
     error,
+    isNewConversation,
     send,
     stop,
     applySuggestion,
@@ -68,6 +71,37 @@ export function MergeChat({
     targetObjectId,
     pollInterval: 10000,
   });
+
+  // Auto-send initial prompt for new conversations (only once)
+  useEffect(() => {
+    // Only send if:
+    // 1. It's a new conversation (no messages from server)
+    // 2. We're not currently loading
+    // 3. We haven't already sent the initial prompt
+    // 4. We're not already streaming
+    if (
+      isNewConversation &&
+      !isLoading &&
+      !hasSentInitialPrompt.current &&
+      !isStreaming
+    ) {
+      hasSentInitialPrompt.current = true;
+      const initialPrompt = `Please analyze the differences between "${sourceObjectName}" and "${targetObjectName}" and suggest how to merge them. For each property that differs, provide a recommendation on which value to keep or how to combine them.`;
+      send(initialPrompt);
+    }
+  }, [
+    isNewConversation,
+    isLoading,
+    isStreaming,
+    sourceObjectName,
+    targetObjectName,
+    send,
+  ]);
+
+  // Reset the initial prompt flag when taskId changes (new modal opened)
+  useEffect(() => {
+    hasSentInitialPrompt.current = false;
+  }, [taskId]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -150,31 +184,7 @@ export function MergeChat({
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {/* Initial Context Message */}
-        {messages.length === 0 && !isLoading && (
-          <div className="chat chat-start">
-            <div className="chat-image">
-              <div className="bg-warning/10 text-warning flex items-center justify-center rounded-full size-8">
-                <Icon icon="lucide--bot" className="size-4" />
-              </div>
-            </div>
-            <div className="chat-bubble bg-base-200 text-base-content max-w-[85%]">
-              <div className="prose prose-sm max-w-none prose-neutral dark:prose-invert">
-                <p className="mb-2">
-                  I can help you merge <strong>{sourceObjectName}</strong> and{' '}
-                  <strong>{targetObjectName}</strong>.
-                </p>
-                <p className="text-xs text-base-content/70">
-                  Ask me questions about the differences, or request suggestions
-                  for specific properties. I'll provide merge recommendations
-                  that you can accept or reject.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Loading State */}
+        {/* Loading State - shown while loading conversation from server */}
         {isLoading && messages.length === 0 && (
           <div className="flex items-center justify-center py-8">
             <span className="loading loading-spinner loading-md text-warning"></span>
