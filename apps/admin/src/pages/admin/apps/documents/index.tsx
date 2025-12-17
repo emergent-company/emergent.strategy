@@ -199,8 +199,15 @@ export default function DocumentsPage() {
   // Load documents only when an active org & project are selected (prevents 403 on first-login with no org).
   useEffect(() => {
     let cancelled = false;
+
+    // IMPORTANT: Clear documents immediately when project changes to prevent
+    // showing stale data from another project while loading
+    setData([]);
+    setTotalCount(0);
+
     // Require both org & project (project scoping) to fetch; gate handles creation/select flows.
     if (!config.activeOrgId || !config.activeProjectId) {
+      setLoading(false);
       return () => {
         cancelled = true;
       };
