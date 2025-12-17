@@ -11,6 +11,7 @@ export interface GraphObjectRow {
   status?: string | null;
   properties: any;
   labels: string[];
+  schema_version?: string | null; // Template pack version at creation (e.g., "2.0.0")
   deleted_at?: string | null;
   change_summary?: any | null;
   content_hash?: string | null; // base64 encoded

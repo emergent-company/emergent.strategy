@@ -3,6 +3,8 @@ import { DatabaseService } from '../../common/database/database.service';
 
 export interface VectorSearchResultRow {
   id: string;
+  canonical_id?: string | null;
+  version?: number | null;
   distance: number;
   // organization_id removed from graph_objects schema in Phase 5
   project_id?: string | null;
@@ -170,7 +172,7 @@ export class GraphVectorSearchService {
       nextIndex,
     } = this.buildDynamicFilters(opts, 3, { placeholder: '$1' });
     // organization_id removed from graph_objects schema in Phase 5
-    const sql = `SELECT id, project_id, branch_id, (embedding_v2 <=> $2::vector) AS distance
+    const sql = `SELECT id, canonical_id, version, project_id, branch_id, (embedding_v2 <=> $2::vector) AS distance
                      FROM kb.graph_objects
                      ${clause}
                      ORDER BY embedding_v2 <=> $2::vector
@@ -178,6 +180,8 @@ export class GraphVectorSearchService {
     try {
       const res = await this.db.query<{
         id: string;
+        canonical_id: string | null;
+        version: number | null;
         distance: number;
         project_id: string | null;
         branch_id: string | null;
@@ -190,6 +194,8 @@ export class GraphVectorSearchService {
       }
       return rows.map((r: any) => ({
         id: r.id,
+        canonical_id: r.canonical_id,
+        version: r.version,
         distance: r.distance,
         project_id: r.project_id,
         branch_id: r.branch_id,
