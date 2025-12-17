@@ -2,9 +2,11 @@
 // Route: /admin/settings/project/templates
 
 import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
 import { Icon } from '@/components/atoms/Icon';
+import { PageContainer } from '@/components/layouts';
 import { Tooltip } from '@/components/atoms/Tooltip';
 import { SettingsNav } from './SettingsNav';
 
@@ -441,20 +443,17 @@ export default function ProjectTemplatesSettingsPage() {
 
   if (!config.activeProjectId) {
     return (
-      <div className="mx-auto container">
+      <PageContainer>
         <div className="alert alert-warning">
           <Icon icon="lucide--alert-triangle" className="size-5" />
           <span>Please select a project to manage template packs</span>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div
-      data-testid="page-settings-project-templates"
-      className="mx-auto max-w-6xl container"
-    >
+    <PageContainer maxWidth="6xl" testId="page-settings-project-templates">
       {/* Settings Navigation */}
       <SettingsNav />
 
@@ -467,16 +466,26 @@ export default function ProjectTemplatesSettingsPage() {
             and extract from documents
           </p>
         </div>
-        {installedPacks.length > 0 && (
-          <button
-            className="btn-outline btn btn-sm"
-            onClick={loadCompiledTypes}
-            data-testid="preview-compiled-types-button"
+        <div className="flex gap-2">
+          <Link
+            to="/admin/settings/project/template-studio"
+            className="btn btn-primary btn-sm"
+            data-testid="create-template-pack-button"
           >
-            <Icon icon="lucide--eye" className="size-4" />
-            Preview All Types
-          </button>
-        )}
+            <Icon icon="lucide--sparkles" className="size-4" />
+            Create New Pack
+          </Link>
+          {installedPacks.length > 0 && (
+            <button
+              className="btn-outline btn btn-sm"
+              onClick={loadCompiledTypes}
+              data-testid="preview-compiled-types-button"
+            >
+              <Icon icon="lucide--eye" className="size-4" />
+              Preview All Types
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Error Alert */}
@@ -607,6 +616,14 @@ export default function ProjectTemplatesSettingsPage() {
                             <Icon icon="lucide--eye" className="size-4" />
                             Preview
                           </button>
+                          <Link
+                            to={`/admin/settings/project/template-studio?source=${pack.template_pack.id}`}
+                            className="btn btn-sm btn-ghost"
+                            data-testid={`edit-in-studio-${pack.template_pack.id}`}
+                          >
+                            <Icon icon="lucide--sparkles" className="size-4" />
+                            Edit in Studio
+                          </Link>
                           <button
                             className="btn btn-sm btn-ghost"
                             onClick={() =>
@@ -1034,6 +1051,6 @@ export default function ProjectTemplatesSettingsPage() {
           </div>
         </dialog>
       )}
-    </div>
+    </PageContainer>
   );
 }
