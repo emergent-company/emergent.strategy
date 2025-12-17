@@ -170,6 +170,160 @@ The health check validates:
 **Version:** 1.0  
 **Purpose:** Ensure all changes to the EPF repository maintain internal consistency, alignment with the framework philosophy, and proper traceability.
 
+---
+
+## 📦 Instance Structure Migration
+
+### When to Migrate
+
+Instances may need structural updates when:
+- The EPF framework introduces new required folders or artifacts
+- Health checks report warnings about missing instance structure
+- A new EPF version adds recommended organizational patterns
+- Instances were created before the complete structure was standardized
+
+### Complete Instance Structure
+
+All EPF instances should follow this directory structure:
+
+```
+_instances/{product-name}/
+├── _meta.yaml                    # Instance metadata (version, product info)
+├── README.md                     # Instance overview and guidance
+├── READY/                        # Strategy phase artifacts
+│   ├── 00-north-star.yaml
+│   ├── 01-insights-opportunities.yaml
+│   ├── 02-gap-analysis.yaml
+│   ├── 03-strategies.yaml
+│   ├── 04-roadmap-recipe.yaml
+│   └── 05-okrs.yaml
+├── FIRE/                         # Execution phase artifacts
+│   ├── feature_definitions/      # Feature definitions (fd-*)
+│   ├── value_models/             # Value modeling artifacts
+│   └── workflows/                # Workflow definitions
+├── AIM/                          # Assessment phase artifacts
+│   └── assessment_reports/       # Cycle assessments
+├── ad-hoc-artifacts/             # Unstructured work products
+│   └── README.md                 # Guidelines for ad-hoc content
+├── context-sheets/               # Context documentation
+├── cycles/                       # Archived completed cycles
+│   ├── cycle-001/
+│   ├── cycle-002/
+│   └── ...
+```
+
+### Migration Process
+
+#### Step 1: Check Current Structure
+
+Run the EPF health check to identify missing folders:
+
+```bash
+cd /path/to/product-repo
+./docs/EPF/scripts/epf-health-check.sh
+```
+
+Look for warnings like:
+```
+⚠️  Instance Validation: Missing folders: FIRE, AIM
+```
+
+#### Step 2: Add Missing Folders
+
+Use the `--update` flag to safely add missing folders to an existing instance:
+
+```bash
+./docs/EPF/scripts/create-instance-structure.sh --update {product-name}
+```
+
+**What happens during migration:**
+- ✅ Creates any missing folders from the complete structure
+- ✅ Adds `.gitkeep` files to empty folders for git tracking
+- ✅ Adds `ad-hoc-artifacts/README.md` template if missing
+- ✅ Preserves all existing files (_meta.yaml, README.md, artifacts)
+- ✅ Reports exactly what was added vs. what was skipped
+- ✅ Provides appropriate commit instructions
+
+**Example Output:**
+```
+Update mode: Adding missing folders to existing instance
+✅ Added directories:
+   + AIM
+   + ad-hoc-artifacts
+   + cycles
+
+ℹ️  Skipped existing directories:
+   ✓ READY (already exists)
+   ✓ FIRE (already exists)
+   ...
+
+🎉 Instance updated successfully! Added 3 missing folder(s).
+```
+
+#### Step 3: Commit Changes
+
+Follow the commit instructions provided by the script:
+
+```bash
+git add docs/EPF/_instances/{product-name}
+git commit -m "EPF: Update {product-name} instance with missing folders"
+git push
+```
+
+#### Step 4: Verify Completion
+
+Run the health check again to confirm all warnings are resolved:
+
+```bash
+./docs/EPF/scripts/epf-health-check.sh
+```
+
+Expected result:
+```
+Passed:          45
+Warnings:        0
+Errors:          0
+
+━━━ ALL HEALTH CHECKS PASSED ━━━
+```
+
+### Safety Guarantees
+
+The migration process is designed to be completely safe:
+
+1. **Non-Destructive:** Only adds folders, never removes or overwrites
+2. **Preserves Existing Files:** Skips `_meta.yaml`, `README.md`, and all artifacts
+3. **Idempotent:** Can run multiple times safely (will skip what exists)
+4. **Clear Reporting:** Shows exactly what changed and what was preserved
+5. **Validation:** Health checks confirm structure before and after
+
+### Migration Best Practices
+
+- **Run health checks first** to understand what's missing
+- **Review the update output** before committing
+- **Commit promptly** after successful migration
+- **Document any manual changes** needed in instance README
+- **Verify with health check** after committing
+- **Update `_meta.yaml`** `epf_version` if migrating to new framework version
+
+### Troubleshooting
+
+**Problem:** Script reports "Instance does not exist"  
+**Solution:** Remove `--update` flag to create new instance, or check product name spelling
+
+**Problem:** Folders exist but health check still warns  
+**Solution:** Ensure folders are committed to git (`.gitkeep` files should exist)
+
+**Problem:** Script reports errors during creation  
+**Solution:** Check write permissions, ensure you're in product repo with `docs/EPF/` subtree
+
+### Related Documentation
+
+- [Health Check Enhancement](docs/HEALTH_CHECK_ENHANCEMENT.md) - Structural validation details
+- [Create Instance Structure Script](scripts/create-instance-structure.sh) - Implementation details
+
+---
+
 ## 🔒 Core Principle
 
 **Every change to the EPF repository MUST be followed by a comprehensive consistency check across all artifacts, schemas, and documentation.**
