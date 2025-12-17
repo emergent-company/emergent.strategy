@@ -152,12 +152,34 @@ export interface ObjectTypeSchema {
 
 /**
  * Property schema definition
+ * Follows JSON Schema draft-07 conventions with additional extraction hints.
  */
 export interface PropertySchema {
   type: string;
   description?: string;
   required?: boolean;
   enum?: string[];
+  /**
+   * Example values for this property.
+   * Examples must match the property type:
+   * - string properties: string[]
+   * - number/integer properties: number[]
+   * - boolean properties: boolean[]
+   * - array properties: array of example arrays
+   */
+  examples?: unknown[];
+  /** Format hint for string types (e.g., 'date', 'date-time', 'email', 'uri') */
+  format?: string;
+  /** For array types, schema of items */
+  items?: PropertySchema | { type: string };
+  /** Minimum value for number/integer types */
+  minimum?: number;
+  /** Maximum value for number/integer types */
+  maximum?: number;
+  /** Maximum length for string types */
+  maxLength?: number;
+  /** Default value */
+  default?: unknown;
 }
 
 /**
