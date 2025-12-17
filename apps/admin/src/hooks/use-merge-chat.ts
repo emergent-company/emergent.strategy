@@ -58,6 +58,11 @@ export interface UseMergeChatReturn {
   isStreaming: boolean;
   error: string | null;
   mergePreview: MergePreview | null;
+  /**
+   * True if this is a new conversation with no messages yet.
+   * Used to determine whether to auto-send the initial prompt.
+   */
+  isNewConversation: boolean;
 
   // Actions
   send: (content: string) => Promise<void>;
@@ -103,6 +108,8 @@ export function useMergeChat(options: UseMergeChatOptions): UseMergeChatReturn {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mergePreview, setMergePreview] = useState<MergePreview | null>(null);
+  // Track if this is a new conversation (no messages loaded from server)
+  const [isNewConversation, setIsNewConversation] = useState(false);
 
   // Refs for streaming control
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -156,6 +163,8 @@ export function useMergeChat(options: UseMergeChatOptions): UseMergeChatReturn {
 
       setConversation(result.conversation);
       setMessages(result.messages || []);
+      // Mark as new conversation if no messages exist yet
+      setIsNewConversation((result.messages || []).length === 0);
       if (result.mergePreview) {
         updateMergePreview(result.mergePreview);
       }
@@ -183,6 +192,8 @@ export function useMergeChat(options: UseMergeChatOptions): UseMergeChatReturn {
 
       setIsStreaming(true);
       setError(null);
+      // No longer a new conversation once we send a message
+      setIsNewConversation(false);
 
       // Optimistically add user message
       const userMsgId = uid('msg');
@@ -561,6 +572,7 @@ export function useMergeChat(options: UseMergeChatOptions): UseMergeChatReturn {
     isStreaming,
     error,
     mergePreview,
+    isNewConversation,
     send,
     stop,
     applySuggestion,
