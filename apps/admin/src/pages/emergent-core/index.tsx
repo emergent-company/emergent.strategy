@@ -33,10 +33,14 @@ const EmergentCoreLandingPage = () => {
       <Pricing />
       */}
       <Footer />
-      <ColorSwitcher />
-      <LogoGradientSwitcher />
-      <LogoFontSwitcher />
-      <FloatingThemeConfigurator />
+      {import.meta.env.DEV && (
+        <>
+          <ColorSwitcher />
+          <LogoGradientSwitcher />
+          <LogoFontSwitcher />
+          <FloatingThemeConfigurator />
+        </>
+      )}
     </SwitcherPanelProvider>
   );
 };

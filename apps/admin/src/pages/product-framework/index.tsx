@@ -27,10 +27,14 @@ const ProductFrameworkLandingPage = () => {
       <Benefits />
       <CTA />
       <Footer />
-      <ColorSwitcher />
-      <LogoGradientSwitcher />
-      <LogoFontSwitcher />
-      <FloatingThemeConfigurator />
+      {import.meta.env.DEV && (
+        <>
+          <ColorSwitcher />
+          <LogoGradientSwitcher />
+          <LogoFontSwitcher />
+          <FloatingThemeConfigurator />
+        </>
+      )}
     </SwitcherPanelProvider>
   );
 };

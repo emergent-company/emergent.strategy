@@ -297,13 +297,15 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
             >
               AI Prompts
             </Sidebar.MenuItem>
-            <Sidebar.MenuItem
-              id="admin-theme-test"
-              url="/admin/theme-test"
-              icon="lucide--palette"
-            >
-              Theme Editor
-            </Sidebar.MenuItem>
+            {import.meta.env.DEV && (
+              <Sidebar.MenuItem
+                id="admin-theme-test"
+                url="/admin/theme-test"
+                icon="lucide--palette"
+              >
+                Theme Editor
+              </Sidebar.MenuItem>
+            )}
           </Sidebar.Section>
         </Sidebar>
         <div className="flex flex-col min-w-0 h-screen overflow-auto grow">

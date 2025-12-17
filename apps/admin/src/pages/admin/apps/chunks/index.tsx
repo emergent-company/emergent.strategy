@@ -4,6 +4,7 @@ import { useApi } from '@/hooks/use-api';
 import { useConfig } from '@/contexts/config';
 import { useDataUpdates } from '@/contexts/data-updates';
 import { Icon } from '@/components/atoms/Icon';
+import { PageContainer } from '@/components/layouts';
 
 interface ChunkData {
   id: string;
@@ -177,7 +178,7 @@ export default function ChunksPage() {
   };
 
   return (
-    <div data-testid="page-chunks" className="w-full px-4">
+    <PageContainer maxWidth="full" className="px-4" testId="page-chunks">
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-bold text-2xl">Chunks</h1>
@@ -321,6 +322,6 @@ export default function ChunksPage() {
           </form>
         </dialog>
       )}
-    </div>
+    </PageContainer>
   );
 }
