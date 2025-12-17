@@ -1,4 +1,4 @@
-import { useEffect, useRef, memo, Fragment } from 'react';
+import { useEffect, useRef, memo, Fragment, useCallback } from 'react';
 import SimpleBar from 'simplebar-react';
 import 'simplebar-react/dist/simplebar.min.css';
 import type { UIMessage } from '@ai-sdk/react';
@@ -53,6 +53,14 @@ interface MessageListProps {
   onRejectSuggestion?: (messageId: string, suggestionIndex: number) => void;
   /** Currently loading suggestion (messageId and suggestionIndex) */
   loadingSuggestion?: { messageId: string; suggestionIndex: number } | null;
+  /** Callback when an object card is clicked, passes the objectId */
+  onObjectClick?: (objectId: string) => void;
+  /** Whether there are more older messages to load */
+  hasMoreMessages?: boolean;
+  /** Whether older messages are currently being loaded */
+  isLoadingMoreMessages?: boolean;
+  /** Callback to load more older messages */
+  onLoadMoreMessages?: () => void;
 }
 
 /**
@@ -78,12 +86,64 @@ export const MessageList = memo(function MessageList({
   onApplySuggestion,
   onRejectSuggestion,
   loadingSuggestion,
+  onObjectClick,
+  hasMoreMessages = false,
+  isLoadingMoreMessages = false,
+  onLoadMoreMessages,
 }: MessageListProps) {
   const scrollRef = useRef<any>(null);
   const contentEndRef = useRef<HTMLDivElement>(null);
+  const contentStartRef = useRef<HTMLDivElement>(null);
+  const prevScrollHeightRef = useRef<number>(0);
+  const isLoadingRef = useRef(false);
+
+  // Track loading state to maintain scroll position when prepending messages
+  useEffect(() => {
+    isLoadingRef.current = isLoadingMoreMessages;
+  }, [isLoadingMoreMessages]);
+
+  // Maintain scroll position when prepending older messages
+  useEffect(() => {
+    if (!isLoadingMoreMessages && prevScrollHeightRef.current > 0) {
+      const scrollElement = scrollRef.current?.getScrollElement?.();
+      if (scrollElement) {
+        const newScrollHeight = scrollElement.scrollHeight;
+        const scrollDiff = newScrollHeight - prevScrollHeightRef.current;
+        if (scrollDiff > 0) {
+          // Restore scroll position relative to new content
+          scrollElement.scrollTop = scrollDiff;
+        }
+        prevScrollHeightRef.current = 0;
+      }
+    }
+  }, [messages.length, isLoadingMoreMessages]);
+
+  // Handle scroll to detect when user scrolls near top
+  const handleScroll = useCallback(() => {
+    if (!onLoadMoreMessages || !hasMoreMessages || isLoadingRef.current) {
+      return;
+    }
+
+    const scrollElement = scrollRef.current?.getScrollElement?.();
+    if (!scrollElement) return;
+
+    const { scrollTop } = scrollElement;
+
+    // Trigger load when user scrolls within 100px of top
+    if (scrollTop < 100) {
+      // Save current scroll height before loading more
+      prevScrollHeightRef.current = scrollElement.scrollHeight;
+      onLoadMoreMessages();
+    }
+  }, [hasMoreMessages, onLoadMoreMessages]);
 
   // Auto-scroll to bottom when new messages arrive or during streaming
   useEffect(() => {
+    // Don't auto-scroll if we just loaded older messages (scroll position was restored)
+    if (prevScrollHeightRef.current > 0) {
+      return;
+    }
+
     // Use the content end marker to scroll into view
     if (contentEndRef.current) {
       contentEndRef.current.scrollIntoView({
@@ -98,8 +158,28 @@ export const MessageList = memo(function MessageList({
       className="flex-1 px-4 py-2"
       ref={scrollRef}
       style={{ maxHeight: '100%' }}
+      onScroll={handleScroll}
     >
       <div className="space-y-6 pb-12">
+        {/* Invisible marker at the start for scroll position tracking */}
+        <div ref={contentStartRef} />
+
+        {/* Load more indicator */}
+        {hasMoreMessages && (
+          <div className="text-center py-4">
+            {isLoadingMoreMessages ? (
+              <span className="loading loading-spinner loading-sm text-base-content/50"></span>
+            ) : (
+              <button
+                onClick={onLoadMoreMessages}
+                className="btn btn-ghost btn-sm text-base-content/50 hover:text-base-content"
+              >
+                Load older messages
+              </button>
+            )}
+          </div>
+        )}
+
         {messages.length === 0 && !isStreaming
           ? emptyState || (
               <div className="text-center text-base-content/50 py-8">
@@ -188,6 +268,7 @@ export const MessageList = memo(function MessageList({
                           ? loadingSuggestion.suggestionIndex
                           : undefined
                       }
+                      onObjectClick={onObjectClick}
                     />
                   </Fragment>
                 );

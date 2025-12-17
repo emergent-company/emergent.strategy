@@ -10,3 +10,14 @@ export {
   type ActionCardProps,
   type ActionTarget,
 } from './ActionCard';
+export {
+  ChatToolsDropdown,
+  type ChatToolsDropdownProps,
+  type ToolDefinition,
+} from './ChatToolsDropdown';
+export {
+  ToolCallIndicator,
+  ToolCallList,
+  type ToolCallInfo,
+} from './ToolCallIndicator';
+export { stripSuggestionsFromContent, formatTimestamp } from './utils';
