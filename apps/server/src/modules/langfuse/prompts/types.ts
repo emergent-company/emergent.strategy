@@ -44,6 +44,18 @@ export const EXTRACTION_PROMPT_NAMES = {
   QUALITY_AUDITOR: 'quality-auditor',
 } as const;
 
+/**
+ * Prompt names for Template Pack Studio.
+ * Used for AI-assisted template pack design and schema creation.
+ */
+export const TEMPLATE_STUDIO_PROMPT_NAMES = {
+  /** System prompt for Template Pack Studio LLM conversations */
+  TEMPLATE_STUDIO_SYSTEM: 'template-studio-system',
+} as const;
+
+export type TemplateStudioPromptName =
+  (typeof TEMPLATE_STUDIO_PROMPT_NAMES)[keyof typeof TEMPLATE_STUDIO_PROMPT_NAMES];
+
 export type ExtractionPromptName =
   (typeof EXTRACTION_PROMPT_NAMES)[keyof typeof EXTRACTION_PROMPT_NAMES];
 

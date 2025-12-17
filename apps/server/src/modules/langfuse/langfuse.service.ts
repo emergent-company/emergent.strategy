@@ -675,6 +675,59 @@ export class LangfuseService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Create or update a text prompt in Langfuse.
+   * If a prompt with the same name exists, this creates a new version.
+   *
+   * @param name - The prompt name
+   * @param prompt - The prompt text content
+   * @param options - Optional settings (labels, tags, config, commitMessage)
+   * @returns The created prompt metadata or null if failed
+   */
+  async createOrUpdateTextPrompt(
+    name: string,
+    prompt: string,
+    options?: {
+      labels?: string[];
+      tags?: string[];
+      config?: Record<string, unknown>;
+      commitMessage?: string;
+    }
+  ): Promise<{ name: string; version: number; labels: string[] } | null> {
+    if (!this.langfuse) {
+      this.logger.debug(
+        `[createOrUpdateTextPrompt] Langfuse not initialized, cannot create/update prompt "${name}"`
+      );
+      return null;
+    }
+
+    try {
+      this.logger.debug(
+        `[createOrUpdateTextPrompt] Creating/updating prompt "${name}"`
+      );
+      const result = await this.langfuse.createPrompt({
+        name,
+        type: 'text',
+        prompt,
+        labels: options?.labels ?? ['production'],
+        tags: options?.tags,
+        config: options?.config,
+        commitMessage: options?.commitMessage,
+      });
+      this.logger.log(
+        `[createOrUpdateTextPrompt] Created/updated prompt "${name}" version ${result.version}`
+      );
+      return {
+        name: result.name,
+        version: result.version,
+        labels: result.labels,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to create/update text prompt "${name}"`, error);
+      return null;
+    }
+  }
+
+  /**
    * Check if prompt management is available.
    * This is true when Langfuse is enabled and configured.
    */
