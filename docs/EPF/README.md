@@ -1,6 +1,23 @@
-# Emergent Product Framework (EPF) Repository - v1.11.0
+# Emergent Product Framework (EPF) Repository - v1.12.0
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
+
+## What's New in v1.12.0
+
+* **Feature Definition Schema v2.0 Quality System:** Comprehensive quality enforcement to prevent lengthy manual rework:
+  - **Schema v2.0 Enhancements**: Exactly 4 personas required, 200+ character narratives, structured context arrays (key_interactions, data_displayed), rich dependency objects with 30+ char rationale
+  - **Wizard Guidance** (`wizards/feature_definition.wizard.md`): Human-readable 7-step creation guide reducing creation time from 2-3 hours to 45-60 minutes
+  - **Enhanced Agent Prompt** (`wizards/product_architect.agent_prompt.md`): +300 lines of AI-specific guidance with pre-creation validation checklist and PAUSE-and-validate workflow
+  - **Automated Validation** (`scripts/validate-feature-quality.sh`): 379-line quality checker with 6 validation categories (CI/CD ready, requires yq and ajv-cli)
+  - **System Documentation** (`docs/EPF_SCHEMA_V2_QUALITY_SYSTEM.md`): Complete reference with v1.0→v2.0 migration guide, troubleshooting, and examples
+  - **Bug Fix**: Corrected JSON syntax error in feature_definition_schema.json
+
+### Migration from v1.11.0
+
+1. **No action required** for existing v1.0 feature definitions (remain valid)
+2. **To adopt v2.0 quality system**: Follow migration guide in `docs/EPF_SCHEMA_V2_QUALITY_SYSTEM.md`
+3. **New features**: Use wizard or validation script for quality enforcement
+4. **Update _meta.yaml**: Set `epf_version: "1.12.0"`
 
 ## What's New in v1.11.0
 

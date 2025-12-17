@@ -1,6 +1,6 @@
 #!/bin/bash
 # EPF Health Check Script
-# Version: 1.11.0
+# Version: 1.12.0
 #
 # This script performs comprehensive validation of the EPF framework,
 # including version consistency, YAML parsing, schema validation, and

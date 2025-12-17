@@ -37,6 +37,215 @@ When creating or updating artifacts, follow these principles:
 4. **Let AI Infer:** Context that can be derived from git history, related artifacts, or repository structure doesn't need explicit documentation.
 5. **Immutable Ledger Philosophy:** Every git commit is a decision. The history of what was tried (and what NOT to do) is as valuable as current state.
 
+## Schema v2.0 Pre-Creation Validation
+
+**Before creating any feature definition YAML file**, validate your plan against these **mandatory** quality constraints from EPF Schema v2.0:
+
+### ✓ Value Propositions - WHY (4 Rich Personas)
+
+- [ ] **Exactly 4 distinct personas** (not 3, not 5—this is enforced by schema)
+- [ ] Each persona has: **Character name** + **specific role** + **company/context**
+  - ❌ Generic: "User", "Admin", "Developer"
+  - ✅ Rich: "Sarah Martinez, Compliance Officer at TechFlow Inc."
+- [ ] Each narrative has **3 paragraphs** with **200+ characters each**:
+  - `current_situation`: Rich detail about their current struggle with concrete metrics (time wasted, team size, error rates)
+  - `transformation_moment`: How the feature changes their workflow with specific steps and UI interactions
+  - `emotional_resolution`: Deeper human impact—identity shift, team dynamics, career advancement
+- [ ] **No bullet points** in narratives—write flowing paragraphs with sensory details
+- [ ] **Include metrics**: "2 hours/day", "5-person team", "40% error rate", "30-day compliance cycle"
+
+**Example - Current Situation (234 chars):**
+```yaml
+current_situation: |
+  Sarah manages compliance reviews for a 50-person engineering team at TechFlow. Each quarter, she manually 
+  tracks 200+ documents across email, Slack, and Google Drive. This fragmented process consumes 15 hours per 
+  review cycle and causes 3-5 missed deadlines per year, triggering costly audit findings.
+```
+
+### ✓ Scenarios - HOW (Top-Level, Complete)
+
+- [ ] Scenarios are **top-level** in YAML structure (NOT nested within contexts)
+  - ❌ Wrong: `contexts[0].scenarios`
+  - ✅ Correct: `definition.scenarios` (sibling to `contexts`)
+- [ ] Each scenario includes **8 required fields**:
+  - `id`: Pattern `scn-XXX`
+  - `name`: Brief descriptive title (not generic "Use Feature")
+  - `actor`: Persona reference or role
+  - `context`: Specific situational setup (where/when this happens)
+  - `trigger`: Concrete event or user action that initiates flow
+  - `action`: Step-by-step description with UI interaction details
+  - `outcome`: Measurable result with specific state changes
+  - `acceptance_criteria`: 3-5 testable conditions
+- [ ] **name** is specific: "Schedule quarterly compliance review" not "Create meeting"
+- [ ] **trigger** is concrete: "User clicks 'Schedule Review' from dashboard sidebar" not "User wants to create"
+- [ ] **action** includes UI details: "1. Opens modal, 2. Selects date picker, 3. Adds attendees from dropdown"
+- [ ] **acceptance_criteria** are testable: "Meeting appears in calendar within 2 seconds" not "User is happy"
+
+**Example - Complete Scenario:**
+```yaml
+scenarios:
+  - id: scn-001
+    name: Schedule quarterly compliance review with audit team
+    actor: Sarah Martinez (Compliance Officer)
+    context: End of Q3, preparing for Q4 audit cycle with 5-person audit team
+    trigger: Sarah clicks "Schedule Review" button from Compliance Dashboard sidebar
+    action: |
+      1. Opens scheduling modal with calendar view
+      2. Selects date range (Oct 15-17) using date picker
+      3. Adds 5 audit team members from dropdown (auto-suggests recent collaborators)
+      4. Attaches compliance checklist template from document library
+      5. Clicks "Create & Notify" button
+    outcome: |
+      - Meeting event created in shared calendar with all attendees notified
+      - Compliance checklist attached to meeting notes
+      - Audit team receives email with meeting details and preparation materials
+    acceptance_criteria:
+      - Meeting appears in all attendees' calendars within 2 seconds
+      - Email notifications sent within 30 seconds
+      - Checklist attachment accessible via meeting details link
+      - Calendar event shows correct date range (Oct 15-17)
+```
+
+### ✓ Contexts - WHERE (Required Interaction/Data Fields)
+
+- [ ] Each context has **required** `key_interactions` array (min 1 item)
+  - What users **DO**: "Click 'New Meeting' button", "Select date from calendar picker"
+- [ ] Each context has **required** `data_displayed` array (min 1 item)
+  - What users **SEE**: "List of upcoming meetings", "Attendee availability status"
+- [ ] **Avoid implementation details**: "Uses React DatePicker component" (too technical)
+- [ ] **Focus on user-visible**: "Calendar grid showing current month with available time slots" (perfect)
+- [ ] Describe **UI locations**: screen/panel/modal/workflow step/integration surface
+
+**Example - Context with Required Fields:**
+```yaml
+contexts:
+  - id: ctx-001
+    type: ui
+    name: Meeting Creation Modal
+    description: Overlay form for scheduling new meetings with attendees
+    key_interactions:
+      - Click "New Meeting" button from dashboard
+      - Select date/time from calendar picker
+      - Type attendee names in auto-complete search field
+      - Attach documents via drag-drop or file browser
+      - Click "Create Meeting" to finalize
+    data_displayed:
+      - Calendar grid showing current month with availability indicators
+      - List of suggested attendees based on recent collaborations
+      - Attached document previews with file size/type
+      - Real-time validation messages (e.g., "3 attendees added")
+```
+
+### ✓ Dependencies - Relationships (Rich Objects with WHY)
+
+- [ ] Dependencies use **rich objects**, not simple strings:
+  - ❌ Wrong: `requires: ["fd-001", "fd-002"]`
+  - ✅ Correct: `requires: [{id: "fd-001", name: "...", reason: "..."}]`
+- [ ] Each dependency has **3 required fields**:
+  - `id`: Pattern `fd-XXX`
+  - `name`: Human-readable feature name
+  - `reason`: **30+ characters** explaining WHY this dependency exists
+- [ ] **reason** explains **technical or UX coupling**, not just "we need it"
+  - ❌ Weak: "Depends on graph infrastructure"
+  - ✅ Strong: "Document relationships require the graph infrastructure to store and query semantic connections between meeting notes, decisions, and compliance requirements. Without graph capabilities, relationship traversal would rely on slow table joins."
+- [ ] Consider **both directions**: `requires` (needs this first) and `enables` (unlocks this next)
+
+**Example - Rich Dependencies:**
+```yaml
+dependencies:
+  requires:
+    - id: fd-001
+      name: Knowledge Graph Engine
+      reason: |
+        Meeting scheduling needs graph infrastructure to model complex relationships: attendee→department,
+        meeting→project, document→compliance_requirement. Graph queries enable features like "find all 
+        compliance meetings involving Engineering leadership" which would be prohibitively slow with 
+        traditional SQL joins across 5+ tables.
+    - id: fd-007
+      name: Authentication & Multi-Tenancy
+      reason: |
+        Meeting data must be isolated per organization to prevent data leakage. Auth system provides
+        tenant context for all meeting operations and enforces row-level security policies. Without
+        this foundation, meeting creation would fail at database constraint level.
+  enables:
+    - id: fd-009
+      name: Meeting Minutes & Action Items
+      reason: |
+        Once meetings exist in the system, the minutes feature can attach structured notes, extract
+        action items, and link decisions to the meeting timeline. This dependency enables downstream
+        compliance workflows where audit trails must connect meeting discussions to subsequent actions.
+```
+
+### ✓ Common Anti-Patterns to AVOID
+
+1. **Generic Personas:**
+   - ❌ "User", "Admin", "Developer", "Manager"
+   - ✅ "Sarah Martinez, Compliance Officer at TechFlow Inc.", "Marcus Chen, Senior Frontend Engineer"
+
+2. **Brief Narratives (Under 200 chars):**
+   - ❌ "Things are hard because processes are manual"
+   - ✅ 200+ char rich paragraph with metrics, team size, specific workflows, time costs
+
+3. **Embedded Scenarios (Wrong YAML structure):**
+   - ❌ `contexts[0].scenarios` (nested inside contexts)
+   - ✅ `definition.scenarios` (top-level sibling to contexts)
+
+4. **Simple String Dependencies:**
+   - ❌ `requires: ["fd-001"]` or `requires: "fd-001"`
+   - ✅ `requires: [{id: "fd-001", name: "Graph Engine", reason: "..."}]`
+
+5. **Missing Context Required Fields:**
+   - ❌ Context with only `id`, `type`, `name`, `description`
+   - ✅ Context includes `key_interactions: [...]` and `data_displayed: [...]` (min 1 each)
+
+6. **Technical Implementation Instead of User Behavior:**
+   - ❌ "System calls PostgreSQL stored procedure"
+   - ✅ "User sees loading spinner, then meeting appears in calendar list"
+
+7. **Weak Dependency Reasons (Under 30 chars):**
+   - ❌ `reason: "needs graph"`
+   - ✅ `reason: "Document relationships require graph infrastructure to store semantic connections..."`
+
+### Reference Examples
+
+For **validated patterns** following schema v2.0, review these emergent feature definitions:
+
+- **Complete structure**: `/feature_definitions/fd-001_knowledge_graph_engine.yaml`
+- **Rich personas**: `/feature_definitions/fd-003_ai_native_chat.yaml`
+- **Strong dependencies**: `/feature_definitions/fd-007_authentication_multi_tenancy.yaml`
+
+### Quality Validation Checklist (Before File Creation)
+
+Run through this checklist mentally before generating YAML:
+
+1. [ ] **4 distinct personas** identified with names + roles + companies
+2. [ ] Each persona has **3 paragraphs × 200+ chars** (total 600+ chars per persona)
+3. [ ] Personas represent **diverse roles**: individual contributor, manager, executive, external stakeholder
+4. [ ] Scenarios are **top-level** (not nested in contexts)
+5. [ ] Each scenario has **all 8 required fields** with specific content
+6. [ ] Contexts have **key_interactions** and **data_displayed** arrays (1+ items each)
+7. [ ] Dependencies are **rich objects** with id/name/reason (reason 30+ chars)
+8. [ ] Dependency reasons explain **technical or UX coupling** (not generic "we need it")
+9. [ ] No implementation details in user-facing sections
+10. [ ] All IDs follow patterns: `fd-XXX`, `cap-XXX`, `scn-XXX`, `ctx-XXX`
+
+**Creation Time Investment:**
+- **First feature definition**: 2-3 hours (learning schema patterns, drafting rich narratives)
+- **Subsequent definitions**: 45-60 minutes (with schema internalized and templates ready)
+- The upfront quality investment eliminates 8+ hours of later rework!
+
+### When to Use This Checklist
+
+**ALWAYS validate BEFORE creating YAML files.** The schema will reject files that violate these constraints, but catching issues early (at planning stage) saves iteration cycles.
+
+**During conversation with users:**
+1. Gather strategic context (contributes_to, tracks, problem statement)
+2. **PAUSE and validate**: Do I have 4 distinct personas with rich narratives?
+3. Draft scenarios with complete 8-field structure
+4. Link scenarios to contexts via `context` field
+5. Identify dependencies and explain WHY (30+ char reason)
+6. Generate YAML only after checklist passes
+
 ## Example Interaction Flow
 
 ### Value Modeling
