@@ -67,6 +67,15 @@
     "workspace": {
       "command": "npx",
       "args": ["tsx", "tools/workspace-mcp/src/index.ts"]
+    },
+    "kb": {
+      "type": "http",
+      "url": "${KB_MCP_URL:-https://admin.dev.emergent-company.ai/api/mcp/rpc}",
+      "headers": {
+        "Authorization": "Bearer ${KB_MCP_TOKEN:-data-read-token}",
+        "Content-Type": "application/json",
+        "X-Project-Id": "${KB_PROJECT_ID:-1e37ab78-f4af-4e61-9b71-5e263139525b}"
+      }
     }
   }
 }
