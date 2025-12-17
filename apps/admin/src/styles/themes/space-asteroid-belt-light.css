@@ -39,10 +39,10 @@
   --color-error: oklch(50% 0.18 20); /* Rust red-gray */
   --color-error-content: oklch(98% 0 0);
 
-  /* Radii - sharp and industrial */
-  --radius-selector: 0.25rem;
-  --radius-field: 0.25rem;
-  --radius-box: 0.375rem;
+  /* Radii - subtle rounding */
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.5rem;
 
   /* Control sizing */
   --size-selector: 0.25rem;
