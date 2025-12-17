@@ -164,6 +164,12 @@ export class LangGraphService implements OnModuleInit {
       `Streaming conversation for thread: ${threadId} with ${allTools.length} tools`
     );
 
+    // Debug: Log tool names being passed to the agent
+    if (allTools.length > 0) {
+      const toolNames = allTools.map((t) => t.name).join(', ');
+      this.logger.log(`[TOOLS] Available tools: ${toolNames}`);
+    }
+
     // Create user message
     const userMessage = new HumanMessage(message);
 

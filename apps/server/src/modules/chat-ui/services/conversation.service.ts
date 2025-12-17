@@ -113,6 +113,75 @@ export class ConversationService {
   }
 
   /**
+   * Get paginated messages for a conversation.
+   * Uses cursor-based pagination (beforeId) for efficient loading of older messages.
+   *
+   * @param conversationId - The conversation ID
+   * @param options - Pagination options
+   * @returns Paginated messages with metadata
+   */
+  async getConversationMessages(
+    conversationId: string,
+    options: {
+      limit?: number;
+      beforeId?: string; // Cursor: get messages before this message ID
+    } = {}
+  ): Promise<{
+    messages: ChatMessage[];
+    hasMore: boolean;
+    totalCount: number;
+  }> {
+    const { limit = 50, beforeId } = options;
+
+    // Verify conversation exists
+    const conversation = await this.conversationRepository.findOne({
+      where: { id: conversationId },
+    });
+    if (!conversation) {
+      throw new NotFoundException(
+        `Conversation with ID ${conversationId} not found`
+      );
+    }
+
+    // Build query with cursor-based pagination
+    const queryBuilder = this.messageRepository
+      .createQueryBuilder('message')
+      .where('message.conversationId = :conversationId', { conversationId })
+      .orderBy('message.createdAt', 'DESC')
+      .take(limit + 1); // Fetch one extra to check if there are more
+
+    if (beforeId) {
+      // Get the cursor message to find its createdAt timestamp
+      const cursorMessage = await this.messageRepository.findOne({
+        where: { id: beforeId },
+      });
+      if (cursorMessage) {
+        queryBuilder.andWhere('message.createdAt < :cursorDate', {
+          cursorDate: cursorMessage.createdAt,
+        });
+      }
+    }
+
+    const messages = await queryBuilder.getMany();
+    const hasMore = messages.length > limit;
+    if (hasMore) {
+      messages.pop(); // Remove the extra item used to check hasMore
+    }
+
+    // Get total count for UI display
+    const totalCount = await this.messageRepository.count({
+      where: { conversationId },
+    });
+
+    // Reverse to return in chronological order (oldest first)
+    return {
+      messages: messages.reverse(),
+      hasMore,
+      totalCount,
+    };
+  }
+
+  /**
    * Get conversation history as messages array
    */
   async getConversationHistory(
@@ -147,6 +216,20 @@ export class ConversationService {
   ): Promise<ChatConversation> {
     const conversation = await this.getConversation(conversationId);
     conversation.draftText = draftText;
+    return this.conversationRepository.save(conversation);
+  }
+
+  /**
+   * Update enabled tools for a conversation.
+   * @param conversationId - The conversation ID
+   * @param enabledTools - Array of tool names to enable, or null for all tools
+   */
+  async updateEnabledTools(
+    conversationId: string,
+    enabledTools: string[] | null
+  ): Promise<ChatConversation> {
+    const conversation = await this.getConversation(conversationId);
+    conversation.enabledTools = enabledTools;
     return this.conversationRepository.save(conversation);
   }
 
