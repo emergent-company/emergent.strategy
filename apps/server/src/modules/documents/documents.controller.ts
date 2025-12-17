@@ -127,10 +127,15 @@ export class DocumentsController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Req() req: any
   ) {
-    const requestedProject =
+    const projectId =
       (req.headers['x-project-id'] as string | undefined) || undefined;
+    if (!projectId) {
+      throw new BadRequestException({
+        error: { code: 'bad-request', message: 'x-project-id required' },
+      });
+    }
     const doc = await this.documents.get(id, {
-      projectId: requestedProject,
+      projectId,
     });
     if (!doc)
       throw new NotFoundException({
@@ -194,21 +199,19 @@ export class DocumentsController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Req() req: any
   ) {
-    const requestedProject =
+    const projectId =
       (req.headers['x-project-id'] as string | undefined) || undefined;
+    if (!projectId) {
+      throw new BadRequestException({
+        error: { code: 'bad-request', message: 'x-project-id required' },
+      });
+    }
 
-    // Get document first for scope enforcement
+    // Get document first for scope enforcement (RLS enforces project isolation)
     const doc = await this.documents.get(id, {
-      projectId: requestedProject,
+      projectId,
     });
     if (!doc)
-      throw new NotFoundException({
-        error: { code: 'not-found', message: 'Document not found' },
-      });
-
-    // Verify document belongs to requested project
-    // Org verification is now handled by RLS via derived org ID
-    if (requestedProject && doc.projectId && doc.projectId !== requestedProject)
       throw new NotFoundException({
         error: { code: 'not-found', message: 'Document not found' },
       });
@@ -235,17 +238,21 @@ export class DocumentsController {
     @Body() body: BulkDeleteRequestDto,
     @Req() req: any
   ) {
-    const requestedProject =
+    const projectId =
       (req.headers['x-project-id'] as string | undefined) || undefined;
+    if (!projectId) {
+      throw new BadRequestException({
+        error: { code: 'bad-request', message: 'x-project-id required' },
+      });
+    }
 
-    // Filter to only documents accessible by this project
-    // Org access is enforced by RLS via derived org ID
+    // Filter to only documents accessible by this project (RLS enforces isolation)
     const accessibleIds: string[] = [];
     for (const id of body.ids) {
       const doc = await this.documents.get(id, {
-        projectId: requestedProject,
+        projectId,
       });
-      if (doc && (!requestedProject || doc.projectId === requestedProject)) {
+      if (doc) {
         accessibleIds.push(id);
       }
     }
@@ -287,17 +294,21 @@ export class DocumentsController {
   @ApiStandardErrors()
   @Scopes('documents:delete')
   async bulkDelete(@Body() body: BulkDeleteRequestDto, @Req() req: any) {
-    const requestedProject =
+    const projectId =
       (req.headers['x-project-id'] as string | undefined) || undefined;
+    if (!projectId) {
+      throw new BadRequestException({
+        error: { code: 'bad-request', message: 'x-project-id required' },
+      });
+    }
 
-    // Filter to only documents accessible by this project
-    // Org access is enforced by RLS via derived org ID
+    // Filter to only documents accessible by this project (RLS enforces isolation)
     const accessibleIds: string[] = [];
     for (const id of body.ids) {
       const doc = await this.documents.get(id, {
-        projectId: requestedProject,
+        projectId,
       });
-      if (doc && (!requestedProject || doc.projectId === requestedProject)) {
+      if (doc) {
         accessibleIds.push(id);
       }
     }
