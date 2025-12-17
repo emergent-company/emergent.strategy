@@ -6,6 +6,7 @@ import { useSearchParams } from 'react-router';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
+import { PageContainer } from '@/components/layouts';
 import { ObjectDetailModal } from '@/components/organisms/ObjectDetailModal';
 import {
   DataTable,
@@ -1118,7 +1119,7 @@ export default function ObjectsPage() {
 
   if (!config.activeProjectId) {
     return (
-      <div className="mx-auto container">
+      <PageContainer>
         <div className="alert alert-warning">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -1134,12 +1135,12 @@ export default function ObjectsPage() {
           </svg>
           <span>Please select a project to view objects</span>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div data-testid="page-objects" className="w-full px-4">
+    <PageContainer maxWidth="full" className="px-4" testId="page-objects">
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-bold text-2xl inline-flex items-center gap-2">
@@ -1316,6 +1317,6 @@ export default function ObjectsPage() {
         onAccept={handleAcceptObject}
         onObjectUpdated={handleObjectUpdated}
       />
-    </div>
+    </PageContainer>
   );
 }

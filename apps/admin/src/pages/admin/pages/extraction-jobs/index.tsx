@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
+import { PageContainer } from '@/components/layouts';
 import { ExtractionJobFilters } from '@/components/organisms/ExtractionJobFilters';
 import { ExtractionJobList } from '@/components/organisms/ExtractionJobList';
 import type { ExtractionJobCardProps } from '@/components/organisms/ExtractionJobCard';
@@ -293,7 +294,7 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
   // Show error state
   if (error && !isLoading) {
     return (
-      <div className="w-full px-4">
+      <PageContainer maxWidth="full" className="px-4">
         <div className="mb-6">
           <h1 className="font-bold text-2xl">Extraction Jobs</h1>
           <p className="mt-1 text-base-content/70">
@@ -304,12 +305,16 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
           <Icon icon="lucide--alert-circle" />
           <span>{error}</span>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div data-testid="page-extraction-jobs" className="w-full px-4">
+    <PageContainer
+      maxWidth="full"
+      className="px-4"
+      testId="page-extraction-jobs"
+    >
       {/* Header */}
       <div className="flex sm:flex-row flex-col justify-between items-start sm:items-center gap-4 mb-6">
         <div>
@@ -411,7 +416,7 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
         onPageChange={setCurrentPage}
         onJobClick={handleJobClick}
       />
-    </div>
+    </PageContainer>
   );
 }
 

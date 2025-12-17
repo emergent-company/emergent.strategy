@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
+import { PageContainer } from '@/components/layouts';
 import { FormField } from '@/components/molecules/FormField';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
@@ -74,27 +75,27 @@ export default function ProfileSettings() {
 
   if (loading) {
     return (
-      <div className="min-sm:container">
+      <PageContainer maxWidth="4xl">
         <div className="flex items-center justify-center min-h-[400px]">
           <span className="loading loading-spinner loading-lg"></span>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   if (!profile) {
     return (
-      <div className="min-sm:container">
+      <PageContainer maxWidth="4xl">
         <div className="alert alert-error">
           <Icon icon="lucide--alert-circle" className="size-5" />
           <span>Error loading profile</span>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div data-testid="page-settings-profile" className="min-sm:container">
+    <PageContainer maxWidth="4xl" testId="page-settings-profile">
       <div className="text-sm breadcrumbs">
         <ul>
           <li>
@@ -201,6 +202,6 @@ export default function ProfileSettings() {
           </form>
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

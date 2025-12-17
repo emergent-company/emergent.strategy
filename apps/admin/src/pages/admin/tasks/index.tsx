@@ -4,6 +4,7 @@
  */
 import { useState } from 'react';
 import { MetaData } from '@/components';
+import { PageContainer } from '@/components/layouts';
 import { TasksInbox } from '@/components/organisms/TasksInbox';
 import { MergeComparisonModal } from '@/components/organisms/MergeComparisonModal';
 import { useTasks, useTaskCounts, useTaskMutations } from '@/hooks/useTasks';
@@ -137,7 +138,7 @@ const TasksPage = () => {
   };
 
   return (
-    <div data-testid="page-tasks" className="mx-auto max-w-7xl container">
+    <PageContainer maxWidth="7xl" testId="page-tasks">
       <MetaData title="Tasks" noIndex />
 
       {/* Header */}
@@ -170,7 +171,7 @@ const TasksPage = () => {
         onAccept={handleMergeAccept}
         onReject={handleMergeReject}
       />
-    </div>
+    </PageContainer>
   );
 };
 

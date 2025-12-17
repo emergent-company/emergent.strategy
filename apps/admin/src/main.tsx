@@ -15,6 +15,11 @@ import '@/lib/error-logger';
 
 import './styles/app.css';
 
+// Load experimental themes only in development mode
+if (import.meta.env.DEV) {
+  import('./styles/themes-experimental.css');
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>

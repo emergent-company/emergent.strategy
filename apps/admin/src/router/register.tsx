@@ -59,10 +59,6 @@ const dashboardRoutes: IRoutesProps[] = [
     element: cw(lazy(() => import('@/pages/admin/tasks/index'))),
   },
   {
-    path: '/admin/profile',
-    element: cw(lazy(() => import('@/pages/admin/profile'))),
-  },
-  {
     path: '/admin/settings',
     element: <Navigate to="/admin/settings/ai/prompts" replace />,
   },
@@ -105,6 +101,12 @@ const dashboardRoutes: IRoutesProps[] = [
     ),
   },
   {
+    path: '/admin/settings/project/template-studio',
+    element: cw(
+      lazy(() => import('@/pages/admin/pages/settings/project/template-studio'))
+    ),
+  },
+  {
     path: '/admin/monitoring/dashboard',
     element: cw(lazy(() => import('@/pages/admin/monitoring/dashboard'))),
   },
@@ -112,10 +114,15 @@ const dashboardRoutes: IRoutesProps[] = [
     path: '/admin/monitoring/analytics',
     element: cw(lazy(() => import('@/pages/admin/monitoring/analytics'))),
   },
-  {
-    path: '/admin/theme-test',
-    element: cw(lazy(() => import('@/pages/admin/pages/theme-test'))),
-  },
+  // Theme Editor - only available in development mode
+  ...(import.meta.env.DEV
+    ? [
+        {
+          path: '/admin/theme-test',
+          element: cw(lazy(() => import('@/pages/admin/pages/theme-test'))),
+        },
+      ]
+    : []),
 ];
 
 const appRoutes: IRoutesProps[] = [];

@@ -5,6 +5,7 @@
  */
 import { useState } from 'react';
 import { MetaData } from '@/components';
+import { PageContainer } from '@/components/layouts';
 import { NotificationInbox } from '@/components/organisms/NotificationInbox';
 import {
   useNotifications,
@@ -86,7 +87,7 @@ const InboxPage = () => {
   };
 
   return (
-    <div data-testid="page-inbox" className="mx-auto max-w-7xl container">
+    <PageContainer maxWidth="7xl" testId="page-inbox">
       <MetaData title="Inbox" noIndex />
 
       {/* Header */}
@@ -118,7 +119,7 @@ const InboxPage = () => {
         onClearAll={handleClearAll}
         onCustomizeClick={handleCustomizeClick}
       />
-    </div>
+    </PageContainer>
   );
 };
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useApi } from '../../../../hooks/use-api';
 import { useConfig } from '../../../../contexts/config';
+import { PageContainer } from '../../../../components/layouts';
 import { createMonitoringClient } from '../../../../api/monitoring';
 import { ChatSessionDetailModal } from '../../../../components/organisms/monitoring/ChatSessionDetailModal';
 import type {
@@ -148,7 +149,7 @@ export function ChatSessionsListPage() {
   };
 
   return (
-    <div className="mx-auto container">
+    <PageContainer>
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -368,7 +369,7 @@ export function ChatSessionsListPage() {
           onClose={handleModalClose}
         />
       )}
-    </div>
+    </PageContainer>
   );
 }
 

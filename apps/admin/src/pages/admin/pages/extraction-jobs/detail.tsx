@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
+import { PageContainer } from '@/components/layouts';
 import { ExtractionJobStatusBadge } from '@/components/molecules/ExtractionJobStatusBadge';
 import { DebugInfoPanel } from '@/components/molecules/DebugInfoPanel';
 import { ExtractionLogsModal } from '@/components/organisms/ExtractionLogsModal';
@@ -196,7 +197,7 @@ export function ExtractionJobDetailPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-6xl container">
+      <PageContainer maxWidth="6xl">
         <div className="flex items-center gap-4 mb-6">
           <div className="w-8 h-8 skeleton" />
           <div className="w-64 h-8 skeleton" />
@@ -206,14 +207,14 @@ export function ExtractionJobDetailPage() {
             <div className="w-full h-32 skeleton" />
           </div>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   // Error state
   if (error || !job) {
     return (
-      <div className="mx-auto max-w-6xl container">
+      <PageContainer maxWidth="6xl">
         <Link to="/admin/extraction-jobs" className="mb-6 btn btn-ghost btn-sm">
           <Icon icon="lucide--arrow-left" />
           Back to Jobs
@@ -222,7 +223,7 @@ export function ExtractionJobDetailPage() {
           <Icon icon="lucide--alert-circle" />
           <span>{error || 'Job not found'}</span>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -299,7 +300,7 @@ export function ExtractionJobDetailPage() {
   const canRetry = job.status === 'failed' || job.status === 'running';
 
   return (
-    <div className="mx-auto max-w-6xl container">
+    <PageContainer maxWidth="6xl">
       {/* Header */}
       <div className="flex sm:flex-row flex-col justify-between items-start sm:items-center gap-4 mb-6">
         <div className="flex items-center gap-4">
@@ -677,7 +678,7 @@ export function ExtractionJobDetailPage() {
         onOpenChange={setIsLogsModalOpen}
         jobId={jobId!}
       />
-    </div>
+    </PageContainer>
   );
 }
 

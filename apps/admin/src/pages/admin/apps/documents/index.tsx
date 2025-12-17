@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
+import { PageContainer } from '@/components/layouts';
 import { useAuth } from '@/contexts/useAuth';
 import { useApi } from '@/hooks/use-api';
 import { useConfig } from '@/contexts/config';
@@ -209,11 +210,13 @@ export default function DocumentsPage() {
       setError(null);
       try {
         const t = getAccessToken();
+        // Include projectId in URL to bust browser cache when project changes
+        // (X-Project-ID header alone doesn't affect HTTP cache key)
         const json = await fetchJson<
           | DocumentRow[]
           | { documents: DocumentRow[]; total?: number }
           | { documents: DocumentRow[] }
-        >(`${apiBase}/api/documents`, {
+        >(`${apiBase}/api/documents?projectId=${config.activeProjectId}`, {
           headers: t ? { ...buildHeaders({ json: false }) } : {},
           json: false,
         });
@@ -1094,7 +1097,7 @@ export default function DocumentsPage() {
   }
 
   return (
-    <div data-testid="page-documents" className="w-full px-4">
+    <PageContainer maxWidth="full" className="px-4" testId="page-documents">
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-bold text-2xl inline-flex items-center gap-2">
@@ -1714,6 +1717,6 @@ export default function DocumentsPage() {
           </form>
         </dialog>
       )}
-    </div>
+    </PageContainer>
   );
 }
