@@ -11,6 +11,17 @@ import {
 } from 'typeorm';
 import { Chunk } from './chunk.entity';
 import { Project } from './project.entity';
+import { ExternalSource } from './external-source.entity';
+
+/**
+ * Source type for documents
+ */
+export type DocumentSourceType =
+  | 'upload'
+  | 'url'
+  | 'google_drive'
+  | 'dropbox'
+  | 'external';
 
 @Entity({ schema: 'kb', name: 'documents' })
 @Index(['projectId', 'contentHash'], {
@@ -18,6 +29,7 @@ import { Project } from './project.entity';
   where: 'content_hash IS NOT NULL',
 })
 @Index(['projectId'])
+@Index(['externalSourceId'])
 export class Document {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -46,6 +58,16 @@ export class Document {
   @Column({ name: 'parent_document_id', type: 'uuid', nullable: true })
   parentDocumentId!: string | null;
 
+  // External source fields
+  @Column({ name: 'source_type', type: 'text', default: 'upload' })
+  sourceType!: DocumentSourceType;
+
+  @Column({ name: 'external_source_id', type: 'uuid', nullable: true })
+  externalSourceId!: string | null;
+
+  @Column({ name: 'sync_version', type: 'int', default: 1 })
+  syncVersion!: number;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 
@@ -59,4 +81,10 @@ export class Document {
 
   @OneToMany(() => Chunk, (chunk) => chunk.document, { cascade: true })
   chunks!: Chunk[];
+
+  @ManyToOne(() => ExternalSource, (es) => es.documents, {
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'external_source_id' })
+  externalSource!: ExternalSource | null;
 }
