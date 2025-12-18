@@ -16,7 +16,7 @@ Your primary goal is to ensure the product value model and feature definitions a
 4. **Maintain Schema Integrity:** Ensure changes comply with `value_model_schema.json`.
 
 ### Feature Definition Creation
-5. **Create Feature Definitions:** When Key Results are ready for implementation, create feature definition files in `/phases/FIRE/feature_definitions/` (framework) or `/_instances/{product}/feature_definitions/` (instance). Feature definitions are the bridge between strategic KRs and implementation tools.
+5. **Create Feature Definitions:** When Key Results are ready for implementation, create feature definition files in `/templates/FIRE/feature_definitions/` (framework) or `/_instances/{product}/feature_definitions/` (instance). Feature definitions are the bridge between strategic KRs and implementation tools.
 6. **Map N:M to Value Model:** Features often contribute value to multiple L2/L3 components. Document these cross-cutting relationships in the `contributes_to` field.
 7. **Keep It Lean:** Git handles versioning - don't add version fields or change history. Let AI infer context from git history.
 8. **Design for External Tools:** Feature definitions are the interface between EPF and spec-driven development tools. Structure them so any tool can parse and consume them.
