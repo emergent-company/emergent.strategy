@@ -24,7 +24,7 @@ git subtree add --prefix=docs/EPF epf main --squash
 mkdir -p docs/EPF/_instances/{product-name}
 
 # 4. Copy templates
-cp docs/EPF/phases/READY/*.yaml docs/EPF/_instances/{product-name}/
+cp docs/EPF/templates/READY/*.yaml docs/EPF/_instances/{product-name}/
 
 # 5. Commit
 git add docs/EPF/_instances/
@@ -45,9 +45,9 @@ git subtree push --prefix=docs/EPF epf main
 
 ## Key Directories
 
-- `phases/READY/` - Strategy & planning templates (00-05)
-- `phases/FIRE/` - Execution templates
-- `phases/AIM/` - Assessment templates
+- `templates/READY/` - Strategy & planning templates (00-05)
+- `templates/FIRE/` - Execution templates
+- `templates/AIM/` - Assessment templates
 - `schemas/` - JSON Schema validation files
 - `wizards/` - AI-assisted content creation prompts
 - `scripts/` - Automation scripts
