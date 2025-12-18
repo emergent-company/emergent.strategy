@@ -2,6 +2,33 @@
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
 
+---
+
+## 🚨 CRITICAL: For AI Agents & Contributors
+
+**This is the CANONICAL EPF framework repository. It MUST remain instance-agnostic.**
+
+### ⚠️ ABSOLUTE RULES - NEVER VIOLATE:
+
+1. **❌ NO product names** (twentyfirst, huma-blueprint-ui, lawmatics, emergent, etc.)
+2. **❌ NO instance-specific data** (validation reports, product examples, org references)
+3. **❌ NO validation results** mentioning specific products
+4. **✅ ONLY generic framework** (templates, schemas, documentation, wizards)
+
+**Instance data belongs in product repositories** (`/path/to/product/docs/EPF/_instances/<product>/`), **NEVER in this canonical repository.**
+
+**📋 Pre-Action Checklist:** Before creating/editing ANY file here, ask:
+- Am I in the canonical EPF repository? (`pwd` to check)
+- Does this mention specific products? (If YES → **STOP!** Move to product repo)
+- Is this a validation report/result? (If YES → **STOP!** Belongs in product repo)
+- Could this apply to ANY product? (If NO → **STOP!** Not generic enough)
+
+**📚 Full Rules:** See [`CANONICAL_PURITY_RULES.md`](./CANONICAL_PURITY_RULES.md) for detailed guidance, examples, and violation corrections.
+
+**📖 Maintenance Guide:** See [`MAINTENANCE.md`](./MAINTENANCE.md) for framework/instance separation enforcement rules.
+
+---
+
 ## What's New in v1.12.0
 
 * **Feature Definition Schema v2.0 Quality System:** Comprehensive quality enforcement to prevent lengthy manual rework:
@@ -97,7 +124,7 @@ This repository contains the complete skeleton for managing product, strategy, o
 
 ## What's New in v1.9.5
 
-* **Feature Definitions as Implementation Bridge:** The `/phases/FIRE/feature_definitions/` directory now has formal guidance for creating feature definition documents that bridge EPF strategy to spec-driven implementation tools.
+* **Feature Definitions as Implementation Bridge:** The `/templates/FIRE/feature_definitions/` directory now has formal guidance for creating feature definition documents that bridge EPF strategy to spec-driven implementation tools.
 * **N:M Value Model Mapping:** Feature definitions explicitly support many-to-many relationships with value model components - features often cross-cut multiple L2/L3 components.
 * **Tool-Agnostic Export Format:** Feature definitions are designed to be consumed by external spec-driven development tools (e.g., specification frameworks, AI coding agents) without EPF being coupled to any specific tool.
 * **Lean Documentation Principles:** New framework philosophy emphasizes that git handles versioning and history - EPF artifacts should not duplicate what can be inferred from repository state.
@@ -159,8 +186,8 @@ This repository contains the complete skeleton for managing product, strategy, o
 
 ## What's New in v1.9.0
 
-* **Formalized Workflow Architecture:** This version introduces a new `/phases/FIRE/workflows` directory to formalize the management of state machines and their configurations. This promotes a more robust, scalable, and configurable approach to building product features.
-* **Feature Definition Artifacts:** A new `/phases/FIRE/feature_definitions` directory has been added to store detailed, human-readable product feature definition documents.
+* **Formalized Workflow Architecture:** This version introduces a new `/templates/FIRE/workflows` directory to formalize the management of state machines and their configurations. This promotes a more robust, scalable, and configurable approach to building product features.
+* **Feature Definition Artifacts:** A new `/templates/FIRE/feature_definitions` directory has been added to store detailed, human-readable product feature definition documents.
 * **New `workflow_schema.json`:** A new schema is included to validate the structure of state machine definitions and their corresponding configuration files.
 * **Enhanced `value_model_schema.json`:** The value model schema has been updated to include an optional `premium: boolean` flag for L3 sub-components, allowing for clear distinction of premium features.
 
