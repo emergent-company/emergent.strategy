@@ -11,53 +11,129 @@ activation_notes: 'Flip `active: true` on L3 sub-components as you invest. Start
 layers:
   - id: COMMERCIAL-L1-business-development-and-partnerships
     name: BUSINESS DEVELOPMENT AND PARTNERSHIPS
-    description: "Strategic relationships and partnership opportunities."
+    active: false
     components:
-      - id: COMMERCIAL-L2-partnership-strategy
-        name: Partnership Strategy
-        description: "Identifying and developing strategic partnerships."
-        sub_components:
-          - id: COMMERCIAL-L3-partner-identification
-            name: Partner Identification
-            active: false
-          - id: COMMERCIAL-L3-partnership-agreements
-            name: Partnership Agreements
-            active: false
+    - id: COMMERCIAL-C-investor-relations
+      name: Investor Relations
+      active: false
+      subs: []
+    - id: COMMERCIAL-C-strategic-partnerships
+      name: Strategic Partnerships
+      active: false
+      subs:
+      - id: COMMERCIAL-S-partnership-scouting
+        name: Partnership scouting
+        active: false
+      - id: COMMERCIAL-S-negotiation-frameworks
+        name: Negotiation frameworks
+        active: false
+      - id: COMMERCIAL-S-partnership-metrics
+        name: Partnership metrics
+        active: false
+    - id: COMMERCIAL-C-alliance-management
+      name: Alliance Management
+      active: false
+      subs:
+      - id: COMMERCIAL-S-stakeholder-relationship-management
+        name: Stakeholder relationship management
+        active: false
+      - id: COMMERCIAL-S-agreement-reviews
+        name: Agreement reviews
+        active: false
+      - id: COMMERCIAL-S-joint-ventures
+        name: Joint ventures
+        active: false
+    - id: COMMERCIAL-C-collaboration-models
+      name: Collaboration Models
+      active: false
+      subs:
+      - id: COMMERCIAL-S-revenue-sharing-agreements
+        name: Revenue-sharing agreements
+        active: false
+      - id: COMMERCIAL-S-co-marketing-initiatives
+        name: Co-marketing initiatives
+        active: false
+      - id: COMMERCIAL-S-technology-integrations
+        name: Technology integrations
+        active: false
   - id: COMMERCIAL-L1-brand-positioning
     name: BRAND & POSITIONING
-    description: "How the company is perceived in the market."
+    active: false
     components:
-      - id: COMMERCIAL-L2-brand-identity
-        name: Brand Identity
-        description: "Visual and verbal brand elements."
-        sub_components:
-          - id: COMMERCIAL-L3-brand-guidelines
-            name: Brand Guidelines
-            active: false
-          - id: COMMERCIAL-L3-messaging-framework
-            name: Messaging Framework
-            active: false
+    - id: COMMERCIAL-C-brand-identity
+      name: Brand Identity
+      active: false
+      subs:
+      - id: COMMERCIAL-S-logo-and-visual-guidelines
+        name: Logo and visual guidelines
+        active: false
+      - id: COMMERCIAL-S-brand-voice-and-tone
+        name: Brand voice and tone
+        active: false
+      - id: COMMERCIAL-S-brand-storytelling
+        name: Brand storytelling
+        active: false
+    - id: COMMERCIAL-C-market-differentiation
+      name: Market Differentiation
+      active: false
+      subs:
+      - id: COMMERCIAL-S-differentiator-messaging
+        name: Differentiator messaging
+        active: false
+      - id: COMMERCIAL-S-pricing-strategies
+        name: Pricing strategies
+        active: false
+      - id: COMMERCIAL-S-packaging-models
+        name: Packaging models
+        active: false
+    - id: COMMERCIAL-C-competitive-positioning
+      name: Competitive Positioning
+      active: false
+      subs: []
   - id: COMMERCIAL-L1-sales-and-marketing
     name: SALES AND MARKETING
-    description: "Acquiring and converting customers."
+    active: false
     components:
-      - id: COMMERCIAL-L2-demand-generation
-        name: Demand Generation
-        description: "Creating awareness and interest."
-        sub_components:
-          - id: COMMERCIAL-L3-content-marketing
-            name: Content Marketing
-            active: false
-          - id: COMMERCIAL-L3-paid-advertising
-            name: Paid Advertising
-            active: false
-      - id: COMMERCIAL-L2-sales-process
-        name: Sales Process
-        description: "Converting leads into customers."
-        sub_components:
-          - id: COMMERCIAL-L3-sales-qualification
-            name: Sales Qualification
-            active: false
-          - id: COMMERCIAL-L3-proposal-creation
-            name: Proposal Creation
-            active: false
+    - id: COMMERCIAL-C-lead-generation
+      name: Lead Generation
+      active: false
+      subs:
+      - id: COMMERCIAL-S-email-marketing-campaigns
+        name: Email marketing campaigns
+        active: false
+      - id: COMMERCIAL-S-social-media-outreach
+        name: Social media outreach
+        active: false
+      - id: COMMERCIAL-S-seo-strategies
+        name: SEO strategies
+        active: false
+    - id: COMMERCIAL-C-campaign-execution
+      name: Campaign Execution
+      active: false
+      subs:
+      - id: COMMERCIAL-S-multichannel-campaigns
+        name: Multichannel campaigns
+        active: false
+      - id: COMMERCIAL-S-ad-spend-optimization
+        name: Ad spend optimization
+        active: false
+      - id: COMMERCIAL-S-campaign-performance-analytics
+        name: Campaign performance analytics
+        active: false
+    - id: COMMERCIAL-C-customer-retention
+      name: Customer Retention
+      active: false
+      subs:
+      - id: COMMERCIAL-S-loyalty-programs
+        name: Loyalty programs
+        active: false
+      - id: COMMERCIAL-S-personalization-strategies
+        name: Personalization strategies
+        active: false
+      - id: COMMERCIAL-S-customer-support-systems
+        name: Customer support systems
+        active: false
+    - id: COMMERCIAL-C-content-production-management
+      name: Content Production & Management
+      active: false
+      subs: []
