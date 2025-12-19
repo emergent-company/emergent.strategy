@@ -333,9 +333,53 @@ pull_from_canonical() {
         cp "$gitignore_file" "$backup_file"
     fi
     
-    log_step "Running git subtree pull..."
+    log_step "Attempting git subtree pull..."
+    
+    # Try git subtree first, but have fallback ready
+    # Temporarily disable exit on error for this command
+    set +e
     git subtree pull --prefix="$EPF_PREFIX" "$CANONICAL_REMOTE" "$CANONICAL_BRANCH" --squash \
-        -m "EPF: Pull framework updates from canonical repo"
+        -m "EPF: Pull framework updates from canonical repo" 2>&1
+    local subtree_exit_code=$?
+    set -e
+    
+    if [[ $subtree_exit_code -eq 0 ]]; then
+        log_info "Git subtree pull successful ✓"
+    else
+        log_warn "Git subtree pull failed (exit code: $subtree_exit_code) - falling back to manual sync..."
+        log_info "This can happen when git subtree history is broken by manual commits"
+        echo ""
+        
+        log_step "Fallback: Cloning canonical repo for manual sync..."
+        local temp_epf="/tmp/epf-fallback-$$"
+        rm -rf "$temp_epf"
+        git clone --depth=1 --branch "$CANONICAL_BRANCH" "$CANONICAL_URL" "$temp_epf" --quiet
+        
+        log_step "Fallback: Copying framework files (excluding _instances/)..."
+        local copied=0
+        for item in "${FRAMEWORK_ITEMS[@]}"; do
+            if [[ -e "$temp_epf/$item" ]]; then
+                if [[ -d "$temp_epf/$item" ]]; then
+                    rm -rf "$EPF_PREFIX/$item"
+                    cp -R "$temp_epf/$item" "$EPF_PREFIX/$item"
+                else
+                    cp "$temp_epf/$item" "$EPF_PREFIX/$item"
+                fi
+                echo "  Copied: $item"
+                ((copied++))
+            fi
+        done
+        
+        rm -rf "$temp_epf"
+        log_info "Manual sync completed ($copied items copied) ✓"
+        
+        log_warn "Note: Git subtree tracking remains broken until you reset it"
+        log_info "To restore git subtree (optional):"
+        log_info "  1. Commit these changes normally"
+        log_info "  2. Run: git subtree pull --prefix=$EPF_PREFIX $CANONICAL_REMOTE $CANONICAL_BRANCH --squash"
+        log_info "  3. Resolve any conflicts, then commit"
+        echo ""
+    fi
     
     log_step "Checking .gitignore after pull..."
     if [[ -n "$product_name" ]]; then
