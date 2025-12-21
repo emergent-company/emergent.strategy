@@ -7,7 +7,6 @@ import { useApi } from '@/hooks/use-api';
 import { Icon } from '@/components/atoms/Icon';
 import { PageContainer } from '@/components/layouts';
 import type { Project } from '@/hooks/use-projects';
-import { SettingsNav } from './SettingsNav';
 
 // Extraction method options
 const EXTRACTION_METHODS = [
@@ -203,9 +202,6 @@ export default function ProjectLLMSettingsPage() {
 
   return (
     <PageContainer maxWidth="4xl" testId="page-settings-llm">
-      {/* Settings Navigation */}
-      <SettingsNav />
-
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-bold text-2xl">LLM Settings</h1>

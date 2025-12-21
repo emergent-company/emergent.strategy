@@ -92,10 +92,12 @@ export const DataUpdatesProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     // Get the API base URL from environment or use default
-    const apiBase = (import.meta as any).env?.VITE_API_URL || '';
+    // Use VITE_API_BASE for consistency with other API calls
+    const apiBase = (import.meta as any).env?.VITE_API_BASE || '';
 
     // Construct SSE URL with only projectId - token is sent via Authorization header
-    return `${apiBase}/events/stream?projectId=${projectId}`;
+    // Must use /api/ prefix to go through Vite proxy in development
+    return `${apiBase}/api/events/stream?projectId=${projectId}`;
   }, [config.activeProjectId, getAccessToken, isAuthenticated]);
 
   // Get current token for the SSE connection

@@ -12,12 +12,15 @@ import { format, isToday, isYesterday, differenceInHours } from 'date-fns';
  * - Object refinement: property_change, rename, relationship_add, relationship_remove
  * - Template studio: add_object_type, modify_object_type, remove_object_type,
  *   add_relationship_type, modify_relationship_type, remove_relationship_type
+ * - Merge chat: hidden MERGE_DATA blocks
  */
 export function stripSuggestionsFromContent(content: string): string {
   return (
     content
-      // Remove ```suggestions ... ``` blocks
-      .replace(/```suggestions\s*\n[\s\S]*?\n```/g, '')
+      // Remove hidden MERGE_DATA blocks (merge chat suggestions)
+      .replace(/<!--MERGE_DATA[\s\S]*?MERGE_DATA-->/g, '')
+      // Remove ```suggestions ... ``` blocks (flexible whitespace to match parser)
+      .replace(/```suggestions\s*[\s\S]*?```/g, '')
       // Remove JSON blocks that look like object refinement suggestions
       .replace(
         /```json\s*\n\s*\[\s*\{[\s\S]*?"type"\s*:\s*"(property_change|rename|relationship_add|relationship_remove)"[\s\S]*?\]\s*\n```/g,

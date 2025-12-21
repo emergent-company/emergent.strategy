@@ -10,8 +10,10 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Icon } from '@/components/atoms/Icon';
 import {
+  SuggestionCard,
   stripSuggestionsFromContent,
   formatTimestamp,
+  type UnifiedSuggestion,
 } from '@/components/chat';
 import { useMergeChat } from '@/hooks/use-merge-chat';
 import type { MergeChatMessage, MergeChatSuggestion } from '@/types/merge-chat';
@@ -327,13 +329,13 @@ function MessageItem({
           <div className="whitespace-pre-wrap text-sm">{message.content}</div>
         )}
 
-        {/* Merge Suggestions */}
+        {/* Merge Suggestions - Using shared SuggestionCard */}
         {message.suggestions && message.suggestions.length > 0 && (
           <div className="mt-3 space-y-2">
             {message.suggestions.map((suggestion, idx) => (
-              <MergeSuggestionCard
+              <SuggestionCard
                 key={idx}
-                suggestion={suggestion}
+                suggestion={convertToUnifiedSuggestion(suggestion)}
                 onApply={() => onApplySuggestion(idx, suggestion)}
                 onReject={() => onRejectSuggestion(idx)}
               />
@@ -348,187 +350,22 @@ function MessageItem({
   );
 }
 
-// --- Merge Suggestion Card Component ---
-
-interface MergeSuggestionCardProps {
-  suggestion: MergeChatSuggestion;
-  onApply?: () => void;
-  onReject?: () => void;
-}
-
-function MergeSuggestionCard({
-  suggestion,
-  onApply,
-  onReject,
-}: MergeSuggestionCardProps) {
-  const isPending = suggestion.status === 'pending';
-  const isAccepted = suggestion.status === 'accepted';
-  const isRejected = suggestion.status === 'rejected';
-
-  const getTypeIcon = () => {
-    switch (suggestion.type) {
-      case 'keep_source':
-        return 'lucide--arrow-left';
-      case 'keep_target':
-        return 'lucide--arrow-right';
-      case 'combine':
-        return 'lucide--combine';
-      case 'new_value':
-        return 'lucide--sparkles';
-      case 'drop_property':
-        return 'lucide--trash-2';
-      default:
-        return 'lucide--git-merge';
-    }
+/**
+ * Convert MergeChatSuggestion to UnifiedSuggestion format
+ */
+function convertToUnifiedSuggestion(
+  suggestion: MergeChatSuggestion
+): UnifiedSuggestion {
+  return {
+    index: suggestion.index,
+    type: suggestion.type,
+    explanation: suggestion.explanation,
+    status: suggestion.status,
+    propertyKey: suggestion.propertyKey,
+    sourceValue: suggestion.sourceValue,
+    targetValue: suggestion.targetValue,
+    suggestedValue: suggestion.suggestedValue,
   };
-
-  const getTypeLabel = () => {
-    switch (suggestion.type) {
-      case 'keep_source':
-        return 'Keep Source';
-      case 'keep_target':
-        return 'Keep Target';
-      case 'combine':
-        return 'Combine';
-      case 'new_value':
-        return 'New Value';
-      case 'drop_property':
-        return 'Drop Property';
-      default:
-        return 'Merge Property';
-    }
-  };
-
-  const formatValue = (value: unknown): string => {
-    if (value === null || value === undefined) return 'null';
-    if (typeof value === 'string') {
-      return value.length > 50 ? `${value.slice(0, 50)}...` : value;
-    }
-    if (typeof value === 'object') {
-      const str = JSON.stringify(value);
-      return str.length > 50 ? `${str.slice(0, 50)}...` : str;
-    }
-    return String(value);
-  };
-
-  return (
-    <div
-      className={`rounded-lg border p-2 ${
-        isAccepted
-          ? 'bg-success/10 border-success/30'
-          : isRejected
-          ? 'bg-error/10 border-error/30 text-base-content/60'
-          : 'bg-base-100 border-base-300'
-      }`}
-    >
-      {/* Header */}
-      <div className="flex items-center gap-1.5 mb-1">
-        <Icon
-          icon={getTypeIcon()}
-          className={`size-3.5 ${
-            isAccepted
-              ? 'text-success'
-              : isRejected
-              ? 'text-error'
-              : 'text-warning'
-          }`}
-        />
-        <span className="text-xs font-medium">{getTypeLabel()}</span>
-        <span className="badge badge-ghost badge-xs ml-1">
-          {suggestion.propertyKey}
-        </span>
-        {isAccepted && (
-          <span className="badge badge-success badge-xs gap-1 ml-auto">
-            <Icon icon="lucide--check" className="size-2.5" />
-            Applied
-          </span>
-        )}
-        {isRejected && (
-          <span className="badge badge-error badge-xs gap-1 ml-auto">
-            <Icon icon="lucide--x" className="size-2.5" />
-            Rejected
-          </span>
-        )}
-      </div>
-
-      {/* Explanation */}
-      <p className="text-xs text-base-content/70 mb-1.5">
-        {suggestion.explanation}
-      </p>
-
-      {/* Value Preview */}
-      <div className="bg-base-200/50 rounded p-1.5 text-xs">
-        <div className="flex items-center gap-2 min-w-0 flex-wrap">
-          {suggestion.type !== 'drop_property' && (
-            <>
-              {suggestion.sourceValue !== undefined && (
-                <span
-                  className="text-primary truncate"
-                  title={String(suggestion.sourceValue)}
-                >
-                  {formatValue(suggestion.sourceValue)}
-                </span>
-              )}
-              {suggestion.sourceValue !== undefined &&
-                suggestion.targetValue !== undefined && (
-                  <Icon
-                    icon="lucide--arrow-right"
-                    className="size-3 opacity-50 shrink-0"
-                  />
-                )}
-              {suggestion.targetValue !== undefined && (
-                <span
-                  className="text-secondary truncate"
-                  title={String(suggestion.targetValue)}
-                >
-                  {formatValue(suggestion.targetValue)}
-                </span>
-              )}
-              <Icon
-                icon="lucide--chevron-right"
-                className="size-3 opacity-50 shrink-0"
-              />
-              <span
-                className="text-success font-medium truncate"
-                title={String(suggestion.suggestedValue)}
-              >
-                {formatValue(suggestion.suggestedValue)}
-              </span>
-            </>
-          )}
-          {suggestion.type === 'drop_property' && (
-            <span className="text-error line-through">
-              Property will be removed
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Actions */}
-      {isPending && onApply && onReject && (
-        <div className="flex items-center justify-end gap-2 mt-2">
-          <button
-            type="button"
-            className="btn btn-ghost btn-xs gap-1"
-            onClick={onReject}
-            aria-label="Reject suggestion"
-          >
-            <Icon icon="lucide--x" className="size-3" />
-            Reject
-          </button>
-          <button
-            type="button"
-            className="btn btn-success btn-xs gap-1"
-            onClick={onApply}
-            aria-label="Apply suggestion"
-          >
-            <Icon icon="lucide--check" className="size-3" />
-            Apply
-          </button>
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default MergeChat;

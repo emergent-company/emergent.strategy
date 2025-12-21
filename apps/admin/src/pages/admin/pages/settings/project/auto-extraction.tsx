@@ -7,7 +7,6 @@ import { useApi } from '@/hooks/use-api';
 import { Icon } from '@/components/atoms/Icon';
 import { PageContainer } from '@/components/layouts';
 import type { Project } from '@/hooks/use-projects';
-import { SettingsNav } from './SettingsNav';
 import { KBPurposeEditor } from '@/components/organisms/KBPurposeEditor';
 import { DiscoveryWizard } from '@/components/organisms/DiscoveryWizard';
 
@@ -287,9 +286,6 @@ export default function ProjectAutoExtractionSettingsPage() {
 
   return (
     <PageContainer maxWidth="4xl" testId="page-settings-auto-extraction">
-      {/* Settings Navigation */}
-      <SettingsNav />
-
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-bold text-2xl">Auto-Extraction Settings</h1>

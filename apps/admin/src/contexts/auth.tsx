@@ -9,6 +9,7 @@ import {
   exchangeCodeForTokens,
   refreshTokens,
   startAuth,
+  buildEndSessionUrl,
   type OidcConfig,
   type TokenResponse,
 } from '@/auth/oidc';
@@ -50,7 +51,8 @@ function getConfigFromEnv(): OidcConfig {
       env.VITE_ZITADEL_REDIRECT_URI ||
       `${window.location.origin}/auth/callback`,
     postLogoutRedirectUri:
-      env.VITE_ZITADEL_POST_LOGOUT_REDIRECT_URI || `${window.location.origin}/`,
+      env.VITE_ZITADEL_POST_LOGOUT_REDIRECT_URI ||
+      `${window.location.origin}/auth/logged-out`,
     scopes: env.VITE_ZITADEL_SCOPES || 'openid profile email',
     audience: env.VITE_ZITADEL_AUDIENCE || undefined,
   };
@@ -199,9 +201,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
    * - Removes all auth-related localStorage keys (both legacy and current)
    * - Clears user-scoped config (activeOrgId, activeProjectId) from spec-server key
    * - Preserves non-auth preferences (theme, UI settings)
-   * - Redirects to the post-logout URI
+   * - Redirects to Zitadel's end_session endpoint to terminate the SSO session
    */
   const logout = useCallback(() => {
+    // Capture id_token before clearing state (needed for end_session hint)
+    const idToken = state.idToken;
+
     // Clear in-memory auth state
     setState({});
 
@@ -241,13 +246,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     }
 
-    try {
-      // Optional: use end_session endpoint via redirect; keeping a local clear is fine for dev
-      window.location.assign(cfg.postLogoutRedirectUri || '/');
-    } catch {
-      // ignore
-    }
-  }, [cfg.postLogoutRedirectUri]);
+    // Redirect to Zitadel's end_session endpoint to fully terminate the SSO session
+    // This prevents auto-login when the user returns to the app
+    buildEndSessionUrl(cfg, idToken)
+      .then((endSessionUrl) => {
+        console.log(
+          '[AuthContext] Redirecting to Zitadel end_session endpoint'
+        );
+        window.location.assign(endSessionUrl);
+      })
+      .catch((err) => {
+        // If end_session URL building fails, fall back to local redirect
+        console.warn(
+          '[AuthContext] Failed to build end_session URL, falling back to local redirect',
+          err
+        );
+        window.location.assign(cfg.postLogoutRedirectUri || '/');
+      });
+  }, [cfg, state.idToken]);
 
   const handleCallback = useCallback(
     async (code: string) => {

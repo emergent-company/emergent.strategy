@@ -4,7 +4,7 @@
  * Main page for viewing and managing extraction jobs
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
 import { PageContainer } from '@/components/layouts';
@@ -14,10 +14,19 @@ import type { ExtractionJobCardProps } from '@/components/organisms/ExtractionJo
 import type { ExtractionJobStatus } from '@/components/molecules/ExtractionJobStatusBadge';
 import { useApi } from '@/hooks/use-api';
 import { useConfig } from '@/contexts/config';
+import { useDataUpdates } from '@/contexts/data-updates';
+import { usePageVisibility } from '@/hooks/use-page-visibility';
+import type { EntityEvent } from '@/types/realtime-events';
 import {
   createExtractionJobsClient,
   type ExtractionJob,
 } from '@/api/extraction-jobs';
+
+// Debounce delay to batch rapid SSE events into single refetch
+const SSE_DEBOUNCE_MS = 500;
+
+// Fallback polling interval when SSE is disconnected (60 seconds)
+const FALLBACK_POLL_INTERVAL_MS = 60000;
 
 export interface ExtractionJobsPageProps {
   /** Initial list of jobs (for Storybook) */
@@ -60,6 +69,7 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
   const navigate = useNavigate();
   const { apiBase, fetchJson } = useApi();
   const { config } = useConfig();
+  const isVisible = usePageVisibility();
 
   // Filter state
   const [statusFilter, setStatusFilter] = useState<ExtractionJobStatus | 'all'>(
@@ -77,8 +87,11 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
   const [error, setError] = useState<string | null>(null);
   const [bulkActionInProgress, setBulkActionInProgress] = useState(false);
 
-  // Fetch jobs from API
-  useEffect(() => {
+  // Ref for debounce timeout
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Memoize the fetch function
+  const fetchJobs = useCallback(async () => {
     // Skip if we're in Storybook mode
     if (storybookJobs !== undefined) return;
 
@@ -89,38 +102,34 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
       return;
     }
 
-    const fetchJobs = async () => {
-      setIsLoading(true);
-      setError(null);
+    setIsLoading(true);
+    setError(null);
 
-      try {
-        const client = createExtractionJobsClient(
-          apiBase,
-          fetchJson,
-          config.activeProjectId
-        );
+    try {
+      const client = createExtractionJobsClient(
+        apiBase,
+        fetchJson,
+        config.activeProjectId
+      );
 
-        const response = await client.listJobs(undefined, {
-          status: statusFilter === 'all' ? undefined : statusFilter,
-          page: currentPage,
-          limit: pageSize,
-        });
+      const response = await client.listJobs(undefined, {
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        page: currentPage,
+        limit: pageSize,
+      });
 
-        setJobs(response.jobs.map(jobToCardProps));
-        setTotalCount(response.total);
-      } catch (err) {
-        console.error('Failed to fetch extraction jobs:', err);
-        setError(
-          err instanceof Error ? err.message : 'Failed to load extraction jobs'
-        );
-        setJobs([]);
-        setTotalCount(0);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchJobs();
+      setJobs(response.jobs.map(jobToCardProps));
+      setTotalCount(response.total);
+    } catch (err) {
+      console.error('Failed to fetch extraction jobs:', err);
+      setError(
+        err instanceof Error ? err.message : 'Failed to load extraction jobs'
+      );
+      setJobs([]);
+      setTotalCount(0);
+    } finally {
+      setIsLoading(false);
+    }
   }, [
     config.activeProjectId,
     statusFilter,
@@ -130,6 +139,98 @@ export function ExtractionJobsPage(props: ExtractionJobsPageProps = {}) {
     apiBase,
     fetchJson,
   ]);
+
+  // Debounced fetch to batch rapid SSE events
+  const debouncedFetchJobs = useMemo(() => {
+    return () => {
+      // Clear existing timeout
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+
+      // Set new timeout
+      debounceTimeoutRef.current = setTimeout(() => {
+        fetchJobs();
+        debounceTimeoutRef.current = null;
+      }, SSE_DEBOUNCE_MS);
+    };
+  }, [fetchJobs]);
+
+  // SSE event handler for real-time updates
+  const handleExtractionJobEvent = useCallback(
+    (event: EntityEvent) => {
+      // Skip in Storybook mode
+      if (storybookJobs !== undefined) return;
+
+      // Only refetch when visible to save resources
+      if (!isVisible) return;
+
+      console.debug(
+        '[ExtractionJobsPage] SSE event received:',
+        event.type,
+        event.id
+      );
+
+      // Debounced refetch on any extraction job event
+      debouncedFetchJobs();
+    },
+    [storybookJobs, isVisible, debouncedFetchJobs]
+  );
+
+  // Subscribe to SSE for extraction job events
+  const { connectionState } = useDataUpdates(
+    'extraction_job:*',
+    handleExtractionJobEvent,
+    [handleExtractionJobEvent]
+  );
+
+  // Initial fetch on mount and when filters change
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
+
+  // Fallback polling when SSE is disconnected
+  useEffect(() => {
+    // Skip in Storybook mode
+    if (storybookJobs !== undefined) return;
+
+    // Only poll if SSE is disconnected/errored AND tab is visible AND we have a project
+    const shouldPoll =
+      (connectionState === 'disconnected' || connectionState === 'error') &&
+      isVisible &&
+      config.activeProjectId;
+
+    if (!shouldPoll) {
+      return;
+    }
+
+    console.debug(
+      '[ExtractionJobsPage] SSE disconnected, starting fallback polling'
+    );
+
+    // Poll at slower interval (60s) as fallback
+    const interval = setInterval(fetchJobs, FALLBACK_POLL_INTERVAL_MS);
+
+    return () => {
+      clearInterval(interval);
+      console.debug('[ExtractionJobsPage] Stopped fallback polling');
+    };
+  }, [
+    connectionState,
+    isVisible,
+    config.activeProjectId,
+    storybookJobs,
+    fetchJobs,
+  ]);
+
+  // Cleanup debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Client-side search filtering (since API doesn't support search yet)
   const filteredJobs = jobs.filter((job) => {

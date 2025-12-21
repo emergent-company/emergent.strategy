@@ -244,3 +244,39 @@ export function hasValidCodeVerifier(): boolean {
   const verifier = sessionStorage.getItem(CODE_VERIFIER_KEY);
   return !!verifier && verifier.length > 0;
 }
+
+/**
+ * Build the end_session URL to terminate the Zitadel SSO session.
+ * This ensures the user is fully logged out from Zitadel, not just our app.
+ *
+ * @param config - OIDC configuration
+ * @param idToken - Optional id_token to hint which session to end
+ * @returns The end_session URL to redirect to
+ */
+export async function buildEndSessionUrl(
+  config: OidcConfig,
+  idToken?: string
+): Promise<string> {
+  const disc = await discover(config.issuer);
+
+  // Zitadel's end_session_endpoint follows OIDC spec
+  const endSessionEndpoint =
+    disc.end_session_endpoint || `${config.issuer}/oidc/v1/end_session`;
+
+  const params = new URLSearchParams();
+
+  // Add id_token_hint if we have an id_token (helps Zitadel identify the session)
+  if (idToken) {
+    params.set('id_token_hint', idToken);
+  }
+
+  // Add client_id for session identification when no id_token_hint
+  params.set('client_id', config.clientId);
+
+  // Add post_logout_redirect_uri if configured (must be pre-registered in Zitadel)
+  if (config.postLogoutRedirectUri) {
+    params.set('post_logout_redirect_uri', config.postLogoutRedirectUri);
+  }
+
+  return `${endSessionEndpoint}?${params.toString()}`;
+}
