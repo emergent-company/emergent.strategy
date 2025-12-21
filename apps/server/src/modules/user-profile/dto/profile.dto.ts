@@ -84,3 +84,22 @@ export class AddAlternativeEmailDto {
   @Length(3, 254)
   email!: string;
 }
+
+export class DeleteAccountResponseDto {
+  @ApiProperty({
+    description: 'IDs of organizations that were soft-deleted',
+    type: [String],
+  })
+  deletedOrgs!: string[];
+
+  @ApiProperty({
+    description: 'IDs of projects that were soft-deleted',
+    type: [String],
+  })
+  deletedProjects!: string[];
+
+  @ApiProperty({
+    description: 'Number of memberships removed (org + project)',
+  })
+  removedMemberships!: number;
+}

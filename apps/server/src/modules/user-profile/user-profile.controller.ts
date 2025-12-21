@@ -15,13 +15,19 @@ import {
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
 import { UserProfileService } from './user-profile.service';
-import { ApiBadRequestResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBadRequestResponse,
+  ApiOkResponse,
+  ApiTags,
+  ApiOperation,
+} from '@nestjs/swagger';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import {
   UpdateUserProfileDto,
   UserProfileDto,
   AddAlternativeEmailDto,
   AlternativeEmailDto,
+  DeleteAccountResponseDto,
 } from './dto/profile.dto';
 import { Scopes } from '../auth/scopes.decorator';
 
@@ -47,6 +53,26 @@ export class UserProfileController {
   async updateSelf(@Req() req: any, @Body() dto: UpdateUserProfileDto) {
     const userId: string | undefined = req?.user?.id; // Use internal UUID
     return this.profiles.update(userId!, dto);
+  }
+
+  @Delete()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Delete current user account',
+    description:
+      'Soft-deletes the user account and cascades to orgs/projects where user is sole owner. Deactivates user in Zitadel.',
+  })
+  @ApiOkResponse({
+    type: DeleteAccountResponseDto,
+    description: 'Account deletion summary',
+  })
+  @ApiStandardErrors()
+  async deleteAccount(@Req() req: any): Promise<DeleteAccountResponseDto> {
+    const userId: string | undefined = req?.user?.id;
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+    return this.profiles.softDeleteAccount(userId);
   }
 
   @Get('emails')
