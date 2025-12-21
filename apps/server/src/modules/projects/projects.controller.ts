@@ -22,6 +22,7 @@ import {
   ApiBadRequestResponse,
   ApiQuery,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import {
@@ -29,7 +30,10 @@ import {
   ProjectDto,
   UpdateProjectDto,
 } from './dto/project.dto';
+import { ProjectMemberDto } from './dto/project-member.dto';
+import { SentInviteDto } from '../invites/dto/invite.dto';
 import { ProjectsService } from './projects.service';
+import { InvitesService } from '../invites/invites.service';
 import { CachingInterceptor } from '../../common/interceptors/caching.interceptor';
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
@@ -39,7 +43,10 @@ import { Scopes } from '../auth/scopes.decorator';
 @Controller('projects')
 @UseGuards(AuthGuard, ScopesGuard)
 export class ProjectsController {
-  constructor(private readonly projects: ProjectsService) {}
+  constructor(
+    private readonly projects: ProjectsService,
+    private readonly invites: InvitesService
+  ) {}
 
   @Get()
   @UseInterceptors(CachingInterceptor)
@@ -183,5 +190,117 @@ export class ProjectsController {
         error: { code: 'not-found', message: 'Project not found' },
       });
     return { status: 'deleted' };
+  }
+
+  // ============ Project Members Endpoints ============
+
+  @Get(':id/members')
+  @UseInterceptors(CachingInterceptor)
+  @ApiOkResponse({
+    description: 'List project members',
+    type: ProjectMemberDto,
+    isArray: true,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid project id',
+    schema: {
+      example: { error: { code: 'bad-request', message: 'Invalid id' } },
+    },
+  })
+  @ApiStandardErrors()
+  @Scopes('project:read')
+  async listMembers(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) projectId: string
+  ) {
+    // Verify project exists
+    const project = await this.projects.getById(projectId);
+    if (!project) {
+      throw new NotFoundException({
+        error: { code: 'not-found', message: 'Project not found' },
+      });
+    }
+    return this.projects.listMembers(projectId);
+  }
+
+  @Delete(':id/members/:userId')
+  @ApiOkResponse({
+    description: 'Member removed from project',
+    schema: { example: { status: 'removed' } },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid id',
+    schema: {
+      example: { error: { code: 'bad-request', message: 'Invalid id' } },
+    },
+  })
+  @ApiForbiddenResponse({
+    description: 'Cannot remove last admin',
+    schema: {
+      example: {
+        error: {
+          code: 'last-admin',
+          message:
+            'Cannot remove the last admin from the project. Assign another admin first.',
+        },
+      },
+    },
+  })
+  @ApiStandardErrors()
+  @Scopes('project:admin')
+  async removeMember(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
+    @Req() req: any
+  ) {
+    // Verify project exists
+    const project = await this.projects.getById(projectId);
+    if (!project) {
+      throw new NotFoundException({
+        error: { code: 'not-found', message: 'Project not found' },
+      });
+    }
+
+    const requestingUserId: string | undefined = req?.user?.id;
+    const removed = await this.projects.removeMember(
+      projectId,
+      userId,
+      requestingUserId
+    );
+    if (!removed) {
+      throw new NotFoundException({
+        error: { code: 'not-found', message: 'Member not found in project' },
+      });
+    }
+    return { status: 'removed' };
+  }
+
+  // ============ Project Invites Endpoints ============
+
+  @Get(':id/invites')
+  @UseInterceptors(CachingInterceptor)
+  @ApiOkResponse({
+    description: 'List sent invitations for a project',
+    type: SentInviteDto,
+    isArray: true,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid project id',
+    schema: {
+      example: { error: { code: 'bad-request', message: 'Invalid id' } },
+    },
+  })
+  @ApiStandardErrors()
+  @Scopes('project:read')
+  async listInvites(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) projectId: string
+  ): Promise<SentInviteDto[]> {
+    // Verify project exists
+    const project = await this.projects.getById(projectId);
+    if (!project) {
+      throw new NotFoundException({
+        error: { code: 'not-found', message: 'Project not found' },
+      });
+    }
+    return this.invites.listForProject(projectId);
   }
 }
