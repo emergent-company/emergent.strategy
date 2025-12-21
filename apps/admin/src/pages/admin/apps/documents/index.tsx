@@ -200,6 +200,14 @@ export default function DocumentsPage() {
   useEffect(() => {
     let cancelled = false;
 
+    // DEBUG: Log when useEffect runs and what projectId we have
+    console.log(
+      '[Documents] useEffect triggered, activeProjectId:',
+      config.activeProjectId,
+      'activeOrgId:',
+      config.activeOrgId
+    );
+
     // IMPORTANT: Clear documents immediately when project changes to prevent
     // showing stale data from another project while loading
     setData([]);

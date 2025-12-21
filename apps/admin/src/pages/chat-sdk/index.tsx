@@ -27,13 +27,15 @@ import type {
 
 /**
  * Parse suggestions from message content.
- * Looks for ```suggestions [...] ``` blocks and parses the JSON.
+ * Supports two formats:
+ * 1. Refinement chat: ```suggestions [...] ``` blocks
+ * 2. Merge chat: <!--MERGE_DATA {...} MERGE_DATA--> hidden blocks
  * Transforms raw LLM output into RefinementSuggestion format expected by SuggestionCard.
  */
 function parseSuggestionsFromContent(
   content: string
 ): RefinementSuggestion[] | undefined {
-  // Match ```suggestions ... ``` blocks
+  // Try refinement format first: ```suggestions ... ``` blocks
   const suggestionsMatch = content.match(/```suggestions\s*([\s\S]*?)```/);
   if (suggestionsMatch) {
     try {
@@ -54,9 +56,73 @@ function parseSuggestionsFromContent(
         });
       }
     } catch (e) {
-      console.warn('Failed to parse suggestions:', e);
+      console.warn('Failed to parse refinement suggestions:', e);
     }
   }
+
+  // Try merge chat format: <!--MERGE_DATA {...} MERGE_DATA-->
+  const mergeDataMatch = content.match(
+    /<!--MERGE_DATA\s*([\s\S]*?)\s*MERGE_DATA-->/
+  );
+  if (mergeDataMatch) {
+    try {
+      const parsed = JSON.parse(mergeDataMatch[1].trim());
+      if (parsed.suggestions && Array.isArray(parsed.suggestions)) {
+        // Transform merge suggestions into RefinementSuggestion format
+        // Merge format: { type, propertyKey, explanation, sourceValue, targetValue, suggestedValue }
+        // Map to SuggestionCard format with oldValue/newValue
+        return parsed.suggestions.map(
+          (
+            s: {
+              type?: string;
+              propertyKey?: string;
+              explanation?: string;
+              sourceValue?: unknown;
+              targetValue?: unknown;
+              suggestedValue?: unknown;
+              status?: string;
+            },
+            index: number
+          ) => {
+            // Map merge types to display-friendly names
+            const typeLabel =
+              s.type === 'keep_source'
+                ? 'Keep Source'
+                : s.type === 'keep_target'
+                ? 'Keep Target'
+                : s.type === 'combine'
+                ? 'Combine Values'
+                : s.type === 'new_value'
+                ? 'New Value'
+                : s.type === 'drop_property'
+                ? 'Drop Property'
+                : 'Merge Property';
+
+            return {
+              index,
+              // Map all merge types to property_change so SuggestionCard renders properly
+              // The typeLabel in details provides the specific merge action context
+              type: 'property_change',
+              explanation: s.explanation || '',
+              status: s.status || 'pending',
+              details: {
+                propertyKey: s.propertyKey,
+                typeLabel, // e.g., "Keep Target", "Combine Values"
+                sourceValue: s.sourceValue,
+                targetValue: s.targetValue,
+                oldValue: s.sourceValue, // For SuggestionCard compatibility
+                newValue: s.suggestedValue, // The suggested merged value
+                suggestedValue: s.suggestedValue,
+              },
+            } as RefinementSuggestion;
+          }
+        );
+      }
+    } catch (e) {
+      console.warn('Failed to parse merge suggestions:', e);
+    }
+  }
+
   return undefined;
 }
 

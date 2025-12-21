@@ -18,24 +18,28 @@ export default function AuthCallbackPage() {
     console.log('[AuthCallback] Page loaded, parsing callback params');
     const { code, error } = parseCallbackParams();
     console.log('[AuthCallback] Parsed params', { hasCode: !!code, error });
-    
+
     // Check for missing code_verifier early - if missing, the session expired
     // and we should restart the auth flow automatically
     if (code && !hasValidCodeVerifier()) {
-      console.log('[AuthCallback] Session expired (missing code_verifier), restarting auth flow');
+      console.log(
+        '[AuthCallback] Session expired (missing code_verifier), restarting auth flow'
+      );
       // Clear the stale code from URL and restart login
       window.history.replaceState({}, '', window.location.pathname);
       beginLogin();
       return;
     }
-    
+
     if (error) {
       console.error('[AuthCallback] OAuth error in callback URL', { error });
       setError(error);
       return;
     }
     if (!code) {
-      console.error('[AuthCallback] Missing authorization code in callback URL');
+      console.error(
+        '[AuthCallback] Missing authorization code in callback URL'
+      );
       setError('Missing authorization code');
       return;
     }
@@ -43,13 +47,15 @@ export default function AuthCallbackPage() {
       try {
         console.log('[AuthCallback] Calling handleCallback with code');
         await handleCallback(code);
-        console.log('[AuthCallback] handleCallback succeeded, verifying localStorage');
+        console.log(
+          '[AuthCallback] handleCallback succeeded, verifying localStorage'
+        );
 
         // Verify localStorage write completed
         const authData = localStorage.getItem('spec-server-auth');
         console.log('[AuthCallback] localStorage verification', {
           hasAuthData: !!authData,
-          dataLength: authData?.length || 0
+          dataLength: authData?.length || 0,
         });
 
         if (!authData) {
@@ -58,12 +64,31 @@ export default function AuthCallbackPage() {
         }
 
         // Small delay to ensure all state updates complete
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Check for stored invitation return URL (from /invites/accept page)
+        const inviteReturnUrl = sessionStorage.getItem('invite-return-url');
+        if (inviteReturnUrl) {
+          console.log(
+            '[AuthCallback] Found invite return URL, redirecting:',
+            inviteReturnUrl
+          );
+          // Clear the stored URL
+          sessionStorage.removeItem('invite-return-url');
+          // Navigate to the invite acceptance page (preserves ?token=XXX)
+          const url = new URL(inviteReturnUrl);
+          nav(url.pathname + url.search, { replace: true });
+          return;
+        }
 
         console.log('[AuthCallback] Navigating to /admin');
         nav('/admin', { replace: true });
       } catch (e: any) {
-        console.error('[AuthCallback] handleCallback failed', { error: e, message: e?.message, stack: e?.stack });
+        console.error('[AuthCallback] handleCallback failed', {
+          error: e,
+          message: e?.message,
+          stack: e?.stack,
+        });
         let msg: string;
         if (e?.message === 'login_failed') {
           msg = 'We could not complete sign-in. Please retry.';

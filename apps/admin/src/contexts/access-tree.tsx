@@ -8,6 +8,7 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
+import { useLocation } from 'react-router';
 import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/contexts/useAuth';
 import { ApiError } from '@/lib/api-error';
@@ -80,9 +81,14 @@ export { AccessTreeContext };
 export function AccessTreeProvider({ children }: { children: ReactNode }) {
   const { apiBase, fetchJson } = useApi();
   const { isAuthenticated, isInitialized, logout } = useAuth();
+  const location = useLocation();
   const [tree, setTree] = useState<OrgWithProjects[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>(undefined);
+
+  // Check if we're on an auth route (login, callback, logged-out, etc.)
+  // These routes should not show the access tree error UI
+  const isAuthRoute = location.pathname.startsWith('/auth/');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -136,10 +142,19 @@ export function AccessTreeProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    console.log('[AccessTreeProvider] Auth initialized and authenticated, fetching data');
+    // Skip if on auth route - these pages don't need access tree data
+    if (isAuthRoute) {
+      console.log('[AccessTreeProvider] Skipping fetch (auth route)');
+      setLoading(false);
+      return;
+    }
+
+    console.log(
+      '[AccessTreeProvider] Auth initialized and authenticated, fetching data'
+    );
     hasFetchedRef.current = true;
     refresh().catch(() => void 0);
-  }, [refresh, isAuthenticated, isInitialized]);
+  }, [refresh, isAuthenticated, isInitialized, isAuthRoute]);
 
   // Memoize flattened data and lookup helpers
   const value: AccessTreeContextValue = useMemo(() => {
@@ -188,7 +203,8 @@ export function AccessTreeProvider({ children }: { children: ReactNode }) {
 
   // Show global error state if API fetch failed
   // This prevents any page from rendering when we can't load user access data
-  if (error && !loading) {
+  // Skip error UI for auth routes (login, logout, callback) - they don't need access tree
+  if (error && !loading && !isAuthRoute) {
     return (
       <div className="flex justify-center items-center bg-base-200 min-h-screen">
         <div className="mx-4 w-full max-w-md">
@@ -283,7 +299,7 @@ export function useAccessTreeContext(): AccessTreeContextValue {
   if (context === undefined) {
     throw new Error(
       'useAccessTreeContext must be used within an AccessTreeProvider. ' +
-      'Wrap your app with <AccessTreeProvider> at the root level.'
+        'Wrap your app with <AccessTreeProvider> at the root level.'
     );
   }
   return context;

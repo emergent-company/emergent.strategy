@@ -115,8 +115,10 @@ export function useHealthCheck(
     setIsLoading(true);
 
     try {
-      const apiBase = (import.meta as any).env?.VITE_API_URL || '';
-      const response = await fetch(`${apiBase}/health`, {
+      // Use VITE_API_BASE for consistency with other API calls
+      const apiBase = (import.meta as any).env?.VITE_API_BASE || '';
+      // Use /api/health to go through Vite proxy in development
+      const response = await fetch(`${apiBase}/api/health`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

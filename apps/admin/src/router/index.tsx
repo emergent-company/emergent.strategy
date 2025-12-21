@@ -4,6 +4,7 @@ import { Route, RouteProps, Routes } from 'react-router';
 import AdminLayout from '@/pages/admin/layout';
 import AuthLayout from '@/pages/auth/layout';
 import { SetupGuard } from '@/components/guards/SetupGuard';
+import { ReverseSetupGuard } from '@/components/guards/ReverseSetupGuard';
 
 import { registerRoutes } from './register';
 import { useAuth } from '@/contexts/useAuth';
@@ -48,11 +49,26 @@ export const Router = (props: RouteProps) => {
         ))}
       </Route>
 
-      {/* Setup routes - not guarded, entry point for new users */}
+      {/* Setup routes - guarded to redirect existing users to admin */}
       <Route>
         {registerRoutes.setup.map((route, index) => (
           <Route
             key={'setup-' + index}
+            path={route.path}
+            element={
+              <ReverseSetupGuard>
+                <Suspense>{route.element}</Suspense>
+              </ReverseSetupGuard>
+            }
+          />
+        ))}
+      </Route>
+
+      {/* Invite routes - authenticated but not guarded (for new users accepting invitations) */}
+      <Route>
+        {registerRoutes.invites.map((route, index) => (
+          <Route
+            key={'invites-' + index}
             path={route.path}
             element={<Suspense>{route.element}</Suspense>}
           />

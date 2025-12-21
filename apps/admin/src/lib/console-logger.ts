@@ -1,9 +1,11 @@
 /**
  * Browser Console Logger
- * 
+ *
  * Captures console errors and logs them to a file via API endpoint.
  * This helps debug production issues and errors that only appear in the browser.
  */
+
+import { getApiBase } from '@/lib/api-config';
 
 interface LogEntry {
   timestamp: string;
@@ -19,15 +21,19 @@ class ConsoleLogger {
   private buffer: LogEntry[] = [];
   private flushInterval: number = 5000; // 5 seconds
   private maxBufferSize: number = 50;
-  private endpoint: string = '/api/logs/client';
+  private endpoint: string;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private enabled: boolean = true;
 
   constructor() {
+    // Initialize endpoint with API base
+    this.endpoint = `${getApiBase()}/api/logs/client`;
+
     if (typeof window === 'undefined') return;
 
     // Only enable in development or if explicitly enabled
-    this.enabled = import.meta.env.DEV || import.meta.env.VITE_CLIENT_LOGGING === '1';
+    this.enabled =
+      import.meta.env.DEV || import.meta.env.VITE_CLIENT_LOGGING === '1';
 
     if (!this.enabled) return;
 
@@ -70,9 +76,13 @@ class ConsoleLogger {
     });
   }
 
-  private log(level: LogEntry['level'], args: unknown[], extra?: Record<string, unknown>) {
+  private log(
+    level: LogEntry['level'],
+    args: unknown[],
+    extra?: Record<string, unknown>
+  ) {
     const message = args
-      .map(arg => {
+      .map((arg) => {
         if (typeof arg === 'string') return arg;
         if (arg instanceof Error) return arg.message;
         try {
@@ -145,10 +155,12 @@ class ConsoleLogger {
       localStorage.setItem(key, JSON.stringify(logs));
 
       // Clean up old logs (keep only last 10)
-      const allKeys = Object.keys(localStorage).filter(k => k.startsWith('console_logs_'));
+      const allKeys = Object.keys(localStorage).filter((k) =>
+        k.startsWith('console_logs_')
+      );
       if (allKeys.length > 10) {
         const sorted = allKeys.sort();
-        sorted.slice(0, -10).forEach(k => localStorage.removeItem(k));
+        sorted.slice(0, -10).forEach((k) => localStorage.removeItem(k));
       }
     } catch {
       // Ignore localStorage errors

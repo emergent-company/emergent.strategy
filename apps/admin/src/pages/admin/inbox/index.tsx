@@ -1,17 +1,20 @@
 /**
  * Admin Notification Inbox Page
  * Main page component for the notification inbox feature
- * Displays user notifications (personal scope)
+ * Displays user notifications (personal scope) and pending invitations
  */
 import { useState } from 'react';
 import { MetaData } from '@/components';
 import { PageContainer } from '@/components/layouts';
 import { NotificationInbox } from '@/components/organisms/NotificationInbox';
+import { PendingInvitationCard } from '@/components/molecules/PendingInvitationCard';
 import {
   useNotifications,
   useNotificationCounts,
   useNotificationMutations,
 } from '@/hooks/useNotifications';
+import { usePendingInvites } from '@/hooks/use-pending-invites';
+import { useToast } from '@/hooks/use-toast';
 import type {
   NotificationTab,
   NotificationFilter,
@@ -25,6 +28,20 @@ const InboxPage = () => {
     unreadOnly: false,
     search: '',
   });
+  const [processingInviteId, setProcessingInviteId] = useState<string | null>(
+    null
+  );
+
+  // Toast notifications
+  const { showToast } = useToast();
+
+  // Fetch pending invitations
+  const {
+    invites: pendingInvites,
+    isLoading: invitesLoading,
+    acceptInvite,
+    declineInvite,
+  } = usePendingInvites();
 
   // Fetch notifications for active tab
   const {
@@ -86,6 +103,52 @@ const InboxPage = () => {
     console.log('Navigate to notification settings');
   };
 
+  // Invitation handlers
+  const handleAcceptInvite = async (token: string) => {
+    const invite = pendingInvites.find((i) => i.token === token);
+    if (invite) {
+      setProcessingInviteId(invite.id);
+    }
+    try {
+      await acceptInvite(token);
+      showToast({
+        message: 'Invitation accepted! You now have access to the project.',
+        variant: 'success',
+      });
+    } catch (error) {
+      showToast({
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to accept invitation',
+        variant: 'error',
+      });
+    } finally {
+      setProcessingInviteId(null);
+    }
+  };
+
+  const handleDeclineInvite = async (inviteId: string) => {
+    setProcessingInviteId(inviteId);
+    try {
+      await declineInvite(inviteId);
+      showToast({
+        message: 'Invitation declined.',
+        variant: 'info',
+      });
+    } catch (error) {
+      showToast({
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to decline invitation',
+        variant: 'error',
+      });
+    } finally {
+      setProcessingInviteId(null);
+    }
+  };
+
   return (
     <PageContainer maxWidth="7xl" testId="page-inbox">
       <MetaData title="Inbox" noIndex />
@@ -97,6 +160,25 @@ const InboxPage = () => {
           View and manage your notifications
         </p>
       </div>
+
+      {/* Pending Invitations Section */}
+      {!invitesLoading && pendingInvites.length > 0 && (
+        <div className="mb-6">
+          <h2 className="font-semibold text-lg mb-3">Pending Invitations</h2>
+          <div className="space-y-3">
+            {pendingInvites.map((invite) => (
+              <PendingInvitationCard
+                key={invite.id}
+                invite={invite}
+                onAccept={handleAcceptInvite}
+                onDecline={handleDeclineInvite}
+                isAccepting={processingInviteId === invite.id}
+                isDeclining={processingInviteId === invite.id}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Notifications content */}
       <NotificationInbox

@@ -14,8 +14,10 @@ import { SplitPanelLayout } from '@/components/layouts';
 import {
   ChatInput,
   KeyboardShortcutsModal,
+  SuggestionCard,
   stripSuggestionsFromContent,
   formatTimestamp,
+  type UnifiedSuggestion,
 } from '@/components/chat';
 import {
   useTemplateStudioChat,
@@ -23,6 +25,24 @@ import {
   type SchemaSuggestion,
   type TemplatePack,
 } from '@/hooks/use-template-studio-chat';
+
+// ============================================================================
+// Adapter: Convert SchemaSuggestion to UnifiedSuggestion
+// ============================================================================
+
+function convertToUnifiedSuggestion(
+  suggestion: SchemaSuggestion
+): UnifiedSuggestion {
+  return {
+    id: suggestion.id,
+    type: suggestion.type,
+    description: suggestion.description,
+    status: suggestion.status,
+    target_type: suggestion.target_type,
+    before: suggestion.before,
+    after: suggestion.after,
+  };
+}
 
 // ============================================================================
 // Types for Relationship Display
@@ -1035,9 +1055,9 @@ function StudioMessageItem({
         {message.suggestions && message.suggestions.length > 0 && (
           <div className="mt-3 space-y-2">
             {message.suggestions.map((suggestion) => (
-              <SchemaSuggestionCard
+              <SuggestionCard
                 key={suggestion.id}
-                suggestion={suggestion}
+                suggestion={convertToUnifiedSuggestion(suggestion)}
                 onApply={() => onApplySuggestion(message.id, suggestion.id)}
                 onReject={() => onRejectSuggestion(message.id, suggestion.id)}
               />
@@ -1048,151 +1068,6 @@ function StudioMessageItem({
 
       {/* Timestamp */}
       <div className="chat-footer opacity-50 text-xs mt-1">{formattedTime}</div>
-    </div>
-  );
-}
-
-// ============================================================================
-// Schema Suggestion Card
-// ============================================================================
-
-interface SchemaSuggestionCardProps {
-  suggestion: SchemaSuggestion;
-  onApply?: () => void;
-  onReject?: () => void;
-}
-
-function SchemaSuggestionCard({
-  suggestion,
-  onApply,
-  onReject,
-}: SchemaSuggestionCardProps) {
-  const isPending = suggestion.status === 'pending';
-  const isAccepted = suggestion.status === 'accepted';
-  const isRejected = suggestion.status === 'rejected';
-
-  const getTypeIcon = () => {
-    switch (suggestion.type) {
-      case 'add_object_type':
-        return 'lucide--plus-square';
-      case 'modify_object_type':
-        return 'lucide--edit-3';
-      case 'remove_object_type':
-        return 'lucide--minus-square';
-      case 'add_relationship_type':
-        return 'lucide--link';
-      case 'modify_relationship_type':
-        return 'lucide--unlink-2';
-      case 'remove_relationship_type':
-        return 'lucide--unlink';
-      case 'update_ui_config':
-        return 'lucide--palette';
-      case 'update_extraction_prompt':
-        return 'lucide--file-text';
-      default:
-        return 'lucide--sparkles';
-    }
-  };
-
-  const getTypeLabel = () => {
-    switch (suggestion.type) {
-      case 'add_object_type':
-        return 'Add Object Type';
-      case 'modify_object_type':
-        return 'Modify Object Type';
-      case 'remove_object_type':
-        return 'Remove Object Type';
-      case 'add_relationship_type':
-        return 'Add Relationship';
-      case 'modify_relationship_type':
-        return 'Modify Relationship';
-      case 'remove_relationship_type':
-        return 'Remove Relationship';
-      case 'update_ui_config':
-        return 'Update UI Config';
-      case 'update_extraction_prompt':
-        return 'Update Extraction Prompt';
-      default:
-        return 'Suggestion';
-    }
-  };
-
-  return (
-    <div
-      className={`rounded-lg border p-2 ${
-        isAccepted
-          ? 'bg-success/10 border-success/30'
-          : isRejected
-          ? 'bg-error/10 border-error/30 text-base-content/60'
-          : 'bg-base-100 border-base-300'
-      }`}
-    >
-      {/* Header */}
-      <div className="flex items-center gap-1.5 mb-1">
-        <Icon
-          icon={getTypeIcon()}
-          className={`size-3.5 ${
-            isAccepted
-              ? 'text-success'
-              : isRejected
-              ? 'text-error'
-              : 'text-primary'
-          }`}
-        />
-        <span className="text-xs font-medium">{getTypeLabel()}</span>
-        <span className="text-xs text-base-content/60 ml-1">
-          {suggestion.target_type}
-        </span>
-        {isAccepted && (
-          <span className="badge badge-success badge-xs gap-1 ml-auto">
-            <Icon icon="lucide--check" className="size-2.5" />
-            Applied
-          </span>
-        )}
-        {isRejected && (
-          <span className="badge badge-error badge-xs gap-1 ml-auto">
-            <Icon icon="lucide--x" className="size-2.5" />
-            Rejected
-          </span>
-        )}
-      </div>
-
-      {/* Description */}
-      <p className="text-xs text-base-content/70 mb-1.5">
-        {suggestion.description}
-      </p>
-
-      {/* Before/After Preview */}
-      {(suggestion.before || suggestion.after) && (
-        <SchemaChangePreview
-          before={suggestion.before}
-          after={suggestion.after}
-        />
-      )}
-
-      {/* Actions */}
-      {isPending && onApply && onReject && (
-        <div className="flex items-center justify-end gap-2 mt-2">
-          <button
-            type="button"
-            className="btn btn-ghost btn-xs gap-1"
-            onClick={onReject}
-            aria-label="Reject suggestion"
-          >
-            <Icon icon="lucide--x" className="size-3" />
-            Reject
-          </button>
-          <button
-            type="button"
-            className="btn btn-success btn-xs gap-1"
-            onClick={onApply}
-            aria-label="Apply suggestion"
-          >
-            <Icon icon="lucide--check" className="size-3" />
-            Apply
-          </button>
-        </div>
-      )}
     </div>
   );
 }

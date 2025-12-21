@@ -7,7 +7,6 @@ import { useApi } from '@/hooks/use-api';
 import { Icon } from '@/components/atoms/Icon';
 import { PageContainer } from '@/components/layouts';
 import type { Project } from '@/hooks/use-projects';
-import { SettingsNav } from './SettingsNav';
 
 // Chunking strategy options
 const CHUNKING_STRATEGIES = [
@@ -303,9 +302,6 @@ export default function ProjectChunkingSettingsPage() {
 
   return (
     <PageContainer maxWidth="4xl" testId="page-settings-chunking">
-      {/* Settings Navigation */}
-      <SettingsNav />
-
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-bold text-2xl">Document Processing</h1>
