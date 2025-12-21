@@ -68,7 +68,22 @@ export class ExternalSourcesController {
     @Req() req: any
   ): Promise<ImportResultDto> {
     const projectId = this.getProjectId(req);
-    return this.externalSourcesService.importFromUrl(dto, projectId);
+    const result = await this.externalSourcesService.importFromUrl(
+      dto,
+      projectId
+    );
+
+    // Throw appropriate exceptions for error results
+    if (!result.success && result.status === 'error') {
+      throw new BadRequestException({
+        error: {
+          code: 'import-failed',
+          message: result.error || 'Failed to import from URL',
+        },
+      });
+    }
+
+    return result;
   }
 
   /**

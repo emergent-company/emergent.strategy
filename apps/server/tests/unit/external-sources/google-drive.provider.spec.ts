@@ -143,23 +143,41 @@ describe('GoogleDriveProvider', () => {
     };
 
     it('should return accessible when file exists and is public', async () => {
+      // For public access without API, we just check if the export URL is accessible
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () =>
-          Promise.resolve({
-            id: 'testFileId',
-            name: 'Test Document.pdf',
-            mimeType: 'application/pdf',
-            size: '1024',
-            modifiedTime: '2024-01-15T10:00:00Z',
-          }),
+        status: 200,
       });
 
       const result = await provider.checkAccess(mockRef);
 
       expect(result.accessible).toBe(true);
-      expect(result.metadata?.name).toBe('Test Document.pdf');
-      expect(result.metadata?.mimeType).toBe('application/pdf');
+      // Without API access, we can only provide default metadata
+      expect(result.metadata?.name).toBe('Google Document');
+      // For regular Drive files, MIME type is application/octet-stream
+      expect(result.metadata?.mimeType).toBe('application/octet-stream');
+    });
+
+    it('should return accessible for Google Docs with correct MIME type', async () => {
+      const docsRef: ExternalSourceReference = {
+        providerType: 'google_drive',
+        externalId: 'testDocId',
+        originalUrl: 'https://docs.google.com/document/d/testDocId/edit',
+        normalizedUrl: 'https://drive.google.com/file/d/testDocId/view',
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+      });
+
+      const result = await provider.checkAccess(docsRef);
+
+      expect(result.accessible).toBe(true);
+      expect(result.metadata?.name).toBe('Google Document');
+      expect(result.metadata?.mimeType).toBe(
+        'application/vnd.google-apps.document'
+      );
     });
 
     it('should return not_found for 404 response', async () => {
@@ -207,125 +225,135 @@ describe('GoogleDriveProvider', () => {
       normalizedUrl: 'https://drive.google.com/file/d/testFileId/view',
     };
 
-    it('should fetch and return metadata', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            id: 'testFileId',
-            name: 'Report.pdf',
-            mimeType: 'application/pdf',
-            size: '2048',
-            modifiedTime: '2024-01-15T12:00:00Z',
-            md5Checksum: 'abc123hash',
-          }),
-      });
-
+    it('should return default metadata (no API access)', async () => {
+      // fetchMetadata now returns defaults without making API calls
       const metadata = await provider.fetchMetadata(mockRef);
 
-      expect(metadata.name).toBe('Report.pdf');
-      expect(metadata.mimeType).toBe('application/pdf');
-      expect(metadata.size).toBe(2048);
-      expect(metadata.etag).toBe('abc123hash');
+      expect(metadata.name).toBe('Google Document');
+      expect(metadata.mimeType).toBe('application/octet-stream');
+      expect(metadata.size).toBe(0);
+      expect(metadata.etag).toBeUndefined(); // No etag without API
       expect(metadata.providerMetadata?.googleFileId).toBe('testFileId');
     });
 
-    it('should throw error on API failure', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 404,
-        statusText: 'Not Found',
-      });
+    it('should return Google Docs metadata for document URLs', async () => {
+      const docsRef: ExternalSourceReference = {
+        providerType: 'google_drive',
+        externalId: 'docId',
+        originalUrl: 'https://docs.google.com/document/d/docId/edit',
+        normalizedUrl: 'https://drive.google.com/file/d/docId/view',
+      };
 
-      await expect(provider.fetchMetadata(mockRef)).rejects.toThrow(
-        'Failed to fetch metadata'
-      );
+      const metadata = await provider.fetchMetadata(docsRef);
+
+      expect(metadata.name).toBe('Google Document');
+      expect(metadata.mimeType).toBe('application/vnd.google-apps.document');
+      expect(metadata.providerMetadata?.exportFormat).toBe('text/plain');
+    });
+
+    it('should return Google Sheets metadata for spreadsheet URLs', async () => {
+      const sheetsRef: ExternalSourceReference = {
+        providerType: 'google_drive',
+        externalId: 'sheetId',
+        originalUrl: 'https://docs.google.com/spreadsheets/d/sheetId/edit',
+        normalizedUrl: 'https://drive.google.com/file/d/sheetId/view',
+      };
+
+      const metadata = await provider.fetchMetadata(sheetsRef);
+
+      expect(metadata.mimeType).toBe('application/vnd.google-apps.spreadsheet');
+      expect(metadata.providerMetadata?.exportFormat).toBe('text/csv');
     });
   });
 
   describe('fetchContent', () => {
-    const mockRef: ExternalSourceReference = {
-      providerType: 'google_drive',
-      externalId: 'testFileId',
-      originalUrl: 'https://drive.google.com/file/d/testFileId/view',
-      normalizedUrl: 'https://drive.google.com/file/d/testFileId/view',
-    };
-
     it('should export Google Docs as text', async () => {
-      // First call: metadata
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            id: 'testFileId',
-            name: 'My Document',
-            mimeType: 'application/vnd.google-apps.document',
-            size: '0',
-            modifiedTime: '2024-01-15T12:00:00Z',
-          }),
-      });
+      const docsRef: ExternalSourceReference = {
+        providerType: 'google_drive',
+        externalId: 'testDocId',
+        originalUrl: 'https://docs.google.com/document/d/testDocId/edit',
+        normalizedUrl: 'https://drive.google.com/file/d/testDocId/view',
+      };
 
-      // Second call: export
-      mockFetch.mockResolvedValueOnce({
+      // Single fetch call to export URL
+      mockFetch.mockResolvedValue({
         ok: true,
         text: () => Promise.resolve('Document content here'),
+        headers: new Map([['content-type', 'text/plain']]),
       });
 
-      const content = await provider.fetchContent(mockRef);
+      const content = await provider.fetchContent(docsRef);
 
       expect(content.mimeType).toBe('text/plain');
       expect(content.content).toBe('Document content here');
-      expect(content.filename).toBe('My Document.txt');
+      expect(content.filename).toBe('document.txt');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://docs.google.com/document/d/testDocId/export?format=txt',
+        expect.any(Object)
+      );
     });
 
-    it('should download regular files directly', async () => {
-      // First call: metadata
-      mockFetch.mockResolvedValueOnce({
+    it('should export Google Sheets as CSV', async () => {
+      const sheetsRef: ExternalSourceReference = {
+        providerType: 'google_drive',
+        externalId: 'testSheetId',
+        originalUrl: 'https://docs.google.com/spreadsheets/d/testSheetId/edit',
+        normalizedUrl: 'https://drive.google.com/file/d/testSheetId/view',
+      };
+
+      mockFetch.mockResolvedValue({
         ok: true,
-        json: () =>
-          Promise.resolve({
-            id: 'testFileId',
-            name: 'image.png',
-            mimeType: 'image/png',
-            size: '1024',
-            modifiedTime: '2024-01-15T12:00:00Z',
-          }),
+        text: () => Promise.resolve('col1,col2\nval1,val2'),
+        headers: new Map([['content-type', 'text/csv']]),
       });
 
-      // Second call: download
-      mockFetch.mockResolvedValueOnce({
+      const content = await provider.fetchContent(sheetsRef);
+
+      expect(content.mimeType).toBe('text/csv');
+      expect(content.content).toBe('col1,col2\nval1,val2');
+      expect(content.filename).toBe('document.csv');
+    });
+
+    it('should download regular Drive files directly', async () => {
+      const driveRef: ExternalSourceReference = {
+        providerType: 'google_drive',
+        externalId: 'testFileId',
+        originalUrl: 'https://drive.google.com/file/d/testFileId/view',
+        normalizedUrl: 'https://drive.google.com/file/d/testFileId/view',
+      };
+
+      mockFetch.mockResolvedValue({
         ok: true,
-        headers: new Headers({ 'content-type': 'image/png' }),
+        headers: new Headers({ 'content-type': 'application/pdf' }),
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
       });
 
-      const content = await provider.fetchContent(mockRef);
+      const content = await provider.fetchContent(driveRef);
 
-      expect(content.mimeType).toBe('image/png');
+      expect(content.mimeType).toBe('application/pdf');
       expect(Buffer.isBuffer(content.content)).toBe(true);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://drive.google.com/uc?export=download&id=testFileId',
+        expect.any(Object)
+      );
     });
 
-    it('should throw error on export failure', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            id: 'testFileId',
-            name: 'My Document',
-            mimeType: 'application/vnd.google-apps.document',
-            size: '0',
-            modifiedTime: '2024-01-15T12:00:00Z',
-          }),
-      });
+    it('should throw error on fetch failure', async () => {
+      const driveRef: ExternalSourceReference = {
+        providerType: 'google_drive',
+        externalId: 'testFileId',
+        originalUrl: 'https://drive.google.com/file/d/testFileId/view',
+        normalizedUrl: 'https://drive.google.com/file/d/testFileId/view',
+      };
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValue({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
       });
 
-      await expect(provider.fetchContent(mockRef)).rejects.toThrow(
-        'Failed to export Google file'
+      await expect(provider.fetchContent(driveRef)).rejects.toThrow(
+        'Failed to fetch Google file'
       );
     });
   });
@@ -338,77 +366,44 @@ describe('GoogleDriveProvider', () => {
       normalizedUrl: 'https://drive.google.com/file/d/testFileId/view',
     };
 
-    it('should detect updates when modified time is newer', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            name: 'file.pdf',
-            mimeType: 'application/pdf',
-            size: '1024',
-            modifiedTime: '2024-01-20T12:00:00Z',
-            md5Checksum: 'newhash',
-          }),
-      });
-
+    it('should always detect updates (no etag without API)', async () => {
+      // Without API access, fetchMetadata returns modifiedAt as current time
+      // which is always after lastSync, so it always reports updates
       const result = await provider.checkForUpdates(
         mockRef,
         new Date('2024-01-15T12:00:00Z'),
         'oldhash'
       );
 
+      // modifiedAt is set to new Date() in fetchMetadata, so it's always after lastSync
       expect(result.hasUpdates).toBe(true);
-      expect(result.newEtag).toBe('newhash');
+      // Without API, we don't have an etag
+      expect(result.newEtag).toBeUndefined();
     });
 
-    it('should detect updates when etag changes', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            name: 'file.pdf',
-            mimeType: 'application/pdf',
-            size: '1024',
-            modifiedTime: '2024-01-15T12:00:00Z', // Same as lastSync
-            md5Checksum: 'newhash',
-          }),
-      });
-
+    it('should return new modified timestamp', async () => {
+      const beforeCheck = new Date();
       const result = await provider.checkForUpdates(
         mockRef,
-        new Date('2024-01-15T12:00:00Z'),
-        'oldhash'
+        new Date('2024-01-15T12:00:00Z')
       );
 
-      expect(result.hasUpdates).toBe(true);
-    });
-
-    it('should return no updates when nothing changed', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            name: 'file.pdf',
-            mimeType: 'application/pdf',
-            size: '1024',
-            modifiedTime: '2024-01-10T12:00:00Z', // Older than lastSync
-            md5Checksum: 'samehash',
-          }),
-      });
-
-      const result = await provider.checkForUpdates(
-        mockRef,
-        new Date('2024-01-15T12:00:00Z'),
-        'samehash'
+      // newModifiedAt should be close to now
+      expect(result.newModifiedAt).toBeDefined();
+      expect(result.newModifiedAt!.getTime()).toBeGreaterThanOrEqual(
+        beforeCheck.getTime()
       );
-
-      expect(result.hasUpdates).toBe(false);
     });
 
     it('should return no updates on error', async () => {
-      mockFetch.mockRejectedValue(new Error('Network error'));
+      // Create a provider that will throw in fetchMetadata
+      const errorProvider = new GoogleDriveProvider();
+      // Override fetchMetadata to throw
+      vi.spyOn(errorProvider, 'fetchMetadata').mockRejectedValue(
+        new Error('Network error')
+      );
 
-      const result = await provider.checkForUpdates(
+      const result = await errorProvider.checkForUpdates(
         mockRef,
         new Date('2024-01-15T12:00:00Z')
       );

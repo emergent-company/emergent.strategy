@@ -8,8 +8,11 @@ import { MessageDto } from './dto/chat-sdk-request.dto';
 import { createChatSearchTool } from './tools/chat-search.tool';
 import { createWebSearchTool } from './tools/web-search.tool';
 import { createBrowseUrlTool } from './tools/browse-url.tool';
+import { createImportDocumentTool } from './tools/import-document.tool';
 import { TypeRegistryService } from '../type-registry/type-registry.service';
 import { GraphService } from '../graph/graph.service';
+import { ExternalSourcesService } from '../external-sources/external-sources.service';
+import { ExternalSourceProviderRegistry } from '../external-sources/external-source-provider-registry.service';
 import { createGetDatabaseSchemaTool } from './tools/schema.tool';
 import { createObjectQueryTool } from './tools/object-query.tool';
 import { ALL_TOOL_NAMES } from './tool-definitions';
@@ -53,7 +56,9 @@ export class ChatSdkService {
     private readonly db: DatabaseService,
     private readonly typeRegistryService: TypeRegistryService,
     private readonly graphService: GraphService,
-    private readonly config: AppConfigService
+    private readonly config: AppConfigService,
+    private readonly externalSourcesService: ExternalSourcesService,
+    private readonly providerRegistry: ExternalSourceProviderRegistry
   ) {}
 
   /**
@@ -194,6 +199,16 @@ export class ChatSdkService {
           tools.push(browseUrlTool);
         }
 
+        // Import Document Tool (import from Google Drive, web URLs into knowledge base)
+        if (isToolEnabled('import_document')) {
+          const importDocumentTool = createImportDocumentTool(
+            this.externalSourcesService,
+            this.providerRegistry,
+            { projectId }
+          );
+          tools.push(importDocumentTool);
+        }
+
         // If no tools were created (all disabled), set tools to undefined
         if (tools.length === 0) {
           tools = undefined;
@@ -224,6 +239,14 @@ export class ChatSdkService {
               .join('\n');
 
             systemMessage = `You are a helpful AI assistant with access to a knowledge graph database and the internet.
+
+IMPORTANT - URL ACCESS CAPABILITIES:
+You DO have the ability to access external URLs through your tools. When a user shares ANY URL (Google Drive, web pages, documents), you MUST use your tools to access them. NEVER say you cannot access external links or URLs - that is incorrect. You have full URL access capabilities through:
+- 'import_document': Import and store documents from Google Drive or web URLs
+- 'browse_url': Read web page content without storing
+
+When a user shares a URL, ALWAYS attempt to use the appropriate tool. Do not refuse or claim you lack access.
+
 The database contains the following object types:
 ${schemaSummary}
 
@@ -233,6 +256,7 @@ You have tools to:
 3. Inspect detailed schema definitions (get_database_schema)
 4. Search the web for external information (search_web)
 5. Read specific web pages (browse_url)
+6. Import documents from external URLs into the knowledge base (import_document)
 
 When asked to find objects, prefer 'query_graph_objects' for specific criteria (status, type, etc.) and 'search_knowledge_base' for general information.
 
@@ -243,9 +267,23 @@ Use 'search_web' when:
 - The user explicitly asks to search the internet
 
 Use 'browse_url' when:
-- The user provides a specific URL they want you to read or analyze
+- The user provides a specific URL they want you to quickly read (without importing)
 - You need to verify or get full content from a search result
 - Reading documentation, articles, or blog posts at specific URLs
+
+Use 'import_document' when:
+- The user shares a Google Drive link (docs.google.com, drive.google.com)
+- The user pastes a URL and asks to "import", "add", or "save" it to the knowledge base
+- The user wants to reference a document in future conversations
+- The user says "check this out" or "look at this" with a link they want to keep
+- Default choice for Google Drive links unless user explicitly asks for quick read only
+
+IMPORTANT - After importing a document:
+When import_document succeeds, you MUST immediately use search_knowledge_base to search for the document's content and provide a summary to the user. The user expects to see what's in the document they just shared. Follow the "nextAction" hint in the tool response.
+
+Choose between 'browse_url' and 'import_document':
+- browse_url: Quick read without storing (ephemeral)
+- import_document: Stores content in knowledge base for future queries and analysis
 
 # Instructions: Finding Related Objects (No SQL)
 
