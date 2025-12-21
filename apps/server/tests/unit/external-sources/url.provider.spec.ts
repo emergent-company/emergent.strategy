@@ -302,8 +302,10 @@ describe('UrlProvider', () => {
       // HTML should be converted to text/plain
       expect(content.mimeType).toBe('text/plain');
       // Content should have text extracted (with script/style stripped)
-      expect(content.content).toContain('Title');
-      expect(content.content).toContain('Paragraph');
+      // Note: html-to-text converts h1 headings to uppercase
+      const textContent = (content.content as string).toLowerCase();
+      expect(textContent).toContain('title');
+      expect(textContent).toContain('paragraph');
     });
 
     it('should fetch binary content as Buffer', async () => {

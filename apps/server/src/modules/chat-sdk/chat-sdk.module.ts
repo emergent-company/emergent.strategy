@@ -9,6 +9,7 @@ import { ChatUiModule } from '../chat-ui/chat-ui.module';
 import { UnifiedSearchModule } from '../unified-search/unified-search.module';
 import { TypeRegistryModule } from '../type-registry/type-registry.module';
 import { GraphModule } from '../graph/graph.module';
+import { ExternalSourcesModule } from '../external-sources/external-sources.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { GraphModule } from '../graph/graph.module';
     UnifiedSearchModule, // Import to access UnifiedSearchService for RAG
     TypeRegistryModule,
     GraphModule,
+    ExternalSourcesModule, // Import to access ExternalSourcesService for document imports
   ],
   controllers: [ChatSdkController],
   providers: [ChatSdkService],

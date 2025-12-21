@@ -1,6 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  Inject,
+  Optional,
+} from '@nestjs/common';
 import { ExternalSourceType } from '../../entities';
 import { ExternalSourceProvider, ExternalSourceReference } from './interfaces';
+import { GoogleDriveProvider } from './providers/google-drive.provider';
+import { UrlProvider } from './providers/url.provider';
 
 /**
  * Registry for external source providers
@@ -10,12 +18,36 @@ import { ExternalSourceProvider, ExternalSourceReference } from './interfaces';
  * looked up by type or auto-detected from URLs.
  */
 @Injectable()
-export class ExternalSourceProviderRegistry {
+export class ExternalSourceProviderRegistry implements OnModuleInit {
   private readonly logger = new Logger(ExternalSourceProviderRegistry.name);
   private readonly providers = new Map<
     ExternalSourceType,
     ExternalSourceProvider
   >();
+
+  constructor(
+    @Optional() private readonly googleDriveProvider?: GoogleDriveProvider,
+    @Optional() private readonly urlProvider?: UrlProvider
+  ) {}
+
+  /**
+   * Auto-register providers on module initialization
+   */
+  onModuleInit() {
+    // Register injected providers
+    if (this.googleDriveProvider) {
+      this.register(this.googleDriveProvider);
+    }
+    if (this.urlProvider) {
+      this.register(this.urlProvider);
+    }
+
+    this.logger.log(
+      `Provider registry initialized with ${
+        this.providers.size
+      } provider(s): ${Array.from(this.providers.keys()).join(', ')}`
+    );
+  }
 
   /**
    * Register a provider with the registry
