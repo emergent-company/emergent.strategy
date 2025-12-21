@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { UserProfileService } from '../../../src/modules/user-profile/user-profile.service';
-import { DatabaseService } from '../../../src/common/database/database.service';
 
 // ========== Pattern 5 Level 3 Infrastructure ==========
 
@@ -12,24 +11,43 @@ function createMockRepository(methods = {}) {
     create: vi.fn().mockImplementation((entity) => entity),
     delete: vi.fn().mockResolvedValue({ affected: 0 }),
     upsert: vi.fn().mockResolvedValue({ affected: 1 }),
+    update: vi.fn().mockResolvedValue({ affected: 1 }),
+    count: vi.fn().mockResolvedValue(0),
     ...methods,
   };
 }
 
-class FakeDb extends DatabaseService {
-  constructor() {
-    super({} as any);
-  }
-  isOnline(): boolean {
-    return true;
-  }
-  async runWithTenantContext<T>(
-    tenantId: string,
-    projectId: string | null,
-    callback: () => Promise<T>
-  ): Promise<T> {
-    return callback();
-  }
+function createMockEmailService() {
+  return {
+    sendWelcomeEmail: vi.fn().mockResolvedValue({ queued: true }),
+  };
+}
+
+function createMockZitadelService() {
+  return {
+    deactivateUser: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function createMockDataSource() {
+  // Create a mock transaction manager that mimics TypeORM's EntityManager
+  const createMockManager = () => ({
+    find: vi.fn().mockResolvedValue([]),
+    findOne: vi.fn().mockResolvedValue(null),
+    count: vi.fn().mockResolvedValue(0),
+    update: vi.fn().mockResolvedValue({ affected: 1 }),
+    delete: vi.fn().mockResolvedValue({ affected: 0 }),
+    save: vi.fn().mockImplementation((entity) => Promise.resolve(entity)),
+  });
+
+  return {
+    transaction: vi.fn().mockImplementation(async (callback) => {
+      const manager = createMockManager();
+      return callback(manager);
+    }),
+    // Expose the manager creator for test customization
+    _createMockManager: createMockManager,
+  };
 }
 
 // ========== Tests ==========
@@ -37,14 +55,37 @@ class FakeDb extends DatabaseService {
 describe('UserProfileService', () => {
   let userProfileRepo: any;
   let userEmailRepo: any;
-  let db: DatabaseService;
+  let orgRepo: any;
+  let projectRepo: any;
+  let orgMembershipRepo: any;
+  let projectMembershipRepo: any;
+  let emailService: any;
+  let zitadelService: any;
+  let dataSource: any;
   let service: UserProfileService;
 
   beforeEach(() => {
     userProfileRepo = createMockRepository();
     userEmailRepo = createMockRepository();
-    db = new FakeDb();
-    service = new UserProfileService(userProfileRepo, userEmailRepo, db);
+    orgRepo = createMockRepository();
+    projectRepo = createMockRepository();
+    orgMembershipRepo = createMockRepository();
+    projectMembershipRepo = createMockRepository();
+    emailService = createMockEmailService();
+    zitadelService = createMockZitadelService();
+    dataSource = createMockDataSource();
+
+    service = new UserProfileService(
+      userProfileRepo,
+      userEmailRepo,
+      orgRepo,
+      projectRepo,
+      orgMembershipRepo,
+      projectMembershipRepo,
+      emailService,
+      zitadelService,
+      dataSource
+    );
   });
 
   it('get() returns null when profile missing (by zitadelUserId)', async () => {
@@ -113,13 +154,49 @@ describe('UserProfileService', () => {
     });
   });
 
-  it('upsertBase inserts (idempotent ignore conflicts)', async () => {
-    userProfileRepo.upsert = vi.fn().mockResolvedValue({ affected: 1 });
+  it('upsertBase creates new profile when not found', async () => {
+    // No existing profile (active or deleted)
+    userProfileRepo.findOne = vi.fn().mockResolvedValue(null);
+    userProfileRepo.save = vi.fn().mockResolvedValue({
+      id: 'new-uuid',
+      zitadelUserId: 'zitadel-123',
+      welcomeEmailSentAt: null,
+    });
+
     await service.upsertBase('zitadel-123');
-    expect(userProfileRepo.upsert).toHaveBeenCalledWith(
-      { zitadelUserId: 'zitadel-123' },
-      ['zitadelUserId']
+
+    // Should have checked for active profile first, then deleted profile
+    expect(userProfileRepo.findOne).toHaveBeenCalledTimes(2);
+
+    // First call: check for active profile
+    expect(userProfileRepo.findOne).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({ zitadelUserId: 'zitadel-123' }),
+      })
     );
+
+    // Should create new profile via save
+    expect(userProfileRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        zitadelUserId: 'zitadel-123',
+      })
+    );
+  });
+
+  it('upsertBase does not create when active profile exists', async () => {
+    const existingProfile = {
+      id: 'existing-uuid',
+      zitadelUserId: 'zitadel-123',
+      welcomeEmailSentAt: new Date(), // Already sent welcome email
+    };
+    userProfileRepo.findOne = vi.fn().mockResolvedValue(existingProfile);
+
+    await service.upsertBase('zitadel-123');
+
+    // Should only check for active profile, not create
+    expect(userProfileRepo.findOne).toHaveBeenCalledTimes(1);
+    expect(userProfileRepo.save).not.toHaveBeenCalled();
   });
 
   it('update returns existing when patch empty (uses getById)', async () => {
@@ -262,6 +339,345 @@ describe('UserProfileService', () => {
     expect(userEmailRepo.delete).toHaveBeenCalledWith({
       userId: 'uuid-1',
       email: 'test@example.com',
+    });
+  });
+
+  // ========== softDeleteAccount Tests ==========
+
+  describe('softDeleteAccount', () => {
+    const mockUserId = 'user-uuid-1';
+    const mockZitadelUserId = 'zitadel-123';
+
+    it('throws error when user not found', async () => {
+      userProfileRepo.findOne = vi.fn().mockResolvedValue(null);
+
+      await expect(service.softDeleteAccount(mockUserId)).rejects.toThrow(
+        'User not found or already deleted'
+      );
+    });
+
+    it('throws error when user already deleted', async () => {
+      userProfileRepo.findOne = vi.fn().mockResolvedValue(null); // IsNull() filter excludes deleted users
+
+      await expect(service.softDeleteAccount(mockUserId)).rejects.toThrow(
+        'User not found or already deleted'
+      );
+    });
+
+    it('soft-deletes user with no orgs (removes memberships only)', async () => {
+      const mockProfile = {
+        id: mockUserId,
+        zitadelUserId: mockZitadelUserId,
+        deletedAt: null,
+      };
+      userProfileRepo.findOne = vi.fn().mockResolvedValue(mockProfile);
+
+      // Mock transaction manager
+      const mockManager = {
+        find: vi.fn().mockResolvedValue([]), // No org memberships
+        count: vi.fn().mockResolvedValue(0),
+        update: vi.fn().mockResolvedValue({ affected: 1 }),
+        delete: vi.fn().mockResolvedValue({ affected: 0 }),
+      };
+      dataSource.transaction = vi.fn().mockImplementation(async (callback) => {
+        return callback(mockManager);
+      });
+
+      const result = await service.softDeleteAccount(mockUserId);
+
+      expect(result).toEqual({
+        deletedOrgs: [],
+        deletedProjects: [],
+        removedMemberships: 0,
+      });
+
+      // Should have soft-deleted user profile
+      expect(mockManager.update).toHaveBeenCalledWith(
+        expect.anything(), // UserProfile class
+        mockUserId,
+        expect.objectContaining({
+          deletedAt: expect.any(Date),
+          deletedBy: mockUserId,
+        })
+      );
+
+      // Should have deactivated Zitadel user
+      expect(zitadelService.deactivateUser).toHaveBeenCalledWith(
+        mockZitadelUserId
+      );
+    });
+
+    it('soft-deletes sole-owned orgs and their projects', async () => {
+      const mockProfile = {
+        id: mockUserId,
+        zitadelUserId: mockZitadelUserId,
+        deletedAt: null,
+      };
+      userProfileRepo.findOne = vi.fn().mockResolvedValue(mockProfile);
+
+      const mockOrgId = 'org-uuid-1';
+      const mockProjectId = 'project-uuid-1';
+
+      // Mock transaction manager with specific behavior
+      const mockManager = {
+        find: vi.fn().mockImplementation((entity, options) => {
+          // First call: find owner memberships
+          if (options?.where?.role === 'owner') {
+            return [
+              { userId: mockUserId, organizationId: mockOrgId, role: 'owner' },
+            ];
+          }
+          // Second call: find projects in org
+          if (options?.where?.organizationId === mockOrgId) {
+            return [
+              { id: mockProjectId, organizationId: mockOrgId, deletedAt: null },
+            ];
+          }
+          return [];
+        }),
+        count: vi.fn().mockResolvedValue(1), // User is sole owner (count = 1)
+        update: vi.fn().mockResolvedValue({ affected: 1 }),
+        delete: vi
+          .fn()
+          .mockResolvedValueOnce({ affected: 1 }) // org memberships
+          .mockResolvedValueOnce({ affected: 2 }), // project memberships
+      };
+      dataSource.transaction = vi.fn().mockImplementation(async (callback) => {
+        return callback(mockManager);
+      });
+
+      const result = await service.softDeleteAccount(mockUserId);
+
+      expect(result).toEqual({
+        deletedOrgs: [mockOrgId],
+        deletedProjects: [mockProjectId],
+        removedMemberships: 3, // 1 org + 2 project memberships
+      });
+
+      // Verify project was soft-deleted
+      expect(mockManager.update).toHaveBeenCalledWith(
+        expect.anything(), // Project class
+        mockProjectId,
+        expect.objectContaining({
+          deletedAt: expect.any(Date),
+          deletedBy: mockUserId,
+        })
+      );
+
+      // Verify org was soft-deleted
+      expect(mockManager.update).toHaveBeenCalledWith(
+        expect.anything(), // Org class
+        mockOrgId,
+        expect.objectContaining({
+          deletedAt: expect.any(Date),
+          deletedBy: mockUserId,
+        })
+      );
+    });
+
+    it('does not delete org when user is not sole owner', async () => {
+      const mockProfile = {
+        id: mockUserId,
+        zitadelUserId: mockZitadelUserId,
+        deletedAt: null,
+      };
+      userProfileRepo.findOne = vi.fn().mockResolvedValue(mockProfile);
+
+      const mockOrgId = 'org-uuid-1';
+
+      // Mock transaction manager
+      const mockManager = {
+        find: vi.fn().mockImplementation((entity, options) => {
+          if (options?.where?.role === 'owner') {
+            return [
+              { userId: mockUserId, organizationId: mockOrgId, role: 'owner' },
+            ];
+          }
+          return [];
+        }),
+        count: vi.fn().mockResolvedValue(2), // 2 owners = not sole owner
+        update: vi.fn().mockResolvedValue({ affected: 1 }),
+        delete: vi
+          .fn()
+          .mockResolvedValueOnce({ affected: 1 }) // org memberships
+          .mockResolvedValueOnce({ affected: 0 }), // project memberships
+      };
+      dataSource.transaction = vi.fn().mockImplementation(async (callback) => {
+        return callback(mockManager);
+      });
+
+      const result = await service.softDeleteAccount(mockUserId);
+
+      expect(result).toEqual({
+        deletedOrgs: [], // Org NOT deleted
+        deletedProjects: [],
+        removedMemberships: 1, // Only membership removed
+      });
+
+      // Verify org was NOT soft-deleted (only user profile update should happen)
+      const updateCalls = mockManager.update.mock.calls;
+      const orgUpdateCalls = updateCalls.filter(
+        (call: any[]) => call[1] === mockOrgId
+      );
+      expect(orgUpdateCalls.length).toBe(0);
+    });
+
+    it('continues if Zitadel deactivation fails', async () => {
+      const mockProfile = {
+        id: mockUserId,
+        zitadelUserId: mockZitadelUserId,
+        deletedAt: null,
+      };
+      userProfileRepo.findOne = vi.fn().mockResolvedValue(mockProfile);
+
+      // Mock transaction manager
+      const mockManager = {
+        find: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0),
+        update: vi.fn().mockResolvedValue({ affected: 1 }),
+        delete: vi.fn().mockResolvedValue({ affected: 0 }),
+      };
+      dataSource.transaction = vi.fn().mockImplementation(async (callback) => {
+        return callback(mockManager);
+      });
+
+      // Make Zitadel deactivation fail
+      zitadelService.deactivateUser = vi
+        .fn()
+        .mockRejectedValue(new Error('Zitadel API error'));
+
+      // Should NOT throw - local deletion takes precedence
+      const result = await service.softDeleteAccount(mockUserId);
+
+      expect(result).toEqual({
+        deletedOrgs: [],
+        deletedProjects: [],
+        removedMemberships: 0,
+      });
+
+      // Zitadel was called but failed
+      expect(zitadelService.deactivateUser).toHaveBeenCalledWith(
+        mockZitadelUserId
+      );
+
+      // User profile was still soft-deleted
+      expect(mockManager.update).toHaveBeenCalledWith(
+        expect.anything(),
+        mockUserId,
+        expect.objectContaining({
+          deletedAt: expect.any(Date),
+          deletedBy: mockUserId,
+        })
+      );
+    });
+
+    it('handles user without Zitadel ID', async () => {
+      const mockProfile = {
+        id: mockUserId,
+        zitadelUserId: null, // No Zitadel ID
+        deletedAt: null,
+      };
+      userProfileRepo.findOne = vi.fn().mockResolvedValue(mockProfile);
+
+      // Mock transaction manager
+      const mockManager = {
+        find: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0),
+        update: vi.fn().mockResolvedValue({ affected: 1 }),
+        delete: vi.fn().mockResolvedValue({ affected: 0 }),
+      };
+      dataSource.transaction = vi.fn().mockImplementation(async (callback) => {
+        return callback(mockManager);
+      });
+
+      const result = await service.softDeleteAccount(mockUserId);
+
+      expect(result).toEqual({
+        deletedOrgs: [],
+        deletedProjects: [],
+        removedMemberships: 0,
+      });
+
+      // Zitadel should NOT be called
+      expect(zitadelService.deactivateUser).not.toHaveBeenCalled();
+    });
+
+    it('removes memberships from multiple orgs (mixed ownership)', async () => {
+      const mockProfile = {
+        id: mockUserId,
+        zitadelUserId: mockZitadelUserId,
+        deletedAt: null,
+      };
+      userProfileRepo.findOne = vi.fn().mockResolvedValue(mockProfile);
+
+      const soleOwnedOrgId = 'org-sole-owned';
+      const sharedOrgId = 'org-shared';
+      const projectInSoleOwnedOrg = 'project-1';
+
+      let findCallCount = 0;
+      let countCallCount = 0;
+
+      // Mock transaction manager with complex scenario
+      const mockManager = {
+        find: vi.fn().mockImplementation((entity, options) => {
+          findCallCount++;
+          // First call: find owner memberships (user owns 2 orgs)
+          if (options?.where?.role === 'owner' && findCallCount === 1) {
+            return [
+              {
+                userId: mockUserId,
+                organizationId: soleOwnedOrgId,
+                role: 'owner',
+              },
+              {
+                userId: mockUserId,
+                organizationId: sharedOrgId,
+                role: 'owner',
+              },
+            ];
+          }
+          // Find projects in sole-owned org
+          if (options?.where?.organizationId === soleOwnedOrgId) {
+            return [
+              {
+                id: projectInSoleOwnedOrg,
+                organizationId: soleOwnedOrgId,
+                deletedAt: null,
+              },
+            ];
+          }
+          // Find projects in shared org (not called because not sole owner)
+          return [];
+        }),
+        count: vi.fn().mockImplementation((entity, options) => {
+          countCallCount++;
+          // First count: sole-owned org has 1 owner
+          if (options?.where?.organizationId === soleOwnedOrgId) {
+            return 1;
+          }
+          // Second count: shared org has 2 owners
+          if (options?.where?.organizationId === sharedOrgId) {
+            return 2;
+          }
+          return 0;
+        }),
+        update: vi.fn().mockResolvedValue({ affected: 1 }),
+        delete: vi
+          .fn()
+          .mockResolvedValueOnce({ affected: 2 }) // 2 org memberships
+          .mockResolvedValueOnce({ affected: 3 }), // 3 project memberships
+      };
+      dataSource.transaction = vi.fn().mockImplementation(async (callback) => {
+        return callback(mockManager);
+      });
+
+      const result = await service.softDeleteAccount(mockUserId);
+
+      expect(result).toEqual({
+        deletedOrgs: [soleOwnedOrgId], // Only sole-owned org deleted
+        deletedProjects: [projectInSoleOwnedOrg],
+        removedMemberships: 5, // 2 org + 3 project memberships
+      });
     });
   });
 });

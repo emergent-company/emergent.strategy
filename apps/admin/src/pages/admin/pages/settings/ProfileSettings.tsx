@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
 import { PageContainer } from '@/components/layouts';
 import { FormField } from '@/components/molecules/FormField';
@@ -15,14 +15,24 @@ interface UserProfileDto {
   phoneE164?: string;
 }
 
+interface DeleteAccountResponse {
+  deletedOrgs: string[];
+  deletedProjects: string[];
+  removedMemberships: number;
+}
+
 export default function ProfileSettings() {
   const { fetchJson, apiBase } = useApi();
   const { showToast } = useToast();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const [profile, setProfile] = useState<UserProfileDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -70,6 +80,37 @@ export default function ProfileSettings() {
       showToast({ message: 'Failed to update profile', variant: 'error' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE') return;
+
+    setDeleting(true);
+    try {
+      const result = await fetchJson<DeleteAccountResponse>(
+        `${apiBase}/api/user/profile`,
+        { method: 'DELETE' }
+      );
+
+      showToast({
+        message: 'Account deleted successfully',
+        variant: 'success',
+      });
+
+      // Log the user out and redirect to home
+      await logout();
+      navigate('/');
+    } catch (err) {
+      console.error(err);
+      showToast({
+        message: 'Failed to delete account. Please try again.',
+        variant: 'error',
+      });
+    } finally {
+      setDeleting(false);
+      setShowDeleteModal(false);
+      setDeleteConfirmText('');
     }
   };
 
@@ -202,6 +243,111 @@ export default function ProfileSettings() {
           </form>
         </div>
       </div>
+
+      {/* Danger Zone */}
+      <div className="mt-8">
+        <h2 className="font-semibold text-lg text-error">Danger Zone</h2>
+        <div className="bg-base-100 mt-4 card border border-error/30">
+          <div className="card-body">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 className="font-medium">Delete Account</h3>
+                <p className="text-sm text-base-content/70 mt-1">
+                  Permanently delete your account and all associated data. This
+                  action cannot be undone.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-error btn-outline btn-sm"
+                onClick={() => setShowDeleteModal(true)}
+              >
+                <Icon icon="lucide--trash-2" className="size-4" />
+                Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteModal && (
+        <dialog className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg text-error flex items-center gap-2">
+              <Icon icon="lucide--alert-triangle" className="size-5" />
+              Delete Account
+            </h3>
+            <div className="py-4">
+              <p className="text-base-content/80">
+                This action is <strong>permanent and irreversible</strong>. All
+                your data will be deleted, including:
+              </p>
+              <ul className="list-disc list-inside mt-3 text-sm text-base-content/70 space-y-1">
+                <li>Your profile and personal information</li>
+                <li>
+                  Organizations where you are the sole owner (and their
+                  projects)
+                </li>
+                <li>Your memberships in other organizations and projects</li>
+              </ul>
+              <div className="mt-4">
+                <label className="label">
+                  <span className="label-text">
+                    Type <strong>DELETE</strong> to confirm
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  className="input input-bordered w-full"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+            <div className="modal-action">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText('');
+                }}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-error"
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmText !== 'DELETE' || deleting}
+              >
+                {deleting ? (
+                  <>
+                    <span className="loading loading-spinner loading-xs"></span>
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete My Account'
+                )}
+              </button>
+            </div>
+          </div>
+          <form method="dialog" className="modal-backdrop">
+            <button
+              onClick={() => {
+                setShowDeleteModal(false);
+                setDeleteConfirmText('');
+              }}
+            >
+              close
+            </button>
+          </form>
+        </dialog>
+      )}
     </PageContainer>
   );
 }

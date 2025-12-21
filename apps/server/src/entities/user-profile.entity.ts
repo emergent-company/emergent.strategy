@@ -6,6 +6,8 @@ import {
   UpdateDateColumn,
   OneToMany,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { UserEmail } from './user-email.entity';
 
@@ -38,6 +40,25 @@ export class UserProfile {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
+
+  @Column({
+    name: 'welcome_email_sent_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  welcomeEmailSentAt: Date | null;
+
+  /** Soft delete timestamp (null = active, timestamp = deleted) */
+  @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deletedAt: Date | null;
+
+  /** User who performed the deletion (for audit trail) */
+  @Column({ name: 'deleted_by', type: 'uuid', nullable: true })
+  deletedBy: string | null;
+
+  @ManyToOne(() => UserProfile, { nullable: true })
+  @JoinColumn({ name: 'deleted_by' })
+  deletedByUser: UserProfile | null;
 
   @OneToMany(() => UserEmail, (email) => email.user)
   emails: UserEmail[];
