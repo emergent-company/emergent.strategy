@@ -8,7 +8,6 @@ import {
   Body,
   ParseUUIDPipe,
   UseGuards,
-  Req,
   BadRequestException,
 } from '@nestjs/common';
 import {
@@ -31,6 +30,7 @@ import {
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
 import { Scopes } from '../auth/scopes.decorator';
+import { RequireProjectId } from '../../common/decorators';
 
 @ApiTags('Chunks')
 @Controller('chunks')
@@ -57,16 +57,9 @@ export class ChunksController {
   list(
     @Query('documentId', new ParseUUIDPipe({ version: '4', optional: true }))
     documentId?: string,
-    @Req() req?: any
+    @RequireProjectId() projectId?: string
   ) {
-    const projectId =
-      (req?.headers['x-project-id'] as string | undefined) || undefined;
-    if (!projectId) {
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id header required' },
-      });
-    }
-    return this.chunks.list(documentId, projectId);
+    return this.chunks.list(documentId, projectId!);
   }
 
   @Delete(':id')
@@ -93,14 +86,8 @@ export class ChunksController {
   @Scopes('chunks:write')
   async delete(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Req() req: any
+    @RequireProjectId() projectId: string
   ) {
-    const projectId = req?.headers['x-project-id'] as string | undefined;
-    if (!projectId) {
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id header required' },
-      });
-    }
     await this.chunks.delete(id, projectId);
     return { success: true };
   }
@@ -143,13 +130,10 @@ export class ChunksController {
   })
   @ApiStandardErrors()
   @Scopes('chunks:write')
-  async bulkDelete(@Body() body: { ids: string[] }, @Req() req: any) {
-    const projectId = req?.headers['x-project-id'] as string | undefined;
-    if (!projectId) {
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id header required' },
-      });
-    }
+  async bulkDelete(
+    @Body() body: { ids: string[] },
+    @RequireProjectId() projectId: string
+  ) {
     if (!body.ids || !Array.isArray(body.ids) || body.ids.length === 0) {
       throw new BadRequestException({
         error: { code: 'bad-request', message: 'ids array is required' },
@@ -190,14 +174,8 @@ export class ChunksController {
   async deleteByDocument(
     @Param('documentId', new ParseUUIDPipe({ version: '4' }))
     documentId: string,
-    @Req() req: any
+    @RequireProjectId() projectId: string
   ): Promise<DocumentChunksDeletionResult> {
-    const projectId = req?.headers['x-project-id'] as string | undefined;
-    if (!projectId) {
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id header required' },
-      });
-    }
     return this.chunks.deleteByDocument(documentId, projectId);
   }
 
@@ -254,14 +232,8 @@ export class ChunksController {
   @Scopes('chunks:write')
   async bulkDeleteByDocuments(
     @Body() body: { documentIds: string[] },
-    @Req() req: any
+    @RequireProjectId() projectId: string
   ): Promise<BulkDocumentChunksDeletionSummary> {
-    const projectId = req?.headers['x-project-id'] as string | undefined;
-    if (!projectId) {
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id header required' },
-      });
-    }
     if (
       !body.documentIds ||
       !Array.isArray(body.documentIds) ||

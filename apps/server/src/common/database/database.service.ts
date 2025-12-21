@@ -611,6 +611,103 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     } as unknown as QueryResult<T>;
   }
 
+  /**
+   * Execute a query and return exactly one row, or throw NotFoundException.
+   *
+   * Eliminates the common pattern of:
+   * ```ts
+   * const result = await this.db.query('SELECT...', [id]);
+   * if (!result.rowCount) throw new NotFoundException(`Entity ${id} not found`);
+   * return result.rows[0];
+   * ```
+   *
+   * @param text - SQL query text
+   * @param params - Query parameters
+   * @param notFoundMessage - Error message or function that generates message from params
+   * @returns The single row result
+   * @throws NotFoundException if no rows returned
+   *
+   * @example
+   * const job = await this.db.queryOneOrFail<Job>(
+   *   'SELECT * FROM kb.jobs WHERE id = $1',
+   *   [jobId],
+   *   `Job ${jobId} not found`
+   * );
+   *
+   * @example
+   * // With dynamic message
+   * const job = await this.db.queryOneOrFail<Job>(
+   *   'SELECT * FROM kb.jobs WHERE id = $1',
+   *   [jobId],
+   *   (params) => `Job ${params[0]} not found`
+   * );
+   */
+  async queryOneOrFail<T extends QueryResultRow = QueryResultRow>(
+    text: string,
+    params: any[],
+    notFoundMessage: string | ((params: any[]) => string)
+  ): Promise<T> {
+    // Import NotFoundException here to avoid circular dependencies
+    const { NotFoundException } = await import('@nestjs/common');
+
+    const result = await this.query<T>(text, params);
+    if (!result.rowCount || !result.rows[0]) {
+      const message =
+        typeof notFoundMessage === 'function'
+          ? notFoundMessage(params)
+          : notFoundMessage;
+      throw new NotFoundException(message);
+    }
+    return result.rows[0];
+  }
+
+  /**
+   * Execute a function within a database transaction with automatic rollback on error.
+   *
+   * Eliminates the common pattern of:
+   * ```ts
+   * const client = await this.db.getClient();
+   * try {
+   *   await client.query('BEGIN');
+   *   // ... work ...
+   *   await client.query('COMMIT');
+   *   return result;
+   * } catch (error) {
+   *   await client.query('ROLLBACK');
+   *   throw error;
+   * } finally {
+   *   client.release();
+   * }
+   * ```
+   *
+   * @param fn - Async function to execute within transaction. Receives the client for queries.
+   * @returns The return value of the function
+   * @throws Re-throws any error from the function after rollback
+   *
+   * @example
+   * const result = await this.db.withTransaction(async (client) => {
+   *   await client.query('INSERT INTO kb.objects ...', [...]);
+   *   await client.query('INSERT INTO kb.relationships ...', [...]);
+   *   return { success: true };
+   * });
+   */
+  async withTransaction<T>(
+    fn: (client: QueryRunnerAdapter) => Promise<T>
+  ): Promise<T> {
+    const client = await this.getClient();
+    try {
+      await client.query('BEGIN');
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      await client.release();
+    }
+  }
+
   async getClient(): Promise<QueryRunnerAdapter> {
     if (!this.dataSource) {
       await this.lazyInit();
