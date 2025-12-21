@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { OpenTelemetryModule } from 'nestjs-otel';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { SettingsModule } from './settings/settings.module';
@@ -40,11 +41,21 @@ import { EventsModule } from './events/events.module';
 import { ClientLogsModule } from './client-logs/client-logs.module';
 import { ObjectRefinementModule } from './object-refinement/object-refinement.module';
 import { ExternalSourcesModule } from './external-sources/external-sources.module';
+import { UsersModule } from './users/users.module';
+import { EmailModule } from './email/email.module';
+import { ReleasesModule } from './releases/releases.module';
 import { AppConfigService } from '../common/config/config.service';
 import { entities } from '../entities';
 
 @Module({
   imports: [
+    // OpenTelemetry Module - provides @Span, @Traceable decorators and TraceService
+    // Must be imported early to ensure proper context propagation
+    OpenTelemetryModule.forRoot({
+      metrics: {
+        hostMetrics: true, // Collect host CPU, memory metrics
+      },
+    }),
     // TypeORM Configuration
     TypeOrmModule.forRootAsync({
       imports: [AppConfigModule],
@@ -65,6 +76,24 @@ import { entities } from '../entities';
         migrationsRun: process.env.SKIP_MIGRATIONS !== '1', // Respect SKIP_MIGRATIONS flag
         migrations: [__dirname + '/../migrations/*{.ts,.js}'],
         migrationsTableName: 'typeorm_migrations',
+        // Pool configuration for optimal connection management
+        // Reduces pg-pool.connect overhead by maintaining warm connections
+        extra: {
+          // Maximum connections in pool (default: 10)
+          max: parseInt(process.env.DB_POOL_MAX || '20', 10),
+          // Minimum connections to keep warm (default: 0)
+          min: parseInt(process.env.DB_POOL_MIN || '5', 10),
+          // How long idle connections stay in pool before being closed (30s)
+          idleTimeoutMillis: parseInt(
+            process.env.DB_POOL_IDLE_TIMEOUT || '30000',
+            10
+          ),
+          // How long to wait for a connection from pool before erroring (5s)
+          connectionTimeoutMillis: parseInt(
+            process.env.DB_POOL_CONNECTION_TIMEOUT || '5000',
+            10
+          ),
+        },
       }),
       inject: [AppConfigService],
     }),
@@ -107,7 +136,13 @@ import { entities } from '../entities';
     ClientLogsModule,
     ObjectRefinementModule,
     ExternalSourcesModule,
+    UsersModule,
     DatabaseModule,
+    EmailModule,
+    ReleasesModule,
   ],
 })
-export class AppModule {}
+export class AppModule {
+  // Note: TracingMiddleware is now handled directly in main.ts as raw Express middleware
+  // This ensures proper span creation BEFORE NestJS guards/interceptors
+}

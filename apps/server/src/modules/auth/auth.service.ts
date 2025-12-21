@@ -253,7 +253,7 @@ export class AuthService implements OnModuleInit {
         )}`,
         'AuthService'
       );
-      const mapped = await this.mapClaims(result.payload);
+      const mapped = await this.mapClaims(result.payload, token);
       Logger.log(
         `[AUTH] Mapped claims - email: ${mapped?.email}, sub: ${mapped?.sub}`,
         'AuthService'
@@ -283,8 +283,11 @@ export class AuthService implements OnModuleInit {
     }
   ): Promise<AuthUser | null> {
     try {
-      // Ensure profile exists (creates if missing)
-      await this.userProfileService.upsertBase(zitadelUserId, profileData);
+      // Ensure profile exists (creates if missing) and sync email
+      await this.userProfileService.upsertBase(zitadelUserId, {
+        ...profileData,
+        email,
+      });
 
       // Look up the internal UUID
       const profile = await this.userProfileService.get(zitadelUserId);
@@ -311,7 +314,10 @@ export class AuthService implements OnModuleInit {
     }
   }
 
-  private async mapClaims(payload: JWTPayload): Promise<AuthUser | null> {
+  private async mapClaims(
+    payload: JWTPayload,
+    accessToken?: string
+  ): Promise<AuthUser | null> {
     if (!payload.sub) return null;
     // Use the subject ID as-is from the JWT payload, without UUID conversion.
     // This allows ownership checks to compare user.sub directly with stored identifiers.
@@ -333,16 +339,53 @@ export class AuthService implements OnModuleInit {
       scopes = Array.from(new Set(scopes.map((s) => s.trim())));
     }
 
-    const email = typeof payload.email === 'string' ? payload.email : undefined;
-
-    // Ensure user profile exists and get internal UUID
-    const firstName =
+    let email = typeof payload.email === 'string' ? payload.email : undefined;
+    let firstName =
       typeof payload.given_name === 'string' ? payload.given_name : undefined;
-    const lastName =
+    let lastName =
       typeof payload.family_name === 'string' ? payload.family_name : undefined;
-    const displayName =
+    let displayName =
       typeof payload.name === 'string' ? payload.name : undefined;
 
+    // If email is missing from JWT, try to fetch from Zitadel OIDC userinfo endpoint
+    // This happens when Zitadel returns opaque access tokens without user claims
+    // We use the user's own access token to call the userinfo endpoint (no service account needed)
+    if (!email && accessToken && this.zitadelService.isConfigured()) {
+      try {
+        Logger.log(
+          `[AUTH] Email missing from JWT, fetching userinfo from Zitadel for user ${normalizedSub}`,
+          'AuthService'
+        );
+        const userinfo = await this.zitadelService.getUserInfoWithToken(
+          accessToken
+        );
+        if (userinfo) {
+          email = userinfo.email;
+          // Also fill in profile data if missing
+          if (!firstName && userinfo.given_name) {
+            firstName = userinfo.given_name;
+          }
+          if (!lastName && userinfo.family_name) {
+            lastName = userinfo.family_name;
+          }
+          if (!displayName && userinfo.name) {
+            displayName = userinfo.name;
+          }
+          Logger.log(
+            `[AUTH] Got userinfo from Zitadel: email=${email}, name=${displayName}`,
+            'AuthService'
+          );
+        }
+      } catch (error) {
+        Logger.warn(
+          `[AUTH] Failed to fetch userinfo from Zitadel: ${error}`,
+          'AuthService'
+        );
+        // Continue without email - don't fail auth
+      }
+    }
+
+    // Ensure user profile exists and get internal UUID
     const user = await this.ensureUserProfile(normalizedSub, email, scopes, {
       firstName,
       lastName,

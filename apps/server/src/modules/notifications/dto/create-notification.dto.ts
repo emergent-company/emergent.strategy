@@ -40,6 +40,10 @@ export enum NotificationCategory {
   SYSTEM_WARNING = 'system.warning',
   RATE_LIMIT_HIT = 'system.rate_limit',
   MAINTENANCE_SCHEDULED = 'system.maintenance',
+
+  // Release notifications
+  RELEASE_DEPLOYED = 'release.deployed',
+  RELEASE_FEATURES = 'release.features',
 }
 
 export enum NotificationImportance {
@@ -52,6 +56,7 @@ export enum NotificationSourceType {
   EXTRACTION_JOB = 'extraction_job',
   GRAPH_OBJECT = 'graph_object',
   USER = 'user',
+  RELEASE = 'release',
 }
 
 export enum NotificationSeverity {

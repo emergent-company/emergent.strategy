@@ -153,6 +153,11 @@ async function cleanupUserData(pool: Pool, projectId: string, userSub: string) {
       projectId,
     ]);
   }
+  if (await tableCheck('kb.external_sources')) {
+    await pool.query(`DELETE FROM kb.external_sources WHERE project_id = $1`, [
+      projectId,
+    ]);
+  }
   if (await tableCheck('kb.settings')) {
     await pool.query(`DELETE FROM kb.settings WHERE key LIKE 'e2e-%'`);
   }

@@ -8,6 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Org } from './org.entity';
+import { UserProfile } from './user-profile.entity';
 
 @Entity({ schema: 'kb', name: 'projects' })
 export class Project {
@@ -66,4 +67,16 @@ export class Project {
     /** Per-LLM-call timeout in seconds (default: 180) */
     timeoutSeconds?: number;
   } | null;
+
+  /** Soft delete timestamp (null = active, timestamp = deleted) */
+  @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deletedAt: Date | null;
+
+  /** User who performed the deletion (for audit trail) */
+  @Column({ name: 'deleted_by', type: 'uuid', nullable: true })
+  deletedBy: string | null;
+
+  @ManyToOne(() => UserProfile, { nullable: true })
+  @JoinColumn({ name: 'deleted_by' })
+  deletedByUser: UserProfile | null;
 }

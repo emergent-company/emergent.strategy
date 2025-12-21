@@ -48,6 +48,13 @@ export {
   SyncPolicy,
   ExternalSourceStatus,
 } from './external-source.entity';
+export { EmailJob } from './email-job.entity';
+export { EmailLog } from './email-log.entity';
+
+// Release Notifications
+export { ReleaseNotification } from '../modules/releases/entities/release-notification.entity';
+export { ReleaseNotificationRecipient } from '../modules/releases/entities/release-notification-recipient.entity';
+export { ReleaseNotificationState } from '../modules/releases/entities/release-notification-state.entity';
 
 // Core Schema Entities
 export { UserProfile } from './user-profile.entity';
@@ -94,6 +101,11 @@ import { Task } from './task.entity';
 import { UserProfile } from './user-profile.entity';
 import { UserEmail } from './user-email.entity';
 import { ExternalSource } from './external-source.entity';
+import { EmailJob } from './email-job.entity';
+import { EmailLog } from './email-log.entity';
+import { ReleaseNotification } from '../modules/releases/entities/release-notification.entity';
+import { ReleaseNotificationRecipient } from '../modules/releases/entities/release-notification-recipient.entity';
+import { ReleaseNotificationState } from '../modules/releases/entities/release-notification-state.entity';
 
 export const entities = [
   // KB Schema
@@ -139,4 +151,11 @@ export const entities = [
   Agent,
   AgentRun,
   Task,
+  // Email System
+  EmailJob,
+  EmailLog,
+  // Release Notifications
+  ReleaseNotification,
+  ReleaseNotificationRecipient,
+  ReleaseNotificationState,
 ];

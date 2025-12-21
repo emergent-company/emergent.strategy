@@ -560,6 +560,133 @@ export class ZitadelService implements OnModuleInit {
   }
 
   /**
+   * Get user info using the user's own access token
+   *
+   * Calls the standard OIDC userinfo endpoint to get user claims.
+   * This bypasses the need for a service account token.
+   *
+   * @param accessToken - The user's access token (Bearer token)
+   * @returns User info claims or null if request fails
+   */
+  async getUserInfoWithToken(accessToken: string): Promise<{
+    sub?: string;
+    email?: string;
+    email_verified?: boolean;
+    name?: string;
+    given_name?: string;
+    family_name?: string;
+    preferred_username?: string;
+  } | null> {
+    const userinfoUrl = `${this.getBaseUrl()}/oidc/v1/userinfo`;
+
+    try {
+      const response = await fetch(userinfoUrl, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.logger.warn(
+          `Userinfo request failed (${response.status}): ${errorText}`
+        );
+        return null;
+      }
+
+      const userinfo = await response.json();
+      this.logger.debug(
+        `Got userinfo: email=${userinfo.email || '(none)'}, name=${
+          userinfo.name || '(none)'
+        }`
+      );
+      return userinfo;
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch userinfo: ${(error as Error).message}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Get user by Zitadel user ID
+   *
+   * Fetches full user information including email and profile data.
+   * Used to get user email when the access token doesn't include it.
+   *
+   * @param userId - Zitadel user ID (numeric string)
+   * @returns Zitadel user or null if not found/error
+   */
+  async getUserById(userId: string): Promise<ZitadelUser | null> {
+    const token = await this.getAccessToken();
+    const apiUrl = `${this.getBaseUrl()}/management/v1/users/${userId}`;
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-zitadel-orgid': process.env.ZITADEL_MAIN_ORG_ID || '',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          this.logger.debug(`User not found by ID: ${userId}`);
+          return null;
+        }
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to get user (${response.status}): ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+      const user = data.user;
+
+      if (!user) {
+        this.logger.debug(`User response empty for ID: ${userId}`);
+        return null;
+      }
+
+      // Map Zitadel response to ZitadelUser interface
+      const result: ZitadelUser = {
+        id: user.id || userId,
+        state: user.state || 'UNKNOWN',
+        userName: user.userName || user.preferredLoginName || '',
+        preferredLoginName: user.preferredLoginName,
+        email: user.human?.email?.email,
+        emailVerified: user.human?.email?.isEmailVerified,
+        phone: user.human?.phone
+          ? {
+              phone: user.human.phone.phone,
+              isPhoneVerified: user.human.phone.isPhoneVerified,
+            }
+          : undefined,
+        profile: user.human?.profile
+          ? {
+              firstName: user.human.profile.firstName,
+              lastName: user.human.profile.lastName,
+              displayName: user.human.profile.displayName,
+            }
+          : undefined,
+      };
+
+      this.logger.debug(
+        `Got user by ID: ${userId} -> ${result.email || '(no email)'}`
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get user by ID ${userId}: ${(error as Error).message}`
+      );
+      return null;
+    }
+  }
+
+  /**
    * Find user by email address
    *
    * Uses user search endpoint with email query filter
@@ -640,13 +767,13 @@ export class ZitadelService implements OnModuleInit {
   ): Promise<void> {
     const token = await this.getAccessToken();
     const orgId = process.env.ZITADEL_MAIN_ORG_ID;
-    const apiUrl = `${this.getBaseUrl()}/management/v1/users/${userId}/metadata`;
 
     try {
       // Metadata must be set one key at a time
+      // Zitadel API: POST /management/v1/users/{userId}/metadata/{key}
       for (const [key, value] of Object.entries(metadata)) {
+        const apiUrl = `${this.getBaseUrl()}/management/v1/users/${userId}/metadata/${key}`;
         const payload = {
-          key,
           value: Buffer.from(JSON.stringify(value)).toString('base64'),
         };
 
@@ -696,7 +823,8 @@ export class ZitadelService implements OnModuleInit {
   ): Promise<void> {
     const token = await this.getAccessToken();
     const orgId = process.env.ZITADEL_MAIN_ORG_ID;
-    const apiUrl = `${this.getBaseUrl()}/management/v1/users/${userId}/password/_set`;
+    // Zitadel API: POST /management/v1/users/{userId}/password/_reset
+    const apiUrl = `${this.getBaseUrl()}/management/v1/users/${userId}/password/_reset`;
 
     const payload = {
       sendMail: true,
@@ -779,6 +907,47 @@ export class ZitadelService implements OnModuleInit {
     } catch (error) {
       this.logger.error(
         `Failed to grant project role: ${(error as Error).message}`
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Deactivate a user in Zitadel
+   *
+   * Sets user state to INACTIVE, preventing login.
+   * Used when soft-deleting user accounts.
+   *
+   * @param userId - Zitadel user ID
+   * @throws Error on API failure
+   */
+  async deactivateUser(userId: string): Promise<void> {
+    const token = await this.getAccessToken();
+    const orgId = process.env.ZITADEL_MAIN_ORG_ID;
+    const apiUrl = `${this.getBaseUrl()}/management/v1/users/${userId}/_deactivate`;
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          'x-zitadel-orgid': orgId || '',
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to deactivate user (${response.status}): ${errorText}`
+        );
+      }
+
+      this.logger.log(`Deactivated Zitadel user: ${userId}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to deactivate user ${userId}: ${(error as Error).message}`
       );
       throw error;
     }
@@ -1153,7 +1322,7 @@ export class ZitadelService implements OnModuleInit {
       body: new URLSearchParams({
         grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
         assertion,
-        scope: 'openid',
+        scope: 'openid urn:zitadel:iam:org:project:id:zitadel:aud',
       }),
     });
 
