@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -9,11 +10,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
 import { ProjectDto } from './dto/project.dto';
+import { ProjectMemberDto } from './dto/project-member.dto';
 import { TemplatePackService } from '../template-packs/template-pack.service';
 import { AppConfigService } from '../../common/config/config.service';
 import { Project } from '../../entities/project.entity';
 import { ProjectMembership } from '../../entities/project-membership.entity';
 import { Org } from '../../entities/org.entity';
+import { UserProfile } from '../../entities/user-profile.entity';
+import { UserEmail } from '../../entities/user-email.entity';
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 
@@ -26,6 +30,9 @@ export class ProjectsService {
     @InjectRepository(ProjectMembership)
     private membershipRepo: Repository<ProjectMembership>,
     @InjectRepository(Org) private orgRepo: Repository<Org>,
+    @InjectRepository(UserProfile)
+    private userProfileRepo: Repository<UserProfile>,
+    @InjectRepository(UserEmail) private userEmailRepo: Repository<UserEmail>,
     private dataSource: DataSource,
     private readonly db: DatabaseService,
     private readonly templatePacks: TemplatePackService,
@@ -328,5 +335,93 @@ export class ProjectsService {
         error as Error
       );
     }
+  }
+
+  /**
+   * List all members of a project with their profile info
+   */
+  async listMembers(projectId: string): Promise<ProjectMemberDto[]> {
+    // Validate UUID shape
+    if (!/^[0-9a-fA-F-]{36}$/.test(projectId)) {
+      return [];
+    }
+
+    // Query memberships with user profile and email
+    const memberships = await this.membershipRepo
+      .createQueryBuilder('membership')
+      .innerJoinAndSelect('membership.user', 'user')
+      .leftJoinAndSelect('user.emails', 'email')
+      .where('membership.projectId = :projectId', { projectId })
+      .orderBy('membership.createdAt', 'ASC')
+      .getMany();
+
+    return memberships.map((m) => {
+      // Get primary email (first verified, or just first)
+      const emails = m.user.emails || [];
+      const primaryEmail =
+        emails.find((e) => e.verified)?.email || emails[0]?.email || '';
+
+      return {
+        id: m.userId,
+        email: primaryEmail,
+        displayName: m.user.displayName ?? undefined,
+        firstName: m.user.firstName ?? undefined,
+        lastName: m.user.lastName ?? undefined,
+        avatarUrl: m.user.avatarObjectKey ?? undefined, // TODO: Convert to actual URL
+        role: m.role,
+        joinedAt: m.createdAt,
+      };
+    });
+  }
+
+  /**
+   * Remove a member from a project
+   * @param projectId The project ID
+   * @param userId The user ID to remove
+   * @param requestingUserId The ID of the user making the request (for self-removal prevention if admin)
+   * @returns true if member was removed, false if not found
+   * @throws ForbiddenException if trying to remove the last admin
+   */
+  async removeMember(
+    projectId: string,
+    userId: string,
+    requestingUserId?: string
+  ): Promise<boolean> {
+    // Validate UUID shapes
+    if (
+      !/^[0-9a-fA-F-]{36}$/.test(projectId) ||
+      !/^[0-9a-fA-F-]{36}$/.test(userId)
+    ) {
+      return false;
+    }
+
+    // Find the membership
+    const membership = await this.membershipRepo.findOne({
+      where: { projectId, userId },
+    });
+
+    if (!membership) {
+      return false;
+    }
+
+    // If removing an admin, check they're not the last one
+    if (membership.role === 'project_admin') {
+      const adminCount = await this.membershipRepo.count({
+        where: { projectId, role: 'project_admin' },
+      });
+
+      if (adminCount <= 1) {
+        throw new ForbiddenException({
+          error: {
+            code: 'last-admin',
+            message:
+              'Cannot remove the last admin from the project. Assign another admin first.',
+          },
+        });
+      }
+    }
+
+    await this.membershipRepo.delete({ projectId, userId });
+    return true;
   }
 }

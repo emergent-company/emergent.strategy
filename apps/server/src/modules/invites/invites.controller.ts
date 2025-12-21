@@ -1,45 +1,36 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Req,
+  UseGuards,
+  NotFoundException,
+  ValidationPipe,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOkResponse,
+  ApiBadRequestResponse,
+  ApiForbiddenResponse,
+} from '@nestjs/swagger';
 import { InvitesService } from './invites.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
 import { Scopes } from '../auth/scopes.decorator';
-import { IsEmail, IsOptional, IsString, IsUUID, IsIn } from 'class-validator';
-import { ValidationPipe } from '@nestjs/common';
+import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
+import {
+  CreateInviteDto,
+  CreateInviteWithUserDto,
+  AcceptInviteDto,
+  PendingInviteDto,
+  SentInviteDto,
+} from './dto/invite.dto';
 
-class CreateInviteDto {
-  @IsUUID()
-  orgId!: string;
-  @IsOptional()
-  @IsUUID()
-  projectId?: string;
-  @IsEmail()
-  email!: string;
-  @IsString()
-  role!: 'org_admin' | 'project_admin' | 'project_user';
-}
-
-class CreateInviteWithUserDto {
-  @IsEmail()
-  email!: string;
-  @IsString()
-  firstName!: string;
-  @IsString()
-  lastName!: string;
-  @IsOptional()
-  @IsUUID()
-  organizationId?: string;
-  @IsOptional()
-  @IsUUID()
-  projectId?: string;
-  @IsIn(['org_admin', 'project_admin', 'project_user'])
-  role!: 'org_admin' | 'project_admin' | 'project_user';
-}
-
-class AcceptInviteDto {
-  @IsString()
-  token!: string;
-}
-
+@ApiTags('Invites')
 @Controller('invites')
 @UseGuards(AuthGuard, ScopesGuard)
 export class InvitesController {
@@ -51,6 +42,7 @@ export class InvitesController {
    */
   @Post('with-user')
   @Scopes('org:invite:create', 'project:invite:create')
+  @ApiStandardErrors()
   async createWithUser(
     @Body(new ValidationPipe({ whitelist: true, transform: true }))
     dto: CreateInviteWithUserDto,
@@ -69,20 +61,128 @@ export class InvitesController {
 
   @Post()
   @Scopes('org:invite:create', 'project:invite:create')
+  @ApiStandardErrors()
   async create(
     @Body(new ValidationPipe({ whitelist: true, transform: true }))
-    dto: CreateInviteDto
+    dto: CreateInviteDto,
+    @Req() req: any
   ) {
-    return this.invites.create(dto.orgId, dto.role, dto.email, dto.projectId);
+    return this.invites.create(
+      dto.orgId,
+      dto.role,
+      dto.email,
+      dto.projectId,
+      req.user?.id // Pass the inviter's user ID
+    );
   }
 
   @Post('accept')
   @Scopes('org:read')
+  @ApiOkResponse({
+    description: 'Invitation accepted',
+    schema: { example: { status: 'accepted' } },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid state or token',
+    schema: {
+      example: {
+        error: { code: 'invalid-state', message: 'Invite not pending' },
+      },
+    },
+  })
+  @ApiStandardErrors()
   async accept(
     @Body(new ValidationPipe({ whitelist: true, transform: true }))
     dto: AcceptInviteDto,
     @Req() req: any
   ) {
-    return this.invites.accept(dto.token, req.user?.sub);
+    return this.invites.accept(dto.token, req.user?.id);
+  }
+
+  /**
+   * List pending invitations for the current user
+   */
+  @Get('pending')
+  @Scopes('org:read')
+  @ApiOkResponse({
+    description: 'List of pending invitations for the current user',
+    type: PendingInviteDto,
+    isArray: true,
+  })
+  @ApiStandardErrors()
+  async listPending(@Req() req: any): Promise<PendingInviteDto[]> {
+    return this.invites.listPendingForUser(req.user?.id);
+  }
+
+  /**
+   * Decline an invitation
+   */
+  @Post(':id/decline')
+  @Scopes('org:read')
+  @ApiOkResponse({
+    description: 'Invitation declined',
+    schema: { example: { status: 'declined' } },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid state',
+    schema: {
+      example: {
+        error: {
+          code: 'invalid-state',
+          message: 'Invitation is already accepted',
+        },
+      },
+    },
+  })
+  @ApiForbiddenResponse({
+    description: 'Not your invitation',
+    schema: {
+      example: {
+        error: { code: 'forbidden', message: 'This invitation is not for you' },
+      },
+    },
+  })
+  @ApiStandardErrors()
+  async decline(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) inviteId: string,
+    @Req() req: any
+  ) {
+    return this.invites.decline(inviteId, req.user?.id);
+  }
+
+  /**
+   * Cancel/revoke a pending invitation (admin only)
+   */
+  @Delete(':id')
+  @Scopes('project:admin')
+  @ApiOkResponse({
+    description: 'Invitation cancelled',
+    schema: { example: { status: 'revoked' } },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid state',
+    schema: {
+      example: {
+        error: {
+          code: 'invalid-state',
+          message: 'Cannot cancel invitation with status: accepted',
+        },
+      },
+    },
+  })
+  @ApiStandardErrors()
+  async cancel(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) inviteId: string,
+    @Req() req: any
+  ) {
+    // First verify the invite exists and get project info for authorization
+    const invite = await this.invites.getById(inviteId);
+    if (!invite) {
+      throw new NotFoundException({
+        error: { code: 'not-found', message: 'Invitation not found' },
+      });
+    }
+    // TODO: Additional authorization could check if user is admin of the project
+    return this.invites.cancel(inviteId, req.user?.id);
   }
 }
