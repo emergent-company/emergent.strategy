@@ -1,0 +1,685 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Insight Analyses Schema",
+  "description": "Defines the structure for foundational analyses (Trend, Market, SWOT, User/Problem) that inform opportunity identification.",
+  "type": "object",
+  "properties": {
+    "last_updated": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of last update"
+    },
+    "confidence_level": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "Overall confidence in analyses"
+    },
+    "next_review_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Scheduled next review"
+    },
+    "trends": {
+      "type": "object",
+      "properties": {
+        "technology": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "trend": {
+                "type": "string"
+              },
+              "timeframe": {
+                "type": "string"
+              },
+              "impact": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["trend", "timeframe", "impact"]
+          }
+        },
+        "market": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "trend": {
+                "type": "string"
+              },
+              "timeframe": {
+                "type": "string"
+              },
+              "impact": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "user_behavior": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "trend": {
+                "type": "string"
+              },
+              "timeframe": {
+                "type": "string"
+              },
+              "impact": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "regulatory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "trend": {
+                "type": "string"
+              },
+              "timeframe": {
+                "type": "string"
+              },
+              "impact": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "competitive": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "trend": {
+                "type": "string"
+              },
+              "timeframe": {
+                "type": "string"
+              },
+              "impact": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "key_insights": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "insight": {
+            "type": "string"
+          },
+          "supporting_trends": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "strategic_implication": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "market_definition": {
+      "type": "object",
+      "properties": {
+        "tam": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "string"
+            },
+            "calculation_method": {
+              "type": "string"
+            }
+          }
+        },
+        "sam": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "string"
+            },
+            "definition": {
+              "type": "string"
+            }
+          }
+        },
+        "som": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "string"
+            },
+            "timeframe": {
+              "type": "string"
+            }
+          }
+        },
+        "market_stage": {
+          "type": "string",
+          "enum": ["nascent", "emerging", "growth", "mature", "declining"]
+        },
+        "growth_rate": {
+          "type": "string"
+        }
+      }
+    },
+    "market_structure": {
+      "type": "object",
+      "properties": {
+        "segments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "segment": {
+                "type": "string"
+              },
+              "size": {
+                "type": "string"
+              },
+              "characteristics": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "unmet_needs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "value_chain": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "stage": {
+                "type": "string"
+              },
+              "key_players": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "value_captured": {
+                "type": "string"
+              },
+              "inefficiencies": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "competitive_landscape": {
+      "type": "object",
+      "properties": {
+        "direct_competitors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "positioning": {
+                "type": "string"
+              },
+              "strengths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "weaknesses": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "indirect_competitors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "how_they_solve": {
+                "type": "string"
+              },
+              "threat_level": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "substitutes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "substitute": {
+                "type": "string"
+              },
+              "adoption": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "barriers_to_entry": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "barrier": {
+                "type": "string"
+              },
+              "height": {
+                "type": "string",
+                "enum": ["low", "medium", "high"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "market_dynamics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "dynamic": {
+            "type": "string"
+          },
+          "implication": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "white_spaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "gap": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "opportunity_potential": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "strengths": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "strength": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "strategic_value": {
+            "type": "string"
+          }
+        },
+        "required": ["strength"]
+      }
+    },
+    "weaknesses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "weakness": {
+            "type": "string"
+          },
+          "impact": {
+            "type": "string"
+          },
+          "mitigation": {
+            "type": "string"
+          }
+        },
+        "required": ["weakness"]
+      }
+    },
+    "opportunities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "opportunity": {
+            "type": "string"
+          },
+          "how_to_exploit": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          }
+        },
+        "required": ["opportunity"]
+      }
+    },
+    "threats": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "threat": {
+            "type": "string"
+          },
+          "likelihood": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          },
+          "mitigation": {
+            "type": "string"
+          }
+        },
+        "required": ["threat"]
+      }
+    },
+    "strategic_implications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "insight": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "target_users": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "persona": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "current_state": {
+            "type": "object",
+            "properties": {
+              "goals": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "context": {
+                "type": "string"
+              },
+              "frequency": {
+                "type": "string"
+              }
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "problem": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": ["critical", "high", "medium", "low"]
+                },
+                "frequency": {
+                  "type": "string"
+                },
+                "current_solution": {
+                  "type": "string"
+                },
+                "workarounds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "cost_of_problem": {
+                  "type": "string"
+                },
+                "willingness_to_solve": {
+                  "type": "string"
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": ["problem", "severity", "frequency"]
+            }
+          },
+          "jobs_to_be_done": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "job": {
+                  "type": "string"
+                },
+                "when": {
+                  "type": "string"
+                },
+                "desired_outcome": {
+                  "type": "string"
+                },
+                "current_solution_satisfaction": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "required": ["persona", "description"]
+      }
+    },
+    "product_problem_fit_analysis": {
+      "type": "object",
+      "properties": {
+        "problem_clarity": {
+          "type": "string"
+        },
+        "problem_severity": {
+          "type": "string"
+        },
+        "solution_feasibility": {
+          "type": "string"
+        }
+      }
+    },
+    "validation_status": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "hypothesis": {
+            "type": "string"
+          },
+          "validation_method": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["validated", "invalidated", "pending", "partially-validated"]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "problem_solution_hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "problem": {
+            "type": "string"
+          },
+          "hypothesis": {
+            "type": "string"
+          },
+          "test_approach": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "opportunity_convergence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "opportunity": {
+            "type": "string"
+          },
+          "supporting_analyses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "strength": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "strategic_tensions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "tension": {
+            "type": "string"
+          },
+          "tradeoff": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "confidence_gaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "gap": {
+            "type": "string"
+          },
+          "why_it_matters": {
+            "type": "string"
+          },
+          "how_to_close": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "next_analytical_steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "step": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          },
+          "owner": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "required": ["last_updated", "confidence_level"]
+}

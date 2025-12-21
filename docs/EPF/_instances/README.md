@@ -39,7 +39,7 @@ mkdir -p your-product-name/cycles
 - Makes the phase-based workflow immediately visible
 - Empty folders signal "this needs content" rather than "where does this go?"
 
-Then copy and customize the template files from the `phases/READY/` directory to populate your `READY/` folder.
+Then copy and customize the template files from the `templates/READY/` directory to populate your `READY/` folder.
 
 See MAINTENANCE.md for detailed instructions.
 
@@ -81,7 +81,7 @@ _instances/{product-name}/
 
 1. **Philosophical Alignment:** EPF operates in cycles of READY (plan) → FIRE (execute) → AIM (learn). Instance structure should reflect this.
 2. **Clear Boundaries:** Separates strategic planning artifacts from execution artifacts from retrospective artifacts.
-3. **Framework Mirroring:** Instances follow the same structure as `phases/`, making navigation intuitive.
+3. **Framework Mirroring:** Instances follow the same structure as `templates/`, making navigation intuitive.
 4. **Traceability:** Phase boundaries make it clear where artifacts belong in the workflow.
 
 ### Migrating from Flat Structure

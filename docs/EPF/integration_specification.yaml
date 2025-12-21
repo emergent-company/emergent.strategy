@@ -1,10 +1,10 @@
 # EPF Integration Specification
 # Machine-readable contract for spec-driven development tools
-# Version: 1.4.0 (EPF v1.9.7)
+# Version: 1.13.0 (EPF v1.9.7)
 
 specification:
   name: "EPF Tool Integration Specification"
-  version: "1.4.0"
+  version: "1.13.0"
   epf_version: "1.9.7"
   purpose: |
     This file defines the interface contract between the Emergent Product Framework (EPF)
@@ -478,7 +478,7 @@ file_discovery:
 # ============================================================================
 
 versioning:
-  this_spec_version: "1.4.0"
+  this_spec_version: "1.13.0"
   epf_version_required: ">=1.9.6"
   
   compatibility_notes: |
@@ -488,6 +488,9 @@ versioning:
     - New optional fields increment MINOR version
     
   changelog:
+    - version: "1.13.0"
+      date: "2025-12-21"
+      changes: "Add business language guides, product architect wizard, and enhanced value models"
     - version: "1.4.0"
       date: "2025-12-05"
       changes: "Extended feature_definition_schema with value_propositions, architecture_patterns, design_guidance, enhanced contexts with key_elements/user_actions/data_displayed, jtbd_category for scenarios, and external_integrations"

@@ -1,6 +1,50 @@
-# Emergent Product Framework (EPF) Repository - v1.11.0
+# Emergent Product Framework (EPF) Repository - v1.12.0
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
+
+---
+
+## 🚨 CRITICAL: For AI Agents & Contributors
+
+**This is the CANONICAL EPF framework repository. It MUST remain instance-agnostic.**
+
+### ⚠️ ABSOLUTE RULES - NEVER VIOLATE:
+
+1. **❌ NO product names** (twentyfirst, huma-blueprint-ui, lawmatics, emergent, etc.)
+2. **❌ NO instance-specific data** (validation reports, product examples, org references)
+3. **❌ NO validation results** mentioning specific products
+4. **✅ ONLY generic framework** (templates, schemas, documentation, wizards)
+
+**Instance data belongs in product repositories** (`/path/to/product/docs/EPF/_instances/<product>/`), **NEVER in this canonical repository.**
+
+**📋 Pre-Action Checklist:** Before creating/editing ANY file here, ask:
+- Am I in the canonical EPF repository? (`pwd` to check)
+- Does this mention specific products? (If YES → **STOP!** Move to product repo)
+- Is this a validation report/result? (If YES → **STOP!** Belongs in product repo)
+- Could this apply to ANY product? (If NO → **STOP!** Not generic enough)
+
+**📚 Full Rules:** See [`CANONICAL_PURITY_RULES.md`](./CANONICAL_PURITY_RULES.md) for detailed guidance, examples, and violation corrections.
+
+**📖 Maintenance Guide:** See [`MAINTENANCE.md`](./MAINTENANCE.md) for framework/instance separation enforcement rules.
+
+---
+
+## What's New in v1.12.0
+
+* **Feature Definition Schema v2.0 Quality System:** Comprehensive quality enforcement to prevent lengthy manual rework:
+  - **Schema v2.0 Enhancements**: Exactly 4 personas required, 200+ character narratives, structured context arrays (key_interactions, data_displayed), rich dependency objects with 30+ char rationale
+  - **Wizard Guidance** (`wizards/feature_definition.wizard.md`): Human-readable 7-step creation guide reducing creation time from 2-3 hours to 45-60 minutes
+  - **Enhanced Agent Prompt** (`wizards/product_architect.agent_prompt.md`): +300 lines of AI-specific guidance with pre-creation validation checklist and PAUSE-and-validate workflow
+  - **Automated Validation** (`scripts/validate-feature-quality.sh`): 379-line quality checker with 6 validation categories (CI/CD ready, requires yq and ajv-cli)
+  - **System Documentation** (`docs/EPF_SCHEMA_V2_QUALITY_SYSTEM.md`): Complete reference with v1.0→v2.0 migration guide, troubleshooting, and examples
+  - **Bug Fix**: Corrected JSON syntax error in feature_definition_schema.json
+
+### Migration from v1.11.0
+
+1. **No action required** for existing v1.0 feature definitions (remain valid)
+2. **To adopt v2.0 quality system**: Follow migration guide in `docs/EPF_SCHEMA_V2_QUALITY_SYSTEM.md`
+3. **New features**: Use wizard or validation script for quality enforcement
+4. **Update _meta.yaml**: Set `epf_version: "1.12.0"`
 
 ## What's New in v1.11.0
 
@@ -80,7 +124,7 @@ This repository contains the complete skeleton for managing product, strategy, o
 
 ## What's New in v1.9.5
 
-* **Feature Definitions as Implementation Bridge:** The `/phases/FIRE/feature_definitions/` directory now has formal guidance for creating feature definition documents that bridge EPF strategy to spec-driven implementation tools.
+* **Feature Definitions as Implementation Bridge:** The `/templates/FIRE/feature_definitions/` directory now has formal guidance for creating feature definition documents that bridge EPF strategy to spec-driven implementation tools.
 * **N:M Value Model Mapping:** Feature definitions explicitly support many-to-many relationships with value model components - features often cross-cut multiple L2/L3 components.
 * **Tool-Agnostic Export Format:** Feature definitions are designed to be consumed by external spec-driven development tools (e.g., specification frameworks, AI coding agents) without EPF being coupled to any specific tool.
 * **Lean Documentation Principles:** New framework philosophy emphasizes that git handles versioning and history - EPF artifacts should not duplicate what can be inferred from repository state.
@@ -142,8 +186,8 @@ This repository contains the complete skeleton for managing product, strategy, o
 
 ## What's New in v1.9.0
 
-* **Formalized Workflow Architecture:** This version introduces a new `/phases/FIRE/workflows` directory to formalize the management of state machines and their configurations. This promotes a more robust, scalable, and configurable approach to building product features.
-* **Feature Definition Artifacts:** A new `/phases/FIRE/feature_definitions` directory has been added to store detailed, human-readable product feature definition documents.
+* **Formalized Workflow Architecture:** This version introduces a new `/templates/FIRE/workflows` directory to formalize the management of state machines and their configurations. This promotes a more robust, scalable, and configurable approach to building product features.
+* **Feature Definition Artifacts:** A new `/templates/FIRE/feature_definitions` directory has been added to store detailed, human-readable product feature definition documents.
 * **New `workflow_schema.json`:** A new schema is included to validate the structure of state machine definitions and their corresponding configuration files.
 * **Enhanced `value_model_schema.json`:** The value model schema has been updated to include an optional `premium: boolean` flag for L3 sub-components, allowing for clear distinction of premium features.
 
