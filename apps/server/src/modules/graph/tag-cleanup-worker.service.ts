@@ -4,6 +4,7 @@ import {
   OnModuleDestroy,
   Logger,
 } from '@nestjs/common';
+import { trace, SpanStatusCode, Tracer } from '@opentelemetry/api';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Tag } from '../../entities/tag.entity';
@@ -28,6 +29,9 @@ export class TagCleanupWorkerService implements OnModuleInit, OnModuleDestroy {
   private readonly intervalMs: number;
   private isProcessing = false;
   private currentCleanup: Promise<void> | null = null;
+
+  // OpenTelemetry tracer for creating parent spans
+  private readonly tracer: Tracer = trace.getTracer('tag-cleanup-worker');
 
   constructor(
     @InjectRepository(Tag)
@@ -106,12 +110,16 @@ export class TagCleanupWorkerService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.isProcessing = true;
-    const startTime = Date.now();
 
-    try {
-      // Find unused tags (tags in kb.tags that aren't referenced in any graph_objects)
-      // Use DataSource.query because of JSONB ? operator
-      const unusedQuery = `
+    return this.tracer.startActiveSpan(
+      'tag-cleanup-worker.cleanupUnusedTags',
+      async (span) => {
+        const startTime = Date.now();
+
+        try {
+          // Find unused tags (tags in kb.tags that aren't referenced in any graph_objects)
+          // Use DataSource.query because of JSONB ? operator
+          const unusedQuery = `
                 SELECT t.id, t.name, t.project_id
                 FROM kb.tags t
                 WHERE NOT EXISTS (
@@ -124,50 +132,69 @@ export class TagCleanupWorkerService implements OnModuleInit, OnModuleDestroy {
                 )
             `;
 
-      const unusedResult = (await this.dataSource.query(unusedQuery)) as Array<{
-        id: string;
-        name: string;
-        project_id: string;
-      }>;
-      const unusedCount = unusedResult.length || 0;
+          const unusedResult = (await this.dataSource.query(
+            unusedQuery
+          )) as Array<{
+            id: string;
+            name: string;
+            project_id: string;
+          }>;
+          const unusedCount = unusedResult.length || 0;
 
-      if (unusedCount === 0) {
-        this.logger.debug('No unused tags found');
-        return;
-      }
+          span.setAttribute('tags.unused_count', unusedCount);
 
-      // Delete unused tags using TypeORM Repository with IN clause
-      const unusedIds = unusedResult.map((row: any) => row.id);
-      const deleteResult = await this.tagRepo
-        .createQueryBuilder()
-        .delete()
-        .from(Tag)
-        .whereInIds(unusedIds)
-        .execute();
+          if (unusedCount === 0) {
+            this.logger.debug('No unused tags found');
+            span.setAttribute('tags.deleted_count', 0);
+            span.setStatus({ code: SpanStatusCode.OK });
+            return;
+          }
 
-      const deletedCount = deleteResult.affected || 0;
-      const duration = Date.now() - startTime;
+          // Delete unused tags using TypeORM Repository with IN clause
+          const unusedIds = unusedResult.map((row: any) => row.id);
+          const deleteResult = await this.tagRepo
+            .createQueryBuilder()
+            .delete()
+            .from(Tag)
+            .whereInIds(unusedIds)
+            .execute();
 
-      this.logger.log(
-        `Tag cleanup complete: ${deletedCount} unused tags deleted in ${duration}ms`,
-        {
-          deleted_count: deletedCount,
-          duration_ms: duration,
-          deleted_tags: unusedResult.map((r: any) => ({
-            id: r.id,
-            name: r.name,
-          })),
+          const deletedCount = deleteResult.affected || 0;
+          const duration = Date.now() - startTime;
+
+          span.setAttribute('tags.deleted_count', deletedCount);
+          span.setAttribute('duration_ms', duration);
+          span.setStatus({ code: SpanStatusCode.OK });
+
+          this.logger.log(
+            `Tag cleanup complete: ${deletedCount} unused tags deleted in ${duration}ms`,
+            {
+              deleted_count: deletedCount,
+              duration_ms: duration,
+              deleted_tags: unusedResult.map((r: any) => ({
+                id: r.id,
+                name: r.name,
+              })),
+            }
+          );
+        } catch (error) {
+          const duration = Date.now() - startTime;
+          const err = error instanceof Error ? error : new Error(String(error));
+
+          span.setAttribute('duration_ms', duration);
+          span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+          span.recordException(err);
+
+          this.logger.error(`Tag cleanup failed after ${duration}ms`, {
+            error: err.message,
+            duration_ms: duration,
+          });
+        } finally {
+          span.end();
+          this.isProcessing = false;
         }
-      );
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      this.logger.error(`Tag cleanup failed after ${duration}ms`, {
-        error: error instanceof Error ? error.message : String(error),
-        duration_ms: duration,
-      });
-    } finally {
-      this.isProcessing = false;
-    }
+      }
+    );
   }
 
   /**
