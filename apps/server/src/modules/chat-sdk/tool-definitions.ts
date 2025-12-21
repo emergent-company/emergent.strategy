@@ -55,6 +55,15 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     groupLabel: 'Web',
     groupIcon: 'lucide--globe',
   },
+  {
+    name: 'import_document',
+    description:
+      'Import documents from external URLs (Google Drive, web pages)',
+    icon: 'lucide--download',
+    group: 'knowledge-base',
+    groupLabel: 'Knowledge Base',
+    groupIcon: 'lucide--database',
+  },
 ];
 
 /** Get all tool names */

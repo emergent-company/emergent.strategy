@@ -94,21 +94,37 @@ export class GoogleDriveProvider implements ExternalSourceProvider {
 
   async checkAccess(ref: ExternalSourceReference): Promise<AccessCheckResult> {
     try {
-      // Use the Google Drive API to check if the file exists and is accessible
-      // For public files, we can use the /files/{fileId} endpoint without auth
-      const apiUrl = `https://www.googleapis.com/drive/v3/files/${ref.externalId}?fields=id,name,mimeType,size,modifiedTime,capabilities`;
+      // For public Google Docs/Sheets/Slides, we can use the export URL
+      // which works without API authentication for publicly shared documents
+      const exportUrl = this.getExportUrl(ref.externalId, ref.originalUrl);
 
-      const response = await fetch(apiUrl);
+      this.logger.log(
+        `Checking access to: ${exportUrl} (original: ${ref.originalUrl})`
+      );
 
+      // Use HEAD request to check accessibility
+      const response = await fetch(exportUrl, {
+        method: 'HEAD',
+        redirect: 'follow',
+      });
+
+      this.logger.log(
+        `Access check response: status=${response.status}, ok=${response.ok}`
+      );
+
+      // Google returns 200 or redirects for accessible files
       if (response.ok) {
-        const data = await response.json();
+        // Try to extract name from the original URL or use a default
+        const name =
+          this.extractNameFromUrl(ref.originalUrl) || 'Google Document';
+
         return {
           accessible: true,
           metadata: {
-            name: data.name,
-            mimeType: data.mimeType,
-            size: parseInt(data.size || '0', 10),
-            modifiedAt: new Date(data.modifiedTime),
+            name,
+            mimeType: this.getMimeTypeFromUrl(ref.originalUrl),
+            size: 0, // We don't know size without API access
+            modifiedAt: new Date(),
           },
         };
       }
@@ -117,7 +133,7 @@ export class GoogleDriveProvider implements ExternalSourceProvider {
         return { accessible: false, reason: 'not_found' };
       }
 
-      if (response.status === 403) {
+      if (response.status === 403 || response.status === 401) {
         return { accessible: false, reason: 'permission_denied' };
       }
 
@@ -126,7 +142,7 @@ export class GoogleDriveProvider implements ExternalSourceProvider {
       }
 
       this.logger.warn(
-        `Unexpected response from Google Drive API: ${response.status}`
+        `Unexpected response from Google export URL: ${response.status}`
       );
       return { accessible: false, reason: 'permission_denied' };
     } catch (error) {
@@ -135,77 +151,130 @@ export class GoogleDriveProvider implements ExternalSourceProvider {
     }
   }
 
-  async fetchMetadata(ref: ExternalSourceReference): Promise<SourceMetadata> {
-    const apiUrl = `https://www.googleapis.com/drive/v3/files/${ref.externalId}?fields=id,name,mimeType,size,modifiedTime,md5Checksum`;
-
-    const response = await fetch(apiUrl);
-
-    if (!response.ok) {
-      throw new ExternalSourceError(
-        ExternalSourceErrorCode.SOURCE_NOT_ACCESSIBLE,
-        `Failed to fetch metadata: ${response.status} ${response.statusText}`
-      );
+  /**
+   * Get the export URL for a Google file based on its type
+   */
+  private getExportUrl(fileId: string, originalUrl: string): string {
+    // Determine the export format based on the original URL
+    if (originalUrl.includes('docs.google.com/document')) {
+      return `https://docs.google.com/document/d/${fileId}/export?format=txt`;
     }
+    if (originalUrl.includes('docs.google.com/spreadsheets')) {
+      return `https://docs.google.com/spreadsheets/d/${fileId}/export?format=csv`;
+    }
+    if (originalUrl.includes('docs.google.com/presentation')) {
+      return `https://docs.google.com/presentation/d/${fileId}/export?format=pdf`;
+    }
+    if (originalUrl.includes('docs.google.com/drawings')) {
+      return `https://docs.google.com/drawings/d/${fileId}/export?format=png`;
+    }
+    // Default to Drive download link for regular files
+    return `https://drive.google.com/uc?export=download&id=${fileId}`;
+  }
 
-    const data = await response.json();
+  /**
+   * Extract document name from URL if possible
+   */
+  private extractNameFromUrl(url: string): string | null {
+    // Google URLs don't typically contain the document name
+    // Return null to use a default name
+    return null;
+  }
+
+  /**
+   * Get the expected mime type based on the URL
+   */
+  private getMimeTypeFromUrl(url: string): string {
+    if (url.includes('docs.google.com/document')) {
+      return 'application/vnd.google-apps.document';
+    }
+    if (url.includes('docs.google.com/spreadsheets')) {
+      return 'application/vnd.google-apps.spreadsheet';
+    }
+    if (url.includes('docs.google.com/presentation')) {
+      return 'application/vnd.google-apps.presentation';
+    }
+    if (url.includes('docs.google.com/drawings')) {
+      return 'application/vnd.google-apps.drawing';
+    }
+    return 'application/octet-stream';
+  }
+
+  async fetchMetadata(ref: ExternalSourceReference): Promise<SourceMetadata> {
+    // For public Google files, we use the export URL approach
+    // We can't get detailed metadata without API access, so we provide defaults
+    const mimeType = this.getMimeTypeFromUrl(ref.originalUrl);
+    const exportFormat = GOOGLE_EXPORT_FORMATS[mimeType];
 
     return {
-      name: data.name,
-      mimeType: data.mimeType,
-      size: parseInt(data.size || '0', 10),
-      modifiedAt: new Date(data.modifiedTime),
-      etag: data.md5Checksum || data.modifiedTime,
+      name: 'Google Document', // Default name - we can't get the real name without API
+      mimeType,
+      size: 0, // Unknown without API access
+      modifiedAt: new Date(),
+      etag: undefined,
       providerMetadata: {
-        googleFileId: data.id,
-        originalMimeType: data.mimeType,
+        googleFileId: ref.externalId,
+        originalMimeType: mimeType,
+        exportFormat: exportFormat?.mimeType || mimeType,
       },
     };
   }
 
   async fetchContent(ref: ExternalSourceReference): Promise<FetchedContent> {
-    // First, get the file metadata to determine the type
-    const metadata = await this.fetchMetadata(ref);
-    const mimeType = metadata.mimeType;
-
-    // Check if it's a Google native format that needs export
+    // Use the public export URL for Google files
+    const exportUrl = this.getExportUrl(ref.externalId, ref.originalUrl);
+    const mimeType = this.getMimeTypeFromUrl(ref.originalUrl);
     const exportFormat = GOOGLE_EXPORT_FORMATS[mimeType];
+
+    this.logger.log(`Fetching content from: ${exportUrl}`);
+
+    const response = await fetch(exportUrl, {
+      redirect: 'follow',
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
+
+    if (!response.ok) {
+      throw new ExternalSourceError(
+        ExternalSourceErrorCode.CONTENT_FETCH_FAILED,
+        `Failed to fetch Google file: ${response.status} ${response.statusText}`
+      );
+    }
+
+    // Try to extract filename from Content-Disposition header
+    const contentDisposition = response.headers.get('content-disposition');
+    let extractedFilename: string | null = null;
+    if (contentDisposition) {
+      // Match filename*=UTF-8''encoded_name or filename="name"
+      const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+      const standardMatch = contentDisposition.match(/filename="([^"]+)"/i);
+      if (utf8Match) {
+        extractedFilename = decodeURIComponent(utf8Match[1]);
+      } else if (standardMatch) {
+        extractedFilename = standardMatch[1];
+      }
+      this.logger.log(`Extracted filename from header: ${extractedFilename}`);
+    }
 
     let content: string | Buffer;
     let finalMimeType: string;
     let filename: string;
 
     if (exportFormat) {
-      // Export Google native format
-      const exportUrl = `https://www.googleapis.com/drive/v3/files/${
-        ref.externalId
-      }/export?mimeType=${encodeURIComponent(exportFormat.mimeType)}`;
-
-      const response = await fetch(exportUrl);
-
-      if (!response.ok) {
-        throw new ExternalSourceError(
-          ExternalSourceErrorCode.CONTENT_FETCH_FAILED,
-          `Failed to export Google file: ${response.status} ${response.statusText}`
-        );
+      // Text content for docs and spreadsheets
+      if (exportFormat.mimeType.startsWith('text/')) {
+        content = await response.text();
+      } else {
+        // Binary content (PDF, PNG)
+        content = Buffer.from(await response.arrayBuffer());
       }
-
-      content = await response.text();
       finalMimeType = exportFormat.mimeType;
-      filename = `${metadata.name}.${exportFormat.ext}`;
+      // Use extracted filename or fall back to generic name
+      filename = extractedFilename || `document.${exportFormat.ext}`;
     } else {
-      // Direct download for regular files
-      const downloadUrl = `https://www.googleapis.com/drive/v3/files/${ref.externalId}?alt=media`;
-
-      const response = await fetch(downloadUrl);
-
-      if (!response.ok) {
-        throw new ExternalSourceError(
-          ExternalSourceErrorCode.CONTENT_FETCH_FAILED,
-          `Failed to download file: ${response.status} ${response.statusText}`
-        );
-      }
-
-      // Check content type to determine if text or binary
+      // Regular file download
       const contentType =
         response.headers.get('content-type') || 'application/octet-stream';
 
@@ -220,7 +289,7 @@ export class GoogleDriveProvider implements ExternalSourceProvider {
       }
 
       finalMimeType = contentType;
-      filename = metadata.name;
+      filename = extractedFilename || 'download';
     }
 
     return {

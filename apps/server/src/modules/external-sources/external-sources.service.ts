@@ -70,6 +70,11 @@ export class ExternalSourcesService {
     } = dto;
 
     // 1. Detect provider
+    this.logger.debug(
+      `Detecting provider for URL: ${url}, registered providers: ${this.providerRegistry
+        .getRegisteredTypes()
+        .join(', ')}`
+    );
     const provider = this.providerRegistry.detectProvider(url);
     if (!provider) {
       return {
@@ -78,6 +83,9 @@ export class ExternalSourcesService {
         error: `No provider found for URL: ${url}`,
       };
     }
+    this.logger.debug(
+      `Provider detected: ${provider.providerType} (${provider.displayName})`
+    );
 
     // 2. Parse URL
     const ref = provider.parseUrl(url);
