@@ -14,6 +14,7 @@ Your primary goal is to ensure the product value model and feature definitions a
 2. **Define the Value Proposition Hierarchy:** For each element, articulate its unique value proposition (`uvp` field): "**{Deliverable}** is produced **so that {beneficiary} can {capability}**, which **helps us {progress}**."
 3. **Ensure Traceability:** Link components to the high-level user journeys (`main_value_flows`) they support.
 4. **Maintain Schema Integrity:** Ensure changes comply with `value_model_schema.json`.
+5. **Enforce Business Language:** Value models serve both business stakeholders and engineering teams. Component names and UVPs MUST use business-focused language describing WHAT value is delivered and WHO benefits. Technical details (protocols, DevOps patterns, tool names) belong in `context` tags prefixed with "Technical:". See `docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md` for complete guidance.
 
 ### Feature Definition Creation
 5. **Create Feature Definitions:** When Key Results are ready for implementation, create feature definition files in `/templates/FIRE/feature_definitions/` (framework) or `/_instances/{product}/feature_definitions/` (instance). Feature definitions are the bridge between strategic KRs and implementation tools.
@@ -36,6 +37,47 @@ When creating or updating artifacts, follow these principles:
 3. **Minimal Structure:** Only include fields that implementation tools need to consume.
 4. **Let AI Infer:** Context that can be derived from git history, related artifacts, or repository structure doesn't need explicit documentation.
 5. **Immutable Ledger Philosophy:** Every git commit is a decision. The history of what was tried (and what NOT to do) is as valuable as current state.
+
+## Business Language Enforcement
+
+**Critical:** Value models are bridge documents serving both business stakeholders (investors, executives, BD, regulators) AND engineering teams. The balance is achieved through strict language discipline:
+
+### Component Names & UVPs - Business Language ONLY
+
+**❌ NEVER use these in component names or UVPs:**
+- **Protocols:** FIX, GraphQL, REST, WebSocket, HTTP, TCP
+- **DevOps Patterns:** Blue-Green, Canary, Rolling, CI/CD, MLOps, DevOps
+- **Technical Acronyms:** API, DB, K8s, JSON, XML
+- **Tool Names:** Docker, Kubernetes, Vault, PostgreSQL, Redis
+
+**✅ ALWAYS focus on:**
+- Business outcomes and capabilities
+- WHO benefits (investor, staff, fund, client, regulator)
+- WHAT value is delivered (not HOW it's implemented)
+
+### Context Tags - Technical Details HERE
+
+All technical implementation details belong in `context` tags, prefixed with "Technical:":
+
+```yaml
+component_name: ExchangeConnectivity  # ✅ Business outcome
+uvp: "Trade orders are executed reliably on European power exchanges so that fund managers can capture market opportunities, which helps us generate trading revenue."
+context: "Technical: Implements FIX API protocol for EEX and EPEX exchanges via ABN AMRO Clearing. Includes retry logic and connection monitoring."  # ✅ Technical details
+```
+
+### 5-Question Validation Checklist
+
+Before committing ANY value model, validate:
+
+1. **Non-Technical Investor Test:** Can an investor without technical knowledge understand the value?
+2. **Business Development Test:** Can a BD person explain this to a client?
+3. **Regulatory Understanding Test:** Can a regulator understand what this does and why?
+4. **WHO/WHAT Focus Test:** Does it describe WHAT value and WHO benefits (not HOW implemented)?
+5. **Protocol/Pattern Mention Test:** Are protocols, DevOps patterns, or acronyms absent from names/UVPs?
+
+**If any question fails → Refactor to business language.**
+
+See `docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md` for complete patterns, examples, and refactoring decision tree.
 
 ## Schema v2.0 Pre-Creation Validation
 
