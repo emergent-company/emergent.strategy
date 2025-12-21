@@ -4,6 +4,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
+import { trace, SpanStatusCode, Tracer } from '@opentelemetry/api';
 import { DataSource } from 'typeorm';
 
 /**
@@ -26,6 +27,11 @@ export class RevisionCountRefreshWorkerService
   private intervalHandle: NodeJS.Timeout | null = null;
   private currentRefresh: Promise<number> | null = null;
   private readonly refreshIntervalMs: number;
+
+  // OpenTelemetry tracer for creating parent spans
+  private readonly tracer: Tracer = trace.getTracer(
+    'revision-count-refresh-worker'
+  );
 
   constructor(private readonly dataSource: DataSource) {
     this.refreshIntervalMs = parseInt(
@@ -103,73 +109,106 @@ export class RevisionCountRefreshWorkerService
    * @returns Promise<number> Number of objects tracked after refresh
    */
   async refreshRevisionCounts(): Promise<number> {
-    const startTime = Date.now();
-
-    try {
-      this.logger.debug('Starting revision count refresh...');
-
-      // Call the helper function created in migration 0006
-      const result = (await this.dataSource.query(
-        'SELECT kb.refresh_revision_counts() as refresh_result'
-      )) as Array<{ refresh_result: number }>;
-
-      const objectCount = result[0]?.refresh_result || 0;
-      const durationMs = Date.now() - startTime;
-
-      this.logger.log(
-        `Revision count refresh complete: ${objectCount} objects tracked (took ${durationMs}ms)`
-      );
-
-      return objectCount;
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-
-      // Handle the case where CONCURRENTLY fails because view is not populated
-      if (
-        error instanceof Error &&
-        error.message.includes(
-          'CONCURRENTLY cannot be used when the materialized view is not populated'
-        )
-      ) {
-        this.logger.warn(
-          'Materialized view not populated, performing initial non-concurrent refresh...'
-        );
+    return this.tracer.startActiveSpan(
+      'revision-count-refresh-worker.refreshRevisionCounts',
+      async (span) => {
+        const startTime = Date.now();
 
         try {
-          // Perform initial non-concurrent refresh to populate the view
-          await this.dataSource.query(
-            'REFRESH MATERIALIZED VIEW kb.graph_object_revision_counts'
-          );
+          this.logger.debug('Starting revision count refresh...');
 
+          // Call the helper function created in migration 0006
           const result = (await this.dataSource.query(
-            'SELECT COUNT(*) as count FROM kb.graph_object_revision_counts'
-          )) as Array<{ count: string }>;
+            'SELECT kb.refresh_revision_counts() as refresh_result'
+          )) as Array<{ refresh_result: number }>;
 
-          const objectCount = parseInt(result[0]?.count || '0', 10);
-          const totalDurationMs = Date.now() - startTime;
+          const objectCount = result[0]?.refresh_result || 0;
+          const durationMs = Date.now() - startTime;
+
+          span.setAttribute('objects.count', objectCount);
+          span.setAttribute('duration_ms', durationMs);
+          span.setStatus({ code: SpanStatusCode.OK });
 
           this.logger.log(
-            `Initial revision count refresh complete: ${objectCount} objects tracked (took ${totalDurationMs}ms)`
+            `Revision count refresh complete: ${objectCount} objects tracked (took ${durationMs}ms)`
           );
 
           return objectCount;
-        } catch (initError) {
+        } catch (error) {
+          const durationMs = Date.now() - startTime;
+
+          // Handle the case where CONCURRENTLY fails because view is not populated
+          if (
+            error instanceof Error &&
+            error.message.includes(
+              'CONCURRENTLY cannot be used when the materialized view is not populated'
+            )
+          ) {
+            this.logger.warn(
+              'Materialized view not populated, performing initial non-concurrent refresh...'
+            );
+
+            span.setAttribute('fallback', true);
+
+            try {
+              // Perform initial non-concurrent refresh to populate the view
+              await this.dataSource.query(
+                'REFRESH MATERIALIZED VIEW kb.graph_object_revision_counts'
+              );
+
+              const result = (await this.dataSource.query(
+                'SELECT COUNT(*) as count FROM kb.graph_object_revision_counts'
+              )) as Array<{ count: string }>;
+
+              const objectCount = parseInt(result[0]?.count || '0', 10);
+              const totalDurationMs = Date.now() - startTime;
+
+              span.setAttribute('objects.count', objectCount);
+              span.setAttribute('duration_ms', totalDurationMs);
+              span.setStatus({ code: SpanStatusCode.OK });
+
+              this.logger.log(
+                `Initial revision count refresh complete: ${objectCount} objects tracked (took ${totalDurationMs}ms)`
+              );
+
+              return objectCount;
+            } catch (initError) {
+              const err =
+                initError instanceof Error
+                  ? initError
+                  : new Error(String(initError));
+              span.setAttribute('duration_ms', Date.now() - startTime);
+              span.setStatus({
+                code: SpanStatusCode.ERROR,
+                message: err.message,
+              });
+              span.recordException(err);
+
+              this.logger.error(
+                `Initial revision count refresh also failed after ${
+                  Date.now() - startTime
+                }ms:`,
+                err.message
+              );
+              throw initError;
+            }
+          }
+
+          const err = error instanceof Error ? error : new Error(String(error));
+          span.setAttribute('duration_ms', durationMs);
+          span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+          span.recordException(err);
+
           this.logger.error(
-            `Initial revision count refresh also failed after ${
-              Date.now() - startTime
-            }ms:`,
-            initError instanceof Error ? initError.message : String(initError)
+            `Revision count refresh failed after ${durationMs}ms:`,
+            err.message
           );
-          throw initError;
+          throw error;
+        } finally {
+          span.end();
         }
       }
-
-      this.logger.error(
-        `Revision count refresh failed after ${durationMs}ms:`,
-        error instanceof Error ? error.message : String(error)
-      );
-      throw error;
-    }
+    );
   }
 
   /**

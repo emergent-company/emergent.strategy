@@ -6,6 +6,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
+import { trace, SpanStatusCode, Tracer } from '@opentelemetry/api';
 import { AppConfigService } from '../../common/config/config.service';
 import { DatabaseService } from '../../common/database/database.service';
 import { ExtractionJobService } from './extraction-job.service';
@@ -103,6 +104,9 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
   private processedCount = 0;
   private successCount = 0;
   private failureCount = 0;
+
+  // OpenTelemetry tracer for creating parent spans
+  private readonly tracer: Tracer = trace.getTracer('extraction-worker');
 
   constructor(
     private readonly config: AppConfigService,
@@ -414,1635 +418,1733 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
    * Public for testing purposes
    */
   async processBatch() {
-    const batchSize = this.config.extractionWorkerBatchSize;
-    const jobs = await this.jobService.dequeueJobs(batchSize);
+    return this.tracer.startActiveSpan(
+      'extraction-worker.processBatch',
+      async (batchSpan) => {
+        try {
+          const batchSize = this.config.extractionWorkerBatchSize;
+          const jobs = await this.jobService.dequeueJobs(batchSize);
 
-    if (jobs.length === 0) {
-      return;
-    }
+          batchSpan.setAttribute('batch.config_size', batchSize);
+          batchSpan.setAttribute('batch.actual_size', jobs.length);
 
-    this.logger.log(`Processing batch of ${jobs.length} extraction jobs`);
+          if (jobs.length === 0) {
+            batchSpan.setAttribute('batch.empty', true);
+            batchSpan.setStatus({ code: SpanStatusCode.OK });
+            return;
+          }
 
-    for (const job of jobs) {
-      await this.processJob(job);
-    }
+          this.logger.log(`Processing batch of ${jobs.length} extraction jobs`);
+
+          for (const job of jobs) {
+            await this.processJob(job);
+          }
+
+          batchSpan.setStatus({ code: SpanStatusCode.OK });
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          batchSpan.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: err.message,
+          });
+          batchSpan.recordException(err);
+          throw error;
+        } finally {
+          batchSpan.end();
+        }
+      }
+    );
   }
 
   /**
    * Process a single extraction job
    */
   private async processJob(job: ExtractionJobDto) {
-    const startTime = Date.now();
-    this.logger.log(
-      `Processing extraction job ${job.id} (source: ${job.source_type})`
-    );
-
-    // Fetch organization_id once for reuse throughout the method
-    const organizationId = await this.getOrganizationId(job);
-
-    // Get confidence thresholds early
-    // - minThreshold: Below this, entities are rejected
-    // - reviewThreshold: Between min and auto, entities are "draft" status (needs review)
-    // - autoThreshold: At or above this, entities are "accepted" status
-    //
-    // IMPORTANT: The UI's confidence_threshold serves as BOTH the minimum rejection threshold
-    // AND the review threshold. Entities below this are REJECTED, not just marked for review.
-    // The UI's auto_accept_threshold is the threshold for auto-accepting as final.
-    const minThresholdFromConfig =
-      job.extraction_config?.min_threshold !== undefined;
-    const draftThresholdFromConfig =
-      job.extraction_config?.confidence_threshold !== undefined;
-    const autoThresholdFromConfig =
-      job.extraction_config?.auto_accept_threshold !== undefined;
-
-    // Minimum threshold for rejection:
-    // 1. Use explicit min_threshold if provided
-    // 2. Otherwise, use confidence_threshold from job config (user's expectation is this rejects low-confidence)
-    // 3. Fall back to server default (EXTRACTION_CONFIDENCE_THRESHOLD_MIN)
-    const minThreshold = minThresholdFromConfig
-      ? job.extraction_config.min_threshold
-      : draftThresholdFromConfig
-      ? job.extraction_config.confidence_threshold
-      : this.config.extractionConfidenceThresholdMin;
-
-    // Draft threshold - entities below this get extra review marking
-    // This comes from the UI's "confidence_threshold" slider
-    const reviewThreshold = draftThresholdFromConfig
-      ? job.extraction_config.confidence_threshold
-      : this.config.extractionConfidenceThresholdReview;
-
-    // Auto-accept threshold - at or above this, entities are marked "accepted"
-    const autoThreshold = autoThresholdFromConfig
-      ? job.extraction_config.auto_accept_threshold
-      : this.config.extractionConfidenceThresholdAuto;
-
-    // Build thresholds object for debug info
-    // Note: min threshold can come from explicit min_threshold OR confidence_threshold
-    const minSourceIsJobConfig =
-      minThresholdFromConfig || draftThresholdFromConfig;
-    const thresholdsInfo = {
-      min: minThreshold,
-      review: reviewThreshold,
-      autoAccept: autoThreshold,
-      source: {
-        min: (minSourceIsJobConfig ? 'job_config' : 'server_default') as
-          | 'job_config'
-          | 'server_default',
-        review: (draftThresholdFromConfig ? 'job_config' : 'server_default') as
-          | 'job_config'
-          | 'server_default',
-        autoAccept: (autoThresholdFromConfig
-          ? 'job_config'
-          : 'server_default') as 'job_config' | 'server_default',
-      },
-    };
-
-    this.logger.log(
-      `Extraction thresholds for job ${job.id}: ` +
-        `min=${(minThreshold * 100).toFixed(0)}% (${
-          thresholdsInfo.source.min
-        }), ` +
-        `review=${(reviewThreshold * 100).toFixed(0)}% (${
-          thresholdsInfo.source.review
-        }), ` +
-        `autoAccept=${(autoThreshold * 100).toFixed(0)}% (${
-          thresholdsInfo.source.autoAccept
-        })`
-    );
-
-    // Create LangFuse trace
-    const traceId = this.langfuseService.createJobTrace(
-      job.id,
+    return this.tracer.startActiveSpan(
+      'extraction-worker.processJob',
       {
-        name: `Extraction Job ${job.id}`,
-        source_type: job.source_type,
-        project_id: job.project_id,
-        organization_id: organizationId,
+        attributes: {
+          'job.id': job.id,
+          'job.source_type': job.source_type,
+          'job.source_id': job.source_id || '',
+          'job.project_id': job.project_id,
+        },
       },
-      undefined, // environment (use default)
-      'extraction' // traceType for filtering
-    );
-
-    // Log to monitoring system
-    await this.monitoringLogger.logProcessEvent({
-      processId: job.id,
-      processType: 'extraction_job',
-      level: 'info',
-      message: 'Extraction job started',
-      projectId: job.project_id,
-      metadata: {
-        source_type: job.source_type,
-        source_id: job.source_id,
-      },
-      langfuseTraceId: traceId || undefined,
-    });
-
-    // Reset step counter for this job
-    this.stepCounter = 0;
-
-    // Log the start of the job with its configuration
-    await this.extractionLogger.logStep({
-      extractionJobId: job.id,
-      stepIndex: this.stepCounter++,
-      operationType: 'validation',
-      operationName: 'job_started',
-      status: 'completed',
-      inputData: {
-        source_type: job.source_type,
-        source_id: job.source_id,
-        project_id: job.project_id,
-      },
-    });
-
-    const timeline: TimelineEvent[] = [];
-    let providerName = this.llmFactory.getProviderName();
-    let extractionResult: ExtractionResult | null = null;
-
-    const pushTimelineEvent = (
-      step: string,
-      status: TimelineEventStatus,
-      details?: {
-        message?: string;
-        metadata?: Record<string, any>;
-        durationMs?: number;
-      }
-    ) => {
-      const event: TimelineEvent = {
-        step,
-        status,
-        timestamp: new Date().toISOString(),
-      };
-
-      if (details?.durationMs !== undefined) {
-        event.duration_ms = Math.max(details.durationMs, 0);
-      }
-
-      if (details?.message) {
-        event.message = details.message;
-      }
-
-      if (details?.metadata && Object.keys(details.metadata).length > 0) {
-        event.metadata = details.metadata;
-      }
-
-      timeline.push(event);
-
-      const durationText =
-        details?.durationMs !== undefined
-          ? ` duration=${details.durationMs}ms`
-          : '';
-      const messageText = details?.message ? ` message=${details.message}` : '';
-      const metadataText =
-        details?.metadata && Object.keys(details.metadata).length > 0
-          ? ` metadata=${JSON.stringify(details.metadata)}`
-          : '';
-
-      this.logger.debug(
-        `[TIMELINE] Job ${job.id} step=${step} status=${status}${durationText}${messageText}${metadataText}`
-      );
-    };
-
-    /**
-     * Map to track active spans by step name for hierarchical nesting
-     */
-    const activeSpans = new Map<string, LangfuseSpanClient | null>();
-
-    /**
-     * Begin a timeline step with optional Langfuse span tracking.
-     * Returns a function to complete the step.
-     */
-    const beginTimelineStep = (
-      step: string,
-      metadata?: Record<string, any>
-    ): ((
-      status: TimelineEventStatus,
-      details?: { message?: string; metadata?: Record<string, any> }
-    ) => void) & { spanId?: string } => {
-      const startedAt = Date.now();
-
-      // Create Langfuse span for this step
-      const span = traceId
-        ? this.langfuseService.createSpan(traceId, step, metadata)
-        : null;
-
-      // Store the span for potential child observations
-      activeSpans.set(step, span);
-
-      const endStep = (
-        status: TimelineEventStatus,
-        details?: { message?: string; metadata?: Record<string, any> }
-      ) => {
-        // Push timeline event
-        pushTimelineEvent(step, status, {
-          durationMs: Date.now() - startedAt,
-          message: details?.message,
-          metadata: {
-            ...(metadata ?? {}),
-            ...(details?.metadata ?? {}),
-          },
-        });
-
-        // End Langfuse span
-        if (span) {
-          this.langfuseService.endSpan(
-            span,
-            details?.metadata,
-            status === 'error' ? 'error' : 'success',
-            details?.message
-          );
-        }
-
-        // Remove from active spans
-        activeSpans.delete(step);
-      };
-
-      // Attach span ID as property for accessing in llm_extract step
-      (endStep as any).spanId = span?.id;
-
-      return endStep as ((
-        status: TimelineEventStatus,
-        details?: { message?: string; metadata?: Record<string, any> }
-      ) => void) & { spanId?: string };
-    };
-
-    pushTimelineEvent('job_started', 'info', {
-      metadata: {
-        source_type: job.source_type,
-        project_id: job.project_id,
-      },
-    });
-
-    try {
-      // 1. Load document content and ensure chunks + embeddings exist
-      const documentStep = beginTimelineStep('load_document', {
-        source_id: job.source_id ?? null,
-        source_type: job.source_type,
-      });
-
-      let documentContent: string | null = null;
-      let documentChunks: string[] = [];
-
-      // For document sources, ensure chunks and embeddings are ready
-      if (job.source_type === 'document' && job.source_id) {
-        const readyResult = await this.ensureDocumentReady(
-          job.source_id,
-          job.project_id
-        ).catch((error) => {
-          const message = toErrorMessage(error);
-          documentStep('error', { message });
-          throw error;
-        });
-
-        if (!readyResult.success || !readyResult.content) {
-          const message = 'Failed to prepare document (chunks/embeddings)';
-          documentStep('error', { message });
-          throw new Error(message);
-        }
-
-        documentContent = readyResult.content;
-        documentChunks = readyResult.chunkTexts;
-
-        // Log chunk/embedding preparation details
-        documentStep('success', {
-          metadata: {
-            character_count: documentContent.length,
-            chunks_created: readyResult.chunksCreated,
-            chunk_count: readyResult.chunkCount,
-            embeddings_generated: readyResult.embeddingsGenerated,
-          },
-        });
-
-        // Add timeline event for chunk/embedding preparation if chunks were created
-        if (readyResult.chunksCreated || readyResult.embeddingsGenerated > 0) {
-          pushTimelineEvent('ensure_chunks_embeddings', 'success', {
-            metadata: {
-              chunks_created: readyResult.chunksCreated,
-              chunk_count: readyResult.chunkCount,
-              embeddings_generated: readyResult.embeddingsGenerated,
-            },
-          });
-        }
-      } else {
-        // For non-document sources (manual, api), use the original method
-        documentContent = await this.loadDocumentContent(job).catch((error) => {
-          const message = toErrorMessage(error);
-          documentStep('error', { message });
-          throw error;
-        });
-
-        if (!documentContent) {
-          const message = 'Failed to load document content';
-          documentStep('error', { message });
-          throw new Error(message);
-        }
-
-        // Create chunks on-the-fly for non-document sources
-        // This ensures the relationship builder always has semantic chunks to work with
-        const chunksWithMeta = this.chunkerService.chunkWithMetadata(
-          documentContent,
-          { strategy: 'paragraph' } // Use paragraph strategy for semantic boundaries
+      async (jobSpan) => {
+        const startTime = Date.now();
+        this.logger.log(
+          `Processing extraction job ${job.id} (source: ${job.source_type})`
         );
-        documentChunks = chunksWithMeta.map((c) => c.text);
 
-        documentStep('success', {
-          metadata: {
-            character_count: documentContent.length,
-            chunks_created: documentChunks.length,
+        // Fetch organization_id once for reuse throughout the method
+        const organizationId = await this.getOrganizationId(job);
+
+        // Get confidence thresholds early
+        // - minThreshold: Below this, entities are rejected
+        // - reviewThreshold: Between min and auto, entities are "draft" status (needs review)
+        // - autoThreshold: At or above this, entities are "accepted" status
+        //
+        // IMPORTANT: The UI's confidence_threshold serves as BOTH the minimum rejection threshold
+        // AND the review threshold. Entities below this are REJECTED, not just marked for review.
+        // The UI's auto_accept_threshold is the threshold for auto-accepting as final.
+        const minThresholdFromConfig =
+          job.extraction_config?.min_threshold !== undefined;
+        const draftThresholdFromConfig =
+          job.extraction_config?.confidence_threshold !== undefined;
+        const autoThresholdFromConfig =
+          job.extraction_config?.auto_accept_threshold !== undefined;
+
+        // Minimum threshold for rejection:
+        // 1. Use explicit min_threshold if provided
+        // 2. Otherwise, use confidence_threshold from job config (user's expectation is this rejects low-confidence)
+        // 3. Fall back to server default (EXTRACTION_CONFIDENCE_THRESHOLD_MIN)
+        const minThreshold = minThresholdFromConfig
+          ? job.extraction_config.min_threshold
+          : draftThresholdFromConfig
+          ? job.extraction_config.confidence_threshold
+          : this.config.extractionConfidenceThresholdMin;
+
+        // Draft threshold - entities below this get extra review marking
+        // This comes from the UI's "confidence_threshold" slider
+        const reviewThreshold = draftThresholdFromConfig
+          ? job.extraction_config.confidence_threshold
+          : this.config.extractionConfidenceThresholdReview;
+
+        // Auto-accept threshold - at or above this, entities are marked "accepted"
+        const autoThreshold = autoThresholdFromConfig
+          ? job.extraction_config.auto_accept_threshold
+          : this.config.extractionConfidenceThresholdAuto;
+
+        // Build thresholds object for debug info
+        // Note: min threshold can come from explicit min_threshold OR confidence_threshold
+        const minSourceIsJobConfig =
+          minThresholdFromConfig || draftThresholdFromConfig;
+        const thresholdsInfo = {
+          min: minThreshold,
+          review: reviewThreshold,
+          autoAccept: autoThreshold,
+          source: {
+            min: (minSourceIsJobConfig ? 'job_config' : 'server_default') as
+              | 'job_config'
+              | 'server_default',
+            review: (draftThresholdFromConfig
+              ? 'job_config'
+              : 'server_default') as 'job_config' | 'server_default',
+            autoAccept: (autoThresholdFromConfig
+              ? 'job_config'
+              : 'server_default') as 'job_config' | 'server_default',
           },
-        });
-      }
-
-      // 2. Load extraction config (prompt + schemas) from template pack
-      const promptStep = beginTimelineStep('load_prompt', {
-        template_pack_strategy: this.config.extractionEntityLinkingStrategy,
-      });
-
-      const extractionConfig = await this.loadExtractionConfig(job).catch(
-        (error: Error) => {
-          const message = toErrorMessage(error);
-          promptStep('error', { message });
-          throw error;
-        }
-      );
-
-      // Check if we have object schemas - the actual extraction prompt is built
-      // by buildToolExtractionPrompt() in the LLM provider using these schemas.
-      // The basePrompt is optional and just provides additional context.
-      if (Object.keys(extractionConfig.objectSchemas).length === 0) {
-        const message =
-          'No extraction schemas configured for this project. Install a template pack with object type schemas.';
-        promptStep('error', { message });
-        throw new Error(message);
-      }
-
-      // Base prompt is optional - buildToolExtractionPrompt provides the core instructions
-      const extractionPrompt = extractionConfig.prompt || '';
-      const objectSchemas = extractionConfig.objectSchemas;
-      const relationshipSchemas = extractionConfig.relationshipSchemas;
-
-      promptStep('success', {
-        metadata: {
-          base_prompt_length: extractionPrompt.length,
-          base_prompt_configured: extractionPrompt.length > 0,
-          schema_count: Object.keys(objectSchemas).length,
-          schema_types: Object.keys(objectSchemas),
-          relationship_schema_count: Object.keys(relationshipSchemas).length,
-          relationship_types: Object.keys(relationshipSchemas),
-        },
-      });
-
-      // 3. Wait for rate limit capacity
-      const estimatedTokens = this.estimateTokens(
-        documentContent,
-        extractionPrompt
-      );
-      const rateLimitStep = beginTimelineStep('rate_limit', {
-        estimated_tokens: estimatedTokens,
-      });
-
-      const allowed = await this.rateLimiter.waitForCapacity(
-        estimatedTokens,
-        60000
-      );
-
-      if (!allowed) {
-        const message = 'Rate limit exceeded, job will retry later';
-        rateLimitStep('warning', {
-          message,
-        });
-        throw new Error(message);
-      }
-
-      rateLimitStep('success', {
-        metadata: {
-          estimated_tokens: estimatedTokens,
-        },
-      });
-
-      // 4. Call LLM provider to extract entities
-      const resolveProviderStep = beginTimelineStep('resolve_llm_provider');
-      const llmProvider = (() => {
-        try {
-          const provider = this.llmFactory.getProvider();
-          providerName = provider.getName();
-          resolveProviderStep('success', {
-            metadata: { provider: providerName },
-          });
-          return provider;
-        } catch (error) {
-          const message = toErrorMessage(error);
-          resolveProviderStep('error', { message });
-          throw error;
-        }
-      })();
-
-      // Derive allowed types from job config or fall back to template pack schema keys
-      // This ensures LLM only extracts entity types defined in the template pack
-      const allowedTypes = this.extractAllowedTypes(job, objectSchemas);
-
-      // Fetch available tags for LLM to prefer existing tags
-      const fetchTagsStep = beginTimelineStep('fetch_available_tags');
-      let availableTags: string[] = [];
-      try {
-        const ctx = {
-          orgId: organizationId,
-          projectId: job.project_id,
         };
-        availableTags = await this.graphService.getAllTags(ctx);
-        fetchTagsStep('success', {
-          metadata: { tags_count: availableTags.length },
-        });
-        this.logger.debug(
-          `Fetched ${availableTags.length} available tags for extraction`
-        );
-      } catch (error) {
-        const message = toErrorMessage(error);
-        fetchTagsStep('warning', { message });
-        this.logger.warn(
-          `Failed to fetch available tags, proceeding without: ${message}`
-        );
-        // Don't throw - continue extraction without tags
-      }
-
-      // Load relevant existing entities using vector search for context-aware extraction
-      // This helps the LLM recognize existing entities and avoid duplicates
-      const loadContextStep = beginTimelineStep('load_existing_context');
-      let existingEntities: ExistingEntityContext[] = [];
-      try {
-        const contextResult =
-          await this.extractionContextService.loadRelevantEntities(
-            documentContent,
-            {
-              projectId: job.project_id,
-              entityTypes: allowedTypes,
-              limitPerType: 30, // Top 30 most similar per type
-              similarityThreshold: 0.5, // Only include if >50% similar
-              includeAllIfBelowCount: 50, // Load all if type has <50 entities
-            }
-          );
-
-        existingEntities = contextResult.allEntities;
-
-        loadContextStep('success', {
-          metadata: {
-            entities_loaded: existingEntities.length,
-            search_method: contextResult.searchMethod,
-            type_breakdown: contextResult.stats.typeBreakdown,
-            avg_similarity: contextResult.stats.averageSimilarity?.toFixed(2),
-            duration_ms: contextResult.stats.searchDurationMs,
-          },
-        });
 
         this.logger.log(
-          `Loaded ${existingEntities.length} existing entities as context (method: ${contextResult.searchMethod})`
-        );
-      } catch (error) {
-        const message = toErrorMessage(error);
-        loadContextStep('warning', { message });
-        this.logger.warn(
-          `Failed to load existing entity context, proceeding without: ${message}`
-        );
-        // Don't throw - continue extraction without existing entity context
-      }
-
-      const llmStep = beginTimelineStep('llm_extract', {
-        provider: providerName,
-        allowed_types: allowedTypes ?? null,
-      });
-
-      // Track LLM call timing for detailed logs
-      const llmCallStartTime = Date.now();
-
-      // Load project-level extraction config for timeout/chunk size settings
-      const projectExtractionConfig = await this.getProjectExtractionConfig(
-        job.project_id
-      );
-
-      // Create queued log entry for LLM call
-      const llmLogId = await this.extractionLogger.logStep({
-        extractionJobId: job.id,
-        stepIndex: this.stepCounter++,
-        operationType: 'llm_call',
-        operationName: 'extract_entities',
-        status: 'queued',
-        inputData: {
-          prompt: extractionPrompt,
-          document_content: documentContent,
-          content_length: documentContent.length,
-          allowed_types: allowedTypes,
-          schema_types: Object.keys(objectSchemas),
-          available_tags: availableTags,
-        },
-        metadata: {
-          provider: providerName,
-          model: this.config.vertexAiModel,
-        },
-      });
-
-      try {
-        // Get extraction settings from job config (overrides) or project config (defaults)
-        // Priority: job.extraction_config > projectExtractionConfig > server defaults
-        const extractionMethod = (job.extraction_config?.extraction_method ||
-          projectExtractionConfig?.method) as
-          | 'responseSchema'
-          | 'function_calling'
-          | undefined;
-
-        // Convert project timeout from seconds to milliseconds
-        const timeoutMs = projectExtractionConfig?.timeoutSeconds
-          ? projectExtractionConfig.timeoutSeconds * 1000
-          : undefined;
-
-        // Get batch size from project config (chunkSize is in chars)
-        const batchSizeChars = projectExtractionConfig?.chunkSize;
-
-        // Get entity similarity threshold from project config
-        const similarityThreshold =
-          projectExtractionConfig?.entitySimilarityThreshold;
-
-        const result = await llmProvider.extractEntities(
-          documentContent,
-          extractionPrompt,
-          {
-            objectSchemas,
-            relationshipSchemas,
-            allowedTypes,
-            availableTags,
-            existingEntities: [], // Empty - deduplication via merge suggestions
-            documentChunks,
-            extractionMethod, // Pass per-job or project extraction method override
-            timeoutMs, // Pass per-project timeout (converted from seconds to ms)
-            batchSizeChars, // Pass per-project chunk size
-            similarityThreshold, // Pass per-project entity similarity threshold
-            context: {
-              jobId: job.id,
-              projectId: job.project_id,
-              traceId: traceId || undefined,
-              parentObservationId: (llmStep as any).spanId,
-            },
-          }
+          `Extraction thresholds for job ${job.id}: ` +
+            `min=${(minThreshold * 100).toFixed(0)}% (${
+              thresholdsInfo.source.min
+            }), ` +
+            `review=${(reviewThreshold * 100).toFixed(0)}% (${
+              thresholdsInfo.source.review
+            }), ` +
+            `autoAccept=${(autoThreshold * 100).toFixed(0)}% (${
+              thresholdsInfo.source.autoAccept
+            })`
         );
 
-        const llmCalls = Array.isArray(result.raw_response?.llm_calls)
-          ? result.raw_response.llm_calls
-          : null;
-
-        const allCallsFailed =
-          !!llmCalls &&
-          llmCalls.length > 0 &&
-          llmCalls.every((call: any) => call?.status === 'error');
-
-        if (allCallsFailed) {
-          const firstError = llmCalls.find((call: any) => call?.error) as
-            | { error?: string; message?: string }
-            | undefined;
-          const errorMessage =
-            firstError?.error ||
-            firstError?.message ||
-            'All LLM extraction calls failed';
-
-          const fatalError = new Error(errorMessage);
-          (
-            fatalError as Error & { llmStepMetadata?: Record<string, any> }
-          ).llmStepMetadata = {
-            failed_calls: llmCalls.length,
-          };
-          throw fatalError;
-        }
-
-        extractionResult = result;
-
-        // Update log entry with success
-        await this.extractionLogger.updateLogStep(llmLogId, {
-          status: 'completed',
-          outputData: {
-            entities_count: result.entities.length,
-            entities: result.entities.map((e) => ({
-              type: e.type_name,
-              name: e.name,
-              properties: e.properties,
-            })),
-            discovered_types: result.discovered_types,
-            raw_response: result.raw_response, // Full LLM response for inspection
-            provider: providerName,
-            model: this.config.vertexAiModel,
-            prompt_tokens: result.usage?.prompt_tokens,
-            completion_tokens: result.usage?.completion_tokens,
-          },
-          durationMs: Date.now() - llmCallStartTime,
-          tokensUsed: result.usage?.total_tokens ?? undefined,
-        });
-
-        llmStep('success', {
-          metadata: {
-            entities: result.entities.length,
-            discovered_types: result.discovered_types?.length ?? 0,
-          },
-        });
-      } catch (error) {
-        const message = toErrorMessage(error);
-        const errorWithMeta = error as Error & {
-          llmStepMetadata?: Record<string, any>;
-          responseMetadata?: any;
-        };
-        const metadata = errorWithMeta.llmStepMetadata;
-        const responseMetadata = errorWithMeta.responseMetadata;
-
-        // Update log entry with error
-        await this.extractionLogger.updateLogStep(llmLogId, {
-          status: 'failed',
-          errorMessage: message,
-          errorStack: (error as Error).stack,
-          durationMs: Date.now() - llmCallStartTime,
-          outputData: responseMetadata
-            ? {
-                llm_response_preview: responseMetadata.rawTextPreview,
-                response_length: responseMetadata.responseLength,
-                finish_reason: responseMetadata.finishReason,
-                extracted_json_preview: responseMetadata.extractedJsonPreview,
-                parse_error: responseMetadata.parseError,
-                provider: providerName,
-              }
-            : { provider: providerName },
-        });
-
-        llmStep('error', {
-          message,
-          metadata,
-        });
-        throw error;
-      }
-
-      // 5. Report actual token usage
-      if (extractionResult && extractionResult.usage) {
-        this.rateLimiter.reportActualUsage(
-          estimatedTokens,
-          extractionResult.usage.total_tokens
-        );
-        pushTimelineEvent('rate_limit_usage_reported', 'info', {
-          metadata: {
-            estimated_tokens: estimatedTokens,
-            actual_tokens: extractionResult.usage.total_tokens,
-          },
-        });
-      }
-
-      if (!extractionResult) {
-        throw new Error('LLM extraction produced no result');
-      }
-
-      // 5.5 Verify extracted entities against source text (3-tier cascade)
-      // When using LangGraph pipeline, verification is already done in the pipeline nodes,
-      // so we skip the separate verification step and use the pre-computed confidence.
-      const isLangGraphPipeline =
-        this.llmFactory.getPipelineMode() === 'langgraph';
-      const verificationEnabled = this.config.extractionVerificationEnabled;
-      const verificationResults = new Map<
-        string,
-        { verified: boolean; confidence: number; tier: number }
-      >();
-
-      // Only run separate verification for single_pass pipeline
-      if (
-        !isLangGraphPipeline &&
-        verificationEnabled &&
-        extractionResult.entities.length > 0
-      ) {
-        const verifyStep = beginTimelineStep('verification', {
-          entity_count: extractionResult.entities.length,
-        });
-
-        try {
-          // Check verification service health
-          const health = await this.verificationService.checkHealth();
-          this.logger.log(
-            `Verification health: ${health.message} (T1: ${health.tier1Available}, T2: ${health.tier2Available}, T3: ${health.tier3Available})`
-          );
-
-          // Run batch verification
-          const verifyRequest = {
-            sourceText: documentContent,
-            entities: extractionResult.entities.map((e) => ({
-              id: e.name, // Use name as ID for now
-              name: e.name,
-              type: e.type_name,
-              properties: e.properties as Record<
-                string,
-                string | number | boolean | null | undefined
-              >,
-            })),
-            jobId: job.id,
-          };
-
-          const verifyResponse = await this.verificationService.verifyBatch(
-            verifyRequest
-          );
-
-          // Build lookup map for verification results
-          for (const result of verifyResponse.results) {
-            verificationResults.set(result.entityName.toLowerCase().trim(), {
-              verified: result.entityVerified,
-              confidence: result.overallConfidence,
-              tier: result.entityVerificationTier,
-            });
-          }
-
-          this.logger.log(
-            `Verification complete: ${verifyResponse.summary.verified} verified, ` +
-              `${verifyResponse.summary.rejected} rejected, ${verifyResponse.summary.uncertain} uncertain ` +
-              `(${verifyResponse.processingTimeMs}ms)`
-          );
-
-          verifyStep('success', {
-            message: `Verified ${extractionResult.entities.length} entities`,
-            metadata: {
-              verified: verifyResponse.summary.verified,
-              rejected: verifyResponse.summary.rejected,
-              uncertain: verifyResponse.summary.uncertain,
-              tier_usage: verifyResponse.summary.tierUsage,
-              processing_time_ms: verifyResponse.processingTimeMs,
-            },
-          });
-        } catch (verifyError) {
-          this.logger.warn(
-            `Verification failed, continuing without verification: ${toErrorMessage(
-              verifyError
-            )}`
-          );
-          verifyStep('warning', {
-            message: `Verification failed: ${toErrorMessage(verifyError)}`,
-          });
-        }
-      }
-
-      const totalEntities = extractionResult.entities.length;
-      let processedEntities = 0;
-      let lastLoggedPercent = -1;
-
-      const outcomeCounts: Record<EntityOutcome, number> = {
-        created: 0,
-        merged: 0,
-        skipped: 0,
-        rejected: 0,
-        failed: 0,
-      };
-
-      // Track skip/fail reasons for better observability (similar to relationshipSkipReasons)
-      const entitySkipReasons: Record<string, number> = {
-        low_confidence: 0,
-        entity_linking_skip: 0,
-        duplicate_skip_strategy: 0,
-        merge_failure_fallback: 0,
-      };
-
-      const entityFailReasons: Record<string, number> = {
-        validation_error: 0,
-        database_error: 0,
-        unknown_error: 0,
-      };
-
-      // Detailed per-entity results for tracing (similar to relationshipDetails)
-      const entityDetails: Array<{
-        name: string;
-        type: string;
-        status: 'created' | 'merged' | 'skipped' | 'rejected' | 'failed';
-        reason?: string;
-        object_id?: string;
-        confidence?: number;
-        error?: string;
-      }> = [];
-
-      let rejectedCount = 0;
-
-      const recordProgress = async (progressOutcome: EntityOutcome) => {
-        if (totalEntities === 0) {
-          return;
-        }
-
-        processedEntities += 1;
-        outcomeCounts[progressOutcome] += 1;
-
-        try {
-          await this.jobService.updateProgress(
-            job.id,
-            processedEntities,
-            totalEntities
-          );
-        } catch (progressUpdateError) {
-          this.logger.warn(
-            `Failed to update progress for job ${job.id} at ${processedEntities}/${totalEntities}`,
-            progressUpdateError as Error
-          );
-        }
-
-        const percentComplete = Math.round(
-          (processedEntities / totalEntities) * 100
-        );
-        const shouldLogProgress =
-          totalEntities <= 10 ||
-          processedEntities === 1 ||
-          processedEntities === totalEntities ||
-          percentComplete >= lastLoggedPercent + 10;
-
-        if (shouldLogProgress) {
-          lastLoggedPercent = percentComplete;
-          this.logger.log(
-            `[PROGRESS] Job ${job.id}: ${processedEntities}/${totalEntities} (${percentComplete}%) entities processed (outcome=${progressOutcome})`
-          );
-        }
-      };
-
-      if (totalEntities > 0) {
-        try {
-          await this.jobService.updateProgress(job.id, 0, totalEntities);
-          this.logger.log(
-            `[PROGRESS] Job ${
-              job.id
-            }: initialized progress tracking for ${totalEntities} entity${
-              totalEntities === 1 ? '' : 'ies'
-            }`
-          );
-          pushTimelineEvent('progress_initialized', 'success', {
-            metadata: {
-              total_entities: totalEntities,
-            },
-          });
-        } catch (progressInitError) {
-          this.logger.warn(
-            `Failed to initialize progress tracking for job ${job.id}`,
-            progressInitError as Error
-          );
-          pushTimelineEvent('progress_initialized', 'warning', {
-            message: toErrorMessage(progressInitError),
-          });
-        }
-      } else {
-        this.logger.log(
-          `Extraction job ${job.id} produced no entities to process`
-        );
-        pushTimelineEvent('progress_skipped', 'info', {
-          message: 'No entities returned from extraction',
-        });
-      }
-
-      // 6. Create graph objects from extracted entities
-      const createdObjectIds: string[] = [];
-      const reviewRequiredObjectIds: string[] = [];
-      const strategy = this.config.extractionEntityLinkingStrategy;
-
-      // Build batchEntityMap DURING object creation to ensure relationships
-      // use the newly created object IDs, not older objects with similar names
-      const batchEntityMap = new Map<string, string>();
-
-      // Helper function to add entity name variants to the map
-      const addToBatchEntityMap = (entityName: string, objectId: string) => {
-        // Add exact normalized name
-        const normalizedName = entityName.toLowerCase().trim();
-        if (!batchEntityMap.has(normalizedName)) {
-          batchEntityMap.set(normalizedName, objectId);
-        }
-        // Also add without common prefixes/articles for fuzzy matching
-        const withoutArticles = normalizedName
-          .replace(/^(the|a|an)\s+/i, '')
-          .trim();
-        if (
-          withoutArticles !== normalizedName &&
-          !batchEntityMap.has(withoutArticles)
-        ) {
-          batchEntityMap.set(withoutArticles, objectId);
-        }
-      };
-
-      const graphStep = beginTimelineStep('create_entities', {
-        strategy,
-      });
-
-      for (const entity of extractionResult.entities) {
-        let outcome: 'created' | 'merged' | 'skipped' | 'rejected' | 'failed' =
-          'skipped';
-
-        try {
-          // Calculate confidence score
-          // For LangGraph pipeline: use the pre-computed verification confidence
-          // For single_pass pipeline: use multi-factor algorithm + verification adjustment
-          let finalConfidence: number;
-
-          if (isLangGraphPipeline && entity.confidence !== undefined) {
-            // LangGraph pipeline already computed verification-weighted confidence:
-            // 40% name + 30% description + 30% properties
-            finalConfidence = entity.confidence;
-            this.logger.debug(
-              `Entity ${
-                entity.name
-              }: using LangGraph verification confidence=${finalConfidence.toFixed(
-                3
-              )} ` + `(status: ${entity.verification_status || 'N/A'})`
-            );
-          } else {
-            // Single_pass pipeline: use multi-factor algorithm
-            const calculatedConfidence =
-              this.confidenceScorer.calculateConfidence(entity, allowedTypes);
-
-            // Check verification results if available (single_pass only)
-            const normalizedEntityName = entity.name.toLowerCase().trim();
-            const verificationResult =
-              verificationResults.get(normalizedEntityName);
-
-            // Apply verification adjustment to confidence
-            // - Verified entities get a confidence boost (up to 10%)
-            // - Rejected by verification get a penalty (up to 30%)
-            // - Uncertain entities keep original confidence
-            let verificationAdjustment = 0;
-            if (verificationResult) {
-              if (verificationResult.verified) {
-                // Boost confidence based on verification confidence (max 10%)
-                verificationAdjustment = Math.min(
-                  0.1,
-                  verificationResult.confidence * 0.1
-                );
-                this.logger.debug(
-                  `Entity "${entity.name}" verified (Tier ${
-                    verificationResult.tier
-                  }): +${(verificationAdjustment * 100).toFixed(1)}%`
-                );
-              } else if (verificationResult.confidence < 0.3) {
-                // Penalize low-confidence verification failures (max 30%)
-                verificationAdjustment = -Math.min(
-                  0.3,
-                  (0.3 - verificationResult.confidence) * 0.5
-                );
-                this.logger.debug(
-                  `Entity "${entity.name}" verification failed (Tier ${
-                    verificationResult.tier
-                  }): ${(verificationAdjustment * 100).toFixed(1)}%`
-                );
-              }
-            }
-
-            // Apply verification adjustment and clamp to [0, 1]
-            finalConfidence = Math.max(
-              0,
-              Math.min(1, calculatedConfidence + verificationAdjustment)
-            );
-
-            this.logger.debug(
-              `Entity ${
-                entity.name
-              }: calculated confidence=${finalConfidence.toFixed(3)} ` +
-                `(LLM: ${entity.confidence?.toFixed(3) || 'N/A'})`
-            );
-          }
-
-          // Apply quality thresholds
-          const qualityDecision = this.applyQualityThresholds(
-            finalConfidence,
-            minThreshold,
-            reviewThreshold,
-            autoThreshold
-          );
-
-          if (qualityDecision === 'reject') {
-            rejectedCount += 1;
-            this.logger.debug(
-              `Rejected entity ${
-                entity.name
-              }: confidence ${finalConfidence.toFixed(3)} ` +
-                `below minimum threshold ${minThreshold}`
-            );
-            outcome = 'rejected';
-            entitySkipReasons.low_confidence++;
-            entityDetails.push({
-              name: entity.name,
-              type: entity.type_name,
-              status: 'rejected',
-              reason: 'low_confidence',
-              confidence: finalConfidence,
-            });
-            await recordProgress(outcome);
-            continue; // Skip this entity
-          }
-
-          // Apply entity linking strategy
-          const linkingDecision = await this.entityLinking.decideMergeAction(
-            entity,
-            job.project_id,
-            strategy as 'key_match' | 'vector_similarity' | 'always_new'
-          );
-
-          if (linkingDecision.action === 'skip') {
-            // Object already exists with high similarity, skip creation
-            this.logger.debug(
-              `Skipped entity ${entity.name}: already exists as ${linkingDecision.existingObjectId}`
-            );
-            // Still add to map so relationships can reference this entity
-            if (linkingDecision.existingObjectId) {
-              addToBatchEntityMap(
-                entity.name,
-                linkingDecision.existingObjectId
-              );
-            }
-            outcome = 'skipped';
-            entitySkipReasons.entity_linking_skip++;
-            entityDetails.push({
-              name: entity.name,
-              type: entity.type_name,
-              status: 'skipped',
-              reason: 'entity_linking_skip',
-              object_id: linkingDecision.existingObjectId,
-            });
-            await recordProgress(outcome);
-            continue;
-          }
-
-          if (linkingDecision.action === 'merge') {
-            // Merge entity into existing object
-            await this.entityLinking.mergeEntityIntoObject(
-              linkingDecision.existingObjectId!,
-              entity,
-              job.id
-            );
-
-            createdObjectIds.push(linkingDecision.existingObjectId!);
-
-            // Add to batchEntityMap for relationship resolution
-            addToBatchEntityMap(entity.name, linkingDecision.existingObjectId!);
-
-            if (qualityDecision === 'review') {
-              reviewRequiredObjectIds.push(linkingDecision.existingObjectId!);
-            }
-
-            this.logger.debug(
-              `Merged entity ${entity.name} into existing object ${linkingDecision.existingObjectId} ` +
-                `(confidence: ${finalConfidence.toFixed(
-                  3
-                )}, decision: ${qualityDecision})`
-            );
-            outcome = 'merged';
-            await recordProgress(outcome);
-            continue;
-          }
-
-          // linkingDecision.action === 'create' - create new object
-          if (linkingDecision.action === 'create') {
-            // Determine labels based on quality decision
-            const labels: string[] = [];
-            if (qualityDecision === 'review') {
-              labels.push('requires_review');
-            }
-
-            // Determine status based on confidence and auto-accept threshold
-            // High confidence (>= autoThreshold) → status='accepted' (will be embedded)
-            // Low confidence (< autoThreshold) → status='draft' (will NOT be embedded)
-            const status =
-              finalConfidence >= autoThreshold ? 'accepted' : 'draft';
-
-            // NOTE: We no longer generate or check for duplicate keys.
-            // The `key` column is nullable and non-unique.
-            // Deduplication is handled by a separate merge process.
-            // The `id` (auto-generated UUID) is the unique identifier.
-
-            // Track object creation start time
-            const objectCreationStartTime = Date.now();
-
-            const graphObject = await this.graphService.createObject({
-              org_id: organizationId ?? undefined,
-              project_id: job.project_id,
-              type: entity.type_name,
-              key: undefined, // Key is no longer required - deduplication handled separately
-              status: status,
-              properties: {
-                name: entity.name,
-                description: entity.description,
-                ...entity.properties,
-                _extraction_confidence: finalConfidence,
-                _extraction_llm_confidence: entity.confidence,
-                _extraction_source: job.source_type,
-                _extraction_source_id: job.source_id,
-                _extraction_job_id: job.id,
-              },
-              labels,
-            });
-
-            createdObjectIds.push(graphObject.id);
-
-            // Add to batchEntityMap for relationship resolution
-            addToBatchEntityMap(entity.name, graphObject.id);
-
-            if (qualityDecision === 'review') {
-              reviewRequiredObjectIds.push(graphObject.id);
-            }
-
-            // Log successful object creation (combined input + output)
-            await this.extractionLogger.logStep({
-              extractionJobId: job.id,
-              stepIndex: this.stepCounter++,
-              operationType: 'object_creation',
-              operationName: 'create_graph_object',
-              status: 'completed',
-              inputData: {
-                entity_type: entity.type_name,
-                entity_name: entity.name,
-                entity_description: entity.description,
-                entity_properties: entity.properties,
-                confidence: finalConfidence,
-                quality_decision: qualityDecision,
-              },
-              outputData: {
-                object_id: graphObject.id,
-                entity_name: entity.name,
-                entity_type: entity.type_name,
-                quality_decision: qualityDecision,
-                requires_review: qualityDecision === 'review',
-              },
-              durationMs: Date.now() - objectCreationStartTime,
-              metadata: {
-                project_id: job.project_id,
-                confidence: finalConfidence,
-              },
-            });
-
-            this.logger.debug(
-              `Created object ${graphObject.id}: ${entity.type_name} - ${entity.name} ` +
-                `(confidence: ${finalConfidence.toFixed(
-                  3
-                )}, decision: ${qualityDecision})`
-            );
-            outcome = 'created';
-          }
-        } catch (error) {
-          outcome = 'failed';
-          const err = error instanceof Error ? error : new Error(String(error));
-
-          // Extract detailed error information from BadRequestException
-          let errorDetails: Record<string, any> | undefined;
-          if (error instanceof BadRequestException) {
-            const response = error.getResponse();
-            if (typeof response === 'object' && response !== null) {
-              errorDetails = {
-                code: (response as any).code,
-                errors: (response as any).errors,
-                entity_properties: entity.properties,
-              };
-            }
-          }
-
-          // Log object creation error with full context
-          await this.extractionLogger.logStep({
-            extractionJobId: job.id,
-            stepIndex: this.stepCounter++,
-            operationType: 'error',
-            operationName: 'create_graph_object',
-            status: 'failed',
-            errorMessage: err.message,
-            errorStack: err.stack,
-            errorDetails,
-            metadata: {
-              entity_name: entity.name,
-              entity_type: entity.type_name,
-              entity_properties: entity.properties,
-              entity_description: entity.description,
-            },
-          });
-
-          this.logger.error(
-            `Failed to create object for entity ${entity.name} (${entity.type_name}): ${err.message}`,
-            err.stack
-          );
-          // Continue processing other entities
-        }
-
-        await recordProgress(outcome);
-      }
-
-      // 6b. batchEntityMap was populated during object creation above
-      // Log the map size for debugging
-      this.logger.debug(
-        `BatchEntityMap populated during creation with ${batchEntityMap.size} entity mappings`
-      );
-
-      // 6c. Process extracted relationships
-      let relationshipsCreated = 0;
-      let relationshipsSkipped = 0;
-      let relationshipsFailed = 0;
-      // Track skip reasons for better observability
-      const relationshipSkipReasons: Record<string, number> = {
-        source_not_resolved: 0,
-        target_not_resolved: 0,
-        duplicate: 0,
-        rejected_verification: 0,
-      };
-      // Detailed per-relationship results for tracing
-      const relationshipDetails: Array<{
-        type: string;
-        source: string;
-        target: string;
-        status: 'created' | 'skipped' | 'failed';
-        reason?: string;
-        source_id?: string;
-        target_id?: string;
-      }> = [];
-
-      if (
-        extractionResult.relationships &&
-        extractionResult.relationships.length > 0
-      ) {
-        const relStep = beginTimelineStep('create_relationships', {
-          total_relationships: extractionResult.relationships.length,
-        });
-
-        for (const rel of extractionResult.relationships) {
-          try {
-            // Resolve source entity ID
-            const sourceId = await this.resolveEntityReference(
-              rel.source,
-              batchEntityMap,
-              job.project_id
-            );
-
-            // Resolve target entity ID
-            const targetId = await this.resolveEntityReference(
-              rel.target,
-              batchEntityMap,
-              job.project_id
-            );
-
-            if (!sourceId) {
-              this.logger.warn(
-                `[Relationship] Could not resolve source entity: ${
-                  rel.source.name || rel.source.id
-                } for relationship type ${rel.relationship_type}`
-              );
-              relationshipsSkipped++;
-              relationshipSkipReasons.source_not_resolved++;
-              relationshipDetails.push({
-                type: rel.relationship_type,
-                source: rel.source.name || rel.source.id || 'unknown',
-                target: rel.target.name || rel.target.id || 'unknown',
-                status: 'skipped',
-                reason: `source_not_resolved: "${
-                  rel.source.name || rel.source.id
-                }" not found in batch or database`,
-              });
-              continue;
-            }
-
-            if (!targetId) {
-              this.logger.warn(
-                `[Relationship] Could not resolve target entity: ${
-                  rel.target.name || rel.target.id
-                } for relationship type ${rel.relationship_type}`
-              );
-              relationshipsSkipped++;
-              relationshipSkipReasons.target_not_resolved++;
-              relationshipDetails.push({
-                type: rel.relationship_type,
-                source: rel.source.name || rel.source.id || 'unknown',
-                target: rel.target.name || rel.target.id || 'unknown',
-                status: 'skipped',
-                reason: `target_not_resolved: "${
-                  rel.target.name || rel.target.id
-                }" not found in batch or database`,
-                source_id: sourceId,
-              });
-              continue;
-            }
-
-            // Check verification status for LangGraph pipeline
-            // Skip rejected relationships (confidence below threshold)
-            if (rel.verification_status === 'rejected') {
-              this.logger.debug(
-                `[Relationship] Skipping rejected relationship: ${rel.relationship_type} ` +
-                  `(${rel.source.name || rel.source.id} → ${
-                    rel.target.name || rel.target.id
-                  }) ` +
-                  `confidence=${rel.confidence?.toFixed(3) || 'N/A'}`
-              );
-              relationshipsSkipped++;
-              relationshipSkipReasons.rejected_verification++;
-              relationshipDetails.push({
-                type: rel.relationship_type,
-                source: rel.source.name || rel.source.id || 'unknown',
-                target: rel.target.name || rel.target.id || 'unknown',
-                status: 'skipped',
-                reason: `rejected_verification: confidence ${(
-                  (rel.confidence || 0) * 100
-                ).toFixed(1)}% below threshold`,
-                source_id: sourceId,
-                target_id: targetId,
-              });
-              continue;
-            }
-
-            // Validate against relationship schema if available
-            if (
-              relationshipSchemas &&
-              relationshipSchemas[rel.relationship_type]
-            ) {
-              const schema = relationshipSchemas[rel.relationship_type];
-              // Could add source/target type validation here
-              // For now, we just log that the relationship type is valid
-              this.logger.debug(
-                `[Relationship] Type ${rel.relationship_type} is valid per schema`
-              );
-            }
-
-            // Create the relationship
-            await this.graphService.createRelationship(
-              {
-                type: rel.relationship_type,
-                src_id: sourceId,
-                dst_id: targetId,
-                properties: {
-                  description: rel.description,
-                  _extraction_confidence: rel.confidence,
-                  _extraction_job_id: job.id,
-                  _extraction_source: 'llm',
-                },
-              },
-              organizationId ?? '',
-              job.project_id
-            );
-
-            relationshipsCreated++;
-            relationshipDetails.push({
-              type: rel.relationship_type,
-              source: rel.source.name || rel.source.id || 'unknown',
-              target: rel.target.name || rel.target.id || 'unknown',
-              status: 'created',
-              source_id: sourceId,
-              target_id: targetId,
-            });
-            this.logger.debug(
-              `[Relationship] Created ${rel.relationship_type}: ${sourceId} → ${targetId}`
-            );
-          } catch (relError) {
-            const relErr =
-              relError instanceof Error
-                ? relError
-                : new Error(String(relError));
-
-            // Handle duplicate relationship gracefully
-            if (
-              relErr.message.includes('duplicate') ||
-              relErr.message.includes('unique')
-            ) {
-              this.logger.debug(
-                `[Relationship] Skipped duplicate: ${rel.relationship_type}`
-              );
-              relationshipsSkipped++;
-              relationshipSkipReasons.duplicate++;
-              relationshipDetails.push({
-                type: rel.relationship_type,
-                source: rel.source.name || rel.source.id || 'unknown',
-                target: rel.target.name || rel.target.id || 'unknown',
-                status: 'skipped',
-                reason: 'duplicate: relationship already exists',
-              });
-            } else {
-              this.logger.warn(
-                `[Relationship] Failed to create ${rel.relationship_type}: ${relErr.message}`
-              );
-              relationshipsFailed++;
-              relationshipDetails.push({
-                type: rel.relationship_type,
-                source: rel.source.name || rel.source.id || 'unknown',
-                target: rel.target.name || rel.target.id || 'unknown',
-                status: 'failed',
-                reason: `error: ${relErr.message}`,
-              });
-            }
-          }
-        }
-
-        relStep('success', {
-          metadata: {
-            created: relationshipsCreated,
-            skipped: relationshipsSkipped,
-            failed: relationshipsFailed,
-            skip_reasons: relationshipSkipReasons,
-            relationship_details: relationshipDetails,
-          },
-        });
-
-        this.logger.log(
-          `Relationships: ${relationshipsCreated} created, ${relationshipsSkipped} skipped (${relationshipSkipReasons.source_not_resolved} source unresolved, ${relationshipSkipReasons.target_not_resolved} target unresolved, ${relationshipSkipReasons.duplicate} duplicates), ${relationshipsFailed} failed`
-        );
-      }
-
-      graphStep('success', {
-        metadata: {
-          created: outcomeCounts.created,
-          merged: outcomeCounts.merged,
-          skipped: outcomeCounts.skipped,
-          rejected: outcomeCounts.rejected,
-          failed: outcomeCounts.failed,
-          review_required: reviewRequiredObjectIds.length,
-          relationships_created: relationshipsCreated,
-          relationships_skipped: relationshipsSkipped,
-          relationships_failed: relationshipsFailed,
-          relationship_skip_reasons: relationshipSkipReasons,
-          relationship_details: relationshipDetails,
-        },
-      });
-
-      // 7. Mark job as completed or requires_review
-      const requiresReview = reviewRequiredObjectIds.length > 0;
-      const duration = Date.now() - startTime;
-      const debugInfo = this.buildDebugInfo({
-        job,
-        startTime,
-        durationMs: duration,
-        timeline,
-        providerName,
-        extractionResult,
-        outcomeCounts,
-        createdObjectIds,
-        rejectedCount,
-        reviewRequiredCount: reviewRequiredObjectIds.length,
-        organizationId,
-        thresholds: thresholdsInfo,
-      });
-
-      if (requiresReview) {
-        // Job needs human review
-        await this.jobService.markCompleted(
+        // Create LangFuse trace
+        const traceId = this.langfuseService.createJobTrace(
           job.id,
           {
-            created_objects: createdObjectIds,
-            discovered_types: extractionResult.discovered_types,
-            successful_items: extractionResult.entities.length - rejectedCount,
-            total_items: extractionResult.entities.length,
-            rejected_items: rejectedCount,
-            review_required_count: reviewRequiredObjectIds.length,
-            debug_info: debugInfo,
+            name: `Extraction Job ${job.id}`,
+            source_type: job.source_type,
+            project_id: job.project_id,
+            organization_id: organizationId,
           },
-          'requires_review'
+          undefined, // environment (use default)
+          'extraction' // traceType for filtering
         );
 
-        this.logger.log(
-          `Extraction job ${job.id} requires review: ` +
-            `${reviewRequiredObjectIds.length} objects need human validation, ` +
-            `${rejectedCount} rejected`
-        );
-
-        // Create notification about extraction completion (with review needed)
-        await this.createCompletionNotification(job, {
-          createdObjectIds,
-          objectsByType: this.countObjectsByType(
-            extractionResult.entities,
-            createdObjectIds
-          ),
-          averageConfidence: this.calculateAverageConfidence(
-            extractionResult.entities
-          ),
-          durationSeconds: (Date.now() - startTime) / 1000,
-          requiresReview: reviewRequiredObjectIds.length,
-          lowConfidenceCount: reviewRequiredObjectIds.length,
-        });
-      } else {
-        // Job completed successfully
-        await this.jobService.markCompleted(job.id, {
-          created_objects: createdObjectIds,
-          discovered_types: extractionResult.discovered_types,
-          successful_items: extractionResult.entities.length - rejectedCount,
-          total_items: extractionResult.entities.length,
-          rejected_items: rejectedCount,
-          debug_info: debugInfo,
+        // Log to monitoring system
+        await this.monitoringLogger.logProcessEvent({
+          processId: job.id,
+          processType: 'extraction_job',
+          level: 'info',
+          message: 'Extraction job started',
+          projectId: job.project_id,
+          metadata: {
+            source_type: job.source_type,
+            source_id: job.source_id,
+          },
+          langfuseTraceId: traceId || undefined,
         });
 
-        // Create notification about successful extraction
-        await this.createCompletionNotification(job, {
-          createdObjectIds,
-          objectsByType: this.countObjectsByType(
-            extractionResult.entities,
-            createdObjectIds
-          ),
-          averageConfidence: this.calculateAverageConfidence(
-            extractionResult.entities
-          ),
-          durationSeconds: (Date.now() - startTime) / 1000,
+        // Reset step counter for this job
+        this.stepCounter = 0;
+
+        // Log the start of the job with its configuration
+        await this.extractionLogger.logStep({
+          extractionJobId: job.id,
+          stepIndex: this.stepCounter++,
+          operationType: 'validation',
+          operationName: 'job_started',
+          status: 'completed',
+          inputData: {
+            source_type: job.source_type,
+            source_id: job.source_id,
+            project_id: job.project_id,
+          },
         });
+
+        const timeline: TimelineEvent[] = [];
+        let providerName = this.llmFactory.getProviderName();
+        let extractionResult: ExtractionResult | null = null;
+
+        const pushTimelineEvent = (
+          step: string,
+          status: TimelineEventStatus,
+          details?: {
+            message?: string;
+            metadata?: Record<string, any>;
+            durationMs?: number;
+          }
+        ) => {
+          const event: TimelineEvent = {
+            step,
+            status,
+            timestamp: new Date().toISOString(),
+          };
+
+          if (details?.durationMs !== undefined) {
+            event.duration_ms = Math.max(details.durationMs, 0);
+          }
+
+          if (details?.message) {
+            event.message = details.message;
+          }
+
+          if (details?.metadata && Object.keys(details.metadata).length > 0) {
+            event.metadata = details.metadata;
+          }
+
+          timeline.push(event);
+
+          const durationText =
+            details?.durationMs !== undefined
+              ? ` duration=${details.durationMs}ms`
+              : '';
+          const messageText = details?.message
+            ? ` message=${details.message}`
+            : '';
+          const metadataText =
+            details?.metadata && Object.keys(details.metadata).length > 0
+              ? ` metadata=${JSON.stringify(details.metadata)}`
+              : '';
+
+          this.logger.debug(
+            `[TIMELINE] Job ${job.id} step=${step} status=${status}${durationText}${messageText}${metadataText}`
+          );
+        };
+
+        /**
+         * Map to track active spans by step name for hierarchical nesting
+         */
+        const activeSpans = new Map<string, LangfuseSpanClient | null>();
+
+        /**
+         * Begin a timeline step with optional Langfuse span tracking.
+         * Returns a function to complete the step.
+         */
+        const beginTimelineStep = (
+          step: string,
+          metadata?: Record<string, any>
+        ): ((
+          status: TimelineEventStatus,
+          details?: { message?: string; metadata?: Record<string, any> }
+        ) => void) & { spanId?: string } => {
+          const startedAt = Date.now();
+
+          // Create Langfuse span for this step
+          const span = traceId
+            ? this.langfuseService.createSpan(traceId, step, metadata)
+            : null;
+
+          // Store the span for potential child observations
+          activeSpans.set(step, span);
+
+          const endStep = (
+            status: TimelineEventStatus,
+            details?: { message?: string; metadata?: Record<string, any> }
+          ) => {
+            // Push timeline event
+            pushTimelineEvent(step, status, {
+              durationMs: Date.now() - startedAt,
+              message: details?.message,
+              metadata: {
+                ...(metadata ?? {}),
+                ...(details?.metadata ?? {}),
+              },
+            });
+
+            // End Langfuse span
+            if (span) {
+              this.langfuseService.endSpan(
+                span,
+                details?.metadata,
+                status === 'error' ? 'error' : 'success',
+                details?.message
+              );
+            }
+
+            // Remove from active spans
+            activeSpans.delete(step);
+          };
+
+          // Attach span ID as property for accessing in llm_extract step
+          (endStep as any).spanId = span?.id;
+
+          return endStep as ((
+            status: TimelineEventStatus,
+            details?: { message?: string; metadata?: Record<string, any> }
+          ) => void) & { spanId?: string };
+        };
+
+        pushTimelineEvent('job_started', 'info', {
+          metadata: {
+            source_type: job.source_type,
+            project_id: job.project_id,
+          },
+        });
+
+        try {
+          // 1. Load document content and ensure chunks + embeddings exist
+          const documentStep = beginTimelineStep('load_document', {
+            source_id: job.source_id ?? null,
+            source_type: job.source_type,
+          });
+
+          let documentContent: string | null = null;
+          let documentChunks: string[] = [];
+
+          // For document sources, ensure chunks and embeddings are ready
+          if (job.source_type === 'document' && job.source_id) {
+            const readyResult = await this.ensureDocumentReady(
+              job.source_id,
+              job.project_id
+            ).catch((error) => {
+              const message = toErrorMessage(error);
+              documentStep('error', { message });
+              throw error;
+            });
+
+            if (!readyResult.success || !readyResult.content) {
+              const message = 'Failed to prepare document (chunks/embeddings)';
+              documentStep('error', { message });
+              throw new Error(message);
+            }
+
+            documentContent = readyResult.content;
+            documentChunks = readyResult.chunkTexts;
+
+            // Log chunk/embedding preparation details
+            documentStep('success', {
+              metadata: {
+                character_count: documentContent.length,
+                chunks_created: readyResult.chunksCreated,
+                chunk_count: readyResult.chunkCount,
+                embeddings_generated: readyResult.embeddingsGenerated,
+              },
+            });
+
+            // Add timeline event for chunk/embedding preparation if chunks were created
+            if (
+              readyResult.chunksCreated ||
+              readyResult.embeddingsGenerated > 0
+            ) {
+              pushTimelineEvent('ensure_chunks_embeddings', 'success', {
+                metadata: {
+                  chunks_created: readyResult.chunksCreated,
+                  chunk_count: readyResult.chunkCount,
+                  embeddings_generated: readyResult.embeddingsGenerated,
+                },
+              });
+            }
+          } else {
+            // For non-document sources (manual, api), use the original method
+            documentContent = await this.loadDocumentContent(job).catch(
+              (error) => {
+                const message = toErrorMessage(error);
+                documentStep('error', { message });
+                throw error;
+              }
+            );
+
+            if (!documentContent) {
+              const message = 'Failed to load document content';
+              documentStep('error', { message });
+              throw new Error(message);
+            }
+
+            // Create chunks on-the-fly for non-document sources
+            // This ensures the relationship builder always has semantic chunks to work with
+            const chunksWithMeta = this.chunkerService.chunkWithMetadata(
+              documentContent,
+              { strategy: 'paragraph' } // Use paragraph strategy for semantic boundaries
+            );
+            documentChunks = chunksWithMeta.map((c) => c.text);
+
+            documentStep('success', {
+              metadata: {
+                character_count: documentContent.length,
+                chunks_created: documentChunks.length,
+              },
+            });
+          }
+
+          // 2. Load extraction config (prompt + schemas) from template pack
+          const promptStep = beginTimelineStep('load_prompt', {
+            template_pack_strategy: this.config.extractionEntityLinkingStrategy,
+          });
+
+          const extractionConfig = await this.loadExtractionConfig(job).catch(
+            (error: Error) => {
+              const message = toErrorMessage(error);
+              promptStep('error', { message });
+              throw error;
+            }
+          );
+
+          // Check if we have object schemas - the actual extraction prompt is built
+          // by buildToolExtractionPrompt() in the LLM provider using these schemas.
+          // The basePrompt is optional and just provides additional context.
+          if (Object.keys(extractionConfig.objectSchemas).length === 0) {
+            const message =
+              'No extraction schemas configured for this project. Install a template pack with object type schemas.';
+            promptStep('error', { message });
+            throw new Error(message);
+          }
+
+          // Base prompt is optional - buildToolExtractionPrompt provides the core instructions
+          const extractionPrompt = extractionConfig.prompt || '';
+          const objectSchemas = extractionConfig.objectSchemas;
+          const relationshipSchemas = extractionConfig.relationshipSchemas;
+
+          promptStep('success', {
+            metadata: {
+              base_prompt_length: extractionPrompt.length,
+              base_prompt_configured: extractionPrompt.length > 0,
+              schema_count: Object.keys(objectSchemas).length,
+              schema_types: Object.keys(objectSchemas),
+              relationship_schema_count:
+                Object.keys(relationshipSchemas).length,
+              relationship_types: Object.keys(relationshipSchemas),
+            },
+          });
+
+          // 3. Wait for rate limit capacity
+          const estimatedTokens = this.estimateTokens(
+            documentContent,
+            extractionPrompt
+          );
+          const rateLimitStep = beginTimelineStep('rate_limit', {
+            estimated_tokens: estimatedTokens,
+          });
+
+          const allowed = await this.rateLimiter.waitForCapacity(
+            estimatedTokens,
+            60000
+          );
+
+          if (!allowed) {
+            const message = 'Rate limit exceeded, job will retry later';
+            rateLimitStep('warning', {
+              message,
+            });
+            throw new Error(message);
+          }
+
+          rateLimitStep('success', {
+            metadata: {
+              estimated_tokens: estimatedTokens,
+            },
+          });
+
+          // 4. Call LLM provider to extract entities
+          const resolveProviderStep = beginTimelineStep('resolve_llm_provider');
+          const llmProvider = (() => {
+            try {
+              const provider = this.llmFactory.getProvider();
+              providerName = provider.getName();
+              resolveProviderStep('success', {
+                metadata: { provider: providerName },
+              });
+              return provider;
+            } catch (error) {
+              const message = toErrorMessage(error);
+              resolveProviderStep('error', { message });
+              throw error;
+            }
+          })();
+
+          // Derive allowed types from job config or fall back to template pack schema keys
+          // This ensures LLM only extracts entity types defined in the template pack
+          const allowedTypes = this.extractAllowedTypes(job, objectSchemas);
+
+          // Fetch available tags for LLM to prefer existing tags
+          const fetchTagsStep = beginTimelineStep('fetch_available_tags');
+          let availableTags: string[] = [];
+          try {
+            const ctx = {
+              orgId: organizationId,
+              projectId: job.project_id,
+            };
+            availableTags = await this.graphService.getAllTags(ctx);
+            fetchTagsStep('success', {
+              metadata: { tags_count: availableTags.length },
+            });
+            this.logger.debug(
+              `Fetched ${availableTags.length} available tags for extraction`
+            );
+          } catch (error) {
+            const message = toErrorMessage(error);
+            fetchTagsStep('warning', { message });
+            this.logger.warn(
+              `Failed to fetch available tags, proceeding without: ${message}`
+            );
+            // Don't throw - continue extraction without tags
+          }
+
+          // Load relevant existing entities using vector search for context-aware extraction
+          // This helps the LLM recognize existing entities and avoid duplicates
+          const loadContextStep = beginTimelineStep('load_existing_context');
+          let existingEntities: ExistingEntityContext[] = [];
+          try {
+            const contextResult =
+              await this.extractionContextService.loadRelevantEntities(
+                documentContent,
+                {
+                  projectId: job.project_id,
+                  entityTypes: allowedTypes,
+                  limitPerType: 30, // Top 30 most similar per type
+                  similarityThreshold: 0.5, // Only include if >50% similar
+                  includeAllIfBelowCount: 50, // Load all if type has <50 entities
+                }
+              );
+
+            existingEntities = contextResult.allEntities;
+
+            loadContextStep('success', {
+              metadata: {
+                entities_loaded: existingEntities.length,
+                search_method: contextResult.searchMethod,
+                type_breakdown: contextResult.stats.typeBreakdown,
+                avg_similarity:
+                  contextResult.stats.averageSimilarity?.toFixed(2),
+                duration_ms: contextResult.stats.searchDurationMs,
+              },
+            });
+
+            this.logger.log(
+              `Loaded ${existingEntities.length} existing entities as context (method: ${contextResult.searchMethod})`
+            );
+          } catch (error) {
+            const message = toErrorMessage(error);
+            loadContextStep('warning', { message });
+            this.logger.warn(
+              `Failed to load existing entity context, proceeding without: ${message}`
+            );
+            // Don't throw - continue extraction without existing entity context
+          }
+
+          const llmStep = beginTimelineStep('llm_extract', {
+            provider: providerName,
+            allowed_types: allowedTypes ?? null,
+          });
+
+          // Track LLM call timing for detailed logs
+          const llmCallStartTime = Date.now();
+
+          // Load project-level extraction config for timeout/chunk size settings
+          const projectExtractionConfig = await this.getProjectExtractionConfig(
+            job.project_id
+          );
+
+          // Create queued log entry for LLM call
+          const llmLogId = await this.extractionLogger.logStep({
+            extractionJobId: job.id,
+            stepIndex: this.stepCounter++,
+            operationType: 'llm_call',
+            operationName: 'extract_entities',
+            status: 'queued',
+            inputData: {
+              prompt: extractionPrompt,
+              document_content: documentContent,
+              content_length: documentContent.length,
+              allowed_types: allowedTypes,
+              schema_types: Object.keys(objectSchemas),
+              available_tags: availableTags,
+            },
+            metadata: {
+              provider: providerName,
+              model: this.config.vertexAiModel,
+            },
+          });
+
+          try {
+            // Get extraction settings from job config (overrides) or project config (defaults)
+            // Priority: job.extraction_config > projectExtractionConfig > server defaults
+            const extractionMethod = (job.extraction_config
+              ?.extraction_method || projectExtractionConfig?.method) as
+              | 'responseSchema'
+              | 'function_calling'
+              | undefined;
+
+            // Convert project timeout from seconds to milliseconds
+            const timeoutMs = projectExtractionConfig?.timeoutSeconds
+              ? projectExtractionConfig.timeoutSeconds * 1000
+              : undefined;
+
+            // Get batch size from project config (chunkSize is in chars)
+            const batchSizeChars = projectExtractionConfig?.chunkSize;
+
+            // Get entity similarity threshold from project config
+            const similarityThreshold =
+              projectExtractionConfig?.entitySimilarityThreshold;
+
+            const result = await llmProvider.extractEntities(
+              documentContent,
+              extractionPrompt,
+              {
+                objectSchemas,
+                relationshipSchemas,
+                allowedTypes,
+                availableTags,
+                existingEntities: [], // Empty - deduplication via merge suggestions
+                documentChunks,
+                extractionMethod, // Pass per-job or project extraction method override
+                timeoutMs, // Pass per-project timeout (converted from seconds to ms)
+                batchSizeChars, // Pass per-project chunk size
+                similarityThreshold, // Pass per-project entity similarity threshold
+                context: {
+                  jobId: job.id,
+                  projectId: job.project_id,
+                  traceId: traceId || undefined,
+                  parentObservationId: (llmStep as any).spanId,
+                },
+              }
+            );
+
+            const llmCalls = Array.isArray(result.raw_response?.llm_calls)
+              ? result.raw_response.llm_calls
+              : null;
+
+            const allCallsFailed =
+              !!llmCalls &&
+              llmCalls.length > 0 &&
+              llmCalls.every((call: any) => call?.status === 'error');
+
+            if (allCallsFailed) {
+              const firstError = llmCalls.find((call: any) => call?.error) as
+                | { error?: string; message?: string }
+                | undefined;
+              const errorMessage =
+                firstError?.error ||
+                firstError?.message ||
+                'All LLM extraction calls failed';
+
+              const fatalError = new Error(errorMessage);
+              (
+                fatalError as Error & { llmStepMetadata?: Record<string, any> }
+              ).llmStepMetadata = {
+                failed_calls: llmCalls.length,
+              };
+              throw fatalError;
+            }
+
+            extractionResult = result;
+
+            // Update log entry with success
+            await this.extractionLogger.updateLogStep(llmLogId, {
+              status: 'completed',
+              outputData: {
+                entities_count: result.entities.length,
+                entities: result.entities.map((e) => ({
+                  type: e.type_name,
+                  name: e.name,
+                  properties: e.properties,
+                })),
+                discovered_types: result.discovered_types,
+                raw_response: result.raw_response, // Full LLM response for inspection
+                provider: providerName,
+                model: this.config.vertexAiModel,
+                prompt_tokens: result.usage?.prompt_tokens,
+                completion_tokens: result.usage?.completion_tokens,
+              },
+              durationMs: Date.now() - llmCallStartTime,
+              tokensUsed: result.usage?.total_tokens ?? undefined,
+            });
+
+            llmStep('success', {
+              metadata: {
+                entities: result.entities.length,
+                discovered_types: result.discovered_types?.length ?? 0,
+              },
+            });
+          } catch (error) {
+            const message = toErrorMessage(error);
+            const errorWithMeta = error as Error & {
+              llmStepMetadata?: Record<string, any>;
+              responseMetadata?: any;
+            };
+            const metadata = errorWithMeta.llmStepMetadata;
+            const responseMetadata = errorWithMeta.responseMetadata;
+
+            // Update log entry with error
+            await this.extractionLogger.updateLogStep(llmLogId, {
+              status: 'failed',
+              errorMessage: message,
+              errorStack: (error as Error).stack,
+              durationMs: Date.now() - llmCallStartTime,
+              outputData: responseMetadata
+                ? {
+                    llm_response_preview: responseMetadata.rawTextPreview,
+                    response_length: responseMetadata.responseLength,
+                    finish_reason: responseMetadata.finishReason,
+                    extracted_json_preview:
+                      responseMetadata.extractedJsonPreview,
+                    parse_error: responseMetadata.parseError,
+                    provider: providerName,
+                  }
+                : { provider: providerName },
+            });
+
+            llmStep('error', {
+              message,
+              metadata,
+            });
+            throw error;
+          }
+
+          // 5. Report actual token usage
+          if (extractionResult && extractionResult.usage) {
+            this.rateLimiter.reportActualUsage(
+              estimatedTokens,
+              extractionResult.usage.total_tokens
+            );
+            pushTimelineEvent('rate_limit_usage_reported', 'info', {
+              metadata: {
+                estimated_tokens: estimatedTokens,
+                actual_tokens: extractionResult.usage.total_tokens,
+              },
+            });
+          }
+
+          if (!extractionResult) {
+            throw new Error('LLM extraction produced no result');
+          }
+
+          // 5.5 Verify extracted entities against source text (3-tier cascade)
+          // When using LangGraph pipeline, verification is already done in the pipeline nodes,
+          // so we skip the separate verification step and use the pre-computed confidence.
+          const isLangGraphPipeline =
+            this.llmFactory.getPipelineMode() === 'langgraph';
+          const verificationEnabled = this.config.extractionVerificationEnabled;
+          const verificationResults = new Map<
+            string,
+            { verified: boolean; confidence: number; tier: number }
+          >();
+
+          // Only run separate verification for single_pass pipeline
+          if (
+            !isLangGraphPipeline &&
+            verificationEnabled &&
+            extractionResult.entities.length > 0
+          ) {
+            const verifyStep = beginTimelineStep('verification', {
+              entity_count: extractionResult.entities.length,
+            });
+
+            try {
+              // Check verification service health
+              const health = await this.verificationService.checkHealth();
+              this.logger.log(
+                `Verification health: ${health.message} (T1: ${health.tier1Available}, T2: ${health.tier2Available}, T3: ${health.tier3Available})`
+              );
+
+              // Run batch verification
+              const verifyRequest = {
+                sourceText: documentContent,
+                entities: extractionResult.entities.map((e) => ({
+                  id: e.name, // Use name as ID for now
+                  name: e.name,
+                  type: e.type_name,
+                  properties: e.properties as Record<
+                    string,
+                    string | number | boolean | null | undefined
+                  >,
+                })),
+                jobId: job.id,
+              };
+
+              const verifyResponse = await this.verificationService.verifyBatch(
+                verifyRequest
+              );
+
+              // Build lookup map for verification results
+              for (const result of verifyResponse.results) {
+                verificationResults.set(
+                  result.entityName.toLowerCase().trim(),
+                  {
+                    verified: result.entityVerified,
+                    confidence: result.overallConfidence,
+                    tier: result.entityVerificationTier,
+                  }
+                );
+              }
+
+              this.logger.log(
+                `Verification complete: ${verifyResponse.summary.verified} verified, ` +
+                  `${verifyResponse.summary.rejected} rejected, ${verifyResponse.summary.uncertain} uncertain ` +
+                  `(${verifyResponse.processingTimeMs}ms)`
+              );
+
+              verifyStep('success', {
+                message: `Verified ${extractionResult.entities.length} entities`,
+                metadata: {
+                  verified: verifyResponse.summary.verified,
+                  rejected: verifyResponse.summary.rejected,
+                  uncertain: verifyResponse.summary.uncertain,
+                  tier_usage: verifyResponse.summary.tierUsage,
+                  processing_time_ms: verifyResponse.processingTimeMs,
+                },
+              });
+            } catch (verifyError) {
+              this.logger.warn(
+                `Verification failed, continuing without verification: ${toErrorMessage(
+                  verifyError
+                )}`
+              );
+              verifyStep('warning', {
+                message: `Verification failed: ${toErrorMessage(verifyError)}`,
+              });
+            }
+          }
+
+          const totalEntities = extractionResult.entities.length;
+          let processedEntities = 0;
+          let lastLoggedPercent = -1;
+
+          const outcomeCounts: Record<EntityOutcome, number> = {
+            created: 0,
+            merged: 0,
+            skipped: 0,
+            rejected: 0,
+            failed: 0,
+          };
+
+          // Track skip/fail reasons for better observability (similar to relationshipSkipReasons)
+          const entitySkipReasons: Record<string, number> = {
+            low_confidence: 0,
+            entity_linking_skip: 0,
+            duplicate_skip_strategy: 0,
+            merge_failure_fallback: 0,
+          };
+
+          const entityFailReasons: Record<string, number> = {
+            validation_error: 0,
+            database_error: 0,
+            unknown_error: 0,
+          };
+
+          // Detailed per-entity results for tracing (similar to relationshipDetails)
+          const entityDetails: Array<{
+            name: string;
+            type: string;
+            status: 'created' | 'merged' | 'skipped' | 'rejected' | 'failed';
+            reason?: string;
+            object_id?: string;
+            confidence?: number;
+            error?: string;
+          }> = [];
+
+          let rejectedCount = 0;
+
+          const recordProgress = async (progressOutcome: EntityOutcome) => {
+            if (totalEntities === 0) {
+              return;
+            }
+
+            processedEntities += 1;
+            outcomeCounts[progressOutcome] += 1;
+
+            try {
+              await this.jobService.updateProgress(
+                job.id,
+                processedEntities,
+                totalEntities
+              );
+            } catch (progressUpdateError) {
+              this.logger.warn(
+                `Failed to update progress for job ${job.id} at ${processedEntities}/${totalEntities}`,
+                progressUpdateError as Error
+              );
+            }
+
+            const percentComplete = Math.round(
+              (processedEntities / totalEntities) * 100
+            );
+            const shouldLogProgress =
+              totalEntities <= 10 ||
+              processedEntities === 1 ||
+              processedEntities === totalEntities ||
+              percentComplete >= lastLoggedPercent + 10;
+
+            if (shouldLogProgress) {
+              lastLoggedPercent = percentComplete;
+              this.logger.log(
+                `[PROGRESS] Job ${job.id}: ${processedEntities}/${totalEntities} (${percentComplete}%) entities processed (outcome=${progressOutcome})`
+              );
+            }
+          };
+
+          if (totalEntities > 0) {
+            try {
+              await this.jobService.updateProgress(job.id, 0, totalEntities);
+              this.logger.log(
+                `[PROGRESS] Job ${
+                  job.id
+                }: initialized progress tracking for ${totalEntities} entity${
+                  totalEntities === 1 ? '' : 'ies'
+                }`
+              );
+              pushTimelineEvent('progress_initialized', 'success', {
+                metadata: {
+                  total_entities: totalEntities,
+                },
+              });
+            } catch (progressInitError) {
+              this.logger.warn(
+                `Failed to initialize progress tracking for job ${job.id}`,
+                progressInitError as Error
+              );
+              pushTimelineEvent('progress_initialized', 'warning', {
+                message: toErrorMessage(progressInitError),
+              });
+            }
+          } else {
+            this.logger.log(
+              `Extraction job ${job.id} produced no entities to process`
+            );
+            pushTimelineEvent('progress_skipped', 'info', {
+              message: 'No entities returned from extraction',
+            });
+          }
+
+          // 6. Create graph objects from extracted entities
+          const createdObjectIds: string[] = [];
+          const reviewRequiredObjectIds: string[] = [];
+          const strategy = this.config.extractionEntityLinkingStrategy;
+
+          // Build batchEntityMap DURING object creation to ensure relationships
+          // use the newly created object IDs, not older objects with similar names
+          const batchEntityMap = new Map<string, string>();
+
+          // Helper function to add entity name variants to the map
+          const addToBatchEntityMap = (
+            entityName: string,
+            objectId: string
+          ) => {
+            // Add exact normalized name
+            const normalizedName = entityName.toLowerCase().trim();
+            if (!batchEntityMap.has(normalizedName)) {
+              batchEntityMap.set(normalizedName, objectId);
+            }
+            // Also add without common prefixes/articles for fuzzy matching
+            const withoutArticles = normalizedName
+              .replace(/^(the|a|an)\s+/i, '')
+              .trim();
+            if (
+              withoutArticles !== normalizedName &&
+              !batchEntityMap.has(withoutArticles)
+            ) {
+              batchEntityMap.set(withoutArticles, objectId);
+            }
+          };
+
+          const graphStep = beginTimelineStep('create_entities', {
+            strategy,
+          });
+
+          for (const entity of extractionResult.entities) {
+            let outcome:
+              | 'created'
+              | 'merged'
+              | 'skipped'
+              | 'rejected'
+              | 'failed' = 'skipped';
+
+            try {
+              // Calculate confidence score
+              // For LangGraph pipeline: use the pre-computed verification confidence
+              // For single_pass pipeline: use multi-factor algorithm + verification adjustment
+              let finalConfidence: number;
+
+              if (isLangGraphPipeline && entity.confidence !== undefined) {
+                // LangGraph pipeline already computed verification-weighted confidence:
+                // 40% name + 30% description + 30% properties
+                finalConfidence = entity.confidence;
+                this.logger.debug(
+                  `Entity ${
+                    entity.name
+                  }: using LangGraph verification confidence=${finalConfidence.toFixed(
+                    3
+                  )} ` + `(status: ${entity.verification_status || 'N/A'})`
+                );
+              } else {
+                // Single_pass pipeline: use multi-factor algorithm
+                const calculatedConfidence =
+                  this.confidenceScorer.calculateConfidence(
+                    entity,
+                    allowedTypes
+                  );
+
+                // Check verification results if available (single_pass only)
+                const normalizedEntityName = entity.name.toLowerCase().trim();
+                const verificationResult =
+                  verificationResults.get(normalizedEntityName);
+
+                // Apply verification adjustment to confidence
+                // - Verified entities get a confidence boost (up to 10%)
+                // - Rejected by verification get a penalty (up to 30%)
+                // - Uncertain entities keep original confidence
+                let verificationAdjustment = 0;
+                if (verificationResult) {
+                  if (verificationResult.verified) {
+                    // Boost confidence based on verification confidence (max 10%)
+                    verificationAdjustment = Math.min(
+                      0.1,
+                      verificationResult.confidence * 0.1
+                    );
+                    this.logger.debug(
+                      `Entity "${entity.name}" verified (Tier ${
+                        verificationResult.tier
+                      }): +${(verificationAdjustment * 100).toFixed(1)}%`
+                    );
+                  } else if (verificationResult.confidence < 0.3) {
+                    // Penalize low-confidence verification failures (max 30%)
+                    verificationAdjustment = -Math.min(
+                      0.3,
+                      (0.3 - verificationResult.confidence) * 0.5
+                    );
+                    this.logger.debug(
+                      `Entity "${entity.name}" verification failed (Tier ${
+                        verificationResult.tier
+                      }): ${(verificationAdjustment * 100).toFixed(1)}%`
+                    );
+                  }
+                }
+
+                // Apply verification adjustment and clamp to [0, 1]
+                finalConfidence = Math.max(
+                  0,
+                  Math.min(1, calculatedConfidence + verificationAdjustment)
+                );
+
+                this.logger.debug(
+                  `Entity ${
+                    entity.name
+                  }: calculated confidence=${finalConfidence.toFixed(3)} ` +
+                    `(LLM: ${entity.confidence?.toFixed(3) || 'N/A'})`
+                );
+              }
+
+              // Apply quality thresholds
+              const qualityDecision = this.applyQualityThresholds(
+                finalConfidence,
+                minThreshold,
+                reviewThreshold,
+                autoThreshold
+              );
+
+              if (qualityDecision === 'reject') {
+                rejectedCount += 1;
+                this.logger.debug(
+                  `Rejected entity ${
+                    entity.name
+                  }: confidence ${finalConfidence.toFixed(3)} ` +
+                    `below minimum threshold ${minThreshold}`
+                );
+                outcome = 'rejected';
+                entitySkipReasons.low_confidence++;
+                entityDetails.push({
+                  name: entity.name,
+                  type: entity.type_name,
+                  status: 'rejected',
+                  reason: 'low_confidence',
+                  confidence: finalConfidence,
+                });
+                await recordProgress(outcome);
+                continue; // Skip this entity
+              }
+
+              // Apply entity linking strategy
+              const linkingDecision =
+                await this.entityLinking.decideMergeAction(
+                  entity,
+                  job.project_id,
+                  strategy as 'key_match' | 'vector_similarity' | 'always_new'
+                );
+
+              if (linkingDecision.action === 'skip') {
+                // Object already exists with high similarity, skip creation
+                this.logger.debug(
+                  `Skipped entity ${entity.name}: already exists as ${linkingDecision.existingObjectId}`
+                );
+                // Still add to map so relationships can reference this entity
+                if (linkingDecision.existingObjectId) {
+                  addToBatchEntityMap(
+                    entity.name,
+                    linkingDecision.existingObjectId
+                  );
+                }
+                outcome = 'skipped';
+                entitySkipReasons.entity_linking_skip++;
+                entityDetails.push({
+                  name: entity.name,
+                  type: entity.type_name,
+                  status: 'skipped',
+                  reason: 'entity_linking_skip',
+                  object_id: linkingDecision.existingObjectId,
+                });
+                await recordProgress(outcome);
+                continue;
+              }
+
+              if (linkingDecision.action === 'merge') {
+                // Merge entity into existing object
+                await this.entityLinking.mergeEntityIntoObject(
+                  linkingDecision.existingObjectId!,
+                  entity,
+                  job.id
+                );
+
+                createdObjectIds.push(linkingDecision.existingObjectId!);
+
+                // Add to batchEntityMap for relationship resolution
+                addToBatchEntityMap(
+                  entity.name,
+                  linkingDecision.existingObjectId!
+                );
+
+                if (qualityDecision === 'review') {
+                  reviewRequiredObjectIds.push(
+                    linkingDecision.existingObjectId!
+                  );
+                }
+
+                this.logger.debug(
+                  `Merged entity ${entity.name} into existing object ${linkingDecision.existingObjectId} ` +
+                    `(confidence: ${finalConfidence.toFixed(
+                      3
+                    )}, decision: ${qualityDecision})`
+                );
+                outcome = 'merged';
+                await recordProgress(outcome);
+                continue;
+              }
+
+              // linkingDecision.action === 'create' - create new object
+              if (linkingDecision.action === 'create') {
+                // Determine labels based on quality decision
+                const labels: string[] = [];
+                if (qualityDecision === 'review') {
+                  labels.push('requires_review');
+                }
+
+                // Determine status based on confidence and auto-accept threshold
+                // High confidence (>= autoThreshold) → status='accepted' (will be embedded)
+                // Low confidence (< autoThreshold) → status='draft' (will NOT be embedded)
+                const status =
+                  finalConfidence >= autoThreshold ? 'accepted' : 'draft';
+
+                // NOTE: We no longer generate or check for duplicate keys.
+                // The `key` column is nullable and non-unique.
+                // Deduplication is handled by a separate merge process.
+                // The `id` (auto-generated UUID) is the unique identifier.
+
+                // Track object creation start time
+                const objectCreationStartTime = Date.now();
+
+                const graphObject = await this.graphService.createObject({
+                  org_id: organizationId ?? undefined,
+                  project_id: job.project_id,
+                  type: entity.type_name,
+                  key: undefined, // Key is no longer required - deduplication handled separately
+                  status: status,
+                  properties: {
+                    name: entity.name,
+                    description: entity.description,
+                    ...entity.properties,
+                    _extraction_confidence: finalConfidence,
+                    _extraction_llm_confidence: entity.confidence,
+                    _extraction_source: job.source_type,
+                    _extraction_source_id: job.source_id,
+                    _extraction_job_id: job.id,
+                  },
+                  labels,
+                });
+
+                createdObjectIds.push(graphObject.id);
+
+                // Add to batchEntityMap for relationship resolution
+                addToBatchEntityMap(entity.name, graphObject.id);
+
+                if (qualityDecision === 'review') {
+                  reviewRequiredObjectIds.push(graphObject.id);
+                }
+
+                // Log successful object creation (combined input + output)
+                await this.extractionLogger.logStep({
+                  extractionJobId: job.id,
+                  stepIndex: this.stepCounter++,
+                  operationType: 'object_creation',
+                  operationName: 'create_graph_object',
+                  status: 'completed',
+                  inputData: {
+                    entity_type: entity.type_name,
+                    entity_name: entity.name,
+                    entity_description: entity.description,
+                    entity_properties: entity.properties,
+                    confidence: finalConfidence,
+                    quality_decision: qualityDecision,
+                  },
+                  outputData: {
+                    object_id: graphObject.id,
+                    entity_name: entity.name,
+                    entity_type: entity.type_name,
+                    quality_decision: qualityDecision,
+                    requires_review: qualityDecision === 'review',
+                  },
+                  durationMs: Date.now() - objectCreationStartTime,
+                  metadata: {
+                    project_id: job.project_id,
+                    confidence: finalConfidence,
+                  },
+                });
+
+                this.logger.debug(
+                  `Created object ${graphObject.id}: ${entity.type_name} - ${entity.name} ` +
+                    `(confidence: ${finalConfidence.toFixed(
+                      3
+                    )}, decision: ${qualityDecision})`
+                );
+                outcome = 'created';
+              }
+            } catch (error) {
+              outcome = 'failed';
+              const err =
+                error instanceof Error ? error : new Error(String(error));
+
+              // Extract detailed error information from BadRequestException
+              let errorDetails: Record<string, any> | undefined;
+              if (error instanceof BadRequestException) {
+                const response = error.getResponse();
+                if (typeof response === 'object' && response !== null) {
+                  errorDetails = {
+                    code: (response as any).code,
+                    errors: (response as any).errors,
+                    entity_properties: entity.properties,
+                  };
+                }
+              }
+
+              // Log object creation error with full context
+              await this.extractionLogger.logStep({
+                extractionJobId: job.id,
+                stepIndex: this.stepCounter++,
+                operationType: 'error',
+                operationName: 'create_graph_object',
+                status: 'failed',
+                errorMessage: err.message,
+                errorStack: err.stack,
+                errorDetails,
+                metadata: {
+                  entity_name: entity.name,
+                  entity_type: entity.type_name,
+                  entity_properties: entity.properties,
+                  entity_description: entity.description,
+                },
+              });
+
+              this.logger.error(
+                `Failed to create object for entity ${entity.name} (${entity.type_name}): ${err.message}`,
+                err.stack
+              );
+              // Continue processing other entities
+            }
+
+            await recordProgress(outcome);
+          }
+
+          // 6b. batchEntityMap was populated during object creation above
+          // Log the map size for debugging
+          this.logger.debug(
+            `BatchEntityMap populated during creation with ${batchEntityMap.size} entity mappings`
+          );
+
+          // 6c. Process extracted relationships
+          let relationshipsCreated = 0;
+          let relationshipsSkipped = 0;
+          let relationshipsFailed = 0;
+          // Track skip reasons for better observability
+          const relationshipSkipReasons: Record<string, number> = {
+            source_not_resolved: 0,
+            target_not_resolved: 0,
+            duplicate: 0,
+            rejected_verification: 0,
+          };
+          // Detailed per-relationship results for tracing
+          const relationshipDetails: Array<{
+            type: string;
+            source: string;
+            target: string;
+            status: 'created' | 'skipped' | 'failed';
+            reason?: string;
+            source_id?: string;
+            target_id?: string;
+          }> = [];
+
+          if (
+            extractionResult.relationships &&
+            extractionResult.relationships.length > 0
+          ) {
+            const relStep = beginTimelineStep('create_relationships', {
+              total_relationships: extractionResult.relationships.length,
+            });
+
+            for (const rel of extractionResult.relationships) {
+              try {
+                // Resolve source entity ID
+                const sourceId = await this.resolveEntityReference(
+                  rel.source,
+                  batchEntityMap,
+                  job.project_id
+                );
+
+                // Resolve target entity ID
+                const targetId = await this.resolveEntityReference(
+                  rel.target,
+                  batchEntityMap,
+                  job.project_id
+                );
+
+                if (!sourceId) {
+                  this.logger.warn(
+                    `[Relationship] Could not resolve source entity: ${
+                      rel.source.name || rel.source.id
+                    } for relationship type ${rel.relationship_type}`
+                  );
+                  relationshipsSkipped++;
+                  relationshipSkipReasons.source_not_resolved++;
+                  relationshipDetails.push({
+                    type: rel.relationship_type,
+                    source: rel.source.name || rel.source.id || 'unknown',
+                    target: rel.target.name || rel.target.id || 'unknown',
+                    status: 'skipped',
+                    reason: `source_not_resolved: "${
+                      rel.source.name || rel.source.id
+                    }" not found in batch or database`,
+                  });
+                  continue;
+                }
+
+                if (!targetId) {
+                  this.logger.warn(
+                    `[Relationship] Could not resolve target entity: ${
+                      rel.target.name || rel.target.id
+                    } for relationship type ${rel.relationship_type}`
+                  );
+                  relationshipsSkipped++;
+                  relationshipSkipReasons.target_not_resolved++;
+                  relationshipDetails.push({
+                    type: rel.relationship_type,
+                    source: rel.source.name || rel.source.id || 'unknown',
+                    target: rel.target.name || rel.target.id || 'unknown',
+                    status: 'skipped',
+                    reason: `target_not_resolved: "${
+                      rel.target.name || rel.target.id
+                    }" not found in batch or database`,
+                    source_id: sourceId,
+                  });
+                  continue;
+                }
+
+                // Check verification status for LangGraph pipeline
+                // Skip rejected relationships (confidence below threshold)
+                if (rel.verification_status === 'rejected') {
+                  this.logger.debug(
+                    `[Relationship] Skipping rejected relationship: ${rel.relationship_type} ` +
+                      `(${rel.source.name || rel.source.id} → ${
+                        rel.target.name || rel.target.id
+                      }) ` +
+                      `confidence=${rel.confidence?.toFixed(3) || 'N/A'}`
+                  );
+                  relationshipsSkipped++;
+                  relationshipSkipReasons.rejected_verification++;
+                  relationshipDetails.push({
+                    type: rel.relationship_type,
+                    source: rel.source.name || rel.source.id || 'unknown',
+                    target: rel.target.name || rel.target.id || 'unknown',
+                    status: 'skipped',
+                    reason: `rejected_verification: confidence ${(
+                      (rel.confidence || 0) * 100
+                    ).toFixed(1)}% below threshold`,
+                    source_id: sourceId,
+                    target_id: targetId,
+                  });
+                  continue;
+                }
+
+                // Validate against relationship schema if available
+                if (
+                  relationshipSchemas &&
+                  relationshipSchemas[rel.relationship_type]
+                ) {
+                  const schema = relationshipSchemas[rel.relationship_type];
+                  // Could add source/target type validation here
+                  // For now, we just log that the relationship type is valid
+                  this.logger.debug(
+                    `[Relationship] Type ${rel.relationship_type} is valid per schema`
+                  );
+                }
+
+                // Create the relationship
+                await this.graphService.createRelationship(
+                  {
+                    type: rel.relationship_type,
+                    src_id: sourceId,
+                    dst_id: targetId,
+                    properties: {
+                      description: rel.description,
+                      _extraction_confidence: rel.confidence,
+                      _extraction_job_id: job.id,
+                      _extraction_source: 'llm',
+                    },
+                  },
+                  organizationId ?? '',
+                  job.project_id
+                );
+
+                relationshipsCreated++;
+                relationshipDetails.push({
+                  type: rel.relationship_type,
+                  source: rel.source.name || rel.source.id || 'unknown',
+                  target: rel.target.name || rel.target.id || 'unknown',
+                  status: 'created',
+                  source_id: sourceId,
+                  target_id: targetId,
+                });
+                this.logger.debug(
+                  `[Relationship] Created ${rel.relationship_type}: ${sourceId} → ${targetId}`
+                );
+              } catch (relError) {
+                const relErr =
+                  relError instanceof Error
+                    ? relError
+                    : new Error(String(relError));
+
+                // Handle duplicate relationship gracefully
+                if (
+                  relErr.message.includes('duplicate') ||
+                  relErr.message.includes('unique')
+                ) {
+                  this.logger.debug(
+                    `[Relationship] Skipped duplicate: ${rel.relationship_type}`
+                  );
+                  relationshipsSkipped++;
+                  relationshipSkipReasons.duplicate++;
+                  relationshipDetails.push({
+                    type: rel.relationship_type,
+                    source: rel.source.name || rel.source.id || 'unknown',
+                    target: rel.target.name || rel.target.id || 'unknown',
+                    status: 'skipped',
+                    reason: 'duplicate: relationship already exists',
+                  });
+                } else {
+                  this.logger.warn(
+                    `[Relationship] Failed to create ${rel.relationship_type}: ${relErr.message}`
+                  );
+                  relationshipsFailed++;
+                  relationshipDetails.push({
+                    type: rel.relationship_type,
+                    source: rel.source.name || rel.source.id || 'unknown',
+                    target: rel.target.name || rel.target.id || 'unknown',
+                    status: 'failed',
+                    reason: `error: ${relErr.message}`,
+                  });
+                }
+              }
+            }
+
+            relStep('success', {
+              metadata: {
+                created: relationshipsCreated,
+                skipped: relationshipsSkipped,
+                failed: relationshipsFailed,
+                skip_reasons: relationshipSkipReasons,
+                relationship_details: relationshipDetails,
+              },
+            });
+
+            this.logger.log(
+              `Relationships: ${relationshipsCreated} created, ${relationshipsSkipped} skipped (${relationshipSkipReasons.source_not_resolved} source unresolved, ${relationshipSkipReasons.target_not_resolved} target unresolved, ${relationshipSkipReasons.duplicate} duplicates), ${relationshipsFailed} failed`
+            );
+          }
+
+          graphStep('success', {
+            metadata: {
+              created: outcomeCounts.created,
+              merged: outcomeCounts.merged,
+              skipped: outcomeCounts.skipped,
+              rejected: outcomeCounts.rejected,
+              failed: outcomeCounts.failed,
+              review_required: reviewRequiredObjectIds.length,
+              relationships_created: relationshipsCreated,
+              relationships_skipped: relationshipsSkipped,
+              relationships_failed: relationshipsFailed,
+              relationship_skip_reasons: relationshipSkipReasons,
+              relationship_details: relationshipDetails,
+            },
+          });
+
+          // 7. Mark job as completed or requires_review
+          const requiresReview = reviewRequiredObjectIds.length > 0;
+          const duration = Date.now() - startTime;
+          const debugInfo = this.buildDebugInfo({
+            job,
+            startTime,
+            durationMs: duration,
+            timeline,
+            providerName,
+            extractionResult,
+            outcomeCounts,
+            createdObjectIds,
+            rejectedCount,
+            reviewRequiredCount: reviewRequiredObjectIds.length,
+            organizationId,
+            thresholds: thresholdsInfo,
+          });
+
+          if (requiresReview) {
+            // Job needs human review
+            await this.jobService.markCompleted(
+              job.id,
+              {
+                created_objects: createdObjectIds,
+                discovered_types: extractionResult.discovered_types,
+                successful_items:
+                  extractionResult.entities.length - rejectedCount,
+                total_items: extractionResult.entities.length,
+                rejected_items: rejectedCount,
+                review_required_count: reviewRequiredObjectIds.length,
+                debug_info: debugInfo,
+              },
+              'requires_review'
+            );
+
+            this.logger.log(
+              `Extraction job ${job.id} requires review: ` +
+                `${reviewRequiredObjectIds.length} objects need human validation, ` +
+                `${rejectedCount} rejected`
+            );
+
+            // Create notification about extraction completion (with review needed)
+            await this.createCompletionNotification(job, {
+              createdObjectIds,
+              objectsByType: this.countObjectsByType(
+                extractionResult.entities,
+                createdObjectIds
+              ),
+              averageConfidence: this.calculateAverageConfidence(
+                extractionResult.entities
+              ),
+              durationSeconds: (Date.now() - startTime) / 1000,
+              requiresReview: reviewRequiredObjectIds.length,
+              lowConfidenceCount: reviewRequiredObjectIds.length,
+            });
+          } else {
+            // Job completed successfully
+            await this.jobService.markCompleted(job.id, {
+              created_objects: createdObjectIds,
+              discovered_types: extractionResult.discovered_types,
+              successful_items:
+                extractionResult.entities.length - rejectedCount,
+              total_items: extractionResult.entities.length,
+              rejected_items: rejectedCount,
+              debug_info: debugInfo,
+            });
+
+            // Create notification about successful extraction
+            await this.createCompletionNotification(job, {
+              createdObjectIds,
+              objectsByType: this.countObjectsByType(
+                extractionResult.entities,
+                createdObjectIds
+              ),
+              averageConfidence: this.calculateAverageConfidence(
+                extractionResult.entities
+              ),
+              durationSeconds: (Date.now() - startTime) / 1000,
+            });
+          }
+
+          this.logger.log(
+            `Completed extraction job ${job.id}: ` +
+              `${createdObjectIds.length} objects created, ` +
+              `${rejectedCount} rejected, ` +
+              `${reviewRequiredObjectIds.length} need review, ` +
+              `${
+                extractionResult.discovered_types?.length || 0
+              } types discovered, ` +
+              `${duration}ms`
+          );
+
+          // Log completion to monitoring system
+          await this.monitoringLogger.logProcessEvent({
+            processId: job.id,
+            processType: 'extraction_job',
+            level: 'info',
+            message: 'Extraction job completed successfully',
+            projectId: job.project_id,
+            metadata: {
+              created_objects: createdObjectIds.length,
+              rejected: rejectedCount,
+              review_required: reviewRequiredObjectIds.length,
+              discovered_types: extractionResult.discovered_types?.length || 0,
+              duration_ms: duration,
+            },
+          });
+
+          pushTimelineEvent('job_completed', 'success', {
+            durationMs: duration,
+            metadata: {
+              created_objects: createdObjectIds.length,
+              rejected: rejectedCount,
+              review_required: reviewRequiredObjectIds.length,
+            },
+          });
+
+          this.processedCount++;
+          this.successCount++;
+
+          if (traceId) {
+            await this.langfuseService.finalizeTrace(traceId, 'success', {
+              entities_count: extractionResult.entities.length,
+              relationships_count: extractionResult.relationships?.length || 0,
+              discovered_types_count:
+                extractionResult.discovered_types?.length || 0,
+              duration_ms: duration,
+            });
+          }
+
+          // Set OTEL span status for success
+          jobSpan.setAttribute(
+            'job.entities_count',
+            extractionResult.entities.length
+          );
+          jobSpan.setAttribute(
+            'job.relationships_count',
+            extractionResult.relationships?.length || 0
+          );
+          jobSpan.setAttribute('job.created_objects', createdObjectIds.length);
+          jobSpan.setAttribute('job.rejected_count', rejectedCount);
+          jobSpan.setAttribute(
+            'job.review_required',
+            reviewRequiredObjectIds.length
+          );
+          jobSpan.setAttribute('job.duration_ms', duration);
+          jobSpan.setStatus({ code: SpanStatusCode.OK });
+        } catch (error) {
+          this.logger.error(`Extraction job ${job.id} failed`, error);
+
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+          const willRetry = await this.willRetryJob(job.id);
+
+          // Log failure to monitoring system
+          await this.monitoringLogger.logProcessEvent({
+            processId: job.id,
+            processType: 'extraction_job',
+            level: 'error',
+            message: `Extraction job failed: ${errorMessage}`,
+            projectId: job.project_id,
+            metadata: {
+              error: errorMessage,
+              will_retry: willRetry,
+              duration_ms: Date.now() - startTime,
+            },
+          });
+
+          pushTimelineEvent('job_failed', 'error', {
+            message: errorMessage,
+            metadata: {
+              will_retry: willRetry,
+            },
+            durationMs: Date.now() - startTime,
+          });
+
+          const debugInfo = this.buildDebugInfo({
+            job,
+            startTime,
+            durationMs: Date.now() - startTime,
+            timeline,
+            providerName,
+            extractionResult,
+            errorMessage,
+            organizationId,
+            thresholds: thresholdsInfo,
+          });
+
+          await this.jobService.markFailed(
+            job.id,
+            errorMessage,
+            {
+              error: errorMessage,
+              stack: error instanceof Error ? error.stack : undefined,
+            },
+            debugInfo
+          );
+
+          // Create failure notification
+          await this.createFailureNotification(job, {
+            errorMessage,
+            willRetry,
+          });
+
+          if (traceId) {
+            await this.langfuseService.finalizeTrace(traceId, 'error', {
+              error: errorMessage,
+              entities_count: extractionResult?.entities?.length || 0,
+              relationships_count: extractionResult?.relationships?.length || 0,
+              discovered_types_count:
+                extractionResult?.discovered_types?.length || 0,
+              duration_ms: Date.now() - startTime,
+            });
+          }
+
+          // Set OTEL span status for error
+          const err = error instanceof Error ? error : new Error(String(error));
+          jobSpan.setAttribute('job.duration_ms', Date.now() - startTime);
+          jobSpan.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: err.message,
+          });
+          jobSpan.recordException(err);
+
+          this.processedCount++;
+          this.failureCount++;
+        } finally {
+          jobSpan.end();
+        }
       }
-
-      this.logger.log(
-        `Completed extraction job ${job.id}: ` +
-          `${createdObjectIds.length} objects created, ` +
-          `${rejectedCount} rejected, ` +
-          `${reviewRequiredObjectIds.length} need review, ` +
-          `${
-            extractionResult.discovered_types?.length || 0
-          } types discovered, ` +
-          `${duration}ms`
-      );
-
-      // Log completion to monitoring system
-      await this.monitoringLogger.logProcessEvent({
-        processId: job.id,
-        processType: 'extraction_job',
-        level: 'info',
-        message: 'Extraction job completed successfully',
-        projectId: job.project_id,
-        metadata: {
-          created_objects: createdObjectIds.length,
-          rejected: rejectedCount,
-          review_required: reviewRequiredObjectIds.length,
-          discovered_types: extractionResult.discovered_types?.length || 0,
-          duration_ms: duration,
-        },
-      });
-
-      pushTimelineEvent('job_completed', 'success', {
-        durationMs: duration,
-        metadata: {
-          created_objects: createdObjectIds.length,
-          rejected: rejectedCount,
-          review_required: reviewRequiredObjectIds.length,
-        },
-      });
-
-      this.processedCount++;
-      this.successCount++;
-
-      if (traceId) {
-        await this.langfuseService.finalizeTrace(traceId, 'success', {
-          entities_count: extractionResult.entities.length,
-          relationships_count: extractionResult.relationships?.length || 0,
-          discovered_types_count:
-            extractionResult.discovered_types?.length || 0,
-          duration_ms: duration,
-        });
-      }
-    } catch (error) {
-      this.logger.error(`Extraction job ${job.id} failed`, error);
-
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      const willRetry = await this.willRetryJob(job.id);
-
-      // Log failure to monitoring system
-      await this.monitoringLogger.logProcessEvent({
-        processId: job.id,
-        processType: 'extraction_job',
-        level: 'error',
-        message: `Extraction job failed: ${errorMessage}`,
-        projectId: job.project_id,
-        metadata: {
-          error: errorMessage,
-          will_retry: willRetry,
-          duration_ms: Date.now() - startTime,
-        },
-      });
-
-      pushTimelineEvent('job_failed', 'error', {
-        message: errorMessage,
-        metadata: {
-          will_retry: willRetry,
-        },
-        durationMs: Date.now() - startTime,
-      });
-
-      const debugInfo = this.buildDebugInfo({
-        job,
-        startTime,
-        durationMs: Date.now() - startTime,
-        timeline,
-        providerName,
-        extractionResult,
-        errorMessage,
-        organizationId,
-        thresholds: thresholdsInfo,
-      });
-
-      await this.jobService.markFailed(
-        job.id,
-        errorMessage,
-        {
-          error: errorMessage,
-          stack: error instanceof Error ? error.stack : undefined,
-        },
-        debugInfo
-      );
-
-      // Create failure notification
-      await this.createFailureNotification(job, {
-        errorMessage,
-        willRetry,
-      });
-
-      if (traceId) {
-        await this.langfuseService.finalizeTrace(traceId, 'error', {
-          error: errorMessage,
-          entities_count: extractionResult?.entities?.length || 0,
-          relationships_count: extractionResult?.relationships?.length || 0,
-          discovered_types_count:
-            extractionResult?.discovered_types?.length || 0,
-          duration_ms: Date.now() - startTime,
-        });
-      }
-
-      this.processedCount++;
-      this.failureCount++;
-    }
+    );
   }
 
   private buildDebugInfo(args: BuildDebugInfoArgs): Record<string, any> {

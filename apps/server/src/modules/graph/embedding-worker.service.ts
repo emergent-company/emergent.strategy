@@ -21,6 +21,7 @@ import {
 import { GraphObject } from '../../entities/graph-object.entity';
 import { LangfuseService } from '../langfuse/langfuse.service';
 import { EventsService } from '../events/events.service';
+import { trace, SpanStatusCode, Tracer } from '@opentelemetry/api';
 
 /**
  * EmbeddingWorkerService
@@ -37,6 +38,7 @@ import { EventsService } from '../events/events.service';
 @Injectable()
 export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EmbeddingWorkerService.name);
+  private readonly tracer: Tracer = trace.getTracer('embedding-worker');
   private timer: NodeJS.Timeout | null = null;
   private running = false;
   private currentBatch: Promise<void> | null = null;
@@ -160,228 +162,292 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
 
   // Exposed for tests (invoke directly to avoid timer delay) - Migrated to TypeORM
   async processBatch() {
-    if (!this.config?.embeddingsEnabled) {
-      // Still allow dummy embedding so queued jobs drain; if we want strict gating, return early instead.
-    }
-    const batch: EmbeddingJobRow[] = await this.jobs.dequeue(
-      parseInt(process.env.EMBEDDING_WORKER_BATCH || '5', 10)
-    );
-    if (!batch.length) return;
-
-    for (const job of batch) {
-      const startTime = Date.now();
-
-      // Create a trace for this embedding job
-      // Use short object_id (last 12 chars) for readability, full ID in metadata
-      const shortObjectId = job.object_id.split('-').pop() || job.object_id;
-      const traceId = this.langfuseService?.createJobTrace(
-        job.id,
-        {
-          name: `Graph Object Embedding ${shortObjectId}`,
-          object_id: job.object_id,
-          job_type: 'graph_object_embedding',
-        },
-        undefined, // environment (use default)
-        'embedding' // traceType for filtering
-      );
-
-      // Track projectId for error event emission
-      let projectId: string | null = null;
-
-      try {
-        // Use TypeORM to fetch graph object
-        const obj = await this.graphObjectRepo.findOne({
-          where: { id: job.object_id },
-          select: ['id', 'properties', 'type', 'key', 'projectId'],
-        });
-
-        if (!obj) {
-          await this.jobs.markFailed(job.id, new Error('object_missing'), 5);
-          if (traceId) {
-            await this.langfuseService?.finalizeTrace(traceId, 'error', {
-              error: 'object_missing',
-            });
+    return this.tracer.startActiveSpan(
+      'embedding-worker.processBatch',
+      async (batchSpan) => {
+        try {
+          if (!this.config?.embeddingsEnabled) {
+            // Still allow dummy embedding so queued jobs drain; if we want strict gating, return early instead.
           }
-          continue;
+          const batch: EmbeddingJobRow[] = await this.jobs.dequeue(
+            parseInt(process.env.EMBEDDING_WORKER_BATCH || '5', 10)
+          );
+
+          batchSpan.setAttribute('batch.size', batch.length);
+
+          if (!batch.length) {
+            batchSpan.setStatus({ code: SpanStatusCode.OK });
+            batchSpan.end();
+            return;
+          }
+
+          for (const job of batch) {
+            await this.processJob(job);
+          }
+
+          batchSpan.setStatus({ code: SpanStatusCode.OK });
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          batchSpan.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: err.message,
+          });
+          batchSpan.recordException(err);
+          throw error;
+        } finally {
+          batchSpan.end();
         }
+      }
+    );
+  }
 
-        // Store projectId for error event emission
-        projectId = obj.projectId;
+  /**
+   * Process a single embedding job with OTEL tracing
+   */
+  private async processJob(job: EmbeddingJobRow) {
+    return this.tracer.startActiveSpan(
+      'embedding-worker.processJob',
+      { attributes: { 'job.id': job.id, 'job.object_id': job.object_id } },
+      async (jobSpan) => {
+        const startTime = Date.now();
 
-        // Emit real-time event: embedding job started processing
-        if (this.eventsService && obj.projectId) {
-          this.eventsService.emitUpdated(
-            'graph_object',
-            obj.id,
-            obj.projectId,
-            {
-              embeddingStatus: 'processing',
-              embeddingJobId: job.id,
+        // Create a trace for this embedding job
+        // Use short object_id (last 12 chars) for readability, full ID in metadata
+        const shortObjectId = job.object_id.split('-').pop() || job.object_id;
+        const traceId = this.langfuseService?.createJobTrace(
+          job.id,
+          {
+            name: `Graph Object Embedding ${shortObjectId}`,
+            object_id: job.object_id,
+            job_type: 'graph_object_embedding',
+          },
+          undefined, // environment (use default)
+          'embedding' // traceType for filtering
+        );
+
+        // Track projectId for error event emission
+        let projectId: string | null = null;
+
+        try {
+          // Use TypeORM to fetch graph object
+          const obj = await this.graphObjectRepo.findOne({
+            where: { id: job.object_id },
+            select: ['id', 'properties', 'type', 'key', 'projectId'],
+          });
+
+          if (!obj) {
+            await this.jobs.markFailed(job.id, new Error('object_missing'), 5);
+            if (traceId) {
+              await this.langfuseService?.finalizeTrace(traceId, 'error', {
+                error: 'object_missing',
+              });
             }
-          );
-        }
+            jobSpan.setStatus({
+              code: SpanStatusCode.ERROR,
+              message: 'object_missing',
+            });
+            jobSpan.end();
+            return;
+          }
 
-        // Create span for text extraction
-        const extractSpan = traceId
-          ? this.langfuseService?.createSpan(traceId, 'extract_text', {
-              object_id: obj.id,
-              object_type: obj.type,
-              object_key: obj.key,
-            })
-          : null;
+          jobSpan.setAttribute('object.type', obj.type);
+          jobSpan.setAttribute('object.key', obj.key || '');
 
-        const text = this.extractText(obj);
-        const textLength = text.length;
+          // Store projectId for error event emission
+          projectId = obj.projectId;
 
-        if (extractSpan) {
-          this.langfuseService?.endSpan(
-            extractSpan,
-            { text_length: textLength, text_preview: text.slice(0, 200) },
-            'success'
-          );
-        }
-
-        // Create embedding generation observation (supports token/cost tracking)
-        const embedGeneration = traceId
-          ? this.langfuseService?.createEmbeddingGeneration(
-              traceId,
-              'generate_embedding',
+          // Emit real-time event: embedding job started processing
+          if (this.eventsService && obj.projectId) {
+            this.eventsService.emitUpdated(
+              'graph_object',
+              obj.id,
+              obj.projectId,
               {
-                text_length: textLength,
-                text_preview: text.slice(0, 500),
-                provider: this.provider ? 'vertex' : 'dummy_sha256',
-              },
-              this.provider ? 'text-embedding-004' : 'dummy-sha256',
-              {
-                operation: 'graph_object_embedding',
+                embeddingStatus: 'processing',
+                embeddingJobId: job.id,
+              }
+            );
+          }
+
+          // Create span for text extraction
+          const extractSpan = traceId
+            ? this.langfuseService?.createSpan(traceId, 'extract_text', {
                 object_id: obj.id,
                 object_type: obj.type,
-              }
-            )
-          : null;
+                object_key: obj.key,
+              })
+            : null;
 
-        const embeddingStartTime = Date.now();
-        const embeddingProvider =
-          this.provider || new DummySha256EmbeddingProvider();
-        const embeddingResult = await embeddingProvider.generate(text);
-        const embeddingDurationMs = Date.now() - embeddingStartTime;
+          const text = this.extractText(obj);
+          const textLength = text.length;
+          jobSpan.setAttribute('text.length', textLength);
 
-        // Update embedding generation with output and usage
-        if (embedGeneration) {
-          this.langfuseService?.updateEmbeddingGeneration(
-            embedGeneration,
-            {
-              dimensions: embeddingResult.embedding.length,
-              duration_ms: embeddingDurationMs,
-              model: embeddingResult.model,
-            },
-            embeddingResult.usage
-              ? {
-                  input: embeddingResult.usage.promptTokens,
-                  total: embeddingResult.usage.totalTokens,
-                }
-              : undefined,
-            embeddingResult.model,
-            'success'
-          );
-        }
-
-        // Create span for database update
-        const updateSpan = traceId
-          ? this.langfuseService?.createSpan(traceId, 'update_embedding', {
-              object_id: obj.id,
-              dimensions: embeddingResult.embedding.length,
-            })
-          : null;
-
-        // Use TypeORM to update embedding_v2 (768 dimensions)
-        // Fixed: Previously wrote to 'embedding' (bytea) but search reads from vector column
-        // See: docs/bugs/004-embedding-column-mismatch.md
-        await this.graphObjectRepo.update(
-          { id: obj.id },
-          {
-            embeddingV2: embeddingResult.embedding,
-            embeddingUpdatedAt: new Date(),
+          if (extractSpan) {
+            this.langfuseService?.endSpan(
+              extractSpan,
+              { text_length: textLength, text_preview: text.slice(0, 200) },
+              'success'
+            );
           }
-        );
 
-        if (updateSpan) {
-          this.langfuseService?.endSpan(
-            updateSpan,
-            { success: true },
-            'success'
+          // Create embedding generation observation (supports token/cost tracking)
+          const embedGeneration = traceId
+            ? this.langfuseService?.createEmbeddingGeneration(
+                traceId,
+                'generate_embedding',
+                {
+                  text_length: textLength,
+                  text_preview: text.slice(0, 500),
+                  provider: this.provider ? 'vertex' : 'dummy_sha256',
+                },
+                this.provider ? 'text-embedding-004' : 'dummy-sha256',
+                {
+                  operation: 'graph_object_embedding',
+                  object_id: obj.id,
+                  object_type: obj.type,
+                }
+              )
+            : null;
+
+          const embeddingStartTime = Date.now();
+          const embeddingProvider =
+            this.provider || new DummySha256EmbeddingProvider();
+          const embeddingResult = await embeddingProvider.generate(text);
+          const embeddingDurationMs = Date.now() - embeddingStartTime;
+
+          jobSpan.setAttribute(
+            'embedding.dimensions',
+            embeddingResult.embedding.length
           );
-        }
+          jobSpan.setAttribute('embedding.duration_ms', embeddingDurationMs);
 
-        await this.jobs.markCompleted(job.id);
+          // Update embedding generation with output and usage
+          if (embedGeneration) {
+            this.langfuseService?.updateEmbeddingGeneration(
+              embedGeneration,
+              {
+                dimensions: embeddingResult.embedding.length,
+                duration_ms: embeddingDurationMs,
+                model: embeddingResult.model,
+              },
+              embeddingResult.usage
+                ? {
+                    input: embeddingResult.usage.promptTokens,
+                    total: embeddingResult.usage.totalTokens,
+                  }
+                : undefined,
+              embeddingResult.model,
+              'success'
+            );
+          }
 
-        // Emit real-time event: embedding completed successfully
-        if (this.eventsService && obj.projectId) {
-          this.eventsService.emitUpdated(
-            'graph_object',
-            obj.id,
-            obj.projectId,
+          // Create span for database update
+          const updateSpan = traceId
+            ? this.langfuseService?.createSpan(traceId, 'update_embedding', {
+                object_id: obj.id,
+                dimensions: embeddingResult.embedding.length,
+              })
+            : null;
+
+          // Use TypeORM to update embedding_v2 (768 dimensions)
+          // Fixed: Previously wrote to 'embedding' (bytea) but search reads from vector column
+          // See: docs/bugs/004-embedding-column-mismatch.md
+          await this.graphObjectRepo.update(
+            { id: obj.id },
             {
-              embeddingStatus: 'completed',
-              hasEmbedding: true,
-              embeddingDimensions: embeddingResult.embedding.length,
+              embeddingV2: embeddingResult.embedding,
+              embeddingUpdatedAt: new Date(),
             }
           );
-        }
 
-        const totalDurationMs = Date.now() - startTime;
+          if (updateSpan) {
+            this.langfuseService?.endSpan(
+              updateSpan,
+              { success: true },
+              'success'
+            );
+          }
 
-        // Finalize trace with success
-        if (traceId) {
-          await this.langfuseService?.finalizeTrace(traceId, 'success', {
-            object_id: obj.id,
-            object_type: obj.type,
-            text_length: textLength,
-            embedding_dimensions: embeddingResult.embedding.length,
-            model: embeddingResult.model,
-            usage: embeddingResult.usage,
-            duration_ms: totalDurationMs,
-          });
-        }
+          await this.jobs.markCompleted(job.id);
 
-        this.logger.debug(
-          `Generated embedding for graph object ${obj.id} (${obj.type}): ` +
-            `${embeddingResult.embedding.length} dims, ${textLength} chars, ${totalDurationMs}ms`
-        );
+          // Emit real-time event: embedding completed successfully
+          if (this.eventsService && obj.projectId) {
+            this.eventsService.emitUpdated(
+              'graph_object',
+              obj.id,
+              obj.projectId,
+              {
+                embeddingStatus: 'completed',
+                hasEmbedding: true,
+                embeddingDimensions: embeddingResult.embedding.length,
+              }
+            );
+          }
 
-        this.processedCount++;
-        this.successCount++;
-      } catch (err) {
-        const totalDurationMs = Date.now() - startTime;
-        const errorMessage = err instanceof Error ? err.message : String(err);
+          const totalDurationMs = Date.now() - startTime;
 
-        // Finalize trace with error
-        if (traceId) {
-          await this.langfuseService?.finalizeTrace(traceId, 'error', {
-            error: errorMessage,
-            duration_ms: totalDurationMs,
-          });
-        }
+          // Finalize trace with success
+          if (traceId) {
+            await this.langfuseService?.finalizeTrace(traceId, 'success', {
+              object_id: obj.id,
+              object_type: obj.type,
+              text_length: textLength,
+              embedding_dimensions: embeddingResult.embedding.length,
+              model: embeddingResult.model,
+              usage: embeddingResult.usage,
+              duration_ms: totalDurationMs,
+            });
+          }
 
-        // Emit real-time event: embedding failed
-        // Only emit if we have projectId (i.e., object was found)
-        if (this.eventsService && projectId) {
-          this.eventsService.emitUpdated(
-            'graph_object',
-            job.object_id,
-            projectId,
-            {
-              embeddingStatus: 'failed',
-              embeddingError: errorMessage,
-            }
+          this.logger.debug(
+            `Generated embedding for graph object ${obj.id} (${obj.type}): ` +
+              `${embeddingResult.embedding.length} dims, ${textLength} chars, ${totalDurationMs}ms`
           );
-        }
 
-        await this.jobs.markFailed(job.id, err as Error);
-        this.processedCount++;
-        this.failureCount++;
+          this.processedCount++;
+          this.successCount++;
+          jobSpan.setStatus({ code: SpanStatusCode.OK });
+        } catch (err) {
+          const totalDurationMs = Date.now() - startTime;
+          const errorMessage = err instanceof Error ? err.message : String(err);
+
+          // Finalize trace with error
+          if (traceId) {
+            await this.langfuseService?.finalizeTrace(traceId, 'error', {
+              error: errorMessage,
+              duration_ms: totalDurationMs,
+            });
+          }
+
+          // Emit real-time event: embedding failed
+          // Only emit if we have projectId (i.e., object was found)
+          if (this.eventsService && projectId) {
+            this.eventsService.emitUpdated(
+              'graph_object',
+              job.object_id,
+              projectId,
+              {
+                embeddingStatus: 'failed',
+                embeddingError: errorMessage,
+              }
+            );
+          }
+
+          await this.jobs.markFailed(job.id, err as Error);
+          this.processedCount++;
+          this.failureCount++;
+
+          const error = err instanceof Error ? err : new Error(String(err));
+          jobSpan.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: errorMessage,
+          });
+          jobSpan.recordException(error);
+        } finally {
+          jobSpan.end();
+        }
       }
-    }
+    );
   }
 
   private extractText(row: {

@@ -6,6 +6,7 @@ import {
   Inject,
   Optional,
 } from '@nestjs/common';
+import { trace, SpanStatusCode, Tracer } from '@opentelemetry/api';
 import { ExternalSourcesService } from './external-sources.service';
 import { DatabaseService } from '../../common/database/database.service';
 import { LangfuseService } from '../langfuse/langfuse.service';
@@ -41,6 +42,11 @@ export class ExternalSourceSyncWorkerService
   private successCount = 0;
   private failureCount = 0;
   private skippedCount = 0;
+
+  // OpenTelemetry tracer for creating parent spans
+  private readonly tracer: Tracer = trace.getTracer(
+    'external-source-sync-worker'
+  );
 
   constructor(
     @Inject(ExternalSourcesService)
@@ -145,129 +151,166 @@ export class ExternalSourceSyncWorkerService
    * Process a batch of sources due for sync
    */
   async processBatch() {
-    const batchSize = parseInt(
-      process.env.EXTERNAL_SOURCE_SYNC_WORKER_BATCH || '10',
-      10
+    return this.tracer.startActiveSpan(
+      'external-source-sync-worker.processBatch',
+      async (batchSpan) => {
+        try {
+          const batchSize = parseInt(
+            process.env.EXTERNAL_SOURCE_SYNC_WORKER_BATCH || '10',
+            10
+          );
+
+          // Get sources that are due for periodic sync
+          const sources = await this.externalSources.getSourcesDueForSync(
+            batchSize
+          );
+
+          batchSpan.setAttribute('batch.config_size', batchSize);
+          batchSpan.setAttribute('batch.actual_size', sources.length);
+
+          if (!sources.length) {
+            batchSpan.setAttribute('batch.empty', true);
+            batchSpan.setStatus({ code: SpanStatusCode.OK });
+            return;
+          }
+
+          this.logger.debug(
+            `Processing ${sources.length} external source sync(s)`
+          );
+
+          for (const source of sources) {
+            await this.processSingleSource(source, batchSpan);
+          }
+
+          batchSpan.setStatus({ code: SpanStatusCode.OK });
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          batchSpan.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: err.message,
+          });
+          batchSpan.recordException(err);
+          throw error;
+        } finally {
+          batchSpan.end();
+        }
+      }
+    );
+  }
+
+  /**
+   * Process a single source sync with tracing
+   */
+  private async processSingleSource(
+    source: Awaited<
+      ReturnType<ExternalSourcesService['getSourcesDueForSync']>
+    >[0],
+    _parentSpan: any
+  ) {
+    const startTime = Date.now();
+
+    // Create trace for this sync operation
+    const traceId = this.langfuseService?.createJobTrace(
+      source.id,
+      {
+        name: `External Source Sync: ${
+          source.displayName || source.normalizedUrl
+        }`,
+        source_id: source.id,
+        provider_type: source.providerType,
+        normalized_url: source.normalizedUrl,
+        job_type: 'external_source_sync',
+      },
+      undefined,
+      'external-source-sync'
     );
 
-    // Get sources that are due for periodic sync
-    const sources = await this.externalSources.getSourcesDueForSync(batchSize);
+    try {
+      // Create span for sync operation
+      const syncSpan = traceId
+        ? this.langfuseService?.createSpan(traceId, 'sync_source', {
+            source_id: source.id,
+            provider_type: source.providerType,
+            last_synced_at: source.lastSyncedAt?.toISOString(),
+          })
+        : null;
 
-    if (!sources.length) {
-      return;
-    }
+      const result = await this.externalSources.syncSource(source.id, {
+        force: false,
+      });
 
-    this.logger.debug(`Processing ${sources.length} external source sync(s)`);
+      const durationMs = Date.now() - startTime;
 
-    for (const source of sources) {
-      const startTime = Date.now();
+      if (syncSpan) {
+        this.langfuseService?.endSpan(
+          syncSpan,
+          {
+            success: result.success,
+            updated: result.updated,
+            document_id: result.documentId,
+            duration_ms: durationMs,
+          },
+          result.success ? 'success' : 'error'
+        );
+      }
 
-      // Create trace for this sync operation
-      const traceId = this.langfuseService?.createJobTrace(
-        source.id,
-        {
-          name: `External Source Sync: ${
-            source.displayName || source.normalizedUrl
-          }`,
-          source_id: source.id,
-          provider_type: source.providerType,
-          normalized_url: source.normalizedUrl,
-          job_type: 'external_source_sync',
-        },
-        undefined,
-        'external-source-sync'
-      );
+      if (result.success) {
+        this.processedCount++;
+        this.successCount++;
 
-      try {
-        // Create span for sync operation
-        const syncSpan = traceId
-          ? this.langfuseService?.createSpan(traceId, 'sync_source', {
-              source_id: source.id,
-              provider_type: source.providerType,
-              last_synced_at: source.lastSyncedAt?.toISOString(),
-            })
-          : null;
-
-        const result = await this.externalSources.syncSource(source.id, {
-          force: false,
-        });
-
-        const durationMs = Date.now() - startTime;
-
-        if (syncSpan) {
-          this.langfuseService?.endSpan(
-            syncSpan,
-            {
-              success: result.success,
-              updated: result.updated,
-              document_id: result.documentId,
-              duration_ms: durationMs,
-            },
-            result.success ? 'success' : 'error'
+        if (result.updated) {
+          this.logger.log(
+            `Synced external source ${source.id} (${
+              source.displayName || source.normalizedUrl
+            }): ` + `new document ${result.documentId}, ${durationMs}ms`
           );
-        }
-
-        if (result.success) {
-          this.processedCount++;
-          this.successCount++;
-
-          if (result.updated) {
-            this.logger.log(
-              `Synced external source ${source.id} (${
-                source.displayName || source.normalizedUrl
-              }): ` + `new document ${result.documentId}, ${durationMs}ms`
-            );
-          } else {
-            this.skippedCount++;
-            this.logger.debug(
-              `External source ${source.id} up-to-date, no changes`
-            );
-          }
-
-          if (traceId) {
-            await this.langfuseService?.finalizeTrace(traceId, 'success', {
-              updated: result.updated,
-              document_id: result.documentId,
-              duration_ms: durationMs,
-            });
-          }
         } else {
-          this.processedCount++;
-          this.failureCount++;
-
-          this.logger.warn(
-            `Failed to sync external source ${source.id}: ${result.error}`
+          this.skippedCount++;
+          this.logger.debug(
+            `External source ${source.id} up-to-date, no changes`
           );
-
-          if (traceId) {
-            await this.langfuseService?.finalizeTrace(traceId, 'error', {
-              error: result.error,
-              duration_ms: durationMs,
-            });
-          }
         }
-      } catch (err) {
-        const durationMs = Date.now() - startTime;
-        const errorMessage = err instanceof Error ? err.message : String(err);
 
+        if (traceId) {
+          await this.langfuseService?.finalizeTrace(traceId, 'success', {
+            updated: result.updated,
+            document_id: result.documentId,
+            duration_ms: durationMs,
+          });
+        }
+      } else {
         this.processedCount++;
         this.failureCount++;
 
-        this.logger.error(
-          `Error syncing external source ${source.id}: ${errorMessage}`
+        this.logger.warn(
+          `Failed to sync external source ${source.id}: ${result.error}`
         );
 
         if (traceId) {
           await this.langfuseService?.finalizeTrace(traceId, 'error', {
-            error: errorMessage,
+            error: result.error,
             duration_ms: durationMs,
           });
         }
       }
-    }
+    } catch (err) {
+      const durationMs = Date.now() - startTime;
+      const errorMessage = err instanceof Error ? err.message : String(err);
 
-    // Also process sources that need retry (have errors but not disabled)
-    await this.processRetries(batchSize);
+      this.processedCount++;
+      this.failureCount++;
+
+      this.logger.error(
+        `Error syncing external source ${source.id}: ${errorMessage}`
+      );
+
+      if (traceId) {
+        await this.langfuseService?.finalizeTrace(traceId, 'error', {
+          error: errorMessage,
+          duration_ms: durationMs,
+        });
+      }
+    }
   }
 
   /**
